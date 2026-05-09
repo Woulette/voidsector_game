@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoidSector - Prototype jouable</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="dashboard" class="dashboard">
+    <header class="topbar">
+      <section class="pilot-card frame">
+        <div class="pilot-avatar">
+          <img src="assets/icons/profile.svg" alt="Profil pilote">
+        </div>
+        <div>
+          <span class="tiny">COMMANDANT</span>
+          <h1 id="pilotName">NOVA-37</h1>
+          <div id="pilotRank" class="pilot-rank-line">Aucun grade</div>
+          <div class="level-line">
+            <span id="levelText">NIV. 1</span>
+            <div class="mini-bar"><span id="xpFill"></span></div>
+            <span id="xpText">0 / 100</span>
+          </div>
+        </div>
+          <small id="pilotStats" class="pilot-stats">0 kills · score 0</small>
+      </section>
+
+      <nav class="top-nav frame">
+        <button class="nav-tab active" data-view="hangar">HANGAR</button>
+        <button class="nav-tab" data-view="shop">MAGASIN</button>
+        <button class="nav-tab" data-view="portals">PORTAILS</button>
+        <button class="nav-tab" data-view="skills">COMPÉTENCES</button>
+        <button class="nav-tab" data-view="settings">PARAMÈTRES</button>
+        <button class="nav-tab" data-view="leaderboard">CLASSEMENT</button>
+      </nav>
+
+      <button id="startGameBtn" class="start-button">
+        <strong>DÉPART</strong>
+        <span>LANCER LA MISSION</span>
+      </button>
+
+      <section class="currency-strip frame">
+        <div class="currency">
+          <img src="assets/icons/credits.svg" alt="">
+          <div>
+            <small>CRÉDITS</small>
+            <strong id="creditsValue">0</strong>
+          </div>
+          <button class="plus">+</button>
+        </div>
+        <div class="currency premium">
+          <img src="assets/icons/premium.svg" alt="">
+          <div>
+            <small>NOVA</small>
+            <strong id="premiumValue">0</strong>
+          </div>
+          <button class="plus">+</button>
+        </div>
+      </section>
+    </header>
+
+    <section class="banner frame">
+      <div>
+        <strong id="pageTitle">HANGAR</strong>
+        <p id="pageSubtitle">Sélectionne ton vaisseau actif avant de partir en zone spatiale.</p>
+      </div>
+      <div id="gradeCard" class="pass-card grade-card"></div>
+    </section>
+
+    <main class="page-container">
+      <section class="page-view hangar-view active" data-page="hangar">
+        <div class="hangar-tabs frame">
+          <button class="hangar-tab-btn active" data-hangar-tab="vaisseau">Vaisseau</button>
+          <button class="hangar-tab-btn" data-hangar-tab="drone">Drone</button>
+        </div>
+
+        <section id="hangarListPanel" class="panel hangar-panel frame">
+          <div class="panel-head">
+            <div>
+              <span class="tiny">HANGAR</span>
+              <h2>Mes vaisseaux</h2>
+            </div>
+            <span class="badge">Vaisseaux possédés uniquement</span>
+          </div>
+          <div id="shipGrid" class="ship-grid"></div>
+        </section>
+
+        <aside id="shipDetailPanel" class="panel selected-panel frame hidden">
+          <div class="panel-head compact">
+            <div>
+              <span class="tiny">FICHE VAISSEAU</span>
+              <h2 id="selectedShipName">---</h2>
+            </div>
+            <span id="selectedShipTier" class="rank">I</span>
+          </div>
+          <div class="selected-ship-art">
+            <img id="selectedShipImage" src="" alt="Vaisseau sélectionné">
+            <div id="selectedShipRankBadge" class="ship-rank-badge"></div>
+          </div>
+          <div class="selected-actions">
+            <button id="backToShipsBtn" class="blue-button secondary">RETOUR AUX VAISSEAUX</button>
+            <button id="selectedShipAction" class="blue-button">ÉQUIPER</button>
+          </div>
+          <div id="selectedShipStats" class="stats-list"></div>
+        </aside>
+
+        <section id="shipLoadoutPanel" class="panel loadout-panel frame hidden">
+          <div class="panel-head">
+            <div>
+              <span class="tiny">INVENTAIRE DU VAISSEAU</span>
+              <h2>Lasers, générateurs & extras</h2>
+            </div>
+            <span class="badge">Équipements achetés uniquement</span>
+          </div>
+          <div id="loadoutPanel" class="loadout-panel-body"></div>
+        </section>
+
+        <section id="droneSection" class="hidden"></section>
+        <section id="extraSection" class="hidden"></section>
+      </section>
+
+      <section class="page-view shop-view" data-page="shop">
+        <section class="panel shop-panel frame">
+          <div class="panel-head shop-head redesigned">
+            <div>
+              <span class="tiny">MAGASIN ORBITAL</span>
+              <h2>Marché de bord</h2>
+              <p class="shop-intro">Une boutique mieux rangée : catégories à gauche, catalogue au centre, fiche détaillée à droite.</p>
+            </div>
+            <div class="shop-currency-hint">
+              <span class="badge">CRÉDITS & NOVA</span>
+              <small>Achète plus vite sans mélanger tous les objets.</small>
+            </div>
+          </div>
+          <div class="shop-layout">
+            <aside class="shop-sidebar frame">
+              <div class="shop-side-head">
+                <span class="tiny">CATÉGORIES</span>
+                <h3>Navigation</h3>
+              </div>
+              <div class="shop-sidebar-nav">
+                <button class="shop-nav-btn active" data-filter-shop="vaisseau">Vaisseaux</button>
+                <button class="shop-nav-btn" data-filter-shop="canon">Armes</button>
+                <button class="shop-nav-btn" data-filter-shop="munition">Munitions</button>
+                <button class="shop-nav-btn" data-filter-shop="generateur">Générateurs</button>
+                <button class="shop-nav-btn" data-filter-shop="drone">Drones</button>
+                <button class="shop-nav-btn" data-filter-shop="extra">Extras</button>
+                <button class="shop-nav-btn" data-filter-shop="module">Modules</button>
+                <button class="shop-nav-btn accent" data-filter-shop="premium">Premium</button>
+                <button class="shop-nav-btn accent-alt" data-filter-shop="owned">Possédés</button>
+              </div>
+            </aside>
+            <section class="shop-catalog-panel frame">
+              <div class="shop-toolbar">
+                <div>
+                  <span class="tiny">CATALOGUE</span>
+                  <h3 id="shopSectionTitle">Vaisseaux</h3>
+                  <p id="shopSectionSubtitle">Choisis ta catégorie pour afficher les articles disponibles.</p>
+                </div>
+                <div class="shop-toolbar-status">
+                  <span id="shopResultCount" class="badge">0 ARTICLE</span>
+                </div>
+              </div>
+              <div id="shopGrid" class="shop-grid shop-grid-panel"></div>
+            </section>
+            <aside id="shopDetailPanel" class="shop-detail-panel frame"></aside>
+          </div>
+        </section>
+      </section>
+
+
+      <section class="page-view leaderboard-view" data-page="leaderboard">
+        <section class="panel leaderboard-panel frame">
+          <div class="panel-head leaderboard-head">
+            <div>
+              <span class="tiny">CLASSEMENT MMO</span>
+              <h2>Classement pilotes</h2>
+              <p>Classement local pour l’instant, préparé pour être remplacé par un classement serveur plus tard.</p>
+            </div>
+            <span class="badge">LOCAL / FUTUR ONLINE</span>
+          </div>
+          <div id="leaderboardPanel"></div>
+        </section>
+      </section>
+
+      <section class="page-view settings-view" data-page="settings">
+        <section id="settingsPanel" class="panel settings-panel frame"></section>
+      </section>
+
+      <section class="page-view portals-view" data-page="portals">
+        <section class="panel portals-panel frame">
+          <div class="panel-head">
+            <div>
+              <span class="tiny">DONJONS</span>
+              <h2>Portails dimensionnels</h2>
+            </div>
+          </div>
+          <div id="portalGrid" class="portal-grid portal-grid-full"></div>
+        </section>
+      </section>
+
+      <section class="page-view skills-view" data-page="skills">
+        <section class="panel skills-panel frame">
+          <div class="panel-head">
+            <div>
+              <span class="tiny">PILOTE</span>
+              <h2>Tableau de compétences</h2>
+            </div>
+            <span class="points"><b id="skillPointsValue">0</b> pts disponibles</span>
+          </div>
+          <div id="skillGrid" class="skill-grid skill-grid-full"></div>
+        </section>
+      </section>
+
+    </main>
+  </div>
+
+  <section id="gameScreen" class="game-screen hidden">
+    <div class="game-topbar">
+      <div class="combat-status frame">
+        <strong id="gameZoneName">ZONE : ASTRA-01</strong>
+        <div class="combat-pilot-row">
+          <span id="gamePlayerName">NOVA-37</span>
+          <span id="gameRankHud" class="combat-rank-hud"><img class="rank-icon" src="assets/ranks/none.svg" alt="Aucun grade"><span>Aucun grade</span></span>
+        </div>
+        <div class="combat-stat-row">
+          <span>NIV. <b id="gameLevel">1</b></span>
+          <span>PV <b id="gameHp">100</b></span>
+          <span>Bouclier <b id="gameShield">0</b></span>
+          <span>Vitesse <b id="gameSpeed">0</b></span>
+        </div>
+        <div class="combat-stat-row combat-stat-row-secondary">
+          <span id="gameRepairHud">Robot : non équipé</span>
+        </div>
+      </div>
+      <div class="combat-wallet frame">
+        <span>CRÉDITS <b id="gameCreditsHud">0</b></span>
+        <span>NOVA <b id="gamePremiumHud">0</b></span>
+      </div>
+      <button id="returnDashboardBtn" class="blue-button small">RETOUR HANGAR</button>
+    </div>
+    <div id="gameTargetPanel" class="target-panel hidden"></div>
+    <div id="lootPopup" class="loot-popup hidden"></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="gameActionBar" class="action-bar frame"></div>
+    <button id="combatQuickMenuBtn" class="combat-menu-button" type="button">+</button>
+    <div id="combatQuickPanel" class="combat-quick-panel frame hidden">
+      <div class="combat-panel-tabs">
+        <button class="active" data-combat-panel-tab="ammo" type="button">Munitions</button>
+        <button data-combat-panel-tab="skills" type="button">Competences</button>
+        <button data-combat-panel-tab="extras" type="button">Extras</button>
+        <button data-combat-panel-tab="shop" type="button">Magasin</button>
+      </div>
+      <div id="combatPanelContent" class="combat-panel-content"></div>
+    </div>
+    <div id="spawnInteractionPanel" class="spawn-panel frame hidden">
+      <div class="spawn-panel-header">
+        <strong id="spawnPanelTitle">MODULE</strong>
+        <button id="spawnPanelClose" class="blue-button small" type="button">FERMER</button>
+      </div>
+      <div id="spawnPanelContent" class="spawn-panel-content"></div>
+    </div>
+    <div class="game-help frame">
+      <b>Contrôles</b> : ZQSD/WASD pour bouger · Clic droit pour destination · Clic gauche sur un ennemi pour le cibler · Touches de slots personnalisables dans Paramètres.
+    </div>
+  </section>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="game.js"></script>
+</body>
+</html>

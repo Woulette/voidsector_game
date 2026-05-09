@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#07101d"/>
+      <stop offset="100%" stop-color="#0f1f34"/>
+    </linearGradient>
+    <linearGradient id="m" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ddd6fe"/>
+    </linearGradient>
+  </defs>
+  <path d="M20 8 H108 L120 20 V108 L108 120 H20 L8 108 V20 Z" fill="url(#g)" stroke="url(#m)" stroke-width="6"/>
+  <rect x="18" y="18" width="92" height="92" fill="none" stroke="#a855f7" opacity="0.35" stroke-width="2"/>
+  <circle cx="64" cy="64" r="48" fill="none" stroke="#a855f7" opacity="0.18" stroke-width="8"/>
+  <polygon points="28,34 32,44 43,44 34,50 38,61 28,54 18,61 22,50 13,44 24,44" fill="#f8fafc" opacity="0.95"/><polygon points="46,34 50,44 61,44 52,50 56,61 46,54 36,61 40,50 31,44 42,44" fill="#f8fafc" opacity="0.95"/><polygon points="64,34 68,44 79,44 70,50 74,61 64,54 54,61 58,50 49,44 60,44" fill="#f8fafc" opacity="0.95"/><polygon points="82,34 86,44 97,44 88,50 92,61 82,54 72,61 76,50 67,44 78,44" fill="#f8fafc" opacity="0.95"/><polygon points="100,34 104,44 115,44 106,50 110,61 100,54 90,61 94,50 85,44 96,44" fill="#f8fafc" opacity="0.95"/><path d="M42 64 L64 74 L86 64 L80 63 L64 71 L48 63 Z" fill="#ddd6fe" opacity="0.95"/><path d="M45 74 L64 84 L83 74 L77 73 L64 81 L51 73 Z" fill="#ddd6fe" opacity="0.95"/><path d="M48 84 L64 94 L80 84 L74 83 L64 91 L54 83 Z" fill="#ddd6fe" opacity="0.95"/><path d="M51 94 L64 104 L77 94 L71 93 L64 101 L57 93 Z" fill="#ddd6fe" opacity="0.95"/><rect x="24" y="92" width="16" height="10" rx="2" fill="#ddd6fe" opacity="0.9"/><rect x="46" y="92" width="16" height="10" rx="2" fill="#ddd6fe" opacity="0.9"/>
+</svg>

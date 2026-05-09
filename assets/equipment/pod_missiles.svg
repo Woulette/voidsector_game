@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240">
+
+    <defs>
+      <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <linearGradient id="metal" x1="0" x2="1" y1="0" y2="1">
+        <stop offset="0%" stop-color="#64748b"/>
+        <stop offset="48%" stop-color="#111827"/>
+        <stop offset="100%" stop-color="#f59e0b"/>
+      </linearGradient>
+      <radialGradient id="energy" cx="50%" cy="50%" r="60%">
+        <stop offset="0%" stop-color="#fff"/>
+        <stop offset="45%" stop-color="#f59e0b"/>
+        <stop offset="100%" stop-color="transparent"/>
+      </radialGradient>
+    </defs>
+<g filter="url(#glow)">
+<rect x="70" y="70" width="190" height="105" rx="18" fill="url(#metal)" stroke="#f59e0b" stroke-width="4"/>
+<circle cx="108" cy="98" r="13" fill="#fb923c" stroke="#fed7aa" stroke-width="2"/><circle cx="146" cy="98" r="13" fill="#fb923c" stroke="#fed7aa" stroke-width="2"/><circle cx="184" cy="98" r="13" fill="#fb923c" stroke="#fed7aa" stroke-width="2"/><circle cx="222" cy="98" r="13" fill="#fb923c" stroke="#fed7aa" stroke-width="2"/><circle cx="108" cy="133" r="13" fill="#fb923c" stroke="#fed7aa" stroke-width="2"/><circle cx="146" cy="133" r="13" fill="#fb923c" stroke="#fed7aa" stroke-width="2"/><circle cx="184" cy="133" r="13" fill="#fb923c" stroke="#fed7aa" stroke-width="2"/><circle cx="222" cy="133" r="13" fill="#fb923c" stroke="#fed7aa" stroke-width="2"/>
+<path d="M250 78 L292 122 L250 166" fill="#f59e0b" opacity=".38"/>
+</g>
+</svg>

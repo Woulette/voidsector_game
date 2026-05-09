@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240">
+
+    <defs>
+      <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <linearGradient id="metal" x1="0" x2="1" y1="0" y2="1">
+        <stop offset="0%" stop-color="#78716c"/>
+        <stop offset="48%" stop-color="#111827"/>
+        <stop offset="100%" stop-color="#f97316"/>
+      </linearGradient>
+      <radialGradient id="energy" cx="50%" cy="50%" r="60%">
+        <stop offset="0%" stop-color="#fff"/>
+        <stop offset="45%" stop-color="#f97316"/>
+        <stop offset="100%" stop-color="transparent"/>
+      </radialGradient>
+    </defs>
+<g filter="url(#glow)"><path d="M60 132 L150 98 L245 112 L250 138 L150 156 Z" fill="url(#metal)" stroke="#f97316" stroke-width="3"/><circle cx="70" cy="132" r="26" fill="#111827" stroke="#f97316" stroke-width="5"/><circle cx="70" cy="132" r="10" fill="url(#energy)"/><path d="M8 132 L68 132" stroke="#fb923c" stroke-width="12" stroke-linecap="round" opacity=".85"/></g>
+<ellipse cx="178" cy="168" rx="72" ry="14" fill="#020617" stroke="#78716c" opacity=".8"/>
+</svg>
