@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+
+  <defs>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f6f2e8"/>
+      <stop offset="20%" stop-color="#8e8980"/>
+      <stop offset="50%" stop-color="#1e211f"/>
+      <stop offset="72%" stop-color="#b9b4a8"/>
+      <stop offset="100%" stop-color="#3f3d39"/>
+    </linearGradient>
+    <linearGradient id="steel2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="24%" stop-color="#bfc4c6"/>
+      <stop offset="48%" stop-color="#383b3d"/>
+      <stop offset="75%" stop-color="#8f9698"/>
+      <stop offset="100%" stop-color="#0c0d0f"/>
+    </linearGradient>
+    <linearGradient id="darkMetal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#343536"/>
+      <stop offset="45%" stop-color="#070808"/>
+      <stop offset="100%" stop-color="#5a5c5d"/>
+    </linearGradient>
+    <linearGradient id="blueCore" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#002cc8"/>
+      <stop offset="28%" stop-color="#02b7ff"/>
+      <stop offset="50%" stop-color="#d7ffff"/>
+      <stop offset="72%" stop-color="#0095ff"/>
+      <stop offset="100%" stop-color="#001da7"/>
+    </linearGradient>
+    <radialGradient id="blueGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#cbffff" stop-opacity=".95"/>
+      <stop offset="45%" stop-color="#00aaff" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="#003bff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="copper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff2c0"/>
+      <stop offset="18%" stop-color="#ff9c42"/>
+      <stop offset="48%" stop-color="#6e2100"/>
+      <stop offset="76%" stop-color="#c45b00"/>
+      <stop offset="100%" stop-color="#ffd16a"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff7af"/>
+      <stop offset="20%" stop-color="#ffbd20"/>
+      <stop offset="44%" stop-color="#7a3d00"/>
+      <stop offset="70%" stop-color="#e98a00"/>
+      <stop offset="100%" stop-color="#fff06a"/>
+    </linearGradient>
+    <linearGradient id="redGem" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff6b25"/>
+      <stop offset="45%" stop-color="#a5120b"/>
+      <stop offset="100%" stop-color="#430007"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#000000" flood-opacity=".75"/>
+    </filter>
+    <filter id="glow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="3.2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+<polygon points="44.8,22.0 56.2,22.0 61.5,27.3 61.5,100.7 56.2,106.0 44.8,106.0 39.5,100.7 39.5,27.3" fill="url(#steel)" stroke="#080808" stroke-width="2" stroke-linejoin="round" />
+<polygon points="46.8,31.0 54.2,31.0 54.5,37.0 54.5,91.0 54.2,97.0 46.8,97.0 46.5,91.0 46.5,37.0" fill="url(#darkMetal)" stroke="#d7d0c2" stroke-width="1.1" stroke-linejoin="round" />
+<ellipse cx="50.5" cy="64.0" rx="12.1" ry="29.4" fill="url(#blueGlow)" filter="url(#glow)" opacity=".9"/>
+<polygon points="48.7,48.0 52.3,48.0 55.3,64.0 52.3,83.0 48.7,83.0 45.7,64.0" fill="url(#blueCore)" stroke="#0036b5" stroke-width="1.2" stroke-linejoin="round" />
+<line x1="47.42" y1="36" x2="47.42" y2="91" stroke="#ffffff" stroke-width="0.8" opacity="0.45" stroke-linecap="round"/>
+<line x1="54.02" y1="36" x2="54.02" y2="91" stroke="#000000" stroke-width="0.8" opacity="0.55" stroke-linecap="round"/>
+<polygon points="71.8,22.0 83.2,22.0 88.5,27.3 88.5,100.7 83.2,106.0 71.8,106.0 66.5,100.7 66.5,27.3" fill="url(#steel)" stroke="#080808" stroke-width="2" stroke-linejoin="round" />
+<polygon points="73.8,31.0 81.2,31.0 81.5,37.0 81.5,91.0 81.2,97.0 73.8,97.0 73.5,91.0 73.5,37.0" fill="url(#darkMetal)" stroke="#d7d0c2" stroke-width="1.1" stroke-linejoin="round" />
+<ellipse cx="77.5" cy="64.0" rx="12.1" ry="29.4" fill="url(#blueGlow)" filter="url(#glow)" opacity=".9"/>
+<polygon points="75.7,48.0 79.3,48.0 82.3,64.0 79.3,83.0 75.7,83.0 72.7,64.0" fill="url(#blueCore)" stroke="#0036b5" stroke-width="1.2" stroke-linejoin="round" />
+<line x1="74.42" y1="36" x2="74.42" y2="91" stroke="#ffffff" stroke-width="0.8" opacity="0.45" stroke-linecap="round"/>
+<line x1="81.02" y1="36" x2="81.02" y2="91" stroke="#000000" stroke-width="0.8" opacity="0.55" stroke-linecap="round"/>
+
+  </g>
+</svg>

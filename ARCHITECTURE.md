@@ -1,47 +1,44 @@
-# VoidSector - architecture actuelle
+# VoidSector - Architecture
 
-## Entrée
+## Entree
 - `index.html` : structure HTML de l'interface.
-- `game.js` : point d'entrée JavaScript, importe `src/app.js`.
-- `styles.css` : thème visuel global.
+- `game.js` : point d'entree JavaScript, importe `src/app.js`.
+- `styles.css` : point d'entree CSS qui importe les sections ci-dessous.
+- `src/styles/base.css` : structure globale, topbar, cartes et panneaux de base.
+- `src/styles/game.css` : HUD et ecran de combat.
+- `src/styles/hangar.css` : pages, inventaire, slots et hangar.
+- `src/styles/shop.css` : magasin.
+- `src/styles/systems.css` : drones, parametres, classement, quetes et raffinage.
 
-## Données
-- `src/data/catalog.js` : catalogue des vaisseaux, équipements, drones, munitions, portails et compétences.
+## Donnees
+- `src/data/catalog.js` : facade de reexport + etat local par defaut.
+- `src/data/ships.js` : vaisseaux et stats de slots.
+- `src/data/equipment.js` : lasers, generateurs, extras, drones et munitions.
+- `src/data/progression.js` : portails, competences, materiaux, raffinage, quetes et textes de pages.
+- `src/data/ranks.js` : table des grades, regles de score, calculs de progression et pilotes fictifs du classement local.
 
-## État et sauvegarde
-- `src/core/store.js` : état joueur, inventaire, loadouts vaisseaux/drones/extras, calculs de stats, sauvegarde localStorage.
-- `src/core/keybinds.js` : touches personnalisables des slots 1 à 9.
-- `src/core/utils.js` : helpers génériques.
+## Etat et sauvegarde
+- `src/core/store.js` : etat joueur, inventaire, loadouts, economie, quetes, raffinage, stats et sauvegarde localStorage.
+- `src/core/keybinds.js` : touches personnalisables des slots 1 a 9.
+- `src/core/utils.js` : helpers generiques.
 
 ## Interface
-- `src/ui/render.js` : rendu du hangar, magasin, portails, compétences et paramètres.
+- `src/ui/render.js` : orchestration UI et rendu hangar.
+- `src/ui/renderShop.js` : rendu du magasin.
+- `src/ui/renderProgression.js` : rendu des portails, competences et classement.
+- `src/ui/renderShared.js` : petits helpers de rendu partages.
 - `src/ui/toast.js` : notifications.
 
 ## Combat
-- `src/game/combat.js` : canvas, maps, ennemis, tirs laser, roquettes, cooldowns par munition, drones orbitaux, extras de roquettes.
+- `src/game/combat.js` : orchestration combat, etat de partie, collisions, tirs laser, roquettes, safe zones, portails et panneaux in-game.
+- `src/game/combatAssets.js` : prechargement des images de combat.
+- `src/game/combatData.js` : maps, types d'ennemis, constantes de combat et profils visuels de reacteurs.
+- `src/game/systems/` : logique combat reutilisable, boucle de frame, mouvement joueur/camera, cycle de vie joueur, IA ennemie, armes, robot reparateur, recompenses/loot, generation de map, portails et projectiles.
+- `src/game/ui/` : rendu DOM du combat, HUD, action bar, panneau rapide, panneaux de spawn et branchement des controles.
+- `src/game/render/` : rendu canvas specialise, monde, joueur, ennemis, projectiles, minimap et textes de degats.
 
-## Structure gameplay actuelle
-- Les vaisseaux ont : lasers, générateurs, extras.
-- Les drones ont : 1 slot compatible laser/générateur.
-- Les générateurs peuvent donner bouclier, régénération ou vitesse.
-- Les extras de vaisseau servent aux modules spéciaux comme auto-roquettes ou réduction de cooldown.
-- Les touches des slots sont modifiables dans l'onglet Paramètres.
-
-
-## Classement / MMO
-
-Le projet contient maintenant une page `CLASSEMENT` préparée pour un futur mode en ligne.
-
-Fichiers concernés :
-- `src/core/store.js`
-  - `RANK_TABLE` : liste des grades militaires et seuils.
-  - `RANK_POINT_RULES` : règles expliquant comment gagner des points.
-  - `getRankScore()` : calcul centralisé du score de classement.
-  - `getRankBreakdown()` : détail XP / kills / niveaux / portails.
-  - `getLeaderboardRows()` : classement local de prévisualisation avec le joueur + pilotes fictifs.
-- `src/ui/render.js`
-  - `renderLeaderboard()` : rendu du tableau de classement, détails de score et table des grades.
-- `index.html`
-  - onglet `CLASSEMENT` et section `leaderboardPanel`.
-
-Le classement est local pour l’instant. Pour le MMO, il suffira de remplacer `LOCAL_LEADERBOARD_PREVIEW` / `getLeaderboardRows()` par des données serveur.
+## Notes de decoupage
+- Les fichiers de donnees statiques doivent rester hors des gros modules de logique.
+- Les nouveaux catalogues ou tables doivent aller dans `src/data/`.
+- Les nouvelles mecaniques de combat doivent eviter d'ajouter de grosses tables dans `combat.js`; preferer `combatData.js` ou un module dedie.
+- Les fonctions exportees depuis `store.js` restent l'API centrale utilisee par l'UI et le combat.

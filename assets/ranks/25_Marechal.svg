@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+
+  <defs>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f6f2e8"/>
+      <stop offset="20%" stop-color="#8e8980"/>
+      <stop offset="50%" stop-color="#1e211f"/>
+      <stop offset="72%" stop-color="#b9b4a8"/>
+      <stop offset="100%" stop-color="#3f3d39"/>
+    </linearGradient>
+    <linearGradient id="steel2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="24%" stop-color="#bfc4c6"/>
+      <stop offset="48%" stop-color="#383b3d"/>
+      <stop offset="75%" stop-color="#8f9698"/>
+      <stop offset="100%" stop-color="#0c0d0f"/>
+    </linearGradient>
+    <linearGradient id="darkMetal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#343536"/>
+      <stop offset="45%" stop-color="#070808"/>
+      <stop offset="100%" stop-color="#5a5c5d"/>
+    </linearGradient>
+    <linearGradient id="blueCore" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#002cc8"/>
+      <stop offset="28%" stop-color="#02b7ff"/>
+      <stop offset="50%" stop-color="#d7ffff"/>
+      <stop offset="72%" stop-color="#0095ff"/>
+      <stop offset="100%" stop-color="#001da7"/>
+    </linearGradient>
+    <radialGradient id="blueGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#cbffff" stop-opacity=".95"/>
+      <stop offset="45%" stop-color="#00aaff" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="#003bff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="copper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff2c0"/>
+      <stop offset="18%" stop-color="#ff9c42"/>
+      <stop offset="48%" stop-color="#6e2100"/>
+      <stop offset="76%" stop-color="#c45b00"/>
+      <stop offset="100%" stop-color="#ffd16a"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff7af"/>
+      <stop offset="20%" stop-color="#ffbd20"/>
+      <stop offset="44%" stop-color="#7a3d00"/>
+      <stop offset="70%" stop-color="#e98a00"/>
+      <stop offset="100%" stop-color="#fff06a"/>
+    </linearGradient>
+    <linearGradient id="redGem" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff6b25"/>
+      <stop offset="45%" stop-color="#a5120b"/>
+      <stop offset="100%" stop-color="#430007"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#000000" flood-opacity=".75"/>
+    </filter>
+    <filter id="glow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="3.2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+<circle cx="64" cy="73" r="38" fill="none" stroke="#0aaeff" stroke-width="4" opacity=".45" filter="url(#glow)"/>
+<polygon points="43.0,25.0 50.0,17.0 57.0,27.0 64.0,13.0 71.0,27.0 78.0,17.0 85.0,25.0 82.0,39.0 46.0,39.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1.8" stroke-linejoin="round" />
+<circle cx="50" cy="21" r="3" fill="#fff0a8" stroke="#6d3500" stroke-width="1"/>
+<circle cx="64" cy="17" r="3" fill="#fff0a8" stroke="#6d3500" stroke-width="1"/>
+<circle cx="78" cy="21" r="3" fill="#fff0a8" stroke="#6d3500" stroke-width="1"/>
+<ellipse cx="34.4" cy="115.8" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(196.0 34.4 115.8)"/>
+<ellipse cx="30.4" cy="112.2" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(202.5 30.4 112.2)"/>
+<ellipse cx="26.7" cy="108.2" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(209.0 26.7 108.2)"/>
+<ellipse cx="23.5" cy="103.8" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(215.5 23.5 103.8)"/>
+<ellipse cx="20.9" cy="99.0" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(222.0 20.9 99.0)"/>
+<ellipse cx="18.8" cy="94.0" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(228.5 18.8 94.0)"/>
+<ellipse cx="17.2" cy="88.8" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(235.0 17.2 88.8)"/>
+<ellipse cx="16.3" cy="83.4" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(241.5 16.3 83.4)"/>
+<ellipse cx="16.0" cy="78.0" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(248.0 16.0 78.0)"/>
+<ellipse cx="16.3" cy="72.6" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(254.5 16.3 72.6)"/>
+<ellipse cx="17.2" cy="67.2" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(261.0 17.2 67.2)"/>
+<ellipse cx="18.8" cy="62.0" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(267.5 18.8 62.0)"/>
+<ellipse cx="93.6" cy="115.8" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-16.0 93.6 115.8)"/>
+<ellipse cx="97.6" cy="112.2" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-22.5 97.6 112.2)"/>
+<ellipse cx="101.3" cy="108.2" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-29.0 101.3 108.2)"/>
+<ellipse cx="104.5" cy="103.8" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-35.5 104.5 103.8)"/>
+<ellipse cx="107.1" cy="99.0" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-42.0 107.1 99.0)"/>
+<ellipse cx="109.2" cy="94.0" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-48.5 109.2 94.0)"/>
+<ellipse cx="110.8" cy="88.8" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-55.0 110.8 88.8)"/>
+<ellipse cx="111.7" cy="83.4" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-61.5 111.7 83.4)"/>
+<ellipse cx="112.0" cy="78.0" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-68.0 112.0 78.0)"/>
+<ellipse cx="111.7" cy="72.6" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-74.5 111.7 72.6)"/>
+<ellipse cx="110.8" cy="67.2" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-81.0 110.8 67.2)"/>
+<ellipse cx="109.2" cy="62.0" rx="3.4" ry="8.0" fill="url(#gold)" stroke="#4b2200" stroke-width="1" transform="rotate(-87.5 109.2 62.0)"/>
+<polygon points="45.4,58.0 14.4,50.0 8.4,66.0 40.4,72.0" fill="url(#gold)" stroke="#2b0d00" stroke-width="1.6" stroke-linejoin="round" />
+<polygon points="40.4,61.0 16.4,54.0 12.4,62.0 38.4,68.0" fill="url(#redGem)" stroke="#ffd25e" stroke-width="0.8" stroke-linejoin="round" />
+<polygon points="45.4,72.0 6.4,64.0 0.4,80.0 40.4,86.0" fill="url(#gold)" stroke="#2b0d00" stroke-width="1.6" stroke-linejoin="round" />
+<polygon points="40.4,75.0 8.4,68.0 4.4,76.0 38.4,82.0" fill="url(#redGem)" stroke="#ffd25e" stroke-width="0.8" stroke-linejoin="round" />
+<polygon points="82.6,58.0 113.6,50.0 119.6,66.0 87.6,72.0" fill="url(#gold)" stroke="#2b0d00" stroke-width="1.6" stroke-linejoin="round" />
+<polygon points="87.6,61.0 111.6,54.0 115.6,62.0 89.6,68.0" fill="url(#redGem)" stroke="#ffd25e" stroke-width="0.8" stroke-linejoin="round" />
+<polygon points="82.6,72.0 121.6,64.0 127.6,80.0 87.6,86.0" fill="url(#gold)" stroke="#2b0d00" stroke-width="1.6" stroke-linejoin="round" />
+<polygon points="87.6,75.0 119.6,68.0 123.6,76.0 89.6,82.0" fill="url(#redGem)" stroke="#ffd25e" stroke-width="0.8" stroke-linejoin="round" />
+<polygon points="64.0,51.7 85.6,63.9 80.6,88.2 64.0,100.3 47.4,88.2 42.4,63.9" fill="url(#gold)" stroke="#160a00" stroke-width="2" stroke-linejoin="round" />
+<polygon points="64.0,59.7 76.6,66.8 72.6,84.2 64.0,90.3 55.4,84.2 51.4,66.8" fill="url(#redGem)" stroke="#ffcb44" stroke-width="1.2" stroke-linejoin="round" />
+<polygon points="64.0,59.7 67.7,69.9 78.6,70.3 70.0,76.9 73.0,87.4 64.0,81.3 55.0,87.4 58.0,76.9 49.4,70.3 60.3,69.9" fill="url(#gold)" stroke="#4a1900" stroke-width="1.5" stroke-linejoin="round" />
+<polygon points="64.0,67.8 65.8,72.5 70.8,72.8 66.9,75.9 68.2,80.8 64.0,78.1 59.8,80.8 61.1,75.9 57.2,72.8 62.2,72.5" fill="#fff0a8" stroke="#855000" stroke-width="0.8" stroke-linejoin="round" />
+<polygon points="51.0,89.3 64.0,98.3 77.0,89.3 72.0,95.3 64.0,102.3 56.0,95.3" fill="url(#blueCore)" stroke="#001783" stroke-width="1" stroke-linejoin="round" />
+
+  </g>
+</svg>

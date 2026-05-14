@@ -1,54 +1,23 @@
-import { ammoTypes, defaultState, droneCatalog, equipment, portals, questCatalog, rawMaterialCatalog, refineryRecipes, ships, skills } from "../data/catalog.js";
+﻿import { ammoTypes, defaultState, droneCatalog, equipment, portals, questCatalog, rawMaterialCatalog, refineryRecipes, ships, skills } from "../data/catalog.js";
 import { clone, fmt } from "./utils.js";
 import { normalizeSlotKeybinds } from "./keybinds.js";
 
 
 
-export const RANK_TABLE = [
-  {id:"none", name:"Aucun grade", score:0},
-  {id:"soldat2", name:"Soldat 2e classe", score:250},
-  {id:"soldat1", name:"Soldat 1re classe", score:650},
-  {id:"caporal", name:"Caporal", score:1400},
-  {id:"caporal_chef", name:"Caporal-chef", score:2600},
-  {id:"sergent", name:"Sergent", score:4300},
-  {id:"sergent_chef", name:"Sergent-chef", score:6500},
-  {id:"adjudant", name:"Adjudant", score:9300},
-  {id:"adjudant_chef", name:"Adjudant-chef", score:12800},
-  {id:"major", name:"Major", score:17000},
-  {id:"aspirant", name:"Aspirant", score:22100},
-  {id:"sous_lieutenant", name:"Sous-lieutenant", score:28200},
-  {id:"lieutenant", name:"Lieutenant", score:35600},
-  {id:"capitaine", name:"Capitaine", score:44500},
-  {id:"commandant", name:"Commandant", score:55200},
-  {id:"lieutenant_colonel", name:"Lieutenant-colonel", score:68000},
-  {id:"colonel", name:"Colonel", score:83500},
-  {id:"general", name:"Général", score:102000}
-];
-
-export const RANK_POINT_RULES = [
-  {id:"xp", label:"Expérience totale gagnée", source:"XP gagnée sur les monstres, vagues et récompenses de portail", rate:"1 point de classement par XP", multiplier:1},
-  {id:"kill", label:"Monstres détruits", source:"Chaque mob tué en zone ou en portail", rate:"55 points de classement par kill", multiplier:55},
-  {id:"level", label:"Niveaux pilote", source:"Progression du niveau du commandant", rate:"120 points par niveau gagné après le niveau 1", multiplier:120},
-  {id:"portal", label:"Portails terminés", source:"Nettoyage complet des 30 vagues d'un portail", rate:"2 500 points par portail terminé", multiplier:2500}
-];
-
-export function getRankById(id){
-  return RANK_TABLE.find(rank=>rank.id === id) || RANK_TABLE[0];
-}
-
-export function getRankAssetPath(rankLike){
-  const id = typeof rankLike === "string" ? rankLike : rankLike?.id;
-  return `assets/ranks/${getRankById(id).id}.svg`;
-}
-
-export const LOCAL_LEADERBOARD_PREVIEW = [
-  {id:"vex09", pilot:"VEX-09", level:34, kills:1260, portals:12, points:186000},
-  {id:"orion5", pilot:"ORION-5", level:29, kills:940, portals:8, points:127500},
-  {id:"kira77", pilot:"KIRA-77", level:24, kills:610, portals:5, points:74200},
-  {id:"raven13", pilot:"RAVEN-13", level:18, kills:350, portals:2, points:38600},
-  {id:"nova21", pilot:"NOVA-21", level:14, kills:210, portals:1, points:21400},
-  {id:"atlas02", pilot:"ATLAS-02", level:10, kills:86, portals:0, points:9650}
-];
+import {
+  RANK_TABLE,
+  RANK_POINT_RULES,
+  LOCAL_LEADERBOARD_PREVIEW,
+  buildLeaderboardRows,
+  buildRankBreakdown,
+  calculateRankScore,
+  getNextRankForScore,
+  getRankAssetPath,
+  getRankById,
+  getRankForScore as findRankForScore,
+  getRankProgressForScore
+} from "../data/ranks.js";
+export { RANK_TABLE, RANK_POINT_RULES, LOCAL_LEADERBOARD_PREVIEW, getRankAssetPath, getRankById };
 
 export const store = {
   state:null,
@@ -60,13 +29,15 @@ export const store = {
   selectedShopProduct:null
 };
 
+const MAX_ACTIVE_QUESTS = 5;
+
 export function getShip(id){ return ships.find(s=>s.id===id) || ships[0]; }
 export function getItem(id){ return equipment.find(i=>i.id===id); }
 export function getAmmo(id){ return ammoTypes.find(a=>a.id===id) || null; }
 export function getDroneCatalog(id="combat_drone"){ return droneCatalog.find(d=>d.id===id) || droneCatalog[0]; }
 export function isWeapon(id){ return getItem(id)?.category === "canon"; }
 export function isGenerator(id){ return getItem(id)?.category === "generateur"; }
-export function getInventoryItem(uid){ return store.state.inventoryItems.find(entry=>entry.uid === uid) || null; }
+export function getInventoryItem(uid){ return store.state?.inventoryItems?.find(entry=>entry.uid === uid) || null; }
 export function getItemFromInventoryUid(uid){ return getItem(getInventoryItem(uid)?.itemId); }
 export function priceLabel(type, price){ return type === "premium" ? `${fmt(price)} NOVA` : `${fmt(price)} CR`; }
 export function canAfford(type, price){ return type === "premium" ? store.state.player.premium >= price : store.state.player.credits >= price; }
@@ -94,7 +65,7 @@ export function markPortalCompleted(id){
   store.state.completedPortals[id] = (store.state.completedPortals[id] || 0) + 1;
 }
 export function getCompletedPortalCount(){
-  const completed = store.state?.completedPortals || {};
+  const completed = store.state.completedPortals || {};
   return Object.values(completed).reduce((sum, value)=>sum + Math.max(0, Number(value || 0)), 0);
 }
 
@@ -121,7 +92,7 @@ export function getCargoUsed(){
 }
 
 export function getRefineryJob(){
-  return store.state?.refineryJob || null;
+  return store.state.refineryJob || null;
 }
 
 export function isRefineryComplete(){
@@ -130,11 +101,11 @@ export function isRefineryComplete(){
 }
 
 export function startRefineryJob(recipeId){
-  if(getRefineryJob()) return {ok:false, reason:"Le raffineur est déjà occupé."};
+  if(getRefineryJob()) return {ok:false, reason:"Le raffineur est deja occupé."};
   const recipe = getRefineryRecipe(recipeId);
   if(!recipe) return {ok:false, reason:"Recette introuvable."};
   for(const [materialId, amount] of Object.entries(recipe.costs || {})){
-    if(getMaterialCount(materialId) < amount) return {ok:false, reason:`Matériaux insuffisants : ${getRawMaterial(materialId)?.name || materialId}.`};
+    if(getMaterialCount(materialId) < amount) return {ok:false, reason:`Matériaux insuffisants : ${getRawMaterial(materialId).name || materialId}.`};
   }
   for(const [materialId, amount] of Object.entries(recipe.costs || {})) consumeMaterial(materialId, amount);
   store.state.refineryJob = {recipeId:recipe.id, startedAt:Date.now(), endsAt:Date.now() + Number(recipe.durationMs || 0)};
@@ -158,9 +129,9 @@ export function getEquipmentUpgradeLevel(itemId){
 
 export function getEquipmentUpgradeCost(itemLike){
   const item = typeof itemLike === "string" ? getItem(itemLike) : itemLike;
-  const level = getEquipmentUpgradeLevel(item?.id);
-  if(item?.category === "canon") return {materialId:"alliage", amount:1 + level};
-  if(item?.category === "generateur") return {materialId:"noyau", amount:1 + level};
+  const level = getEquipmentUpgradeLevel(item.id);
+  if(item.category === "canon") return {materialId:"alliage", amount:1 + level};
+  if(item.category === "generateur") return {materialId:"noyau", amount:1 + level};
   return null;
 }
 
@@ -196,7 +167,7 @@ export function upgradeSkill(id){
   const skill = getSkillDefinition(id);
   if(!skill) return {ok:false, reason:"Compétence introuvable."};
   const level = getSkillLevel(id);
-  if(level >= Number(skill.maxLevel || skill.levels?.length || 0)) return {ok:false, reason:"Niveau maximum atteint."};
+  if(level >= Number(skill.maxLevel || skill.levels.length || 0)) return {ok:false, reason:"Niveau maximum atteint."};
   const next = getSkillUpgradeData(id);
   if(!next) return {ok:false, reason:"Palier introuvable."};
   if(Number(store.state.player.skillPoints || 0) < Number(next.skillPoints || 0)) return {ok:false, reason:"Pas assez de points de compétence."};
@@ -209,7 +180,12 @@ export function upgradeSkill(id){
 }
 
 export function getActiveQuest(){
-  return getQuest(store.state?.activeQuestId) || null;
+  return getQuest(store.state.activeQuestId) || null;
+}
+
+export function getActiveQuests(){
+  const ids = Array.isArray(store.state?.activeQuestIds) ? store.state.activeQuestIds : [];
+  return ids.map(id=>getQuest(id)).filter(Boolean);
 }
 
 export function getQuestProgress(id){
@@ -219,73 +195,85 @@ export function getQuestProgress(id){
 export function canClaimQuest(id){
   const quest = getQuest(id);
   if(!quest) return false;
-  return getQuestProgress(id) >= Math.max(0, Number(quest.objective?.count || 0));
+  if(store.state.completedQuestClaims?.[id]) return false;
+  return getQuestProgress(id) >= Math.max(0, Number(quest.objective.count || 0));
 }
 
 export function acceptQuest(id){
   const quest = getQuest(id);
   if(!quest) return {ok:false, reason:"Quête introuvable."};
-  if(store.state?.completedQuestClaims?.[id]) return {ok:false, reason:"Quête déjà terminée."};
+  const requiredLevel = Number(quest.requiredLevel || 1);
+  if(Number(store.state.player?.level || 1) < requiredLevel) return {ok:false, reason:`Niveau ${requiredLevel} requis.`};
+  if(store.state.completedQuestClaims?.[id]) return {ok:false, reason:"Quête déjà terminée."};
+  if(!Array.isArray(store.state.activeQuestIds)) store.state.activeQuestIds = [];
+  store.state.activeQuestIds = store.state.activeQuestIds.filter(questId=>getQuest(questId) && !store.state.completedQuestClaims?.[questId]).slice(0, MAX_ACTIVE_QUESTS);
+  if(store.state.activeQuestIds.includes(id)) return {ok:false, reason:"Quête déjà en cours."};
+  if(store.state.activeQuestIds.length >= MAX_ACTIVE_QUESTS) return {ok:false, reason:`Maximum ${MAX_ACTIVE_QUESTS} quêtes en cours.`};
+  store.state.activeQuestIds.push(id);
   store.state.activeQuestId = id;
   if(!store.state.questProgress) store.state.questProgress = {};
   if(!store.state.questProgress[id]) store.state.questProgress[id] = 0;
   return {ok:true, quest};
 }
 
-export function recordQuestKill(kind, zoneName){
-  const quest = getActiveQuest();
-  if(!quest || quest.objective?.type !== "kill") return false;
-  if(quest.objective?.target && quest.objective.target !== kind) return false;
-  if(quest.objective?.zone && quest.objective.zone !== zoneName) return false;
+function questMatchesKill(quest, kind, zoneName){
+  if(!quest || quest.objective.type !== "kill") return false;
+  if(quest.objective.target && quest.objective.target !== kind) return false;
+  if(quest.objective.zone && quest.objective.zone !== zoneName) return false;
+  return true;
+}
+
+function canProgressQuest(quest){
+  if(!quest || store.state.completedQuestClaims?.[quest.id]) return false;
+  return getQuestProgress(quest.id) < Math.max(0, Number(quest.objective.count || 0));
+}
+
+function progressQuestKill(quest){
   if(!store.state.questProgress) store.state.questProgress = {};
-  const next = Math.min(Number(quest.objective?.count || 0), getQuestProgress(quest.id) + 1);
+  const target = Math.max(0, Number(quest.objective.count || 0));
+  const next = Math.min(target, getQuestProgress(quest.id) + 1);
   store.state.questProgress[quest.id] = next;
-  return next >= Number(quest.objective?.count || 0);
+  return next >= target;
+}
+
+export function recordQuestKill(kind, zoneName){
+  if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.length) return false;
+  const activeIds = store.state.activeQuestIds.filter(id=>getQuest(id) && !store.state.completedQuestClaims?.[id]).slice(0, MAX_ACTIVE_QUESTS);
+  const trackedQuest = getQuest(store.state.activeQuestId);
+  if(trackedQuest && activeIds.includes(trackedQuest.id) && canProgressQuest(trackedQuest) && questMatchesKill(trackedQuest, kind, zoneName)){
+    return progressQuestKill(trackedQuest);
+  }
+  const fallbackQuest = activeIds
+    .map(id=>getQuest(id))
+    .find(quest=>canProgressQuest(quest) && questMatchesKill(quest, kind, zoneName));
+  return fallbackQuest ? progressQuestKill(fallbackQuest) : false;
 }
 
 export function claimQuest(id){
   const quest = getQuest(id);
   if(!quest) return {ok:false, reason:"Quête introuvable."};
+  if(store.state.completedQuestClaims?.[id]) return {ok:false, reason:"Quête déjà terminée."};
   if(!canClaimQuest(id)) return {ok:false, reason:"Objectif non rempli."};
-  store.state.player.credits += Number(quest.rewards?.credits || 0);
-  addXP(Number(quest.rewards?.xp || 0));
-  for(const [materialId, amount] of Object.entries(quest.rewards?.materials || {})) addMaterial(materialId, amount);
+  store.state.player.credits += Number(quest.rewards.credits || 0);
+  addXP(Number(quest.rewards.xp || 0));
+  for(const [materialId, amount] of Object.entries(quest.rewards.materials || {})) addMaterial(materialId, amount);
   if(!store.state.completedQuestClaims || typeof store.state.completedQuestClaims !== "object") store.state.completedQuestClaims = {};
   store.state.completedQuestClaims[id] = true;
-  if(store.state.activeQuestId === id) store.state.activeQuestId = null;
+  if(Array.isArray(store.state.activeQuestIds)) store.state.activeQuestIds = store.state.activeQuestIds.filter(questId=>questId !== id).slice(0, MAX_ACTIVE_QUESTS);
+  if(store.state.activeQuestId === id) store.state.activeQuestId = store.state.activeQuestIds?.[0] || null;
   return {ok:true, quest};
 }
 
 export function getRankForScore(score){
-  let current = RANK_TABLE[0];
-  for(const rank of RANK_TABLE){
-    if(Number(score || 0) >= rank.score) current = rank;
-    else break;
-  }
-  return current;
+  return findRankForScore(score);
 }
 
 export function getRankScore(){
-  const player = store.state?.player || {};
-  const totalXp = Math.max(0, Number(player.totalXp || 0));
-  const totalKills = Math.max(0, Number(player.totalKills || 0));
-  const levelBonus = Math.max(0, Number(player.level || 1) - 1);
-  const portalClears = getCompletedPortalCount();
-  return totalXp + totalKills * 55 + levelBonus * 120 + portalClears * 2500;
+  return calculateRankScore(store.state.player || {}, getCompletedPortalCount());
 }
 
 export function getRankBreakdown(){
-  const player = store.state?.player || {};
-  const totalXp = Math.max(0, Number(player.totalXp || 0));
-  const totalKills = Math.max(0, Number(player.totalKills || 0));
-  const levelBonus = Math.max(0, Number(player.level || 1) - 1);
-  const portalClears = getCompletedPortalCount();
-  return [
-    {id:"xp", label:"XP totale gagnée", source:"Monstres, vagues et récompenses de portail", amount:totalXp, rate:1, formula:`${totalXp} × 1`, points:totalXp},
-    {id:"kill", label:"Monstres détruits", source:"Chaque ennemi tué", amount:totalKills, rate:55, formula:`${totalKills} × 55`, points:totalKills * 55},
-    {id:"level", label:"Niveaux gagnés", source:"Chaque niveau après le niveau 1", amount:levelBonus, rate:120, formula:`${levelBonus} × 120`, points:levelBonus * 120},
-    {id:"portal", label:"Portails terminés", source:"30 vagues nettoyées + boss tué", amount:portalClears, rate:2500, formula:`${portalClears} × 2500`, points:portalClears * 2500}
-  ];
+  return buildRankBreakdown(store.state.player || {}, getCompletedPortalCount());
 }
 
 export function getCurrentRank(){
@@ -293,40 +281,15 @@ export function getCurrentRank(){
 }
 
 export function getNextRank(){
-  const current = getCurrentRank();
-  return RANK_TABLE.find(rank=>rank.score > current.score) || null;
+  return getNextRankForScore(getRankScore());
 }
 
 export function getRankProgress(){
-  const current = getCurrentRank();
-  const next = getNextRank();
-  const score = getRankScore();
-  if(!next) return {score,current,next,progress:100,remaining:0};
-  const span = Math.max(1, next.score - current.score);
-  return {score,current,next,progress:Math.max(0, Math.min(100, (score - current.score) / span * 100)),remaining:Math.max(0, next.score - score)};
+  return getRankProgressForScore(getRankScore());
 }
 
 export function getLeaderboardRows(){
-  const player = store.state?.player || {};
-  const selfPoints = getRankScore();
-  const self = {
-    id:"player",
-    pilot:player.name || "NOVA-37",
-    level:Number(player.level || 1),
-    kills:Number(player.totalKills || 0),
-    portals:getCompletedPortalCount(),
-    points:selfPoints,
-    isPlayer:true
-  };
-  const rows = [self, ...LOCAL_LEADERBOARD_PREVIEW].map(row=>{
-    const rank = row.rankId ? getRankById(row.rankId) : getRankForScore(row.points);
-    return {
-      ...row,
-      rankId:rank.id,
-      grade:row.grade || rank.name
-    };
-  });
-  return rows
+  return buildLeaderboardRows(store.state.player || {}, getCompletedPortalCount())
     .sort((a,b)=>b.points - a.points || b.level - a.level || a.pilot.localeCompare(b.pilot))
     .map((row,index)=>({...row, position:index+1}));
 }
@@ -340,9 +303,9 @@ export function registerKill(kind){
 }
 
 export function getRequiredLevel(entity){ return Math.max(0, Number(entity?.unlockLevel ?? 1)); }
-export function isUnlockedForPlayer(entity){ return store.state.player.level >= getRequiredLevel(entity); }
+export function isUnlockedForPlayer(entity){ return true; }
 export function getWeaponAverageDamage(item){
-  if(!item?.weapon) return 0;
+  if(!item.weapon) return 0;
   const upgradeBonus = getEquipmentUpgradeLevel(item.id) * 10;
   const min = Number(item.weapon.minDamage ?? item.weapon.damage ?? 0);
   const max = Number(item.weapon.maxDamage ?? item.weapon.damage ?? min);
@@ -367,16 +330,22 @@ export function consumeAmmo(id, amount){
   return true;
 }
 
-export function setActionSlot(index, ammoId){
+function isValidActionSlotItem(id){
+  if(getAmmo(id)) return true;
+  const item = getItem(id);
+  return item.category === "extra";
+}
+
+export function setActionSlot(index, itemId){
   if(!store.state.actionSlots) store.state.actionSlots = Array(9).fill(null);
   if(index < 0 || index >= 9) return false;
-  store.state.actionSlots[index] = ammoId && getAmmo(ammoId) ? ammoId : null;
+  store.state.actionSlots[index] = itemId && isValidActionSlotItem(itemId) ? itemId : null;
   return true;
 }
 
 export function makeEmptyLoadout(shipId){
   const ship = getShip(shipId);
-  return {lasers:Array(ship.stats.maxLasers).fill(null), generators:Array(ship.stats.maxGenerators).fill(null), extras:Array(3).fill(null)};
+  return {lasers:Array(ship.stats.maxLasers).fill(null), generators:Array(ship.stats.maxGenerators).fill(null), extras:Array(ship.stats.maxExtras || 3).fill(null)};
 }
 
 export function cleanLoadout(shipId, raw){
@@ -389,7 +358,7 @@ export function cleanLoadout(shipId, raw){
     const uid = raw?.generators?.[i] ?? null;
     return uid && getItemFromInventoryUid(uid)?.category === "generateur" ? uid : null;
   });
-  const extras = Array.from({length:3}, (_,i)=>{
+  const extras = Array.from({length:ship.stats.maxExtras || 3}, (_,i)=>{
     const uid = raw?.extras?.[i] ?? null;
     return uid && getItemFromInventoryUid(uid)?.category === "extra" ? uid : null;
   });
@@ -469,7 +438,7 @@ export function unequipInventoryItem(uid){
 export function getInventoryByCategory(category){
   return store.state.inventoryItems
     .map(entry=>({...entry, item:getItem(entry.itemId), equipped:findEquippedSlot(entry.uid)}))
-    .filter(entry=>entry.item?.category === category);
+    .filter(entry=>entry.item.category === category);
 }
 
 export function getLoadout(shipId = store.state.activeShip){
@@ -506,15 +475,15 @@ export function normalizeState(saved){
   merged.skillLevels = {...(base.skillLevels || {})};
   if(saved?.skillLevels && typeof saved.skillLevels === "object"){
     for(const skill of skills){
-      merged.skillLevels[skill.id] = Math.max(0, Math.min(Number(skill.maxLevel || skill.levels?.length || 0), Number(saved.skillLevels[skill.id] || 0)));
+      merged.skillLevels[skill.id] = Math.max(0, Math.min(Number(skill.maxLevel || skill.levels.length || 0), Number(saved.skillLevels[skill.id] || 0)));
     }
   }
   // Migration légère de l'ancien système (liste de compétences débloquées) vers les nouvelles branches.
   if((!saved?.skillLevels || typeof saved.skillLevels !== "object") && Array.isArray(saved?.unlockedSkills) && saved.unlockedSkills.length){
     const legacyCount = saved.unlockedSkills.length;
-    if(legacyCount >= 1) merged.skillLevels.damage = Math.min(1, skills.find(s=>s.id === "damage")?.maxLevel || 1);
-    if(legacyCount >= 2) merged.skillLevels.shield = Math.min(1, skills.find(s=>s.id === "shield")?.maxLevel || 1);
-    if(legacyCount >= 3) merged.skillLevels.utility = Math.min(1, skills.find(s=>s.id === "utility")?.maxLevel || 1);
+    if(legacyCount >= 1) merged.skillLevels.damage = Math.min(1, skills.find(s=>s.id === "damage").maxLevel || 1);
+    if(legacyCount >= 2) merged.skillLevels.shield = Math.min(1, skills.find(s=>s.id === "shield").maxLevel || 1);
+    if(legacyCount >= 3) merged.skillLevels.utility = Math.min(1, skills.find(s=>s.id === "utility").maxLevel || 1);
   }
   merged.ammoInventory = {...base.ammoInventory};
   if(saved?.ammoInventory && typeof saved.ammoInventory === "object"){
@@ -522,7 +491,7 @@ export function normalizeState(saved){
   }
   merged.actionSlots = Array.from({length:9}, (_,i)=>{
     const value = Array.isArray(saved?.actionSlots) ? saved.actionSlots[i] : base.actionSlots[i];
-    return value && ammoTypes.some(a=>a.id === value) ? value : null;
+    return value && (ammoTypes.some(a=>a.id === value) || equipment.some(item=>item.id === value && item.category === "extra")) ? value : null;
   });
   merged.slotKeybinds = normalizeSlotKeybinds(saved?.slotKeybinds || base.slotKeybinds);
   merged.portalPieces = {...(base.portalPieces || {})};
@@ -536,17 +505,25 @@ export function normalizeState(saved){
   }
   merged.refineryJob = saved?.refineryJob && typeof saved.refineryJob === "object" ? {...saved.refineryJob} : base.refineryJob;
   merged.equipmentUpgrades = saved?.equipmentUpgrades && typeof saved.equipmentUpgrades === "object" ? {...saved.equipmentUpgrades} : {...(base.equipmentUpgrades || {})};
-  merged.activeQuestId = getQuest(saved?.activeQuestId)?.id || base.activeQuestId;
+  const savedActiveQuestIds = Array.isArray(saved?.activeQuestIds) ? saved.activeQuestIds : [];
+  const legacyActiveQuestId = getQuest(saved?.activeQuestId)?.id || null;
+  merged.activeQuestIds = [...new Set([...savedActiveQuestIds, legacyActiveQuestId].filter(id=>getQuest(id) && !saved?.completedQuestClaims?.[id]))].slice(0, MAX_ACTIVE_QUESTS);
+  merged.activeQuestId = merged.activeQuestIds.includes(legacyActiveQuestId) ? legacyActiveQuestId : (merged.activeQuestIds[0] || base.activeQuestId);
   merged.questProgress = saved?.questProgress && typeof saved.questProgress === "object" ? {...saved.questProgress} : {...(base.questProgress || {})};
   merged.completedQuestClaims = saved?.completedQuestClaims && typeof saved.completedQuestClaims === "object" ? {...saved.completedQuestClaims} : {...(base.completedQuestClaims || {})};
+  merged.uiLayout = {...(base.uiLayout || {})};
+  if(saved?.uiLayout && typeof saved.uiLayout === "object"){
+    merged.uiLayout = {...merged.uiLayout, ...saved.uiLayout};
+  }
   merged.ownedDroneCount = Math.max(0, Math.min(getDroneCatalog().maxOwned || 8, Number(saved?.ownedDroneCount ?? base.ownedDroneCount ?? 0)));
   merged.droneLoadout = cleanDroneLoadout(saved?.droneLoadout || base.droneLoadout || []);
   while(merged.droneLoadout.length < merged.ownedDroneCount) merged.droneLoadout.push(null);
-  if(!merged.ownedShips.includes("eclaireur")) merged.ownedShips.unshift("eclaireur");
+  const starterShipId = "orion";
+  if(!merged.ownedShips.includes(starterShipId)) merged.ownedShips.unshift(starterShipId);
   if(!merged.ownedItems.includes("laser_mk1")) merged.ownedItems.unshift("laser_mk1");
-  if(merged.activeShip !== null && (!ships.some(s=>s.id===merged.activeShip) || !merged.ownedShips.includes(merged.activeShip))) merged.activeShip = "eclaireur";
+  if(merged.activeShip !== null && (!ships.some(s=>s.id===merged.activeShip) || !merged.ownedShips.includes(merged.activeShip))) merged.activeShip = starterShipId;
   if(!ships.some(s=>s.id===merged.selectedShip) || !merged.ownedShips.includes(merged.selectedShip)) merged.selectedShip = merged.activeShip;
-  if(!merged.selectedShip) merged.selectedShip = "eclaireur";
+  if(!merged.selectedShip) merged.selectedShip = starterShipId;
   merged.shipLoadouts = saved?.shipLoadouts && typeof saved.shipLoadouts === "object" ? saved.shipLoadouts : clone(base.shipLoadouts);
   if(Object.keys(merged.shipLoadouts).length === 0 && Array.isArray(saved?.slots)){
     merged.shipLoadouts[merged.activeShip] = {
@@ -625,7 +602,8 @@ export function loadState(){
 }
 
 export function saveState(){
-  if(store.state?.player) store.state.player.rankScore = getRankScore();
+  if(globalThis.__voidsectorResetInProgress) return;
+  if(store.state.player) store.state.player.rankScore = getRankScore();
   localStorage.setItem("voidsector-prototype-state", JSON.stringify(store.state));
 }
 
@@ -709,7 +687,7 @@ export function getShipCombatStats(shipId = store.state.activeShip){
     cargo: ship.stats.cargo + (skill.cargo || 0),
     maxLasers: ship.stats.maxLasers,
     maxGenerators: ship.stats.maxGenerators,
-    maxExtras:3,
+    maxExtras:ship.stats.maxExtras || 3,
     droneCount: getDroneLoadout().length,
     bouclier: shieldFromGenerators > 0 ? shieldFromGenerators + (skill.shieldBonus || 0) : 0,
     regen: regen + (skill.regen || 0),
@@ -718,13 +696,6 @@ export function getShipCombatStats(shipId = store.state.activeShip){
     shieldAbsorbRatio: Math.max(0, Math.min(0.9, 0.5 + Number(skill.shieldAbsorbBonus || 0))),
     extraBonus:getExtraBonus(shipId)
   };
-}
-
-export function getPowerScore(shipId = store.state.activeShip){
-  const stats = getShipCombatStats(shipId);
-  const lasers = [...getEquippedLasers(shipId), ...getEquippedDroneLasers()].reduce((sum, item)=>sum + getWeaponAverageDamage(item), 0);
-  const gen = [...getEquippedGenerators(shipId), ...getEquippedDroneGenerators()].reduce((sum, item)=>sum + Math.round((item.stats.bouclier || 0)/4) + Math.round((item.stats.vitesse || 0)*2), 0);
-  return Math.round(stats.vie/4 + stats.vitesse + stats.cargo/2 + lasers + gen + (getSkillBonus().power || 0));
 }
 
 export function addXP(amount){
@@ -742,3 +713,5 @@ export function addXP(amount){
   store.state.player.rankScore = getRankScore();
   return leveled;
 }
+
+

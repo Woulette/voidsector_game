@@ -16,7 +16,7 @@
         <div>
           <span class="tiny">COMMANDANT</span>
           <h1 id="pilotName">NOVA-37</h1>
-          <div id="pilotRank" class="pilot-rank-line">Aucun grade</div>
+          <div id="pilotRank" class="pilot-rank-line">Recrue</div>
           <div class="level-line">
             <span id="levelText">NIV. 1</span>
             <div class="mini-bar"><span id="xpFill"></span></div>
@@ -92,7 +92,6 @@
               <span class="tiny">FICHE VAISSEAU</span>
               <h2 id="selectedShipName">---</h2>
             </div>
-            <span id="selectedShipTier" class="rank">I</span>
           </div>
           <div class="selected-ship-art">
             <img id="selectedShipImage" src="" alt="Vaisseau sélectionné">
@@ -222,13 +221,31 @@
         <strong id="gameZoneName">ZONE : ASTRA-01</strong>
         <div class="combat-pilot-row">
           <span id="gamePlayerName">NOVA-37</span>
-          <span id="gameRankHud" class="combat-rank-hud"><img class="rank-icon" src="assets/ranks/none.svg" alt="Aucun grade"><span>Aucun grade</span></span>
+          <span id="gameRankHud" class="combat-rank-hud"><img class="rank-icon" src="assets/ranks/01_Recrue.svg" alt="Recrue"><span>Recrue</span></span>
         </div>
-        <div class="combat-stat-row">
+        <div class="combat-overview-row">
           <span>NIV. <b id="gameLevel">1</b></span>
-          <span>PV <b id="gameHp">100</b></span>
-          <span>Bouclier <b id="gameShield">0</b></span>
           <span>Vitesse <b id="gameSpeed">0</b></span>
+        </div>
+        <div class="combat-meter-grid" aria-label="Statistiques de combat">
+          <button class="combat-meter combat-meter-hp" data-combat-meter="hp" type="button" aria-label="Afficher la vie en chiffres">
+            <span class="combat-meter-head"><span>Vie</span><b id="gameHpPercent">100%</b></span>
+            <span class="combat-meter-track"><span id="gameHpFill"></span></span>
+            <span id="gameHp" class="combat-meter-value">0 / 0</span>
+            <span id="gameHpTooltip" class="combat-meter-tooltip">0 / 0</span>
+          </button>
+          <button class="combat-meter combat-meter-shield" data-combat-meter="shield" type="button" aria-label="Afficher le bouclier en chiffres">
+            <span class="combat-meter-head"><span>Bouclier</span><b id="gameShieldPercent">0%</b></span>
+            <span class="combat-meter-track"><span id="gameShieldFill"></span></span>
+            <span id="gameShield" class="combat-meter-value">0 / 0</span>
+            <span id="gameShieldTooltip" class="combat-meter-tooltip">0 / 0</span>
+          </button>
+          <button class="combat-meter combat-meter-xp" data-combat-meter="xp" type="button" aria-label="Afficher l'expérience en chiffres">
+            <span class="combat-meter-head"><span>Expérience</span><b id="gameXpPercent">0%</b></span>
+            <span class="combat-meter-track"><span id="gameXpFill"></span></span>
+            <span id="gameXp" class="combat-meter-value">0 / 100</span>
+            <span id="gameXpTooltip" class="combat-meter-tooltip">0 / 100</span>
+          </button>
         </div>
         <div class="combat-stat-row combat-stat-row-secondary">
           <span id="gameRepairHud">Robot : non équipé</span>
@@ -242,6 +259,30 @@
     </div>
     <div id="gameTargetPanel" class="target-panel hidden"></div>
     <div id="lootPopup" class="loot-popup hidden"></div>
+    <div id="safeZoneNotice" class="safe-zone-notice hidden">
+      <strong>ZONE NON-AGRESSION</strong>
+      <span>Protection active</span>
+    </div>
+    <div id="combatUtilityDock" class="combat-utility-dock frame" aria-label="Modules rapides">
+      <button data-utility-panel="group" type="button" title="Groupe" aria-label="Groupe">G</button>
+      <button data-utility-panel="refinery" type="button" title="Raffinage" aria-label="Raffinage">R</button>
+      <button data-utility-panel="quests" type="button" title="Quetes" aria-label="Quetes">Q</button>
+      <button class="disabled" type="button" disabled title="Carte" aria-label="Carte">M</button>
+      <button class="disabled" type="button" disabled title="Clan" aria-label="Clan">C</button>
+      <button class="disabled" type="button" disabled title="Journal" aria-label="Journal">J</button>
+    </div>
+    <div id="combatUtilityPanelGroup" class="combat-utility-panel frame hidden" data-utility-mode="group">
+      <div class="combat-utility-panel-head">
+        <strong>GROUPE</strong>
+      </div>
+      <div id="combatUtilityContentGroup" class="combat-utility-content"></div>
+    </div>
+    <div id="combatUtilityPanelQuests" class="combat-utility-panel frame hidden" data-utility-mode="quests">
+      <div class="combat-utility-panel-head">
+        <strong>QUETES</strong>
+      </div>
+      <div id="combatUtilityContentQuests" class="combat-utility-content"></div>
+    </div>
     <canvas id="gameCanvas"></canvas>
     <div id="gameActionBar" class="action-bar frame"></div>
     <button id="combatQuickMenuBtn" class="combat-menu-button" type="button">+</button>
@@ -262,7 +303,7 @@
       <div id="spawnPanelContent" class="spawn-panel-content"></div>
     </div>
     <div class="game-help frame">
-      <b>Contrôles</b> : ZQSD/WASD pour bouger · Clic droit pour destination · Clic gauche sur un ennemi pour le cibler · Touches de slots personnalisables dans Paramètres.
+      <b>Contrôles</b> : clic gauche pour destination · maintenir clic gauche pour suivre la souris · clic gauche sur un ennemi pour le cibler · touches de slots personnalisables dans Paramètres.
     </div>
   </section>
 

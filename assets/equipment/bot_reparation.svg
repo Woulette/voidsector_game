@@ -1,25 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240">
-
-    <defs>
-      <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="5" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-      <linearGradient id="metal" x1="0" x2="1" y1="0" y2="1">
-        <stop offset="0%" stop-color="#64748b"/>
-        <stop offset="48%" stop-color="#111827"/>
-        <stop offset="100%" stop-color="#22c55e"/>
-      </linearGradient>
-      <radialGradient id="energy" cx="50%" cy="50%" r="60%">
-        <stop offset="0%" stop-color="#fff"/>
-        <stop offset="45%" stop-color="#22c55e"/>
-        <stop offset="100%" stop-color="transparent"/>
-      </radialGradient>
-    </defs>
-<g filter="url(#glow)">
-<circle cx="160" cy="112" r="48" fill="url(#metal)" stroke="#22c55e" stroke-width="4"/>
-<circle cx="160" cy="112" r="18" fill="url(#energy)"/>
-<path d="M160 58 V28 M160 166 V208 M108 86 L62 58 M212 86 L258 58 M108 138 L62 166 M212 138 L258 166" stroke="#64748b" stroke-width="9" stroke-linecap="round"/>
-<path d="M148 112 H172 M160 100 V124" stroke="#bbf7d0" stroke-width="12" stroke-linecap="round"/>
-</g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="24" y="28" width="80" height="72" rx="12" fill="#071827" stroke="#38bdf8" stroke-width="4"/>
+  <path d="M64 18v18" stroke="#67e8f9" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="58" r="7" fill="#a7f3d0"/>
+  <circle cx="80" cy="58" r="7" fill="#a7f3d0"/>
+  <path d="M64 70v20M54 80h20" stroke="#22c55e" stroke-width="8" stroke-linecap="round"/>
+  <path d="M18 52h12M98 52h12" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
 </svg>

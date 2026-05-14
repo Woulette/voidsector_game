@@ -1,7 +1,7 @@
 export const DEFAULT_SLOT_KEYBINDS = ["Digit1","Digit2","Digit3","Digit4","Digit5","Digit6","Digit7","Digit8","Digit9"];
 
 export function keyCodeToLabel(code){
-  if(!code) return "—";
+  if(!code) return "-";
   if(code === "Space") return "Espace";
   if(code.startsWith("Digit")) return code.replace("Digit", "");
   if(code.startsWith("Numpad")) return `Pavé ${code.replace("Numpad", "")}`;

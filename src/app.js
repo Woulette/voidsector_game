@@ -14,9 +14,7 @@ import {
   getLoadout,
   getPortal,
   getPortalPieces,
-  getRequiredLevel,
   getShip,
-  isUnlockedForPlayer,
   isPortalUnlocked,
   loadState,
   saveState,
@@ -52,7 +50,6 @@ function equipSelectedShip(){
 function buyShip(id){
   const ship = getShip(id);
   if(store.state.ownedShips.includes(id)) return;
-  if(!isUnlockedForPlayer(ship)) return showToast(`Niveau ${getRequiredLevel(ship)} requis pour ce vaisseau.`);
   if(!canAfford(ship.priceType, ship.price)) return showToast("Fonds insuffisants.");
   spend(ship.priceType, ship.price);
   store.state.ownedShips.push(id);
@@ -64,7 +61,6 @@ function buyShip(id){
 function buyItem(id){
   const item = getItem(id);
   if(!item) return;
-  if(!isUnlockedForPlayer(item)) return showToast(`Niveau ${getRequiredLevel(item)} requis pour cet objet.`);
   if(!canAfford(item.priceType, item.price)) return showToast("Fonds insuffisants.");
   spend(item.priceType, item.price);
   addInventoryItem(id);
@@ -75,7 +71,6 @@ function buyItem(id){
 function buyAmmo(id){
   const ammo = ammoTypes.find(a=>a.id === id);
   if(!ammo) return;
-  if(!isUnlockedForPlayer(ammo)) return showToast(`Niveau ${getRequiredLevel(ammo)} requis pour cette munition.`);
   if(!canAfford(ammo.priceType, ammo.price)) return showToast("Fonds insuffisants.");
   spend(ammo.priceType, ammo.price);
   addAmmo(ammo.id, ammo.amount);
@@ -87,7 +82,6 @@ function buyCombatDrone(){
   const drone = getDroneCatalog();
   const count = store.state.ownedDroneCount || 0;
   if(count >= drone.maxOwned) return showToast("Nombre maximum de drones atteint.");
-  if(!isUnlockedForPlayer(drone)) return showToast(`Niveau ${getRequiredLevel(drone)} requis pour ce drone.`);
   const price = getDronePurchasePrice(count);
   if(!canAfford(drone.priceType, price)) return showToast("Fonds insuffisants.");
   spend(drone.priceType, price);
@@ -129,7 +123,7 @@ function equipPart(type, index, inventoryUid){
       loadout.generators[index] = inventoryUid;
     }else{
       if(item.category !== "extra") return showToast("Ce n'est pas un extra.");
-      if(index >= 3) return;
+      if(index >= (ship.stats.maxExtras || 3)) return;
       if(!canMoveInventoryItemToTarget(inventoryUid, {location:"ship", shipId:ship.id})) return;
       loadout.extras = loadout.extras.map(uid => uid === inventoryUid ? null : uid);
       loadout.extras[index] = inventoryUid;
@@ -260,6 +254,17 @@ document.addEventListener("click", (e)=>{
     saveState();
     showToast("Touches des slots réinitialisées.");
     renderAll();
+    return;
+  }
+
+  const resetSaveBtn = e.target.closest("[data-reset-save]");
+  if(resetSaveBtn){
+    const ok = window.confirm("Remettre VoidSector a zero  Toute la progression locale sera supprimee.");
+    if(!ok) return;
+    window.__voidsectorResetInProgress = true;
+    sessionStorage.setItem("voidsector-reset-requested", "1");
+    localStorage.removeItem("voidsector-prototype-state");
+    window.location.reload();
     return;
   }
 
@@ -404,13 +409,16 @@ document.addEventListener("keydown", e=>{
     renderAll();
     return;
   }
-  if(e.key === "Escape" && Game.running) Game.stop(true);
 });
 
 window.addEventListener("beforeunload", ()=>{
   try{ saveState(); }catch(e){}
 });
 
+if(sessionStorage.getItem("voidsector-reset-requested") === "1"){
+  sessionStorage.removeItem("voidsector-reset-requested");
+  localStorage.removeItem("voidsector-prototype-state");
+}
 loadState();
 setView("hangar");
 renderAll();
