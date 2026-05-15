@@ -40,6 +40,48 @@ function localToWorld(player, x, y, angle = player.angle){
   };
 }
 
+function lerp(a, b, t){ return a + (b - a) * t; }
+function smoothstep(t){ return t * t * (3 - 2 * t); }
+function lerpAngle(current, target, amount){
+  const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+  return current + delta * amount;
+}
+
+function triadPoint(points, memberIndex, time, phase = 0, movePortion = .52){
+  const cycle = (time + phase) % points.length;
+  const step = Math.floor(cycle);
+  const rawMix = cycle - step;
+  const mix = rawMix >= movePortion ? 1 : smoothstep(rawMix / movePortion);
+  const from = points[(memberIndex + step) % points.length];
+  const to = points[(memberIndex + step + 1) % points.length];
+  return {
+    x:lerp(from.x, to.x, mix),
+    y:lerp(from.y, to.y, mix)
+  };
+}
+
+function formationPoint(index, time){
+  const fixedDrift = Math.sin(time * Math.PI * 2) * 3;
+  const leftTriad = [
+    {x:-112, y:-72},
+    {x:-154, y:-8},
+    {x:-110, y:64}
+  ];
+  const rightTriad = [
+    {x:112, y:-72},
+    {x:154, y:-8},
+    {x:110, y:64}
+  ];
+
+  if(index === 0) return {x:0, y:-150 - fixedDrift};
+  if(index === 1) return {x:0, y:154 + fixedDrift};
+  if(index >= 2 && index <= 4) return triadPoint(leftTriad, index - 2, time * .32, 0);
+  if(index >= 5 && index <= 7) return triadPoint(rightTriad, index - 5, time * .32, 1.35);
+  if(index === 8) return {x:-72 + Math.sin(time * 2.1) * 2, y:124 + Math.cos(time * 1.7) * 2};
+  if(index === 9) return {x:72 + Math.sin(time * 2.1 + Math.PI) * 2, y:124 + Math.cos(time * 1.7 + Math.PI) * 2};
+  return {x:0, y:140};
+}
+
 export function spawnPlayerEngineParticles({dt, player, ship, particles, defaultProfile, profiles}){
   if(!player) return;
   const power = Math.max(0, Math.min(1, player.enginePower || 0));
@@ -142,24 +184,18 @@ function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profi
 
 function drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid}){
   if(!drones.length) return;
-  const img = cache["assets/equipment/drone_orbital.svg"];
-  const time = performance.now() / 850;
-  drones.forEach((uid, index)=>{
-    const orbit = 74 + (index % 2) * 16;
-    const angle = time + index * (Math.PI * 2 / Math.max(1, drones.length));
-    const x = player.x + Math.cos(angle) * orbit;
-    const y = player.y + Math.sin(angle) * (orbit * 0.7);
-    const module = getItemFromInventoryUid(uid);
-    drawRotatedImage({ctx, camera, img, x, y, w:34, h:34, angle:-angle * 1.2});
-    if(module){
-      ctx.save();
-      ctx.translate(x - camera.x, y - camera.y);
-      ctx.fillStyle = module.category === "canon" ? "rgba(56,189,248,.95)" : "rgba(34,197,94,.95)";
-      ctx.beginPath();
-      ctx.arc(0, 18, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
+  const img = cache["assets/drones/drone_test_sprite.webp"];
+  const time = performance.now() / 1000;
+  player.droneFormationAngle = Number.isFinite(player.droneFormationAngle)
+    ? lerpAngle(player.droneFormationAngle, player.angle, .028)
+    : player.angle;
+  drones.slice(0, 10).forEach((uid, index)=>{
+    const point = formationPoint(index, time);
+    const pulse = Math.sin(time * 4.2 + index * .9) * 1.4;
+    const pos = localToWorld(player, point.x, point.y + pulse, player.droneFormationAngle);
+    const x = pos.x;
+    const y = pos.y;
+    drawRotatedImage({ctx, camera, img, x, y, w:34, h:34, angle:player.angle});
   });
 }
 

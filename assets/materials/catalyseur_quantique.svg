@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="core" cx="32" cy="31" r="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f5d0fe"/>
+      <stop offset=".42" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#2e1065"/>
+    </radialGradient>
+    <linearGradient id="shell" x1="11" y1="13" x2="55" y2="55" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7dd3fc"/>
+      <stop offset=".45" stop-color="#164e63"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <filter id="glow" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path d="M32 7 51 18v28L32 57 13 46V18z" fill="url(#shell)" stroke="#c084fc" stroke-opacity=".5" stroke-width="2"/>
+  <circle cx="32" cy="32" r="14" fill="url(#core)" stroke="#f0abfc" stroke-width="2" filter="url(#glow)"/>
+  <path d="M32 13v10M32 41v10M17 23l9 5M38 36l9 5M47 23l-9 5M26 36l-9 5" stroke="#f5d0fe" stroke-opacity=".7" stroke-width="2" stroke-linecap="round"/>
+  <path d="M22 32c5-8 15-8 20 0-5 8-15 8-20 0z" fill="#020617" opacity=".28"/>
+  <circle cx="32" cy="32" r="5" fill="#fdf4ff"/>
+</svg>

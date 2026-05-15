@@ -4,7 +4,7 @@
 .page-view.active{display:grid;animation:viewIn .18s ease}
 @keyframes viewIn{from{opacity:.35;transform:translateY(6px)}to{opacity:1;transform:none}}
 .hangar-view{grid-template-columns:1.7fr .78fr;align-items:start}
-.shop-view,.portals-view,.skills-view{grid-template-columns:1fr}
+.shop-view,.portals-view,.skills-view,.refinery-view{grid-template-columns:1fr}
 .inventory-view{grid-template-columns:.85fr 1.15fr;align-items:start}
 .shop-head{align-items:flex-start}
 .shop-filters{justify-content:flex-end;max-width:930px}
@@ -171,7 +171,9 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
 
 /* V3 - Hangar inventaire */
 .loadout-panel{grid-column:1 / -1}
-.loadout-panel-body{display:grid;gap:14px;position:relative;z-index:1}
+.loadout-panel-body{display:grid;gap:10px;position:relative;z-index:1}
+.loadout-ship-head{margin-bottom:8px}
+.loadout-ship-head h2{font-size:24px;text-transform:uppercase;letter-spacing:1px}
 .loadout-summary{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px;background:linear-gradient(90deg,rgba(56,189,248,.08),rgba(86,255,79,.04));border:1px solid rgba(56,189,248,.18);clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px)}
 .loadout-summary h3{font-size:20px;text-transform:uppercase;letter-spacing:1px}
 .summary-stats{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
@@ -237,11 +239,12 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
 .loadout-slot[data-drop-part]:hover{border-color:rgba(56,189,248,.55)}
 .ship-equipment-layout{
   display:grid;
-  grid-template-columns:minmax(260px,.85fr) minmax(330px,1.15fr);
+  grid-template-columns:minmax(320px,1fr) 340px;
   grid-template-areas:
     "equipped inventory"
     "detail detail";
-  gap:12px;
+  column-gap:12px;
+  row-gap:0;
 }
 .equipped-compact-panel{grid-area:equipped}
 .rpg-inventory-panel{grid-area:inventory}
@@ -322,17 +325,19 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
 }
 .rpg-inventory-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(48px,48px));
+  grid-template-columns:repeat(5,48px);
   gap:7px;
   align-content:start;
-  max-height:360px;
-  overflow:auto;
-  padding:2px 4px 2px 2px;
+  justify-content:start;
+  max-height:430px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:2px 8px 2px 2px;
 }
 .inventory-cell{display:grid;place-items:center;cursor:grab}
 .inventory-cell.selected{border-color:rgba(250,204,21,.95);box-shadow:0 0 14px rgba(250,204,21,.24)}
 .inventory-cell.equipped-here{border-color:rgba(86,255,79,.55)}
-.inventory-cell.equipped-elsewhere{opacity:.48;cursor:not-allowed;filter:saturate(.5)}
+.inventory-cell.equipped-elsewhere{opacity:.72;cursor:grab;filter:saturate(.75)}
 .inventory-cell.empty{opacity:.34;cursor:default;background:rgba(2,10,19,.6)}
 .inventory-cell.empty span{position:static;color:#385a70}
 .selected-item-panel{

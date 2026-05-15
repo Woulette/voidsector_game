@@ -41,7 +41,7 @@ const SHOP_FILTER_META = {
   canon:{title:"Armes", subtitle:"Générations de lasers disponibles à l'achat.", empty:"Aucune arme disponible."},
   munition:{title:"Munitions / Roquettes", subtitle:"Munitions laser et roquettes à placer en slot 1-9 en combat.", empty:"Aucune munition disponible."},
   generateur:{title:"Générateurs", subtitle:"Boucliers, régénération et vitesse pour ton vaisseau ou tes drones.", empty:"Aucun générateur disponible."},
-  drone:{title:"Drones", subtitle:"Drones orbitaux : achat progressif, un slot par drone, max 8.", empty:"Aucun drone dans cette catégorie."},
+  drone:{title:"Drones", subtitle:"Drones orbitaux : achat progressif, un slot par drone, max 10.", empty:"Aucun drone dans cette catégorie."},
   extra:{title:"Extras", subtitle:"Modules extra à placer dans les 3 slots extras du vaisseau.", empty:"Aucun extra disponible."},
   module:{title:"Modules", subtitle:"Modules spéciaux et améliorations de munitions.", empty:"Aucun module disponible."},
   premium:{title:"Premium", subtitle:"Articles premium disponibles pour le compte pilote.", empty:"Aucun article premium."},

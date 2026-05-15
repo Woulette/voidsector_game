@@ -3,7 +3,7 @@ import { fmt } from "../core/utils.js";
 import {
   addAmmo,
   addInventoryItem,
-  addMaterial,
+  addShipCargoMaterial,
   addPortalPiece,
   addXP,
   acceptQuest,
@@ -33,6 +33,8 @@ import {
   getRefineryJob,
   getRefineryRecipes,
   getShipCombatStats,
+  getShipCargoCapacity,
+  getShipCargoUsed,
   getSkillBonus,
   isRefineryComplete,
   markPortalCompleted,
@@ -63,7 +65,7 @@ import {
 } from "./combatData.js";
 import { preloadCombatAssets } from "./combatAssets.js";
 import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./render/canvasHud.js";
-import { drawCargoBoxes, drawEnemies, drawParticles, drawProjectiles } from "./render/entities.js";
+import { drawCargoBoxes, drawEnemies, drawGroundMaterials, drawParticles, drawProjectiles } from "./render/entities.js";
 import { drawPlayerLayer, spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js";
 import { drawWorldLayer } from "./render/world.js";
 import { createCombatLoop } from "./systems/combatLoop.js";
@@ -98,8 +100,9 @@ export function createCombatGame({renderAll, showToast}){
   let enemySeq = 1;
   let currentMap = MAPS[0];
   let teleportLock = 0;
-  let player, camera, mouse, bullets, enemies, particles, damageTexts, stars, dust, nebulae, asteroids, cargoBoxes, moveTarget, selectedEnemy;
+  let player, camera, mouse, bullets, enemies, particles, damageTexts, stars, dust, nebulae, asteroids, cargoBoxes, groundMaterials, moveTarget, selectedEnemy;
   let pendingCargoBox = null;
+  let pendingGroundMaterial = null;
   let activeLaserSlot, ammoCooldowns, combatPanelTab;
   let gameMode, activePortal, portalWave, portalDelay, portalCompleted;
   let spawnPanelMode = null;
@@ -109,6 +112,7 @@ export function createCombatGame({renderAll, showToast}){
   let selectedQuestId = null;
   let selectedQuestCategory = "normal";
   let combatQuestDetailTab = "quest";
+  let combatCargoExpanded = false;
   const combatMetricModes = {hp:"bar", shield:"bar", xp:"bar"};
   const miniMap = createMiniMapState({
     canvas,
@@ -165,7 +169,6 @@ export function createCombatGame({renderAll, showToast}){
     recordQuestKill,
     addXP,
     addPortalPiece,
-    addMaterial,
     spawnCargoBox,
     getSelectedEnemy:()=>selectedEnemy,
     clearSelectedEnemy,
@@ -180,7 +183,7 @@ export function createCombatGame({renderAll, showToast}){
     markCombatActivity,
     clearMovement:()=>{ moveTarget = null; },
     clearSelection:()=>{ selectedEnemy = null; },
-    clearCombatEffects:()=>{ bullets = []; particles = []; damageTexts = []; cargoBoxes = []; pendingCargoBox = null; },
+    clearCombatEffects:()=>{ bullets = []; particles = []; damageTexts = []; cargoBoxes = []; groundMaterials = []; pendingCargoBox = null; pendingGroundMaterial = null; },
     setTeleportLock:value=>{ teleportLock = value; },
     updateHud,
     showToast
@@ -256,6 +259,31 @@ export function createCombatGame({renderAll, showToast}){
       {id:"quests", x:currentMap.spawn.x - 128, y:currentMap.spawn.y - 86, radius:48, title:"RELAIS DE QUÊTES", subtitle:"Recevoir et rendre des missions"},
       {id:"refinery", x:currentMap.spawn.x + 132, y:currentMap.spawn.y - 90, radius:52, title:"RAFFINEUR", subtitle:"Fusionner et améliorer l’équipement"}
     ];
+  }
+
+  function makeGroundMaterialPreview(map){
+    if(!map || map.id !== 0) return [];
+    const raw = getAllRawMaterials().slice(0, 5);
+    const offsets = [
+      {x:1040, y:-620, glowCore:"rgba(249,115,22,.34)", glow:"rgba(249,115,22,.18)", fallback:"rgba(249,115,22,.74)"},
+      {x:1340, y:-820, glowCore:"rgba(186,230,253,.34)", glow:"rgba(125,211,252,.18)", fallback:"rgba(186,230,253,.74)"},
+      {x:1570, y:-430, glowCore:"rgba(203,213,225,.30)", glow:"rgba(203,213,225,.16)", fallback:"rgba(203,213,225,.74)"},
+      {x:1230, y:-170, glowCore:"rgba(251,146,60,.30)", glow:"rgba(251,146,60,.16)", fallback:"rgba(251,146,60,.74)"},
+      {x:1760, y:-40, glowCore:"rgba(103,232,249,.34)", glow:"rgba(103,232,249,.18)", fallback:"rgba(103,232,249,.74)"}
+    ];
+    return raw.map((material, index)=>({
+      uid:`ground_${map.id}_${material.id}_${index}`,
+      id:material.id,
+      name:material.name,
+      label:material.short || material.name,
+      img:material.img,
+      x:map.spawn.x + offsets[index].x,
+      y:map.spawn.y + offsets[index].y,
+      size:42,
+      radius:30,
+      phase:index * 1.7,
+      ...offsets[index]
+    }));
   }
 
   function getStationAt(world){
@@ -449,6 +477,7 @@ export function createCombatGame({renderAll, showToast}){
     asteroids = mapState.asteroids;
     stars = mapState.stars;
     dust = mapState.dust;
+    groundMaterials = makeGroundMaterialPreview(currentMap);
     nebulae = currentMap.id === 0 ? [
       {x:-1500,y:-820,r:980,c:"rgba(56,189,248,.11)",p:.22},
       {x:880,y:-260,r:760,c:"rgba(34,197,94,.06)",p:.18},
@@ -520,6 +549,7 @@ export function createCombatGame({renderAll, showToast}){
     asteroids = environment.asteroids;
     stars = environment.stars;
     dust = environment.dust;
+    groundMaterials = [];
     nebulae = environment.nebulae;
     player.x = currentMap.spawn.x;
     player.y = currentMap.spawn.y;
@@ -575,7 +605,7 @@ export function createCombatGame({renderAll, showToast}){
     };
     camera = {x:-getCanvasViewWidth()/2,y:-getCanvasViewHeight()/2,zoom:1};
     mouse = {x:getCanvasViewWidth()/2,y:getCanvasViewHeight()/2};
-    bullets = []; particles = []; damageTexts = []; cargoBoxes = []; pendingCargoBox = null; selectedEnemy = null; moveTarget = null;
+    bullets = []; particles = []; damageTexts = []; cargoBoxes = []; groundMaterials = []; pendingCargoBox = null; pendingGroundMaterial = null; selectedEnemy = null; moveTarget = null;
     cleanCombatActionSlots();
     activeLaserSlot = null;
     ammoCooldowns = {};
@@ -694,29 +724,76 @@ export function createCombatGame({renderAll, showToast}){
     return cargoBoxes.find(box=>Math.hypot(world.x - box.x, world.y - box.y) <= box.radius) || null;
   }
 
+  function findGroundMaterialAt(world){
+    return groundMaterials.find(node=>Math.hypot(world.x - node.x, world.y - node.y) <= (node.radius || 30)) || null;
+  }
+
   function collectCargoBox(box){
     const index = cargoBoxes.findIndex(entry=>entry.id === box.id);
     if(index < 0) return false;
-    cargoBoxes.splice(index, 1);
     const rawMaterials = getAllRawMaterials();
     const labels = [];
+    const remainingMaterials = [];
+    let addedTotal = 0;
     for(const drop of box.materials || []){
-      addMaterial(drop.id, drop.amount);
+      const result = addShipCargoMaterial(drop.id, drop.amount);
       const material = rawMaterials.find(item=>item.id === drop.id);
-      labels.push(`${drop.amount} ${material?.short || drop.id.toUpperCase()}`);
+      if(result.added > 0){
+        labels.push(`${result.added} ${material?.short || drop.id.toUpperCase()}`);
+        addedTotal += result.added;
+      }
+      if(result.remaining > 0) remainingMaterials.push({...drop, amount:result.remaining});
     }
+    if(addedTotal <= 0){
+      pendingCargoBox = null;
+      showToast("Soute pleine.");
+      updateHud();
+      return false;
+    }
+    if(remainingMaterials.length) box.materials = remainingMaterials;
+    else cargoBoxes.splice(index, 1);
     particles.push({x:box.x, y:box.y, life:.42, max:.42, size:26, color:"rgba(34,197,94,.58)"});
     saveState();
-    showToast(`Cargo récupéré : ${labels.join(" · ")}.`);
+    const used = getShipCargoUsed(store.state.activeShip);
+    const capacity = getShipCargoCapacity(store.state.activeShip);
+    showToast(`Cargo récupéré : ${labels.join(" · ")} (${fmt(used)} / ${fmt(capacity)}).`);
     rewards.showCargoLoot(labels);
     pendingCargoBox = null;
+    updateHud();
     if(spawnPanelMode) renderSpawnInteractionPanel(spawnPanelMode);
     return true;
   }
 
   function setCargoDestination(box){
     pendingCargoBox = box;
+    pendingGroundMaterial = null;
     moveTarget = {x:box.x, y:box.y};
+    return true;
+  }
+
+  function collectGroundMaterial(node){
+    const index = groundMaterials.findIndex(entry=>entry.uid === node.uid);
+    if(index < 0) return false;
+    const result = addShipCargoMaterial(node.id, 1);
+    if(result.added <= 0){
+      pendingGroundMaterial = null;
+      showToast("Soute pleine.");
+      updateHud();
+      return false;
+    }
+    groundMaterials.splice(index, 1);
+    particles.push({x:node.x, y:node.y, life:.36, max:.36, size:24, color:node.glowCore || "rgba(125,211,252,.5)"});
+    saveState();
+    showToast(`+1 ${node.name} dans la soute.`);
+    pendingGroundMaterial = null;
+    updateHud();
+    return true;
+  }
+
+  function setGroundMaterialDestination(node){
+    pendingGroundMaterial = node;
+    pendingCargoBox = null;
+    moveTarget = {x:node.x, y:node.y};
     return true;
   }
 
@@ -872,6 +949,11 @@ export function createCombatGame({renderAll, showToast}){
       if(!liveCargo) pendingCargoBox = null;
       else if(Math.hypot(player.x - liveCargo.x, player.y - liveCargo.y) <= liveCargo.radius + 24) collectCargoBox(liveCargo);
     }
+    if(pendingGroundMaterial){
+      const liveMaterial = groundMaterials.find(node=>node.uid === pendingGroundMaterial.uid);
+      if(!liveMaterial) pendingGroundMaterial = null;
+      else if(Math.hypot(player.x - liveMaterial.x, player.y - liveMaterial.y) <= (liveMaterial.radius || 30) + 24) collectGroundMaterial(liveMaterial);
+    }
 
     if(gameMode === "portal"){
       if(!portalCompleted && enemies.length === 0){
@@ -1003,6 +1085,7 @@ export function createCombatGame({renderAll, showToast}){
     drawBackground();
     drawProjectiles({ctx, camera, bullets});
     drawParticles({ctx, camera, particles});
+    drawGroundMaterials({ctx, camera, cache, materials:groundMaterials});
     drawEnemies({ctx, camera, cache, enemies, selectedEnemy});
     drawCargoBoxes({ctx, camera, cache, cargoBoxes});
     const rank = getCurrentRank();
@@ -1069,6 +1152,19 @@ export function createCombatGame({renderAll, showToast}){
     updateCombatMeter({metric:"shield", value:player.shield, max:player.maxShield, label:"le bouclier", mode:combatMetricModes.shield});
     updateCombatMeter({metric:"xp", value:store.state.player.xp, max:store.state.player.xpNext, label:"l'expérience", mode:combatMetricModes.xp});
     document.getElementById("gameSpeed").textContent = player.displayedSpeed;
+    const cargoUsed = getShipCargoUsed(store.state.activeShip);
+    const cargoCapacity = getShipCargoCapacity(store.state.activeShip);
+    const cargoPercent = cargoCapacity > 0 ? Math.max(0, Math.min(100, cargoUsed / cargoCapacity * 100)) : 0;
+    const cargoToggle = document.getElementById("gameCargoToggle");
+    const cargoValue = document.getElementById("gameCargoValue");
+    const cargoFill = document.getElementById("gameCargoFill");
+    if(cargoValue) cargoValue.textContent = `${fmt(cargoUsed)} / ${fmt(cargoCapacity)}`;
+    if(cargoFill) cargoFill.style.width = `${cargoPercent}%`;
+    if(cargoToggle){
+      cargoToggle.classList.toggle("expanded", combatCargoExpanded);
+      cargoToggle.classList.toggle("full", cargoCapacity > 0 && cargoUsed >= cargoCapacity);
+      cargoToggle.title = `Soute : ${fmt(cargoUsed)} / ${fmt(cargoCapacity)}`;
+    }
     document.getElementById("gameRepairHud").textContent = !player.extraBonus?.repairBot ? "Robot : non équipé" : player.repairBotActive ? "Robot : actif" : repairState.ok ? (player.extraBonus?.repairBotAuto ? "Robot : prêt (auto)" : "Robot : prêt") : `Robot : ${repairState.reason}`;
     document.getElementById("gameCreditsHud").textContent = fmt(store.state.player.credits);
     document.getElementById("gamePremiumHud").textContent = fmt(store.state.player.premium);
@@ -1308,6 +1404,8 @@ export function createCombatGame({renderAll, showToast}){
     findEnemyAt,
     findCargoBoxAt,
     setCargoDestination,
+    findGroundMaterialAt,
+    setGroundMaterialDestination,
     setSelectedEnemy:enemy=>{ selectedEnemy = enemy; },
     renderSpawnInteractionPanel,
     openUtilityPanel,
@@ -1334,6 +1432,14 @@ export function createCombatGame({renderAll, showToast}){
     claimRefineryJob,
     upgradeEquipment,
     showToast
+  });
+
+  document.getElementById("gameCargoToggle")?.addEventListener("click", e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    if(!running) return;
+    combatCargoExpanded = !combatCargoExpanded;
+    updateHud();
   });
 
   return {start, stop, get running(){return running;}};

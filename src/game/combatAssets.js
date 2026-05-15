@@ -16,7 +16,7 @@ export function preloadCombatAssets({cache, ships, equipment, enemyTypes, maps, 
     return paths;
   });
   const rankImages = ranks.map(rank=>getRankAssetPath(rank));
-  const misc = ["assets/equipment/drone_orbital.svg", ...rankImages];
+  const misc = ["assets/drones/drone_test_sprite.webp", ...rankImages];
   [
     ...ships.flatMap(ship=>[ship.img, ship.combatImg]).filter(Boolean),
     ...equipment.map(item=>item.img),

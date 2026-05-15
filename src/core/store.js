@@ -26,10 +26,60 @@ export const store = {
   hangarDetailOpen:false,
   hangarTab:"vaisseau",
   selectedInventoryUid:null,
-  selectedShopProduct:null
+  selectedShopProduct:null,
+  selectedRefineryUpgrade:null,
+  selectedRefineryTab:"forge",
+  selectedRefineryShipmentMaterial:null,
+  selectedRefineryShipmentAmount:30
 };
 
 const MAX_ACTIVE_QUESTS = 5;
+const MIN_PLAYER_CREDITS = 1000000000;
+const MIN_PLAYER_PREMIUM = 1000000;
+const REFINERY_RUSH_NOVA_PER_MINUTE = 15;
+const REFINERY_PRODUCTION_TICK_MS = 30000;
+const REFINERY_MAX_LEVEL = 20;
+const REFINERY_MODULES = {
+  storage:{name:"Stockage", maxLevel:20, baseCost:18000},
+  transport:{name:"Transport", maxLevel:20, baseCost:14000}
+};
+const REFINERY_SHIPMENT_MATERIALS_PER_MINUTE = 30;
+const REFINERY_SHIPMENT_BLOCKED = new Set(["nickel_brut", "catalyseur_quantique"]);
+const REFINERY_SHIPMENT_CREDIT_RATE = {
+  raw:12,
+  refined:40,
+  special:40,
+  advanced:120,
+  final:500
+};
+const REFINERY_RAW_UPGRADE_COSTS = {
+  cuivre_orbital:["cuivre_orbital", "nickel_brut"],
+  zinc_spatial:["zinc_spatial", "nickel_brut"],
+  nickel_brut:["zinc_spatial", "titane_fissure"],
+  titane_fissure:["nickel_brut", "silice_conductrice"],
+  silice_conductrice:["titane_fissure", "nickel_brut"]
+};
+const REFINERY_PRODUCTION_BY_KIND = {
+  raw:{base:1500, max:140000},
+  refined:{base:150, max:14000},
+  special:{base:150, max:14000},
+  advanced:{base:15, max:1400},
+  final:{base:2, max:140}
+};
+const REFINERY_STORAGE_BY_KIND = {
+  raw:{base:25000, max:10000000},
+  refined:{base:10000, max:1000000},
+  special:{base:10000, max:1000000},
+  advanced:{base:8000, max:100000},
+  final:{base:2000, max:10000}
+};
+const REFINERY_UPGRADE_TUNING = {
+  raw:{baseCredits:8000, maxCredits:6000000, baseHours:1, maxHours:36, exponent:2.05},
+  refined:{baseCredits:25000, maxCredits:25000000, baseHours:2, maxHours:96, exponent:2.15},
+  special:{baseCredits:35000, maxCredits:30000000, baseHours:3, maxHours:120, exponent:2.18},
+  advanced:{baseCredits:100000, maxCredits:60000000, baseHours:6, maxHours:168, exponent:2.25},
+  final:{baseCredits:500000, maxCredits:150000000, baseHours:12, maxHours:336, exponent:2.35}
+};
 
 export function getShip(id){ return ships.find(s=>s.id===id) || ships[0]; }
 export function getItem(id){ return equipment.find(i=>i.id===id); }
@@ -39,9 +89,21 @@ export function isWeapon(id){ return getItem(id)?.category === "canon"; }
 export function isGenerator(id){ return getItem(id)?.category === "generateur"; }
 export function getInventoryItem(uid){ return store.state?.inventoryItems?.find(entry=>entry.uid === uid) || null; }
 export function getItemFromInventoryUid(uid){ return getItem(getInventoryItem(uid)?.itemId); }
+function getItemFromInventoryUidIn(uid, inventoryItems = store.state?.inventoryItems || []){
+  return getItem(inventoryItems.find(entry=>entry.uid === uid)?.itemId);
+}
 export function priceLabel(type, price){ return type === "premium" ? `${fmt(price)} NOVA` : `${fmt(price)} CR`; }
 export function canAfford(type, price){ return type === "premium" ? store.state.player.premium >= price : store.state.player.credits >= price; }
-export function spend(type, price){ if(type === "premium") store.state.player.premium -= price; else store.state.player.credits -= price; }
+function enforcePlayerCurrencyMinimums(player = store.state?.player){
+  if(!player) return;
+  player.credits = Math.max(MIN_PLAYER_CREDITS, Number(player.credits || 0));
+  player.premium = Math.max(MIN_PLAYER_PREMIUM, Number(player.premium || 0));
+}
+export function spend(type, price){
+  if(type === "premium") store.state.player.premium -= price;
+  else store.state.player.credits -= price;
+  enforcePlayerCurrencyMinimums();
+}
 export function getPortal(id){ return portals.find(p=>p.id===id) || null; }
 export function getQuest(id){ return questCatalog.find(q=>q.id === id) || null; }
 export function getAllQuests(){ return questCatalog.slice(); }
@@ -50,6 +112,543 @@ export function getAllRawMaterials(){ return rawMaterialCatalog.slice(); }
 export function getRefineryRecipe(id){ return refineryRecipes.find(recipe=>recipe.id === id) || null; }
 export function getRefineryRecipes(){ return refineryRecipes.slice(); }
 export function getPortalPieces(id){ return Math.max(0, Number(store.state.portalPieces?.[id] || 0)); }
+export function getRefineryMaterialLevel(id){
+  const material = getRawMaterial(id);
+  const max = Number(material?.maxLevel || 20);
+  return Math.max(0, Math.min(max, Number(store.state?.refineryLevels?.[id] ?? getDefaultRefineryLevel(id))));
+}
+
+export function isRefineryProductionEnabled(id){
+  return Boolean(getRawMaterial(id)) && !store.state?.refineryProductionDisabled?.[id];
+}
+
+export function toggleRefineryProduction(id){
+  if(!getRawMaterial(id)) return false;
+  if(!store.state.refineryProductionDisabled || typeof store.state.refineryProductionDisabled !== "object"){
+    store.state.refineryProductionDisabled = {};
+  }
+  store.state.refineryProductionDisabled[id] = !store.state.refineryProductionDisabled[id];
+  return !store.state.refineryProductionDisabled[id];
+}
+
+function getDefaultRefineryLevel(id){
+  const material = getRawMaterial(id);
+  return material?.kind === "raw" ? 1 : 0;
+}
+
+export function getRefineryModuleLevel(id){
+  const def = REFINERY_MODULES[id];
+  if(!def) return 0;
+  return Math.max(1, Math.min(def.maxLevel, Number(store.state?.refineryModules?.[id] || 1)));
+}
+
+export function getRefineryModuleUpgradeData(id){
+  const def = REFINERY_MODULES[id];
+  if(!def) return null;
+  const level = getRefineryModuleLevel(id);
+  if(level >= def.maxLevel) return null;
+  const nextLevel = level + 1;
+  const credits = Math.round(def.baseCost * Math.pow(nextLevel, 1.42));
+  const materials = getRefineryModuleUpgradeMaterials(id, nextLevel);
+  const activeJob = getRefineryUpgradeJob("module", id);
+  const canAffordMaterials = Object.entries(materials).every(([materialId, amount])=>getMaterialCount(materialId) >= amount);
+  return {
+    id,
+    name:def.name,
+    level,
+    nextLevel,
+    maxLevel:def.maxLevel,
+    credits,
+    materials,
+    duration:getRefineryUpgradeDuration("module", {nextLevel}),
+    canAfford:!activeJob && store.state.player.credits >= credits && canAffordMaterials
+  };
+}
+
+export function upgradeRefineryModule(id){
+  const data = getRefineryModuleUpgradeData(id);
+  if(!data) return {ok:false, reason:"Module introuvable ou niveau maximum."};
+  if(store.state.player.credits < data.credits) return {ok:false, reason:"Credits insuffisants."};
+  for(const [materialId, amount] of Object.entries(data.materials || {})){
+    if(getMaterialCount(materialId) < amount) return {ok:false, reason:`Stock insuffisant : ${getRawMaterial(materialId)?.name || materialId}.`};
+  }
+  store.state.player.credits -= data.credits;
+  enforcePlayerCurrencyMinimums();
+  for(const [materialId, amount] of Object.entries(data.materials || {})) consumeMaterial(materialId, amount);
+  if(!store.state.refineryModules) store.state.refineryModules = {};
+  store.state.refineryModules[id] = data.nextLevel;
+  return {ok:true, module:data.name, level:data.nextLevel};
+}
+
+function refineryUpgradeKey(type, id){
+  return `${type}:${id}`;
+}
+
+function refineryLevelProgress(level, maxLevel = REFINERY_MAX_LEVEL, exponent = 1){
+  const clamped = Math.max(1, Math.min(maxLevel, Number(level || 1)));
+  const raw = maxLevel <= 1 ? 1 : (clamped - 1) / (maxLevel - 1);
+  return Math.pow(raw, exponent);
+}
+
+function refineryUpgradeProgressFactor(nextLevel, exponent = 2){
+  const clamped = Math.max(2, Math.min(REFINERY_MAX_LEVEL, Number(nextLevel || 2)));
+  const raw = (clamped - 2) / Math.max(1, REFINERY_MAX_LEVEL - 2);
+  return Math.pow(raw, exponent);
+}
+
+function interpolateRounded(base, max, progress){
+  return Math.max(0, Math.round(Number(base || 0) + (Number(max || 0) - Number(base || 0)) * Math.max(0, Math.min(1, progress))));
+}
+
+function getRefineryUpgradeTuning(kind){
+  return REFINERY_UPGRADE_TUNING[kind] || REFINERY_UPGRADE_TUNING.raw;
+}
+
+function getRecipeUpgradeUnitCost(outputKind, inputKind, nextLevel){
+  const progress = refineryUpgradeProgressFactor(nextLevel, getRefineryUpgradeTuning(outputKind).exponent);
+  if(outputKind === "final"){
+    const target = inputKind === "advanced" ? 42500 : inputKind === "special" ? 650000 : 250000;
+    return interpolateRounded(800, target, progress);
+  }
+  if(outputKind === "advanced") return interpolateRounded(900, 180000, progress);
+  if(outputKind === "special") return interpolateRounded(1000, 160000, progress);
+  return interpolateRounded(1000, 160000, progress);
+}
+
+function getRawUpgradeMaterialAmount(nextLevel){
+  return interpolateRounded(1000, 1200000, refineryUpgradeProgressFactor(nextLevel, REFINERY_UPGRADE_TUNING.raw.exponent));
+}
+
+function getRefineryModuleUpgradeMaterials(id, nextLevel){
+  const progress = refineryUpgradeProgressFactor(nextLevel, 2.05);
+  const amount = (base, max)=>interpolateRounded(base, max, progress);
+  const costs = id === "storage"
+    ? {
+        titane_fissure:amount(900, 750000),
+        silice_conductrice:amount(900, 750000)
+      }
+    : {
+        cuivre_orbital:amount(800, 650000),
+        zinc_spatial:amount(800, 650000)
+      };
+  if(nextLevel >= 6){
+    costs.alliage_cuivre_zinc = amount(500, 180000);
+    if(id === "storage") costs.plaque_nickel_titane = amount(500, 180000);
+  }
+  if(nextLevel >= 10){
+    costs.plaque_nickel_titane = amount(900, 240000);
+    costs.catalyseur_quantique = amount(250, 60000);
+  }
+  if(nextLevel >= 14){
+    costs.conducteur_renforce = amount(120, 32000);
+    costs.blindage_composite = amount(120, 32000);
+  }
+  if(nextLevel >= 18){
+    costs.noyau_astra = amount(5, 1200);
+  }
+  for(const key of Object.keys(costs)) if(costs[key] <= 0) delete costs[key];
+  return costs;
+}
+
+export function getRefineryUpgradeJob(type, id){
+  const key = refineryUpgradeKey(type, id);
+  const job = store.state?.refineryUpgradeJobs?.[key];
+  return job && job.type === type && job.id === id ? job : null;
+}
+
+export function getRefineryUpgradeProgress(type, id, now = Date.now()){
+  const job = getRefineryUpgradeJob(type, id);
+  if(!job) return null;
+  const duration = Math.max(1, Number(job.duration || (job.endsAt - job.startedAt) || 1));
+  const elapsed = Math.max(0, Math.min(duration, now - Number(job.startedAt || now)));
+  const remaining = Math.max(0, Number(job.endsAt || now) - now);
+  return {...job, elapsed, remaining, percent:Math.max(0, Math.min(100, elapsed / duration * 100))};
+}
+
+export function getRefineryRushCost(type, id, now = Date.now()){
+  const job = getRefineryUpgradeProgress(type, id, now);
+  if(!job) return null;
+  const minutes = Math.max(1, Math.ceil(Number(job.remaining || 0) / 60000));
+  const cost = minutes * REFINERY_RUSH_NOVA_PER_MINUTE;
+  return {
+    cost,
+    minutes,
+    remaining:job.remaining,
+    canAfford:store.state.player.premium >= cost
+  };
+}
+
+export function rushRefineryUpgrade(type, id, now = Date.now()){
+  const job = getRefineryUpgradeJob(type, id);
+  if(!job) return {ok:false, reason:"Aucune amelioration en cours."};
+  const rush = getRefineryRushCost(type, id, now);
+  if(!rush) return {ok:false, reason:"Aucune amelioration en cours."};
+  if(store.state.player.premium < rush.cost) return {ok:false, reason:"Pas assez de NOVA."};
+  store.state.player.premium -= rush.cost;
+  enforcePlayerCurrencyMinimums();
+  job.endsAt = now;
+  completeRefineryUpgradeJobs(now);
+  return {ok:true, cost:rush.cost, name:job.name, level:job.toLevel};
+}
+
+export function formatDuration(ms){
+  const totalSeconds = Math.max(0, Math.ceil(Number(ms || 0) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if(hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  if(minutes > 0) return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+  return `${seconds}s`;
+}
+
+function getRefineryUpgradeDuration(type, data){
+  const nextLevel = Math.max(1, Number(data?.nextLevel || 1));
+  if(type === "material"){
+    const tuning = getRefineryUpgradeTuning(data?.kind || "raw");
+    const progress = refineryUpgradeProgressFactor(nextLevel, tuning.exponent * 0.72);
+    const hours = Number(tuning.baseHours || 1) + (Number(tuning.maxHours || tuning.baseHours || 1) - Number(tuning.baseHours || 1)) * progress;
+    return Math.round(hours * 60 * 60 * 1000);
+  }
+  return Math.round(60 * 60 * 1000 * nextLevel);
+}
+
+function hasActiveRefineryUpgrade(type, id){
+  return Boolean(getRefineryUpgradeJob(type, id));
+}
+
+export function startRefineryMaterialUpgrade(id, now = Date.now()){
+  if(hasActiveRefineryUpgrade("material", id)) return {ok:false, reason:"Amelioration deja en cours."};
+  const data = getRefineryUpgradeData(id);
+  const material = getRawMaterial(id);
+  if(!data || !material) return {ok:false, reason:"Module introuvable ou niveau maximum."};
+  if(store.state.player.credits < data.credits) return {ok:false, reason:"Credits insuffisants."};
+  for(const [materialId, amount] of Object.entries(data.materials || {})){
+    if(getMaterialCount(materialId) < amount) return {ok:false, reason:`Stock insuffisant : ${getRawMaterial(materialId)?.name || materialId}.`};
+  }
+  store.state.player.credits -= data.credits;
+  enforcePlayerCurrencyMinimums();
+  for(const [materialId, amount] of Object.entries(data.materials || {})) consumeMaterial(materialId, amount);
+  if(!store.state.refineryUpgradeJobs) store.state.refineryUpgradeJobs = {};
+  const duration = getRefineryUpgradeDuration("material", data);
+  store.state.refineryUpgradeJobs[refineryUpgradeKey("material", id)] = {
+    type:"material",
+    id,
+    name:material.name,
+    fromLevel:data.level,
+    toLevel:data.nextLevel,
+    startedAt:now,
+    endsAt:now + duration,
+    duration
+  };
+  return {ok:true, material, level:data.nextLevel, duration};
+}
+
+export function startRefineryModuleUpgrade(id, now = Date.now()){
+  if(hasActiveRefineryUpgrade("module", id)) return {ok:false, reason:"Amelioration deja en cours."};
+  const data = getRefineryModuleUpgradeData(id);
+  if(!data) return {ok:false, reason:"Module introuvable ou niveau maximum."};
+  if(store.state.player.credits < data.credits) return {ok:false, reason:"Credits insuffisants."};
+  for(const [materialId, amount] of Object.entries(data.materials || {})){
+    if(getMaterialCount(materialId) < amount) return {ok:false, reason:`Stock insuffisant : ${getRawMaterial(materialId)?.name || materialId}.`};
+  }
+  store.state.player.credits -= data.credits;
+  enforcePlayerCurrencyMinimums();
+  for(const [materialId, amount] of Object.entries(data.materials || {})) consumeMaterial(materialId, amount);
+  if(!store.state.refineryUpgradeJobs) store.state.refineryUpgradeJobs = {};
+  const duration = getRefineryUpgradeDuration("module", data);
+  store.state.refineryUpgradeJobs[refineryUpgradeKey("module", id)] = {
+    type:"module",
+    id,
+    name:data.name,
+    fromLevel:data.level,
+    toLevel:data.nextLevel,
+    startedAt:now,
+    endsAt:now + duration,
+    duration
+  };
+  return {ok:true, module:data.name, level:data.nextLevel, duration};
+}
+
+export function completeRefineryUpgradeJobs(now = Date.now()){
+  const jobs = store.state?.refineryUpgradeJobs;
+  if(!jobs || typeof jobs !== "object") return false;
+  let changed = false;
+  for(const [key, job] of Object.entries(jobs)){
+    if(Number(job?.endsAt || 0) > now) continue;
+    if(job.type === "material"){
+      if(!store.state.refineryLevels) store.state.refineryLevels = {};
+      const material = getRawMaterial(job.id);
+      const max = Number(material?.maxLevel || 20);
+      store.state.refineryLevels[job.id] = Math.max(0, Math.min(max, Number(job.toLevel || 0)));
+      changed = true;
+    }else if(job.type === "module"){
+      const def = REFINERY_MODULES[job.id];
+      if(def){
+        if(!store.state.refineryModules) store.state.refineryModules = {};
+        store.state.refineryModules[job.id] = Math.max(1, Math.min(def.maxLevel, Number(job.toLevel || 1)));
+        changed = true;
+      }
+    }
+    delete jobs[key];
+  }
+  return changed;
+}
+
+export function getRefineryTransportCapacityAt(level){
+  return interpolateRounded(250, 6000, refineryLevelProgress(level, REFINERY_MODULES.transport.maxLevel, 1.08));
+}
+
+export function getRefineryTransportCapacity(){
+  return getRefineryTransportCapacityAt(getRefineryModuleLevel("transport"));
+}
+
+export function canShipRefineryMaterial(id){
+  return Boolean(getRawMaterial(id)) && !REFINERY_SHIPMENT_BLOCKED.has(id);
+}
+
+export function getShippableRefineryMaterials(){
+  return rawMaterialCatalog.filter(material=>canShipRefineryMaterial(material.id));
+}
+
+export function getRefineryShipmentJob(){
+  const job = store.state?.refineryShipmentJob;
+  return job && job.materialId && job.shipId ? job : null;
+}
+
+function getRefineryShipmentDuration(amount){
+  const safeAmount = Math.max(1, Math.ceil(Number(amount || 0)));
+  return Math.max(1000, Math.ceil(safeAmount * 60000 / REFINERY_SHIPMENT_MATERIALS_PER_MINUTE));
+}
+
+function getRefineryShipmentCredits(materialId, amount){
+  const material = getRawMaterial(materialId);
+  const rate = REFINERY_SHIPMENT_CREDIT_RATE[material?.kind || "raw"] || REFINERY_SHIPMENT_CREDIT_RATE.raw;
+  return Math.ceil(Math.max(1, Number(amount || 0)) * rate);
+}
+
+export function getRefineryShipmentData(materialId, amount, shipId = store.state.activeShip){
+  const material = getRawMaterial(materialId);
+  const requested = Math.max(0, Math.ceil(Number(amount || 0)));
+  if(!shipId) return {ok:false, reason:"Aucun vaisseau equipe.", material, amount:requested, maxAmount:0, credits:0, duration:0};
+  const activeJob = getRefineryShipmentJob();
+  if(!material || !canShipRefineryMaterial(materialId)){
+    return {ok:false, reason:"Materiau non expeditionnable.", material:null, amount:requested};
+  }
+  const ship = getShip(shipId);
+  const stock = getMaterialCount(materialId);
+  const transportCap = getRefineryTransportCapacity();
+  const shipCapacity = getShipCargoCapacity(shipId);
+  const shipUsed = getShipCargoUsed(shipId);
+  const shipFree = Math.max(0, shipCapacity - shipUsed);
+  const maxAmount = Math.max(0, Math.min(stock, transportCap, shipFree));
+  const safeAmount = Math.min(requested || Math.min(30, maxAmount), maxAmount);
+  const credits = safeAmount > 0 ? getRefineryShipmentCredits(materialId, safeAmount) : 0;
+  return {
+    ok:!activeJob && safeAmount > 0 && store.state.player.credits >= credits,
+    reason:activeJob ? "Expedition deja en cours." : safeAmount <= 0 ? "Aucune place ou stock insuffisant." : store.state.player.credits < credits ? "Credits insuffisants." : "",
+    material,
+    ship,
+    shipId,
+    amount:safeAmount,
+    requested,
+    maxAmount,
+    stock,
+    transportCap,
+    shipCapacity,
+    shipUsed,
+    shipFree,
+    credits,
+    duration:getRefineryShipmentDuration(safeAmount)
+  };
+}
+
+export function startRefineryShipment(materialId, amount, shipId = store.state.activeShip, now = Date.now()){
+  if(getRefineryShipmentJob()) return {ok:false, reason:"Expedition deja en cours."};
+  if(!shipId) return {ok:false, reason:"Aucun vaisseau equipe."};
+  const data = getRefineryShipmentData(materialId, amount, shipId);
+  if(!data.material) return {ok:false, reason:data.reason || "Materiau non expeditionnable."};
+  if(data.amount <= 0) return {ok:false, reason:data.reason || "Quantite invalide."};
+  if(store.state.player.credits < data.credits) return {ok:false, reason:"Credits insuffisants."};
+  if(getMaterialCount(materialId) < data.amount) return {ok:false, reason:"Stock insuffisant."};
+  store.state.player.credits -= data.credits;
+  enforcePlayerCurrencyMinimums();
+  consumeMaterial(materialId, data.amount);
+  const duration = getRefineryShipmentDuration(data.amount);
+  store.state.refineryShipmentJob = {
+    materialId,
+    materialName:data.material.name,
+    shipId,
+    shipName:data.ship.name,
+    amount:data.amount,
+    credits:data.credits,
+    startedAt:now,
+    endsAt:now + duration,
+    duration
+  };
+  return {ok:true, material:data.material, amount:data.amount, ship:data.ship, duration};
+}
+
+export function getRefineryShipmentProgress(now = Date.now()){
+  const job = getRefineryShipmentJob();
+  if(!job) return null;
+  const duration = Math.max(1, Number(job.duration || (job.endsAt - job.startedAt) || 1));
+  const elapsed = Math.max(0, Math.min(duration, now - Number(job.startedAt || now)));
+  const remaining = Math.max(0, Number(job.endsAt || now) - now);
+  return {...job, elapsed, remaining, percent:Math.max(0, Math.min(100, elapsed / duration * 100))};
+}
+
+export function getRefineryShipmentRushCost(now = Date.now()){
+  const job = getRefineryShipmentProgress(now);
+  if(!job) return null;
+  const minutes = Math.max(1, Math.ceil(Number(job.remaining || 0) / 60000));
+  const cost = minutes * REFINERY_RUSH_NOVA_PER_MINUTE;
+  return {cost, minutes, remaining:job.remaining, canAfford:store.state.player.premium >= cost};
+}
+
+export function completeRefineryShipment(now = Date.now()){
+  const job = getRefineryShipmentJob();
+  if(!job || Number(job.endsAt || 0) > now) return false;
+  const result = addShipCargoMaterial(job.materialId, job.amount, job.shipId);
+  if(result.remaining > 0) addMaterial(job.materialId, result.remaining);
+  store.state.refineryShipmentJob = null;
+  return true;
+}
+
+export function rushRefineryShipment(now = Date.now()){
+  const job = getRefineryShipmentJob();
+  if(!job) return {ok:false, reason:"Aucune expedition en cours."};
+  const rush = getRefineryShipmentRushCost(now);
+  if(!rush) return {ok:false, reason:"Aucune expedition en cours."};
+  if(store.state.player.premium < rush.cost) return {ok:false, reason:"Pas assez de NOVA."};
+  store.state.player.premium -= rush.cost;
+  enforcePlayerCurrencyMinimums();
+  job.endsAt = now;
+  completeRefineryShipment(now);
+  return {ok:true, cost:rush.cost, materialName:job.materialName, amount:job.amount};
+}
+
+export function getRefineryProductionRateAt(id, levelOverride){
+  const material = getRawMaterial(id);
+  const level = Number(levelOverride ?? getRefineryMaterialLevel(id));
+  if(!material || level <= 0 || material.nonProductible) return 0;
+  if(material.kind !== "raw" && !refineryRecipes.find(item=>item.outputId === id)) return 0;
+  const tuning = REFINERY_PRODUCTION_BY_KIND[material.kind] || REFINERY_PRODUCTION_BY_KIND.raw;
+  return interpolateRounded(tuning.base, tuning.max, refineryLevelProgress(level, Number(material.maxLevel || REFINERY_MAX_LEVEL), 1.55));
+}
+
+export function getRefineryProductionRate(id){
+  if(!isRefineryProductionEnabled(id)) return 0;
+  return getRefineryProductionRateAt(id, getRefineryMaterialLevel(id));
+}
+
+export function getMaterialStorageCapAt(id, storageLevel){
+  const material = getRawMaterial(id);
+  if(!material) return 0;
+  const tuning = REFINERY_STORAGE_BY_KIND[material.kind] || REFINERY_STORAGE_BY_KIND.raw;
+  return Math.max(1, interpolateRounded(tuning.base, tuning.max, refineryLevelProgress(storageLevel, REFINERY_MODULES.storage.maxLevel, 1.35)));
+}
+
+export function getMaterialStorageCap(id){
+  return getMaterialStorageCapAt(id, getRefineryModuleLevel("storage"));
+}
+
+export function getRefineryUpgradeData(id){
+  const material = getRawMaterial(id);
+  if(!material) return null;
+  const level = getRefineryMaterialLevel(id);
+  const maxLevel = Number(material.maxLevel || 20);
+  if(level >= maxLevel) return null;
+  const activeJob = getRefineryUpgradeJob("material", id);
+  const nextLevel = level + 1;
+  const tier = Number(material.tier || 1);
+  const tuning = getRefineryUpgradeTuning(material.kind);
+  const progress = refineryUpgradeProgressFactor(nextLevel, tuning.exponent);
+  const credits = interpolateRounded(tuning.baseCredits, tuning.maxCredits, progress);
+  const recipe = refineryRecipes.find(item=>item.outputId === id);
+  const materials = {};
+  if(recipe){
+    for(const [materialId, amount] of Object.entries(recipe.costs || {})){
+      const input = getRawMaterial(materialId);
+      const unit = getRecipeUpgradeUnitCost(material.kind, input?.kind || "raw", nextLevel);
+      materials[materialId] = Math.ceil(Number(amount || 0) * unit);
+    }
+  }else if(material.kind === "raw" && nextLevel > 1){
+    const amount = getRawUpgradeMaterialAmount(nextLevel);
+    for(const materialId of REFINERY_RAW_UPGRADE_COSTS[id] || []){
+      materials[materialId] = amount;
+    }
+  }
+  for(const key of Object.keys(materials)) if(materials[key] <= 0) delete materials[key];
+  const canAffordUpgrade = store.state.player.credits >= credits
+    && Object.entries(materials).every(([materialId, amount])=>getMaterialCount(materialId) >= amount);
+  return {
+    id,
+    level,
+    nextLevel,
+    maxLevel,
+    tier,
+    kind:material.kind,
+    credits,
+    materials,
+    duration:getRefineryUpgradeDuration("material", {nextLevel, tier, kind:material.kind}),
+    canAfford:!activeJob && canAffordUpgrade
+  };
+}
+
+export function upgradeRefineryMaterial(id){
+  const data = getRefineryUpgradeData(id);
+  const material = getRawMaterial(id);
+  if(!data || !material) return {ok:false, reason:"Module introuvable ou niveau maximum."};
+  if(store.state.player.credits < data.credits) return {ok:false, reason:"Credits insuffisants."};
+  for(const [materialId, amount] of Object.entries(data.materials || {})){
+    if(getMaterialCount(materialId) < amount) return {ok:false, reason:`Stock insuffisant : ${getRawMaterial(materialId)?.name || materialId}.`};
+  }
+  store.state.player.credits -= data.credits;
+  enforcePlayerCurrencyMinimums();
+  for(const [materialId, amount] of Object.entries(data.materials || {})) consumeMaterial(materialId, amount);
+  if(!store.state.refineryLevels) store.state.refineryLevels = {};
+  store.state.refineryLevels[id] = data.nextLevel;
+  return {ok:true, material, level:data.nextLevel};
+}
+
+export function tickRefineryProduction(now=Date.now()){
+  if(!store.state) return false;
+  let changed = completeRefineryUpgradeJobs(now);
+  if(completeRefineryShipment(now)) changed = true;
+  const previous = Number(store.state.refineryLastTick || now);
+  const elapsedMs = Math.max(0, now - previous);
+  const ticks = Math.floor(elapsedMs / REFINERY_PRODUCTION_TICK_MS);
+  if(ticks <= 0) return changed;
+  store.state.refineryLastTick = previous + ticks * REFINERY_PRODUCTION_TICK_MS;
+  for(const material of rawMaterialCatalog){
+    const level = getRefineryMaterialLevel(material.id);
+    if(level <= 0 || material.nonProductible || !isRefineryProductionEnabled(material.id)) continue;
+    const rate = getRefineryProductionRate(material.id);
+    if(rate <= 0) continue;
+    const cap = getMaterialStorageCap(material.id);
+    const current = getMaterialCount(material.id);
+    if(current >= cap) continue;
+    const outputAmount = Math.ceil(rate * (REFINERY_PRODUCTION_TICK_MS / 3600000)) * ticks;
+    const producedAmount = Math.min(outputAmount, Math.max(0, cap - current));
+    if(producedAmount <= 0) continue;
+    if(material.kind === "raw"){
+      addMaterial(material.id, producedAmount);
+      changed = true;
+      continue;
+    }
+    const recipe = refineryRecipes.find(item=>item.outputId === material.id);
+    if(!recipe) continue;
+    const multiplier = producedAmount / Math.max(1, Number(recipe.outputAmount || 1));
+    const canProduce = Object.entries(recipe.costs || {}).every(([materialId, amount])=>getMaterialCount(materialId) >= amount * multiplier);
+    if(!canProduce) continue;
+    for(const [materialId, amount] of Object.entries(recipe.costs || {})){
+      store.state.cargoHold[materialId] = Math.max(0, getMaterialCount(materialId) - amount * multiplier);
+    }
+    addMaterial(material.id, producedAmount);
+    changed = true;
+  }
+  return changed;
+}
 export function addPortalPiece(id, amount=1){
   if(!store.state.portalPieces) store.state.portalPieces = {};
   store.state.portalPieces[id] = getPortalPieces(id) + Math.max(0, Number(amount || 0));
@@ -76,7 +675,9 @@ export function getMaterialCount(id){
 export function addMaterial(id, amount=1){
   if(!getRawMaterial(id)) return 0;
   if(!store.state.cargoHold) store.state.cargoHold = {};
-  store.state.cargoHold[id] = getMaterialCount(id) + Math.max(0, Number(amount || 0));
+  const current = getMaterialCount(id);
+  const cap = getMaterialStorageCap(id);
+  store.state.cargoHold[id] = Math.min(cap, current + Math.max(0, Number(amount || 0)));
   return store.state.cargoHold[id];
 }
 
@@ -89,6 +690,47 @@ export function consumeMaterial(id, amount=1){
 
 export function getCargoUsed(){
   return rawMaterialCatalog.reduce((sum, item)=>sum + getMaterialCount(item.id), 0);
+}
+
+function makeEmptyMaterialCargo(){
+  return rawMaterialCatalog.reduce((cargo, material)=>{
+    cargo[material.id] = 0;
+    return cargo;
+  }, {});
+}
+
+export function getShipCargo(shipId = store.state.activeShip){
+  if(!store.state.shipCargo || typeof store.state.shipCargo !== "object") store.state.shipCargo = {};
+  if(!store.state.shipCargo[shipId] || typeof store.state.shipCargo[shipId] !== "object"){
+    store.state.shipCargo[shipId] = makeEmptyMaterialCargo();
+  }
+  for(const material of rawMaterialCatalog){
+    store.state.shipCargo[shipId][material.id] = Math.max(0, Number(store.state.shipCargo[shipId][material.id] || 0));
+  }
+  return store.state.shipCargo[shipId];
+}
+
+export function getShipCargoUsed(shipId = store.state.activeShip){
+  const cargo = getShipCargo(shipId);
+  return rawMaterialCatalog.reduce((sum, material)=>sum + Math.max(0, Number(cargo[material.id] || 0)), 0);
+}
+
+export function getShipCargoCapacity(shipId = store.state.activeShip){
+  return Math.max(0, Math.round(Number(getShipCombatStats(shipId).cargo || 0)));
+}
+
+export function addShipCargoMaterial(id, amount=1, shipId = store.state.activeShip){
+  if(!getRawMaterial(id)) return {added:0, remaining:Math.max(0, Number(amount || 0)), used:getShipCargoUsed(shipId), capacity:getShipCargoCapacity(shipId)};
+  const requested = Math.max(0, Math.ceil(Number(amount || 0)));
+  const capacity = getShipCargoCapacity(shipId);
+  const used = getShipCargoUsed(shipId);
+  const free = Math.max(0, capacity - used);
+  const added = Math.min(requested, free);
+  if(added > 0){
+    const cargo = getShipCargo(shipId);
+    cargo[id] = Math.max(0, Number(cargo[id] || 0)) + added;
+  }
+  return {added, remaining:requested - added, used:getShipCargoUsed(shipId), capacity};
 }
 
 export function getRefineryJob(){
@@ -130,8 +772,8 @@ export function getEquipmentUpgradeLevel(itemId){
 export function getEquipmentUpgradeCost(itemLike){
   const item = typeof itemLike === "string" ? getItem(itemLike) : itemLike;
   const level = getEquipmentUpgradeLevel(item.id);
-  if(item.category === "canon") return {materialId:"alliage", amount:1 + level};
-  if(item.category === "generateur") return {materialId:"noyau", amount:1 + level};
+  if(item.category === "canon") return {materialId:"conducteur_renforce", amount:1 + level};
+  if(item.category === "generateur") return {materialId:"blindage_composite", amount:1 + level};
   return null;
 }
 
@@ -365,12 +1007,12 @@ export function cleanLoadout(shipId, raw){
   return {lasers, generators, extras};
 }
 
-export function cleanDroneLoadout(raw){
+export function cleanDroneLoadout(raw, inventoryItems = store.state?.inventoryItems || []){
   const max = getDroneCatalog().maxOwned || 8;
   const source = Array.isArray(raw) ? raw : [];
   return Array.from({length:Math.min(max, source.length)}, (_,i)=>{
     const uid = source[i] ?? null;
-    const item = getItemFromInventoryUid(uid);
+    const item = uid ? getItemFromInventoryUidIn(uid, inventoryItems) : null;
     return uid && item && ["canon","generateur"].includes(item.category) ? uid : null;
   });
 }
@@ -396,7 +1038,7 @@ export function getDronePurchasePrice(index = store.state.ownedDroneCount){
 
 export function getDroneLoadout(){
   const owned = Math.max(0, Math.min(getDroneCatalog().maxOwned || 8, Number(store.state.ownedDroneCount || 0)));
-  store.state.droneLoadout = cleanDroneLoadout(store.state.droneLoadout || []);
+  store.state.droneLoadout = Array.isArray(store.state.droneLoadout) ? store.state.droneLoadout : [];
   while(store.state.droneLoadout.length < owned) store.state.droneLoadout.push(null);
   store.state.droneLoadout = store.state.droneLoadout.slice(0, owned);
   return store.state.droneLoadout;
@@ -460,6 +1102,7 @@ export function normalizeState(saved){
   merged.player = {...base.player, ...(saved?.player || {})};
   merged.player.totalXp = Math.max(0, Number(merged.player.totalXp || 0));
   merged.player.totalKills = Math.max(0, Number(merged.player.totalKills || 0));
+  enforcePlayerCurrencyMinimums(merged.player);
   merged.ownedShips = Array.isArray(saved?.ownedShips) ? saved.ownedShips.filter(id=>ships.some(s=>s.id===id)) : base.ownedShips;
   merged.ownedItems = Array.isArray(saved?.ownedItems) ? saved.ownedItems.filter(id=>equipment.some(i=>i.id===id)) : base.ownedItems;
   merged.inventoryItems = Array.isArray(saved?.inventoryItems)
@@ -502,6 +1145,86 @@ export function normalizeState(saved){
   merged.cargoHold = {...(base.cargoHold || {})};
   if(saved?.cargoHold && typeof saved.cargoHold === "object"){
     for(const mat of rawMaterialCatalog) merged.cargoHold[mat.id] = Math.max(0, Number(saved.cargoHold[mat.id] || 0));
+    if(!Object.keys(saved.cargoHold).some(id=>rawMaterialCatalog.some(mat=>mat.id === id))){
+      merged.cargoHold.cuivre_orbital = Math.max(0, Number(saved.cargoHold.ferraille || 0));
+      merged.cargoHold.zinc_spatial = Math.max(0, Number(saved.cargoHold.cristal || 0));
+      merged.cargoHold.titane_fissure = Math.max(0, Number(saved.cargoHold.plasma || 0));
+      merged.cargoHold.conducteur_renforce = Math.max(0, Number(saved.cargoHold.alliage || 0));
+      merged.cargoHold.blindage_composite = Math.max(0, Number(saved.cargoHold.noyau || 0));
+    }
+    if(saved.cargoHold.carbone_dense && !merged.cargoHold.silice_conductrice){
+      merged.cargoHold.silice_conductrice = Math.max(0, Number(saved.cargoHold.carbone_dense || 0));
+    }
+  }
+  merged.shipCargo = {};
+  if(saved?.shipCargo && typeof saved.shipCargo === "object"){
+    for(const ship of ships){
+      const savedCargo = saved.shipCargo[ship.id];
+      merged.shipCargo[ship.id] = {};
+      for(const material of rawMaterialCatalog){
+        merged.shipCargo[ship.id][material.id] = Math.max(0, Number(savedCargo?.[material.id] || 0));
+      }
+    }
+  }
+  merged.refineryLevels = {};
+  for(const mat of rawMaterialCatalog){
+    const max = Number(mat.maxLevel || 20);
+    const fallback = getDefaultRefineryLevel(mat.id);
+    merged.refineryLevels[mat.id] = Math.max(0, Math.min(max, Number(saved?.refineryLevels?.[mat.id] ?? base.refineryLevels?.[mat.id] ?? fallback)));
+  }
+  merged.refineryProductionDisabled = {};
+  for(const mat of rawMaterialCatalog){
+    merged.refineryProductionDisabled[mat.id] = Boolean(saved?.refineryProductionDisabled?.[mat.id]);
+  }
+  merged.refineryModules = {...(base.refineryModules || {})};
+  for(const id of Object.keys(REFINERY_MODULES)){
+    const def = REFINERY_MODULES[id];
+    merged.refineryModules[id] = Math.max(1, Math.min(def.maxLevel, Number(saved?.refineryModules?.[id] ?? base.refineryModules?.[id] ?? 1)));
+  }
+  merged.refineryUpgradeJobs = {};
+  if(saved?.refineryUpgradeJobs && typeof saved.refineryUpgradeJobs === "object"){
+    for(const [key, job] of Object.entries(saved.refineryUpgradeJobs)){
+      if(!job || typeof job !== "object") continue;
+      const type = job.type === "module" ? "module" : job.type === "material" ? "material" : null;
+      if(!type) continue;
+      if(type === "material" && !getRawMaterial(job.id)) continue;
+      if(type === "module" && !REFINERY_MODULES[job.id]) continue;
+      const startedAt = Number(job.startedAt || Date.now());
+      const endsAt = Number(job.endsAt || startedAt);
+      if(endsAt <= 0) continue;
+      merged.refineryUpgradeJobs[key] = {
+        type,
+        id:job.id,
+        name:String(job.name || job.id),
+        fromLevel:Math.max(0, Number(job.fromLevel || 0)),
+        toLevel:Math.max(1, Number(job.toLevel || 1)),
+        startedAt,
+        endsAt,
+        duration:Math.max(1, Number(job.duration || endsAt - startedAt || 1))
+      };
+    }
+  }
+  merged.refineryLastTick = Math.max(0, Number(saved?.refineryLastTick || Date.now()));
+  merged.refineryShipmentJob = null;
+  if(saved?.refineryShipmentJob && typeof saved.refineryShipmentJob === "object"){
+    const job = saved.refineryShipmentJob;
+    const material = getRawMaterial(job.materialId);
+    const ship = getShip(job.shipId);
+    if(material && canShipRefineryMaterial(material.id) && ship){
+      const startedAt = Number(job.startedAt || Date.now());
+      const endsAt = Number(job.endsAt || startedAt);
+      merged.refineryShipmentJob = {
+        materialId:material.id,
+        materialName:String(job.materialName || material.name),
+        shipId:ship.id,
+        shipName:String(job.shipName || ship.name),
+        amount:Math.max(1, Math.ceil(Number(job.amount || 1))),
+        credits:Math.max(0, Math.ceil(Number(job.credits || 0))),
+        startedAt,
+        endsAt,
+        duration:Math.max(1, Number(job.duration || endsAt - startedAt || 1))
+      };
+    }
   }
   merged.refineryJob = saved?.refineryJob && typeof saved.refineryJob === "object" ? {...saved.refineryJob} : base.refineryJob;
   merged.equipmentUpgrades = saved?.equipmentUpgrades && typeof saved.equipmentUpgrades === "object" ? {...saved.equipmentUpgrades} : {...(base.equipmentUpgrades || {})};
@@ -516,7 +1239,7 @@ export function normalizeState(saved){
     merged.uiLayout = {...merged.uiLayout, ...saved.uiLayout};
   }
   merged.ownedDroneCount = Math.max(0, Math.min(getDroneCatalog().maxOwned || 8, Number(saved?.ownedDroneCount ?? base.ownedDroneCount ?? 0)));
-  merged.droneLoadout = cleanDroneLoadout(saved?.droneLoadout || base.droneLoadout || []);
+  merged.droneLoadout = cleanDroneLoadout(saved?.droneLoadout || base.droneLoadout || [], merged.inventoryItems);
   while(merged.droneLoadout.length < merged.ownedDroneCount) merged.droneLoadout.push(null);
   const starterShipId = "orion";
   if(!merged.ownedShips.includes(starterShipId)) merged.ownedShips.unshift(starterShipId);
@@ -604,6 +1327,7 @@ export function loadState(){
 export function saveState(){
   if(globalThis.__voidsectorResetInProgress) return;
   if(store.state.player) store.state.player.rankScore = getRankScore();
+  enforcePlayerCurrencyMinimums();
   localStorage.setItem("voidsector-prototype-state", JSON.stringify(store.state));
 }
 

@@ -73,12 +73,12 @@ export const droneCatalog = [
     name:"Drone de Combat",
     short:"Drone",
     category:"drone",
-    img:"assets/equipment/drone_orbital.svg",
+    img:"assets/drones/drone_test_sprite.webp",
     rarity:"TACTIQUE",
     priceType:"credits",
     basePrice:200000,
     unlockLevel:12,
-    maxOwned:8,
+    maxOwned:10,
     slots:1,
     desc:"Drone orbital avec 1 emplacement. Il peut recevoir un laser ou un générateur. Un laser de drone consomme 1 munition laser supplémentaire par tir."
   }

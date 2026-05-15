@@ -59,16 +59,26 @@ export const skills = [
 ];
 
 export const rawMaterialCatalog = [
-  {id:"ferraille", name:"Ferraille spatiale", short:"FER", kind:"raw", img:"assets/materials/ferraille.svg", desc:"Débris métalliques récupérés dans les zones ouvertes."},
-  {id:"cristal", name:"Cristal ionique", short:"CRI", kind:"raw", img:"assets/materials/cristal.svg", desc:"Cristaux énergétiques utiles au raffinage laser."},
-  {id:"plasma", name:"Plasma instable", short:"PLA", kind:"raw", img:"assets/materials/plasma.svg", desc:"Matière volatile utilisée pour les améliorations de générateurs."},
-  {id:"alliage", name:"Alliage focalisé", short:"ALY", kind:"refined", img:"assets/materials/alliage.svg", desc:"Matériau raffiné destiné à l'amélioration des lasers."},
-  {id:"noyau", name:"Noyau énergétique", short:"NYO", kind:"refined", img:"assets/materials/noyau.svg", desc:"Matériau raffiné destiné à l'amélioration des générateurs."}
+  {id:"cuivre_orbital", name:"Cuivre", short:"CUI", kind:"raw", tier:1, img:"assets/materials/cuivre_orbital.svg", desc:"Métal conducteur extrait des débris orbitaux.", maxLevel:20},
+  {id:"zinc_spatial", name:"Zinc", short:"ZNC", kind:"raw", tier:1, img:"assets/materials/zinc_spatial.svg", desc:"Minerai léger utilisé pour stabiliser les alliages.", maxLevel:20},
+  {id:"nickel_brut", name:"Nickel", short:"NIC", kind:"raw", tier:1, img:"assets/materials/nickel_brut.svg", desc:"Minerai dense récupéré sur les coques ennemies.", maxLevel:20},
+  {id:"titane_fissure", name:"Titane", short:"TIT", kind:"raw", tier:1, img:"assets/materials/titane_fissure.svg", desc:"Titane instable destiné aux plaques de protection.", maxLevel:20},
+  {id:"silice_conductrice", name:"Silice", short:"SIL", kind:"raw", tier:1, img:"assets/materials/silice_conductrice.svg", desc:"Cristal industriel employé dans les circuits de raffinerie.", maxLevel:20},
+  {id:"alliage_cuivre_zinc", name:"Alliage", short:"ACZ", kind:"refined", tier:2, img:"assets/materials/alliage_cuivre_zinc.svg", desc:"Alliage de base pour les systèmes conducteurs.", maxLevel:20},
+  {id:"plaque_nickel_titane", name:"Plaque", short:"PNT", kind:"refined", tier:2, img:"assets/materials/plaque_nickel_titane.svg", desc:"Plaque renforcée pour les structures et blindages.", maxLevel:20},
+  {id:"conducteur_renforce", name:"Conducteur", short:"CDR", kind:"advanced", tier:3, img:"assets/materials/conducteur_renforce.svg", desc:"Composant avancé pour les armes et circuits de puissance.", maxLevel:20},
+  {id:"blindage_composite", name:"Blindage", short:"BLC", kind:"advanced", tier:3, img:"assets/materials/blindage_composite.svg", desc:"Composant avancé pour renforcer la coque et les modules.", maxLevel:20},
+  {id:"catalyseur_quantique", name:"Catalyseur", short:"CAT", kind:"special", tier:4, img:"assets/materials/catalyseur_quantique.svg", desc:"Catalyseur de transition fabriqué avec minerais lourds et zinc stabilisé.", maxLevel:20},
+  {id:"noyau_astra", name:"Noyau", short:"AST", kind:"final", tier:5, img:"assets/materials/noyau_astra.svg", desc:"Matériau final destiné aux grosses améliorations de vaisseau.", maxLevel:20}
 ];
 
 export const refineryRecipes = [
-  {id:"refine_alliage", name:"Fusion Alliage focalisé", outputId:"alliage", outputAmount:1, durationMs:60_000, costs:{ferraille:12, cristal:6}, desc:"Transforme ferraille + cristal en un alliage pour lasers."},
-  {id:"refine_noyau", name:"Condensation Noyau énergétique", outputId:"noyau", outputAmount:1, durationMs:90_000, costs:{plasma:8, cristal:4}, desc:"Transforme plasma + cristal en noyau pour générateurs."}
+  {id:"refine_cuivre_zinc", name:"Fusion cuivre-zinc", outputId:"alliage_cuivre_zinc", outputAmount:1, durationMs:60_000, costs:{cuivre_orbital:10, zinc_spatial:10}, desc:"Fusionne cuivre orbital et zinc spatial en alliage conducteur."},
+  {id:"refine_nickel_titane", name:"Forge plaque", outputId:"plaque_nickel_titane", outputAmount:1, durationMs:75_000, costs:{titane_fissure:10, silice_conductrice:10}, desc:"Compresse titane et silice en plaque renforcée."},
+  {id:"refine_catalyseur", name:"Synthese catalyseur", outputId:"catalyseur_quantique", outputAmount:1, durationMs:90_000, costs:{zinc_spatial:10, nickel_brut:10, titane_fissure:10}, desc:"Stabilise zinc, nickel et titane en catalyseur."},
+  {id:"refine_conducteur", name:"Assemblage conducteur renforcé", outputId:"conducteur_renforce", outputAmount:1, durationMs:120_000, costs:{alliage_cuivre_zinc:3, catalyseur_quantique:1}, desc:"Combine alliage et catalyseur en composant conducteur avancé."},
+  {id:"refine_blindage", name:"Assemblage blindage composite", outputId:"blindage_composite", outputAmount:1, durationMs:120_000, costs:{plaque_nickel_titane:3, catalyseur_quantique:1}, desc:"Renforce les plaques avec un catalyseur quantique."},
+  {id:"refine_noyau_astra", name:"Stabilisation Noyau d'Astra", outputId:"noyau_astra", outputAmount:1, durationMs:240_000, costs:{conducteur_renforce:2, blindage_composite:2, catalyseur_quantique:1}, desc:"Stabilise les composants avancés avec un catalyseur spécial."}
 ];
 
 export const questCatalog = [
@@ -80,7 +90,7 @@ export const questCatalog = [
     giver:"Relais de Commandement",
     desc:"Élimine 6 Drones pirates dans ASTRA-01 pour sécuriser le couloir de départ.",
     objective:{type:"kill", target:"drone_pirate", count:6, zone:"ASTRA-01"},
-    rewards:{credits:9000, xp:420, materials:{ferraille:10, cristal:3}}
+    rewards:{credits:9000, xp:420, materials:{cuivre_orbital:10, zinc_spatial:3}}
   },
   {
     id:"quest_raider_patrol",
@@ -90,7 +100,7 @@ export const questCatalog = [
     giver:"Relais de Commandement",
     desc:"Intercepte 4 Raiders astraux autour du portail d'ASTRA-01.",
     objective:{type:"kill", target:"raider_astral", count:4, zone:"ASTRA-01"},
-    rewards:{credits:13500, xp:650, materials:{ferraille:8, plasma:4}}
+    rewards:{credits:13500, xp:650, materials:{nickel_brut:8, titane_fissure:4}}
   },
   {
     id:"quest_spectral_scan",
@@ -100,7 +110,7 @@ export const questCatalog = [
     giver:"Relais de Commandement",
     desc:"Abats 5 Chasseurs spectraux dans ASTRA-02 pour calibrer les scanners.",
     objective:{type:"kill", target:"chasseur_spectral", count:5, zone:"ASTRA-02"},
-    rewards:{credits:22000, xp:1200, materials:{cristal:6, plasma:6}}
+    rewards:{credits:22000, xp:1200, materials:{silice_conductrice:8, catalyseur_quantique:1}}
   },
   {
     id:"quest_daily_cleanup",
@@ -110,7 +120,7 @@ export const questCatalog = [
     giver:"Relais de Commandement",
     desc:"Elimine 8 ennemis dans ASTRA-01 pour maintenir la route commerciale ouverte.",
     objective:{type:"kill", target:"drone_pirate", count:8, zone:"ASTRA-01"},
-    rewards:{credits:18000, xp:900, materials:{ferraille:14, cristal:4}}
+    rewards:{credits:18000, xp:900, materials:{cuivre_orbital:14, zinc_spatial:4}}
   },
   {
     id:"quest_weekly_assault",
@@ -120,7 +130,7 @@ export const questCatalog = [
     giver:"Relais de Commandement",
     desc:"Neutralise une force spectrale dans ASTRA-02. Contrat lourd reserve aux pilotes prepares.",
     objective:{type:"kill", target:"chasseur_spectral", count:15, zone:"ASTRA-02"},
-    rewards:{credits:85000, xp:4200, materials:{cristal:15, plasma:14}}
+    rewards:{credits:85000, xp:4200, materials:{silice_conductrice:18, catalyseur_quantique:2}}
   }
 ];
 
@@ -128,7 +138,7 @@ export const pageText = {
   hangar:{title:"HANGAR", subtitle:"Configure ton vaisseau, tes drones et tes extras."},
   shop:{title:"MAGASIN", subtitle:"Progression par niveau : vaisseaux, lasers, roquettes, générateurs et drones."},
   portals:{title:"PORTAILS DIMENSIONNELS", subtitle:"Déverrouille les portails avec des pièces ou des NOVA, puis affronte 30 vagues."},
-  skills:{title:"COMPÉTENCES", subtitle:"Investis tes points pour spécialiser ton pilote."},
+  refinery:{title:"RAFFINERIE", subtitle:"Transforme tes matériaux bruts en ressources avancées pour améliorer ton équipement."},
   settings:{title:"PARAMÈTRES", subtitle:"Personnalise tes touches de slots."},
   leaderboard:{title:"CLASSEMENT", subtitle:"Classement local préparé pour le futur MMO : grades, points et règles de progression."}
 };

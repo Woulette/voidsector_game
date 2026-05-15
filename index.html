@@ -30,7 +30,7 @@
         <button class="nav-tab active" data-view="hangar">HANGAR</button>
         <button class="nav-tab" data-view="shop">MAGASIN</button>
         <button class="nav-tab" data-view="portals">PORTAILS</button>
-        <button class="nav-tab" data-view="skills">COMPÉTENCES</button>
+        <button class="nav-tab" data-view="refinery">RAFFINERIE</button>
         <button class="nav-tab" data-view="settings">PARAMÈTRES</button>
         <button class="nav-tab" data-view="leaderboard">CLASSEMENT</button>
       </nav>
@@ -73,6 +73,7 @@
         <div class="hangar-tabs frame">
           <button class="hangar-tab-btn active" data-hangar-tab="vaisseau">Vaisseau</button>
           <button class="hangar-tab-btn" data-hangar-tab="drone">Drone</button>
+          <button class="hangar-tab-btn" data-hangar-tab="skills">Compétences</button>
         </div>
 
         <section id="hangarListPanel" class="panel hangar-panel frame">
@@ -105,17 +106,25 @@
         </aside>
 
         <section id="shipLoadoutPanel" class="panel loadout-panel frame hidden">
-          <div class="panel-head">
+          <div class="panel-head loadout-ship-head">
             <div>
-              <span class="tiny">INVENTAIRE DU VAISSEAU</span>
-              <h2>Lasers, générateurs & extras</h2>
+              <h2 id="loadoutShipTitle">VELOX</h2>
             </div>
-            <span class="badge">Équipements achetés uniquement</span>
           </div>
           <div id="loadoutPanel" class="loadout-panel-body"></div>
         </section>
 
         <section id="droneSection" class="hidden"></section>
+        <section id="hangarSkillsSection" class="panel skills-panel frame hidden">
+          <div class="panel-head">
+            <div>
+              <span class="tiny">PILOTE</span>
+              <h2>Tableau de compétences</h2>
+            </div>
+            <span class="points"><b data-skill-points>0</b> pts disponibles</span>
+          </div>
+          <div id="hangarSkillGrid" class="skill-grid skill-grid-full" data-skill-grid></div>
+        </section>
         <section id="extraSection" class="hidden"></section>
       </section>
 
@@ -199,16 +208,15 @@
         </section>
       </section>
 
-      <section class="page-view skills-view" data-page="skills">
-        <section class="panel skills-panel frame">
+      <section class="page-view refinery-view" data-page="refinery">
+        <section class="panel refinery-panel frame">
           <div class="panel-head">
             <div>
-              <span class="tiny">PILOTE</span>
-              <h2>Tableau de compétences</h2>
+              <span class="tiny">FABRICATION</span>
+              <h2>Raffinerie</h2>
             </div>
-            <span class="points"><b id="skillPointsValue">0</b> pts disponibles</span>
           </div>
-          <div id="skillGrid" class="skill-grid skill-grid-full"></div>
+          <div id="refineryPanel"></div>
         </section>
       </section>
 
@@ -226,6 +234,11 @@
         <div class="combat-overview-row">
           <span>NIV. <b id="gameLevel">1</b></span>
           <span>Vitesse <b id="gameSpeed">0</b></span>
+          <button id="gameCargoToggle" class="combat-cargo-chip" type="button" aria-label="Afficher la soute du vaisseau">
+            <span>Cargo</span>
+            <b id="gameCargoValue">0 / 0</b>
+            <i class="combat-cargo-mini"><em id="gameCargoFill"></em></i>
+          </button>
         </div>
         <div class="combat-meter-grid" aria-label="Statistiques de combat">
           <button class="combat-meter combat-meter-hp" data-combat-meter="hp" type="button" aria-label="Afficher la vie en chiffres">

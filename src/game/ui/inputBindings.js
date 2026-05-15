@@ -29,6 +29,8 @@ export function installCombatInputHandlers({
   findEnemyAt,
   findCargoBoxAt,
   setCargoDestination,
+  findGroundMaterialAt,
+  setGroundMaterialDestination,
   setSelectedEnemy,
   renderSpawnInteractionPanel,
   openUtilityPanel,
@@ -132,6 +134,11 @@ export function installCombatInputHandlers({
       }
       const cargo = findCargoBoxAt?.(world);
       if(cargo && setCargoDestination?.(cargo)){
+        updateHud();
+        return;
+      }
+      const groundMaterial = findGroundMaterialAt?.(world);
+      if(groundMaterial && setGroundMaterialDestination?.(groundMaterial)){
         updateHud();
         return;
       }

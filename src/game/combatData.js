@@ -129,9 +129,12 @@ export const PLAYER_COLLISION_RADIUS = 38;
 export const PLAYER_HIT_CHANCE = 0.92;
 export const SAFE_ZONE_DELAY = 5;
 export const RAW_DROP_TABLE = [
-  {id:"ferraille", min:1, max:3, chance:0.95},
-  {id:"cristal", min:1, max:2, chance:0.42},
-  {id:"plasma", min:1, max:2, chance:0.26}
+  {id:"cuivre_orbital", min:1, max:3, chance:0.78},
+  {id:"zinc_spatial", min:1, max:2, chance:0.58},
+  {id:"nickel_brut", min:1, max:2, chance:0.48},
+  {id:"titane_fissure", min:1, max:2, chance:0.34},
+  {id:"silice_conductrice", min:1, max:2, chance:0.26},
+  {id:"catalyseur_quantique", min:1, max:1, chance:0.015}
 ];
 export const ENEMY_HIT_CHANCE = {
   drone_pirate:0.86,

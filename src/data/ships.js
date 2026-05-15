@@ -19,7 +19,7 @@ export const ships = [
     priceType:"credits",
     price:980000,
     unlockLevel:48,
-    stats:{vie:2500, vitesse:97.67441860465117, cargo:80, maxLasers:1, maxGenerators:1, maxExtras:1},
+    stats:{vie:2500, vitesse:97.67441860465117, cargo:250, maxLasers:1, maxGenerators:1, maxExtras:1},
     special:null
   },
   {

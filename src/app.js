@@ -19,13 +19,22 @@ import {
   loadState,
   saveState,
   spend,
+  rushRefineryUpgrade,
+  rushRefineryShipment,
+  startRefineryJob,
+  startRefineryMaterialUpgrade,
+  startRefineryModuleUpgrade,
+  startRefineryShipment,
   store,
+  claimRefineryJob,
+  tickRefineryProduction,
+  toggleRefineryProduction,
   unequipInventoryItem,
   upgradeSkill,
   unlockPortal
 } from "./core/store.js";
 import { createCombatGame } from "./game/combat.js";
-import { renderAll, renderLoadout, renderShop, setView } from "./ui/render.js";
+import { renderAll, renderDroneSection, renderLoadout, renderRefinery, renderShop, setView } from "./ui/render.js";
 import { showToast } from "./ui/toast.js";
 import { DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeSlotKeybinds } from "./core/keybinds.js";
 
@@ -98,9 +107,8 @@ function canMoveInventoryItemToTarget(inventoryUid, target){
   if(!equipped) return true;
   if(target.location === "ship" && equipped.location === "ship" && equipped.shipId === target.shipId) return true;
   if(target.location === "drone" && equipped.location === "drone" && equipped.index === target.index) return true;
-  const label = equipped.location === "drone" ? `Drone ${equipped.index+1}` : getShip(equipped.shipId).name;
-  showToast(`Cet exemplaire est déjà équipé sur ${label}. Déséquipe-le d'abord.`);
-  return false;
+  unequipInventoryItem(inventoryUid);
+  return true;
 }
 
 function equipPart(type, index, inventoryUid){
@@ -138,11 +146,16 @@ function equipPart(type, index, inventoryUid){
     const drones = getDroneLoadout();
     if(index >= drones.length) return showToast("Aucun drone à cet emplacement.");
     if(!["canon","generateur"].includes(item.category)) return showToast("Un drone accepte uniquement un laser ou un générateur.");
+    if(drones[index] && drones[index] !== inventoryUid) unequipInventoryItem(drones[index]);
     if(!canMoveInventoryItemToTarget(inventoryUid, {location:"drone", index})) return;
     for(let i=0;i<drones.length;i++) if(drones[i] === inventoryUid) drones[i] = null;
     drones[index] = inventoryUid;
+    saveState();
     showToast(`${item.name} équipé sur Drone ${index+1}.`);
     renderAll();
+    store.state.droneLoadout[index] = inventoryUid;
+    saveState();
+    renderDroneSection();
   }
 }
 
@@ -235,7 +248,8 @@ document.addEventListener("click", (e)=>{
   const hangarTab = e.target.closest("[data-hangar-tab]");
   if(hangarTab){
     store.hangarTab = hangarTab.dataset.hangarTab === "extra" ? "vaisseau" : hangarTab.dataset.hangarTab;
-    store.hangarDetailOpen = store.hangarTab === "vaisseau" ? store.hangarDetailOpen : false;
+    if(store.hangarTab === "vaisseau" && store.state.selectedShip) store.hangarDetailOpen = true;
+    saveState();
     renderAll();
     return;
   }
@@ -283,6 +297,120 @@ document.addEventListener("click", (e)=>{
   const skillCard = e.target.closest("[data-unlock-skill]");
   if(skillCard){ unlockSkill(skillCard.dataset.unlockSkill); return; }
 
+  const startRefineryBtn = e.target.closest("#refineryPanel [data-start-refinery]");
+  if(startRefineryBtn){
+    const result = startRefineryJob(startRefineryBtn.dataset.startRefinery);
+    showToast(result.ok ? `${result.recipe.name} lancÃ©.` : result.reason);
+    saveState();
+    renderRefinery();
+    return;
+  }
+
+  const claimRefineryBtn = e.target.closest("#refineryPanel [data-claim-refinery]");
+  if(claimRefineryBtn){
+    const result = claimRefineryJob();
+    showToast(result.ok ? "Raffinage rÃ©cupÃ©rÃ©." : result.reason);
+    saveState();
+    renderRefinery();
+    return;
+  }
+
+  const refineryTabBtn = e.target.closest(".refinery-panel [data-refinery-tab]");
+  if(refineryTabBtn){
+    store.selectedRefineryTab = ["forge", "shipment", "stats"].includes(refineryTabBtn.dataset.refineryTab) ? refineryTabBtn.dataset.refineryTab : "forge";
+    store.selectedRefineryUpgrade = null;
+    renderRefinery();
+    return;
+  }
+
+  const shipmentPickBtn = e.target.closest("#refineryPanel [data-refinery-shipment-pick]");
+  if(shipmentPickBtn){
+    store.selectedRefineryShipmentMaterial = shipmentPickBtn.dataset.refineryShipmentPick;
+    renderRefinery();
+    return;
+  }
+
+  const toggleRefineryProductionBtn = e.target.closest("#refineryPanel [data-toggle-refinery-production]");
+  if(toggleRefineryProductionBtn){
+    const enabled = toggleRefineryProduction(toggleRefineryProductionBtn.dataset.toggleRefineryProduction);
+    showToast(`Production ${enabled ? "activee" : "coupee"}.`);
+    saveState();
+    renderAll();
+    return;
+  }
+
+  const upgradeRefineryBtn = e.target.closest("#refineryPanel [data-upgrade-refinery]");
+  if(upgradeRefineryBtn){
+    store.selectedRefineryUpgrade = {type:"material", id:upgradeRefineryBtn.dataset.upgradeRefinery};
+    renderRefinery();
+    return;
+  }
+
+  const upgradeRefineryModuleBtn = e.target.closest("#refineryPanel [data-upgrade-refinery-module]");
+  if(upgradeRefineryModuleBtn){
+    store.selectedRefineryUpgrade = {type:"module", id:upgradeRefineryModuleBtn.dataset.upgradeRefineryModule};
+    renderRefinery();
+    return;
+  }
+
+  const closeRefineryUpgradeBtn = e.target.closest("#refineryPanel [data-close-refinery-upgrade]");
+  if(closeRefineryUpgradeBtn){
+    store.selectedRefineryUpgrade = null;
+    renderRefinery();
+    return;
+  }
+
+  const confirmMaterialUpgradeBtn = e.target.closest("#refineryPanel [data-confirm-refinery-upgrade]");
+  if(confirmMaterialUpgradeBtn){
+    const result = startRefineryMaterialUpgrade(confirmMaterialUpgradeBtn.dataset.confirmRefineryUpgrade);
+    showToast(result.ok ? `${result.material.name} niveau ${result.level} en construction.` : result.reason);
+    store.selectedRefineryUpgrade = result.ok ? null : store.selectedRefineryUpgrade;
+    saveState();
+    renderAll();
+    return;
+  }
+
+  const confirmModuleUpgradeBtn = e.target.closest("#refineryPanel [data-confirm-refinery-module-upgrade]");
+  if(confirmModuleUpgradeBtn){
+    const result = startRefineryModuleUpgrade(confirmModuleUpgradeBtn.dataset.confirmRefineryModuleUpgrade);
+    showToast(result.ok ? `${result.module} niveau ${result.level} en construction.` : result.reason);
+    store.selectedRefineryUpgrade = result.ok ? null : store.selectedRefineryUpgrade;
+    saveState();
+    renderAll();
+    return;
+  }
+
+  const rushRefineryUpgradeBtn = e.target.closest("#refineryPanel [data-rush-refinery-upgrade]");
+  if(rushRefineryUpgradeBtn){
+    const result = rushRefineryUpgrade(
+      rushRefineryUpgradeBtn.dataset.rushRefineryType,
+      rushRefineryUpgradeBtn.dataset.rushRefineryUpgrade
+    );
+    showToast(result.ok ? `${result.name} niveau ${result.level} termine pour ${result.cost} NOVA.` : result.reason);
+    store.selectedRefineryUpgrade = result.ok ? null : store.selectedRefineryUpgrade;
+    saveState();
+    renderAll();
+    return;
+  }
+
+  const startRefineryShipmentBtn = e.target.closest("#refineryPanel [data-start-refinery-shipment]");
+  if(startRefineryShipmentBtn){
+    const result = startRefineryShipment(store.selectedRefineryShipmentMaterial, store.selectedRefineryShipmentAmount);
+    showToast(result.ok ? `${result.amount} ${result.material.name} envoyes vers ${result.ship.name}.` : result.reason);
+    saveState();
+    renderAll();
+    return;
+  }
+
+  const rushRefineryShipmentBtn = e.target.closest("#refineryPanel [data-rush-refinery-shipment]");
+  if(rushRefineryShipmentBtn){
+    const result = rushRefineryShipment();
+    showToast(result.ok ? `Expedition terminee pour ${result.cost} NOVA.` : result.reason);
+    saveState();
+    renderAll();
+    return;
+  }
+
   const nav = e.target.closest("[data-view]");
   if(nav){ setView(nav.dataset.view); return; }
 
@@ -317,10 +445,10 @@ document.addEventListener("click", (e)=>{
   const inventoryCard = e.target.closest("[data-inventory-uid]");
   if(inventoryCard){
     const uid = inventoryCard.dataset.inventoryUid;
+    store.selectedInventoryUid = uid;
     clearTimeout(inventoryClickTimer);
     if(e.detail > 1) return;
     inventoryClickTimer = setTimeout(()=>{
-      store.selectedInventoryUid = uid;
       renderAll();
     }, 180);
     return;
@@ -346,6 +474,12 @@ document.addEventListener("click", (e)=>{
 
   const unequip = e.target.closest("[data-unequip-part]");
   if(unequip){ unequipPart(unequip.dataset.unequipPart, Number(unequip.dataset.unequipIndex)); return; }
+
+  const dropSlot = e.target.closest("[data-drop-part]");
+  if(dropSlot && store.selectedInventoryUid){
+    equipPart(dropSlot.dataset.dropPart, Number(dropSlot.dataset.dropIndex), store.selectedInventoryUid);
+    return;
+  }
 });
 
 document.addEventListener("dblclick", (e)=>{
@@ -354,6 +488,26 @@ document.addEventListener("dblclick", (e)=>{
   clearTimeout(inventoryClickTimer);
   store.selectedInventoryUid = inventoryCard.dataset.inventoryUid;
   autoEquipInventoryItem(inventoryCard.dataset.inventoryUid);
+});
+
+document.addEventListener("input", e=>{
+  const amountInput = e.target.closest("#refineryPanel [data-refinery-shipment-amount]");
+  if(!amountInput) return;
+  store.selectedRefineryShipmentAmount = Math.max(1, Math.ceil(Number(amountInput.value || 1)));
+});
+
+document.addEventListener("change", e=>{
+  const materialSelect = e.target.closest("#refineryPanel [data-refinery-shipment-material]");
+  if(materialSelect){
+    store.selectedRefineryShipmentMaterial = materialSelect.value;
+    renderRefinery();
+    return;
+  }
+  const amountInput = e.target.closest("#refineryPanel [data-refinery-shipment-amount]");
+  if(amountInput){
+    store.selectedRefineryShipmentAmount = Math.max(1, Math.ceil(Number(amountInput.value || 1)));
+    renderRefinery();
+  }
 });
 
 document.addEventListener("dragstart", (e)=>{
@@ -422,4 +576,11 @@ if(sessionStorage.getItem("voidsector-reset-requested") === "1"){
 loadState();
 setView("hangar");
 renderAll();
+setInterval(()=>{
+  const changed = tickRefineryProduction();
+  const hasRefineryUpgrade = store.state?.refineryUpgradeJobs && Object.keys(store.state.refineryUpgradeJobs).length > 0;
+  const hasRefineryShipment = !!store.state?.refineryShipmentJob;
+  if(changed) saveState();
+  if(store.currentView === "refinery" && (changed || hasRefineryUpgrade || hasRefineryShipment)) renderRefinery();
+}, 1000);
 showToast("Hangar vaisseaux / drones chargé.");

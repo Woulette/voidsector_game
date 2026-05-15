@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="rock" x1="10" y1="9" x2="55" y2="57" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a8b3bd"/>
+      <stop offset=".5" stop-color="#52606d"/>
+      <stop offset="1" stop-color="#18212b"/>
+    </linearGradient>
+    <linearGradient id="ore" x1="17" y1="45" x2="50" y2="17" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#64748b"/>
+      <stop offset=".45" stop-color="#cbd5e1"/>
+      <stop offset="1" stop-color="#f8fafc"/>
+    </linearGradient>
+  </defs>
+  <path d="M15 20 33 8l19 10 3 18-14 17-19 2L8 42l3-14z" fill="url(#rock)" stroke="#cbd5e1" stroke-opacity=".42" stroke-width="2"/>
+  <path d="M20 42 44 18M16 32c9 2 19-1 31-9M30 52l12-22" fill="none" stroke="url(#ore)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M33 10 19 21l-7 19 20-13 17-10z" fill="#f8fafc" opacity=".13"/>
+  <path d="M18 48 33 55l-11-12z" fill="#0f172a" opacity=".28"/>
+</svg>

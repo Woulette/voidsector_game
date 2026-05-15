@@ -36,7 +36,7 @@ import {
 
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
 import { renderShop } from "./renderShop.js";
-import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js";
+import { renderLeaderboard, renderPortals, renderRefinery, renderSkills } from "./renderProgression.js";
 export function renderTop(){
   const { state } = store;
   const rank = getCurrentRank();
@@ -48,8 +48,9 @@ export function renderTop(){
   document.getElementById("xpFill").style.width = `${Math.min(100, state.player.xp / state.player.xpNext * 100)}%`;
   document.getElementById("creditsValue").textContent = fmt(state.player.credits);
   document.getElementById("premiumValue").textContent = fmt(state.player.premium);
-  const skillPoints = document.getElementById("skillPointsValue");
-  if(skillPoints) skillPoints.textContent = state.player.skillPoints;
+  document.querySelectorAll("[data-skill-points], #skillPointsValue").forEach(skillPoints=>{
+    skillPoints.textContent = state.player.skillPoints;
+  });
   const pilotRank = document.getElementById("pilotRank");
   if(pilotRank) pilotRank.textContent = rank.name;
   const pilotStats = document.getElementById("pilotStats");
@@ -130,7 +131,7 @@ function renderInventoryCell(entry, shipId = null){
   const selected = store.selectedInventoryUid === entry.uid;
   const badge = equipmentInventoryBadge(entry.item);
   return `<button class="inventory-cell ${selected ? "selected" : ""} ${isHere ? "equipped-here" : ""} ${isElsewhere ? "equipped-elsewhere" : ""}"
-      draggable="${isElsewhere ? "false" : "true"}"
+      draggable="true"
       data-inventory-uid="${entry.uid}"
       data-inventory-category="${entry.item.category}"
       title="${entry.item.name}${equipped ? ` · ${locationLabel(equipped)}` : " · disponible"}">
@@ -157,6 +158,16 @@ function renderSelectedInventoryDetail(){
     store.selectedInventoryUid = null;
     return `<div class="selected-item-copy"><span class="tiny">Aucun objet sélectionné</span><h3>Sélectionne un équipement</h3><p>Clique sur un laser ou un générateur dans l'inventaire pour afficher ses détails. Double-clique pour l'équiper dans le premier slot libre du panneau actif.</p></div>`;
   }
+  const equippedInActivePanel = store.hangarTab === "drone"
+    ? selectedEquipped?.location === "drone"
+    : selectedEquipped?.location === "ship" && selectedEquipped?.shipId === store.state.selectedShip;
+  const compatibleWithActivePanel = store.hangarTab === "drone"
+    ? ["canon", "generateur"].includes(selectedItem.category)
+    : ["canon", "generateur", "extra"].includes(selectedItem.category);
+  const actionButtons = selectedEquipped
+    ? `${!equippedInActivePanel && compatibleWithActivePanel ? `<button class="blue-button small" data-inventory-equip="${selectedEntry.uid}">Déplacer ici</button>` : ""}
+       <button class="blue-button secondary small" data-inventory-unequip="${selectedEntry.uid}">Retirer</button>`
+    : `<button class="blue-button small" data-inventory-equip="${selectedEntry.uid}">Équiper</button>`;
   return `
     <div class="selected-item-art"><img src="${selectedItem.img}" alt="${selectedItem.name}"></div>
     <div class="selected-item-copy">
@@ -165,9 +176,7 @@ function renderSelectedInventoryDetail(){
       <p>${statLabelForItem(selectedItem)}</p>
       <small>${locationLabel(selectedEquipped)}</small>
       <div class="selected-item-actions">
-        ${selectedEquipped
-          ? `<button class="blue-button secondary small" data-inventory-unequip="${selectedEntry.uid}">Retirer</button>`
-          : `<button class="blue-button small" data-inventory-equip="${selectedEntry.uid}">Équiper</button>`}
+        ${actionButtons}
       </div>
     </div>`;
 }
@@ -176,7 +185,8 @@ export function renderLoadout(){
   const { state } = store;
   const ship = getShip(state.selectedShip);
   const loadout = getLoadout(ship.id);
-  const stats = getShipCombatStats(ship.id);
+  const title = document.getElementById("loadoutShipTitle");
+  if(title) title.textContent = ship.name;
   const renderSlot = (type, index, uid) => {
     const item = getItemFromInventoryUid(uid);
     const label = type === "laser" ? "L" : type === "generator" ? "G" : "E";
@@ -190,14 +200,6 @@ export function renderLoadout(){
   const panel = document.getElementById("loadoutPanel");
   if(!panel) return;
   panel.innerHTML = `
-    <div class="loadout-summary compact">
-      <div><span class="tiny">VAISSEAU CONFIGURÉ</span><h3>${ship.name}</h3></div>
-      <div class="summary-stats">
-        <span>PV <b>${fmt(stats.vie)}</b></span>
-        <span>Bouclier <b>${fmt(stats.bouclier)}</b></span>
-        <span>Vitesse <b>${fmt(stats.vitesseReelle)}</b></span>
-      </div>
-    </div>
     <div class="ship-equipment-layout">
       <section class="equipped-compact-panel">
         <div class="compact-section-head"><h3>Lasers</h3><span>${loadout.lasers.filter(Boolean).length}/${ship.stats.maxLasers}</span></div>
@@ -217,10 +219,10 @@ export function renderLoadout(){
 
 function renderDroneSlot(uid, index){
   const item = getItemFromInventoryUid(uid);
-  return `<article class="drone-slot-card">
+  return `<article class="drone-slot-card" data-drop-part="drone" data-drop-index="${index}">
     <div class="drone-slot-head"><span class="badge">Drone ${index+1}</span><span>${item ? item.category.toUpperCase() : "VIDE"}</span></div>
     <div class="drone-slot-body" data-drop-part="drone" data-drop-index="${index}">
-      <img class="drone-preview" src="assets/equipment/drone_orbital.svg" alt="Drone ${index+1}">
+      <img class="drone-preview" src="assets/drones/drone_test_sprite.webp" alt="Drone ${index+1}">
       <div class="drone-module ${item ? "filled" : ""}">
         ${item ? `<img src="${item.img}" alt="${item.name}"><b>${item.short || item.name}</b><em data-unequip-part="drone" data-unequip-index="${index}">×</em>` : `<i>+</i><span>Ajouter un laser ou un générateur</span>`}
       </div>
@@ -252,7 +254,7 @@ export function renderDroneSection(){
         <p class="panel-note">${droneDef.desc}</p>
       </aside>
       <section class="panel frame drone-loadout-panel">
-        <div class="panel-head"><div><span class="tiny">HANGAR DRONE</span><h2>Slots & inventaire</h2></div><span class="badge">Même logique que le vaisseau</span></div>
+        <div class="panel-head drone-loadout-head"><div><h2>DRONE</h2></div></div>
         <div class="ship-equipment-layout drone-equipment-layout">
           <section class="equipped-compact-panel">
             <div class="compact-section-head"><h3>Drone Bay</h3><span>${drones.length}/${droneDef.maxOwned}</span></div>
@@ -304,7 +306,7 @@ export function renderExtraSection(){
 }
 
 export { renderShop } from "./renderShop.js";
-export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js";
+export { renderLeaderboard, renderPortals, renderRefinery, renderSkills } from "./renderProgression.js";
 
 export function renderAll(){
   if(store.currentView !== "hangar") store.hangarDetailOpen = false;
@@ -321,6 +323,7 @@ export function renderAll(){
   renderShop();
   renderPortals();
   renderSkills();
+  renderRefinery();
   saveState();
 }
 
@@ -334,6 +337,7 @@ export function renderHangarMode(){
   const detailPanel = document.getElementById("shipDetailPanel");
   const loadoutPanel = document.getElementById("shipLoadoutPanel");
   const droneSection = document.getElementById("droneSection");
+  const hangarSkillsSection = document.getElementById("hangarSkillsSection");
   const extraSection = document.getElementById("extraSection");
   if(store.hangarTab === "extra") store.hangarTab = "vaisseau";
   const shipMode = store.hangarTab === "vaisseau";
@@ -345,6 +349,7 @@ export function renderHangarMode(){
   if(detailPanel) detailPanel.classList.toggle("hidden", !shipMode || !store.hangarDetailOpen);
   if(loadoutPanel) loadoutPanel.classList.toggle("hidden", !shipMode || !store.hangarDetailOpen);
   if(droneSection) droneSection.classList.toggle("hidden", store.hangarTab !== "drone");
+  if(hangarSkillsSection) hangarSkillsSection.classList.toggle("hidden", store.hangarTab !== "skills");
   if(extraSection) extraSection.classList.add("hidden");
 }
 

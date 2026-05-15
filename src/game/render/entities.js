@@ -119,3 +119,35 @@ export function drawCargoBoxes({ctx, camera, cache, cargoBoxes}){
     ctx.restore();
   }
 }
+
+export function drawGroundMaterials({ctx, camera, cache, materials}){
+  const time = performance.now() / 420;
+  for(const node of materials || []){
+    const img = cache[node.img];
+    const sx = Math.round(node.x - camera.x);
+    const sy = Math.round(node.y - camera.y + Math.sin(time + node.phase) * 2);
+    const size = node.size || 42;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.globalCompositeOperation = "lighter";
+    const glowSize = size * (.72 + Math.sin(time + node.phase) * .04);
+    const glow = ctx.createRadialGradient(0, 0, size * .12, 0, 0, glowSize);
+    glow.addColorStop(0, node.glowCore || node.glow || "rgba(125,211,252,.32)");
+    glow.addColorStop(.48, node.glow || "rgba(125,211,252,.18)");
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.shadowBlur = 0;
+    if(img && img.complete) ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    else{
+      ctx.fillStyle = node.fallback || "rgba(125,211,252,.72)";
+      ctx.beginPath();
+      ctx.arc(0, 0, size * .28, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
