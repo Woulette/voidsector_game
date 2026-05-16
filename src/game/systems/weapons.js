@@ -180,6 +180,7 @@ export function createWeaponSystem(deps){
         startX,
         startY,
         kind:"missile",
+        sprite:ammo.projectileImg || ammo.img || null,
         curveSide,
         curveStrength:46 + i * 8,
         damage:i === Math.floor(needed / 2) ? totalDamage : 0,

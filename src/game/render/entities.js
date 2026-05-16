@@ -12,7 +12,7 @@ export function drawProjectiles({ctx, camera, cache, bullets}){
   ctx.translate(-camera.x, -camera.y);
   for(const bullet of bullets){
     if(bullet.kind === "rocket" || bullet.kind === "missile"){
-      const img = bullet.kind === "rocket" ? cache?.[bullet.sprite || "assets/equipment/rocket_projectile.png"] : null;
+      const img = cache?.[bullet.sprite || (bullet.kind === "rocket" ? "assets/equipment/rocket_projectile.png" : "")] || null;
       const angle = bullet.angle ?? Math.atan2(bullet.y - bullet.fromY, bullet.x - bullet.fromX);
       const pulse = .75 + Math.sin(performance.now() / 55 + bullet.elapsed * 12) * .25;
       if(bullet.trail?.length){
@@ -25,8 +25,8 @@ export function drawProjectiles({ctx, camera, cache, bullets}){
             const from = bullet.trail[i - 1];
             const to = bullet.trail[i];
             const alpha = Math.max(0, Math.min(from.life, to.life) / from.max);
-            ctx.strokeStyle = bullet.kind === "missile" ? `rgba(167,139,250,${alpha * .30})` : colorWithAlpha(bullet.color, alpha * .34, `rgba(96,165,250,${alpha * .34})`);
-            ctx.shadowColor = bullet.kind === "missile" ? "rgba(129,140,248,.38)" : colorWithAlpha(bullet.color, .42, "rgba(56,189,248,.42)");
+            ctx.strokeStyle = colorWithAlpha(bullet.color, alpha * (bullet.kind === "missile" ? .30 : .34), bullet.kind === "missile" ? `rgba(167,139,250,${alpha * .30})` : `rgba(96,165,250,${alpha * .34})`);
+            ctx.shadowColor = colorWithAlpha(bullet.color, bullet.kind === "missile" ? .38 : .42, bullet.kind === "missile" ? "rgba(129,140,248,.38)" : "rgba(56,189,248,.42)");
             ctx.shadowBlur = bullet.kind === "missile" ? 5 : 7;
             ctx.lineWidth = (bullet.kind === "missile" ? 1.8 : 2.6) * alpha;
             ctx.beginPath();
@@ -34,8 +34,8 @@ export function drawProjectiles({ctx, camera, cache, bullets}){
             ctx.lineTo(to.x, to.y);
             ctx.stroke();
 
-            ctx.strokeStyle = bullet.kind === "missile" ? `rgba(125,211,252,${alpha * .18})` : colorWithAlpha(bullet.particle || bullet.color, alpha * .24, `rgba(255,180,72,${alpha * .20})`);
-            ctx.shadowColor = bullet.kind === "missile" ? "rgba(56,189,248,.28)" : colorWithAlpha(bullet.particle || bullet.color, .38, "rgba(255,132,24,.36)");
+            ctx.strokeStyle = colorWithAlpha(bullet.particle || bullet.color, alpha * (bullet.kind === "missile" ? .18 : .24), bullet.kind === "missile" ? `rgba(125,211,252,${alpha * .18})` : `rgba(255,180,72,${alpha * .20})`);
+            ctx.shadowColor = colorWithAlpha(bullet.particle || bullet.color, bullet.kind === "missile" ? .28 : .38, bullet.kind === "missile" ? "rgba(56,189,248,.28)" : "rgba(255,132,24,.36)");
             ctx.shadowBlur = 5;
             ctx.lineWidth = 1.2 * alpha;
             ctx.beginPath();
@@ -48,8 +48,8 @@ export function drawProjectiles({ctx, camera, cache, bullets}){
           const point = bullet.trail[i];
           const alpha = Math.max(0, point.life / point.max);
           const scale = 1 - i / Math.max(1, bullet.trail.length);
-          ctx.fillStyle = bullet.kind === "missile" ? `rgba(148,163,184,${alpha * .07})` : colorWithAlpha(bullet.color, alpha * .10, `rgba(146,163,178,${alpha * .10})`);
-          ctx.shadowColor = bullet.kind === "missile" ? "rgba(129,140,248,.14)" : colorWithAlpha(bullet.color, .20, "rgba(125,211,252,.20)");
+          ctx.fillStyle = colorWithAlpha(bullet.color, alpha * (bullet.kind === "missile" ? .07 : .10), bullet.kind === "missile" ? `rgba(148,163,184,${alpha * .07})` : `rgba(146,163,178,${alpha * .10})`);
+          ctx.shadowColor = colorWithAlpha(bullet.color, bullet.kind === "missile" ? .14 : .20, bullet.kind === "missile" ? "rgba(129,140,248,.14)" : "rgba(125,211,252,.20)");
           ctx.shadowBlur = 5;
           ctx.beginPath();
           ctx.ellipse(point.x, point.y, bullet.kind === "missile" ? 5 + scale * 3 : 8 + scale * 4, bullet.kind === "missile" ? 2 + scale : 3.2 + scale * 1.5, angle, 0, Math.PI * 2);
@@ -62,37 +62,34 @@ export function drawProjectiles({ctx, camera, cache, bullets}){
       ctx.rotate(angle);
       ctx.globalCompositeOperation = "lighter";
       if(bullet.kind === "missile"){
-        ctx.fillStyle = `rgba(96,165,250,${.20 + pulse * .16})`;
-        ctx.shadowColor = "rgba(96,165,250,.62)";
+        ctx.fillStyle = colorWithAlpha(bullet.particle || bullet.color, .20 + pulse * .16, `rgba(96,165,250,${.20 + pulse * .16})`);
+        ctx.shadowColor = colorWithAlpha(bullet.particle || bullet.color, .62, "rgba(96,165,250,.62)");
         ctx.shadowBlur = 8 + pulse * 6;
         ctx.beginPath();
         ctx.ellipse(-12, 0, 12, 3, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalCompositeOperation = "source-over";
         ctx.shadowBlur = 0;
-        ctx.fillStyle = "rgba(203,213,225,.95)";
-        ctx.strokeStyle = "rgba(15,23,42,.86)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(12, 0);
-        ctx.lineTo(3, -3.5);
-        ctx.lineTo(-9, -3.2);
-        ctx.lineTo(-13, 0);
-        ctx.lineTo(-9, 3.2);
-        ctx.lineTo(3, 3.5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = "rgba(56,189,248,.90)";
-        ctx.beginPath();
-        ctx.rect(-1, -1.5, 5, 3);
-        ctx.fill();
-        ctx.fillStyle = `rgba(248,113,22,${.72 + pulse * .22})`;
-        ctx.shadowColor = "rgba(248,113,22,.72)";
-        ctx.shadowBlur = 8 + pulse * 6;
-        ctx.beginPath();
-        ctx.ellipse(-14, 0, 4 + pulse * 2, 2.2, 0, 0, Math.PI * 2);
-        ctx.fill();
+        if(img && img.complete) ctx.drawImage(img, -18, -6.75, 36, 13.5);
+        else{
+          ctx.fillStyle = "rgba(203,213,225,.95)";
+          ctx.strokeStyle = "rgba(15,23,42,.86)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(12, 0);
+          ctx.lineTo(3, -3.5);
+          ctx.lineTo(-9, -3.2);
+          ctx.lineTo(-13, 0);
+          ctx.lineTo(-9, 3.2);
+          ctx.lineTo(3, 3.5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = colorWithAlpha(bullet.color, .90, "rgba(56,189,248,.90)");
+          ctx.beginPath();
+          ctx.rect(-1, -1.5, 5, 3);
+          ctx.fill();
+        }
       }else{
         ctx.fillStyle = colorWithAlpha(bullet.color, .36 + pulse * .18, `rgba(255,132,24,${.36 + pulse * .18})`);
         ctx.shadowColor = colorWithAlpha(bullet.color, .72, "rgba(255,132,24,.72)");
