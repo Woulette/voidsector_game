@@ -18,11 +18,11 @@ const REFINERY_SHIPMENT_CREDIT_RATE = {
   final:500
 };
 const REFINERY_RAW_UPGRADE_COSTS = {
-  cuivre_orbital:["cuivre_orbital", "nickel_brut"],
-  zinc_spatial:["zinc_spatial", "nickel_brut"],
+  cuivre_orbital:["cuivre_orbital", "zinc_spatial"],
+  zinc_spatial:["cuivre_orbital", "nickel_brut"],
   nickel_brut:["zinc_spatial", "titane_fissure"],
-  titane_fissure:["nickel_brut", "silice_conductrice"],
-  silice_conductrice:["titane_fissure", "nickel_brut"]
+  titane_fissure:["silice_conductrice", "nickel_brut"],
+  silice_conductrice:["silice_conductrice", "titane_fissure"]
 };
 const REFINERY_PRODUCTION_BY_KIND = {
   raw:{base:1500, max:140000},
