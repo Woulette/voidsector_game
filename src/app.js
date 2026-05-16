@@ -114,7 +114,7 @@ function canMoveInventoryItemToTarget(inventoryUid, target){
 function equipPart(type, index, inventoryUid){
   const item = getItemFromInventoryUid(inventoryUid);
   if(!item) return;
-  if(type === "laser" || type === "generator" || type === "extra"){
+  if(type === "laser" || type === "generator" || type === "missileLauncher" || type === "rocketLauncher" || type === "extra"){
     const ship = getShip(store.state.selectedShip);
     const loadout = getLoadout(ship.id);
     if(type === "laser"){
@@ -129,6 +129,16 @@ function equipPart(type, index, inventoryUid){
       if(!canMoveInventoryItemToTarget(inventoryUid, {location:"ship", shipId:ship.id})) return;
       loadout.generators = loadout.generators.map(uid => uid === inventoryUid ? null : uid);
       loadout.generators[index] = inventoryUid;
+    }else if(type === "missileLauncher"){
+      if(item.slotType !== "missileLauncher") return showToast("Ce n'est pas un lance missile.");
+      if(!canMoveInventoryItemToTarget(inventoryUid, {location:"ship", shipId:ship.id})) return;
+      if(loadout.missileLauncher && loadout.missileLauncher !== inventoryUid) unequipInventoryItem(loadout.missileLauncher);
+      loadout.missileLauncher = inventoryUid;
+    }else if(type === "rocketLauncher"){
+      if(item.slotType !== "rocketLauncher") return showToast("Ce n'est pas un lance roquette.");
+      if(!canMoveInventoryItemToTarget(inventoryUid, {location:"ship", shipId:ship.id})) return;
+      if(loadout.rocketLauncher && loadout.rocketLauncher !== inventoryUid) unequipInventoryItem(loadout.rocketLauncher);
+      loadout.rocketLauncher = inventoryUid;
     }else{
       if(item.category !== "extra") return showToast("Ce n'est pas un extra.");
       if(index >= (ship.stats.maxExtras || 3)) return;
@@ -178,8 +188,12 @@ function autoEquipInventoryItem(inventoryUid){
   const ship = getShip(store.state.selectedShip);
   if(!canMoveInventoryItemToTarget(inventoryUid, {location:"ship", shipId:ship.id})) return;
   const loadout = getLoadout(ship.id);
-  const type = item.category === "canon" ? "laser" : item.category === "generateur" ? "generator" : item.category === "extra" ? "extra" : null;
+  const type = item.category === "canon" ? "laser" : item.category === "generateur" ? "generator" : item.slotType === "missileLauncher" ? "missileLauncher" : item.slotType === "rocketLauncher" ? "rocketLauncher" : item.category === "extra" ? "extra" : null;
   if(!type) return showToast("Cet équipement n'est pas montable sur un vaisseau pour le moment.");
+  if(type === "missileLauncher" || type === "rocketLauncher"){
+    equipPart(type, 0, inventoryUid);
+    return;
+  }
   const slots = type === "laser" ? loadout.lasers : type === "generator" ? loadout.generators : loadout.extras;
   const currentIndex = slots.indexOf(inventoryUid);
   let index = currentIndex >= 0 ? currentIndex : slots.findIndex(uid=>!uid);
@@ -199,6 +213,8 @@ function unequipPart(type, index){
   const loadout = getLoadout(ship.id);
   if(type === "laser") loadout.lasers[index] = null;
   else if(type === "generator") loadout.generators[index] = null;
+  else if(type === "missileLauncher") loadout.missileLauncher = null;
+  else if(type === "rocketLauncher") loadout.rocketLauncher = null;
   else if(type === "extra") loadout.extras[index] = null;
   store.state.shipLoadouts[ship.id] = loadout;
   showToast(`Slot ${index+1} vidé sur ${ship.name}.`);
@@ -300,7 +316,7 @@ document.addEventListener("click", (e)=>{
   const startRefineryBtn = e.target.closest("#refineryPanel [data-start-refinery]");
   if(startRefineryBtn){
     const result = startRefineryJob(startRefineryBtn.dataset.startRefinery);
-    showToast(result.ok ? `${result.recipe.name} lancÃ©.` : result.reason);
+    showToast(result.ok ? `${result.recipe.name} lancé.` : result.reason);
     saveState();
     renderRefinery();
     return;
@@ -309,7 +325,7 @@ document.addEventListener("click", (e)=>{
   const claimRefineryBtn = e.target.closest("#refineryPanel [data-claim-refinery]");
   if(claimRefineryBtn){
     const result = claimRefineryJob();
-    showToast(result.ok ? "Raffinage rÃ©cupÃ©rÃ©." : result.reason);
+    showToast(result.ok ? "Raffinage récupéré." : result.reason);
     saveState();
     renderRefinery();
     return;
@@ -475,19 +491,24 @@ document.addEventListener("click", (e)=>{
   const unequip = e.target.closest("[data-unequip-part]");
   if(unequip){ unequipPart(unequip.dataset.unequipPart, Number(unequip.dataset.unequipIndex)); return; }
 
-  const dropSlot = e.target.closest("[data-drop-part]");
-  if(dropSlot && store.selectedInventoryUid){
-    equipPart(dropSlot.dataset.dropPart, Number(dropSlot.dataset.dropIndex), store.selectedInventoryUid);
-    return;
-  }
 });
 
 document.addEventListener("dblclick", (e)=>{
+  const equippedSlot = e.target.closest("[data-slot-uid][data-drop-part]");
+  if(equippedSlot){
+    clearTimeout(inventoryClickTimer);
+    e.preventDefault();
+    e.stopPropagation();
+    unequipPart(equippedSlot.dataset.dropPart, Number(equippedSlot.dataset.dropIndex));
+    return;
+  }
+
   const inventoryCard = e.target.closest("[data-inventory-uid]");
   if(!inventoryCard) return;
   clearTimeout(inventoryClickTimer);
   store.selectedInventoryUid = inventoryCard.dataset.inventoryUid;
   autoEquipInventoryItem(inventoryCard.dataset.inventoryUid);
+  store.selectedInventoryUid = null;
 });
 
 document.addEventListener("input", e=>{
@@ -512,8 +533,10 @@ document.addEventListener("change", e=>{
 
 document.addEventListener("dragstart", (e)=>{
   const inventoryCard = e.target.closest("[data-inventory-uid]");
-  if(!inventoryCard) return;
-  e.dataTransfer.setData("text/plain", inventoryCard.dataset.inventoryUid);
+  const equippedSlot = e.target.closest("[data-slot-uid][data-drop-part]");
+  const uid = inventoryCard?.dataset.inventoryUid || equippedSlot?.dataset.slotUid;
+  if(!uid) return;
+  e.dataTransfer.setData("text/plain", uid);
   e.dataTransfer.effectAllowed = "move";
 });
 
@@ -527,6 +550,7 @@ document.addEventListener("drop", (e)=>{
   e.preventDefault();
   const uid = e.dataTransfer.getData("text/plain");
   equipPart(slot.dataset.dropPart, Number(slot.dataset.dropIndex), uid);
+  store.selectedInventoryUid = null;
 });
 
 document.getElementById("selectedShipAction").addEventListener("click", equipSelectedShip);

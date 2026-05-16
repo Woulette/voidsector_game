@@ -16,6 +16,7 @@ export function installCombatInputHandlers({
   setMiniMapPosition,
   resizeMiniMap,
   saveUtilityPanelLayout,
+  saveSpawnPanelLayout,
   getCurrentMap,
   getSpawnPanelMode,
   getCombatMetricModes,
@@ -41,12 +42,18 @@ export function installCombatInputHandlers({
   setCombatQuestDetailTab,
   selectQuestForPanel,
   selectQuestCategoryForPanel,
+  setRefineryPanelTab,
+  openShipRefineRecipe,
+  closeShipRefineRecipe,
   closeSpawnPanel,
   updateHud,
   moveActionSlot,
   clearActionSlot,
   assignExtraToActionSlot,
   assignAmmoToActionSlot,
+  selectMissileAmmo,
+  fireMissileLauncher,
+  assignMissileLauncherToActionSlot,
   renderCombatQuickPanel,
   setCombatPanelTab,
   buyCombatAmmo,
@@ -55,6 +62,8 @@ export function installCombatInputHandlers({
   claimQuest,
   startRefineryJob,
   claimRefineryJob,
+  refineShipCargoRecipe,
+  depositCombatBoostMaterial,
   upgradeEquipment,
   showToast
 }){
@@ -143,11 +152,16 @@ export function installCombatInputHandlers({
         return;
       }
       const enemy = findEnemyAt(world);
-      if(enemy) setSelectedEnemy(enemy);
-      mouseMoveHeld = !enemy;
-      setMouseMoveHeld?.(!enemy);
-      setMoveTarget(enemy ? null : world);
-      if(!enemy && getSpawnPanelMode()) closeSpawnPanel();
+      if(enemy){
+        setSelectedEnemy(enemy);
+        mouseMoveHeld = false;
+        setMouseMoveHeld?.(false);
+      }else{
+        mouseMoveHeld = true;
+        setMouseMoveHeld?.(true);
+        setMoveTarget(world);
+        if(getSpawnPanelMode()) closeSpawnPanel();
+      }
       updateHud();
     }
   });
@@ -216,8 +230,10 @@ export function installCombatInputHandlers({
       return;
     }
     const extraId = e.dataTransfer.getData("application/x-voidsector-extra");
+    const missileCpu = e.dataTransfer.getData("application/x-voidsector-missile-cpu");
     const ammoId = e.dataTransfer.getData("application/x-voidsector-ammo") || e.dataTransfer.getData("text/plain");
     if(extraId) assignExtraToActionSlot(Number(slot.dataset.actionIndex), extraId);
+    else if(missileCpu) assignMissileLauncherToActionSlot(Number(slot.dataset.actionIndex));
     else assignAmmoToActionSlot(Number(slot.dataset.actionIndex), ammoId);
   });
 
@@ -259,11 +275,22 @@ export function installCombatInputHandlers({
     }
     const ammo = e.target.closest("[data-combat-ammo-id]");
     if(ammo){
+      if(ammo.dataset.combatAmmoClass === "missile"){
+        selectMissileAmmo(ammo.dataset.combatAmmoId);
+        return;
+      }
       const first = getActionSlots().findIndex(id=>!id);
       assignAmmoToActionSlot(first >= 0 ? first : 0, ammo.dataset.combatAmmoId);
     }
   });
   documentRef.getElementById("combatQuickPanel").addEventListener("dragstart", e=>{
+    const missileCpu = e.target.closest("[data-combat-missile-cpu]");
+    if(missileCpu){
+      e.dataTransfer.setData("application/x-voidsector-missile-cpu", "1");
+      e.dataTransfer.setData("text/plain", "launcher_missile_mk1");
+      e.dataTransfer.effectAllowed = "copy";
+      return;
+    }
     const extra = e.target.closest("[data-combat-extra-slot]");
     if(extra){
       e.dataTransfer.setData("application/x-voidsector-extra", extra.dataset.combatExtraSlot);
@@ -362,7 +389,68 @@ export function installCombatInputHandlers({
   });
 
   documentRef.getElementById("spawnPanelClose")?.addEventListener("click", closeSpawnPanel);
+  documentRef.querySelector("#spawnInteractionPanel .spawn-panel-header")?.addEventListener("pointerdown", e=>{
+    if(!isRunning() || e.target.closest("button")) return;
+    const panel = documentRef.getElementById("spawnInteractionPanel");
+    if(!panel || panel.classList.contains("hidden")) return;
+    e.preventDefault();
+    const rect = panel.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+    panel.setPointerCapture?.(e.pointerId);
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.top}px`;
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+
+    const movePanel = moveEvent=>{
+      const panelRect = panel.getBoundingClientRect();
+      const maxLeft = Math.max(0, windowRef.innerWidth - panelRect.width);
+      const maxTop = Math.max(0, windowRef.innerHeight - panelRect.height);
+      const left = Math.max(0, Math.min(maxLeft, moveEvent.clientX - offsetX));
+      const top = Math.max(0, Math.min(maxTop, moveEvent.clientY - offsetY));
+      panel.style.left = `${left}px`;
+      panel.style.top = `${top}px`;
+    };
+    const stopDrag = upEvent=>{
+      panel.releasePointerCapture?.(upEvent.pointerId);
+      const finalRect = panel.getBoundingClientRect();
+      saveSpawnPanelLayout?.({left:finalRect.left, top:finalRect.top});
+      windowRef.removeEventListener("pointermove", movePanel);
+      windowRef.removeEventListener("pointerup", stopDrag);
+      windowRef.removeEventListener("pointercancel", stopDrag);
+    };
+    windowRef.addEventListener("pointermove", movePanel);
+    windowRef.addEventListener("pointerup", stopDrag);
+    windowRef.addEventListener("pointercancel", stopDrag);
+  });
   documentRef.getElementById("spawnInteractionPanel")?.addEventListener("click", e=>{
+    const refineryTabBtn = e.target.closest("[data-spawn-refinery-tab]");
+    if(refineryTabBtn){
+      setRefineryPanelTab?.(refineryTabBtn.dataset.spawnRefineryTab);
+      return;
+    }
+    const openShipRefineBtn = e.target.closest("[data-open-ship-refine]");
+    if(openShipRefineBtn){
+      openShipRefineRecipe?.(openShipRefineBtn.dataset.openShipRefine);
+      return;
+    }
+    const closeShipRefineBtn = e.target.closest("[data-close-ship-refine]");
+    if(closeShipRefineBtn){
+      closeShipRefineRecipe?.();
+      return;
+    }
+    const confirmShipRefineBtn = e.target.closest("[data-confirm-ship-refine]");
+    if(confirmShipRefineBtn){
+      const input = documentRef.querySelector("[data-ship-refine-amount]");
+      const amount = Math.max(1, Math.floor(Number(input?.value || 1)));
+      const result = refineShipCargoRecipe(confirmShipRefineBtn.dataset.confirmShipRefine, amount);
+      if(!result.ok) showToast(result.reason);
+      else { saveState(); showToast(`Fusion : +${result.outputAmount} ${result.output?.name || result.recipe.outputId}.`); closeShipRefineRecipe?.(); }
+      renderSpawnInteractionPanel("refinery");
+      updateHud();
+      return;
+    }
     const questCategoryBtn = e.target.closest("[data-quest-category]");
     if(questCategoryBtn){
       selectQuestCategoryForPanel?.(questCategoryBtn.dataset.questCategory);
@@ -409,11 +497,48 @@ export function installCombatInputHandlers({
       updateHud();
       return;
     }
-    const upgradeBtn = e.target.closest("[data-upgrade-item]");
+    const upgradeBtn = e.target.closest("[data-upgrade-ship-item], [data-upgrade-item]");
     if(upgradeBtn){
-      const result = upgradeEquipment(upgradeBtn.dataset.upgradeItem);
+      const itemId = upgradeBtn.dataset.upgradeShipItem || upgradeBtn.dataset.upgradeItem;
+      const result = upgradeEquipment(itemId, upgradeBtn.dataset.upgradeShipItem ? {materialSource:"shipCargo"} : {});
       if(!result.ok) showToast(result.reason);
-      else { saveState(); showToast(`Amélioration appliquée : ${upgradeBtn.dataset.upgradeItem} +${result.level}`); }
+      else { saveState(); showToast(`Amelioration appliquee : ${itemId} +${result.level}`); }
+      renderSpawnInteractionPanel("refinery");
+      updateHud();
+    }
+  });
+  documentRef.getElementById("spawnInteractionPanel")?.addEventListener("dragstart", e=>{
+    const material = e.target.closest("[data-boost-material]");
+    if(!material) return;
+    e.dataTransfer.setData("application/x-voidsector-boost-material", material.dataset.boostMaterial);
+    e.dataTransfer.setData("text/plain", material.dataset.boostMaterial);
+    e.dataTransfer.effectAllowed = "copy";
+  });
+  documentRef.getElementById("spawnInteractionPanel")?.addEventListener("dragover", e=>{
+    const slot = e.target.closest("[data-boost-drop-target]");
+    if(!slot) return;
+    e.preventDefault();
+    slot.classList.add("drag-over");
+  });
+  documentRef.getElementById("spawnInteractionPanel")?.addEventListener("dragleave", e=>{
+    const slot = e.target.closest("[data-boost-drop-target]");
+    if(slot) slot.classList.remove("drag-over");
+  });
+  documentRef.getElementById("spawnInteractionPanel")?.addEventListener("drop", e=>{
+    const slot = e.target.closest("[data-boost-drop-target]");
+    if(!slot) return;
+    e.preventDefault();
+    slot.classList.remove("drag-over");
+    const materialId = e.dataTransfer.getData("application/x-voidsector-boost-material");
+    if(!materialId) return;
+    const rawAmount = windowRef.prompt(`Quantite a deposer dans ${slot.dataset.boostDropTarget} ?`, "1");
+    const amount = Math.max(0, Math.floor(Number(rawAmount || 0)));
+    if(amount <= 0) return;
+    const result = depositCombatBoostMaterial?.(slot.dataset.boostDropTarget, materialId, amount);
+    if(!result?.ok) showToast(result?.reason || "Boost impossible.");
+    else{
+      saveState();
+      showToast(`${result.materialName} charge : +${result.added} ${result.field === "charges" ? "tir(s)" : "seconde(s)"} pour ${slot.dataset.boostDropTarget}.`);
       renderSpawnInteractionPanel("refinery");
       updateHud();
     }

@@ -1,4 +1,4 @@
-﻿export function createRewardSystem({
+export function createRewardSystem({
   store,
   portals,
   enemyTypes,
@@ -58,7 +58,21 @@
     return null;
   }
 
-  function rollMaterials(){
+  function materialDropsFromLoot(loot){
+    const rawMaterials = getAllRawMaterials();
+    return Object.entries(loot?.materials || {})
+      .map(([id, amount])=>{
+        const safeAmount = Math.max(0, Math.round(Number(amount || 0)));
+        if(safeAmount <= 0) return null;
+        const material = rawMaterials.find(item=>item.id === id);
+        return {id, amount:safeAmount, label:`${safeAmount} ${material?.short || id}`};
+      })
+      .filter(Boolean);
+  }
+
+  function rollMaterials(loot){
+    const fixedMaterials = materialDropsFromLoot(loot);
+    if(fixedMaterials.length) return fixedMaterials;
     const materials = [];
     const rawMaterials = getAllRawMaterials();
     for(const drop of rawDropTable){
@@ -103,7 +117,7 @@
     if(addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de compétence.`);
 
     const pieceDrop = rollPortalPiece();
-    const materials = rollMaterials();
+    const materials = rollMaterials(loot);
     if(materials.length) spawnCargoBox(enemy, materials);
     if(questCompleted) showToast("Quête terminée : retourne au relais pour réclamer la récompense.");
 
@@ -124,4 +138,3 @@
     getLootNotices:()=>lootNotices.slice()
   };
 }
-

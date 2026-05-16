@@ -126,32 +126,112 @@ function renderQuestPanel({activeQuest, activeQuests = [], selectedQuestId, sele
   };
 }
 
-function renderRefineryPanel({job, recipes, materials, getMaterialCount, upgradeables, getEquipmentUpgradeLevel, getEquipmentUpgradeCost, isRefineryComplete, formatDuration}){
-  return {
-    title:"RAFFINEUR & ATELIER",
-    html:`
-      <div class="spawn-panel-grid-two">
-        <section class="spawn-panel-section">
-          <h4>Soute</h4>
-          <div class="spawn-list compact">${materials.map(material=>`<div class="spawn-mini-row"><span>${material.name}</span><b>${fmt(getMaterialCount(material.id))}</b></div>`).join("")}</div>
-        </section>
-        <section class="spawn-panel-section">
-          <h4>Raffinage</h4>
-          ${job ? (()=>{
-            const recipe = recipes.find(entry=>entry.id === job.recipeId);
-            const complete = isRefineryComplete();
-            return `<article class="spawn-card active"><div class="spawn-card-head"><strong>${recipe?.name || "Raffinage"}</strong><span>${complete ? "Termine" : formatDuration(Number(job.endsAt || 0) - Date.now())}</span></div><p>${recipe?.desc || ""}</p><div class="spawn-actions">${complete ? `<button class="blue-button small" data-claim-refinery type="button">Recuperer</button>` : `<button class="blue-button small" type="button" disabled>En cours</button>`}</div></article>`;
-          })() : recipes.map(recipe=>`<article class="spawn-card"><div class="spawn-card-head"><strong>${recipe.name}</strong><span>${formatDuration(recipe.durationMs)}</span></div><p>${recipe.desc}</p><div class="spawn-meta"><small>Cout : ${Object.entries(recipe.costs || {}).map(([id, amount])=>`${amount} ${id.toUpperCase()}`).join(" · ")}</small><small>Resultat : +${recipe.outputAmount} ${recipe.outputId.toUpperCase()}</small></div><div class="spawn-actions"><button class="blue-button small" data-start-refinery="${recipe.id}" type="button">Lancer</button></div></article>`).join("")}
-        </section>
+function renderRefineryPanel({materials, recipes = [], shipCargo = {}, shipCargoUsed = 0, shipCargoCapacity = 0, refineryTab = "raffinage", selectedShipRefineRecipeId = null, upgradeables, getShipRefineryRecipeData, getCombatBoostSummary, getCombatBoostTooltip, getEquipmentUpgradeLevel, getEquipmentUpgradeCost}){
+  const activeTab = refineryTab === "perfectionnement" ? "perfectionnement" : "raffinage";
+  const cargoPercent = shipCargoCapacity > 0 ? Math.max(0, Math.min(100, shipCargoUsed / shipCargoCapacity * 100)) : 0;
+  const materialById = id => materials.find(material=>material.id === id) || null;
+  const materialOrder = [
+    "cuivre_orbital", "zinc_spatial", "nickel_brut", "titane_fissure", "silice_conductrice",
+    "alliage_cuivre_zinc", "catalyseur_quantique", "plaque_nickel_titane",
+    "conducteur_renforce", "blindage_composite",
+    "noyau_astra"
+  ];
+  const materialDisplayNames = {
+    cuivre_orbital:"Cuivre",
+    zinc_spatial:"Zinc",
+    nickel_brut:"Nickel",
+    titane_fissure:"Titane",
+    silice_conductrice:"Silice",
+    alliage_cuivre_zinc:"Alliage",
+    plaque_nickel_titane:"Plaque",
+    catalyseur_quantique:"Condensateur",
+    conducteur_renforce:"Conducteur",
+    blindage_composite:"Blindage",
+    noyau_astra:"Noyau Astra"
+  };
+  const orderedMaterials = materialOrder.map(materialById).filter(Boolean);
+  const recipeByOutput = outputId => recipes.find(recipe=>recipe.outputId === outputId) || null;
+  const recipeCostText = recipe => Object.entries(recipe?.costs || {}).map(([id, amount])=>`${fmt(amount)} ${materialDisplayNames[id] || materialById(id)?.name || id}`).join(" + ");
+  const materialCards = orderedMaterials.map((material, index)=>{
+    const amount = Number(shipCargo[material.id] || 0);
+    const isFinal = material.kind === "final";
+    const recipe = recipeByOutput(material.id);
+    const craft = recipe ? getShipRefineryRecipeData?.(recipe.id, 1) : null;
+    return `<article class="refine-material-card ${material.kind || ""} ${isFinal ? "final-row" : ""} ${recipe ? "craftable" : ""}" ${recipe ? `data-open-ship-refine="${recipe.id}" title="Fusionner : ${recipeCostText(recipe)}"` : ""} style="--delay:${index}">
+      <span>${materialDisplayNames[material.id] || material.name}</span>
+      <img src="${material.img}" alt="${material.name}">
+      <b>${fmt(amount)}</b>
+      ${recipe ? `<small>${craft?.maxAmount > 0 ? "Fusion" : "Manque"}</small>` : ""}
+    </article>`;
+  }).join("");
+  const selectedRecipe = selectedShipRefineRecipeId ? recipes.find(recipe=>recipe.id === selectedShipRefineRecipeId) : null;
+  const selectedRecipeData = selectedRecipe ? getShipRefineryRecipeData?.(selectedRecipe.id, 1) : null;
+  const selectedOutput = selectedRecipe ? materialById(selectedRecipe.outputId) : null;
+  const refineDialog = selectedRecipe && selectedOutput ? `<div class="ship-refine-overlay">
+    <aside class="ship-refine-dialog">
+      <button class="ship-refine-close" data-close-ship-refine type="button" aria-label="Fermer">x</button>
+      <span>Fusion de soute</span>
+      <h3>${materialDisplayNames[selectedOutput.id] || selectedOutput.name}</h3>
+      <div class="ship-refine-flow">
+        <div>${Object.entries(selectedRecipe.costs || {}).map(([id, amount])=>{
+          const material = materialById(id);
+          return `<figure><img src="${material?.img || "assets/materials/cargo_box.svg"}" alt=""><figcaption>${fmt(amount)} ${materialDisplayNames[id] || material?.name || id}</figcaption></figure>`;
+        }).join("")}</div>
+        <strong>-></strong>
+        <figure><img src="${selectedOutput.img}" alt=""><figcaption>${fmt(selectedRecipe.outputAmount || 1)} ${materialDisplayNames[selectedOutput.id] || selectedOutput.name}</figcaption></figure>
       </div>
-      <section class="spawn-panel-section">
-        <h4>Atelier d'amelioration</h4>
-        <div class="spawn-list">${upgradeables.length ? upgradeables.map(item=>{
-          const level = getEquipmentUpgradeLevel(item.id);
-          const cost = getEquipmentUpgradeCost(item);
-          return `<article class="spawn-card"><div class="spawn-card-head"><strong>${item.short || item.name}</strong><span>+${level}</span></div><p>${item.category === "canon" ? "Ameliore les degats de l'arme." : "Ameliore bouclier, regeneration ou vitesse selon le module."}</p><div class="spawn-meta"><small>Cout : ${cost ? `${cost.amount} ${cost.materialId.toUpperCase()}` : "—"}</small></div><div class="spawn-actions"><button class="blue-button small" data-upgrade-item="${item.id}" type="button" ${!cost || getMaterialCount(cost.materialId) < cost.amount ? "disabled" : ""}>Ameliorer</button></div></article>`;
-        }).join("") : `<div class="spawn-panel-note">Aucun canon ou generateur dans l'inventaire.</div>`}</div>
-      </section>`
+      <label><span>Quantite</span><input data-ship-refine-amount type="number" min="1" max="${selectedRecipeData?.maxAmount || 0}" value="${Math.max(1, Math.min(1, selectedRecipeData?.maxAmount || 1))}"></label>
+      <div class="ship-refine-max">Maximum possible : <b>${fmt(selectedRecipeData?.maxAmount || 0)}</b></div>
+      <button class="blue-button small" data-confirm-ship-refine="${selectedRecipe.id}" type="button" ${selectedRecipeData?.maxAmount > 0 ? "" : "disabled"}>Fusionner</button>
+    </aside>
+  </div>` : "";
+  const boostTargets = [
+    {type:"Laser", name:"Boost laser", img:"assets/equipment/laser_mk1_mk1_slot_v2.png", hint:"1 materiau = 10 tirs"},
+    {type:"Roquettes", name:"Boost roquettes", img:"assets/equipment/pod_missiles.svg", hint:"1 materiau = 1 tir"},
+    {type:"Generateurs", name:"Boost generateurs", img:"assets/equipment/generator_shield_mk1.png", hint:"1 materiau = 1 min"},
+    {type:"Drones", name:"Boost drones", img:"assets/equipment/drone_combat.svg", hint:"1 materiau = 1 min"}
+  ];
+  const boostTargetCards = boostTargets.map(target=>{
+    const summary = getCombatBoostSummary?.(target.type) || {};
+    const remainingLabel = summary.field === "seconds" ? `${Math.floor((summary.remaining || 0) / 60)}m ${Math.floor((summary.remaining || 0) % 60)}s` : `${fmt(summary.remaining || 0)} tirs`;
+    return `<article class="boost-target-card">
+      <span>${target.type}</span>
+      <img src="${target.img}" alt="${target.name}"><strong>${target.name}</strong>
+      <small>${target.hint}</small>
+      <button class="boost-drop-slot" type="button" data-boost-drop-target="${target.type}" aria-label="Depot ${target.type}">
+        <em>${summary.remaining > 0 ? `+${Math.round((summary.percent || 0) * 100)}%` : "Depot"}</em>
+        <b>${summary.remaining > 0 ? remainingLabel : ""}</b>
+      </button>
+    </article>`;
+  }).join("");
+  const boostMaterialIds = ["alliage_cuivre_zinc", "plaque_nickel_titane", "conducteur_renforce", "blindage_composite", "noyau_astra"];
+  const boostMaterialCards = boostMaterialIds.map(id=>{
+    const material = materialById(id);
+    if(!material) return "";
+    return `<button class="boost-material-card ${material.kind || ""}" type="button" draggable="true" data-boost-material="${id}" title="${getCombatBoostTooltip?.(id) || ""}">
+      <span>${materialDisplayNames[id] || material.name}</span>
+      <img src="${material.img}" alt="${material.name}">
+      <b>${fmt(shipCargo[id] || 0)}</b>
+    </button>`;
+  }).join("");
+  return {
+    title:"RAFFINAGE",
+    html:`<section class="refine-console ${activeTab === "perfectionnement" ? "is-upgrade" : "is-materials"}">
+      <div class="refine-tabs">
+        <button class="${activeTab === "raffinage" ? "active" : ""}" data-spawn-refinery-tab="raffinage" type="button">Raffinage</button>
+        <button class="${activeTab === "perfectionnement" ? "active" : ""}" data-spawn-refinery-tab="perfectionnement" type="button">Perfectionnement</button>
+      </div>
+      <div class="refine-cargo-line"><span>Soute du vaisseau</span><b>${fmt(shipCargoUsed)} / ${fmt(shipCargoCapacity)}</b><i><em style="width:${cargoPercent}%"></em></i></div>
+      ${activeTab === "raffinage" ? `<section class="refine-materials">
+        <h4>Materiaux embarques</h4>
+        <div class="refine-material-grid">${materialCards}</div>
+        ${refineDialog}
+      </section>` : `<section class="refine-upgrades">
+        <h4>Perfectionnement de combat</h4>
+        <div class="boost-target-grid">${boostTargetCards}</div>
+        <div class="boost-material-row">${boostMaterialCards}</div>
+      </section>`}
+    </section>`
   };
 }
 

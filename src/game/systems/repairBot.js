@@ -41,7 +41,7 @@ export function createRepairBotSystem({
     if(player.repairBotActive) return true;
     player.repairBotActive = true;
     player.repairBotTickTimer = 0;
-    showToast(manual ? "Robot réparateur activé." : "IA d’auto-réparation : robot activé.");
+    showToast(manual ? "Robot réparateur activé." : "IA d'auto-réparation : robot activé.");
     return true;
   }
 

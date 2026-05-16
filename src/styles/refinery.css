@@ -1,0 +1,650 @@
+.refinery-panel{
+  height:calc(100vh - 142px);
+  min-height:620px;
+  overflow:hidden;
+  padding:12px;
+}
+.refinery-panel .panel-head{
+  height:46px;
+  margin-bottom:8px;
+}
+#refineryPanel{height:calc(100% - 54px);min-height:0}
+.sky-refinery{
+  height:100%;
+  min-height:0;
+  display:grid;
+  grid-template-rows:66px minmax(0,1fr);
+  gap:8px;
+  overflow:hidden;
+}
+.sky-refinery.shipment-mode,.sky-refinery.stats-mode{grid-template-rows:minmax(0,1fr)}
+.sky-refinery-tabs{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin-left:auto;
+  border:0;
+  background:transparent;
+  padding:0;
+}
+.sky-refinery-tabs button{
+  min-width:128px;
+  height:24px;
+  border:1px solid rgba(56,189,248,.22);
+  background:rgba(7,24,42,.62);
+  color:#9ecdec;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.9px;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.sky-refinery-tabs button:hover{border-color:rgba(125,211,252,.58);color:#e7fbff}
+.sky-refinery-tabs button.active{
+  border-color:rgba(125,211,252,.62);
+  background:rgba(14,165,233,.18);
+  color:#e7fbff;
+  box-shadow:inset 0 0 14px rgba(56,189,248,.10);
+}
+.sky-refinery-tabs button.shipment{
+  border-color:rgba(34,197,94,.34);
+  background:rgba(20,83,45,.28);
+}
+.sky-refinery-tabs button.shipment.active{
+  border-color:rgba(74,222,128,.72);
+  color:#dcfce7;
+  background:linear-gradient(180deg,rgba(22,101,52,.82),rgba(20,83,45,.72));
+  box-shadow:0 0 16px rgba(34,197,94,.18),inset 0 0 12px rgba(187,247,208,.08);
+}
+.sky-refinery-tabs button.stats{
+  border-color:rgba(250,204,21,.30);
+  background:rgba(113,63,18,.24);
+}
+.sky-refinery-tabs button.stats.active{
+  border-color:rgba(250,204,21,.68);
+  color:#fef9c3;
+  background:linear-gradient(180deg,rgba(133,77,14,.78),rgba(113,63,18,.66));
+  box-shadow:0 0 16px rgba(250,204,21,.14),inset 0 0 12px rgba(254,249,195,.06);
+}
+.sky-stock-row{
+  display:grid;
+  grid-template-columns:repeat(11,minmax(0,1fr));
+  gap:5px;
+  min-height:0;
+}
+.sky-stock{
+  min-width:0;
+  display:grid;
+  grid-template-rows:auto auto 8px auto;
+  align-content:center;
+  text-align:center;
+  gap:2px;
+  padding:5px 7px 6px;
+  border:1px solid rgba(56,189,248,.22);
+  background:linear-gradient(180deg,rgba(7,24,42,.9),rgba(2,10,19,.96));
+}
+.sky-stock span{
+  color:#8ee7ff;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.sky-stock strong{font-size:16px;color:#f8fafc;line-height:1}
+.sky-stock-meter{
+  height:7px;
+  border:1px solid rgba(142,165,178,.46);
+  background:rgba(2,10,19,.82);
+  overflow:hidden;
+}
+.sky-stock-meter i{
+  display:block;
+  height:100%;
+  background:linear-gradient(90deg,rgba(142,165,178,.82),rgba(210,226,232,.92));
+}
+.sky-stock small{
+  display:block;
+  padding:1px 4px;
+  background:rgba(142,165,178,.18);
+  color:#cbd5dc;
+  font-size:10px;
+  line-height:1.1;
+  text-align:center;
+}
+.sky-stock.refined{border-color:rgba(34,211,238,.34)}
+.sky-stock.advanced{border-color:rgba(250,204,21,.34)}
+.sky-stock.special{border-color:rgba(168,85,247,.42)}
+.sky-stock.final{border-color:rgba(34,197,94,.48)}
+.sky-shipment-page{
+  min-height:0;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+  gap:10px;
+  overflow:hidden;
+  border:1px solid rgba(34,197,94,.20);
+  background:
+    radial-gradient(circle at 86% 10%,rgba(34,197,94,.13),transparent 26%),
+    linear-gradient(rgba(56,189,248,.026) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(56,189,248,.026) 1px,transparent 1px),
+    rgba(1,8,16,.72);
+  background-size:auto,42px 42px,42px 42px,auto;
+  padding:12px;
+}
+.sky-shipment-page-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  min-height:52px;
+  padding:10px 12px;
+  border:1px solid rgba(56,189,248,.16);
+  background:linear-gradient(180deg,rgba(6,21,38,.88),rgba(2,10,19,.94));
+}
+.sky-shipment-page-head h3{
+  color:#e7fbff;
+  font-size:18px;
+  line-height:1.05;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+}
+.sky-shipment-cap{
+  min-width:150px;
+  padding:7px 10px;
+  border:1px solid rgba(34,197,94,.30);
+  background:rgba(20,83,45,.18);
+  text-align:right;
+}
+.sky-shipment-cap span{display:block;color:#86efac;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.8px}
+.sky-shipment-cap strong{display:block;margin-top:3px;color:#dcfce7;font-size:13px}
+.sky-shipment-builder{
+  min-height:0;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 360px;
+  gap:12px;
+}
+.sky-shipment-material-grid{
+  min-height:0;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;
+  align-content:start;
+  overflow:auto;
+  padding-right:4px;
+}
+.sky-shipment-material{
+  min-width:0;
+  min-height:96px;
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  grid-template-rows:auto auto auto 8px;
+  gap:3px 9px;
+  align-items:center;
+  text-align:left;
+  padding:10px;
+  border:1px solid rgba(56,189,248,.18);
+  background:linear-gradient(180deg,rgba(7,24,42,.82),rgba(2,10,19,.92));
+  color:#dff6ff;
+  cursor:pointer;
+}
+.sky-shipment-material:hover,.sky-shipment-material.selected{border-color:rgba(74,222,128,.64);box-shadow:0 0 16px rgba(34,197,94,.12)}
+.sky-shipment-material img{grid-row:1/5;width:38px;height:38px;object-fit:contain;filter:drop-shadow(0 0 9px rgba(56,189,248,.28))}
+.sky-shipment-material span{color:#8ee7ff;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.8px}
+.sky-shipment-material strong{color:#e7fbff;font-size:13px;line-height:1.05;text-transform:uppercase;overflow-wrap:anywhere}
+.sky-shipment-material b{color:#f8fafc;font-size:15px}
+.sky-shipment-material i{height:7px;border:1px solid rgba(148,163,184,.28);background:rgba(2,6,17,.82);overflow:hidden}
+.sky-shipment-material i em{display:block;height:100%;background:linear-gradient(90deg,rgba(34,197,94,.7),rgba(187,247,208,.95))}
+.sky-shipment-order,.sky-shipment-current{
+  min-width:0;
+  align-self:start;
+  display:grid;
+  gap:10px;
+  padding:14px;
+  border:1px solid rgba(56,189,248,.20);
+  background:linear-gradient(180deg,rgba(6,21,38,.93),rgba(2,10,19,.98));
+  box-shadow:inset 0 0 18px rgba(56,189,248,.05);
+}
+.sky-shipment-order h3,.sky-shipment-current strong{color:#e7fbff;font-size:20px;text-transform:uppercase;letter-spacing:.8px;line-height:1.05}
+.sky-shipment-order label{display:grid;gap:4px}
+.sky-shipment-order label span{color:#8ee7ff;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.8px}
+.sky-shipment-order select,.sky-shipment-order input{
+  width:100%;
+  min-width:0;
+  height:34px;
+  border:1px solid rgba(56,189,248,.26);
+  background:rgba(2,10,19,.82);
+  color:#e7fbff;
+  padding:0 8px;
+  font:inherit;
+  font-size:12px;
+  font-weight:800;
+}
+.sky-shipment-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.sky-shipment-summary span{
+  min-width:0;
+  padding:8px 9px;
+  border:1px solid rgba(56,189,248,.14);
+  background:rgba(3,14,27,.72);
+  color:#9ecdec;
+  font-size:10px;
+  text-transform:uppercase;
+}
+.sky-shipment-summary b{display:block;margin-top:2px;color:#f8fafc;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sky-shipment-btn{
+  min-height:36px;
+  border:1px solid rgba(56,189,248,.42);
+  background:rgba(8,47,73,.72);
+  color:#e7fbff;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.7px;
+  cursor:pointer;
+}
+.sky-shipment-btn:hover{border-color:rgba(125,211,252,.78);box-shadow:0 0 14px rgba(56,189,248,.14)}
+.sky-shipment-btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.45)}
+.sky-shipment-current{max-width:620px}
+.sky-shipment-current span{display:block;color:#8ee7ff;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.8px}
+.sky-shipment-current small{color:#facc15;font-size:11px;text-transform:uppercase}
+.sky-shipment-current-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.sky-shipment-current-meta span{padding:8px;border:1px solid rgba(56,189,248,.14);background:rgba(3,14,27,.72);color:#9ecdec}
+.sky-shipment-current-meta b{display:block;margin-top:2px;color:#f8fafc;font-size:12px}
+.sky-shipment-meter{height:10px;border:1px solid rgba(148,163,184,.30);background:rgba(2,6,17,.86);overflow:hidden}
+.sky-shipment-meter i{display:block;height:100%;background:linear-gradient(90deg,#0891b2,#38bdf8,#e0f2fe);box-shadow:0 0 12px rgba(56,189,248,.65)}
+.sky-stats-page{
+  min-height:0;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+  gap:10px;
+  overflow:hidden;
+  border:1px solid rgba(250,204,21,.18);
+  background:
+    radial-gradient(circle at 85% 8%,rgba(250,204,21,.10),transparent 24%),
+    linear-gradient(rgba(56,189,248,.026) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(56,189,248,.026) 1px,transparent 1px),
+    rgba(1,8,16,.72);
+  background-size:auto,42px 42px,42px 42px,auto;
+  padding:12px;
+}
+.sky-stats-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  padding:10px 12px;
+  border:1px solid rgba(56,189,248,.16);
+  background:linear-gradient(180deg,rgba(6,21,38,.88),rgba(2,10,19,.94));
+}
+.sky-stats-head h3{color:#e7fbff;font-size:18px;line-height:1.05;text-transform:uppercase;letter-spacing:.8px}
+.sky-stats-summary{display:grid;grid-template-columns:repeat(3,minmax(110px,1fr));gap:7px}
+.sky-stats-summary span{padding:7px 9px;border:1px solid rgba(56,189,248,.14);background:rgba(3,14,27,.72);color:#9ecdec;font-size:10px;text-transform:uppercase}
+.sky-stats-summary b{display:block;margin-top:2px;color:#f8fafc;font-size:12px}
+.sky-stats-summary .positive b{color:#bbf7d0}
+.sky-stats-summary .negative b{color:#fecaca}
+.sky-stats-table-wrap{min-height:0;overflow:auto;border:1px solid rgba(56,189,248,.13);background:rgba(2,10,19,.46)}
+.sky-stats-table{width:100%;border-collapse:collapse;min-width:980px}
+.sky-stats-table th,.sky-stats-table td{padding:8px 9px;border-bottom:1px solid rgba(56,189,248,.10);text-align:left;vertical-align:middle}
+.sky-stats-table th{position:sticky;top:0;z-index:1;background:rgba(5,18,33,.96);color:#8ee7ff;font-size:10px;text-transform:uppercase;letter-spacing:.8px}
+.sky-stats-table td{color:#dff6ff;font-size:12px}
+.sky-stats-table tr.negative{background:rgba(127,29,29,.08)}
+.sky-stats-table tr.positive{background:rgba(20,83,45,.045)}
+.sky-stats-table .mat{display:grid;grid-template-columns:34px minmax(0,1fr);gap:8px;align-items:center}
+.sky-stats-table .mat img{width:30px;height:30px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(56,189,248,.22))}
+.sky-stats-table .mat strong{display:block;color:#e7fbff;text-transform:uppercase;letter-spacing:.55px;font-size:12px}
+.sky-stats-table .mat span{display:block;color:#facc15;font-size:10px}
+.sky-stats-table td i{display:block;height:5px;margin-top:4px;border:1px solid rgba(148,163,184,.24);background:rgba(2,6,17,.82);overflow:hidden}
+.sky-stats-table td i em{display:block;height:100%;background:linear-gradient(90deg,rgba(56,189,248,.65),rgba(224,242,254,.88))}
+.sky-stats-table .gain{color:#bbf7d0}
+.sky-stats-table .loss{color:#fecaca}
+.sky-stats-table .net{font-weight:900}
+.sky-stats-table .net.positive{color:#86efac}
+.sky-stats-table .net.negative{color:#fca5a5}
+.sky-stats-table .net.neutral{color:#cbd5e1}
+.sky-stats-table .uses{max-width:360px;color:#9ecdec;line-height:1.25}
+.sky-map{
+  position:relative;
+  min-height:0;
+  overflow:hidden;
+  border:1px solid rgba(56,189,248,.14);
+  background:
+    radial-gradient(circle at 88% 12%,rgba(56,189,248,.14),transparent 22%),
+    radial-gradient(circle at 50% 54%,rgba(14,165,233,.08),transparent 35%),
+    linear-gradient(rgba(56,189,248,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(56,189,248,.035) 1px,transparent 1px),
+    rgba(1,8,16,.72);
+  background-size:auto,auto,42px 42px,42px 42px,auto;
+}
+.sky-flow{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:1;
+  pointer-events:none;
+}
+.sky-flow path{
+  fill:none;
+  stroke:rgba(142,165,178,.62);
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+  opacity:.72;
+  filter:drop-shadow(0 0 4px rgba(125,211,252,.08));
+}
+.sky-node{
+  position:absolute;
+  left:calc(var(--x) * 1%);
+  top:calc(var(--y) * 1%);
+  z-index:3;
+  width:192px;
+  transform:translate(-50%,-50%);
+}
+.sky-node-frame{
+  position:relative;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  gap:7px;
+  align-items:center;
+  min-height:68px;
+  padding:8px 9px;
+  border:1px solid rgba(56,189,248,.34);
+  background:linear-gradient(180deg,rgba(8,30,50,.96),rgba(2,10,19,.98));
+  clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px);
+  box-shadow:0 0 20px rgba(56,189,248,.08);
+}
+.sky-node.locked .sky-node-frame{opacity:.62;border-color:rgba(148,163,184,.22);filter:grayscale(.35)}
+.sky-node.refined .sky-node-frame{border-color:rgba(34,211,238,.48)}
+.sky-node.advanced .sky-node-frame{border-color:rgba(250,204,21,.48)}
+.sky-node.special .sky-node-frame{border-color:rgba(168,85,247,.58)}
+.sky-node.final .sky-node-frame{border-color:rgba(34,197,94,.68);box-shadow:0 0 24px rgba(34,197,94,.16)}
+.sky-node.production-off .sky-node-frame{
+  border-color:rgba(239,68,68,.42);
+  box-shadow:0 0 18px rgba(239,68,68,.08);
+}
+.sky-node-power{
+  position:absolute;
+  top:6px;
+  right:7px;
+  z-index:4;
+  width:28px;
+  height:18px;
+  padding:0;
+  border:1px solid rgba(56,189,248,.22);
+  background:rgba(2,10,19,.86);
+  color:#dff6ff;
+  font-size:8px;
+  font-weight:900;
+  line-height:16px;
+  text-align:center;
+  text-transform:uppercase;
+  letter-spacing:.3px;
+  cursor:pointer;
+}
+.sky-node-power.on{
+  border-color:rgba(34,197,94,.62);
+  background:rgba(20,83,45,.78);
+  color:#dcfce7;
+  box-shadow:0 0 10px rgba(34,197,94,.18);
+}
+.sky-node-power.off{
+  border-color:rgba(239,68,68,.70);
+  background:rgba(127,29,29,.78);
+  color:#fecaca;
+  box-shadow:0 0 10px rgba(239,68,68,.16);
+}
+.sky-node-power:hover{filter:brightness(1.18)}
+.sky-node img{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(125,211,252,.34))}
+.sky-node div{min-width:0}
+.sky-node span{display:block;font-size:9px;color:#7dd3fc;text-transform:uppercase;letter-spacing:.7px}
+.sky-node strong{display:block;font-size:13px;line-height:1.02;color:#e7fbff;text-transform:uppercase;overflow-wrap:anywhere}
+.sky-node small{display:none}
+.sky-node-controls{
+  display:grid;
+  grid-template-columns:50px minmax(0,1fr);
+  gap:4px;
+  align-items:center;
+  margin-top:6px;
+}
+.sky-node-controls b{
+  padding:4px 3px;
+  border:1px solid rgba(56,189,248,.22);
+  background:rgba(2,10,19,.78);
+  color:#facc15;
+  font-size:9px;
+  line-height:1;
+  white-space:nowrap;
+}
+.sky-node-controls button{
+  min-height:24px;
+  min-width:0;
+  padding:0 4px;
+  border:1px solid rgba(56,189,248,.26);
+  background:rgba(56,189,248,.10);
+  color:#dff6ff;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:clip;
+  cursor:pointer;
+}
+.sky-node-controls button:hover{border-color:rgba(125,211,252,.72);box-shadow:0 0 14px rgba(56,189,248,.14)}
+.sky-node-controls button:disabled{opacity:.42;cursor:not-allowed;filter:grayscale(.4)}
+.sky-node-progress{
+  position:absolute;
+  left:10px;
+  right:10px;
+  bottom:1px;
+  height:5px;
+  margin:0;
+  border:1px solid rgba(142,165,178,.32);
+  background:rgba(2,10,19,.75);
+  overflow:hidden;
+}
+.sky-node-progress i{
+  display:block;
+  height:100%;
+  background:linear-gradient(90deg,rgba(142,165,178,.75),rgba(210,226,232,.9));
+}
+.sky-utility-node{
+  position:absolute;
+  left:calc(var(--x) * 1%);
+  top:calc(var(--y) * 1%);
+  z-index:3;
+  width:236px;
+  min-height:82px;
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+  padding:11px 12px;
+  transform:translate(-50%,-50%);
+  border:1px solid rgba(142,165,178,.42);
+  background:linear-gradient(180deg,rgba(10,31,48,.94),rgba(2,10,19,.98));
+  clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px);
+  box-shadow:0 0 22px rgba(125,211,252,.08), inset 0 0 22px rgba(142,165,178,.04);
+}
+.sky-utility-node.transport{border-color:rgba(56,189,248,.42)}
+.sky-utility-node.storage{border-color:rgba(142,165,178,.52)}
+.sky-utility-icon{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(142,165,178,.45);
+  background:radial-gradient(circle,rgba(210,226,232,.18),rgba(2,10,19,.82) 62%);
+  color:#dff6ff;
+  font-size:20px;
+  font-weight:900;
+  letter-spacing:1px;
+  box-shadow:0 0 14px rgba(142,165,178,.12);
+}
+.sky-utility-node span{
+  display:block;
+  color:#8ee7ff;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+.sky-utility-node strong{
+  display:block;
+  margin-top:1px;
+  color:#e7fbff;
+  font-size:18px;
+  line-height:1;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+}
+.sky-utility-node small{
+  display:block;
+  margin-top:4px;
+  color:#9ecdec;
+  font-size:11px;
+  line-height:1.15;
+  text-transform:uppercase;
+}
+.sky-upgrade-overlay{
+  position:absolute;
+  inset:0;
+  z-index:90;
+  pointer-events:none;
+}
+.sky-upgrade-popover{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  z-index:91;
+  width:292px;
+  padding:14px;
+  border:1px solid rgba(125,211,252,.74);
+  background:
+    linear-gradient(180deg,rgba(14,31,45,.99),rgba(4,12,19,.99)),
+    radial-gradient(circle at 100% 0,rgba(250,204,21,.12),transparent 38%);
+  clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px);
+  box-shadow:0 16px 36px rgba(0,0,0,.68),0 0 0 1px rgba(250,204,21,.16),0 0 28px rgba(125,211,252,.22),inset 0 1px 0 rgba(255,255,255,.08);
+  pointer-events:auto;
+}
+.sky-upgrade-popover:before{
+  content:"";
+  position:absolute;
+  inset:5px;
+  border:1px solid rgba(250,204,21,.10);
+  pointer-events:none;
+}
+.sky-upgrade-popover h3{
+  padding-right:24px;
+  color:#e7fbff;
+  font-size:18px;
+  line-height:1.05;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+}
+.sky-upgrade-close{
+  position:absolute;
+  top:8px;
+  right:9px;
+  width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid rgba(125,211,252,.48);
+  background:rgba(2,10,19,.86);
+  color:#e7fbff;
+  font-weight:900;
+  font-size:14px;
+  line-height:1;
+  cursor:pointer;
+}
+.sky-upgrade-close:hover{border-color:rgba(250,204,21,.55);color:#facc15}
+.sky-upgrade-level{
+  display:inline-block;
+  margin-top:7px;
+  padding:4px 7px;
+  border:1px solid rgba(250,204,21,.26);
+  background:rgba(92,61,8,.18);
+  color:#facc15;
+  font-size:10px;
+  font-weight:900;
+}
+.sky-upgrade-delta,.sky-upgrade-costs{
+  display:grid;
+  gap:5px;
+  margin-top:9px;
+}
+.sky-upgrade-delta span,.sky-upgrade-costs span,.sky-upgrade-duration,.sky-upgrade-timer>div:not(.sky-upgrade-meter){
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  align-items:center;
+  min-height:24px;
+  padding:5px 7px;
+  border:1px solid rgba(56,189,248,.14);
+  background:rgba(2,10,19,.46);
+  color:#9ecdec;
+  font-size:10px;
+  text-transform:uppercase;
+}
+.sky-upgrade-delta b,.sky-upgrade-costs b,.sky-upgrade-duration b,.sky-upgrade-timer b{
+  color:#e7fbff;
+  font-size:11px;
+  white-space:nowrap;
+}
+.sky-upgrade-costs span.ok{border-color:rgba(34,197,94,.22);color:#bbf7d0}
+.sky-upgrade-costs span.missing{border-color:rgba(239,68,68,.34);color:#fecaca;background:rgba(127,29,29,.12)}
+.sky-upgrade-duration{margin-top:9px}
+.sky-upgrade-confirm{
+  width:100%;
+  min-height:30px;
+  margin-top:9px;
+  border:1px solid rgba(56,189,248,.38);
+  background:rgba(56,189,248,.13);
+  color:#e7fbff;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+  cursor:pointer;
+}
+.sky-upgrade-confirm:hover{border-color:rgba(125,211,252,.78);box-shadow:0 0 14px rgba(56,189,248,.16)}
+.sky-upgrade-confirm:disabled{opacity:.44;cursor:not-allowed;filter:grayscale(.4)}
+.sky-upgrade-timer{display:grid;gap:7px;margin-top:9px}
+.sky-upgrade-meter{
+  height:10px;
+  border:1px solid rgba(142,165,178,.44);
+  background:rgba(2,10,19,.8);
+  overflow:hidden;
+}
+.sky-upgrade-meter i{
+  display:block;
+  height:100%;
+  background:linear-gradient(90deg,rgba(142,165,178,.78),rgba(210,226,232,.95));
+}
+@media (max-width:1280px){
+  .sky-node{width:174px}
+  .sky-node strong{font-size:11px}
+  .sky-node-controls{grid-template-columns:46px minmax(0,1fr)}
+  .sky-node-controls button{font-size:8px}
+  .sky-utility-node{width:210px}
+  .sky-upgrade-popover{width:264px}
+}
+@media (max-width:900px){
+  .refinery-panel{height:auto;min-height:0;overflow:auto}
+  .sky-refinery{height:auto;grid-template-rows:auto 620px}
+  .sky-refinery.shipment-mode,.sky-refinery.stats-mode{grid-template-rows:auto}
+  .sky-refinery-tabs{margin-left:0}
+  .sky-stock-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sky-shipment-builder{grid-template-columns:1fr}
+  .sky-shipment-material-grid{grid-template-columns:1fr}
+  .sky-shipment-page-head{align-items:stretch;flex-direction:column}
+  .sky-shipment-cap{text-align:left}
+  .sky-stats-head{align-items:stretch;flex-direction:column}
+  .sky-stats-summary{grid-template-columns:1fr}
+  .sky-map{min-width:980px}
+}
+

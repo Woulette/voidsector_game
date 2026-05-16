@@ -11,6 +11,8 @@ import {
   claimQuest,
   claimRefineryJob,
   consumeAmmo,
+  consumeCombatBoostCharges,
+  depositCombatBoostMaterial,
   getActiveQuest,
   getActiveQuests,
   getAllQuests,
@@ -20,6 +22,7 @@ import {
   getCurrentRank,
   getDroneLoadout,
   getEquippedDroneLasers,
+  getEquippedLauncher,
   getEquippedExtras,
   getEquipmentUpgradeCost,
   getEquipmentUpgradeLevel,
@@ -33,18 +36,24 @@ import {
   getRefineryJob,
   getRefineryRecipes,
   getShipCombatStats,
+  getShipCargo,
   getShipCargoCapacity,
   getShipCargoUsed,
+  getShipRefineryRecipeData,
+  getCombatBoostSummary,
+  getCombatBoostTooltip,
   getSkillBonus,
   isRefineryComplete,
   markPortalCompleted,
   recordQuestKill,
+  refineShipCargoRecipe,
   registerKill,
   saveState,
   setActionSlot,
   startRefineryJob,
   spend,
   store,
+  tickCombatBoosts,
   upgradeEquipment
 } from "../core/store.js";
 
@@ -65,26 +74,27 @@ import {
 } from "./combatData.js";
 import { preloadCombatAssets } from "./combatAssets.js";
 import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./render/canvasHud.js";
-import { drawCargoBoxes, drawEnemies, drawGroundMaterials, drawParticles, drawProjectiles } from "./render/entities.js";
+import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawParticles, drawProjectiles } from "./render/entities.js";
 import { drawPlayerLayer, spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js";
 import { drawWorldLayer } from "./render/world.js";
 import { createCombatLoop } from "./systems/combatLoop.js";
+import { createCombatBeamSystem } from "./systems/combatBeams.js";
+import { createCombatCargoSystem } from "./systems/combatCargo.js";
 import { updateEnemyAi } from "./systems/enemyAi.js";
-import { buildMapState } from "./systems/mapState.js";
+import { makeGroundMaterialPreview } from "./systems/groundMaterials.js";
+import { buildMapState, createMapEnemy } from "./systems/mapState.js";
 import { createMiniMapState } from "./systems/minimapState.js";
 import { buildPortalEnvironment, buildPortalWave, createPortalMap } from "./systems/portalState.js";
 import { createPlayerLifecycle } from "./systems/playerLifecycle.js";
 import { clampPlayerToMap as clampPlayerToMapSystem, updateCamera, updatePlayerMovement, worldFromScreen as screenToWorld } from "./systems/playerMovement.js";
-import { createProjectile, describeAmmo, getAmmoCooldown as readAmmoCooldown, setAmmoCooldown as writeAmmoCooldown, updateProjectiles } from "./systems/projectiles.js";
+import { createProjectile, updateProjectiles } from "./systems/projectiles.js";
 import { createRepairBotSystem } from "./systems/repairBot.js";
 import { createRewardSystem } from "./systems/rewards.js";
 import { createWeaponSystem } from "./systems/weapons.js";
-import { renderActionBarHtml, updateActionBarDom } from "./ui/actionBar.js";
-import { updateCombatMeter, updateLootPopup as renderLootPopup, updateSafeZoneNotice as renderSafeZoneNotice, updateTargetPanel } from "./ui/hud.js";
+import { updateCombatMeter, updateLootPopup as renderLootPopup, updatePoisonStatus, updateSafeZoneNotice as renderSafeZoneNotice, updateTargetPanel } from "./ui/hud.js";
 import { installCombatInputHandlers } from "./ui/inputBindings.js";
-import { renderQuickPanelContent, updateQuickPanelTabs } from "./ui/quickPanel.js";
-import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./ui/questTracker.js";
-import { renderSpawnPanelContent } from "./ui/spawnPanel.js";
+import { createCombatActions } from "./ui/combatActions.js";
+import { createCombatPanels } from "./ui/combatPanels.js";
 export function createCombatGame({renderAll, showToast}){
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
@@ -95,24 +105,16 @@ export function createCombatGame({renderAll, showToast}){
   let last = 0;
   let hudT = 0;
   let quickPanelRefreshT = 0;
-  let spawnPanelRefreshT = 0;
-  let utilityPanelRefreshT = 0;
   let enemySeq = 1;
   let currentMap = MAPS[0];
   let teleportLock = 0;
-  let player, camera, mouse, bullets, enemies, particles, damageTexts, stars, dust, nebulae, asteroids, cargoBoxes, groundMaterials, moveTarget, selectedEnemy;
-  let pendingCargoBox = null;
-  let pendingGroundMaterial = null;
-  let activeLaserSlot, ammoCooldowns, combatPanelTab;
+  let player, camera, mouse, bullets, enemies, particles, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy;
   let gameMode, activePortal, portalWave, portalDelay, portalCompleted;
-  let spawnPanelMode = null;
   let radiationWarned = false;
   let mouseMoveHeld = false;
-  let groupMembers = [];
-  let selectedQuestId = null;
-  let selectedQuestCategory = "normal";
-  let combatQuestDetailTab = "quest";
   let combatCargoExpanded = false;
+  let deathState = null;
+  let deathRespawnHandlersInstalled = false;
   const combatMetricModes = {hp:"bar", shield:"bar", xp:"bar"};
   const miniMap = createMiniMapState({
     canvas,
@@ -124,6 +126,10 @@ export function createCombatGame({renderAll, showToast}){
       saveState();
     }
   });
+  const beams = createCombatBeamSystem({
+    getTargetById:id=>enemies.find(enemy=>enemy.id === id && enemy.hp > 0) || null
+  });
+  let actions;
   const weapons = createWeaponSystem({
     getPlayer:()=>player,
     getBullets:()=>bullets,
@@ -131,22 +137,27 @@ export function createCombatGame({renderAll, showToast}){
     getSelectedEnemy:validSelectedEnemy,
     getActiveShip:()=>store.state.activeShip,
     getActionSlots:()=>store.state.actionSlots || [],
-    getActiveLaserSlot:()=>activeLaserSlot,
-    setActiveLaserSlot:value=>{ activeLaserSlot = value; },
+    getActiveLaserSlot:()=>actions.getActiveLaserSlot(),
+    setActiveLaserSlot:value=>actions.setActiveLaserSlot(value),
     getAmmo,
     getAmmoCount,
-    getCombatAmmo:index=>getCombatAmmo(index),
-    getAmmoCooldown:ammo=>getAmmoCooldown(ammo),
-    setAmmoCooldown:(ammo, seconds)=>setAmmoCooldown(ammo, seconds),
-    getEffectiveAmmoCooldown:ammo=>getEffectiveAmmoCooldown(ammo),
-    tickAmmoCooldowns:dt=>{ for(const id of Object.keys(ammoCooldowns || {})) ammoCooldowns[id] = Math.max(0, ammoCooldowns[id] - dt); },
+    getCombatAmmo:index=>actions.getCombatAmmo(index),
+    getAmmoCooldown:ammo=>actions.getAmmoCooldown(ammo),
+    setAmmoCooldown:(ammo, seconds)=>actions.setAmmoCooldown(ammo, seconds),
+    getEffectiveAmmoCooldown:ammo=>actions.getEffectiveAmmoCooldown(ammo),
+    tickAmmoCooldowns:dt=>actions.tickAmmoCooldowns(dt),
     getEquippedLasers,
     getEquippedDroneLasers,
+    getEquippedLauncher,
+    getEquipmentUpgradeLevel,
+    consumeCombatBoostCharges,
     consumeAmmo,
     markCombatActivity,
+    addLaserBeam:beam=>beams.add(beam),
+    resolveLaserHit,
     saveState,
-    refreshActionBar:()=>updateGameActionBar(),
-    refreshQuickPanel:()=>renderCombatQuickPanel(),
+    refreshActionBar:()=>actions.updateGameActionBar(),
+    refreshQuickPanel:()=>actions.renderCombatQuickPanel(),
     showToast,
     playerHitChance:PLAYER_HIT_CHANCE
   });
@@ -156,6 +167,58 @@ export function createCombatGame({renderAll, showToast}){
     pushDamageText,
     showToast
   });
+  actions = createCombatActions({
+    ammoTypes,
+    store,
+    getAmmo,
+    getAmmoCount,
+    getItem,
+    getEquippedExtras,
+    getEquippedLauncher,
+    canAfford,
+    spend,
+    addAmmo,
+    saveState,
+    setActionSlot,
+    showToast,
+    updateHud,
+    getPlayer:()=>player,
+    getRepairState:()=>canRepairBotActivate(),
+    activateRepairBot,
+    getRepairBotDelay,
+    getLaserVolley,
+    fireManualRocket,
+    fireManualMissile
+  });
+  const panels = createCombatPanels({
+    store,
+    saveState,
+    showToast,
+    updateHud,
+    ammoTypes,
+    enemyTypes:ENEMY_TYPES,
+    getAllRawMaterials,
+    getActiveQuest,
+    getActiveQuests,
+    getAllQuests,
+    getQuestProgress,
+    claimQuest,
+    getItem,
+    getRefineryJob,
+    getRefineryRecipes,
+    getMaterialCount,
+    getShipCargo,
+    getShipCargoCapacity,
+    getShipCargoUsed,
+    getShipRefineryRecipeData,
+    getCombatBoostSummary,
+    getCombatBoostTooltip,
+    getEquipmentUpgradeLevel,
+    getEquipmentUpgradeCost,
+    isRefineryComplete,
+    formatDuration
+  });
+  let cargo;
   const rewards = createRewardSystem({
     store,
     portals,
@@ -169,7 +232,7 @@ export function createCombatGame({renderAll, showToast}){
     recordQuestKill,
     addXP,
     addPortalPiece,
-    spawnCargoBox,
+    spawnCargoBox:(enemy, materials)=>cargo.spawnCargoBox(enemy, materials),
     getSelectedEnemy:()=>selectedEnemy,
     clearSelectedEnemy,
     getParticles:()=>particles,
@@ -177,16 +240,32 @@ export function createCombatGame({renderAll, showToast}){
     showToast,
     onLootChanged:()=>updateLootPopup()
   });
+  cargo = createCombatCargoSystem({
+    addShipCargoMaterial,
+    getAllRawMaterials,
+    getShipCargoCapacity,
+    getShipCargoUsed,
+    getActiveShipId:()=>store.state.activeShip,
+    getSpawnPanelMode:()=>panels.getSpawnPanelMode(),
+    fmt,
+    rewards,
+    saveState,
+    showToast,
+    onCargoChanged:()=>updateHud(),
+    onSpawnPanelRefresh:mode=>panels.renderSpawnInteractionPanel(mode),
+    particles:()=>particles
+  });
   const lifecycle = createPlayerLifecycle({
     getPlayer:()=>player,
     getCurrentMap:()=>currentMap,
     markCombatActivity,
     clearMovement:()=>{ moveTarget = null; },
     clearSelection:()=>{ selectedEnemy = null; },
-    clearCombatEffects:()=>{ bullets = []; particles = []; damageTexts = []; cargoBoxes = []; groundMaterials = []; pendingCargoBox = null; pendingGroundMaterial = null; },
+    clearCombatEffects:()=>{ bullets = []; particles = []; damageTexts = []; beams.clear(); cargo.clear(); },
     setTeleportLock:value=>{ teleportLock = value; },
     updateHud,
-    showToast
+    showToast,
+    onDeath:handlePlayerDeath
   });
   const frameLoop = createCombatLoop({
     isRunning:()=>running,
@@ -197,7 +276,7 @@ export function createCombatGame({renderAll, showToast}){
   });
 
   function preload(){
-    preloadCombatAssets({cache, ships, equipment:[...equipment, ...getAllRawMaterials(), {img:"assets/materials/cargo_box.svg"}], enemyTypes:ENEMY_TYPES, maps:MAPS, ranks:RANK_TABLE, getRankAssetPath});
+    preloadCombatAssets({cache, ships, equipment:[...equipment, ...getAllRawMaterials(), {img:"assets/materials/cargo_box.svg"}], ammoTypes, enemyTypes:ENEMY_TYPES, maps:MAPS, ranks:RANK_TABLE, getRankAssetPath});
   }
 
   function getCanvasViewWidth(){ return canvas.__viewWidth || canvas.clientWidth || window.innerWidth || canvas.width; }
@@ -248,6 +327,82 @@ export function createCombatGame({renderAll, showToast}){
     return !!getCurrentSafeArea() && (player.safeZoneLock || 0) <= 0;
   }
 
+  function clearPoison(){
+    if(player) player.poisonEffect = null;
+    updatePoisonStatus(null);
+  }
+
+  function setDeathPanelVisible(visible){
+    document.getElementById("deathRespawnPanel")?.classList.toggle("hidden", !visible);
+  }
+
+  function handlePlayerDeath(){
+    if(!player || player.isDead) return;
+    deathState = {
+      mapId:gameMode === "open" ? currentMap.id : 0,
+      gameMode,
+      x:player.x,
+      y:player.y,
+      portal:currentMap.portal ? {x:currentMap.portal.x, y:currentMap.portal.y} : null
+    };
+    player.isDead = true;
+    player.hp = 0;
+    player.vx = 0;
+    player.vy = 0;
+    moveTarget = null;
+    mouseMoveHeld = false;
+    clearPoison();
+    bullets = bullets.filter(bullet=>bullet.owner !== "enemy");
+    setDeathPanelVisible(true);
+    showToast("Vaisseau détruit.");
+    updateHud();
+  }
+
+  function finishRespawn({mapId, x, y, message}){
+    const map = MAPS.find(entry=>entry.id === mapId) || MAPS[0];
+    if(currentMap.id !== map.id || gameMode !== "open") loadMap(map.id, x, y);
+    else{
+      player.x = x;
+      player.y = y;
+      moveTarget = null;
+      selectedEnemy = null;
+      bullets = [];
+      beams.clear();
+      cargo.clear();
+      setTeleportLock(1.6);
+    }
+    player.isDead = false;
+    clearPoison();
+    player.hp = Math.max(1, Math.round(player.maxHp * 0.2));
+    player.shield = player.maxShield;
+    player.secondsSinceDamage = 999;
+    player.repairBotActive = false;
+    player.repairBotTickTimer = 0;
+    deathState = null;
+    setDeathPanelVisible(false);
+    showToast(message);
+    updateHud();
+  }
+
+  function chooseDeathRespawn(choice){
+    if(!deathState || !player?.isDead) return;
+    if(choice === "portal"){
+      if(!canAfford("premium", 100)) return showToast("Pas assez de NOVA.");
+      spend("premium", 100);
+      const map = MAPS.find(entry=>entry.id === deathState.mapId) || MAPS[0];
+      const point = deathState.portal || map.spawn;
+      finishRespawn({mapId:map.id, x:point.x, y:point.y, message:"Respawn au portail le plus proche."});
+    }else if(choice === "death"){
+      if(!canAfford("premium", 200)) return showToast("Pas assez de NOVA.");
+      spend("premium", 200);
+      finishRespawn({mapId:deathState.mapId, x:deathState.x, y:deathState.y, message:"Respawn à la position de destruction."});
+    }else{
+      const map = MAPS[0];
+      finishRespawn({mapId:map.id, x:map.spawn.x, y:map.spawn.y, message:"Respawn gratuit sur ASTRA-01."});
+    }
+    saveState();
+  }
+
   function markCombatActivity(reason = "combat"){
     player.safeZoneLock = SAFE_ZONE_DELAY;
     if(reason === "outgoing") player.lastAggression = performance.now();
@@ -257,205 +412,12 @@ export function createCombatGame({renderAll, showToast}){
     if(gameMode !== "open" || !currentMap?.spawn) return [];
     return [
       {id:"quests", x:currentMap.spawn.x - 128, y:currentMap.spawn.y - 86, radius:48, title:"RELAIS DE QUÊTES", subtitle:"Recevoir et rendre des missions"},
-      {id:"refinery", x:currentMap.spawn.x + 132, y:currentMap.spawn.y - 90, radius:52, title:"RAFFINEUR", subtitle:"Fusionner et améliorer l’équipement"}
+      {id:"refinery", x:currentMap.spawn.x + 132, y:currentMap.spawn.y - 90, radius:52, title:"RAFFINEUR", subtitle:"Fusionner et améliorer l'équipement"}
     ];
-  }
-
-  function makeGroundMaterialPreview(map){
-    if(!map || map.id !== 0) return [];
-    const raw = getAllRawMaterials().slice(0, 5);
-    const offsets = [
-      {x:1040, y:-620, glowCore:"rgba(249,115,22,.34)", glow:"rgba(249,115,22,.18)", fallback:"rgba(249,115,22,.74)"},
-      {x:1340, y:-820, glowCore:"rgba(186,230,253,.34)", glow:"rgba(125,211,252,.18)", fallback:"rgba(186,230,253,.74)"},
-      {x:1570, y:-430, glowCore:"rgba(203,213,225,.30)", glow:"rgba(203,213,225,.16)", fallback:"rgba(203,213,225,.74)"},
-      {x:1230, y:-170, glowCore:"rgba(251,146,60,.30)", glow:"rgba(251,146,60,.16)", fallback:"rgba(251,146,60,.74)"},
-      {x:1760, y:-40, glowCore:"rgba(103,232,249,.34)", glow:"rgba(103,232,249,.18)", fallback:"rgba(103,232,249,.74)"}
-    ];
-    return raw.map((material, index)=>({
-      uid:`ground_${map.id}_${material.id}_${index}`,
-      id:material.id,
-      name:material.name,
-      label:material.short || material.name,
-      img:material.img,
-      x:map.spawn.x + offsets[index].x,
-      y:map.spawn.y + offsets[index].y,
-      size:42,
-      radius:30,
-      phase:index * 1.7,
-      ...offsets[index]
-    }));
   }
 
   function getStationAt(world){
     return getSpawnStations().find(station=>Math.hypot(world.x-station.x, world.y-station.y) <= station.radius + 18) || null;
-  }
-
-  function closeSpawnPanel(){
-    spawnPanelMode = null;
-    spawnPanelRefreshT = 0;
-    document.getElementById("spawnInteractionPanel")?.classList.add("hidden");
-    syncUtilityDockButtons();
-  }
-
-  function escapeHtml(value = ""){
-    return String(value).replace(/[&<>"']/g, char=>({
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      "\"":"&quot;",
-      "'":"&#39;"
-    })[char]);
-  }
-
-  function closeUtilityPanel(){
-    document.querySelectorAll(".combat-utility-panel").forEach(panel=>panel.classList.add("hidden"));
-    syncUtilityDockButtons();
-  }
-
-  function getUtilityPanel(mode){
-    if(mode === "quests") return document.getElementById("combatUtilityPanelQuests");
-    if(mode === "group") return document.getElementById("combatUtilityPanelGroup");
-    return null;
-  }
-
-  function getUtilityContent(mode){
-    if(mode === "quests") return document.getElementById("combatUtilityContentQuests");
-    if(mode === "group") return document.getElementById("combatUtilityContentGroup");
-    return null;
-  }
-
-  function syncUtilityDockButtons(){
-    document.querySelectorAll("[data-utility-panel]").forEach(btn=>{
-      const mode = btn.dataset.utilityPanel;
-      const panel = getUtilityPanel(mode);
-      const utilityOpen = !!panel && !panel.classList.contains("hidden");
-      const refineryOpen = mode === "refinery" && spawnPanelMode === "refinery" && !document.getElementById("spawnInteractionPanel")?.classList.contains("hidden");
-      btn.classList.toggle("active", utilityOpen || refineryOpen);
-    });
-  }
-
-  function applyUtilityPanelLayout(mode, panel){
-    const layout = store.state?.uiLayout?.combatUtilityPanels?.[mode] || store.state?.uiLayout?.combatUtilityPanel;
-    if(!layout || !Number.isFinite(Number(layout.left)) || !Number.isFinite(Number(layout.top))) return;
-    panel.style.left = `${Math.max(0, Number(layout.left))}px`;
-    panel.style.top = `${Math.max(0, Number(layout.top))}px`;
-    panel.style.right = "auto";
-    panel.style.bottom = "auto";
-  }
-
-  function saveUtilityPanelLayout(mode, layout){
-    if(!store.state.uiLayout || typeof store.state.uiLayout !== "object") store.state.uiLayout = {};
-    if(!store.state.uiLayout.combatUtilityPanels || typeof store.state.uiLayout.combatUtilityPanels !== "object") store.state.uiLayout.combatUtilityPanels = {};
-    store.state.uiLayout.combatUtilityPanels[mode] = layout;
-    saveState();
-  }
-
-  function renderCombatQuestTracker(){
-    const activeQuests = getActiveQuests();
-    const trackedQuest = getActiveQuest();
-    const selected = activeQuests.find(quest=>quest.id === trackedQuest?.id) || activeQuests[0] || null;
-    if(selected && store.state.activeQuestId !== selected.id) store.state.activeQuestId = selected.id;
-    return renderCombatQuestTrackerHtml({
-      activeQuests,
-      trackedQuest:selected,
-      detailTab:combatQuestDetailTab,
-      enemyTypes:ENEMY_TYPES,
-      rawMaterials:getAllRawMaterials(),
-      getQuestProgress
-    });
-  }
-
-  function refreshQuestUtilityPanel({show = false} = {}){
-    const panel = getUtilityPanel("quests");
-    const content = getUtilityContent("quests");
-    if(!panel || !content) return;
-    if(show){
-      applyUtilityPanelLayout("quests", panel);
-      panel.classList.remove("hidden");
-    }
-    content.innerHTML = renderCombatQuestTracker();
-    utilityPanelRefreshT = .25;
-    syncUtilityDockButtons();
-  }
-
-  function renderGroupUtilityContent(){
-    const membersHtml = groupMembers.length
-      ? groupMembers.map(name=>`<div class="group-panel-member"><strong>${escapeHtml(name)}</strong><span>Invite</span></div>`).join("")
-      : `<p class="group-panel-note">Aucun allie invite pour le moment.</p>`;
-    return `
-      <div class="group-panel-form">
-        <input id="groupInviteName" type="text" maxlength="24" placeholder="Nom du pilote">
-        <button class="blue-button small" data-group-invite type="button">INVITER</button>
-      </div>
-      <p class="group-panel-note">Prototype groupe : entre le nom d'un allie pour preparer l'invitation.</p>
-      <div class="group-panel-list">${membersHtml}</div>
-    `;
-  }
-
-  function refreshGroupUtilityPanel({show = false, focus = false} = {}){
-    const panel = getUtilityPanel("group");
-    const content = getUtilityContent("group");
-    if(!panel || !content) return;
-    if(show){
-      applyUtilityPanelLayout("group", panel);
-      panel.classList.remove("hidden");
-    }
-    content.innerHTML = renderGroupUtilityContent();
-    syncUtilityDockButtons();
-    if(focus) document.getElementById("groupInviteName")?.focus();
-  }
-
-  function openUtilityPanel(mode){
-    if(!["group", "quests"].includes(mode)) return;
-    const panel = getUtilityPanel(mode);
-    const content = getUtilityContent(mode);
-    if(!panel || !content) return;
-    if(!panel.classList.contains("hidden")){
-      panel.classList.add("hidden");
-      syncUtilityDockButtons();
-      return;
-    }
-    if(mode === "quests"){
-      refreshQuestUtilityPanel({show:true});
-      return;
-    }
-    refreshGroupUtilityPanel({show:true, focus:true});
-  }
-
-  function trackCombatQuest(questId){
-    if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.includes(questId)){
-      return showToast("Cette quete n'est pas en cours.");
-    }
-    store.state.activeQuestId = questId;
-    selectedQuestId = questId;
-    saveState();
-    refreshQuestUtilityPanel({show:true});
-  }
-
-  function setCombatQuestDetailTab(tab){
-    combatQuestDetailTab = ["quest", "rewards", "description"].includes(tab) ? tab : "quest";
-    refreshQuestUtilityPanel({show:true});
-  }
-
-  function claimCombatQuest(questId){
-    const result = claimQuest(questId);
-    if(!result.ok) return showToast(result.reason);
-    saveState();
-    showToast(`Recompense recue : ${result.quest.title}`);
-    updateHud();
-    if(spawnPanelMode) renderSpawnInteractionPanel(spawnPanelMode);
-    refreshQuestUtilityPanel({show:true});
-  }
-
-  function inviteGroupMember(name){
-    const cleaned = String(name || "").trim().replace(/\s+/g, " ").slice(0, 24);
-    if(!cleaned) return showToast("Nom de pilote requis.");
-    if(groupMembers.some(member=>member.toLowerCase() === cleaned.toLowerCase())){
-      return showToast(`${cleaned} est deja dans la liste.`);
-    }
-    groupMembers.push(cleaned);
-    showToast(`Invitation de groupe envoyee a ${cleaned}.`);
-    refreshGroupUtilityPanel({show:true, focus:true});
   }
 
   function formatDuration(ms){
@@ -477,7 +439,8 @@ export function createCombatGame({renderAll, showToast}){
     asteroids = mapState.asteroids;
     stars = mapState.stars;
     dust = mapState.dust;
-    groundMaterials = makeGroundMaterialPreview(currentMap);
+    cargo.clear();
+    cargo.setGroundMaterials(makeGroundMaterialPreview(currentMap, getAllRawMaterials()));
     nebulae = currentMap.id === 0 ? [
       {x:-1500,y:-820,r:980,c:"rgba(56,189,248,.11)",p:.22},
       {x:880,y:-260,r:760,c:"rgba(34,197,94,.06)",p:.18},
@@ -498,14 +461,13 @@ export function createCombatGame({renderAll, showToast}){
     moveTarget = null;
     selectedEnemy = null;
     bullets = [];
-    cargoBoxes = [];
-    pendingCargoBox = null;
+    beams.clear();
     particles = [];
     damageTexts = [];
     teleportLock = 1.2;
     player.safeZoneLock = 0;
     radiationWarned = false;
-    closeSpawnPanel();
+    panels.closeSpawnPanel();
     showToast(`Entrée dans ${currentMap.name}.`);
     updateHud();
   }
@@ -515,8 +477,9 @@ export function createCombatGame({renderAll, showToast}){
     portalDelay = 0;
     selectedEnemy = null;
     bullets = [];
-    cargoBoxes = [];
-    pendingCargoBox = null;
+    beams.clear();
+    cargo.setCargoBoxes([]);
+    cargo.clearPending();
     const built = buildPortalWave(wave, enemySeq);
     enemySeq = built.nextEnemySeq;
     enemies = built.enemies;
@@ -549,7 +512,7 @@ export function createCombatGame({renderAll, showToast}){
     asteroids = environment.asteroids;
     stars = environment.stars;
     dust = environment.dust;
-    groundMaterials = [];
+    cargo.clear();
     nebulae = environment.nebulae;
     player.x = currentMap.spawn.x;
     player.y = currentMap.spawn.y;
@@ -561,11 +524,12 @@ export function createCombatGame({renderAll, showToast}){
     moveTarget = null;
     selectedEnemy = null;
     bullets = [];
+    beams.clear();
     particles = [];
     damageTexts = [];
     teleportLock = 1.2;
     player.safeZoneLock = SAFE_ZONE_DELAY;
-    closeSpawnPanel();
+    panels.closeSpawnPanel();
     showToast(`Accès à ${portal.name}. 30 vagues détectées.`);
     updateHud();
   }
@@ -577,6 +541,14 @@ export function createCombatGame({renderAll, showToast}){
     running = true;
     document.getElementById("dashboard").classList.add("hidden");
     document.getElementById("gameScreen").classList.remove("hidden");
+    setDeathPanelVisible(false);
+    if(!deathRespawnHandlersInstalled){
+      document.getElementById("deathRespawnPanel")?.addEventListener("click", e=>{
+        const btn = e.target.closest("[data-respawn-choice]");
+        if(btn) chooseDeathRespawn(btn.dataset.respawnChoice);
+      });
+      deathRespawnHandlersInstalled = true;
+    }
     const stats = getShipCombatStats(store.state.activeShip);
     if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
     player = {
@@ -594,6 +566,7 @@ export function createCombatGame({renderAll, showToast}){
       secondsSinceDamage:999,
       repairBotActive:false,
       repairBotTickTimer:0,
+      isDead:false,
       safeZoneLock:0,
       lastAggression:0,
       vx:0,
@@ -605,20 +578,15 @@ export function createCombatGame({renderAll, showToast}){
     };
     camera = {x:-getCanvasViewWidth()/2,y:-getCanvasViewHeight()/2,zoom:1};
     mouse = {x:getCanvasViewWidth()/2,y:getCanvasViewHeight()/2};
-    bullets = []; particles = []; damageTexts = []; cargoBoxes = []; groundMaterials = []; pendingCargoBox = null; pendingGroundMaterial = null; selectedEnemy = null; moveTarget = null;
-    cleanCombatActionSlots();
-    activeLaserSlot = null;
-    ammoCooldowns = {};
-    combatPanelTab = "ammo";
-    groupMembers = [];
-    const activeQuest = getActiveQuest();
-    selectedQuestCategory = activeQuest?.category || "normal";
-    selectedQuestId = activeQuest?.id || getAllQuests().find(quest=>(quest.category || "normal") === selectedQuestCategory)?.id || null;
+    bullets = []; particles = []; damageTexts = []; beams.clear(); cargo.clear(); selectedEnemy = null; moveTarget = null;
+    actions.cleanCombatActionSlots();
+    actions.reset();
+    panels.reset();
     hudT = 0; rewards.reset();
     if(typeof entry === "string" && entry.startsWith("portal:")) loadPortalArena(entry.split(":")[1] || "blue");
     else loadMap(0, MAPS[0].spawn.x, MAPS[0].spawn.y);
-    renderGameActionBar();
-    renderCombatQuickPanel();
+    actions.renderGameActionBar();
+    actions.renderCombatQuickPanel();
     updateHud();
     frameLoop.start();
   }
@@ -629,8 +597,10 @@ export function createCombatGame({renderAll, showToast}){
     document.getElementById("dashboard").classList.remove("hidden");
     document.getElementById("gameScreen").classList.add("hidden");
     document.getElementById("combatQuickPanel").classList.add("hidden");
-    closeUtilityPanel();
-    closeSpawnPanel();
+    setDeathPanelVisible(false);
+    clearPoison();
+    panels.closeUtilityPanel();
+    panels.closeSpawnPanel();
     if(save){
       saveState();
       renderAll();
@@ -671,7 +641,7 @@ export function createCombatGame({renderAll, showToast}){
       showToast("Vaisseau détruit par la zone irradiée.");
       player.radiationTimer = 30;
       radiationWarned = false;
-      lifecycle.respawn();
+      handlePlayerDeath();
     }
   }
 
@@ -696,115 +666,22 @@ export function createCombatGame({renderAll, showToast}){
     updateHud();
   }
 
-  function getCombatAmmo(index){ return getAmmo(store.state.actionSlots?.[index]); }
-  function getCombatExtra(index){
-    const item = getItem(store.state.actionSlots?.[index]);
-    if(!item || item.category !== "extra") return null;
-    return getEquippedExtras(store.state.activeShip).some(extra=>extra.id === item.id) ? item : null;
-  }
-
-  function getAmmoCooldown(ammoOrId){
-    return readAmmoCooldown(ammoCooldowns, ammoOrId, getAmmo);
-  }
-
-  function spawnCargoBox(enemy, materials){
-    if(!materials?.length) return null;
-    const box = {
-      id:Date.now() + Math.floor(Math.random() * 10000),
-      x:enemy.x + (Math.random() - .5) * 70,
-      y:enemy.y + (Math.random() - .5) * 70,
-      radius:38,
-      materials
-    };
-    cargoBoxes.push(box);
-    return box;
-  }
-
   function findCargoBoxAt(world){
-    return cargoBoxes.find(box=>Math.hypot(world.x - box.x, world.y - box.y) <= box.radius) || null;
+    return cargo.findCargoBoxAt(world);
   }
 
   function findGroundMaterialAt(world){
-    return groundMaterials.find(node=>Math.hypot(world.x - node.x, world.y - node.y) <= (node.radius || 30)) || null;
-  }
-
-  function collectCargoBox(box){
-    const index = cargoBoxes.findIndex(entry=>entry.id === box.id);
-    if(index < 0) return false;
-    const rawMaterials = getAllRawMaterials();
-    const labels = [];
-    const remainingMaterials = [];
-    let addedTotal = 0;
-    for(const drop of box.materials || []){
-      const result = addShipCargoMaterial(drop.id, drop.amount);
-      const material = rawMaterials.find(item=>item.id === drop.id);
-      if(result.added > 0){
-        labels.push(`${result.added} ${material?.short || drop.id.toUpperCase()}`);
-        addedTotal += result.added;
-      }
-      if(result.remaining > 0) remainingMaterials.push({...drop, amount:result.remaining});
-    }
-    if(addedTotal <= 0){
-      pendingCargoBox = null;
-      showToast("Soute pleine.");
-      updateHud();
-      return false;
-    }
-    if(remainingMaterials.length) box.materials = remainingMaterials;
-    else cargoBoxes.splice(index, 1);
-    particles.push({x:box.x, y:box.y, life:.42, max:.42, size:26, color:"rgba(34,197,94,.58)"});
-    saveState();
-    const used = getShipCargoUsed(store.state.activeShip);
-    const capacity = getShipCargoCapacity(store.state.activeShip);
-    showToast(`Cargo récupéré : ${labels.join(" · ")} (${fmt(used)} / ${fmt(capacity)}).`);
-    rewards.showCargoLoot(labels);
-    pendingCargoBox = null;
-    updateHud();
-    if(spawnPanelMode) renderSpawnInteractionPanel(spawnPanelMode);
-    return true;
+    return cargo.findGroundMaterialAt(world);
   }
 
   function setCargoDestination(box){
-    pendingCargoBox = box;
-    pendingGroundMaterial = null;
-    moveTarget = {x:box.x, y:box.y};
-    return true;
-  }
-
-  function collectGroundMaterial(node){
-    const index = groundMaterials.findIndex(entry=>entry.uid === node.uid);
-    if(index < 0) return false;
-    const result = addShipCargoMaterial(node.id, 1);
-    if(result.added <= 0){
-      pendingGroundMaterial = null;
-      showToast("Soute pleine.");
-      updateHud();
-      return false;
-    }
-    groundMaterials.splice(index, 1);
-    particles.push({x:node.x, y:node.y, life:.36, max:.36, size:24, color:node.glowCore || "rgba(125,211,252,.5)"});
-    saveState();
-    showToast(`+1 ${node.name} dans la soute.`);
-    pendingGroundMaterial = null;
-    updateHud();
+    moveTarget = cargo.setCargoDestination(box);
     return true;
   }
 
   function setGroundMaterialDestination(node){
-    pendingGroundMaterial = node;
-    pendingCargoBox = null;
-    moveTarget = {x:node.x, y:node.y};
+    moveTarget = cargo.setGroundMaterialDestination(node);
     return true;
-  }
-
-  function setAmmoCooldown(ammo, seconds){
-    writeAmmoCooldown(ammoCooldowns, ammo, seconds, getAmmoCooldown);
-  }
-
-  function getEffectiveAmmoCooldown(ammo){
-    if(!ammo) return 1;
-    if(ammo.weaponClass === "rocket") return Math.max(.5, (ammo.cooldown || 5) * (player.extraBonus?.rocketCooldownMultiplier || 1));
-    return ammo.cooldown || 1;
   }
 
   function getRepairBotDelay(){
@@ -821,39 +698,6 @@ export function createCombatGame({renderAll, showToast}){
 
   function updateRepairBot(dt){
     repairBot.update(dt);
-  }
-
-  function selectActionSlot(index){
-    const ammo = getCombatAmmo(index);
-    const extra = getCombatExtra(index);
-    if(extra){
-      if(extra.effect.repairBot){
-        activateRepairBot(true);
-        renderCombatQuickPanel();
-        updateHud();
-        updateGameActionBar();
-        return;
-      }
-      return showToast(`${extra.name} est un extra passif.`);
-    }
-    if(!ammo) return showToast(`Slot ${index+1} vide.`);
-    if(getAmmoCount(ammo.id) <= 0) return showToast(`${ammo.name} : stock vide.`);
-
-    if(ammo.weaponClass === "rocket"){
-      fireManualRocket(index, ammo);
-      return;
-    }
-
-    if(activeLaserSlot === index){
-      activeLaserSlot = null;
-      showToast(`Laser désactivé : slot ${index+1}.`);
-      updateGameActionBar();
-      return;
-    }
-
-    activeLaserSlot = index;
-    showToast(`Laser actif : slot ${index+1} · ${describeAmmo(ammo)}.`);
-    updateGameActionBar();
   }
 
   function getLaserVolley(){
@@ -875,6 +719,85 @@ export function createCombatGame({renderAll, showToast}){
     damageTexts.push({x, y, value, life:.92, max:.92, color, shadowColor});
   }
 
+  function rollBetween(min, max){
+    const low = Number(min ?? max ?? 0);
+    const high = Number(max ?? min ?? low);
+    if(high <= low) return low;
+    return low + Math.random() * (high - low);
+  }
+
+  function damageEnemy(enemy, amount){
+    const incoming = Math.max(0, Number(amount || 0));
+    enemy.recentHitTimer = 4;
+    const maxShield = Number(enemy.maxShield || 0);
+    if(maxShield > 0 && enemy.shield > 0){
+      const absorbRatio = Math.max(0, Math.min(1, Number(enemy.shieldAbsorbRatio ?? 0.8)));
+      const shieldPart = incoming * absorbRatio;
+      let hullPart = incoming - shieldPart;
+      const absorbed = Math.min(enemy.shield, shieldPart);
+      enemy.shield -= absorbed;
+      hullPart += shieldPart - absorbed;
+      if(hullPart > 0) enemy.hp -= hullPart;
+      return;
+    }
+    enemy.hp -= incoming;
+  }
+
+  function applyPlayerPoison(effect){
+    if(effect?.type !== "poison") return;
+    const duration = Number(effect.duration || 0);
+    player.poisonEffect = {
+      damage:Number(effect.damage || 0),
+      interval:Number(effect.interval || 1),
+      duration,
+      remaining:duration,
+      tick:Number(effect.interval || 1),
+      pulseT:0
+    };
+    updatePoisonStatus(player.poisonEffect);
+  }
+
+  function updatePlayerPoison(dt){
+    const effect = player.poisonEffect;
+    if(!effect?.remaining){
+      updatePoisonStatus(null);
+      return;
+    }
+    effect.remaining -= dt;
+    effect.tick -= dt;
+    effect.pulseT = (effect.pulseT || 0) - dt;
+    if(effect.pulseT <= 0){
+      effect.pulseT = .12;
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 18 + Math.random() * 28;
+      particles.push({
+        x:player.x + Math.cos(angle) * radius,
+        y:player.y + Math.sin(angle) * radius,
+        vx:Math.cos(angle) * 12,
+        vy:Math.sin(angle) * 12,
+        life:.48,
+        max:.48,
+        size:4 + Math.random() * 5,
+        color:"rgba(74,222,128,.62)"
+      });
+    }
+    while(effect.tick <= 0 && effect.remaining > 0){
+      effect.tick += effect.interval;
+      const dealt = Math.max(0, Math.round(effect.damage || 0));
+      if(dealt > 0){
+        player.hp -= dealt;
+        player.secondsSinceDamage = 0;
+        pushDamageText({x:player.x, y:player.y-68, value:`-${dealt}`, color:"rgba(74,222,128,", shadowColor:"rgba(34,197,94,.78)"});
+        if(player.hp <= 0){
+          handlePlayerDeath();
+          return;
+        }
+      }
+    }
+    if(effect.remaining <= 0) player.poisonEffect = null;
+    updatePoisonStatus(player.poisonEffect);
+  }
+
   function resolveBulletImpact(bullet){
     const target = getBulletTarget(bullet);
     if(!target) return;
@@ -886,6 +809,7 @@ export function createCombatGame({renderAll, showToast}){
       if(hit){
         const dealt = Math.round(bullet.damage);
         damagePlayer(dealt);
+        applyPlayerPoison(bullet.onHitEffect);
         pushDamageText({x:player.x, y:player.y-58, value:dealt, color:"rgba(248,113,113,", shadowColor:"rgba(248,113,113,.78)"});
       }else{
         pushDamageText({x:player.x, y:player.y-58, value:"MISS", color:"rgba(226,232,240,", shadowColor:"rgba(148,163,184,.78)"});
@@ -895,15 +819,32 @@ export function createCombatGame({renderAll, showToast}){
 
     const enemy = target.entity;
     if(!enemy || enemy.hp <= 0) return;
+    if(bullet.visualOnly) return;
     if(hit){
       const dealt = Math.round(bullet.damage);
-      enemy.hp -= dealt;
+      damageEnemy(enemy, dealt);
       enemy.aggro = true;
       pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
       if(enemy.hp <= 0) rewardEnemy(enemy);
     }else{
       pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:"MISS", color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"});
     }
+  }
+
+  function resolveLaserHit(enemy, damage, hitChance = PLAYER_HIT_CHANCE){
+    if(!enemy || enemy.hp <= 0) return false;
+    const hit = Math.random() <= hitChance;
+    if(hit){
+      const dealt = Math.round(damage);
+      damageEnemy(enemy, dealt);
+      enemy.aggro = true;
+      particles.push({x:enemy.x, y:enemy.y, life:.18, max:.18, size:18, color:"rgba(255,232,120,.72)"});
+      pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
+      if(enemy.hp <= 0) rewardEnemy(enemy);
+      return true;
+    }
+    pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:"MISS", color:"rgba(255,236,179,", shadowColor:"rgba(250,204,21,.78)"});
+    return false;
   }
 
   function shootAt(enemy, ammo, slotIndex){
@@ -914,12 +855,43 @@ export function createCombatGame({renderAll, showToast}){
     return weapons.fireManualRocket(index, ammo);
   }
 
+  function fireManualMissile(ammo, count){
+    return weapons.fireManualMissile(ammo, count);
+  }
+
   function damagePlayer(amount){
     lifecycle.damage(amount);
   }
 
   function rewardEnemy(enemy){
+    scheduleEnemyRespawn(enemy);
     rewards.rewardEnemy(enemy);
+  }
+
+  function scheduleEnemyRespawn(enemy){
+    if(gameMode !== "open" || !enemy || enemy.respawnScheduled) return;
+    const mapState = getMapState(currentMap);
+    mapState.respawnQueue = mapState.respawnQueue || [];
+    mapState.respawnQueue.push({remaining:5});
+    enemy.respawnScheduled = true;
+  }
+
+  function updateMapRespawns(dt){
+    if(gameMode !== "open") return;
+    const mapState = getMapState(currentMap);
+    const queue = mapState.respawnQueue || [];
+    if(!queue.length) return;
+    const maxEnemies = currentMap.enemyCount || 0;
+    for(const entry of queue) entry.remaining -= dt;
+    for(let i = queue.length - 1; i >= 0; i--){
+      if(queue[i].remaining > 0) continue;
+      if(enemies.length >= maxEnemies) continue;
+      const enemy = createMapEnemy({map:currentMap, id:enemySeq++, player});
+      enemies.push(enemy);
+      mapState.enemies = enemies;
+      queue.splice(i, 1);
+    }
+    mapState.respawnQueue = queue;
   }
 
   function fireAutomaticRocket(enemy){
@@ -933,8 +905,15 @@ export function createCombatGame({renderAll, showToast}){
   function update(dt){
     teleportLock = Math.max(0, teleportLock - dt);
     rewards.tick(dt);
+    tickCombatBoosts(dt);
+    updatePlayerPoison(dt);
     player.safeZoneLock = Math.max(0, Number(player.safeZoneLock || 0) - dt);
     updateLootPopup();
+    if(player.isDead){
+      updateCamera({camera, player, canvas, follow:1});
+      updateHud();
+      return;
+    }
 
     if(isSafeModeActive()){
       bullets = bullets.filter(bullet=>bullet.owner !== "enemy");
@@ -944,16 +923,7 @@ export function createCombatGame({renderAll, showToast}){
     if(mouseMoveHeld && mouse) moveTarget = worldFromScreen(mouse.x, mouse.y);
     moveTarget = updatePlayerMovement({player, moveTarget, dt, map:currentMap, clampToMap:gameMode !== "open"});
     updateRadiation(dt);
-    if(pendingCargoBox){
-      const liveCargo = cargoBoxes.find(box=>box.id === pendingCargoBox.id);
-      if(!liveCargo) pendingCargoBox = null;
-      else if(Math.hypot(player.x - liveCargo.x, player.y - liveCargo.y) <= liveCargo.radius + 24) collectCargoBox(liveCargo);
-    }
-    if(pendingGroundMaterial){
-      const liveMaterial = groundMaterials.find(node=>node.uid === pendingGroundMaterial.uid);
-      if(!liveMaterial) pendingGroundMaterial = null;
-      else if(Math.hypot(player.x - liveMaterial.x, player.y - liveMaterial.y) <= (liveMaterial.radius || 30) + 24) collectGroundMaterial(liveMaterial);
-    }
+    cargo.updatePending(player);
 
     if(gameMode === "portal"){
       if(!portalCompleted && enemies.length === 0){
@@ -965,7 +935,7 @@ export function createCombatGame({renderAll, showToast}){
     }
 
     const enemy = validSelectedEnemy();
-    if(enemy && activeLaserSlot !== null) player.angle = Math.atan2(enemy.y-player.y, enemy.x-player.x)+Math.PI/2;
+    if(enemy && actions.getActiveLaserSlot() !== null) player.angle = Math.atan2(enemy.y-player.y, enemy.x-player.x)+Math.PI/2;
     emitPlayerEngineParticles({
       dt,
       player,
@@ -978,6 +948,8 @@ export function createCombatGame({renderAll, showToast}){
     updateEnemies(dt);
     updateWeapons(dt);
     updateBullets(dt);
+    updateMapRespawns(dt);
+    beams.update(dt);
     updateParticles(dt);
     updateRepairBot(dt);
 
@@ -988,41 +960,27 @@ export function createCombatGame({renderAll, showToast}){
     hudT -= dt;
     if(hudT <= 0){
       updateHud();
-      updateGameActionBar();
+      actions.updateGameActionBar();
       hudT = .10;
     }
     const quickPanel = document.getElementById("combatQuickPanel");
     if(quickPanel && !quickPanel.classList.contains("hidden")){
       quickPanelRefreshT -= dt;
-      if(quickPanelRefreshT <= 0 && !quickPanel.matches(":hover")){
-        renderCombatQuickPanel();
+      if(quickPanelRefreshT <= 0){
+        if(!quickPanel.matches(":hover") && !quickPanel.contains(document.activeElement)) actions.renderCombatQuickPanel();
         quickPanelRefreshT = 1;
       }
     }
-    if(spawnPanelMode){
-      const spawnPanel = document.getElementById("spawnInteractionPanel");
-      spawnPanelRefreshT -= dt;
-      if(spawnPanelRefreshT <= 0 && !spawnPanel.matches(":hover")){
-        renderSpawnInteractionPanel(spawnPanelMode);
-        spawnPanelRefreshT = 1;
-      }
-    }
-    const utilityPanel = getUtilityPanel("quests");
-    if(utilityPanel && !utilityPanel.classList.contains("hidden") && !utilityPanel.matches(":hover")){
-      utilityPanelRefreshT -= dt;
-      if(utilityPanelRefreshT <= 0){
-        const content = getUtilityContent("quests");
-        if(content) content.innerHTML = renderCombatQuestTracker();
-        utilityPanelRefreshT = .25;
-      }
-    }
+    panels.tick(dt);
   }
 
   function updateEnemies(dt){
+    for(const enemy of enemies) enemy.recentHitTimer = Math.max(0, Number(enemy.recentHitTimer || 0) - dt);
     updateEnemyAi({
       enemies,
       player,
       dt,
+      map:currentMap,
       safeMode:isSafeModeActive(),
       aggroRange:AGGRO_RANGE,
       leashRange:LEASH_RANGE,
@@ -1041,12 +999,13 @@ export function createCombatGame({renderAll, showToast}){
       owner:"enemy",
       startX,
       startY,
-      damage:enemy.attackDamage || 10,
+      damage:rollBetween(enemy.attackDamageMin, enemy.attackDamageMax) || enemy.attackDamage || 10,
       travelTime:Math.max(.11, Math.min(1.15, d/speed + .06)),
       radius:5,
       color:enemy.color || "rgba(248,113,113,.95)",
       particle:enemy.particle || "rgba(252,165,165,.75)",
       sourceId:enemy.id,
+      onHitEffect:enemy.onHitEffect,
       hitChance:getEnemyHitChance(enemy)
     }));
     particles.push({x:startX,y:startY,life:.16,max:.16,size:16,color:enemy.particle || "rgba(252,165,165,.72)"});
@@ -1083,11 +1042,12 @@ export function createCombatGame({renderAll, showToast}){
     ctx.save();
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0);
     drawBackground();
-    drawProjectiles({ctx, camera, bullets});
+    drawProjectiles({ctx, camera, cache, bullets});
     drawParticles({ctx, camera, particles});
-    drawGroundMaterials({ctx, camera, cache, materials:groundMaterials});
+    drawGroundMaterials({ctx, camera, cache, materials:cargo.getGroundMaterials()});
     drawEnemies({ctx, camera, cache, enemies, selectedEnemy});
-    drawCargoBoxes({ctx, camera, cache, cargoBoxes});
+    drawBeams({ctx, camera, beams:beams.getBeams()});
+    drawCargoBoxes({ctx, camera, cache, cargoBoxes:cargo.getCargoBoxes()});
     const rank = getCurrentRank();
     drawPlayerLayer({
       ctx,
@@ -1189,185 +1149,6 @@ export function createCombatGame({renderAll, showToast}){
     renderLootPopup({notices:rewards.getLootNotices()});
   }
 
-  function renderGameActionBar(){
-    const el = document.getElementById("gameActionBar");
-    const slots = Array.from({length:9}, (_,i)=>store.state.actionSlots?.[i] || null);
-    el.innerHTML = renderActionBarHtml({slots, slotKeybinds:store.state.slotKeybinds, getAmmo, getExtra:getCombatExtra, getAmmoCount});
-    updateGameActionBar();
-  }
-
-  function updateGameActionBar(){
-    updateActionBarDom({
-      activeLaserSlot,
-      repairBotActive:player.repairBotActive,
-      getAmmo:getCombatAmmo,
-      getExtra:getCombatExtra,
-      getRepairState:canRepairBotActivate,
-      getAmmoCooldown,
-      getEffectiveAmmoCooldown,
-      getAmmoCount
-    });
-  }
-
-  function renderCombatQuickPanel(){
-    quickPanelRefreshT = 1;
-    const panel = document.getElementById("combatQuickPanel");
-    const content = document.getElementById("combatPanelContent");
-    if(!panel || !content) return;
-    updateQuickPanelTabs(panel, combatPanelTab);
-    content.innerHTML = renderQuickPanelContent({
-      tab:combatPanelTab,
-      ammoTypes,
-      extras:getEquippedExtras(store.state.activeShip),
-      repairState:canRepairBotActivate(),
-      repairBotActive:player.repairBotActive,
-      extraBonus:player.extraBonus,
-      repairBotDelay:getRepairBotDelay(),
-      canAfford,
-      getAmmoCount,
-      laserVolleyCount:getLaserVolley().count || 1
-    });
-  }
-
-  function renderSpawnInteractionPanel(mode = spawnPanelMode){
-    const panel = document.getElementById("spawnInteractionPanel");
-    const title = document.getElementById("spawnPanelTitle");
-    const content = document.getElementById("spawnPanelContent");
-    if(!panel || !title || !content){
-      spawnPanelMode = null;
-      return;
-    }
-    spawnPanelMode = mode;
-    spawnPanelRefreshT = 1;
-    if(!mode){
-      panel.classList.add("hidden");
-      syncUtilityDockButtons();
-      return;
-    }
-    panel.classList.remove("hidden");
-    syncUtilityDockButtons();
-    const upgradeables = [...new Set((store.state.inventoryItems || []).map(entry=>entry.itemId))]
-      .map(id=>getItem(id))
-      .filter(item=>item && ["canon","generateur"].includes(item.category));
-    const rendered = renderSpawnPanelContent({
-      mode,
-      activeQuest:getActiveQuest(),
-      activeQuests:getActiveQuests(),
-      selectedQuestId,
-      selectedQuestCategory,
-      quests:getAllQuests(),
-      playerLevel:store.state.player.level,
-      enemyTypes:ENEMY_TYPES,
-      rawMaterials:getAllRawMaterials(),
-      getQuestProgress,
-      completedQuestClaims:store.state.completedQuestClaims,
-      job:getRefineryJob(),
-      recipes:getRefineryRecipes(),
-      materials:getAllRawMaterials(),
-      getMaterialCount,
-      upgradeables,
-      getEquipmentUpgradeLevel,
-      getEquipmentUpgradeCost,
-      isRefineryComplete,
-      formatDuration
-    });
-    title.textContent = rendered.title;
-    content.innerHTML = rendered.html;
-  }
-
-  function selectQuestForPanel(questId){
-    selectedQuestId = questId;
-    renderSpawnInteractionPanel("quests");
-  }
-
-  function selectQuestCategoryForPanel(category){
-    selectedQuestCategory = category || "normal";
-    const quests = getAllQuests().filter(quest=>(quest.category || "normal") === selectedQuestCategory);
-    if(!quests.some(quest=>quest.id === selectedQuestId)) selectedQuestId = quests[0]?.id || null;
-    renderSpawnInteractionPanel("quests");
-  }
-
-  function buyCombatAmmo(id){
-    const ammo = getAmmo(id);
-    if(!ammo) return;
-    if(!canAfford(ammo.priceType, ammo.price)) return showToast("Fonds insuffisants.");
-    spend(ammo.priceType, ammo.price);
-    addAmmo(ammo.id, ammo.amount);
-    saveState();
-    updateHud();
-    renderGameActionBar();
-    renderCombatQuickPanel();
-    showToast(`${ammo.name} achetée : +${ammo.amount}.`);
-  }
-
-  function assignAmmoToActionSlot(index, ammoId){
-    const ammo = getAmmo(ammoId);
-    if(!ammo) return;
-    setActionSlot(index, ammo.id);
-    if(ammo.weaponClass === "rocket" && activeLaserSlot === index) activeLaserSlot = null;
-    saveState();
-    renderGameActionBar();
-    renderCombatQuickPanel();
-    showToast(`${ammo.name} placée en slot ${index+1}.`);
-  }
-
-  function cleanCombatActionSlots(){
-    if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
-    const equippedExtraIds = new Set(getEquippedExtras(store.state.activeShip).map(item=>item.id));
-    store.state.actionSlots = Array.from({length:9}, (_,index)=>{
-      const id = store.state.actionSlots[index] || null;
-      if(!id || getAmmo(id)) return id;
-      const item = getItem(id);
-      return item?.category === "extra" && equippedExtraIds.has(item.id) ? id : null;
-    });
-  }
-
-  function moveActionSlot(fromIndex, toIndex){
-    if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
-    if(fromIndex < 0 || fromIndex >= 9 || toIndex < 0 || toIndex >= 9 || fromIndex === toIndex) return false;
-    const fromValue = store.state.actionSlots[fromIndex] || null;
-    if(!fromValue) return false;
-    const toValue = store.state.actionSlots[toIndex] || null;
-    store.state.actionSlots[toIndex] = fromValue;
-    store.state.actionSlots[fromIndex] = toValue;
-    if(activeLaserSlot === fromIndex) activeLaserSlot = toIndex;
-    else if(activeLaserSlot === toIndex) activeLaserSlot = fromIndex;
-    saveState();
-    renderGameActionBar();
-    renderCombatQuickPanel();
-    showToast(`Slot ${fromIndex+1} déplacé vers slot ${toIndex+1}.`);
-    return true;
-  }
-
-  function clearActionSlot(index){
-    if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
-    if(index < 0 || index >= 9 || !store.state.actionSlots[index]) return false;
-    store.state.actionSlots[index] = null;
-    if(activeLaserSlot === index) activeLaserSlot = null;
-    saveState();
-    renderGameActionBar();
-    renderCombatQuickPanel();
-    showToast(`Slot ${index+1} vidé.`);
-    return true;
-  }
-
-  function assignExtraToActionSlot(index, itemId){
-    const item = getItem(itemId);
-    if(!item || item.category !== "extra") return;
-    if(!getEquippedExtras(store.state.activeShip).some(extra=>extra.id === item.id)){
-      return showToast(`${item.name} doit etre equipe dans les extras du vaisseau.`);
-    }
-    if(!item.effect.repairBot){
-      return showToast(`${item.name} est un extra passif.`);
-    }
-    setActionSlot(index, item.id);
-    if(activeLaserSlot === index) activeLaserSlot = null;
-    saveState();
-    renderGameActionBar();
-    renderCombatQuickPanel();
-    showToast(`${item.name} place en slot ${index+1}.`);
-  }
-
   function tryUseMapPortal(){
     if(gameMode !== "open" || !currentMap.portal) return false;
     const portalD = Math.hypot(player.x-currentMap.portal.x, player.y-currentMap.portal.y);
@@ -1390,16 +1171,17 @@ export function createCombatGame({renderAll, showToast}){
     worldFromMiniMap:miniMap.worldFromPoint,
     setMiniMapPosition:miniMap.setPosition,
     resizeMiniMap:miniMap.resize,
-    saveUtilityPanelLayout,
+    saveUtilityPanelLayout:panels.saveUtilityPanelLayout,
+    saveSpawnPanelLayout:panels.saveSpawnPanelLayout,
     getCurrentMap:()=>currentMap,
-    getSpawnPanelMode:()=>spawnPanelMode,
+    getSpawnPanelMode:()=>panels.getSpawnPanelMode(),
     getCombatMetricModes:()=>combatMetricModes,
     getActionSlots:()=>store.state.actionSlots || [],
     getSlotKeybinds:()=>store.state.slotKeybinds,
     clearSelectedEnemy,
     hasSelectedEnemy:()=>!!selectedEnemy,
     tryUseMapPortal,
-    selectActionSlot,
+    selectActionSlot:actions.selectActionSlot,
     getStationAt,
     findEnemyAt,
     findCargoBoxAt,
@@ -1407,29 +1189,38 @@ export function createCombatGame({renderAll, showToast}){
     findGroundMaterialAt,
     setGroundMaterialDestination,
     setSelectedEnemy:enemy=>{ selectedEnemy = enemy; },
-    renderSpawnInteractionPanel,
-    openUtilityPanel,
-    closeUtilityPanel,
-    inviteGroupMember,
-    trackCombatQuest,
-    claimCombatQuest,
-    setCombatQuestDetailTab,
-    selectQuestForPanel,
-    selectQuestCategoryForPanel,
-    closeSpawnPanel,
+    renderSpawnInteractionPanel:panels.renderSpawnInteractionPanel,
+    openUtilityPanel:panels.openUtilityPanel,
+    closeUtilityPanel:panels.closeUtilityPanel,
+    inviteGroupMember:panels.inviteGroupMember,
+    trackCombatQuest:panels.trackCombatQuest,
+    claimCombatQuest:panels.claimCombatQuest,
+    setCombatQuestDetailTab:panels.setCombatQuestDetailTab,
+    selectQuestForPanel:panels.selectQuestForPanel,
+    selectQuestCategoryForPanel:panels.selectQuestCategoryForPanel,
+    setRefineryPanelTab:panels.setRefineryPanelTab,
+    openShipRefineRecipe:panels.openShipRefineRecipe,
+    closeShipRefineRecipe:panels.closeShipRefineRecipe,
+    closeSpawnPanel:panels.closeSpawnPanel,
     updateHud,
-    moveActionSlot,
-    clearActionSlot,
-    assignExtraToActionSlot,
-    assignAmmoToActionSlot,
-    renderCombatQuickPanel,
-    setCombatPanelTab:value=>{ combatPanelTab = value; },
-    buyCombatAmmo,
+    moveActionSlot:actions.moveActionSlot,
+    clearActionSlot:actions.clearActionSlot,
+    assignExtraToActionSlot:actions.assignExtraToActionSlot,
+    assignAmmoToActionSlot:actions.assignAmmoToActionSlot,
+    selectMissileAmmo:actions.selectMissileAmmo,
+    fireMissileLauncher:actions.fireMissileLauncher,
+    assignMissileLauncherToActionSlot:actions.assignMissileLauncherToActionSlot,
+    renderCombatQuickPanel:actions.renderCombatQuickPanel,
+    setCombatPanelTab:actions.setCombatPanelTab,
+    buyCombatAmmo:actions.buyCombatAmmo,
     activateRepairBot,
     acceptQuest,
     claimQuest,
     startRefineryJob,
     claimRefineryJob,
+    getShipRefineryRecipeData,
+    refineShipCargoRecipe,
+    depositCombatBoostMaterial,
     upgradeEquipment,
     showToast
   });
@@ -1444,5 +1235,3 @@ export function createCombatGame({renderAll, showToast}){
 
   return {start, stop, get running(){return running;}};
 }
-
-

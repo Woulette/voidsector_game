@@ -2,4 +2,10 @@
 @import url("./src/styles/game.css");
 @import url("./src/styles/hangar.css");
 @import url("./src/styles/shop.css");
+@import url("./src/styles/drones.css");
+@import url("./src/styles/settings.css");
+@import url("./src/styles/refinery.css");
+@import url("./src/styles/spawnRefinery.css");
+@import url("./src/styles/leaderboard.css");
+@import url("./src/styles/quests.css");
 @import url("./src/styles/systems.css");

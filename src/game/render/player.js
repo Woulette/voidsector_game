@@ -206,21 +206,54 @@ function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilot
   ctx.save();
   ctx.font = "800 15px Rajdhani, Arial";
   ctx.textBaseline = "middle";
-  const labelY = py + 62;
-  const iconSize = 24;
+  const labelY = py + 94;
+  const nameY = labelY + 3;
+  const iconSize = 29;
   const gap = 6;
   const nameWidth = ctx.measureText(pilotName).width;
   const groupWidth = (rankImg ? iconSize + gap : 0) + nameWidth;
   const startX = px - groupWidth / 2;
-  if(rankImg) ctx.drawImage(rankImg, startX, labelY - iconSize / 2, iconSize, iconSize);
+  if(rankImg) ctx.drawImage(rankImg, startX, labelY - iconSize / 2 - 1, iconSize, iconSize);
   ctx.textAlign = "left";
   ctx.fillStyle = "#e2e8f0";
   ctx.shadowColor = "rgba(2,6,17,.95)";
   ctx.shadowBlur = 7;
   ctx.lineWidth = 3;
   ctx.strokeStyle = "rgba(2,6,17,.82)";
-  ctx.strokeText(pilotName, startX + (rankImg ? iconSize + gap : 0), labelY);
-  ctx.fillText(pilotName, startX + (rankImg ? iconSize + gap : 0), labelY);
+  ctx.strokeText(pilotName, startX + (rankImg ? iconSize + gap : 0), nameY);
+  ctx.fillText(pilotName, startX + (rankImg ? iconSize + gap : 0), nameY);
+  ctx.restore();
+}
+
+function drawPlayerStatusBars({ctx, camera, player}){
+  const px = player.x - camera.x;
+  const py = player.y - camera.y;
+  const width = 58;
+  const height = 5;
+  const gap = 4;
+  const hpRatio = Math.max(0, Math.min(1, Number(player.hp || 0) / Math.max(1, Number(player.maxHp || 1))));
+  const shieldRatio = Math.max(0, Math.min(1, Number(player.shield || 0) / Math.max(1, Number(player.maxShield || 1))));
+  const hasShield = Number(player.maxShield || 0) > 0 && Number(player.shield || 0) > 0;
+  const totalHeight = hasShield ? height * 2 + gap : height;
+  const x = Math.round(px - width / 2);
+  const y = Math.round(py - 74 - totalHeight / 2);
+
+  const drawBar = (barY, ratio, fill, glow)=>{
+    ctx.fillStyle = "rgba(2,10,19,.78)";
+    ctx.fillRect(x, barY, width, height);
+    ctx.strokeStyle = "rgba(148,163,184,.22)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + .5, barY + .5, width - 1, height - 1);
+    ctx.fillStyle = fill;
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 5;
+    ctx.fillRect(x + 1, barY + 1, Math.max(0, (width - 2) * ratio), height - 2);
+    ctx.shadowBlur = 0;
+  };
+
+  ctx.save();
+  drawBar(y, hpRatio, "#22c55e", "rgba(34,197,94,.68)");
+  if(hasShield) drawBar(y + height + gap, shieldRatio, "#38bdf8", "rgba(56,189,248,.68)");
   ctx.restore();
 }
 
@@ -239,6 +272,7 @@ export function drawPlayerLayer({
   profiles
 }){
   drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles});
+  drawPlayerStatusBars({ctx, camera, player});
   drawRotatedImage({ctx, camera, img:cache[ship.combatImg || ship.img], x:player.x, y:player.y, w:96, h:96, angle:player.angle});
   drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid});
   drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotName});

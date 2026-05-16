@@ -1,4 +1,4 @@
-export function preloadCombatAssets({cache, ships, equipment, enemyTypes, maps, ranks, getRankAssetPath}){
+export function preloadCombatAssets({cache, ships, equipment, ammoTypes = [], enemyTypes, maps, ranks, getRankAssetPath}){
   const enemySprites = Object.values(enemyTypes).map(type=>type.img);
   const mapImages = maps.map(map=>map.bg).filter(Boolean);
   const mapDecor = maps.flatMap(map=>map.parallaxScene?.images?.map(layer=>layer.src) || []);
@@ -16,10 +16,11 @@ export function preloadCombatAssets({cache, ships, equipment, enemyTypes, maps, 
     return paths;
   });
   const rankImages = ranks.map(rank=>getRankAssetPath(rank));
-  const misc = ["assets/drones/drone_test_sprite.webp", ...rankImages];
+  const misc = ["assets/drones/drone_test_sprite.webp", "assets/equipment/rocket_projectile.png", ...rankImages];
   [
     ...ships.flatMap(ship=>[ship.img, ship.combatImg]).filter(Boolean),
-    ...equipment.map(item=>item.img),
+    ...equipment.flatMap(item=>[item.img, item.projectileImg]).filter(Boolean),
+    ...ammoTypes.flatMap(ammo=>[ammo.img, ammo.projectileImg]).filter(Boolean),
     ...enemySprites,
     ...mapImages,
     ...mapDecor,

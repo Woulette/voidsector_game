@@ -16,10 +16,13 @@ function makePortalEnemy(kind, wave, x, y, id, boss=false){
   const base = ENEMY_TYPES[kind] || ENEMY_TYPES.drone_pirate;
   const level = boss ? 20 + wave : Math.max(1, Math.round(1 + wave * 0.65));
   const maxHp = base.maxHp(level) * (boss ? 2.2 : 1);
+  const maxShield = (base.maxShield?.(level) || 0) * (boss ? 2.2 : 1);
   return {
     id,
     x,y,homeX:x,homeY:y,
-    hp:maxHp,maxHp,level,
+    hp:maxHp,maxHp,
+    shield:maxShield,maxShield,
+    level,
     kind,
     type: boss ? `${base.name} Alpha` : base.name,
     img:base.img,
@@ -28,11 +31,15 @@ function makePortalEnemy(kind, wave, x, y, id, boss=false){
     speed: base.speed(level) * (boss ? 0.9 : 1),
     radius: boss ? Math.round(base.radius * 1.18) : base.radius,
     attackRange:450,
+    shieldAbsorbRatio:base.shieldAbsorbRatio ?? 0.8,
     attackDamage: Math.round(base.attackDamage(level) * (boss ? 1.5 : 1)),
+    attackDamageMin: base.attackDamageMin ? Math.round(base.attackDamageMin * (boss ? 1.5 : 1)) : undefined,
+    attackDamageMax: base.attackDamageMax ? Math.round(base.attackDamageMax * (boss ? 1.5 : 1)) : undefined,
     attackCooldown: boss ? Math.max(0.9, base.attackCooldown * 0.82) : base.attackCooldown,
     projectileSpeed: base.projectileSpeed,
     color:base.color,
     particle:base.particle,
+    onHitEffect:base.onHitEffect,
     loot: boss ? {credits:base.loot.credits*2, xp:base.loot.xp*2, premium:base.loot.premium} : base.loot,
     aggro:true,
     angle:0,

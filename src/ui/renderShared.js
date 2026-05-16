@@ -5,6 +5,12 @@ export function statLine(label, value, max=700){
 }
 
 export function statLabelForItem(item){
+  if(item.slotType === "rocketLauncher"){
+    return `DÉGÂTS ROQUETTE ${item.stats?.degats || "100%"} · PORTÉE ${item.stats?.portee || 0} · CADENCE ${item.stats?.cadence || "0.00s"}`;
+  }
+  if(item.slotType === "missileLauncher"){
+    return `DÉGÂTS MISSILE ${item.stats?.degats || "100%"} · PORTÉE ${item.stats?.portee || 0} · RECHARGE ${item.stats?.recharge || "0.00s"} · CAPACITÉ ${item.stats?.missiles || 0}`;
+  }
   const parts = [];
   for(const [k,v] of Object.entries(item.stats || {})) parts.push(`${k.toUpperCase()} ${typeof v === "number" ? "+"+v : v}`);
   if(item.weapon){

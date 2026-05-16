@@ -36,7 +36,8 @@ import {
 
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
 import { renderShop } from "./renderShop.js";
-import { renderLeaderboard, renderPortals, renderRefinery, renderSkills } from "./renderProgression.js";
+import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js";
+import { renderRefinery } from "./renderRefinery.js";
 export function renderTop(){
   const { state } = store;
   const rank = getCurrentRank();
@@ -146,8 +147,44 @@ function equipmentInventoryBadge(item){
     const roman = {1:"I", 2:"II", 3:"III", 4:"IV"}[mk];
     return roman ? `MK-${roman}` : "MK";
   }
+  if(item.slotType === "missileLauncher") return "LM";
+  if(item.slotType === "rocketLauncher") return "LR";
   if(item.category === "generateur") return "G";
   return "E";
+}
+
+function equipmentSlotBadge(item){
+  if(item?.category === "canon") return equipmentInventoryBadge(item);
+  if(item?.slotType === "missileLauncher") return "LM";
+  if(item?.slotType === "rocketLauncher") return "LR";
+  return item?.short || item?.name || "";
+}
+
+function selectedItemStatsHtml(item){
+  if(item?.category === "canon" && item.weapon){
+    const min = item.weapon.minDamage ?? item.weapon.damage ?? 0;
+    const max = item.weapon.maxDamage ?? item.weapon.damage ?? min;
+    return `<div class="selected-item-stat-lines">
+      <span><b>Dégâts</b><strong>${min}-${max}</strong></span>
+      <span><b>Portée</b><strong>${item.weapon.range}</strong></span>
+      <span><b>Cadence</b><strong>${item.weapon.cooldown.toFixed(2)}s</strong></span>
+    </div>`;
+  }
+  if(item?.slotType === "rocketLauncher"){
+    return `<div class="selected-item-stat-lines">
+      <span><b>Dégâts roquette</b><strong>${item.stats?.degats || "100%"}</strong></span>
+      <span><b>Portée</b><strong>${item.stats?.portee || 0}</strong></span>
+      <span><b>Cadence</b><strong>${item.stats?.cadence || "0.00s"}</strong></span>
+    </div>`;
+  }
+  if(item?.slotType === "missileLauncher"){
+    return `<div class="selected-item-stat-lines">
+      <span><b>Dégâts missile</b><strong>${item.stats?.degats || "100%"}</strong></span>
+      <span><b>Portée</b><strong>${item.stats?.portee || 0}</strong></span>
+      <span><b>Recharge</b><strong>${item.stats?.recharge || "0.00s"}</strong></span>
+    </div>`;
+  }
+  return `<p>${statLabelForItem(item)}</p>`;
 }
 
 function renderSelectedInventoryDetail(){
@@ -163,7 +200,7 @@ function renderSelectedInventoryDetail(){
     : selectedEquipped?.location === "ship" && selectedEquipped?.shipId === store.state.selectedShip;
   const compatibleWithActivePanel = store.hangarTab === "drone"
     ? ["canon", "generateur"].includes(selectedItem.category)
-    : ["canon", "generateur", "extra"].includes(selectedItem.category);
+    : ["canon", "generateur", "extra"].includes(selectedItem.category) || ["missileLauncher", "rocketLauncher"].includes(selectedItem.slotType);
   const actionButtons = selectedEquipped
     ? `${!equippedInActivePanel && compatibleWithActivePanel ? `<button class="blue-button small" data-inventory-equip="${selectedEntry.uid}">Déplacer ici</button>` : ""}
        <button class="blue-button secondary small" data-inventory-unequip="${selectedEntry.uid}">Retirer</button>`
@@ -173,7 +210,7 @@ function renderSelectedInventoryDetail(){
     <div class="selected-item-copy">
       <span class="tiny">${selectedItem.category}</span>
       <h3>${selectedItem.name}</h3>
-      <p>${statLabelForItem(selectedItem)}</p>
+      ${selectedItemStatsHtml(selectedItem)}
       <small>${locationLabel(selectedEquipped)}</small>
       <div class="selected-item-actions">
         ${actionButtons}
@@ -189,13 +226,12 @@ export function renderLoadout(){
   if(title) title.textContent = ship.name;
   const renderSlot = (type, index, uid) => {
     const item = getItemFromInventoryUid(uid);
-    const label = type === "laser" ? "L" : type === "generator" ? "G" : "E";
-    return `<button class="equip-slot-tile ${item ? "filled" : ""}" data-drop-part="${type}" data-drop-index="${index}" title="${item ? item.name : "Slot vide"}">
-      <span>${label}${index+1}</span>
-      ${item ? `<img src="${item.img}" alt="${item.name}"><b>${item.short || item.name}</b><em data-unequip-part="${type}" data-unequip-index="${index}">×</em>` : `<i>+</i>`}
+    const label = type === "laser" ? "L" : type === "generator" ? "G" : type === "missileLauncher" ? "LM" : type === "rocketLauncher" ? "LR" : "E";
+    return `<button class="equip-slot-tile ${type}-slot ${item ? "filled" : ""}" data-drop-part="${type}" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""} title="${item ? item.name : "Slot vide"}">
+      ${item ? `<img src="${item.img}" alt="${item.name}"><b>${equipmentSlotBadge(item)}</b>` : `<span>${label}${index+1}</span><i>+</i>`}
     </button>`;
   };
-  const inventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur"), ...getInventoryByCategory("extra")];
+  const inventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur"), ...getInventoryByCategory("module"), ...getInventoryByCategory("extra")];
   const emptyCells = Array.from({length:Math.max(0, 48 - inventoryEntries.length)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
   const panel = document.getElementById("loadoutPanel");
   if(!panel) return;
@@ -204,6 +240,10 @@ export function renderLoadout(){
       <section class="equipped-compact-panel">
         <div class="compact-section-head"><h3>Lasers</h3><span>${loadout.lasers.filter(Boolean).length}/${ship.stats.maxLasers}</span></div>
         <div class="compact-slot-grid laser-slots">${loadout.lasers.map((id,i)=>renderSlot("laser", i, id)).join("")}</div>
+        <div class="compact-section-head"><h3>Lance missile</h3><span>${loadout.missileLauncher ? "1/1" : "0/1"}</span></div>
+        <div class="compact-slot-grid launcher-slots">${renderSlot("missileLauncher", 0, loadout.missileLauncher)}</div>
+        <div class="compact-section-head"><h3>Lance roquette</h3><span>${loadout.rocketLauncher ? "1/1" : "0/1"}</span></div>
+        <div class="compact-slot-grid launcher-slots">${renderSlot("rocketLauncher", 0, loadout.rocketLauncher)}</div>
         <div class="compact-section-head"><h3>Générateurs</h3><span>${loadout.generators.filter(Boolean).length}/${ship.stats.maxGenerators}</span></div>
         <div class="compact-slot-grid generator-slots">${loadout.generators.map((id,i)=>renderSlot("generator", i, id)).join("")}</div>
         <div class="compact-section-head"><h3>Extras</h3><span>${loadout.extras.filter(Boolean).length}/${ship.stats.maxExtras || 3}</span></div>
@@ -219,12 +259,12 @@ export function renderLoadout(){
 
 function renderDroneSlot(uid, index){
   const item = getItemFromInventoryUid(uid);
-  return `<article class="drone-slot-card" data-drop-part="drone" data-drop-index="${index}">
+  return `<article class="drone-slot-card" data-drop-part="drone" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""}>
     <div class="drone-slot-head"><span class="badge">Drone ${index+1}</span><span>${item ? item.category.toUpperCase() : "VIDE"}</span></div>
     <div class="drone-slot-body" data-drop-part="drone" data-drop-index="${index}">
       <img class="drone-preview" src="assets/drones/drone_test_sprite.webp" alt="Drone ${index+1}">
       <div class="drone-module ${item ? "filled" : ""}">
-        ${item ? `<img src="${item.img}" alt="${item.name}"><b>${item.short || item.name}</b><em data-unequip-part="drone" data-unequip-index="${index}">×</em>` : `<i>+</i><span>Ajouter un laser ou un générateur</span>`}
+        ${item ? `<img src="${item.img}" alt="${item.name}"><b>${equipmentSlotBadge(item)}</b><em data-unequip-part="drone" data-unequip-index="${index}">x</em>` : `<i>+</i><span>Ajouter un laser ou un générateur</span>`}
       </div>
     </div>
   </article>`;
@@ -306,7 +346,8 @@ export function renderExtraSection(){
 }
 
 export { renderShop } from "./renderShop.js";
-export { renderLeaderboard, renderPortals, renderRefinery, renderSkills } from "./renderProgression.js";
+export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js";
+export { renderRefinery } from "./renderRefinery.js";
 
 export function renderAll(){
   if(store.currentView !== "hangar") store.hangarDetailOpen = false;

@@ -1,4 +1,4 @@
-﻿import { fmt } from "../../core/utils.js";
+import { fmt } from "../../core/utils.js";
 
 function clampPercent(value, max){
   const safeMax = Number(max) || 0;
@@ -42,18 +42,70 @@ export function updateSafeZoneNotice({safeArea, isActive}){
 export function updateTargetPanel(enemy){
   const panel = document.getElementById("gameTargetPanel");
   if(!panel) return;
-  if(!enemy){ panel.classList.add("hidden"); panel.innerHTML = ""; return; }
+  if(!enemy){
+    panel.classList.add("hidden");
+    if(panel.innerHTML) panel.innerHTML = "";
+    panel.dataset.targetId = "";
+    panel.dataset.hasShield = "";
+    return;
+  }
+  const hp = Math.max(0, Math.ceil(enemy.hp));
+  const hpPercent = Math.max(0, Math.min(100, enemy.hp / enemy.maxHp * 100));
+  const shieldMax = Math.max(0, Math.ceil(enemy.maxShield || 0));
+  const shield = Math.max(0, Math.ceil(enemy.shield ?? shieldMax));
+  const hasShield = shieldMax > 0;
+  const shieldPercent = hasShield ? Math.max(0, Math.min(100, shield / shieldMax * 100)) : 0;
   panel.classList.remove("hidden");
-  panel.innerHTML = `
-    <div class="target-panel-head">
-      <h3>${enemy.type}</h3>
-      <button class="target-close" type="button" data-target-close aria-label="Fermer la cible">×</button>
-    </div>
-    <div class="target-row"><span>Niveau</span><b>${enemy.level}</b></div>
-    <div class="target-row"><span>PV</span><b>${Math.max(0,Math.ceil(enemy.hp))}/${enemy.maxHp}</b></div>
-    <div class="target-row"><span>Portée</span><b>${enemy.attackRange || 600}</b></div>
-    <div class="target-bar"><span style="width:${Math.max(0,enemy.hp/enemy.maxHp*100)}%"></span></div>
-  `;
+  if(panel.dataset.targetId !== String(enemy.id) || panel.dataset.hasShield !== String(hasShield)){
+    panel.dataset.targetId = String(enemy.id);
+    panel.dataset.hasShield = String(hasShield);
+    panel.innerHTML = `
+      <div class="target-panel-head">
+        <div>
+          <span>Cible verrouillee</span>
+          <h3 data-target-name></h3>
+        </div>
+        <button class="target-close" type="button" data-target-close aria-label="Fermer la cible">x</button>
+      </div>
+      <div class="target-bar"><span data-target-hp-fill></span></div>
+      <div class="target-health"><span>PV</span><b data-target-hp-text></b></div>
+      ${hasShield ? `
+        <div class="target-bar target-shield"><span data-target-shield-fill></span></div>
+        <div class="target-health target-shield-text"><span>Bouclier</span><b data-target-shield-text></b></div>
+      ` : ""}
+      <div class="target-stat-grid">
+        <div class="target-stat"><span>Niv.</span><b data-target-level></b></div>
+        <div class="target-stat"><span>Portee</span><b data-target-range></b></div>
+        <div class="target-stat"><span>Vitesse</span><b data-target-speed></b></div>
+      </div>
+    `;
+  }
+  panel.querySelector("[data-target-name]").textContent = enemy.type;
+  panel.querySelector("[data-target-hp-fill]").style.width = `${hpPercent}%`;
+  panel.querySelector("[data-target-hp-text]").textContent = `${fmt(hp)} / ${fmt(enemy.maxHp)}`;
+  if(hasShield){
+    panel.querySelector("[data-target-shield-fill]").style.width = `${shieldPercent}%`;
+    panel.querySelector("[data-target-shield-text]").textContent = `${fmt(shield)} / ${fmt(shieldMax)}`;
+  }
+  panel.querySelector("[data-target-level]").textContent = enemy.level;
+  panel.querySelector("[data-target-range]").textContent = fmt(enemy.attackRange || 600);
+  panel.querySelector("[data-target-speed]").textContent = fmt(Math.round(enemy.speed || 0));
+}
+
+export function updatePoisonStatus(effect){
+  const panel = document.getElementById("poisonStatus");
+  if(!panel) return;
+  const remaining = Math.max(0, Number(effect?.remaining || 0));
+  const duration = Math.max(0.1, Number(effect?.duration || effect?.remaining || 0));
+  if(remaining <= 0){
+    panel.classList.add("hidden");
+    return;
+  }
+  const fill = document.getElementById("poisonStatusFill");
+  const timer = document.getElementById("poisonStatusTimer");
+  panel.classList.remove("hidden");
+  if(fill) fill.style.width = `${Math.max(0, Math.min(100, remaining / duration * 100))}%`;
+  if(timer) timer.textContent = `${Math.ceil(remaining)}s`;
 }
 
 export function updateLootPopup({notices = []}){
@@ -73,4 +125,3 @@ export function updateLootPopup({notices = []}){
     return `<div class="loot-line" style="opacity:${opacity.toFixed(3)}">${parts.join(" · ")}</div>`;
   }).join("");
 }
-

@@ -13,7 +13,7 @@ export const defaultState = {
   shipLoadouts:{orion:{lasers:["inv_laser_mk1_1"], generators:[], extras:[]}},
   droneLoadout:[],
   ownedDroneCount:0,
-  ammoInventory:{ammo_x1:2500},
+  ammoInventory:{ammo_x1:2500, missile_m1:30, missile_m2:30},
   actionSlots:["ammo_x1", null, null, null, null, null, null, null, null],
   slotKeybinds:["Digit1","Digit2","Digit3","Digit4","Digit5","Digit6","Digit7","Digit8","Digit9"],
   portalPieces:{blue:0,violet:0,red:0,emerald:0,void:0,ancient:0},
@@ -35,6 +35,7 @@ export const defaultState = {
     noyau_astra:0
   },
   shipCargo:{},
+  combatBoosts:{laser:{}, rocket:{}, generator:{}, drone:{}},
   refineryLevels:{},
   refineryProductionDisabled:{},
   refineryModules:{storage:1, transport:1},

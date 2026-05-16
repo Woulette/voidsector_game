@@ -1,9 +1,128 @@
 import { drawRotatedImage } from "./player.js";
 
-export function drawProjectiles({ctx, camera, bullets}){
+function colorWithAlpha(color, alpha, fallback = "rgba(255,255,255,1)"){
+  if(typeof color !== "string") return fallback.replace(/,[\d.]+\)$/g, `,${alpha})`);
+  if(color.startsWith("rgba(")) return color.replace(/,[\d.]+\)$/g, `,${alpha})`);
+  if(color.startsWith("rgb(")) return color.replace("rgb(", "rgba(").replace(")", `,${alpha})`);
+  return color;
+}
+
+export function drawProjectiles({ctx, camera, cache, bullets}){
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
   for(const bullet of bullets){
+    if(bullet.kind === "rocket" || bullet.kind === "missile"){
+      const img = bullet.kind === "rocket" ? cache?.[bullet.sprite || "assets/equipment/rocket_projectile.png"] : null;
+      const angle = bullet.angle ?? Math.atan2(bullet.y - bullet.fromY, bullet.x - bullet.fromX);
+      const pulse = .75 + Math.sin(performance.now() / 55 + bullet.elapsed * 12) * .25;
+      if(bullet.trail?.length){
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        if(bullet.trail.length > 1){
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          for(let i = 1; i < bullet.trail.length; i++){
+            const from = bullet.trail[i - 1];
+            const to = bullet.trail[i];
+            const alpha = Math.max(0, Math.min(from.life, to.life) / from.max);
+            ctx.strokeStyle = bullet.kind === "missile" ? `rgba(167,139,250,${alpha * .30})` : colorWithAlpha(bullet.color, alpha * .34, `rgba(96,165,250,${alpha * .34})`);
+            ctx.shadowColor = bullet.kind === "missile" ? "rgba(129,140,248,.38)" : colorWithAlpha(bullet.color, .42, "rgba(56,189,248,.42)");
+            ctx.shadowBlur = bullet.kind === "missile" ? 5 : 7;
+            ctx.lineWidth = (bullet.kind === "missile" ? 1.8 : 2.6) * alpha;
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(to.x, to.y);
+            ctx.stroke();
+
+            ctx.strokeStyle = bullet.kind === "missile" ? `rgba(125,211,252,${alpha * .18})` : colorWithAlpha(bullet.particle || bullet.color, alpha * .24, `rgba(255,180,72,${alpha * .20})`);
+            ctx.shadowColor = bullet.kind === "missile" ? "rgba(56,189,248,.28)" : colorWithAlpha(bullet.particle || bullet.color, .38, "rgba(255,132,24,.36)");
+            ctx.shadowBlur = 5;
+            ctx.lineWidth = 1.2 * alpha;
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(to.x, to.y);
+            ctx.stroke();
+          }
+        }
+        for(let i = 0; i < bullet.trail.length; i++){
+          const point = bullet.trail[i];
+          const alpha = Math.max(0, point.life / point.max);
+          const scale = 1 - i / Math.max(1, bullet.trail.length);
+          ctx.fillStyle = bullet.kind === "missile" ? `rgba(148,163,184,${alpha * .07})` : colorWithAlpha(bullet.color, alpha * .10, `rgba(146,163,178,${alpha * .10})`);
+          ctx.shadowColor = bullet.kind === "missile" ? "rgba(129,140,248,.14)" : colorWithAlpha(bullet.color, .20, "rgba(125,211,252,.20)");
+          ctx.shadowBlur = 5;
+          ctx.beginPath();
+          ctx.ellipse(point.x, point.y, bullet.kind === "missile" ? 5 + scale * 3 : 8 + scale * 4, bullet.kind === "missile" ? 2 + scale : 3.2 + scale * 1.5, angle, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+      ctx.save();
+      ctx.translate(bullet.x, bullet.y);
+      ctx.rotate(angle);
+      ctx.globalCompositeOperation = "lighter";
+      if(bullet.kind === "missile"){
+        ctx.fillStyle = `rgba(96,165,250,${.20 + pulse * .16})`;
+        ctx.shadowColor = "rgba(96,165,250,.62)";
+        ctx.shadowBlur = 8 + pulse * 6;
+        ctx.beginPath();
+        ctx.ellipse(-12, 0, 12, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(203,213,225,.95)";
+        ctx.strokeStyle = "rgba(15,23,42,.86)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(12, 0);
+        ctx.lineTo(3, -3.5);
+        ctx.lineTo(-9, -3.2);
+        ctx.lineTo(-13, 0);
+        ctx.lineTo(-9, 3.2);
+        ctx.lineTo(3, 3.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "rgba(56,189,248,.90)";
+        ctx.beginPath();
+        ctx.rect(-1, -1.5, 5, 3);
+        ctx.fill();
+        ctx.fillStyle = `rgba(248,113,22,${.72 + pulse * .22})`;
+        ctx.shadowColor = "rgba(248,113,22,.72)";
+        ctx.shadowBlur = 8 + pulse * 6;
+        ctx.beginPath();
+        ctx.ellipse(-14, 0, 4 + pulse * 2, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }else{
+        ctx.fillStyle = colorWithAlpha(bullet.color, .36 + pulse * .18, `rgba(255,132,24,${.36 + pulse * .18})`);
+        ctx.shadowColor = colorWithAlpha(bullet.color, .72, "rgba(255,132,24,.72)");
+        ctx.shadowBlur = 10 + pulse * 8;
+        ctx.beginPath();
+        ctx.ellipse(-17, 0, 17, 4.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = colorWithAlpha(bullet.particle || bullet.color, .42 + pulse * .22, `rgba(125,211,252,${.42 + pulse * .22})`);
+        ctx.shadowColor = colorWithAlpha(bullet.particle || bullet.color, .85, "rgba(56,189,248,.85)");
+        ctx.shadowBlur = 8 + pulse * 8;
+        ctx.beginPath();
+        ctx.ellipse(-14, 0, 7 + pulse * 2, 2.4 + pulse, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.shadowBlur = 0;
+        if(img && img.complete) ctx.drawImage(img, -20, -7.5, 40, 15);
+        else{
+        ctx.fillStyle = bullet.color || "rgba(248,113,22,.95)";
+        ctx.beginPath();
+        ctx.moveTo(16, 0);
+        ctx.lineTo(-14, -6);
+        ctx.lineTo(-9, 0);
+        ctx.lineTo(-14, 6);
+        ctx.closePath();
+        ctx.fill();
+        }
+      }
+      ctx.restore();
+      continue;
+    }
     ctx.fillStyle = bullet.color || "rgba(125,211,252,.95)";
     ctx.shadowColor = bullet.color || "#38bdf8";
     ctx.shadowBlur = 14;
@@ -11,6 +130,78 @@ export function drawProjectiles({ctx, camera, bullets}){
     ctx.arc(bullet.x, bullet.y, bullet.r, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
+export function drawBeams({ctx, camera, beams}){
+  if(!beams?.length) return;
+  ctx.save();
+  ctx.translate(-camera.x, -camera.y);
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+  const easeOutCubic = value=>1 - Math.pow(1 - Math.max(0, Math.min(1, value)), 3);
+  function strokeBeam({fromX, fromY, toX, toY, color, shadowColor, alpha, width, blur}){
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = shadowColor;
+    ctx.shadowBlur = blur;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.stroke();
+  }
+  function drawGlowCircle({x, y, radius, color, alpha, blur}){
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = blur;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for(const beam of beams){
+    const progress = Math.max(0, Math.min(1, beam.age / beam.duration));
+    const fade = progress < .76 ? 1 : Math.max(0, 1 - (progress - .76) / .24);
+    const dx = beam.toX - beam.fromX;
+    const dy = beam.toY - beam.fromY;
+    const distance = beam.distance || Math.hypot(dx, dy) || 1;
+    const dirX = dx / distance;
+    const dirY = dy / distance;
+    const headDistance = easeOutCubic(progress) * distance;
+    const tailDistance = Math.max(0, headDistance - (beam.beamLength || 160));
+    const headX = beam.fromX + dirX * Math.min(distance, headDistance);
+    const headY = beam.fromY + dirY * Math.min(distance, headDistance);
+    const tailX = beam.fromX + dirX * tailDistance;
+    const tailY = beam.fromY + dirY * tailDistance;
+    const sideX = -dirY;
+    const sideY = dirX;
+
+    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.flare, shadowColor:beam.glow, alpha:fade * .46, width:8, blur:13});
+    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.glow, shadowColor:beam.glow, alpha:fade * .78, width:3.8, blur:8});
+    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.core, shadowColor:beam.glow, alpha:fade, width:2.2, blur:3});
+
+    for(const offset of [-4.5, 4.5]){
+      const sideFade = fade * .22;
+      strokeBeam({fromX:tailX + sideX * offset, fromY:tailY + sideY * offset, toX:headX + sideX * offset * .45, toY:headY + sideY * offset * .45, color:beam.glow, shadowColor:beam.glow, alpha:sideFade, width:.8, blur:3});
+    }
+
+    drawGlowCircle({x:headX, y:headY, radius:5 + fade * 3, color:beam.glow, alpha:fade * .64, blur:11});
+    drawGlowCircle({x:headX, y:headY, radius:2.2 + fade * 1.4, color:beam.core, alpha:fade, blur:5});
+
+    if(progress < .22){
+      const startAlpha = (1 - progress / .22) * .72;
+      drawGlowCircle({x:beam.fromX, y:beam.fromY, radius:7 + progress * 14, color:beam.glow, alpha:startAlpha * .75, blur:12});
+      drawGlowCircle({x:beam.fromX, y:beam.fromY, radius:2.8 + progress * 5, color:beam.core, alpha:startAlpha, blur:5});
+    }
+
+    if(progress > .78){
+      const impactProgress = Math.min(1, (progress - .78) / .22);
+      const impactAlpha = (1 - impactProgress) * .9;
+      drawGlowCircle({x:beam.toX, y:beam.toY, radius:6 + impactProgress * 13, color:beam.glow, alpha:impactAlpha * .78, blur:14});
+      drawGlowCircle({x:beam.toX, y:beam.toY, radius:2.4 + impactProgress * 4.5, color:beam.core, alpha:impactAlpha, blur:5});
+    }
   }
   ctx.restore();
 }
@@ -52,38 +243,73 @@ function drawSelectedEnemyOverlay({ctx, enemy, sx, sy}){
   ctx.arc(sx, sy, enemy.radius + 12 + Math.sin(performance.now() / 120) * 3, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
+}
 
+function drawEnemyStatusBars({ctx, enemy, sx, sy}){
+  sx = Math.round(sx);
+  sy = Math.round(sy);
+  const maxShield = Number(enemy.maxShield || 0);
+  const shield = Math.max(0, Number(enemy.shield ?? maxShield));
+  const hasShield = maxShield > 0;
+  const barWidth = hasShield ? 78 : 64;
+  const barX = sx - barWidth / 2;
+  const spriteTop = sy - Number(enemy.height || enemy.radius * 2 || 72) / 2;
+  const topY = spriteTop - (hasShield ? 24 : 17);
   ctx.save();
+  ctx.shadowBlur = 0;
   ctx.fillStyle = "rgba(239,68,68,.25)";
-  ctx.fillRect(sx - 32, sy - 45, 64, 5);
+  ctx.fillRect(barX, topY, barWidth, 5);
   ctx.fillStyle = "rgba(239,68,68,.9)";
-  ctx.fillRect(sx - 32, sy - 45, 64 * Math.max(0, enemy.hp / enemy.maxHp), 5);
+  ctx.fillRect(barX, topY, barWidth * Math.max(0, Math.min(1, enemy.hp / enemy.maxHp)), 5);
+  if(hasShield){
+    ctx.fillStyle = "rgba(14,116,144,.36)";
+    ctx.fillRect(barX, topY + 7, barWidth, 5);
+    ctx.fillStyle = "rgba(56,189,248,.98)";
+    ctx.shadowColor = "rgba(56,189,248,.62)";
+    ctx.shadowBlur = 8;
+    ctx.fillRect(barX, topY + 7, barWidth * Math.max(0, Math.min(1, shield / maxShield)), 5);
+  }
   ctx.fillStyle = "#fecaca";
+  ctx.shadowBlur = 0;
   ctx.font = "700 11px Rajdhani, Arial";
   ctx.textAlign = "center";
-  ctx.fillText(`NIV ${enemy.level}`, sx, sy - 50);
+  ctx.fillText(`NIV ${enemy.level}`, sx, topY - 5);
   ctx.restore();
 }
 
 export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
+  const time = performance.now();
   for(const enemy of enemies){
+    const isPaused = Number(enemy.wanderPauseT || 0) > 0 && !enemy.aggro;
+    const idlePhase = time / 420 + enemy.id * 1.37;
+    const idleY = isPaused ? Math.sin(idlePhase) * 4 : 0;
+    const idleX = isPaused ? Math.cos(idlePhase * .72) * 2 : 0;
+    const idleAngle = isPaused ? Math.sin(idlePhase * .85) * .08 : 0;
     drawRotatedImage({
       ctx,
       camera,
       img:cache[enemy.img] || cache["assets/ships/intercepteur.png"],
-      x:enemy.x,
-      y:enemy.y,
+      x:enemy.x + idleX,
+      y:enemy.y + idleY,
       w:enemy.width || 72,
       h:enemy.height || 72,
-      angle:enemy.angle
+      angle:enemy.angle + idleAngle
     });
     const isSelected = selectedEnemy && selectedEnemy.id === enemy.id;
+    if(isSelected || Number(enemy.recentHitTimer || 0) > 0){
+      drawEnemyStatusBars({
+        ctx,
+        enemy,
+        sx:enemy.x + idleX - camera.x,
+        sy:enemy.y + idleY - camera.y
+      });
+    }
     if(isSelected){
       drawSelectedEnemyOverlay({
         ctx,
         enemy,
-        sx:enemy.x - camera.x,
-        sy:enemy.y - camera.y
+        sx:enemy.x + idleX - camera.x,
+        sy:enemy.y + idleY - camera.y
       });
     }
   }

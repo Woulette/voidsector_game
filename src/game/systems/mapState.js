@@ -19,6 +19,67 @@ function chooseEnemyType(map, rnd){
   return ENEMY_TYPES[list[list.length-1].id] || ENEMY_TYPES.drone_pirate;
 }
 
+function randomBetween(rnd, min, max){
+  return min + rnd() * (max - min);
+}
+
+export function findEnemySpawnPosition(map, rnd = Math.random, player = null){
+  let x = 0;
+  let y = 0;
+  let tries = 0;
+  do{
+    x = randomBetween(rnd, -map.width / 2, map.width / 2);
+    y = randomBetween(rnd, -map.height / 2, map.height / 2);
+    tries++;
+  }while(!isValidEnemySpawnPosition(map, x, y, player) && tries < 100);
+  return {x, y};
+}
+
+function isValidEnemySpawnPosition(map, x, y, player = null){
+  if(!map) return false;
+  if(x < -map.width / 2 || x > map.width / 2 || y < -map.height / 2 || y > map.height / 2) return false;
+  if(map.spawn && Math.hypot(x - map.spawn.x, y - map.spawn.y) < (map.spawn.r || 260) + 520) return false;
+  if(map.portal && Math.hypot(x - map.portal.x, y - map.portal.y) < 360) return false;
+  if(player && Math.hypot(x - player.x, y - player.y) < 420) return false;
+  return true;
+}
+
+export function createMapEnemy({map, id, rnd = Math.random, player = null}){
+  const {x, y} = findEnemySpawnPosition(map, rnd, player);
+  const level = Math.floor(map.enemyLevel[0] + rnd()*(map.enemyLevel[1]-map.enemyLevel[0]+1));
+  const enemyType = chooseEnemyType(map, rnd);
+  const maxHp = enemyType.maxHp(level);
+  const maxShield = enemyType.maxShield?.(level) || 0;
+  return {
+    id,
+    x,y,homeX:x,homeY:y,
+    hp:maxHp,maxHp,
+    shield:maxShield,maxShield,
+    level,
+    kind:Object.keys(ENEMY_TYPES).find(key=>ENEMY_TYPES[key] === enemyType) || "drone_pirate",
+    type:enemyType.name,
+    img:enemyType.img,
+    width:enemyType.width,
+    height:enemyType.height,
+    speed:enemyType.speed(level),
+    radius:enemyType.radius,
+    attackRange:enemyType.attackRange,
+    shieldAbsorbRatio:enemyType.shieldAbsorbRatio ?? 0.8,
+    attackDamage:enemyType.attackDamage(level),
+    attackDamageMin:enemyType.attackDamageMin,
+    attackDamageMax:enemyType.attackDamageMax,
+    attackCooldown:enemyType.attackCooldown,
+    projectileSpeed:enemyType.projectileSpeed,
+    color:enemyType.color,
+    particle:enemyType.particle,
+    onHitEffect:enemyType.onHitEffect,
+    loot:enemyType.loot,
+    aggro:false,
+    angle:0,
+    hitT:rnd()*.75
+  };
+}
+
 export function makeStars(rnd){
   const result = [];
   for(let layer=0; layer<3; layer++){
@@ -58,42 +119,13 @@ export function buildMapState(map, startEnemySeq=1){
   const generatedEnemies = [];
   let nextEnemySeq = startEnemySeq;
   for(let i=0;i<map.enemyCount;i++){
-    let x, y, tries = 0;
-    do{
-      x = rnd()*map.width - map.width/2;
-      y = rnd()*map.height - map.height/2;
-      tries++;
-    }while((Math.hypot(x-map.spawn.x,y-map.spawn.y) < map.spawn.r + 520 || Math.hypot(x-map.portal.x,y-map.portal.y) < 360) && tries < 80);
-    const level = Math.floor(map.enemyLevel[0] + rnd()*(map.enemyLevel[1]-map.enemyLevel[0]+1));
-    const enemyType = chooseEnemyType(map, rnd);
-    const maxHp = enemyType.maxHp(level);
-    generatedEnemies.push({
-      id:nextEnemySeq++,
-      x,y,homeX:x,homeY:y,
-      hp:maxHp,maxHp,level,
-      kind:Object.keys(ENEMY_TYPES).find(key=>ENEMY_TYPES[key] === enemyType) || "drone_pirate",
-      type:enemyType.name,
-      img:enemyType.img,
-      width:enemyType.width,
-      height:enemyType.height,
-      speed:enemyType.speed(level),
-      radius:enemyType.radius,
-      attackRange:enemyType.attackRange,
-      attackDamage:enemyType.attackDamage(level),
-      attackCooldown:enemyType.attackCooldown,
-      projectileSpeed:enemyType.projectileSpeed,
-      color:enemyType.color,
-      particle:enemyType.particle,
-      loot:enemyType.loot,
-      aggro:false,
-      angle:0,
-      hitT:rnd()*.75
-    });
+    generatedEnemies.push(createMapEnemy({map, id:nextEnemySeq++, rnd}));
   }
   return {
     nextEnemySeq,
     state:{
       enemies:generatedEnemies,
+      respawnQueue:[],
       asteroids:makeAsteroids(map, rnd),
       stars:makeStars(rnd),
       dust:makeDust(rnd)

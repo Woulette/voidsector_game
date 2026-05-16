@@ -1,0 +1,95 @@
+/* --- Patch v3: hangar architecture + parametres touches --- */
+.page-view.hangar-view.active{grid-template-columns:minmax(360px,.82fr) minmax(520px,1.18fr);align-items:start}
+.hangar-tabs{grid-column:1 / -1;grid-row:1}
+#hangarListPanel{grid-column:1 / -1;grid-row:2}
+.page-view.hangar-view.hangar-detail-mode.active{grid-template-columns:minmax(300px,.62fr) minmax(760px,1.38fr);gap:10px;align-items:start}
+.page-view.hangar-view.hangar-detail-mode.active .hangar-tabs{grid-column:1 / -1;grid-row:1}
+.page-view.hangar-view.hangar-detail-mode.active #shipDetailPanel{grid-column:1;grid-row:2}
+.page-view.hangar-view.hangar-detail-mode.active #shipLoadoutPanel{grid-column:2;grid-row:2}
+#droneSection,#extraSection{grid-column:1 / -1;grid-row:2}
+#hangarSkillsSection{
+  grid-area:2 / 1 / auto / -1;
+  width:100%;
+}
+#hangarSkillsSection .skill-grid-full{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+#shipDetailPanel .selected-ship-art{height:280px}
+#shipDetailPanel .selected-ship-art img{height:252px}
+#shipDetailPanel .ship-rank-badge{
+  left:12px;
+  top:10px;
+  width:118px;
+  min-height:76px;
+  padding:8px 8px;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  text-align:center;
+  gap:4px 6px;
+  background:rgba(2,10,19,.72);
+  box-shadow:none;
+}
+#shipDetailPanel .ship-rank-badge .rank-icon{width:28px;height:28px}
+#shipDetailPanel .ship-rank-badge .tiny{display:block;font-size:10px;line-height:1.05}
+#shipDetailPanel .ship-rank-badge strong{font-size:12px;line-height:1.05}
+#shipLoadoutPanel .ship-equipment-layout{grid-template-columns:minmax(390px,1fr) 370px;grid-template-areas:"equipped inventory" "detail detail"}
+#shipLoadoutPanel .compact-slot-grid{grid-template-columns:repeat(auto-fill,minmax(56px,56px));gap:9px}
+#shipLoadoutPanel .equip-slot-tile{width:56px;height:56px}
+#shipLoadoutPanel .equip-slot-tile img{width:53px;height:53px}
+#shipLoadoutPanel .equip-slot-tile.laser-slot img{width:56px;height:56px}
+#shipLoadoutPanel .equip-slot-tile b{font-size:8px;left:4px;top:4px}
+#shipLoadoutPanel .equip-slot-tile span{font-size:9px;left:4px;top:3px}
+#shipLoadoutPanel .equip-slot-tile i{font-size:22px}
+#shipLoadoutPanel .rpg-inventory-grid{grid-template-columns:repeat(5,56px);gap:8px;padding-right:18px}
+#shipLoadoutPanel .inventory-cell{width:56px;height:56px}
+#shipLoadoutPanel .inventory-cell img{width:50px;height:50px}
+#shipLoadoutPanel .rpg-inventory-grid{max-height:430px}
+#droneSection .drone-layout{grid-template-columns:minmax(300px,.62fr) minmax(760px,1.38fr)}
+#droneSection .drone-art-large{min-height:248px}
+#droneSection .drone-art-large img{width:min(250px,84%)}
+#droneSection .ship-equipment-layout{grid-template-columns:minmax(390px,1fr) 370px;grid-template-areas:"equipped inventory" "detail detail"}
+#droneSection .drone-bay-grid{column-gap:9px;row-gap:6px}
+#droneSection .drone-slot-card{grid-template-columns:82px 1fr;gap:8px;padding:7px}
+#droneSection .drone-slot-body{grid-template-columns:1fr 56px;min-height:62px}
+#droneSection .drone-preview{width:58px;height:58px}
+#droneSection .drone-module{width:56px;height:56px;min-height:56px}
+#droneSection .drone-module.filled{
+  background:
+    radial-gradient(circle at 50% 48%,rgba(56,189,248,.30),rgba(7,24,42,.84) 66%,rgba(2,10,19,.96) 100%),
+    linear-gradient(180deg,rgba(10,32,54,.96),rgba(2,10,19,.96));
+  border-color:rgba(86,255,79,.48);
+  box-shadow:inset 0 0 20px rgba(125,211,252,.085);
+}
+#droneSection .drone-module.filled::before{
+  content:"";
+  position:absolute;
+  inset:3px;
+  background:radial-gradient(circle,rgba(125,211,252,.26),rgba(125,211,252,.07) 54%,rgba(125,211,252,0) 78%);
+  pointer-events:none;
+  z-index:0;
+}
+#droneSection .drone-module img{position:relative;z-index:1;width:50px;height:50px}
+#droneSection .drone-module b{font-size:8px;left:4px;top:4px}
+#droneSection .drone-module em{display:none}
+#droneSection .rpg-inventory-grid{grid-template-columns:repeat(5,56px);gap:8px;padding-right:18px;max-height:430px}
+#droneSection .inventory-cell{width:56px;height:56px}
+#droneSection .inventory-cell img{width:50px;height:50px}
+.settings-panel{padding:18px}
+.settings-help,.settings-note{color:var(--muted);font-size:13px;line-height:1.45;margin:8px 0 14px}
+.keybind-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.keybind-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:12px;border:1px solid rgba(56,189,248,.18);background:rgba(7,22,40,.72)}
+.keybind-row span{font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#dff6ff}
+.keybind-row b{min-width:74px;text-align:center;border:1px solid rgba(250,204,21,.24);background:rgba(92,61,8,.18);color:#fde68a;padding:6px 8px}
+@media (max-width:1120px){
+  .page-view.hangar-view.active,.page-view.hangar-view.hangar-detail-mode.active{grid-template-columns:1fr}
+  .page-view.hangar-view.hangar-detail-mode.active #shipDetailPanel,
+  .page-view.hangar-view.hangar-detail-mode.active #shipLoadoutPanel{grid-column:1;grid-row:auto}
+  #shipLoadoutPanel .ship-equipment-layout{grid-template-columns:1fr;grid-template-areas:"equipped" "inventory" "detail"}
+  #shipLoadoutPanel .rpg-inventory-grid{grid-template-columns:repeat(auto-fill,52px)}
+  #droneSection .drone-layout{grid-template-columns:1fr}
+  #droneSection .ship-equipment-layout{grid-template-columns:1fr;grid-template-areas:"equipped" "inventory" "detail"}
+  #droneSection .rpg-inventory-grid{grid-template-columns:repeat(auto-fill,52px)}
+  .keybind-grid{grid-template-columns:1fr}
+}
+

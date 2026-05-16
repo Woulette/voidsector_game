@@ -7,18 +7,19 @@ export function createPlayerLifecycle({
   clearCombatEffects,
   setTeleportLock,
   updateHud,
-  showToast
+  showToast,
+  onDeath
 }){
-  function respawn(){
+  function respawn({x, y, map, hpRatio = 0.2, message = "Vaisseau detruit. Respawn."} = {}){
     const player = getPlayer();
-    const currentMap = getCurrentMap();
-    player.hp = player.maxHp;
+    const currentMap = map || getCurrentMap();
+    player.hp = Math.max(1, Math.round(player.maxHp * hpRatio));
     player.shield = player.maxShield;
     player.secondsSinceDamage = 999;
     player.repairBotActive = false;
     player.repairBotTickTimer = 0;
-    player.x = currentMap.spawn.x;
-    player.y = currentMap.spawn.y;
+    player.x = x ?? currentMap.spawn.x;
+    player.y = y ?? currentMap.spawn.y;
     player.vx = 0;
     player.vy = 0;
     player.enginePower = 0;
@@ -27,7 +28,7 @@ export function createPlayerLifecycle({
     clearSelection();
     clearCombatEffects();
     setTeleportLock(1.6);
-    showToast("Vaisseau détruit. Respawn au spawn.");
+    showToast(message);
     updateHud();
   }
 
@@ -52,8 +53,9 @@ export function createPlayerLifecycle({
       hullPart = incoming;
     }
     if(hullPart > 0) player.hp -= hullPart;
-    if(player.hp <= 0) respawn();
+    if(player.hp <= 0) onDeath?.();
   }
 
   return {respawn, damage};
 }
+

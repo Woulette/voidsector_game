@@ -272,6 +272,25 @@
     </div>
     <div id="gameTargetPanel" class="target-panel hidden"></div>
     <div id="lootPopup" class="loot-popup hidden"></div>
+    <div id="poisonStatus" class="poison-status hidden" aria-live="polite">
+      <div class="poison-status-icon">!</div>
+      <div class="poison-status-body">
+        <strong>Poison</strong>
+        <span><i id="poisonStatusFill"></i></span>
+      </div>
+      <b id="poisonStatusTimer">0s</b>
+    </div>
+    <div id="deathRespawnPanel" class="death-respawn-panel frame hidden" aria-live="assertive">
+      <div class="death-respawn-head">
+        <span>Vaisseau détruit</span>
+        <strong>Choisir un point de retour</strong>
+      </div>
+      <div class="death-respawn-actions">
+        <button data-respawn-choice="spawn" type="button">ASTRA-01<br><small>Gratuit · 20% PV</small></button>
+        <button data-respawn-choice="portal" type="button">Portail proche<br><small>100 NOVA</small></button>
+        <button data-respawn-choice="death" type="button">Position actuelle<br><small>200 NOVA</small></button>
+      </div>
+    </div>
     <div id="safeZoneNotice" class="safe-zone-notice hidden">
       <strong>ZONE NON-AGRESSION</strong>
       <span>Protection active</span>
@@ -303,6 +322,7 @@
       <div class="combat-panel-tabs">
         <button class="active" data-combat-panel-tab="ammo" type="button">Munitions</button>
         <button data-combat-panel-tab="skills" type="button">Competences</button>
+        <button data-combat-panel-tab="cpu" type="button">CPU</button>
         <button data-combat-panel-tab="extras" type="button">Extras</button>
         <button data-combat-panel-tab="shop" type="button">Magasin</button>
       </div>

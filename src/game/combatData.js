@@ -7,7 +7,7 @@ export const MAPS = [
     // Repère de carte : X gauche/droite, Y haut/bas. Le spawn est maintenant en bas à gauche.
     spawn:{x:-2250,y:1450,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430},
     portal:{x:2260,y:-1420,r:95,safeRadius:230,targetMap:1,targetX:2260,targetY:-1260,label:"VERS ASTRA-02"},
-    enemyCount:13,
+    enemyCount:20,
     enemyLevel:[1,3],
     enemySeed:7,
     parallaxScene:{
@@ -49,76 +49,155 @@ export const MAPS = [
     // Trois familles de vaisseaux ennemis sur ASTRA-02.
     enemyTypes:[
       {id:"raider_astral", weight:.46},
-      {id:"chasseur_spectral", weight:.34},
-      {id:"cuirasse_nebulaire", weight:.20}
+      {id:"chasseur_spectral", weight:.28},
+      {id:"cuirasse_nebulaire", weight:.18},
+      {id:"cristal_du_neant", weight:.08}
     ]
   }
 ];
 
 export const ENEMY_TYPES = {
   drone_pirate:{
-    name:"Drone pirate",
-    img:"assets/enemies/drone_pirate.png",
-    maxHp:(level)=>1000 + level*120,
-    speed:(level)=>78 + level*4,
+    name:"Orbe sentinelle",
+    img:"assets/enemies/enemy_cyan_orb.png",
+    maxHp:()=>800,
+    speed:()=>190,
     radius:26,
     width:74,
     height:74,
-    attackRange:450,
+    attackRange:600,
+    shieldAbsorbRatio:.8,
     attackDamage:(level)=>34 + level*4,
     attackCooldown:1.25,
     projectileSpeed:680,
     color:"rgba(248,113,113,.95)",
     particle:"rgba(252,165,165,.72)",
-    loot:{credits:800,xp:80,premium:1}
+    loot:{
+      credits:1200,
+      xp:350,
+      premium:2,
+      materials:{nickel_brut:10, titane_fissure:10, silice_conductrice:10}
+    }
   },
   raider_astral:{
-    name:"Raider astral",
-    img:"assets/enemies/raider_astral.png",
+    name:"Vorak rusher",
+    img:"assets/enemies/enemy_red_rusher.png",
     maxHp:(level)=>1450 + level*170,
-    speed:(level)=>62 + level*3,
+    speed:()=>220,
     radius:36,
     width:88,
     height:88,
-    attackRange:450,
-    attackDamage:(level)=>52 + level*5,
+    attackRange:300,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:90,
+    attackDamageMax:140,
+    attackDamage:()=>115,
     attackCooldown:1.35,
     projectileSpeed:640,
     color:"rgba(251,146,60,.95)",
     particle:"rgba(253,186,116,.72)",
-    loot:{credits:800,xp:80,premium:1}
+    loot:{
+      credits:1500,
+      xp:500,
+      premium:3,
+      materials:{cuivre_orbital:10, zinc_spatial:10, nickel_brut:10}
+    }
   },
   chasseur_spectral:{
-    name:"Chasseur spectral",
-    img:"assets/enemies/chasseur_spectral.png",
-    maxHp:(level)=>2200 + level*220,
-    speed:(level)=>72 + level*3,
+    name:"Parasite astral",
+    img:"assets/enemies/enemy_green_parasite.png",
+    maxHp:()=>3500,
+    maxShield:()=>1500,
+    speed:()=>200,
     radius:34,
     width:86,
     height:86,
     attackRange:450,
-    attackDamage:(level)=>78 + Math.round(level*6),
-    attackCooldown:1.28,
-    projectileSpeed:720,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:150,
+    attackDamageMax:250,
+    attackDamage:()=>200,
+    attackCooldown:1.55,
+    projectileSpeed:620,
     color:"rgba(168,85,247,.95)",
     particle:"rgba(216,180,254,.72)",
-    loot:{credits:2400,xp:220,premium:3}
+    onHitEffect:{type:"poison", damage:50, interval:2, duration:10},
+    loot:{
+      credits:4000,
+      xp:1700,
+      premium:5,
+      materials:{
+        cuivre_orbital:20,
+        zinc_spatial:20,
+        nickel_brut:20,
+        titane_fissure:20,
+        silice_conductrice:20
+      }
+    }
   },
   cuirasse_nebulaire:{
-    name:"Cuirassé nébulaire",
-    img:"assets/enemies/cuirasse_nebulaire.png",
-    maxHp:(level)=>3200 + level*260,
-    speed:(level)=>46 + level*2,
+    name:"Traqueur abyssal",
+    img:"assets/enemies/enemy_blue_spider.png",
+    maxHp:()=>8000,
+    maxShield:()=>2000,
+    speed:()=>150,
     radius:46,
     width:106,
     height:106,
-    attackRange:450,
-    attackDamage:(level)=>118 + Math.round(level*8),
+    attackRange:550,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:250,
+    attackDamageMax:350,
+    attackDamage:()=>300,
     attackCooldown:1.70,
     projectileSpeed:590,
     color:"rgba(96,165,250,.95)",
     particle:"rgba(191,219,254,.72)",
-    loot:{credits:6000,xp:700,premium:8}
+    loot:{
+      credits:7000,
+      xp:3000,
+      premium:8,
+      materials:{
+        cuivre_orbital:30,
+        zinc_spatial:30,
+        nickel_brut:30,
+        titane_fissure:30,
+        silice_conductrice:30
+      }
+    }
+  },
+  cristal_du_neant:{
+    name:"Cristal du néant",
+    img:"assets/enemies/enemy_purple_crystal.png",
+    maxHp:()=>40000,
+    maxShield:()=>20000,
+    speed:()=>170,
+    radius:48,
+    width:112,
+    height:112,
+    attackRange:500,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:800,
+    attackDamageMax:1000,
+    attackDamage:()=>900,
+    attackCooldown:1.85,
+    projectileSpeed:560,
+    color:"rgba(168,85,247,.95)",
+    particle:"rgba(216,180,254,.72)",
+    loot:{
+      credits:60000,
+      xp:12000,
+      premium:20,
+      materials:{
+        cuivre_orbital:80,
+        zinc_spatial:80,
+        nickel_brut:80,
+        titane_fissure:80,
+        silice_conductrice:80,
+        alliage_cuivre_zinc:5,
+        plaque_nickel_titane:5
+      }
+    }
   }
 };
 
