@@ -139,7 +139,7 @@
   position:absolute;
   z-index:6;
   top:14px;
-  right:336px;
+  left:306px;
   display:grid;
   grid-template-columns:repeat(6,40px);
   gap:4px;
@@ -163,6 +163,7 @@
   cursor:pointer;
   text-transform:uppercase;
 }
+.combat-utility-dock button svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 7px rgba(56,189,248,.22))}
 .combat-utility-dock button:hover{border-color:rgba(125,211,252,.62);background:rgba(14,165,233,.16);color:#f0fbff;box-shadow:inset 0 0 16px rgba(56,189,248,.08)}
 .combat-utility-dock button.active{border-color:rgba(250,204,21,.72);background:rgba(113,63,18,.34);color:#fef3c7;box-shadow:0 0 16px rgba(250,204,21,.22),inset 0 0 14px rgba(250,204,21,.12)}
 .combat-utility-dock button.disabled{opacity:.32;cursor:not-allowed;box-shadow:none}
@@ -181,12 +182,119 @@
   width:278px;
   padding:8px;
 }
+.combat-utility-panel[data-utility-mode="map"]{
+  left:306px;
+  right:auto;
+  width:560px;
+}
 .combat-utility-panel.hidden{display:none}
 .combat-utility-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;cursor:move;user-select:none}
 .combat-utility-panel-head strong{font-size:16px;letter-spacing:1px;color:#dff6ff;text-transform:uppercase}
 .combat-utility-panel[data-utility-mode="quests"] .combat-utility-panel-head{height:8px;margin-bottom:6px}
 .combat-utility-panel[data-utility-mode="quests"] .combat-utility-panel-head strong{display:none}
 .combat-utility-content{display:grid;gap:10px}
+.combat-map-card{display:grid;gap:10px}
+.combat-map-head{display:flex;justify-content:space-between;align-items:start;gap:10px}
+.combat-map-head strong{font-size:17px;color:#e9f8ff;letter-spacing:1px;text-transform:uppercase}
+.combat-map-head span{font-size:11px;color:#8ee7ff;text-transform:uppercase;letter-spacing:.8px}
+.combat-map-head small{font-size:11px;color:#8fb9d6}
+.combat-galaxy-map{
+  position:relative;
+  height:380px;
+  border:1px solid rgba(56,189,248,.28);
+  background:
+    linear-gradient(rgba(56,189,248,.055) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(56,189,248,.055) 1px,transparent 1px),
+    radial-gradient(circle at 50% 50%,rgba(245,222,196,.12),transparent 18%),
+    radial-gradient(circle at 16% 18%,rgba(250,204,21,.05),transparent 25%),
+    radial-gradient(circle at 82% 20%,rgba(74,222,128,.05),transparent 25%),
+    radial-gradient(circle at 18% 82%,rgba(239,68,68,.05),transparent 27%),
+    radial-gradient(circle at 82% 80%,rgba(34,211,238,.05),transparent 27%),
+    linear-gradient(180deg,rgba(5,18,32,.94),rgba(1,7,16,.98));
+  background-size:28px 28px,28px 28px,100% 100%,100% 100%,100% 100%,100% 100%,100% 100%,100% 100%;
+  overflow:hidden;
+  clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px);
+  box-shadow:inset 0 0 28px rgba(56,189,248,.06),inset 0 0 80px rgba(0,0,0,.34);
+}
+.combat-galaxy-map::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  opacity:.28;
+  background-image:
+    radial-gradient(circle at 12% 23%,rgba(255,255,255,.7) 0 1px,transparent 1.5px),
+    radial-gradient(circle at 34% 12%,rgba(255,255,255,.45) 0 1px,transparent 1.5px),
+    radial-gradient(circle at 68% 17%,rgba(255,255,255,.55) 0 1px,transparent 1.5px),
+    radial-gradient(circle at 84% 43%,rgba(255,255,255,.42) 0 1px,transparent 1.5px),
+    radial-gradient(circle at 26% 76%,rgba(255,255,255,.38) 0 1px,transparent 1.5px),
+    radial-gradient(circle at 72% 86%,rgba(255,255,255,.50) 0 1px,transparent 1.5px);
+  pointer-events:none;
+}
+.combat-galaxy-map svg{position:relative;z-index:1;width:100%;height:100%;display:block}
+.combat-galaxy-map path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.combat-galaxy-map .sector{opacity:.11;stroke-width:.25;stroke-dasharray:1.5 2.5}
+.combat-galaxy-map .sector.astra{fill:rgba(248,113,113,.32);stroke:rgba(248,113,113,.62)}
+.combat-galaxy-map .sector.solaris{fill:rgba(250,204,21,.30);stroke:rgba(250,204,21,.58)}
+.combat-galaxy-map .sector.virdis{fill:rgba(74,222,128,.30);stroke:rgba(74,222,128,.58)}
+.combat-galaxy-map .sector.cyan{fill:rgba(34,211,238,.30);stroke:rgba(34,211,238,.58)}
+.combat-galaxy-map .route-back{stroke:rgba(1,7,16,.94);stroke-width:3.7}
+.combat-galaxy-map .route-main{filter:url(#routeGlow)}
+.combat-galaxy-map .route-main.cross-link{stroke:rgba(241,220,194,.88);stroke-width:1.45}
+.combat-galaxy-map .route-main.firm-link{stroke-width:1.8;opacity:.98}
+.combat-galaxy-map .route-main.firm-link.astra{stroke:rgba(248,113,113,.96)}
+.combat-galaxy-map .route-main.firm-link.solaris{stroke:rgba(250,204,21,.96)}
+.combat-galaxy-map .route-main.firm-link.virdis{stroke:rgba(74,222,128,.94)}
+.combat-galaxy-map .route-main.firm-link.cyan{stroke:rgba(34,211,238,.96)}
+.combat-galaxy-map .nexus-field{fill:url(#galaxyNexusGlow);opacity:.95}
+.combat-galaxy-map .nexus-ring{fill:none;stroke:rgba(245,222,196,.50);stroke-width:.35}
+.combat-galaxy-map .nexus-ring.two{stroke:rgba(245,222,196,.26);stroke-dasharray:1.4 1.4}
+.galaxy-node .node-halo{opacity:.12}
+.galaxy-node rect{rx:.7;ry:.7}
+.galaxy-node .node-ring{fill:rgba(4,14,26,.92);stroke:rgba(148,197,222,.64);stroke-width:1.05}
+.galaxy-node .node-core{fill:rgba(184,220,238,.76);stroke:none}
+.galaxy-node.astra .node-halo{fill:#f87171}
+.galaxy-node.astra .node-ring{stroke:rgba(248,113,113,.78)}
+.galaxy-node.astra .node-core{fill:rgba(248,113,113,.78)}
+.galaxy-node.solaris .node-halo{fill:#facc15}
+.galaxy-node.solaris .node-ring{stroke:rgba(250,204,21,.80)}
+.galaxy-node.solaris .node-core{fill:rgba(250,204,21,.80)}
+.galaxy-node.virdis .node-halo{fill:#4ade80}
+.galaxy-node.virdis .node-ring{stroke:rgba(74,222,128,.78)}
+.galaxy-node.virdis .node-core{fill:rgba(74,222,128,.78)}
+.galaxy-node.cyan .node-halo{fill:#22d3ee}
+.galaxy-node.cyan .node-ring{stroke:rgba(34,211,238,.80)}
+.galaxy-node.cyan .node-core{fill:rgba(34,211,238,.80)}
+.galaxy-node.nexus .node-halo{fill:rgba(245,222,196,.72);opacity:.22}
+.galaxy-node.nexus rect{rx:1.1;ry:1.1}
+.galaxy-node.nexus .node-ring{stroke:rgba(245,222,196,.90);fill:rgba(245,222,196,.08)}
+.galaxy-node.nexus .node-core{fill:rgba(245,222,196,.86)}
+.galaxy-node.active .node-ring{stroke:#f8fafc;stroke-width:1.75;filter:drop-shadow(0 0 4px rgba(34,211,238,.88))}
+.galaxy-node.active .node-core{fill:#22d3ee}
+.galaxy-node text{font-size:1.95px;text-anchor:middle;fill:#a7cfe0;text-transform:uppercase;letter-spacing:.08px;paint-order:stroke;stroke:#020a13;stroke-width:.72px}
+.galaxy-node.central text{font-size:2.35px;fill:#f5dec4}
+.galaxy-node.active text{fill:#f8fafc}
+.combat-galaxy-legend{position:absolute;z-index:2;left:10px;right:10px;bottom:8px;display:flex;justify-content:center;gap:8px;pointer-events:none}
+.combat-galaxy-legend span{display:flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid rgba(56,189,248,.12);background:rgba(1,8,16,.62);font-size:9px;color:#91b8cf;text-transform:uppercase;letter-spacing:.55px}
+.combat-galaxy-legend i{width:7px;height:7px;border-radius:50%;background:#91b8cf;box-shadow:0 0 8px currentColor}
+.combat-galaxy-legend .astra i{background:#f87171}
+.combat-galaxy-legend .solaris i{background:#facc15}
+.combat-galaxy-legend .virdis i{background:#4ade80}
+.combat-galaxy-legend .cyan i{background:#22d3ee}
+.combat-map-preview{position:relative;height:190px;border:1px solid rgba(56,189,248,.24);background:linear-gradient(rgba(56,189,248,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.10) 1px,transparent 1px),radial-gradient(circle at 28% 72%,rgba(34,197,94,.18),transparent 23%),radial-gradient(circle at 74% 22%,rgba(168,85,247,.14),transparent 24%),rgba(2,10,19,.86);background-size:38px 38px,38px 38px,100% 100%,100% 100%,100% 100%;overflow:hidden}
+.combat-map-preview i{position:absolute;display:block;border-radius:50%;transform:translate(-50%,-50%)}
+.combat-map-preview .map-spawn{width:22px;height:22px;border:2px solid rgba(74,222,128,.86);box-shadow:0 0 20px rgba(34,197,94,.26)}
+.combat-map-preview .map-portal{width:20px;height:20px;border:2px solid rgba(168,85,247,.92);box-shadow:0 0 20px rgba(168,85,247,.34)}
+.combat-map-preview .map-player{width:9px;height:9px;background:#22d3ee;box-shadow:0 0 16px rgba(34,211,238,.92)}
+.combat-map-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.combat-map-meta span{padding:7px;border:1px solid rgba(56,189,248,.16);background:rgba(7,24,42,.42);font-size:10px;color:#8fb9d6;text-transform:uppercase}
+.combat-map-meta b{display:block;margin-top:3px;color:#dff6ff;font-size:12px}
+.combat-map-list{display:grid;gap:6px}
+.combat-map-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:8px 9px;border:1px solid rgba(56,189,248,.16);background:rgba(7,24,42,.38)}
+.combat-map-row.active{border-color:rgba(250,204,21,.48);background:rgba(113,63,18,.22)}
+.combat-map-row strong{font-size:12px;color:#e9f8ff;text-transform:uppercase;letter-spacing:.8px}
+.combat-map-row span{font-size:10px;color:#8fb9d6;text-transform:uppercase}
+.combat-map-row b{font-size:10px;color:#86efac;text-transform:uppercase}
+.combat-map-note{padding:8px 9px;border:1px solid rgba(245,222,196,.16);background:rgba(245,222,196,.045);font-size:11px;line-height:1.35;color:#b7c9d8}
 .group-panel-form{display:grid;grid-template-columns:1fr auto;gap:8px}
 .group-panel-form input{
   min-width:0;
@@ -248,6 +356,7 @@
   .top-nav{flex-wrap:wrap}.nav-tab{height:42px;min-width:auto}
   .banner{display:block}.pass-card{margin-top:10px;width:100%}
   .game-topbar{height:auto;align-items:flex-start;flex-direction:column}.combat-status{min-width:0;width:100%}.combat-wallet{margin-left:0}
-  .combat-utility-dock{top:auto;right:10px;bottom:124px}
+  .combat-utility-dock{top:auto;left:auto;right:10px;bottom:124px}
   .combat-utility-panel{top:auto;right:10px;bottom:174px;width:calc(100vw - 20px)}
+  .combat-utility-panel[data-utility-mode="map"]{left:10px;right:auto;width:calc(100vw - 20px)}
 }

@@ -48,8 +48,10 @@ export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget}
   for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(x+i*w/4,y+headerH); ctx.lineTo(x+i*w/4,y+h); ctx.stroke(); }
   for(let i=1;i<3;i++){ ctx.beginPath(); ctx.moveTo(x,y+headerH+i*(h-headerH)/3); ctx.lineTo(x+w,y+headerH+i*(h-headerH)/3); ctx.stroke(); }
 
-  ctx.fillStyle = "rgba(86,255,79,.55)";
-  ctx.beginPath(); ctx.arc(mapX(currentMap.spawn.x),mapY(currentMap.spawn.y),5,0,Math.PI*2); ctx.fill();
+  if(currentMap.spawn && currentMap.spawn.kind !== "portal"){
+    ctx.fillStyle = "rgba(86,255,79,.55)";
+    ctx.beginPath(); ctx.arc(mapX(currentMap.spawn.x),mapY(currentMap.spawn.y),5,0,Math.PI*2); ctx.fill();
+  }
   if(currentMap.portal){
     ctx.fillStyle = "rgba(168,85,247,.95)";
     ctx.beginPath(); ctx.arc(mapX(currentMap.portal.x),mapY(currentMap.portal.y),5,0,Math.PI*2); ctx.fill();

@@ -4,16 +4,19 @@ import { describeAmmo, getAmmoCooldown as readAmmoCooldown, setAmmoCooldown as w
 
 export function createCombatActions({
   ammoTypes,
+  droneFormations,
   store,
   getAmmo,
   getAmmoCount,
   getItem,
+  getDroneFormation,
   getEquippedExtras,
   getEquippedLauncher,
   canAfford,
   spend,
   addAmmo,
   saveState,
+  refreshPlayerStats,
   setActionSlot,
   showToast,
   updateHud,
@@ -26,16 +29,20 @@ export function createCombatActions({
   fireManualMissile
 }){
   let activeLaserSlot = null;
+  let selectedRocketAmmoId = null;
   let ammoCooldowns = {};
   let combatPanelTab = "ammo";
+  let combatPanelTabOffset = 0;
   let selectedMissileAmmoId = null;
   let missileLoaded = 0;
   let missileReload = 0;
 
   function reset(){
     activeLaserSlot = null;
+    selectedRocketAmmoId = null;
     ammoCooldowns = {};
     combatPanelTab = "ammo";
+    combatPanelTabOffset = 0;
     selectedMissileAmmoId = null;
     missileLoaded = 0;
     missileReload = 0;
@@ -53,6 +60,11 @@ export function createCombatActions({
     return getAmmo(store.state.actionSlots?.[index]);
   }
 
+  function getSelectedRocketAmmo(){
+    const ammo = getAmmo(selectedRocketAmmoId);
+    return ammo?.weaponClass === "rocket" ? ammo : null;
+  }
+
   function getCombatExtra(index){
     const item = getItem(store.state.actionSlots?.[index]);
     if(!item || item.category !== "extra") return null;
@@ -64,6 +76,12 @@ export function createCombatActions({
     if(item?.slotType !== "missileLauncher") return null;
     const launcher = getEquippedLauncher?.("missile");
     return launcher?.id === item.id ? item : null;
+  }
+
+  function getCombatDroneFormation(index){
+    const formation = getDroneFormation?.(store.state.actionSlots?.[index]);
+    if(!formation) return null;
+    return store.state.ownedDroneFormations?.includes(formation.id) ? formation : null;
   }
 
   function getAmmoCooldown(ammoOrId){
@@ -150,7 +168,7 @@ export function createCombatActions({
   function renderGameActionBar(){
     const el = document.getElementById("gameActionBar");
     const slots = Array.from({length:9}, (_,i)=>store.state.actionSlots?.[i] || null);
-    el.innerHTML = renderActionBarHtml({slots, slotKeybinds:store.state.slotKeybinds, getAmmo, getExtra:getCombatExtra, getCpu:getCombatCpu, getAmmoCount, missileState:getMissileLauncherState()});
+    el.innerHTML = renderActionBarHtml({slots, slotKeybinds:store.state.slotKeybinds, getAmmo, getExtra:getCombatExtra, getCpu:getCombatCpu, getFormation:getCombatDroneFormation, getAmmoCount, missileState:getMissileLauncherState()});
     updateGameActionBar();
   }
 
@@ -158,11 +176,14 @@ export function createCombatActions({
     const player = getPlayer();
     updateActionBarDom({
       activeLaserSlot,
+      selectedRocketAmmo:player.extraBonus?.autoRocket ? getSelectedRocketAmmo() : null,
       repairBotActive:player.repairBotActive,
       missileState:getMissileLauncherState(),
       getAmmo:getCombatAmmo,
       getExtra:getCombatExtra,
       getCpu:getCombatCpu,
+      getFormation:getCombatDroneFormation,
+      activeDroneFormation:store.state.activeDroneFormation,
       getRepairState,
       getAmmoCooldown,
       getEffectiveAmmoCooldown,
@@ -175,10 +196,13 @@ export function createCombatActions({
     const quickPanel = document.getElementById("combatQuickPanel");
     const content = document.getElementById("combatPanelContent");
     if(!quickPanel || !content) return;
-    updateQuickPanelTabs(quickPanel, combatPanelTab);
+    updateQuickPanelTabs(quickPanel, combatPanelTab, combatPanelTabOffset);
     content.innerHTML = renderQuickPanelContent({
       tab:combatPanelTab,
       ammoTypes,
+      droneFormations,
+      ownedDroneFormations:store.state.ownedDroneFormations || [],
+      activeDroneFormation:store.state.activeDroneFormation,
       extras:getEquippedExtras(store.state.activeShip),
       repairState:getRepairState(),
       repairBotActive:player.repairBotActive,
@@ -195,8 +219,19 @@ export function createCombatActions({
     const ammo = getCombatAmmo(index);
     const extra = getCombatExtra(index);
     const cpu = getCombatCpu(index);
+    const formation = getCombatDroneFormation(index);
     if(cpu){
       fireMissileLauncher();
+      return;
+    }
+    if(formation){
+      store.state.activeDroneFormation = formation.id;
+      saveState();
+      refreshPlayerStats?.();
+      renderCombatQuickPanel();
+      updateHud();
+      updateGameActionBar();
+      showToast(`${formation.name} activee.`);
       return;
     }
     if(extra){
@@ -214,7 +249,9 @@ export function createCombatActions({
     if(ammo.weaponClass === "missile") return selectMissileAmmo(ammo.id);
 
     if(ammo.weaponClass === "rocket"){
+      selectedRocketAmmoId = ammo.id;
       fireManualRocket(index, ammo);
+      updateGameActionBar();
       return;
     }
 
@@ -246,9 +283,9 @@ export function createCombatActions({
   function assignAmmoToActionSlot(index, ammoId){
     const ammo = getAmmo(ammoId);
     if(!ammo) return;
-    if(ammo.weaponClass === "missile") return selectMissileAmmo(ammo.id);
+    if(ammo.weaponClass === "rocket") selectedRocketAmmoId = ammo.id;
     setActionSlot(index, ammo.id);
-    if(ammo.weaponClass === "rocket" && activeLaserSlot === index) activeLaserSlot = null;
+    if((ammo.weaponClass === "rocket" || ammo.weaponClass === "missile") && activeLaserSlot === index) activeLaserSlot = null;
     saveState();
     renderGameActionBar();
     renderCombatQuickPanel();
@@ -265,6 +302,22 @@ export function createCombatActions({
     renderCombatQuickPanel();
     renderGameActionBar();
     showToast(`${ammo.name} charge dans le lance-missile.`);
+  }
+
+  function tryFireAutomaticMissile(){
+    const player = getPlayer();
+    if(!player.extraBonus?.autoMissile) return false;
+    const state = getMissileLauncherState();
+    if(!state.ready) return false;
+    const fired = fireManualMissile(state.ammo, state.capacity);
+    if(fired){
+      missileLoaded = 0;
+      missileReload = 0;
+      renderCombatQuickPanel();
+      updateGameActionBar();
+      return true;
+    }
+    return false;
   }
 
   function fireMissileLauncher(){
@@ -303,6 +356,8 @@ export function createCombatActions({
       if(!id || getAmmo(id)) return id;
       const item = getItem(id);
       if(item?.slotType === "missileLauncher" && getEquippedLauncher?.("missile")?.id === item.id) return id;
+      const formation = getDroneFormation?.(id);
+      if(formation && store.state.ownedDroneFormations?.includes(formation.id)) return id;
       return item?.category === "extra" && equippedExtraIds.has(item.id) ? id : null;
     });
   }
@@ -353,6 +408,20 @@ export function createCombatActions({
     showToast(`${item.name} place en slot ${index+1}.`);
   }
 
+  function assignDroneFormationToActionSlot(index, formationId){
+    const formation = getDroneFormation?.(formationId);
+    if(!formation) return;
+    if(!store.state.ownedDroneFormations?.includes(formation.id)){
+      return showToast(`${formation.name} doit etre achetee avant utilisation.`);
+    }
+    setActionSlot(index, formation.id);
+    if(activeLaserSlot === index) activeLaserSlot = null;
+    saveState();
+    renderGameActionBar();
+    renderCombatQuickPanel();
+    showToast(`${formation.name} placee en slot ${index+1}.`);
+  }
+
   function refreshOpenQuickPanel(dt, refreshState){
     const quickPanel = document.getElementById("combatQuickPanel");
     if(quickPanel && !quickPanel.classList.contains("hidden")){
@@ -369,8 +438,10 @@ export function createCombatActions({
     getActiveLaserSlot,
     setActiveLaserSlot,
     getCombatAmmo,
+    getSelectedRocketAmmo,
     getCombatExtra,
     getCombatCpu,
+    getCombatDroneFormation,
     getAmmoCooldown,
     setAmmoCooldown,
     getEffectiveAmmoCooldown,
@@ -382,13 +453,19 @@ export function createCombatActions({
     buyCombatAmmo,
     assignAmmoToActionSlot,
     selectMissileAmmo,
+    tryFireAutomaticMissile,
     fireMissileLauncher,
     assignMissileLauncherToActionSlot,
     cleanCombatActionSlots,
     moveActionSlot,
     clearActionSlot,
     assignExtraToActionSlot,
+    assignDroneFormationToActionSlot,
     setCombatPanelTab:value=>{ combatPanelTab = value; },
+    shiftCombatPanelTabs:value=>{
+      const maxOffset = Math.max(0, document.querySelectorAll("#combatQuickPanel [data-combat-panel-tab]").length - 5);
+      combatPanelTabOffset = Math.max(0, Math.min(maxOffset, combatPanelTabOffset + Number(value || 0)));
+    },
     refreshOpenQuickPanel
   };
 }

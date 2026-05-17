@@ -40,7 +40,7 @@ function renderExtrasPanel({extras, repairState, repairBotActive, extraBonus, re
       </article>`;
     }
     if(effect.repairBotAuto){
-      const status = extraBonus?.repairBot ? `Surveille le Robot Réparateur · délai ${repairBotDelay}s` : "Équipe aussi le Robot Réparateur pour l'utiliser.";
+      const status = extraBonus?.repairBot ? `Surveille le Drone de Réparation IA · délai ${repairBotDelay}s` : "Équipe aussi le Drone de Réparation IA pour l'utiliser.";
       return `<article class="combat-pick-card">
         <img class="combat-extra-icon" src="${item.img}" alt="${item.name}">
         <div><strong>${item.name}</strong><span>${item.stats?.extra || "Activation automatique"}</span><small>${status}</small></div>
@@ -55,11 +55,25 @@ function renderExtrasPanel({extras, repairState, repairBotActive, extraBonus, re
   }).join("")}</div>`;
 }
 
+function renderFormationsPanel({droneFormations, ownedDroneFormations, activeDroneFormation}){
+  return `<div class="combat-panel-grid">${droneFormations.map(formation=>{
+    const owned = ownedDroneFormations?.includes(formation.id);
+    const active = activeDroneFormation === formation.id;
+    const disabled = !owned;
+    const status = active ? "Actif" : owned ? "Désactivé" : "À acheter au magasin drones";
+    return `<button class="combat-pick-card ${disabled ? "disabled" : ""}" draggable="${owned ? "true" : "false"}" data-combat-drone-formation="${formation.id}" type="button">
+      <img class="combat-extra-icon" src="${formation.img}" alt="${formation.name}">
+      <div><strong>${formation.name}</strong><span>${formation.stats?.bonus || "Aucun bonus"}</span><small>${status} · ${formation.stats?.malus || "Aucun malus"}</small></div>
+      <span class="badge">${active ? "ACTIF" : owned ? "DÉSACTIVÉ" : "LOCK"}</span>
+    </button>`;
+  }).join("")}</div>`;
+}
+
 function renderShopPanel({ammoTypes, canAfford, getAmmoCount}){
   return `<div class="combat-panel-grid">${ammoTypes.map(ammo=>{
     const stock = getAmmoCount ? getAmmoCount(ammo.id) : 0;
     const subtitle = ammo.weaponClass === "missile"
-      ? `${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)} dégâts - ${ammo.range} portée - 3 missiles / salve`
+      ? `${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)} dégâts - ${ammo.range} portée`
       : ammo.weaponClass === "rocket"
       ? `${ammo.damageMin}-${ammo.damageMax} - ${ammo.range} portée - 1 roquette / tir`
       : `Multiplicateur x${ammo.multiplier}`;
@@ -80,10 +94,10 @@ function renderAmmoPanel({ammoTypes, getAmmoCount, laserVolleyCount}){
     const subtitle = ammo.weaponClass === "missile"
       ? `Stock ${fmt(count)} · charge le lance-missile`
       : ammo.weaponClass === "rocket"
-      ? `Stock ${fmt(count)} · 1 roquette / tir · ${ammo.cooldown.toFixed(0)}s`
+      ? `Stock ${fmt(count)} · 1 roquette / tir`
       : `Stock ${fmt(count)} · ${laserVolleyCount || 1} conso / salve`;
     const detail = ammo.weaponClass === "missile"
-      ? `${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)} dégâts par missile · 3 consommés par salve`
+      ? `${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)} dégâts par missile`
       : ammo.weaponClass === "rocket"
         ? `${ammo.damageMin}-${ammo.damageMax} dégâts · ${ammo.range} portée`
         : `Glisse dans un slot 1-9 - Multiplicateur x${ammo.multiplier} - Pack ${fmt(ammo.amount)}`;
@@ -94,14 +108,20 @@ function renderAmmoPanel({ammoTypes, getAmmoCount, laserVolleyCount}){
   }).join("")}</div>`;
 }
 
-export function renderQuickPanelContent({tab, ammoTypes, extras, repairState, repairBotActive, extraBonus, repairBotDelay, canAfford, getAmmoCount, laserVolleyCount, missileState}){
+export function renderQuickPanelContent({tab, ammoTypes, extras, droneFormations, ownedDroneFormations, activeDroneFormation, repairState, repairBotActive, extraBonus, repairBotDelay, canAfford, getAmmoCount, laserVolleyCount, missileState}){
   if(tab === "skills") return `<div class="combat-empty">Les compétences de vaisseau seront branchées ici.</div>`;
   if(tab === "cpu") return renderCpuPanel({missileState});
   if(tab === "extras") return renderExtrasPanel({extras, repairState, repairBotActive, extraBonus, repairBotDelay});
+  if(tab === "formations") return renderFormationsPanel({droneFormations, ownedDroneFormations, activeDroneFormation});
   if(tab === "shop") return renderShopPanel({ammoTypes, canAfford, getAmmoCount});
   return renderAmmoPanel({ammoTypes, getAmmoCount, laserVolleyCount});
 }
 
-export function updateQuickPanelTabs(panel, activeTab){
-  panel.querySelectorAll("[data-combat-panel-tab]").forEach(btn=>btn.classList.toggle("active", btn.dataset.combatPanelTab === activeTab));
+export function updateQuickPanelTabs(panel, activeTab, tabOffset = 0){
+  const tabs = Array.from(panel.querySelectorAll("[data-combat-panel-tab]"));
+  const start = Math.min(Math.max(0, tabOffset), Math.max(0, tabs.length - 5));
+  tabs.forEach((btn,index)=>{
+    btn.classList.toggle("active", btn.dataset.combatPanelTab === activeTab);
+    btn.classList.toggle("hidden", index < start || index >= start + 5);
+  });
 }

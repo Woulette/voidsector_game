@@ -1,5 +1,5 @@
 import { consumeMaterial, consumeShipCargoMaterial, getMaterialCount, getShipCargo } from "./cargoStore.js";
-import { getAmmo, getDroneCatalog, getItem, getShip, store } from "./store.js";
+import { getAmmo, getDroneCatalog, getDroneFormation, getItem, getShip, store } from "./store.js";
 export function getInventoryItem(uid){ return store.state?.inventoryItems?.find(entry=>entry.uid === uid) || null; }
 export function getItemFromInventoryUid(uid){ return getItem(getInventoryItem(uid)?.itemId); }
 function getItemFromInventoryUidIn(uid, inventoryItems = store.state?.inventoryItems || []){
@@ -106,7 +106,7 @@ export function consumeAmmo(id, amount){
 function isValidActionSlotItem(id){
   if(getAmmo(id)) return true;
   const item = getItem(id);
-  return item.category === "extra";
+  return item?.category === "extra" || Boolean(getDroneFormation(id));
 }
 
 export function setActionSlot(index, itemId){
@@ -217,7 +217,7 @@ export function unequipInventoryItem(uid){
 export function getInventoryByCategory(category){
   return store.state.inventoryItems
     .map(entry=>({...entry, item:getItem(entry.itemId), equipped:findEquippedSlot(entry.uid)}))
-    .filter(entry=>entry.item.category === category);
+    .filter(entry=>entry.item?.category === category);
 }
 
 export function getLoadout(shipId = store.state.activeShip){
@@ -232,4 +232,3 @@ export function ensureShipLoadout(shipId){
   store.state.shipLoadouts[shipId] = cleanLoadout(shipId, store.state.shipLoadouts[shipId]);
   return store.state.shipLoadouts[shipId];
 }
-

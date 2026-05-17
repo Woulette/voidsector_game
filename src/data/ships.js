@@ -1,5 +1,15 @@
 export const ships = [
   {
+    id:"test_runner",
+    name:"Test Runner",
+    className:"Prototype de déplacement",
+    img:"assets/ships/Orion.png",
+    priceType:"credits",
+    price:0,
+    stats:{vie:20000, vitesse:502.3255813953488, cargo:5000, maxLasers:8, maxGenerators:10, maxExtras:5},
+    special:null
+  },
+  {
     id:"orion",
     name:"Orion",
     className:"Chasseur polyvalent",

@@ -1,4 +1,4 @@
-import { ammoTypes, droneCatalog, equipment, ships } from "../data/catalog.js";
+import { ammoTypes, droneCatalog, droneFormations, equipment, ships } from "../data/catalog.js";
 import { fmt } from "../core/utils.js";
 import {
   canAfford,
@@ -16,7 +16,8 @@ function shopCatalog(){
     ...ships.map(ship=>({kind:"ship", category:"vaisseau", id:ship.id, data:ship})),
     ...equipment.filter(item=>item.shop !== false).map(item=>({kind:"item", category:item.shopCategory || item.category, id:item.id, data:item})),
     ...ammoTypes.map(ammo=>({kind:"ammo", category:"munition", id:ammo.id, data:ammo})),
-    ...droneCatalog.map(drone=>({kind:"drone", category:"drone", id:drone.id, data:drone}))
+    ...droneCatalog.map(drone=>({kind:"drone", category:"drone", id:drone.id, data:drone})),
+    ...droneFormations.map(formation=>({kind:"droneFormation", category:"drone", id:formation.id, data:formation}))
   ];
 }
 
@@ -24,6 +25,7 @@ function productIsOwned(product){
   if(product.kind === "ship") return store.state.ownedShips.includes(product.id);
   if(product.kind === "ammo") return getAmmoCount(product.id) > 0;
   if(product.kind === "drone") return (store.state.ownedDroneCount || 0) > 0;
+  if(product.kind === "droneFormation") return store.state.ownedDroneFormations?.includes(product.id);
   return getInventoryCount(product.id) > 0;
 }
 
@@ -49,6 +51,14 @@ const SHOP_FILTER_META = {
 };
 
 function productKey(product){ return `${product.kind}:${product.id}`; }
+function shopAmmoMultiplier(){ return [1, 10, 100, 1000].includes(Number(store.selectedShopAmmoMultiplier)) ? Number(store.selectedShopAmmoMultiplier) : 1; }
+function renderAmmoPurchaseControls(ammo){
+  const selected = shopAmmoMultiplier();
+  return `<div class="shop-ammo-buy-options">
+    ${[1,10,100,1000].map(value=>`<button type="button" class="${selected === value ? "active" : ""}" data-shop-ammo-multiplier="${value}">x${fmt(value)}</button>`).join("")}
+    <small>${fmt(ammo.amount * selected)} unités</small>
+  </div>`;
+}
 function shipStateLabel(ship){ return store.state.activeShip === ship.id ? "ACTIF" : store.state.ownedShips.includes(ship.id) ? "POSSÉDÉ" : "DISPONIBLE"; }
 
 function productDetailStats(product){
@@ -68,19 +78,15 @@ function productDetailStats(product){
     const ammo = product.data;
     if(ammo.weaponClass === "missile"){
       return [
-        `Pack ${fmt(ammo.amount)} unités`,
         `DÉGÂTS ${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)}`,
         `PORTÉE ${ammo.range}`,
-        `CONSO 3 par salve`,
         `Stock ${fmt(getAmmoCount(ammo.id))}`
       ];
     }
     if(ammo.weaponClass === "rocket"){
       return [
-        `Pack ${fmt(ammo.amount)} unités`,
-        `Dégâts ${ammo.damageMin}-${ammo.damageMax}`,
-        `Portée ${ammo.range}`,
-        `Cadence ${ammo.cooldown.toFixed(2)}s`,
+        `DÉGÂTS ${ammo.damageMin}-${ammo.damageMax}`,
+        `PORTÉE ${ammo.range}`,
         `Stock ${fmt(getAmmoCount(ammo.id))}`
       ];
     }
@@ -135,6 +141,12 @@ function productDetailStats(product){
     lines.push("SLOT VAISSEAU / DRONE");
     return lines;
   }
+  if(item.category === "extra"){
+    return [
+      `EFFET ${item.stats?.extra || "Bonus passif"}`,
+      "SLOT EXTRA VAISSEAU"
+    ];
+  }
   return statLabelForItem(item).split(" · ");
 }
 
@@ -170,10 +182,23 @@ function shopItemStatsHtml(item){
     if(Number(item.stats?.vitesse || 0) > 0) lines.push(`<span><b>Vitesse</b>+${fmt(item.stats.vitesse)}</span>`);
     return `<div class="shop-item-stat-lines">${lines.join("")}</div>`;
   }
+  if(item.category === "extra"){
+    return `<div class="shop-item-stat-lines">
+      <span><b>Effet</b>${item.stats?.extra || "Bonus passif"}</span>
+      <span><b>Slot</b>Extra vaisseau</span>
+    </div>`;
+  }
   return `<p>${statLabelForItem(item)}</p>`;
 }
 
 function shopAmmoStatsHtml(ammo){
+  if(ammo.weaponClass === "rocket" || ammo.weaponClass === "missile"){
+    return `<div class="shop-item-stat-lines">
+      <span><b>Dégâts</b>${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)}</span>
+      <span><b>Portée</b>${fmt(ammo.range)}</span>
+      <span><b>Stock</b>${fmt(getAmmoCount(ammo.id))}</span>
+    </div>`;
+  }
   if(ammo.weaponClass !== "laser") return "";
   return `<div class="shop-item-stat-lines">
       <span><b>Multiplicateur</b>x${ammo.multiplier}</span>
@@ -183,7 +208,7 @@ function shopAmmoStatsHtml(ammo){
 }
 
 function renderShopDetailStat(line){
-  const match = String(line).match(/^(BOUCLIER|REGENERATION|VITESSE|PACK|MULTIPLICATEUR|STOCK)\s+(.+)$/i) || String(line).match(/^(D\S+(?:\s+ROQUETTE|\s+MISSILE)?|PORT\S+E|CADENCE|RECHARGE|CAPACIT\S+|RECHARGE TOTALE)\s+(.+)$/);
+  const match = String(line).match(/^(BOUCLIER|REGENERATION|VITESSE|PACK|MULTIPLICATEUR|STOCK|EFFET|SLOT)\s+(.+)$/i) || String(line).match(/^(D\S+(?:\s+ROQUETTE|\s+MISSILE)?|PORT\S+[E\u00c9]|CADENCE|RECHARGE|CAPACIT\S+|RECHARGE TOTALE)\s+(.+)$/);
   if(match){
     return `<div class="shop-detail-stat featured"><b>${String(match[1]).toUpperCase()}</b><strong>${match[2]}</strong></div>`;
   }
@@ -194,6 +219,7 @@ function productStatusText(product){
   if(product.kind === "ship") return shipStateLabel(product.data);
   if(product.kind === "ammo") return `Stock ${fmt(getAmmoCount(product.id))}`;
   if(product.kind === "drone") return `${store.state.ownedDroneCount || 0} possédé(s)`;
+  if(product.kind === "droneFormation") return store.state.activeDroneFormation === product.id ? "ACTIVE" : store.state.ownedDroneFormations?.includes(product.id) ? "POSSÉDÉE" : "DISPONIBLE";
   const ownedCount = getInventoryCount(product.id);
   return ownedCount > 0 ? `${ownedCount} possédé${ownedCount > 1 ? "s" : ""}` : "Non possédé";
 }
@@ -216,11 +242,8 @@ function renderShopListCard(product, selected){
   }
   if(product.kind === "ammo"){
     const ammo = product.data;
-    const secondary = ammo.weaponClass === "missile"
-      ? `${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)} dégâts - ${ammo.range} portée - 3 par salve`
-      : ammo.weaponClass === "rocket" ? `${ammo.damageMin}-${ammo.damageMax} dégâts - ${ammo.range} portée` : "";
     const ammoTag = ammo.weaponClass === "missile" ? "MIS" : ammo.weaponClass === "rocket" ? "RKT" : `x${ammo.multiplier}`;
-    const ammoStats = ammo.weaponClass === "laser" ? shopAmmoStatsHtml(ammo) : `<p>${secondary}</p>`;
+    const ammoStats = shopAmmoStatsHtml(ammo);
     return `<article class="shop-list-card ${selected ? "selected" : ""} ${getAmmoCount(ammo.id) ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
       <div class="shop-list-art ammo">${ammo.img ? `<img class="ammo-product-img" src="${ammo.img}" alt="${ammo.name}">` : `<div class="ammo-product-art" style="--ammo-color:${ammo.color}"><b>${ammo.short}</b><span>${ammoTag}</span></div>`}</div>
       <div class="shop-list-copy">
@@ -242,6 +265,18 @@ function renderShopListCard(product, selected){
         <p>1 slot par drone · max ${drone.maxOwned}</p>
         <div class="shop-list-meta"><span>${productStatusText(product)}</span><strong>${next ? priceLabel(drone.priceType, next) : "MAX"}</strong></div>
         <div class="shop-list-meta"><span>Prix x2 à chaque achat</span>${lockBadge}</div>
+      </div>
+    </article>`;
+  }
+  if(product.kind === "droneFormation"){
+    const formation = product.data;
+    const owned = store.state.ownedDroneFormations?.includes(formation.id);
+    return `<article class="shop-list-card ${selected ? "selected" : ""} ${owned ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
+      <div class="shop-list-art"><img src="${formation.img}" alt="${formation.name}"></div>
+      <div class="shop-list-copy">
+        <div class="shop-list-head"><h4>${formation.name}</h4><span class="badge">${formation.rarity}</span></div>
+        <div class="shop-item-stat-lines"><span><b>Bonus</b>${formation.stats.bonus}</span><span><b>Malus</b>${formation.stats.malus}</span></div>
+        <div class="shop-list-meta"><span>${productStatusText(product)}</span><strong>${owned ? "OK" : priceLabel(formation.priceType, formation.price)}</strong></div>
       </div>
     </article>`;
   }
@@ -293,7 +328,8 @@ function renderShopDetail(product){
       <p class="shop-detail-copy">${ammo.desc}</p>
       ${lockHtml}
       <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
-      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix</small><strong>${priceLabel(ammo.priceType, ammo.price)}</strong></div><button class="blue-button" data-buy-ammo="${ammo.id}" ${(!canAfford(ammo.priceType, ammo.price)) ? "disabled" : ""}>ACHETER</button></div>`;
+      ${renderAmmoPurchaseControls(ammo)}
+      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix</small><strong>${priceLabel(ammo.priceType, ammo.price * shopAmmoMultiplier())}</strong></div><button class="blue-button" data-buy-ammo="${ammo.id}" data-buy-ammo-multiplier="${shopAmmoMultiplier()}" ${(!canAfford(ammo.priceType, ammo.price * shopAmmoMultiplier())) ? "disabled" : ""}>ACHETER</button></div>`;
     return;
   }
   if(product.kind === "drone"){
@@ -308,6 +344,22 @@ function renderShopDetail(product){
       ${lockHtml}
       <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
       <div class="shop-detail-footer"><div class="shop-detail-price"><small>Suivant</small><strong>${next ? priceLabel(drone.priceType, next) : "MAX"}</strong></div><button class="blue-button" data-buy-combat-drone ${(!next || !canAfford(drone.priceType, next)) ? "disabled" : ""}>${next ? "ACHETER" : "MAX"}</button></div>`;
+    return;
+  }
+  if(product.kind === "droneFormation"){
+    const formation = product.data;
+    const owned = store.state.ownedDroneFormations?.includes(formation.id);
+    const active = store.state.activeDroneFormation === formation.id;
+    detail.innerHTML = `
+      <div class="shop-detail-top"><span class="badge">FORMATION DRONE</span><span class="badge">${formation.rarity}</span></div>
+      <div class="shop-detail-art"><img src="${formation.img}" alt="${formation.name}"></div>
+      <h3>${formation.name}</h3>
+      <p class="shop-detail-copy">${formation.desc}</p>
+      <div class="shop-detail-stats">
+        ${renderShopDetailStat(`EFFET ${formation.stats.bonus}`)}
+        ${renderShopDetailStat(`MALUS ${formation.stats.malus}`)}
+      </div>
+      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Statut</small><strong>${active ? "ACTIVE" : owned ? "POSSÉDÉE" : priceLabel(formation.priceType, formation.price)}</strong></div><button class="blue-button" data-buy-drone-formation="${formation.id}" ${(!owned && !canAfford(formation.priceType, formation.price)) ? "disabled" : ""}>${active ? "ACTIVE" : owned ? "ACTIVER" : "ACHETER"}</button></div>`;
     return;
   }
   const item = product.data;

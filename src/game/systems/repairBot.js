@@ -16,7 +16,7 @@ export function createRepairBotSystem({
 
   function canActivate(){
     const player = getPlayer();
-    if(!player.extraBonus?.repairBot) return {ok:false, reason:"Aucun Robot Réparateur équipé."};
+    if(!player.extraBonus?.repairBot) return {ok:false, reason:"Aucun Drone de Réparation IA équipé."};
     if(player.hp >= player.maxHp) return {ok:false, reason:"Ta coque est déjà au maximum."};
     const remain = Math.max(0, getDelay() - Number(player.secondsSinceDamage || 0));
     if(remain > 0) return {ok:false, reason:`Réparation bloquée : attente ${remain.toFixed(1).replace(".", ",")}s.`};
@@ -28,7 +28,7 @@ export function createRepairBotSystem({
     const wasActive = !!player.repairBotActive;
     player.repairBotActive = false;
     player.repairBotTickTimer = 0;
-    if(!silent && wasActive) showToast("Robot réparateur désactivé.");
+    if(!silent && wasActive) showToast("Drone de réparation IA désactivé.");
   }
 
   function activate(manual = false){
@@ -41,7 +41,7 @@ export function createRepairBotSystem({
     if(player.repairBotActive) return true;
     player.repairBotActive = true;
     player.repairBotTickTimer = 0;
-    showToast(manual ? "Robot réparateur activé." : "IA d'auto-réparation : robot activé.");
+    showToast(manual ? "Drone de réparation IA activé." : "IA d'auto-réparation : drone activé.");
     return true;
   }
 
@@ -80,7 +80,25 @@ export function createRepairBotSystem({
           color:"rgba(134,239,172,",
           shadowColor:"rgba(34,197,94,.85)"
         });
-        getParticles().push({x:player.x, y:player.y - 18, life:.35, max:.35, size:20, color:"rgba(34,197,94,.55)"});
+        for(let i = 0; i < 5; i++){
+          const angle = -Math.PI / 2 + (Math.random() - .5) * 1.4;
+          const speed = 24 + Math.random() * 42;
+          const life = .75 + Math.random() * .35;
+          getParticles().push({
+            kind:"repairPlus",
+            followPlayer:true,
+            offsetX:(Math.random() - .5) * 76,
+            offsetY:-18 + (Math.random() - .5) * 54,
+            vx:Math.cos(angle) * speed,
+            vy:Math.sin(angle) * speed - 18,
+            life,
+            max:life,
+            size:12 + Math.random() * 7,
+            angle:(Math.random() - .5) * .45,
+            spin:(Math.random() - .5) * 1.4,
+            color:"rgba(20,255,70,1)"
+          });
+        }
       }
     }
   }

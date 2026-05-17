@@ -6,6 +6,7 @@ import {
   ensureShipLoadout,
   findEquippedSlot,
   getDroneCatalog,
+  getDroneFormation,
   getDroneLoadout,
   getDronePurchasePrice,
   getInventoryItem,
@@ -77,13 +78,16 @@ function buyItem(id){
   renderAll();
 }
 
-function buyAmmo(id){
+function buyAmmo(id, multiplier = 1){
   const ammo = ammoTypes.find(a=>a.id === id);
   if(!ammo) return;
-  if(!canAfford(ammo.priceType, ammo.price)) return showToast("Fonds insuffisants.");
-  spend(ammo.priceType, ammo.price);
-  addAmmo(ammo.id, ammo.amount);
-  showToast(`${ammo.name} achetée : +${ammo.amount} munitions.`);
+  const count = [1, 10, 100, 1000].includes(Number(multiplier)) ? Number(multiplier) : 1;
+  const price = ammo.price * count;
+  const amount = ammo.amount * count;
+  if(!canAfford(ammo.priceType, price)) return showToast("Fonds insuffisants.");
+  spend(ammo.priceType, price);
+  addAmmo(ammo.id, amount);
+  showToast(`${ammo.name} achetée : +${amount.toLocaleString("fr-FR")} munitions.`);
   renderAll();
 }
 
@@ -99,6 +103,23 @@ function buyCombatDrone(){
   while(loadout.length < store.state.ownedDroneCount) loadout.push(null);
   store.hangarTab = "drone";
   showToast(`Drone ${store.state.ownedDroneCount} acheté pour ${price.toLocaleString("fr-FR")} crédits.`);
+  renderAll();
+}
+
+function buyDroneFormation(id){
+  const formation = getDroneFormation(id);
+  if(!formation) return;
+  if(!Array.isArray(store.state.ownedDroneFormations)) store.state.ownedDroneFormations = [];
+  const owned = store.state.ownedDroneFormations.includes(id);
+  if(!owned){
+    if(!canAfford(formation.priceType, formation.price)) return showToast("Fonds insuffisants.");
+    spend(formation.priceType, formation.price);
+    store.state.ownedDroneFormations.push(id);
+    showToast(`${formation.name} achetée.`);
+  }else{
+    showToast(`${formation.name} activée.`);
+  }
+  store.state.activeDroneFormation = id;
   renderAll();
 }
 
@@ -302,13 +323,23 @@ document.addEventListener("click", (e)=>{
   if(itemBtn){ buyItem(itemBtn.dataset.buyItem); return; }
 
   const ammoBtn = e.target.closest("[data-buy-ammo]");
-  if(ammoBtn){ buyAmmo(ammoBtn.dataset.buyAmmo); return; }
+  if(ammoBtn){ buyAmmo(ammoBtn.dataset.buyAmmo, ammoBtn.dataset.buyAmmoMultiplier); return; }
+
+  const shopAmmoMultiplier = e.target.closest("[data-shop-ammo-multiplier]");
+  if(shopAmmoMultiplier){
+    store.selectedShopAmmoMultiplier = Number(shopAmmoMultiplier.dataset.shopAmmoMultiplier) || 1;
+    renderShop();
+    return;
+  }
 
   const shipBuy = e.target.closest("[data-buy-shop-ship]");
   if(shipBuy){ buyShip(shipBuy.dataset.buyShopShip); return; }
 
   const droneBuy = e.target.closest("[data-buy-combat-drone]");
   if(droneBuy){ buyCombatDrone(); return; }
+
+  const droneFormationBuy = e.target.closest("[data-buy-drone-formation]");
+  if(droneFormationBuy){ buyDroneFormation(droneFormationBuy.dataset.buyDroneFormation); return; }
 
   const skillCard = e.target.closest("[data-unlock-skill]");
   if(skillCard){ unlockSkill(skillCard.dataset.unlockSkill); return; }
@@ -447,6 +478,7 @@ document.addEventListener("click", (e)=>{
   if(shopFilterBtn){
     store.shopFilter = shopFilterBtn.dataset.filterShop;
     store.selectedShopProduct = null;
+    store.selectedShopAmmoMultiplier = 1;
     renderShop();
     return;
   }
@@ -454,6 +486,7 @@ document.addEventListener("click", (e)=>{
   const shopSelect = e.target.closest("[data-select-shop]");
   if(shopSelect){
     store.selectedShopProduct = shopSelect.dataset.selectShop;
+    store.selectedShopAmmoMultiplier = 1;
     renderShop();
     return;
   }

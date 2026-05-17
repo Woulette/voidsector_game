@@ -44,6 +44,10 @@
 .shop-detail-stat.featured{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:52px;background:linear-gradient(180deg,rgba(10,32,54,.82),rgba(3,14,27,.86));border-color:rgba(56,189,248,.22);box-shadow:inset 0 0 18px rgba(56,189,248,.045)}
 .shop-detail-stat.featured b{color:#8ee7ff;font-size:11px;text-transform:uppercase;letter-spacing:.9px}
 .shop-detail-stat.featured strong{color:#e8f8ff;font-size:18px;line-height:1}
+.shop-ammo-buy-options{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;align-items:center}
+.shop-ammo-buy-options button{min-height:34px;border:1px solid rgba(56,189,248,.28);background:rgba(5,22,39,.78);color:#8ee7ff;font-weight:900;letter-spacing:.7px;cursor:pointer}
+.shop-ammo-buy-options button.active{border-color:rgba(250,204,21,.85);color:#facc15;background:rgba(250,204,21,.10);box-shadow:0 0 14px rgba(250,204,21,.14)}
+.shop-ammo-buy-options small{grid-column:1/-1;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.7px}
 .shop-detail-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:auto;padding-top:10px;border-top:1px solid rgba(56,189,248,.14)}
 .shop-detail-price{display:grid;gap:4px}.shop-detail-price small{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.9px}.shop-detail-price strong{font-size:24px}
 .shop-detail-empty{display:grid;place-items:center;text-align:center;gap:6px;height:100%;color:var(--muted)}

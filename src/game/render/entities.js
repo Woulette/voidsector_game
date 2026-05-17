@@ -7,6 +7,26 @@ function colorWithAlpha(color, alpha, fallback = "rgba(255,255,255,1)"){
   return color;
 }
 
+function easeOutCubic(value){
+  const t = Math.max(0, Math.min(1, value));
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function drawImpactSpark(ctx, effect, spark, progress, alpha, scale = 1){
+  const travel = spark.speed * easeOutCubic(progress) * scale;
+  const x = effect.x + Math.cos(spark.angle) * travel;
+  const y = effect.y + Math.sin(spark.angle) * travel;
+  const tail = spark.length * (1 - progress * .35) * scale;
+  ctx.strokeStyle = colorWithAlpha(spark.color || effect.color, alpha * spark.alpha, "rgba(255,255,255,.8)");
+  ctx.shadowColor = colorWithAlpha(spark.color || effect.color, alpha * .72, "rgba(255,255,255,.7)");
+  ctx.shadowBlur = 7 * scale;
+  ctx.lineWidth = Math.max(.7, spark.width * (1 - progress * .45) * scale);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x - Math.cos(spark.angle) * tail, y - Math.sin(spark.angle) * tail);
+  ctx.stroke();
+}
+
 export function drawProjectiles({ctx, camera, cache, bullets}){
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
@@ -137,7 +157,6 @@ export function drawBeams({ctx, camera, beams}){
   ctx.translate(-camera.x, -camera.y);
   ctx.globalCompositeOperation = "lighter";
   ctx.lineCap = "round";
-  const easeOutCubic = value=>1 - Math.pow(1 - Math.max(0, Math.min(1, value)), 3);
   function strokeBeam({fromX, fromY, toX, toY, color, shadowColor, alpha, width, blur}){
     ctx.strokeStyle = color;
     ctx.globalAlpha = alpha;
@@ -203,10 +222,89 @@ export function drawBeams({ctx, camera, beams}){
   ctx.restore();
 }
 
-export function drawParticles({ctx, camera, particles}){
+export function drawImpactEffects({ctx, camera, impactEffects}){
+  if(!impactEffects?.length) return;
+  ctx.save();
+  ctx.translate(-camera.x, -camera.y);
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+  for(const effect of impactEffects){
+    if(effect.delay > 0) continue;
+    const progress = 1 - Math.max(0, effect.life) / Math.max(.001, effect.max);
+    const alpha = Math.max(0, effect.life / Math.max(.001, effect.max));
+    const radius = effect.radius || 28;
+    const color = effect.color || "rgba(125,211,252,.9)";
+    const core = effect.core || "rgba(255,255,255,.95)";
+
+    if(effect.kind === "laser"){
+      const ring = 7 + easeOutCubic(progress) * radius;
+      ctx.strokeStyle = colorWithAlpha(color, alpha * .78, "rgba(125,211,252,.78)");
+      ctx.shadowColor = colorWithAlpha(color, alpha, "rgba(125,211,252,1)");
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 1.7 * alpha;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, ring, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = colorWithAlpha(core, alpha, "rgba(255,255,255,1)");
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, 2.5 + alpha * 5, 0, Math.PI * 2);
+      ctx.fill();
+      for(const spark of effect.sparks || []) drawImpactSpark(ctx, effect, spark, progress, alpha, 1);
+      continue;
+    }
+
+    const isMissile = effect.kind === "missile";
+    const shock = 10 + easeOutCubic(progress) * radius;
+    ctx.strokeStyle = colorWithAlpha(color, alpha * (isMissile ? .52 : .46), "rgba(255,180,72,.46)");
+    ctx.shadowColor = colorWithAlpha(color, alpha * .82, "rgba(255,180,72,.82)");
+    ctx.shadowBlur = isMissile ? 18 : 15;
+    ctx.lineWidth = (isMissile ? 2.2 : 2.6) * alpha;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, shock, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const flashRadius = (isMissile ? 12 : 10) + radius * .28 * (1 - progress);
+    const gradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, flashRadius);
+    gradient.addColorStop(0, colorWithAlpha(core, alpha, "rgba(255,255,255,1)"));
+    gradient.addColorStop(.38, colorWithAlpha(color, alpha * .58, "rgba(255,180,72,.58)"));
+    gradient.addColorStop(1, colorWithAlpha(color, 0, "rgba(255,180,72,0)"));
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = colorWithAlpha(color, alpha, "rgba(255,180,72,1)");
+    ctx.shadowBlur = isMissile ? 24 : 20;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, flashRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    for(const spark of effect.sparks || []) drawImpactSpark(ctx, effect, spark, progress, alpha, isMissile ? 1.08 : 1);
+
+    if(effect.smoke?.length){
+      ctx.globalCompositeOperation = "source-over";
+      for(const smoke of effect.smoke || []){
+        const drift = smoke.speed * progress;
+        const sx = effect.x + Math.cos(smoke.angle) * drift;
+        const sy = effect.y + Math.sin(smoke.angle) * drift;
+        ctx.fillStyle = `rgba(100,116,139,${alpha * smoke.alpha})`;
+        ctx.shadowColor = `rgba(148,163,184,${alpha * smoke.alpha * .55})`;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(sx, sy, smoke.size * (.55 + progress), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+      ctx.globalCompositeOperation = "lighter";
+    }
+  }
+  ctx.restore();
+}
+
+export function drawParticles({ctx, camera, particles, repairLayer = false}){
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
   for(const particle of particles){
+    const isRepairPlus = particle.kind === "repairPlus";
+    if(repairLayer !== isRepairPlus) continue;
     const alpha = Math.max(0, particle.life / particle.max);
     const color = particle.color?.replace ? particle.color.replace(/,[\d.]+\)$/g, `,${alpha})`) : `rgba(125,211,252,${alpha})`;
     ctx.fillStyle = color;
@@ -218,6 +316,20 @@ export function drawParticles({ctx, camera, particles}){
       ctx.beginPath();
       ctx.ellipse(0, 0, Math.max(1.2, particle.size * .55 * alpha), Math.max(2.4, particle.size * 1.8 * alpha), 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+    }else if(particle.kind === "repairPlus"){
+      const size = Math.max(4, particle.size * (.55 + alpha * .45));
+      const arm = size * .38;
+      const thick = Math.max(2, size * .16);
+      ctx.save();
+      ctx.translate(particle.x, particle.y);
+      ctx.rotate((particle.angle || 0) + (particle.spin || 0) * (1 - alpha));
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = color;
+      ctx.shadowColor = "rgba(20,255,70,1)";
+      ctx.shadowBlur = 13 * alpha;
+      ctx.fillRect(-thick / 2, -arm, thick, arm * 2);
+      ctx.fillRect(-arm, -thick / 2, arm * 2, thick);
       ctx.restore();
     }else{
       ctx.beginPath();

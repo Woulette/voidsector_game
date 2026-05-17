@@ -1,18 +1,20 @@
 export { ships } from "./ships.js";
-export { ammoTypes, droneCatalog, equipment } from "./equipment.js";
+export { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js";
 export { pageText, portals, questCatalog, rawMaterialCatalog, refineryRecipes, skills } from "./progression.js";
 
 export const defaultState = {
   player:{name:"NOVA-37", level:1, xp:0, xpNext:100, credits:85000, premium:20, skillPoints:3, totalXp:0, totalKills:0, rankScore:0},
   activeShip:"orion",
   selectedShip:"orion",
-  ownedShips:["orion"],
+  ownedShips:["orion", "test_runner"],
   ownedItems:["laser_mk1"],
   inventoryItems:[{uid:"inv_laser_mk1_1", itemId:"laser_mk1"}],
   nextInventoryUid:2,
   shipLoadouts:{orion:{lasers:["inv_laser_mk1_1"], generators:[], extras:[]}},
   droneLoadout:[],
   ownedDroneCount:0,
+  ownedDroneFormations:["base"],
+  activeDroneFormation:"base",
   ammoInventory:{ammo_x1:2500, missile_m1:30, missile_m2:30},
   actionSlots:["ammo_x1", null, null, null, null, null, null, null, null],
   slotKeybinds:["Digit1","Digit2","Digit3","Digit4","Digit5","Digit6","Digit7","Digit8","Digit9"],

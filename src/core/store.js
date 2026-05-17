@@ -1,4 +1,4 @@
-import { ammoTypes, defaultState, droneCatalog, equipment, portals, questCatalog, rawMaterialCatalog, refineryRecipes, ships, skills } from "../data/catalog.js";
+import { ammoTypes, defaultState, droneCatalog, droneFormations, equipment, portals, questCatalog, rawMaterialCatalog, refineryRecipes, ships, skills } from "../data/catalog.js";
 import { clone, fmt } from "./utils.js";
 import { normalizeSlotKeybinds } from "./keybinds.js";
 import { getSkillBonus } from "./skillStore.js";
@@ -168,6 +168,7 @@ export const store = {
   hangarTab:"vaisseau",
   selectedInventoryUid:null,
   selectedShopProduct:null,
+  selectedShopAmmoMultiplier:1,
   selectedRefineryUpgrade:null,
   selectedRefineryTab:"forge",
   selectedRefineryShipmentMaterial:null,
@@ -181,6 +182,12 @@ export function getShip(id){ return ships.find(s=>s.id===id) || ships[0]; }
 export function getItem(id){ return equipment.find(i=>i.id===id); }
 export function getAmmo(id){ return ammoTypes.find(a=>a.id===id) || null; }
 export function getDroneCatalog(id="combat_drone"){ return droneCatalog.find(d=>d.id===id) || droneCatalog[0]; }
+export function getDroneFormation(id){ return droneFormations.find(formation=>formation.id === id) || null; }
+export function getActiveDroneFormation(){
+  const formation = getDroneFormation(store.state.activeDroneFormation);
+  return formation && store.state.ownedDroneFormations?.includes(formation.id) ? formation : null;
+}
+export function getDroneFormationBonus(){ return getActiveDroneFormation()?.effect || {}; }
 export function isWeapon(id){ return getItem(id)?.category === "canon"; }
 export function isGenerator(id){ return getItem(id)?.category === "generateur"; }
 export function priceLabel(type, price){ return type === "premium" ? `${fmt(price)} NOVA` : `${fmt(price)} CR`; }
@@ -241,6 +248,9 @@ export function normalizeState(saved){
     getNextInventoryUid(merged.inventoryItems)
   );
   merged.unlockedSkills = Array.isArray(saved?.unlockedSkills) ? saved.unlockedSkills.filter(id=>skills.some(s=>s.id===id)) : base.unlockedSkills;
+  merged.ownedDroneFormations = Array.isArray(saved?.ownedDroneFormations) ? saved.ownedDroneFormations.filter(id=>droneFormations.some(formation=>formation.id === id)) : clone(base.ownedDroneFormations || []);
+  if(!merged.ownedDroneFormations.includes("base")) merged.ownedDroneFormations.unshift("base");
+  merged.activeDroneFormation = merged.ownedDroneFormations.includes(saved?.activeDroneFormation) ? saved.activeDroneFormation : (merged.ownedDroneFormations.includes(base.activeDroneFormation) ? base.activeDroneFormation : null);
   merged.skillLevels = {...(base.skillLevels || {})};
   if(saved?.skillLevels && typeof saved.skillLevels === "object"){
     for(const skill of skills){
@@ -394,6 +404,7 @@ export function normalizeState(saved){
     merged.selectedShip = starterShipId;
   }
   if(!merged.ownedShips.includes(starterShipId)) merged.ownedShips.unshift(starterShipId);
+  if(!merged.ownedShips.includes("test_runner")) merged.ownedShips.push("test_runner");
   if(!merged.ownedItems.includes("laser_mk1")) merged.ownedItems.unshift("laser_mk1");
   if(merged.activeShip !== null && (!ships.some(s=>s.id===merged.activeShip) || !merged.ownedShips.includes(merged.activeShip))) merged.activeShip = starterShipId;
   if(!ships.some(s=>s.id===merged.selectedShip) || !merged.ownedShips.includes(merged.selectedShip)) merged.selectedShip = merged.activeShip;
@@ -509,6 +520,7 @@ export function getExtraBonus(shipId = store.state.activeShip){
   const skill = getSkillBonus();
   const bonus = {
     autoRocket:false,
+    autoMissile:false,
     rocketCooldownMultiplier:1,
     rocketDamageBonus:0,
     repairBot:false,
@@ -519,6 +531,7 @@ export function getExtraBonus(shipId = store.state.activeShip){
   for(const item of getEquippedExtras(shipId)){
     const effect = item.effect || {};
     if(effect.autoRocket) bonus.autoRocket = true;
+    if(effect.autoMissile) bonus.autoMissile = true;
     if(effect.rocketCooldownMultiplier) bonus.rocketCooldownMultiplier *= effect.rocketCooldownMultiplier;
     if(effect.rocketDamageBonus) bonus.rocketDamageBonus += effect.rocketDamageBonus;
     if(effect.repairBot) bonus.repairBot = true;
@@ -559,6 +572,7 @@ export function getEquippedDroneGenerators(){
 export function getShipCombatStats(shipId = store.state.activeShip){
   const ship = getShip(shipId);
   const skill = getSkillBonus();
+  const formationBonus = getDroneFormationBonus();
   const generatorBoost = getCombatTimedBoostPercent("generator");
   const droneBoost = getCombatTimedBoostPercent("drone");
   const shipGenerators = getEquippedGenerators(shipId);
@@ -576,7 +590,11 @@ export function getShipCombatStats(shipId = store.state.activeShip){
     + boostedGeneratorValue(droneGenerators, "regen", 1, droneBoost);
   const generatorSpeed = boostedGeneratorValue(shipGenerators, "vitesse", 2)
     + boostedGeneratorValue(droneGenerators, "vitesse", 2, droneBoost);
-  const vitesse = ship.stats.vitesse + (skill.vitesse || 0) + generatorSpeed;
+  const vitesse = (ship.stats.vitesse + (skill.vitesse || 0) + generatorSpeed) * Number(formationBonus.speedMultiplier || 1);
+  const bouclier = (shieldFromGenerators > 0 ? shieldFromGenerators + (skill.shieldBonus || 0) : 0) * Number(formationBonus.shieldMultiplier || 1);
+  const extraBonus = getExtraBonus(shipId);
+  extraBonus.rocketDamageMultiplier = Number(formationBonus.rocketDamageMultiplier || 1);
+  extraBonus.missileDamageMultiplier = Number(formationBonus.missileDamageMultiplier || 1);
   return {
     vie: ship.stats.vie + (skill.vie || 0),
     vitesse,
@@ -586,12 +604,12 @@ export function getShipCombatStats(shipId = store.state.activeShip){
     maxGenerators: ship.stats.maxGenerators,
     maxExtras:ship.stats.maxExtras || 3,
     droneCount: getDroneLoadout().length,
-    bouclier: shieldFromGenerators > 0 ? shieldFromGenerators + (skill.shieldBonus || 0) : 0,
-    regen: regen + (skill.regen || 0),
+    bouclier,
+    regen: (regen + (skill.regen || 0)) * Number(formationBonus.regenMultiplier || 1),
     weaponDamage: skill.weaponDamage || 0,
-    weaponDamagePercent: skill.weaponDamagePercent || 0,
+    weaponDamagePercent: (skill.weaponDamagePercent || 0) + (Number(formationBonus.laserDamageMultiplier || 1) - 1),
     shieldAbsorbRatio: Math.max(0, Math.min(0.9, 0.5 + Number(skill.shieldAbsorbBonus || 0))),
-    extraBonus:getExtraBonus(shipId)
+    extraBonus
   };
 }
 

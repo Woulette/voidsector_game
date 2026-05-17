@@ -51,9 +51,9 @@ export const skills = [
     levels:[
       {skillPoints:1, priceType:"credits", price:10000, stats:{vitesse:4, cargo:5, loot:3}, label:"+4 vitesse · +5 cargo · +3 % crédits"},
       {skillPoints:2, priceType:"credits", price:75000, stats:{vitesse:4, cargo:5, loot:3}, label:"+4 vitesse · +5 cargo · +3 % crédits"},
-      {skillPoints:3, priceType:"credits", price:350000, stats:{vitesse:5, cargo:6, loot:4, repairBotDelayReduction:1}, label:"+5 vitesse · +6 cargo · -1s robot"},
+      {skillPoints:3, priceType:"credits", price:350000, stats:{vitesse:5, cargo:6, loot:4, repairBotDelayReduction:1}, label:"+5 vitesse · +6 cargo · -1s drone réparation"},
       {skillPoints:4, priceType:"premium", price:250, stats:{vitesse:5, cargo:7, loot:4}, label:"+5 vitesse · +7 cargo · +4 % crédits"},
-      {skillPoints:5, priceType:"credits", price:2000000, stats:{vitesse:6, cargo:7, loot:5, repairBotDelayReduction:1}, label:"+6 vitesse · +7 cargo · -1s robot"}
+      {skillPoints:5, priceType:"credits", price:2000000, stats:{vitesse:6, cargo:7, loot:5, repairBotDelayReduction:1}, label:"+6 vitesse · +7 cargo · -1s drone réparation"}
     ]
   }
 ];

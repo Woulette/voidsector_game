@@ -102,7 +102,8 @@ export function makeDust(rnd){
 }
 
 export function makeAsteroids(map, rnd){
-  return Array.from({length:80},()=>({
+  const count = map.closeStarCount || 80;
+  const stars = Array.from({length:count},()=>({
     x:rnd()*map.width-map.width/2,
     y:rnd()*map.height-map.height/2,
     r:.55+rnd()*1.65,
@@ -110,8 +111,14 @@ export function makeAsteroids(map, rnd){
     shade:rnd(),
     a:.26+rnd()*.54,
     len:10+rnd()*28,
-    tint:rnd()
-  })).filter(a=>Math.hypot(a.x-map.spawn.x,a.y-map.spawn.y) > map.spawn.r + 140);
+    tint:rnd(),
+    drift:2.4 + rnd() * 3.8,
+    driftSpeed:1.1 + rnd() * 1.9,
+    twinkleSpeed:1.2 + rnd() * 2.2,
+    phase:rnd() * Math.PI * 2
+  }));
+  if(!map.spawn) return stars;
+  return stars.filter(a=>Math.hypot(a.x-map.spawn.x,a.y-map.spawn.y) > map.spawn.r + 140);
 }
 
 export function buildMapState(map, startEnemySeq=1){

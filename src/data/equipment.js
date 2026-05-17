@@ -57,12 +57,12 @@ export const equipment = [
   { id:"engine_ion", name:"Générateur de Vitesse MK-I", short:"Vitesse I", category:"generateur", slotType:"generator", img:"assets/equipment/generator_speed_mk1.png", rarity:"RARE", priceType:"credits", price:35000, stats:{vitesse:4}},
   { id:"reactor_ion", name:"Générateur de Vitesse MK-II", short:"Vitesse II", category:"generateur", slotType:"generator", img:"assets/equipment/generator_speed_mk2.png", rarity:"ÉPIQUE", priceType:"credits", price:72000, stats:{vitesse:7}},
   { id:"launcher_missile_mk1", name:"Lance Missile MK-I", short:"L-Missile", category:"module", shopCategory:"canon", slotType:"missileLauncher", img:"assets/equipment/launcher_missile_mk1_slot.png", rarity:"STANDARD", priceType:"credits", price:35000, stats:{degats:"100%", recharge:"3.00s", portee:500, missiles:3, rechargeTotale:"9.00s"}, effect:{missileRange:500, missileReload:3, missileCapacity:3, missileDamageMultiplier:1}},
-  { id:"launcher_rocket_mk1", name:"Lance Roquette MK-I", short:"L-Roquette", category:"module", shopCategory:"canon", slotType:"rocketLauncher", img:"assets/equipment/launcher_rocket_mk1_slot.png", rarity:"STANDARD", priceType:"credits", price:35000, stats:{degats:"100%", cadence:"4.00s", portee:500}, effect:{rocketRange:500, rocketCooldown:4, rocketDamageMultiplier:1}},
-  { id:"extra_auto_rocket", name:"Lanceur Automatique", short:"Auto-R", category:"extra", slotType:"extra", img:"assets/equipment/pod_missiles.svg", rarity:"RARE", priceType:"credits", price:45000, stats:{extra:"Roquettes auto"}, effect:{autoRocket:true}},
-  { id:"extra_rocket_accelerator", name:"Accélérateur Roquettes", short:"Accél. R", category:"extra", slotType:"extra", img:"assets/equipment/reacteur_ions.svg", rarity:"ÉPIQUE", priceType:"credits", price:95000, stats:{extra:"Cooldown roquette /2"}, effect:{rocketCooldownMultiplier:0.5}},
-  { id:"extra_rocket_calibrator", name:"Calibrateur Explosif", short:"Cal. R", category:"extra", slotType:"extra", img:"assets/equipment/module_munitions.svg", rarity:"RARE", priceType:"credits", price:62000, stats:{extra:"+15% dégâts roquettes"}, effect:{rocketDamageBonus:0.15}},
-  { id:"extra_repair_bot", name:"Robot Réparateur", short:"Répa-Bot", category:"extra", slotType:"extra", img:"assets/equipment/bot_reparation.svg", rarity:"TACTIQUE", priceType:"credits", price:78000, stats:{extra:"Répare 2% HP/s après 5s sans dégâts"}, effect:{repairBot:true, repairBotHealRate:0.02, repairBotDelay:5}},
-  { id:"extra_repair_auto", name:"IA d'Auto-Réparation", short:"Auto-Répa", category:"extra", slotType:"extra", img:"assets/equipment/drone_combat.svg", rarity:"PREMIUM", priceType:"premium", price:120, stats:{extra:"Active auto le Robot Réparateur"}, effect:{repairBotAuto:true}},
+  { id:"launcher_rocket_mk1", name:"Lance Roquette MK-I", short:"L-Roquette", category:"module", shopCategory:"canon", slotType:"rocketLauncher", img:"assets/equipment/launcher_rocket_mk1_slot.png", rarity:"STANDARD", priceType:"credits", price:35000, stats:{degats:"100%", cadence:"5.00s", portee:500}, effect:{rocketRange:500, rocketCooldown:5, rocketDamageMultiplier:1}},
+  { id:"extra_auto_rocket", name:"Puce Roquette Auto", short:"Auto-R", category:"extra", slotType:"extra", img:"assets/equipment/extra_rocket_auto_chip.png", rarity:"RARE", priceType:"premium", price:25000, stats:{extra:"Tir automatique roquette"}, effect:{autoRocket:true}},
+  { id:"extra_auto_missile", name:"Puce Missile Auto", short:"Auto-M", category:"extra", slotType:"extra", img:"assets/equipment/extra_missile_auto_chip.png", rarity:"RARE", priceType:"premium", price:30000, stats:{extra:"Tir automatique missile"}, effect:{autoMissile:true}},
+  { id:"extra_rocket_accelerator", name:"Puce Accélérateur Roquettes", short:"Accél. R", category:"extra", slotType:"extra", img:"assets/equipment/extra_rocket_accelerator_chip.png", rarity:"ÉPIQUE", priceType:"premium", price:35000, stats:{extra:"Délai roquette /2"}, effect:{rocketCooldownMultiplier:0.5}},
+  { id:"extra_repair_bot", name:"Drone de Réparation IA", short:"Drone-R", category:"extra", slotType:"extra", img:"assets/equipment/drone_repair_ai.png", rarity:"TACTIQUE", priceType:"credits", price:78000, stats:{extra:"Répare 2% HP / s"}, effect:{repairBot:true, repairBotHealRate:0.02, repairBotDelay:5}},
+  { id:"extra_repair_auto", name:"IA d'Auto-Réparation", short:"Auto-Répa", category:"extra", slotType:"extra", img:"assets/equipment/repair_ai_software.png", rarity:"PREMIUM", priceType:"premium", price:120, stats:{extra:"Active le drone auto"}, effect:{repairBotAuto:true}},
   { id:"ammo_module", name:"Module de Munitions", short:"Munitions", category:"module", slotType:"future", img:"assets/equipment/module_munitions.svg", rarity:"COMMUN", priceType:"credits", price:8000, stats:{bonusDegats:6}}
 ];
 
@@ -79,6 +79,87 @@ export const droneCatalog = [
     maxOwned:10,
     slots:1,
     desc:"Drone orbital avec 1 emplacement. Il peut recevoir un laser ou un générateur. Un laser de drone consomme 1 munition laser supplémentaire par tir."
+  }
+];
+
+export const droneFormations = [
+  {
+    id:"base",
+    name:"Formation Base",
+    short:"Base",
+    category:"droneFormation",
+    img:"assets/equipment/drone_formation_base_cert.png",
+    rarity:"STANDARD",
+    priceType:"credits",
+    price:0,
+    stats:{
+      bonus:"Aucun bonus",
+      malus:"Aucun malus"
+    },
+    effect:{},
+    desc:"Formation standard : les drones gardent leur placement équilibré sans bonus ni malus."
+  },
+  {
+    id:"cuirasse",
+    name:"Formation Cuirassé",
+    short:"Cuirassé",
+    category:"droneFormation",
+    img:"assets/equipment/drone_formation_cuirasse_cert.png",
+    rarity:"TACTIQUE",
+    priceType:"credits",
+    price:150000,
+    stats:{
+      bonus:"+30% bouclier / regen",
+      malus:"-15% laser, -20% roquettes"
+    },
+    effect:{
+      shieldMultiplier:1.30,
+      regenMultiplier:1.30,
+      laserDamageMultiplier:0.85,
+      rocketDamageMultiplier:0.80
+    },
+    desc:"Certificat de formation : les drones tournent en cercle défensif autour du vaisseau."
+  },
+  {
+    id:"tir",
+    name:"Formation Tir",
+    short:"Tir",
+    category:"droneFormation",
+    img:"assets/equipment/drone_formation_tir_cert.png",
+    rarity:"OFFENSIVE",
+    priceType:"credits",
+    price:180000,
+    stats:{
+      bonus:"+20% tirs laser",
+      malus:"-10% vitesse, -15% bouclier"
+    },
+    effect:{
+      laserDamageMultiplier:1.20,
+      speedMultiplier:0.90,
+      shieldMultiplier:0.85
+    },
+    desc:"Certificat de formation : les drones prennent deux ailes en L pour concentrer les tirs laser."
+  },
+  {
+    id:"vitesse",
+    name:"Formation Vitesse",
+    short:"Vitesse",
+    category:"droneFormation",
+    img:"assets/equipment/drone_formation_vitesse_cert.png",
+    rarity:"MOBILITÉ",
+    priceType:"credits",
+    price:160000,
+    stats:{
+      bonus:"+5% vitesse",
+      malus:"-15% laser, -20% roq/mis"
+    },
+    effect:{
+      speedMultiplier:1.05,
+      laserDamageMultiplier:0.85,
+      rocketDamageMultiplier:0.80,
+      missileDamageMultiplier:0.80
+    },
+    desc:"Certificat de formation : les drones forment une pointe frontale et un M arrière pour gagner en mobilité."
   }
 ];
 
@@ -132,7 +213,7 @@ export const ammoTypes = [
     cooldown:1,
     color:"rgba(168,85,247,.96)",
     particle:"rgba(216,180,254,.82)",
-    desc:"Munition avanc?e pour lasers. Multiplie par x3 la somme des dégâts des lasers équipés."
+    desc:"Munition avancée pour lasers. Multiplie par x3 la somme des dégâts des lasers équipés."
   },
   {
     id:"ammo_x4",
@@ -158,19 +239,19 @@ export const ammoTypes = [
     category:"munition",
     rarity:"EXPLOSIVE",
     priceType:"credits",
-    price:8500,
-    amount:40,
+    price:100,
+    amount:1,
     img:"assets/equipment/rocket_r1_icon.png",
     projectileImg:"assets/equipment/rocket_r1_projectile.png",
     weaponClass:"rocket",
-    damageMin:500,
+    damageMin:700,
     damageMax:1000,
     cooldown:5,
-    range:800,
+    range:550,
     speed:620,
     color:"rgba(34,197,94,.96)",
     particle:"rgba(134,239,172,.82)",
-    desc:"Roquette légère : 1 roquette consommée par tir, cadence 5 secondes."
+    desc:"Roquette légère : 1 roquette consommée par tir."
   },
   {
     id:"rocket_r2",
@@ -179,15 +260,15 @@ export const ammoTypes = [
     category:"munition",
     rarity:"LOURDE",
     priceType:"credits",
-    price:16500,
-    amount:30,
+    price:500,
+    amount:1,
     img:"assets/equipment/rocket_r2_icon.png",
     projectileImg:"assets/equipment/rocket_r2_projectile.png",
     weaponClass:"rocket",
-    damageMin:950,
-    damageMax:1500,
+    damageMin:2500,
+    damageMax:4000,
     cooldown:5,
-    range:850,
+    range:550,
     speed:600,
     color:"rgba(59,130,246,.96)",
     particle:"rgba(147,197,253,.82)",
@@ -199,16 +280,16 @@ export const ammoTypes = [
     short:"R-3",
     category:"munition",
     rarity:"SIÈGE",
-    priceType:"credits",
-    price:28500,
-    amount:24,
+    priceType:"premium",
+    price:2,
+    amount:1,
     img:"assets/equipment/rocket_r3_icon.png",
     projectileImg:"assets/equipment/rocket_r3_projectile.png",
     weaponClass:"rocket",
-    damageMin:1500,
-    damageMax:2400,
+    damageMin:8000,
+    damageMax:10000,
     cooldown:5,
-    range:900,
+    range:600,
     speed:580,
     color:"rgba(239,68,68,.96)",
     particle:"rgba(252,165,165,.82)",
@@ -221,18 +302,18 @@ export const ammoTypes = [
     category:"munition",
     rarity:"PROVISOIRE",
     priceType:"credits",
-    price:25000,
-    amount:30,
+    price:1000,
+    amount:1,
     img:"assets/equipment/missile_m1_icon.png",
     projectileImg:"assets/equipment/missile_m1_projectile.png",
     weaponClass:"missile",
     damageMin:1500,
     damageMax:2500,
-    range:500,
+    range:600,
     speed:520,
     color:"rgba(125,211,252,.96)",
     particle:"rgba(147,197,253,.82)",
-    desc:"Missile provisoire : le lance-missile MK-I en charge 3 avant le tir."
+    desc:"Missile standard à charge guidée pour lance-missile."
   },
   {
     id:"missile_m2",
@@ -240,18 +321,18 @@ export const ammoTypes = [
     short:"MS-2",
     category:"munition",
     rarity:"PROVISOIRE",
-    priceType:"credits",
-    price:50000,
-    amount:30,
+    priceType:"premium",
+    price:3,
+    amount:1,
     img:"assets/equipment/missile_m2_icon.png",
     projectileImg:"assets/equipment/missile_m2_projectile.png",
     weaponClass:"missile",
     damageMin:3000,
     damageMax:5000,
-    range:500,
+    range:600,
     speed:500,
     color:"rgba(251,191,36,.96)",
     particle:"rgba(253,224,71,.82)",
-    desc:"Missile provisoire lourd : dégâts doubles, 3 missiles consommés par salve."
+    desc:"Missile lourd à charge renforcée pour lance-missile."
   }
 ];

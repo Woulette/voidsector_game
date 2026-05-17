@@ -1,4 +1,4 @@
-import { ammoTypes, equipment, portals, ships } from "../data/catalog.js";
+import { ammoTypes, droneFormations, equipment, portals, ships } from "../data/catalog.js";
 import { fmt } from "../core/utils.js";
 import {
   addAmmo,
@@ -21,6 +21,7 @@ import {
   getAmmoCount,
   getCurrentRank,
   getDroneLoadout,
+  getDroneFormation,
   getEquippedDroneLasers,
   getEquippedLauncher,
   getEquippedExtras,
@@ -74,7 +75,7 @@ import {
 } from "./combatData.js";
 import { preloadCombatAssets } from "./combatAssets.js";
 import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./render/canvasHud.js";
-import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawParticles, drawProjectiles } from "./render/entities.js";
+import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./render/entities.js";
 import { drawPlayerLayer, spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js";
 import { drawWorldLayer } from "./render/world.js";
 import { createCombatLoop } from "./systems/combatLoop.js";
@@ -108,7 +109,7 @@ export function createCombatGame({renderAll, showToast}){
   let enemySeq = 1;
   let currentMap = MAPS[0];
   let teleportLock = 0;
-  let player, camera, mouse, bullets, enemies, particles, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy;
+  let player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy;
   let gameMode, activePortal, portalWave, portalDelay, portalCompleted;
   let radiationWarned = false;
   let mouseMoveHeld = false;
@@ -139,6 +140,8 @@ export function createCombatGame({renderAll, showToast}){
     getActionSlots:()=>store.state.actionSlots || [],
     getActiveLaserSlot:()=>actions.getActiveLaserSlot(),
     setActiveLaserSlot:value=>actions.setActiveLaserSlot(value),
+    getSelectedRocketAmmo:()=>actions.getSelectedRocketAmmo(),
+    tryFireAutomaticMissile:()=>actions.tryFireAutomaticMissile(),
     getAmmo,
     getAmmoCount,
     getCombatAmmo:index=>actions.getCombatAmmo(index),
@@ -167,18 +170,40 @@ export function createCombatGame({renderAll, showToast}){
     pushDamageText,
     showToast
   });
+
+  function refreshPlayerStatsFromLoadout(){
+    if(!player) return;
+    const stats = getShipCombatStats(store.state.activeShip);
+    const hpRatio = player.maxHp > 0 ? player.hp / player.maxHp : 1;
+    const shieldRatio = player.maxShield > 0 ? player.shield / player.maxShield : 1;
+    player.maxHp = stats.vie;
+    player.hp = Math.max(0, Math.min(player.maxHp, hpRatio * player.maxHp));
+    player.maxShield = stats.bouclier;
+    player.shield = player.maxShield > 0 ? Math.max(0, Math.min(player.maxShield, shieldRatio * player.maxShield)) : 0;
+    player.regen = stats.regen;
+    player.speed = stats.vitesseReelle;
+    player.displayedSpeed = stats.vitesseReelle;
+    player.damageBonus = stats.weaponDamage;
+    player.damageMultiplier = 1 + Number(stats.weaponDamagePercent || 0);
+    player.shieldAbsorbRatio = Math.max(0, Math.min(0.9, Number(stats.shieldAbsorbRatio ?? 0.5)));
+    player.extraBonus = stats.extraBonus || player.extraBonus;
+  }
+
   actions = createCombatActions({
     ammoTypes,
+    droneFormations,
     store,
     getAmmo,
     getAmmoCount,
     getItem,
+    getDroneFormation,
     getEquippedExtras,
     getEquippedLauncher,
     canAfford,
     spend,
     addAmmo,
     saveState,
+    refreshPlayerStats:refreshPlayerStatsFromLoadout,
     setActionSlot,
     showToast,
     updateHud,
@@ -195,6 +220,9 @@ export function createCombatGame({renderAll, showToast}){
     saveState,
     showToast,
     updateHud,
+    maps:MAPS,
+    getCurrentMap:()=>currentMap,
+    getPlayer:()=>player,
     ammoTypes,
     enemyTypes:ENEMY_TYPES,
     getAllRawMaterials,
@@ -261,7 +289,7 @@ export function createCombatGame({renderAll, showToast}){
     markCombatActivity,
     clearMovement:()=>{ moveTarget = null; },
     clearSelection:()=>{ selectedEnemy = null; },
-    clearCombatEffects:()=>{ bullets = []; particles = []; damageTexts = []; beams.clear(); cargo.clear(); },
+    clearCombatEffects:()=>{ bullets = []; particles = []; impactEffects = []; damageTexts = []; beams.clear(); cargo.clear(); },
     setTeleportLock:value=>{ teleportLock = value; },
     updateHud,
     showToast,
@@ -313,7 +341,7 @@ export function createCombatGame({renderAll, showToast}){
 
   function getSafeAreas(map = currentMap){
     const zones = [];
-    if(map?.spawn) zones.push({id:"spawn", label:map.spawn.label || "Zone de spawn", x:map.spawn.x, y:map.spawn.y, r:map.spawn.safeRadius || map.spawn.r || 260, type:"spawn"});
+    if(map?.spawn && map.spawn.kind !== "portal") zones.push({id:"spawn", label:map.spawn.label || "Zone de spawn", x:map.spawn.x, y:map.spawn.y, r:map.spawn.safeRadius || map.spawn.r || 260, type:"spawn"});
     if(map?.portal) zones.push({id:"portal", label:"Zone portail", x:map.portal.x, y:map.portal.y, r:map.portal.safeRadius || Math.max(180, (map.portal.r || 90) * 2.2), type:"portal"});
     return zones;
   }
@@ -367,6 +395,7 @@ export function createCombatGame({renderAll, showToast}){
       moveTarget = null;
       selectedEnemy = null;
       bullets = [];
+      impactEffects = [];
       beams.clear();
       cargo.clear();
       setTeleportLock(1.6);
@@ -409,7 +438,7 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function getSpawnStations(){
-    if(gameMode !== "open" || !currentMap?.spawn) return [];
+    if(gameMode !== "open" || !currentMap?.spawn || currentMap.spawn.kind === "portal") return [];
     return [
       {id:"quests", x:currentMap.spawn.x - 128, y:currentMap.spawn.y - 86, radius:48, title:"RELAIS DE QUÊTES", subtitle:"Recevoir et rendre des missions"},
       {id:"refinery", x:currentMap.spawn.x + 132, y:currentMap.spawn.y - 90, radius:52, title:"RAFFINEUR", subtitle:"Fusionner et améliorer l'équipement"}
@@ -462,6 +491,7 @@ export function createCombatGame({renderAll, showToast}){
     selectedEnemy = null;
     bullets = [];
     beams.clear();
+    impactEffects = [];
     particles = [];
     damageTexts = [];
     teleportLock = 1.2;
@@ -478,6 +508,7 @@ export function createCombatGame({renderAll, showToast}){
     selectedEnemy = null;
     bullets = [];
     beams.clear();
+    impactEffects = [];
     cargo.setCargoBoxes([]);
     cargo.clearPending();
     const built = buildPortalWave(wave, enemySeq);
@@ -525,6 +556,7 @@ export function createCombatGame({renderAll, showToast}){
     selectedEnemy = null;
     bullets = [];
     beams.clear();
+    impactEffects = [];
     particles = [];
     damageTexts = [];
     teleportLock = 1.2;
@@ -560,7 +592,7 @@ export function createCombatGame({renderAll, showToast}){
       damageBonus:stats.weaponDamage,
       damageMultiplier:1 + Number(stats.weaponDamagePercent || 0),
       shieldAbsorbRatio:Math.max(0, Math.min(0.9, Number(stats.shieldAbsorbRatio ?? 0.5))),
-      extraBonus:stats.extraBonus || {autoRocket:false, rocketCooldownMultiplier:1, rocketDamageBonus:0, repairBot:false, repairBotAuto:false, repairBotHealRate:0.02, repairBotDelay:15},
+      extraBonus:stats.extraBonus || {autoRocket:false, autoMissile:false, rocketCooldownMultiplier:1, rocketDamageBonus:0, repairBot:false, repairBotAuto:false, repairBotHealRate:0.02, repairBotDelay:15},
       radar:RADAR_RANGE,
       droneOrbit:0,
       secondsSinceDamage:999,
@@ -578,7 +610,7 @@ export function createCombatGame({renderAll, showToast}){
     };
     camera = {x:-getCanvasViewWidth()/2,y:-getCanvasViewHeight()/2,zoom:1};
     mouse = {x:getCanvasViewWidth()/2,y:getCanvasViewHeight()/2};
-    bullets = []; particles = []; damageTexts = []; beams.clear(); cargo.clear(); selectedEnemy = null; moveTarget = null;
+    bullets = []; particles = []; impactEffects = []; damageTexts = []; beams.clear(); cargo.clear(); selectedEnemy = null; moveTarget = null;
     actions.cleanCombatActionSlots();
     actions.reset();
     panels.reset();
@@ -657,12 +689,18 @@ export function createCombatGame({renderAll, showToast}){
   function validSelectedEnemy(){
     if(!selectedEnemy) return null;
     const live = enemies.find(e=>e.id === selectedEnemy.id && e.hp > 0);
-    if(!live) selectedEnemy = null; else selectedEnemy = live;
+    if(!live){
+      selectedEnemy = null;
+      actions.setActiveLaserSlot(null);
+      actions.updateGameActionBar();
+    }else selectedEnemy = live;
     return selectedEnemy;
   }
 
   function clearSelectedEnemy(){
     selectedEnemy = null;
+    actions.setActiveLaserSlot(null);
+    actions.updateGameActionBar();
     updateHud();
   }
 
@@ -798,10 +836,101 @@ export function createCombatGame({renderAll, showToast}){
     updatePoisonStatus(player.poisonEffect);
   }
 
+  function makeImpactSparks({count, color, speedMin, speedMax, lengthMin, lengthMax, width = 1.2, arc = Math.PI * 2, angle = 0}){
+    return Array.from({length:count}, (_, index)=>{
+      const spread = count <= 1 ? 0 : (index / count) * arc;
+      const jitter = (Math.random() - .5) * (arc / Math.max(2, count)) * .9;
+      return {
+        angle:angle - arc / 2 + spread + jitter,
+        speed:speedMin + Math.random() * (speedMax - speedMin),
+        length:lengthMin + Math.random() * (lengthMax - lengthMin),
+        width:width * (.75 + Math.random() * .55),
+        alpha:.55 + Math.random() * .4,
+        color
+      };
+    });
+  }
+
+  function makeImpactSmoke(count){
+    return Array.from({length:count}, ()=>({
+      angle:Math.random() * Math.PI * 2,
+      speed:14 + Math.random() * 34,
+      size:12 + Math.random() * 22,
+      alpha:.24 + Math.random() * .18
+    }));
+  }
+
+  function spawnImpactEffect(kind, {x, y, color, angle = 0, visualOnly = false, delay = 0} = {}){
+    if(!impactEffects) impactEffects = [];
+    const baseColor = color || (kind === "rocket" ? "rgba(251,146,60,.95)" : kind === "missile" ? "rgba(125,211,252,.95)" : "rgba(250,204,21,.92)");
+    if(kind === "laser"){
+      impactEffects.push({
+        kind,
+        x,
+        y,
+        color:baseColor,
+        core:"rgba(255,255,255,.98)",
+        life:.18,
+        max:.18,
+        delay,
+        radius:20,
+        sparks:makeImpactSparks({count:5, color:baseColor, speedMin:18, speedMax:42, lengthMin:5, lengthMax:13, width:1, arc:Math.PI * 1.35, angle:angle + Math.PI})
+      });
+      return;
+    }
+    if(kind === "missile"){
+      impactEffects.push({
+        kind,
+        x,
+        y,
+        color:baseColor,
+        core:"rgba(248,250,252,.98)",
+        life:visualOnly ? .42 : .66,
+        max:visualOnly ? .42 : .66,
+        delay,
+        radius:visualOnly ? 38 : 68,
+        sparks:makeImpactSparks({count:visualOnly ? 8 : 14, color:baseColor, speedMin:22, speedMax:visualOnly ? 72 : 108, lengthMin:7, lengthMax:visualOnly ? 18 : 28, width:1.25}),
+        smoke:makeImpactSmoke(visualOnly ? 4 : 8)
+      });
+      return;
+    }
+    impactEffects.push({
+      kind:"rocket",
+      x,
+      y,
+      color:baseColor,
+      core:"rgba(255,251,235,.98)",
+      life:.62,
+      max:.62,
+      delay,
+      radius:54,
+      sparks:makeImpactSparks({count:13, color:baseColor, speedMin:26, speedMax:96, lengthMin:8, lengthMax:24, width:1.45}),
+      smoke:makeImpactSmoke(10)
+    });
+  }
+
   function resolveBulletImpact(bullet){
     const target = getBulletTarget(bullet);
     if(!target) return;
-    particles.push({x:bullet.x, y:bullet.y, life:.22, max:.22, size:12, color:bullet.particle || "rgba(125,211,252,.8)"});
+    if(bullet.owner === "player" && bullet.kind === "missile"){
+      const offsetBase = bullet.visualOnly ? 10 : 0;
+      const baseAngle = bullet.angle || Math.random() * Math.PI * 2;
+      for(let i = 0; i < 3; i++){
+        const angle = baseAngle + (i - 1) * 1.9 + (Math.random() - .5) * .55;
+        const distance = offsetBase + i * 9 + Math.random() * 12;
+        spawnImpactEffect("missile", {
+          x:bullet.x + Math.cos(angle) * distance,
+          y:bullet.y + Math.sin(angle) * distance,
+          color:bullet.particle || bullet.color,
+          visualOnly:bullet.visualOnly || i > 0,
+          delay:i * .055 + (bullet.visualOnly ? .035 : 0)
+        });
+      }
+    }else if(bullet.owner === "player" && bullet.kind === "rocket"){
+      spawnImpactEffect("rocket", {x:bullet.x, y:bullet.y, color:bullet.particle || bullet.color, visualOnly:bullet.visualOnly});
+    }else{
+      particles.push({x:bullet.x, y:bullet.y, life:.22, max:.22, size:12, color:bullet.particle || "rgba(125,211,252,.8)"});
+    }
     const hitChance = bullet.hitChance ?? (bullet.owner === "enemy" ? 0.88 : PLAYER_HIT_CHANCE);
     const hit = Math.random() <= hitChance;
 
@@ -831,14 +960,15 @@ export function createCombatGame({renderAll, showToast}){
     }
   }
 
-  function resolveLaserHit(enemy, damage, hitChance = PLAYER_HIT_CHANCE){
+  function resolveLaserHit(enemy, damage, hitChance = PLAYER_HIT_CHANCE, ammo = null){
     if(!enemy || enemy.hp <= 0) return false;
     const hit = Math.random() <= hitChance;
     if(hit){
       const dealt = Math.round(damage);
       damageEnemy(enemy, dealt);
       enemy.aggro = true;
-      particles.push({x:enemy.x, y:enemy.y, life:.18, max:.18, size:18, color:"rgba(255,232,120,.72)"});
+      const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+      spawnImpactEffect("laser", {x:enemy.x, y:enemy.y, color:ammo?.particle || ammo?.color || "rgba(250,204,21,.88)", angle});
       pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
       if(enemy.hp <= 0) rewardEnemy(enemy);
       return true;
@@ -865,6 +995,11 @@ export function createCombatGame({renderAll, showToast}){
 
   function rewardEnemy(enemy){
     scheduleEnemyRespawn(enemy);
+    if(selectedEnemy?.id === enemy.id){
+      selectedEnemy = null;
+      actions.setActiveLaserSlot(null);
+      actions.updateGameActionBar();
+    }
     rewards.rewardEnemy(enemy);
   }
 
@@ -1018,8 +1153,24 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function updateParticles(dt){
-    for(const p of particles){ p.life -= dt; p.x += (p.vx||0)*dt; p.y += (p.vy||0)*dt; }
+    for(const p of particles){
+      p.life -= dt;
+      if(p.followPlayer){
+        p.offsetX = Number(p.offsetX || 0) + (p.vx || 0) * dt;
+        p.offsetY = Number(p.offsetY || 0) + (p.vy || 0) * dt;
+        p.x = player.x + p.offsetX;
+        p.y = player.y + p.offsetY;
+      }else{
+        p.x += (p.vx || 0) * dt;
+        p.y += (p.vy || 0) * dt;
+      }
+    }
     particles = particles.filter(p=>p.life>0);
+    for(const effect of impactEffects){
+      if(effect.delay > 0) effect.delay -= dt;
+      else effect.life -= dt;
+    }
+    impactEffects = impactEffects.filter(effect=>effect.life > 0 || effect.delay > 0);
     for(const t of damageTexts){ t.life -= dt; t.y -= 38*dt; }
     damageTexts = damageTexts.filter(t=>t.life>0);
   }
@@ -1043,9 +1194,10 @@ export function createCombatGame({renderAll, showToast}){
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0);
     drawBackground();
     drawProjectiles({ctx, camera, cache, bullets});
-    drawParticles({ctx, camera, particles});
+    drawParticles({ctx, camera, particles, repairLayer:false});
     drawGroundMaterials({ctx, camera, cache, materials:cargo.getGroundMaterials()});
     drawEnemies({ctx, camera, cache, enemies, selectedEnemy});
+    drawImpactEffects({ctx, camera, impactEffects});
     drawBeams({ctx, camera, beams:beams.getBeams()});
     drawCargoBoxes({ctx, camera, cache, cargoBoxes:cargo.getCargoBoxes()});
     const rank = getCurrentRank();
@@ -1060,9 +1212,11 @@ export function createCombatGame({renderAll, showToast}){
       rankAssetPath:getRankAssetPath(rank),
       pilotName:store.state.player.name || "PILOTE",
       getItemFromInventoryUid,
+      droneFormation:store.state.activeDroneFormation,
       defaultProfile:DEFAULT_ENGINE_PROFILE,
       profiles:SHIP_ENGINE_PROFILES
     });
+    drawParticles({ctx, camera, particles, repairLayer:true});
     drawDamageTexts();
     ctx.restore();
     canvas.__renderWidth = null;
@@ -1125,7 +1279,7 @@ export function createCombatGame({renderAll, showToast}){
       cargoToggle.classList.toggle("full", cargoCapacity > 0 && cargoUsed >= cargoCapacity);
       cargoToggle.title = `Soute : ${fmt(cargoUsed)} / ${fmt(cargoCapacity)}`;
     }
-    document.getElementById("gameRepairHud").textContent = !player.extraBonus?.repairBot ? "Robot : non équipé" : player.repairBotActive ? "Robot : actif" : repairState.ok ? (player.extraBonus?.repairBotAuto ? "Robot : prêt (auto)" : "Robot : prêt") : `Robot : ${repairState.reason}`;
+    document.getElementById("gameRepairHud").textContent = !player.extraBonus?.repairBot ? "Drone réparation : non équipé" : player.repairBotActive ? "Drone réparation : actif" : repairState.ok ? (player.extraBonus?.repairBotAuto ? "Drone réparation : prêt (auto)" : "Drone réparation : prêt") : `Drone réparation : ${repairState.reason}`;
     document.getElementById("gameCreditsHud").textContent = fmt(store.state.player.credits);
     document.getElementById("gamePremiumHud").textContent = fmt(store.state.player.premium);
     renderSafeZoneNotice({safeArea, isActive:gameMode === "open" && safeArea && (player.safeZoneLock || 0) <= 0});
@@ -1188,7 +1342,11 @@ export function createCombatGame({renderAll, showToast}){
     setCargoDestination,
     findGroundMaterialAt,
     setGroundMaterialDestination,
-    setSelectedEnemy:enemy=>{ selectedEnemy = enemy; },
+    setSelectedEnemy:enemy=>{
+      selectedEnemy = enemy;
+      actions.setActiveLaserSlot(null);
+      actions.updateGameActionBar();
+    },
     renderSpawnInteractionPanel:panels.renderSpawnInteractionPanel,
     openUtilityPanel:panels.openUtilityPanel,
     closeUtilityPanel:panels.closeUtilityPanel,
@@ -1206,12 +1364,14 @@ export function createCombatGame({renderAll, showToast}){
     moveActionSlot:actions.moveActionSlot,
     clearActionSlot:actions.clearActionSlot,
     assignExtraToActionSlot:actions.assignExtraToActionSlot,
+    assignDroneFormationToActionSlot:actions.assignDroneFormationToActionSlot,
     assignAmmoToActionSlot:actions.assignAmmoToActionSlot,
     selectMissileAmmo:actions.selectMissileAmmo,
     fireMissileLauncher:actions.fireMissileLauncher,
     assignMissileLauncherToActionSlot:actions.assignMissileLauncherToActionSlot,
     renderCombatQuickPanel:actions.renderCombatQuickPanel,
     setCombatPanelTab:actions.setCombatPanelTab,
+    shiftCombatPanelTabs:actions.shiftCombatPanelTabs,
     buyCombatAmmo:actions.buyCombatAmmo,
     activateRepairBot,
     acceptQuest,

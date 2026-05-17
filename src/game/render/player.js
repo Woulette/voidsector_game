@@ -17,6 +17,8 @@ export function drawRotatedImage({ctx, camera, img, x, y, w, h, angle, fallbackC
   ctx.restore();
 }
 
+const REPAIR_DRONE_IMG = "assets/equipment/drone_repair_ai.png";
+
 function getEngineProfile({ship, defaultProfile, profiles}){
   const profile = profiles[ship.id] || defaultProfile;
   return {
@@ -60,7 +62,60 @@ function triadPoint(points, memberIndex, time, phase = 0, movePortion = .52){
   };
 }
 
-function formationPoint(index, time){
+function pointAlongPath(points, t){
+  if(points.length === 1) return points[0];
+  const scaled = Math.max(0, Math.min(.999, t)) * (points.length - 1);
+  const fromIndex = Math.floor(scaled);
+  const mix = scaled - fromIndex;
+  const from = points[fromIndex];
+  const to = points[Math.min(points.length - 1, fromIndex + 1)];
+  return {x:lerp(from.x, to.x, mix), y:lerp(from.y, to.y, mix)};
+}
+
+function tirFormationRecoil(time){
+  const cycle = (time * .72) % 1;
+  if(cycle < .58) return smoothstep(cycle / .58) * 18;
+  if(cycle < .68) return 18 - smoothstep((cycle - .58) / .10) * 28;
+  return -10 + smoothstep((cycle - .68) / .32) * 10;
+}
+
+function formationPoint(index, time, formationId = null, count = 1){
+  if(formationId === "cuirasse"){
+    const radius = 138;
+    const angle = time * .82 + (index / Math.max(1, count)) * Math.PI * 2;
+    return {x:Math.cos(angle) * radius, y:Math.sin(angle) * radius};
+  }
+  if(formationId === "tir"){
+    const leftCount = Math.ceil(count / 2);
+    const isLeft = index < leftCount;
+    const localIndex = isLeft ? index : index - leftCount;
+    const localCount = isLeft ? leftCount : Math.max(1, count - leftCount);
+    const leftPath = [{x:-154,y:-88},{x:-154,y:86},{x:-72,y:86}];
+    const rightPath = [{x:154,y:-88},{x:154,y:86},{x:72,y:86}];
+    const point = pointAlongPath(isLeft ? leftPath : rightPath, localCount <= 1 ? .5 : localIndex / (localCount - 1));
+    const recoil = tirFormationRecoil(time);
+    return {
+      x:point.x,
+      y:point.y + recoil + Math.sin(time * 3.2 + index * .7) * 2
+    };
+  }
+  if(formationId === "vitesse"){
+    const speedPulse = Math.sin(time * 4.4 + index * .6) * 2.6;
+    const points = [
+      {x:0, y:-176},
+      {x:-48, y:-138},
+      {x:48, y:-138},
+      {x:-94, y:-100},
+      {x:94, y:-100},
+      {x:-116, y:118},
+      {x:-58, y:82},
+      {x:0, y:130},
+      {x:58, y:82},
+      {x:116, y:118}
+    ];
+    const point = points[index] || points[points.length - 1];
+    return {x:point.x, y:point.y + speedPulse};
+  }
   const fixedDrift = Math.sin(time * Math.PI * 2) * 3;
   const leftTriad = [
     {x:-112, y:-72},
@@ -182,20 +237,102 @@ function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profi
   ctx.restore();
 }
 
-function drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid}){
+function drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, droneFormation}){
   if(!drones.length) return;
   const img = cache["assets/drones/drone_test_sprite.webp"];
   const time = performance.now() / 1000;
+  const previousTime = Number.isFinite(player.droneRenderTime) ? player.droneRenderTime : time;
+  const dt = Math.max(0, Math.min(.05, time - previousTime));
+  player.droneRenderTime = time;
   player.droneFormationAngle = Number.isFinite(player.droneFormationAngle)
     ? lerpAngle(player.droneFormationAngle, player.angle, .028)
     : player.angle;
-  drones.slice(0, 10).forEach((uid, index)=>{
-    const point = formationPoint(index, time);
+  const speedRatio = player.speed > 0 ? Math.min(1, Math.hypot(player.vx || 0, player.vy || 0) / player.speed) : 0;
+  const targetSpeedTrail = droneFormation === "vitesse" ? speedRatio * 92 : 0;
+  const trailResponse = targetSpeedTrail > (player.droneSpeedTrail || 0) ? 7.5 : 4.2;
+  player.droneSpeedTrail = (player.droneSpeedTrail || 0) + (targetSpeedTrail - (player.droneSpeedTrail || 0)) * Math.min(1, dt * trailResponse);
+  const visibleDrones = drones.slice(0, 10);
+  visibleDrones.forEach((uid, index)=>{
+    const point = formationPoint(index, time, droneFormation, visibleDrones.length);
+    if(droneFormation === "vitesse"){
+      point.y += player.droneSpeedTrail * (.78 + Math.max(0, point.y) / 360);
+    }
     const pulse = Math.sin(time * 4.2 + index * .9) * 1.4;
     const pos = localToWorld(player, point.x, point.y + pulse, player.droneFormationAngle);
     const x = pos.x;
     const y = pos.y;
     drawRotatedImage({ctx, camera, img, x, y, w:34, h:34, angle:player.angle});
+  });
+}
+
+function drawRepairDrone({ctx, camera, cache, player}){
+  if(!player?.repairBotActive) return;
+  const img = cache[REPAIR_DRONE_IMG];
+  const time = performance.now() / 1000;
+  const servicePoints = [
+    {x:-36, y:-42, ox:-72, oy:-88},
+    {x:38, y:-36, ox:78, oy:-82},
+    {x:42, y:28, ox:90, oy:62},
+    {x:-34, y:36, ox:-82, oy:70},
+    {x:0, y:-8, ox:0, oy:-100}
+  ];
+  const cycle = time * .68;
+  const step = Math.floor(cycle) % servicePoints.length;
+  const next = (step + 1) % servicePoints.length;
+  const mix = smoothstep(cycle - Math.floor(cycle));
+  const from = servicePoints[step];
+  const to = servicePoints[next];
+  const hover = Math.sin(time * 5.2) * 3;
+  const contactLocal = {
+    x:lerp(from.x, to.x, mix),
+    y:lerp(from.y, to.y, mix)
+  };
+  const droneLocal = {
+    x:lerp(from.ox, to.ox, mix) + Math.cos(time * 2.7) * 5,
+    y:lerp(from.oy, to.oy, mix) + hover
+  };
+  const contact = localToWorld(player, contactLocal.x, contactLocal.y, player.angle);
+  const drone = localToWorld(player, droneLocal.x, droneLocal.y, player.angle);
+  const sx = drone.x - camera.x;
+  const sy = drone.y - camera.y;
+  const tx = contact.x - camera.x;
+  const ty = contact.y - camera.y;
+  const pulse = (Math.sin(time * 16) + 1) / 2;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.strokeStyle = `rgba(34,211,238,${.34 + pulse * .22})`;
+  ctx.shadowColor = "rgba(34,211,238,.85)";
+  ctx.shadowBlur = 12;
+  ctx.lineWidth = 2.2 + pulse * 1.4;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+
+  ctx.fillStyle = `rgba(134,239,172,${.28 + pulse * .28})`;
+  ctx.shadowColor = "rgba(34,197,94,.75)";
+  ctx.shadowBlur = 10;
+  for(let i = 0; i < 4; i++){
+    const t = (time * 2.5 + i * .25) % 1;
+    const px = sx + (tx - sx) * t + Math.sin(time * 8 + i) * 2;
+    const py = sy + (ty - sy) * t + Math.cos(time * 7 + i) * 2;
+    ctx.beginPath();
+    ctx.arc(px, py, 2.1 + pulse, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  drawRotatedImage({
+    ctx,
+    camera,
+    img,
+    x:drone.x,
+    y:drone.y,
+    w:42,
+    h:42,
+    angle:player.angle + Math.sin(time * 2.2) * .18,
+    fallbackColor:"#22d3ee"
   });
 }
 
@@ -268,12 +405,14 @@ export function drawPlayerLayer({
   rankAssetPath,
   pilotName,
   getItemFromInventoryUid,
+  droneFormation,
   defaultProfile,
   profiles
 }){
   drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles});
   drawPlayerStatusBars({ctx, camera, player});
   drawRotatedImage({ctx, camera, img:cache[ship.combatImg || ship.img], x:player.x, y:player.y, w:96, h:96, angle:player.angle});
-  drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid});
+  drawRepairDrone({ctx, camera, cache, player});
+  drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, droneFormation});
   drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotName});
 }

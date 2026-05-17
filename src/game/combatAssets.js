@@ -1,7 +1,11 @@
 export function preloadCombatAssets({cache, ships, equipment, ammoTypes = [], enemyTypes, maps, ranks, getRankAssetPath}){
   const enemySprites = Object.values(enemyTypes).map(type=>type.img);
   const mapImages = maps.map(map=>map.bg).filter(Boolean);
-  const mapDecor = maps.flatMap(map=>map.parallaxScene?.images?.map(layer=>layer.src) || []);
+  const mapDecor = maps.flatMap(map=>[
+    ...(map.parallaxScene?.backdrops?.map(layer=>layer.src) || []),
+    ...(map.parallaxScene?.images?.map(layer=>layer.src) || []),
+    ...(map.parallaxScene?.tiles?.map(layer=>layer.src) || [])
+  ]);
   const mapTiles = maps.flatMap(map=>{
     const tileMap = map.tileMap;
     if(!tileMap) return [];

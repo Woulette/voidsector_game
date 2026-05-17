@@ -5,7 +5,7 @@ export function createWeaponSystem(deps){
 
   function getRocketDamageMultiplier(){
     const player = deps.getPlayer();
-    return 1 + Math.max(0, player.extraBonus?.rocketDamageBonus || 0);
+    return (1 + Number(player.extraBonus?.rocketDamageBonus || 0)) * Number(player.extraBonus?.rocketDamageMultiplier || 1);
   }
 
   function getUpgradeLevel(id){
@@ -123,7 +123,7 @@ export function createWeaponSystem(deps){
     const startX = player.x + Math.cos(a)*45;
     const startY = player.y + Math.sin(a)*45;
     deps.addLaserBeam?.({ammoId:ammo.id, fromX:startX, fromY:startY, toX:enemy.x, toY:enemy.y, targetId:enemy.id});
-    deps.resolveLaserHit?.(enemy, damage, deps.playerHitChance);
+    deps.resolveLaserHit?.(enemy, damage, deps.playerHitChance, ammo);
     particles.push({x:startX,y:startY,life:.16,max:.16,size:14,color:ammo.id === "ammo_x4" ? "rgba(255,132,24,.65)" : "rgba(255,218,72,.62)"});
     deps.saveState();
     deps.refreshActionBar();
@@ -168,7 +168,7 @@ export function createWeaponSystem(deps){
     const particles = deps.getParticles();
     const minDamage = Number(ammo.damageMin ?? ammo.damage ?? 0);
     const maxDamage = Number(ammo.damageMax ?? ammo.damage ?? minDamage);
-    const totalDamage = rollBetween(minDamage * needed, maxDamage * needed) * (launcher.effect?.missileDamageMultiplier || 1);
+    const totalDamage = rollBetween(minDamage * needed, maxDamage * needed) * (launcher.effect?.missileDamageMultiplier || 1) * Number(player.extraBonus?.missileDamageMultiplier || 1);
     const travelTime = Math.max(.28, Math.min(1.65, dist / (ammo.speed || 520) + .18));
     for(let i = 0; i < needed; i++){
       const spread = (i - (needed - 1) / 2) * 30;
@@ -204,7 +204,12 @@ export function createWeaponSystem(deps){
     const player = deps.getPlayer();
     if(!player.extraBonus?.autoRocket || !enemy) return;
     if(!deps.getEquippedLauncher?.("rocket")) return;
-    const index = deps.getActionSlots().findIndex(id=>{
+    const selectedRocket = deps.getSelectedRocketAmmo?.();
+    const slots = deps.getActionSlots();
+    const index = selectedRocket ? slots.findIndex(id=>{
+      const ammo = deps.getAmmo(id);
+      return ammo?.id === selectedRocket.id && deps.getAmmoCount(ammo.id) > 0 && deps.getAmmoCooldown(ammo) <= 0;
+    }) : slots.findIndex(id=>{
       const ammo = deps.getAmmo(id);
       return ammo && ammo.weaponClass === "rocket" && deps.getAmmoCount(ammo.id) > 0 && deps.getAmmoCooldown(ammo) <= 0;
     });
@@ -219,10 +224,12 @@ export function createWeaponSystem(deps){
     const enemy = deps.getSelectedEnemy();
     if(!enemy) return;
 
-    fireAutomaticRocket(enemy);
-
     const activeLaserSlot = deps.getActiveLaserSlot();
     if(activeLaserSlot === null) return;
+
+    fireAutomaticRocket(enemy);
+    deps.tryFireAutomaticMissile?.();
+
     const ammo = deps.getCombatAmmo(activeLaserSlot);
     if(!ammo || ammo.weaponClass === "rocket") return;
     if(getLaserVolley().count <= 0) return;
