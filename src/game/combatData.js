@@ -2,18 +2,82 @@ export const MAPS = [
   {
     id:0,
     name:"ASTRA-01",
-    width:5200,
-    height:3600,
+    width:10000,
+    height:8000,
     // Repère de carte : X gauche/droite, Y haut/bas. Le spawn est maintenant en bas à gauche.
-    spawn:{x:-2250,y:1450,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430},
-    portal:{x:2260,y:-1420,r:95,safeRadius:230,targetMap:1,targetX:2260,targetY:-1260,label:"VERS ASTRA-02"},
+    spawn:{x:-4300,y:3300,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430},
+    portal:{x:4300,y:-3300,r:95,safeRadius:230,targetMap:1,targetX:-4300,targetY:3300,label:"VERS ASTRA-02"},
     enemyCount:20,
     enemyLevel:[1,3],
     enemySeed:7,
+    closeStarCount:4280,
     parallaxScene:{
       enabled:true,
       hideGrid:true,
       tileAlpha:0,
+      background:["#020103", "#060206", "#010102"],
+      nebulae:[
+        {x:-760,y:360,r:720,p:.08,color:"rgba(127,29,29,.10)",mid:"rgba(185,28,28,.034)",edge:"rgba(0,0,0,0)"},
+        {x:320,y:-420,r:820,p:.065,color:"rgba(153,27,27,.085)",mid:"rgba(88,28,28,.028)",edge:"rgba(0,0,0,0)"},
+        {x:920,y:460,r:620,p:.11,color:"rgba(248,113,113,.050)",mid:"rgba(127,29,29,.018)",edge:"rgba(0,0,0,0)"},
+        {x:-260,y:-520,r:500,p:.10,color:"rgba(251,146,60,.035)",mid:"rgba(127,29,29,.014)",edge:"rgba(0,0,0,0)"}
+      ],
+      dustSpecks:[
+        {x:-80,y:-40,w:1400,h:520,count:150,p:.10,sizeMin:.28,sizeMax:.95,alphaMin:.018,alphaMax:.065,colors:["255,138,92","190,58,45","255,214,170"]},
+        {x:220,y:220,w:1250,h:480,count:105,p:.14,sizeMin:.24,sizeMax:.82,alphaMin:.014,alphaMax:.050,colors:["248,113,113","153,27,27","251,146,60"]},
+        {x:-320,y:340,w:980,h:390,count:78,p:.18,sizeMin:.20,sizeMax:.62,alphaMin:.010,alphaMax:.038,colors:["251,146,60","127,29,29","255,237,213"]}
+      ],
+      lightClouds:[
+        {x:-320,y:-80,r:560,p:.045,seed:11,alpha:.100,blobs:12,filaments:0,rotation:.18,squeeze:.46,core:"rgba(255,122,74,.100)",mid:"rgba(167,42,34,.040)",edge:"rgba(43,8,10,.012)"},
+        {x:320,y:220,r:500,p:.060,seed:12,alpha:.082,blobs:10,filaments:0,rotation:-.25,squeeze:.52,core:"rgba(220,54,42,.082)",mid:"rgba(127,29,29,.034)",edge:"rgba(24,4,7,.010)"},
+        {x:-520,y:420,r:380,p:.085,seed:13,alpha:.060,blobs:8,filaments:0,rotation:-.45,squeeze:.40,core:"rgba(251,146,60,.060)",mid:"rgba(127,29,29,.024)",edge:"rgba(20,3,4,.008)"},
+        {x:560,y:-260,r:340,p:.075,seed:14,alpha:.052,blobs:7,filaments:0,rotation:.55,squeeze:.50,core:"rgba(185,28,28,.052)",mid:"rgba(88,28,28,.022)",edge:"rgba(12,2,4,.008)"}
+      ],
+      foregroundClouds:[
+        {x:-2480,y:1880,r:430,p:.50,seed:31,alpha:.092,blobs:20,filaments:0,scale:.68,squeeze:.42,core:"rgba(255,116,72,.092)",mid:"rgba(185,38,31,.046)",edge:"rgba(30,5,7,.014)"},
+        {x:-1880,y:1640,r:350,p:.56,seed:32,alpha:.070,blobs:16,filaments:0,scale:.60,squeeze:.48,core:"rgba(218,54,42,.070)",mid:"rgba(127,29,29,.034)",edge:"rgba(20,3,5,.012)"},
+        {x:-980,y:1040,r:310,p:.46,seed:33,alpha:.060,blobs:15,filaments:0,scale:.56,squeeze:.44,core:"rgba(251,146,60,.060)",mid:"rgba(153,27,27,.030)",edge:"rgba(18,3,4,.010)"},
+        {x:-3080,y:2280,r:280,p:.52,seed:34,alpha:.066,blobs:14,filaments:0,scale:.58,squeeze:.50,core:"rgba(248,113,113,.066)",mid:"rgba(127,29,29,.032)",edge:"rgba(16,3,4,.010)"},
+        {x:-260,y:460,r:330,p:.50,seed:35,alpha:.078,blobs:17,filaments:0,scale:.60,squeeze:.46,core:"rgba(255,122,74,.078)",mid:"rgba(153,27,27,.038)",edge:"rgba(18,3,4,.009)"},
+        {x:760,y:120,r:320,p:.52,seed:36,alpha:.070,blobs:16,filaments:0,scale:.58,squeeze:.44,core:"rgba(220,54,42,.070)",mid:"rgba(127,29,29,.034)",edge:"rgba(12,2,3,.008)"},
+        {x:1320,y:-760,r:310,p:.48,seed:37,alpha:.066,blobs:15,filaments:0,scale:.56,squeeze:.48,core:"rgba(251,146,60,.066)",mid:"rgba(127,29,29,.032)",edge:"rgba(12,2,3,.008)"},
+        {x:-720,y:-920,r:330,p:.54,seed:38,alpha:.074,blobs:16,filaments:0,scale:.58,squeeze:.42,core:"rgba(185,28,28,.074)",mid:"rgba(88,28,28,.034)",edge:"rgba(12,2,4,.008)"},
+        {x:-180,y:-1480,r:280,p:.50,seed:39,alpha:.062,blobs:14,filaments:0,scale:.54,squeeze:.46,core:"rgba(255,116,72,.062)",mid:"rgba(127,29,29,.030)",edge:"rgba(14,2,4,.008)"},
+        {x:1180,y:-1720,r:260,p:.46,seed:40,alpha:.054,blobs:12,filaments:0,scale:.52,squeeze:.44,core:"rgba(220,54,42,.054)",mid:"rgba(88,28,28,.026)",edge:"rgba(12,2,3,.008)"},
+        {x:-1420,y:-1720,r:270,p:.48,seed:41,alpha:.058,blobs:13,filaments:0,scale:.52,squeeze:.46,core:"rgba(251,146,60,.058)",mid:"rgba(127,29,29,.028)",edge:"rgba(12,2,3,.008)"}
+      ],
+      images:[
+        {src:"assets/maps/decor/planet_astra_red.png", x:-640, y:460, w:1340, h:1340, p:.105, alpha:.98}
+      ],
+      asteroidFields:[
+        {x:-240,y:-520,w:5000,h:1900,count:46,p:.10,angle:.08,alpha:.42,sizeMin:2,sizeMax:7,sizePower:1.4,craters:0,tint:"slate",shadeMin:30,shadeMax:68},
+        {x:640,y:-260,w:4300,h:2050,count:38,p:.16,angle:-.06,alpha:.56,sizeMin:5,sizeMax:13,sizePower:1.6,craters:0,tint:"slate",shadeMin:28,shadeMax:64},
+        {x:240,y:340,w:3700,h:1800,count:30,p:.24,angle:.10,alpha:.74,sizeMin:8,sizeMax:20,sizePower:1.8,craters:1,tint:"rust",shadeMin:24,shadeMax:56},
+        {x:-980,y:620,w:2600,h:1500,count:16,p:.30,angle:-.12,alpha:.94,sizeMin:13,sizeMax:28,sizePower:2.0,craters:2,tint:"slate",shadeMin:22,shadeMax:52},
+        {x:840,y:780,w:1900,h:1300,count:5,p:.34,angle:.04,alpha:1,sizeMin:22,sizeMax:34,sizePower:2.1,craters:3,tint:"rust",shadeMin:20,shadeMax:48}
+      ]
+    },
+    enemyTypes:[
+      {id:"drone_pirate", weight:.70},
+      {id:"raider_astral", weight:.30}
+    ]
+  },
+  {
+    id:20,
+    name:"CYAN-01",
+    width:10000,
+    height:8000,
+    spawn:{x:-2250,y:1450,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430},
+    portal:null,
+    enemyCount:20,
+    enemyLevel:[1,3],
+    enemySeed:207,
+    closeStarCount:80,
+    parallaxScene:{
+      enabled:true,
+      hideGrid:true,
+      tileAlpha:0,
+      background:["#01040b", "#07182b", "#01040b"],
       nebulae:[
         {x:-1650,y:640,r:1220,p:.08,color:"rgba(30,64,175,.12)",mid:"rgba(59,130,246,.04)",edge:"rgba(0,0,0,0)"},
         {x:780,y:-760,r:1440,p:.06,color:"rgba(124,58,237,.11)",mid:"rgba(76,29,149,.045)",edge:"rgba(0,0,0,0)"},
@@ -21,8 +85,7 @@ export const MAPS = [
         {x:-760,y:-1080,r:820,p:.10,color:"rgba(56,189,248,.075)",mid:"rgba(30,64,175,.03)",edge:"rgba(0,0,0,0)"}
       ],
       images:[
-        {src:"assets/maps/decor/astra01_planet_large.png", x:-640, y:460, w:1340, h:1340, p:.105, alpha:.96},
-        {src:"assets/maps/decor/astra01_planet_teal.png", x:2600, y:1220, w:720, h:720, p:.18, alpha:.88}
+        {src:"assets/maps/decor/planet_cyan_blue.png", x:-640, y:460, w:1340, h:1340, p:.105, alpha:.98}
       ],
       asteroidFields:[
         {x:-360,y:-540,w:4500,h:1450,count:34,p:.30,angle:.10,alpha:.48},
@@ -38,14 +101,29 @@ export const MAPS = [
   {
     id:1,
     name:"ASTRA-02",
-    width:6000,
-    height:4200,
-    spawn:{x:-2650,y:1750,r:260,label:"ZONE DE SPAWN", safeRadius:260, decorRadius:340},
-    portal:{x:2550,y:-1500,r:95,safeRadius:230,targetMap:0,targetX:2260,targetY:-1260,label:"VERS ASTRA-01"},
+    width:10000,
+    height:8000,
+    portal:{x:-4300,y:3300,r:95,safeRadius:230,targetMap:0,targetX:4300,targetY:-3300,label:"VERS ASTRA-01"},
     enemyCount:21,
     enemyLevel:[3,7],
     enemySeed:19,
-    bg:"assets/maps/astra02_bg.jpg",
+    closeStarCount:2240,
+    parallaxScene:{
+      enabled:true,
+      hideGrid:true,
+      tileAlpha:0,
+      background:["#040205", "#0a0306", "#020103"],
+      nebulae:[],
+      backdrops:[
+        {src:"assets/maps/decor/astra02_nebula_mass_cutout.png", x:-100, y:-50, w:1704, h:1223, p:.15, alpha:.64, blend:"screen"}
+      ],
+      dustSpecks:[],
+      tiles:[],
+      images:[],
+      lightClouds:[],
+      glowSpots:[],
+      asteroidFields:[]
+    },
     // Trois familles de vaisseaux ennemis sur ASTRA-02.
     enemyTypes:[
       {id:"raider_astral", weight:.46},

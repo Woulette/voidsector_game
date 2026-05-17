@@ -1,6 +1,8 @@
 function viewWidth(canvas){ return canvas.__renderWidth || canvas.__viewWidth || canvas.clientWidth || canvas.width; }
 function viewHeight(canvas){ return canvas.__renderHeight || canvas.__viewHeight || canvas.clientHeight || canvas.height; }
 const parallaxAsteroidCache = new Map();
+const parallaxDustSpeckCache = new Map();
+const asteroidSpriteCache = new Map();
 let vignetteCache = null;
 
 function getTilePath(tileMap, col, row){
@@ -170,6 +172,42 @@ function drawParallaxNebulae({ctx, canvas, currentMap, camera}){
   ctx.restore();
 }
 
+function drawCenteredLayerImage({ctx, img, layer, sx, sy, width, height}){
+  ctx.save();
+  ctx.translate(sx, sy);
+  if(layer.rotation) ctx.rotate(layer.rotation);
+  ctx.scale(layer.flipX ? -1 : 1, layer.flipY ? -1 : 1);
+  ctx.drawImage(img, -width / 2, -height / 2, width, height);
+  ctx.restore();
+}
+
+function drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera}){
+  const layers = currentMap?.parallaxScene?.backdrops || [];
+  if(!layers.length) return;
+  const w = viewWidth(canvas), h = viewHeight(canvas);
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  for(const layer of layers){
+    const img = cache[layer.src];
+    if(!img || !img.complete || !img.naturalWidth) continue;
+    const p = Number.isFinite(layer.p) ? layer.p : .04;
+    const width = layer.w || img.naturalWidth;
+    const height = layer.h || img.naturalHeight;
+    const sx = (layer.x || 0) - camera.x * p + w / 2;
+    const sy = (layer.y || 0) - camera.y * p + h / 2;
+    if(sx + width / 2 < -160 || sx - width / 2 > w + 160 || sy + height / 2 < -160 || sy - height / 2 > h + 160) continue;
+    ctx.globalAlpha = Number.isFinite(layer.alpha) ? layer.alpha : 1;
+    ctx.filter = layer.filter || "none";
+    ctx.globalCompositeOperation = layer.blend || "source-over";
+    drawCenteredLayerImage({ctx, img, layer, sx, sy, width, height});
+    ctx.filter = "none";
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.restore();
+}
+
 function drawParallaxImages({ctx, canvas, cache, currentMap, camera}){
   const layers = currentMap?.parallaxScene?.images || [];
   if(!layers.length) return;
@@ -187,11 +225,194 @@ function drawParallaxImages({ctx, canvas, cache, currentMap, camera}){
     const sy = layer.y - camera.y * p + h / 2;
     if(sx + width / 2 < -120 || sx - width / 2 > w + 120 || sy + height / 2 < -120 || sy - height / 2 > h + 120) continue;
     ctx.globalAlpha = Number.isFinite(layer.alpha) ? layer.alpha : 1;
+    ctx.filter = layer.filter || "none";
     if(layer.blend) ctx.globalCompositeOperation = layer.blend;
     else ctx.globalCompositeOperation = "source-over";
-    ctx.drawImage(img, sx - width / 2, sy - height / 2, width, height);
+    drawCenteredLayerImage({ctx, img, layer, sx, sy, width, height});
+    ctx.filter = "none";
   }
   ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.restore();
+}
+
+function getParallaxDustSpecks(currentMap){
+  const scene = currentMap?.parallaxScene;
+  if(!scene?.dustSpecks?.length) return [];
+  const key = currentMap.id || currentMap.name || "map";
+  if(parallaxDustSpeckCache.has(key)) return parallaxDustSpeckCache.get(key);
+  const specks = [];
+  scene.dustSpecks.forEach((field, fieldIndex)=>{
+    const rnd = seededValue(26000 + fieldIndex * 701 + (currentMap.id || 0) * 131);
+    const count = field.count || 120;
+    const colors = field.colors || [
+      "255,222,128",
+      "159,220,255",
+      "255,255,255"
+    ];
+    for(let i = 0; i < count; i++){
+      const color = colors[Math.floor(rnd() * colors.length)] || colors[0];
+      specks.push({
+        x:(field.x || 0) + (rnd() - .5) * (field.w || currentMap.width),
+        y:(field.y || 0) + (rnd() - .5) * (field.h || currentMap.height),
+        p:Number.isFinite(field.p) ? field.p : .24,
+        r:(field.sizeMin || .55) + rnd() * ((field.sizeMax || 1.45) - (field.sizeMin || .55)),
+        a:(field.alphaMin || .10) + rnd() * ((field.alphaMax || .34) - (field.alphaMin || .10)),
+        wrap:!!field.wrap,
+        span:field.span || Math.max(field.w || currentMap.width, field.h || currentMap.height, 2400),
+        streak:Number.isFinite(field.streak) ? field.streak : 0,
+        color
+      });
+    }
+  });
+  parallaxDustSpeckCache.set(key, specks);
+  return specks;
+}
+
+function drawParallaxDustSpecks({ctx, canvas, currentMap, camera}){
+  const specks = getParallaxDustSpecks(currentMap);
+  if(!specks.length) return;
+  const w = viewWidth(canvas), h = viewHeight(canvas);
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  for(const s of specks){
+    const sx = s.wrap ? wrappedParallaxPoint(s.x, camera.x, s.p, s.span, w / 2) : s.x - camera.x * s.p + w / 2;
+    const sy = s.wrap ? wrappedParallaxPoint(s.y, camera.y, s.p, s.span, h / 2) : s.y - camera.y * s.p + h / 2;
+    if(sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) continue;
+    ctx.fillStyle = `rgba(${s.color},${s.a})`;
+    if(s.streak > 0){
+      ctx.strokeStyle = `rgba(${s.color},${s.a})`;
+      ctx.lineWidth = Math.max(1, s.r);
+      ctx.beginPath();
+      ctx.moveTo(sx - s.streak * .5, sy - s.streak * .10);
+      ctx.lineTo(sx + s.streak * .5, sy + s.streak * .10);
+      ctx.stroke();
+    }else if(s.r <= 1){
+      ctx.fillRect(sx, sy, 1, 1);
+    }else{
+      ctx.beginPath();
+      ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawParallaxTiles({ctx, canvas, cache, currentMap, camera}){
+  const layers = currentMap?.parallaxScene?.tiles || [];
+  if(!layers.length) return;
+  const w = viewWidth(canvas), h = viewHeight(canvas);
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "medium";
+  for(const layer of layers){
+    const img = cache[layer.src];
+    if(!img || !img.complete || !img.naturalWidth) continue;
+    const p = Number.isFinite(layer.p) ? layer.p : .08;
+    const tileW = layer.w || img.naturalWidth;
+    const tileH = layer.h || img.naturalHeight;
+    const gapX = Number.isFinite(layer.gapX) ? layer.gapX : 0;
+    const gapY = Number.isFinite(layer.gapY) ? layer.gapY : 0;
+    const stepX = Math.max(80, tileW + gapX);
+    const stepY = Math.max(80, tileH + gapY);
+    const originX = (layer.x || 0) - camera.x * p + w / 2;
+    const originY = (layer.y || 0) - camera.y * p + h / 2;
+    const startX = ((originX % stepX) + stepX) % stepX - stepX;
+    const startY = ((originY % stepY) + stepY) % stepY - stepY;
+    ctx.globalAlpha = Number.isFinite(layer.alpha) ? layer.alpha : 1;
+    ctx.filter = layer.filter || "none";
+    ctx.globalCompositeOperation = layer.blend || "source-over";
+    for(let y = startY, row = 0; y < h + stepY; y += stepY, row++){
+      const stagger = layer.stagger ? (row % 2) * stepX * .5 : 0;
+      for(let x = startX - stagger; x < w + stepX; x += stepX){
+        ctx.drawImage(img, x - tileW / 2, y - tileH / 2, tileW, tileH);
+      }
+    }
+    ctx.filter = "none";
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.restore();
+}
+
+function drawParallaxClouds({ctx, canvas, currentMap, camera, layers, defaultComposite = "screen"}){
+  const clouds = layers || [];
+  if(!clouds.length) return;
+  const w = viewWidth(canvas), h = viewHeight(canvas);
+  ctx.save();
+  ctx.globalCompositeOperation = defaultComposite;
+  for(const cloud of clouds){
+    const p = Number.isFinite(cloud.p) ? cloud.p : .06;
+    const sx = cloud.x - camera.x * p + w / 2;
+    const sy = cloud.y - camera.y * p + h / 2;
+    const r = cloud.r || 360;
+    if(sx + r * 2 < -160 || sx - r * 2 > w + 160 || sy + r * 2 < -160 || sy - r * 2 > h + 160) continue;
+    const rnd = seededValue(17000 + (cloud.seed || 0) * 997);
+    const blobs = cloud.blobs || 9;
+    for(let i = 0; i < blobs; i++){
+      const angle = rnd() * Math.PI * 2;
+      const dist = Math.pow(rnd(), .72) * r * .72;
+      const bx = sx + Math.cos(angle) * dist;
+      const by = sy + Math.sin(angle) * dist * (cloud.squeeze || .62);
+      const br = r * (.18 + rnd() * .30) * (cloud.scale || 1);
+      const alpha = (cloud.alpha || .22) * (.55 + rnd() * .55);
+      const g = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+      g.addColorStop(0, cloud.core || `rgba(255,176,72,${alpha})`);
+      g.addColorStop(.28, cloud.mid || `rgba(220,54,28,${alpha * .46})`);
+      g.addColorStop(.68, cloud.edge || `rgba(92,18,24,${alpha * .16})`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(bx - br, by - br, br * 2, br * 2);
+    }
+    ctx.strokeStyle = cloud.filament || `rgba(255,124,42,${(cloud.alpha || .22) * .34})`;
+    ctx.lineWidth = Math.max(1, r * .006);
+    const filamentCount = Number.isFinite(cloud.filaments) ? cloud.filaments : 5;
+    for(let i = 0; i < filamentCount; i++){
+      const a = (cloud.rotation || 0) + (rnd() - .5) * 1.25;
+      const len = r * (.55 + rnd() * .62);
+      const ox = (rnd() - .5) * r * .65;
+      const oy = (rnd() - .5) * r * .34;
+      ctx.beginPath();
+      ctx.moveTo(sx + ox - Math.cos(a) * len * .5, sy + oy - Math.sin(a) * len * .22);
+      ctx.quadraticCurveTo(sx + ox, sy + oy + (rnd() - .5) * r * .18, sx + ox + Math.cos(a) * len * .5, sy + oy + Math.sin(a) * len * .22);
+      ctx.stroke();
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+  ctx.restore();
+}
+
+function drawParallaxLightClouds({ctx, canvas, currentMap, camera}){
+  drawParallaxClouds({ctx, canvas, currentMap, camera, layers:currentMap?.parallaxScene?.lightClouds || []});
+}
+
+function drawParallaxForegroundClouds({ctx, canvas, currentMap, camera}){
+  drawParallaxClouds({ctx, canvas, currentMap, camera, layers:currentMap?.parallaxScene?.foregroundClouds || [], defaultComposite:"screen"});
+}
+
+function drawParallaxGlowSpots({ctx, canvas, currentMap, camera}){
+  const spots = currentMap?.parallaxScene?.glowSpots || [];
+  if(!spots.length) return;
+  const w = viewWidth(canvas), h = viewHeight(canvas);
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  const now = performance.now();
+  for(const spot of spots){
+    const p = Number.isFinite(spot.p) ? spot.p : .12;
+    const sx = spot.x - camera.x * p + w / 2;
+    const sy = spot.y - camera.y * p + h / 2;
+    const r = spot.r || 120;
+    if(sx + r < -80 || sx - r > w + 80 || sy + r < -80 || sy - r > h + 80) continue;
+    const flicker = .86 + Math.sin(now / (spot.speed || 720) + (spot.seed || 0)) * .14;
+    const alpha = (Number.isFinite(spot.alpha) ? spot.alpha : .45) * flicker;
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+    g.addColorStop(0, spot.core || `rgba(255,236,180,${alpha})`);
+    g.addColorStop(.18, spot.hot || `rgba(255,104,36,${alpha * .72})`);
+    g.addColorStop(.48, spot.mid || `rgba(185,28,28,${alpha * .34})`);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+  }
   ctx.globalCompositeOperation = "source-over";
   ctx.restore();
 }
@@ -220,23 +441,140 @@ function getParallaxAsteroids(currentMap){
       const ly = (rnd() - .5) * field.h;
       const x = field.x + lx * cos - ly * sin;
       const y = field.y + lx * sin + ly * cos;
-      const r = 4 + Math.pow(rnd(), 2.2) * 42;
-      const verts = Array.from({length:9}, (_,index)=>{
-        const angle = index / 9 * Math.PI * 2;
-        const radius = r * (.72 + rnd() * .44);
-        return {x:Math.cos(angle) * radius, y:Math.sin(angle) * radius * (.72 + rnd() * .18)};
-      });
+      const minR = Number.isFinite(field.sizeMin) ? field.sizeMin : 4;
+      const maxR = Number.isFinite(field.sizeMax) ? field.sizeMax : 46;
+      const r = minR + Math.pow(rnd(), field.sizePower || 2.2) * (maxR - minR);
+      const variant = Math.floor(rnd() * 10);
+      const shadeMin = Number.isFinite(field.shadeMin) ? field.shadeMin : 42;
+      const shadeMax = Number.isFinite(field.shadeMax) ? field.shadeMax : 96;
       asteroids.push({
-        x,y,r,verts,
+        x,y,r,
         rot:rnd() * Math.PI * 2,
         p:field.p || .45,
         alpha:(field.alpha || .6) * (.55 + rnd() * .45),
-        shade:42 + Math.floor(rnd() * 54)
+        shade:Math.floor(shadeMin + rnd() * Math.max(0, shadeMax - shadeMin)),
+        tint:field.tint || "slate",
+        variant,
+        craters:Number.isFinite(field.craters) ? field.craters : 1
       });
     }
   });
   parallaxAsteroidCache.set(key, asteroids);
   return asteroids;
+}
+
+function asteroidPalette(tint, shade){
+  if(tint === "rust"){
+    return {
+      hi:[shade + 92, shade + 70, shade + 58],
+      mid:[shade + 38, shade + 28, shade + 26],
+      low:[16, 10, 12],
+      rim:[218, 180, 150]
+    };
+  }
+  if(tint === "ice"){
+    return {
+      hi:[shade + 82, shade + 104, shade + 118],
+      mid:[shade + 22, shade + 36, shade + 50],
+      low:[7, 12, 20],
+      rim:[205, 235, 248]
+    };
+  }
+  return {
+    hi:[shade + 76, shade + 84, shade + 96],
+    mid:[shade + 18, shade + 24, shade + 34],
+    low:[7, 8, 13],
+    rim:[205, 220, 235]
+  };
+}
+
+function getAsteroidSprite(asteroid){
+  const bucket = Math.max(8, Math.round(asteroid.r / 4) * 4);
+  const key = `${bucket}|${asteroid.tint}|${asteroid.shade}|${asteroid.variant}|${asteroid.craters}`;
+  if(asteroidSpriteCache.has(key)) return asteroidSpriteCache.get(key);
+
+  const pad = Math.ceil(bucket * .55) + 8;
+  const size = Math.max(24, Math.ceil(bucket * 2 + pad * 2));
+  const cx = size / 2;
+  const cy = size / 2;
+  const rnd = seededValue(47000 + asteroid.variant * 271 + asteroid.shade * 13 + bucket * 19);
+  const verts = [];
+  const vertexCount = 13;
+  for(let i = 0; i < vertexCount; i++){
+    const a = i / vertexCount * Math.PI * 2;
+    const rr = bucket * (.72 + rnd() * .34);
+    verts.push({
+      x:cx + Math.cos(a) * rr,
+      y:cy + Math.sin(a) * rr * (.78 + rnd() * .18)
+    });
+  }
+
+  const buffer = document.createElement("canvas");
+  buffer.width = size;
+  buffer.height = size;
+  const bctx = buffer.getContext("2d");
+  const palette = asteroidPalette(asteroid.tint, asteroid.shade);
+  const grad = bctx.createLinearGradient(cx - bucket, cy - bucket, cx + bucket * .9, cy + bucket * .85);
+  grad.addColorStop(0, `rgb(${palette.hi.join(",")})`);
+  grad.addColorStop(.46, `rgb(${palette.mid.join(",")})`);
+  grad.addColorStop(1, `rgb(${palette.low.join(",")})`);
+
+  bctx.save();
+  bctx.beginPath();
+  verts.forEach((p, i)=>i ? bctx.lineTo(p.x, p.y) : bctx.moveTo(p.x, p.y));
+  bctx.closePath();
+  bctx.clip();
+  bctx.fillStyle = grad;
+  bctx.fillRect(0, 0, size, size);
+
+  for(let i = 0; i < 48; i++){
+    const x = cx + (rnd() - .5) * bucket * 1.9;
+    const y = cy + (rnd() - .5) * bucket * 1.55;
+    const alpha = .025 + rnd() * .055;
+    const light = rnd() > .48 ? 255 : 0;
+    bctx.fillStyle = `rgba(${light},${light},${light},${alpha})`;
+    bctx.beginPath();
+    bctx.arc(x, y, .8 + rnd() * bucket * .035, 0, Math.PI * 2);
+    bctx.fill();
+  }
+
+  const craterCount = Math.max(0, Math.round(asteroid.craters + bucket / 18));
+  for(let i = 0; i < craterCount; i++){
+    const x = cx + (rnd() - .5) * bucket * 1.15;
+    const y = cy + (rnd() - .5) * bucket * .92;
+    const r = Math.max(1.3, bucket * (.06 + rnd() * .09));
+    const cg = bctx.createRadialGradient(x - r * .25, y - r * .25, 0, x, y, r);
+    cg.addColorStop(0, "rgba(255,255,255,.10)");
+    cg.addColorStop(.42, "rgba(0,0,0,.18)");
+    cg.addColorStop(1, "rgba(0,0,0,.04)");
+    bctx.fillStyle = cg;
+    bctx.beginPath();
+    bctx.ellipse(x, y, r, r * (.55 + rnd() * .25), rnd() * Math.PI, 0, Math.PI * 2);
+    bctx.fill();
+  }
+  bctx.restore();
+
+  bctx.strokeStyle = `rgba(${palette.rim.join(",")},.24)`;
+  bctx.lineWidth = Math.max(1, bucket * .035);
+  bctx.beginPath();
+  verts.forEach((p, i)=>i ? bctx.lineTo(p.x, p.y) : bctx.moveTo(p.x, p.y));
+  bctx.closePath();
+  bctx.stroke();
+
+  const shadow = bctx.createRadialGradient(cx + bucket * .22, cy + bucket * .18, 0, cx + bucket * .18, cy + bucket * .12, bucket * 1.06);
+  shadow.addColorStop(0, "rgba(0,0,0,0)");
+  shadow.addColorStop(.56, "rgba(0,0,0,.10)");
+  shadow.addColorStop(1, "rgba(0,0,0,.46)");
+  bctx.globalCompositeOperation = "multiply";
+  bctx.fillStyle = shadow;
+  bctx.beginPath();
+  verts.forEach((p, i)=>i ? bctx.lineTo(p.x, p.y) : bctx.moveTo(p.x, p.y));
+  bctx.closePath();
+  bctx.fill();
+  bctx.globalCompositeOperation = "source-over";
+
+  asteroidSpriteCache.set(key, buffer);
+  return buffer;
 }
 
 function drawParallaxAsteroids({ctx, canvas, currentMap, camera}){
@@ -249,31 +587,13 @@ function drawParallaxAsteroids({ctx, canvas, currentMap, camera}){
     const sy = asteroid.y - camera.y * asteroid.p + h / 2;
     const margin = asteroid.r * 3 + 80;
     if(sx < -margin || sx > w + margin || sy < -margin || sy > h + margin) continue;
+    const sprite = getAsteroidSprite(asteroid);
+    const size = asteroid.r * 2 + Math.ceil(asteroid.r * 1.1) + 16;
     ctx.save();
     ctx.translate(sx, sy);
     ctx.rotate(asteroid.rot);
-    const g = ctx.createLinearGradient(-asteroid.r, -asteroid.r, asteroid.r, asteroid.r);
-    g.addColorStop(0, `rgba(${asteroid.shade + 72},${asteroid.shade + 88},${asteroid.shade + 105},${asteroid.alpha})`);
-    g.addColorStop(.52, `rgba(${asteroid.shade},${asteroid.shade + 9},${asteroid.shade + 18},${asteroid.alpha * .92})`);
-    g.addColorStop(1, `rgba(5,9,16,${asteroid.alpha * .86})`);
-    ctx.fillStyle = g;
-    ctx.strokeStyle = `rgba(190,220,240,${asteroid.alpha * .22})`;
-    ctx.lineWidth = Math.max(1, asteroid.r * .045);
-    ctx.beginPath();
-    asteroid.verts.forEach((point, index)=>{
-      if(index === 0) ctx.moveTo(point.x, point.y);
-      else ctx.lineTo(point.x, point.y);
-    });
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    if(asteroid.r > 13){
-      ctx.strokeStyle = `rgba(240,249,255,${asteroid.alpha * .16})`;
-      ctx.beginPath();
-      ctx.moveTo(-asteroid.r * .35, -asteroid.r * .22);
-      ctx.lineTo(asteroid.r * .26, -asteroid.r * .14);
-      ctx.stroke();
-    }
+    ctx.globalAlpha = asteroid.alpha;
+    ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
     ctx.restore();
   }
   ctx.restore();
@@ -283,17 +603,24 @@ function drawCloseSpeedStars({ctx, canvas, camera, asteroids, player}){
   if(!asteroids?.length) return;
   const w = viewWidth(canvas);
   const h = viewHeight(canvas);
+  const now = performance.now() * 0.001;
   ctx.save();
   ctx.translate(-camera.x,-camera.y);
   ctx.globalCompositeOperation = "screen";
   for(const star of asteroids){
-    if(star.x < camera.x-100 || star.x > camera.x+w+100 || star.y < camera.y-100 || star.y > camera.y+h+100) continue;
-    const alpha = star.a || .45;
-    const radius = star.r || 1;
+    const drift = star.drift || 0;
+    const driftX = drift ? Math.sin(now * (star.driftSpeed || .7) + (star.phase || 0)) * drift : 0;
+    const driftY = drift ? Math.cos(now * (star.driftSpeed || .7) * .83 + (star.phase || 0) * 1.37) * drift * .65 : 0;
+    const x = star.x + driftX;
+    const y = star.y + driftY;
+    if(x < camera.x-100 || x > camera.x+w+100 || y < camera.y-100 || y > camera.y+h+100) continue;
+    const pulse = .78 + Math.sin(now * (star.twinkleSpeed || 1.1) + (star.phase || 0)) * .22;
+    const alpha = (star.a || .45) * pulse;
+    const radius = (star.r || 1) * (.92 + pulse * .08);
     const blue = (star.tint || 0) > .72;
     ctx.fillStyle = blue ? `rgba(186,230,253,${alpha})` : `rgba(255,255,255,${alpha})`;
     ctx.beginPath();
-    ctx.arc(star.x, star.y, radius, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalCompositeOperation = "source-over";
@@ -320,26 +647,39 @@ function drawParallaxVignette({ctx, canvas}){
 
 function drawParallaxBackground({ctx, canvas, cache, currentMap, camera, stars, dust}){
   drawParallaxNebulae({ctx, canvas, currentMap, camera});
+  drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera});
   drawParallaxStars({ctx, canvas, camera, stars, dust});
-  drawParallaxAsteroids({ctx, canvas, currentMap, camera});
+  drawParallaxDustSpecks({ctx, canvas, currentMap, camera});
+  drawParallaxTiles({ctx, canvas, cache, currentMap, camera});
+  drawParallaxLightClouds({ctx, canvas, currentMap, camera});
   drawParallaxImages({ctx, canvas, cache, currentMap, camera});
+  drawParallaxForegroundClouds({ctx, canvas, currentMap, camera});
+  drawParallaxAsteroids({ctx, canvas, currentMap, camera});
+  drawParallaxGlowSpots({ctx, canvas, currentMap, camera});
   drawParallaxVignette({ctx, canvas});
 }
 
 function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars, dust}){
   const w = viewWidth(canvas), h = viewHeight(canvas);
   const bg = ctx.createLinearGradient(0,0,w,h);
-  bg.addColorStop(0,"#01040b");
-  bg.addColorStop(.55,"#07182b");
-  bg.addColorStop(1,"#01040b");
+  const colors = currentMap?.parallaxScene?.background || ["#01040b", "#07182b", "#01040b"];
+  bg.addColorStop(0, colors[0] || "#01040b");
+  bg.addColorStop(.55, colors[1] || "#07182b");
+  bg.addColorStop(1, colors[2] || "#01040b");
   ctx.fillStyle = bg;
   ctx.fillRect(0,0,w,h);
 
   if(currentMap?.parallaxScene?.enabled){
     drawParallaxNebulae({ctx, canvas, currentMap, camera});
+    drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera});
     drawParallaxStars({ctx, canvas, camera, stars, dust});
-    drawParallaxAsteroids({ctx, canvas, currentMap, camera});
+    drawParallaxDustSpecks({ctx, canvas, currentMap, camera});
+    drawParallaxTiles({ctx, canvas, cache, currentMap, camera});
+    drawParallaxLightClouds({ctx, canvas, currentMap, camera});
     drawParallaxImages({ctx, canvas, cache, currentMap, camera});
+    drawParallaxForegroundClouds({ctx, canvas, currentMap, camera});
+    drawParallaxAsteroids({ctx, canvas, currentMap, camera});
+    drawParallaxGlowSpots({ctx, canvas, currentMap, camera});
     drawParallaxVignette({ctx, canvas});
     return;
   }
@@ -463,6 +803,7 @@ function drawWorldMarkers({ctx, camera, currentMap, player, safeReady, stations}
   ctx.translate(-camera.x,-camera.y);
   const spawn = currentMap.spawn;
   const pulse = Math.sin(performance.now()/240)*8;
+  if(spawn && spawn.kind !== "portal"){
   const ring = spawn.safeRadius || spawn.r;
   const decor = spawn.decorRadius || ring + 90;
   const spawnGrad = ctx.createRadialGradient(spawn.x, spawn.y, 18, spawn.x, spawn.y, decor + 20);
@@ -497,6 +838,7 @@ function drawWorldMarkers({ctx, camera, currentMap, player, safeReady, stations}
   ctx.font = "700 18px Rajdhani, Arial";
   ctx.fillText(`${spawn.label}${safeReady ? " · SAFE" : ` · SAFE DANS ${Math.ceil(player.safeZoneLock || 0)}S`}`, spawn.x-ring+24, spawn.y-ring-18);
   drawSpawnStations({ctx, stations});
+  }
 
   const portal = currentMap.portal;
   if(portal){
