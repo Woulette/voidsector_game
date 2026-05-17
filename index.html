@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VoidSector - Prototype jouable</title>
+  <link rel="icon" href="favicon.ico" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -296,12 +297,12 @@
       <span>Protection active</span>
     </div>
     <div id="combatUtilityDock" class="combat-utility-dock frame" aria-label="Modules rapides">
-      <button data-utility-panel="group" type="button" title="Groupe" aria-label="Groupe">G</button>
-      <button data-utility-panel="refinery" type="button" title="Raffinage" aria-label="Raffinage">R</button>
-      <button data-utility-panel="quests" type="button" title="Quetes" aria-label="Quetes">Q</button>
-      <button class="disabled" type="button" disabled title="Carte" aria-label="Carte">M</button>
-      <button class="disabled" type="button" disabled title="Clan" aria-label="Clan">C</button>
-      <button class="disabled" type="button" disabled title="Journal" aria-label="Journal">J</button>
+      <button data-utility-panel="group" type="button" title="Groupe" aria-label="Groupe"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="9" r="2.6"></circle><path d="M3.5 19c.7-3.5 2.8-5.2 6.3-5.2s5.6 1.7 6.3 5.2"></path><path d="M13.8 14.1c2.8.2 4.7 1.8 5.4 4.9"></path></svg></button>
+      <button data-utility-panel="refinery" type="button" title="Raffinage" aria-label="Raffinage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l-1 6 4 8-2 4H7l-2-4 4-8z"></path><path d="M9 9h6"></path><path d="M8 17h8"></path></svg></button>
+      <button data-utility-panel="quests" type="button" title="Quetes" aria-label="Quetes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l2 2v16H5V5z"></path><path d="M8 8h8"></path><path d="M8 12h6"></path><path d="M8 16h5"></path></svg></button>
+      <button data-utility-panel="map" type="button" title="Carte" aria-label="Carte"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2z"></path><path d="M9 4v14"></path><path d="M15 6v14"></path><circle cx="12" cy="12" r="1.7"></circle></svg></button>
+      <button class="disabled" type="button" disabled title="Clan" aria-label="Clan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 4.4-2.6 7.4-7 9-4.4-1.6-7-4.6-7-9V7z"></path><path d="M9 12l2 2 4-5"></path></svg></button>
+      <button class="disabled" type="button" disabled title="Journal" aria-label="Journal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h11l1 2v14H6z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path><path d="M9 16h4"></path></svg></button>
     </div>
     <div id="combatUtilityPanelGroup" class="combat-utility-panel frame hidden" data-utility-mode="group">
       <div class="combat-utility-panel-head">
@@ -315,16 +316,27 @@
       </div>
       <div id="combatUtilityContentQuests" class="combat-utility-content"></div>
     </div>
+    <div id="combatUtilityPanelMap" class="combat-utility-panel frame hidden" data-utility-mode="map">
+      <div class="combat-utility-panel-head">
+        <strong>CARTE</strong>
+      </div>
+      <div id="combatUtilityContentMap" class="combat-utility-content"></div>
+    </div>
     <canvas id="gameCanvas"></canvas>
     <div id="gameActionBar" class="action-bar frame"></div>
     <button id="combatQuickMenuBtn" class="combat-menu-button" type="button">+</button>
     <div id="combatQuickPanel" class="combat-quick-panel frame hidden">
-      <div class="combat-panel-tabs">
-        <button class="active" data-combat-panel-tab="ammo" type="button">Munitions</button>
-        <button data-combat-panel-tab="skills" type="button">Competences</button>
-        <button data-combat-panel-tab="cpu" type="button">CPU</button>
-        <button data-combat-panel-tab="extras" type="button">Extras</button>
-        <button data-combat-panel-tab="shop" type="button">Magasin</button>
+      <div class="combat-panel-tabs-wrap">
+        <button class="combat-tab-arrow" data-combat-tab-shift="-1" type="button">&lsaquo;</button>
+        <div class="combat-panel-tabs">
+          <button class="active" data-combat-panel-tab="ammo" type="button">Munitions</button>
+          <button data-combat-panel-tab="skills" type="button">Competences</button>
+          <button data-combat-panel-tab="cpu" type="button">CPU</button>
+          <button data-combat-panel-tab="extras" type="button">Extras</button>
+          <button data-combat-panel-tab="formations" type="button">Formations</button>
+          <button data-combat-panel-tab="shop" type="button">Magasin</button>
+        </div>
+        <button class="combat-tab-arrow" data-combat-tab-shift="1" type="button">&rsaquo;</button>
       </div>
       <div id="combatPanelContent" class="combat-panel-content"></div>
     </div>
