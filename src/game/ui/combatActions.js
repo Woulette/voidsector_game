@@ -60,6 +60,34 @@ export function createCombatActions({
     return getAmmo(store.state.actionSlots?.[index]);
   }
 
+  function isLaserAmmo(ammo){
+    return ammo?.weaponClass === "laser";
+  }
+
+  function rememberLaserAmmo(ammo){
+    if(!isLaserAmmo(ammo)) return;
+    if(store.state.lastLaserAmmoId === ammo.id) return;
+    store.state.lastLaserAmmoId = ammo.id;
+    saveState();
+  }
+
+  function getLaserSlotForAttack(){
+    const activeAmmo = getCombatAmmo(activeLaserSlot);
+    if(isLaserAmmo(activeAmmo)) return activeLaserSlot;
+
+    const remembered = getAmmo(store.state.lastLaserAmmoId);
+    if(isLaserAmmo(remembered)){
+      const rememberedSlot = (store.state.actionSlots || []).findIndex(id=>id === remembered.id);
+      if(rememberedSlot >= 0) return rememberedSlot;
+    }
+
+    const fallbackSlot = (store.state.actionSlots || []).findIndex(id=>{
+      const ammo = getAmmo(id);
+      return isLaserAmmo(ammo) && getAmmoCount(ammo.id) > 0;
+    });
+    return fallbackSlot >= 0 ? fallbackSlot : null;
+  }
+
   function getSelectedRocketAmmo(){
     const ammo = getAmmo(selectedRocketAmmoId);
     return ammo?.weaponClass === "rocket" ? ammo : null;
@@ -255,6 +283,8 @@ export function createCombatActions({
       return;
     }
 
+    rememberLaserAmmo(ammo);
+
     if(activeLaserSlot === index){
       activeLaserSlot = null;
       showToast(`Laser desactive : slot ${index+1}.`);
@@ -437,6 +467,8 @@ export function createCombatActions({
     reset,
     getActiveLaserSlot,
     setActiveLaserSlot,
+    getLaserSlotForAttack,
+    rememberLaserAmmo,
     getCombatAmmo,
     getSelectedRocketAmmo,
     getCombatExtra,

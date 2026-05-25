@@ -1,5 +1,7 @@
 import { drawRotatedImage } from "./player.js";
 
+const impactSpriteCache = new Map();
+
 function colorWithAlpha(color, alpha, fallback = "rgba(255,255,255,1)"){
   if(typeof color !== "string") return fallback.replace(/,[\d.]+\)$/g, `,${alpha})`);
   if(color.startsWith("rgba(")) return color.replace(/,[\d.]+\)$/g, `,${alpha})`);
@@ -12,6 +14,41 @@ function easeOutCubic(value){
   return 1 - Math.pow(1 - t, 3);
 }
 
+function drawFastProjectileTrail(ctx, bullet, angle){
+  const trail = bullet.trail || [];
+  if(trail.length < 2) return;
+  const isMissile = bullet.kind === "missile";
+  const samples = isMissile ? 5 : 6;
+  const start = Math.max(1, trail.length - samples);
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.shadowBlur = 0;
+  for(let i = start; i < trail.length; i += 2){
+    const from = trail[i - 1];
+    const to = trail[i];
+    const alpha = Math.max(0, Math.min(from.life, to.life) / Math.max(.001, from.max));
+    ctx.strokeStyle = colorWithAlpha(bullet.color, alpha * (isMissile ? .30 : .36), isMissile ? `rgba(167,139,250,${alpha * .30})` : `rgba(96,165,250,${alpha * .36})`);
+    ctx.lineWidth = Math.max(.8, (isMissile ? 2.3 : 3.1) * alpha);
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+  }
+  const last = trail[trail.length - 1];
+  const alpha = Math.max(0, last.life / Math.max(.001, last.max));
+  ctx.fillStyle = colorWithAlpha(bullet.particle || bullet.color, alpha * (isMissile ? .18 : .25), isMissile ? `rgba(125,211,252,${alpha * .18})` : `rgba(255,180,72,${alpha * .25})`);
+  ctx.save();
+  ctx.translate(last.x, last.y);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, isMissile ? 7 : 10, isMissile ? 2.4 : 3.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+
 function drawImpactSpark(ctx, effect, spark, progress, alpha, scale = 1){
   const travel = spark.speed * easeOutCubic(progress) * scale;
   const x = effect.x + Math.cos(spark.angle) * travel;
@@ -19,12 +56,67 @@ function drawImpactSpark(ctx, effect, spark, progress, alpha, scale = 1){
   const tail = spark.length * (1 - progress * .35) * scale;
   ctx.strokeStyle = colorWithAlpha(spark.color || effect.color, alpha * spark.alpha, "rgba(255,255,255,.8)");
   ctx.shadowColor = colorWithAlpha(spark.color || effect.color, alpha * .72, "rgba(255,255,255,.7)");
-  ctx.shadowBlur = 7 * scale;
+  ctx.shadowBlur = 3 * scale;
   ctx.lineWidth = Math.max(.7, spark.width * (1 - progress * .45) * scale);
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.lineTo(x - Math.cos(spark.angle) * tail, y - Math.sin(spark.angle) * tail);
   ctx.stroke();
+}
+
+function getImpactSprite(kind){
+  const key = kind === "missile" ? "missile" : "rocket";
+  if(impactSpriteCache.has(key)) return impactSpriteCache.get(key);
+  const isMissile = key === "missile";
+  const size = isMissile ? 192 : 136;
+  const center = size / 2;
+  const buffer = document.createElement("canvas");
+  buffer.width = size;
+  buffer.height = size;
+  const bctx = buffer.getContext("2d");
+  const hot = isMissile ? "rgba(248,250,252,1)" : "rgba(255,251,235,1)";
+  const core = isMissile ? "rgba(125,211,252,.92)" : "rgba(251,191,36,.92)";
+  const mid = isMissile ? "rgba(59,130,246,.42)" : "rgba(249,115,22,.42)";
+  const edge = isMissile ? "rgba(30,64,175,0)" : "rgba(127,29,29,0)";
+
+  const glow = bctx.createRadialGradient(center, center, 0, center, center, center * .92);
+  glow.addColorStop(0, hot);
+  glow.addColorStop(.16, core);
+  glow.addColorStop(.48, mid);
+  glow.addColorStop(1, edge);
+  bctx.fillStyle = glow;
+  bctx.beginPath();
+  bctx.arc(center, center, center * .92, 0, Math.PI * 2);
+  bctx.fill();
+
+  bctx.globalCompositeOperation = "lighter";
+  bctx.strokeStyle = isMissile ? "rgba(186,230,253,.78)" : "rgba(254,240,138,.76)";
+  bctx.lineWidth = isMissile ? 5 : 4;
+  bctx.beginPath();
+  bctx.arc(center, center, center * .42, 0, Math.PI * 2);
+  bctx.stroke();
+  bctx.strokeStyle = isMissile ? "rgba(96,165,250,.42)" : "rgba(251,146,60,.42)";
+  bctx.lineWidth = isMissile ? 3 : 2.5;
+  bctx.beginPath();
+  bctx.arc(center, center, center * .68, 0, Math.PI * 2);
+  bctx.stroke();
+
+  const sparkCount = isMissile ? 14 : 9;
+  bctx.strokeStyle = isMissile ? "rgba(191,219,254,.82)" : "rgba(254,215,170,.82)";
+  bctx.lineCap = "round";
+  for(let i = 0; i < sparkCount; i++){
+    const angle = i / sparkCount * Math.PI * 2 + (isMissile ? .08 : .16);
+    const inner = center * (isMissile ? .30 : .34);
+    const outer = center * (isMissile ? (.67 + (i % 3) * .06) : (.58 + (i % 2) * .07));
+    bctx.lineWidth = isMissile ? (1.7 + (i % 3) * .45) : (1.4 + (i % 2) * .4);
+    bctx.beginPath();
+    bctx.moveTo(center + Math.cos(angle) * inner, center + Math.sin(angle) * inner);
+    bctx.lineTo(center + Math.cos(angle) * outer, center + Math.sin(angle) * outer);
+    bctx.stroke();
+  }
+  bctx.globalCompositeOperation = "source-over";
+  impactSpriteCache.set(key, buffer);
+  return buffer;
 }
 
 export function drawProjectiles({ctx, camera, cache, bullets}){
@@ -35,56 +127,15 @@ export function drawProjectiles({ctx, camera, cache, bullets}){
       const img = cache?.[bullet.sprite || (bullet.kind === "rocket" ? "assets/equipment/rocket_projectile.png" : "")] || null;
       const angle = bullet.angle ?? Math.atan2(bullet.y - bullet.fromY, bullet.x - bullet.fromX);
       const pulse = .75 + Math.sin(performance.now() / 55 + bullet.elapsed * 12) * .25;
-      if(bullet.trail?.length){
-        ctx.save();
-        ctx.globalCompositeOperation = "lighter";
-        if(bullet.trail.length > 1){
-          ctx.lineCap = "round";
-          ctx.lineJoin = "round";
-          for(let i = 1; i < bullet.trail.length; i++){
-            const from = bullet.trail[i - 1];
-            const to = bullet.trail[i];
-            const alpha = Math.max(0, Math.min(from.life, to.life) / from.max);
-            ctx.strokeStyle = colorWithAlpha(bullet.color, alpha * (bullet.kind === "missile" ? .30 : .34), bullet.kind === "missile" ? `rgba(167,139,250,${alpha * .30})` : `rgba(96,165,250,${alpha * .34})`);
-            ctx.shadowColor = colorWithAlpha(bullet.color, bullet.kind === "missile" ? .38 : .42, bullet.kind === "missile" ? "rgba(129,140,248,.38)" : "rgba(56,189,248,.42)");
-            ctx.shadowBlur = bullet.kind === "missile" ? 5 : 7;
-            ctx.lineWidth = (bullet.kind === "missile" ? 1.8 : 2.6) * alpha;
-            ctx.beginPath();
-            ctx.moveTo(from.x, from.y);
-            ctx.lineTo(to.x, to.y);
-            ctx.stroke();
-
-            ctx.strokeStyle = colorWithAlpha(bullet.particle || bullet.color, alpha * (bullet.kind === "missile" ? .18 : .24), bullet.kind === "missile" ? `rgba(125,211,252,${alpha * .18})` : `rgba(255,180,72,${alpha * .20})`);
-            ctx.shadowColor = colorWithAlpha(bullet.particle || bullet.color, bullet.kind === "missile" ? .28 : .38, bullet.kind === "missile" ? "rgba(56,189,248,.28)" : "rgba(255,132,24,.36)");
-            ctx.shadowBlur = 5;
-            ctx.lineWidth = 1.2 * alpha;
-            ctx.beginPath();
-            ctx.moveTo(from.x, from.y);
-            ctx.lineTo(to.x, to.y);
-            ctx.stroke();
-          }
-        }
-        for(let i = 0; i < bullet.trail.length; i++){
-          const point = bullet.trail[i];
-          const alpha = Math.max(0, point.life / point.max);
-          const scale = 1 - i / Math.max(1, bullet.trail.length);
-          ctx.fillStyle = colorWithAlpha(bullet.color, alpha * (bullet.kind === "missile" ? .07 : .10), bullet.kind === "missile" ? `rgba(148,163,184,${alpha * .07})` : `rgba(146,163,178,${alpha * .10})`);
-          ctx.shadowColor = colorWithAlpha(bullet.color, bullet.kind === "missile" ? .14 : .20, bullet.kind === "missile" ? "rgba(129,140,248,.14)" : "rgba(125,211,252,.20)");
-          ctx.shadowBlur = 5;
-          ctx.beginPath();
-          ctx.ellipse(point.x, point.y, bullet.kind === "missile" ? 5 + scale * 3 : 8 + scale * 4, bullet.kind === "missile" ? 2 + scale : 3.2 + scale * 1.5, angle, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-      }
+      drawFastProjectileTrail(ctx, bullet, angle);
       ctx.save();
       ctx.translate(bullet.x, bullet.y);
       ctx.rotate(angle);
       ctx.globalCompositeOperation = "lighter";
       if(bullet.kind === "missile"){
         ctx.fillStyle = colorWithAlpha(bullet.particle || bullet.color, .20 + pulse * .16, `rgba(96,165,250,${.20 + pulse * .16})`);
-        ctx.shadowColor = colorWithAlpha(bullet.particle || bullet.color, .62, "rgba(96,165,250,.62)");
-        ctx.shadowBlur = 8 + pulse * 6;
+        ctx.shadowColor = colorWithAlpha(bullet.particle || bullet.color, .38, "rgba(96,165,250,.38)");
+        ctx.shadowBlur = 4 + pulse * 3;
         ctx.beginPath();
         ctx.ellipse(-12, 0, 12, 3, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -112,14 +163,14 @@ export function drawProjectiles({ctx, camera, cache, bullets}){
         }
       }else{
         ctx.fillStyle = colorWithAlpha(bullet.color, .36 + pulse * .18, `rgba(255,132,24,${.36 + pulse * .18})`);
-        ctx.shadowColor = colorWithAlpha(bullet.color, .72, "rgba(255,132,24,.72)");
-        ctx.shadowBlur = 10 + pulse * 8;
+        ctx.shadowColor = colorWithAlpha(bullet.color, .42, "rgba(255,132,24,.42)");
+        ctx.shadowBlur = 5 + pulse * 4;
         ctx.beginPath();
         ctx.ellipse(-17, 0, 17, 4.2, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = colorWithAlpha(bullet.particle || bullet.color, .42 + pulse * .22, `rgba(125,211,252,${.42 + pulse * .22})`);
-        ctx.shadowColor = colorWithAlpha(bullet.particle || bullet.color, .85, "rgba(56,189,248,.85)");
-        ctx.shadowBlur = 8 + pulse * 8;
+        ctx.shadowColor = colorWithAlpha(bullet.particle || bullet.color, .48, "rgba(56,189,248,.48)");
+        ctx.shadowBlur = 4 + pulse * 4;
         ctx.beginPath();
         ctx.ellipse(-14, 0, 7 + pulse * 2, 2.4 + pulse, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -191,32 +242,20 @@ export function drawBeams({ctx, camera, beams}){
     const headY = beam.fromY + dirY * Math.min(distance, headDistance);
     const tailX = beam.fromX + dirX * tailDistance;
     const tailY = beam.fromY + dirY * tailDistance;
-    const sideX = -dirY;
-    const sideY = dirX;
+    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.glow, shadowColor:beam.glow, alpha:fade * .62, width:5.2, blur:4});
+    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.core, shadowColor:beam.glow, alpha:fade, width:2.1, blur:1.5});
 
-    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.flare, shadowColor:beam.glow, alpha:fade * .46, width:8, blur:13});
-    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.glow, shadowColor:beam.glow, alpha:fade * .78, width:3.8, blur:8});
-    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.core, shadowColor:beam.glow, alpha:fade, width:2.2, blur:3});
-
-    for(const offset of [-4.5, 4.5]){
-      const sideFade = fade * .22;
-      strokeBeam({fromX:tailX + sideX * offset, fromY:tailY + sideY * offset, toX:headX + sideX * offset * .45, toY:headY + sideY * offset * .45, color:beam.glow, shadowColor:beam.glow, alpha:sideFade, width:.8, blur:3});
-    }
-
-    drawGlowCircle({x:headX, y:headY, radius:5 + fade * 3, color:beam.glow, alpha:fade * .64, blur:11});
-    drawGlowCircle({x:headX, y:headY, radius:2.2 + fade * 1.4, color:beam.core, alpha:fade, blur:5});
+    drawGlowCircle({x:headX, y:headY, radius:4.5 + fade * 2, color:beam.glow, alpha:fade * .48, blur:4});
 
     if(progress < .22){
       const startAlpha = (1 - progress / .22) * .72;
-      drawGlowCircle({x:beam.fromX, y:beam.fromY, radius:7 + progress * 14, color:beam.glow, alpha:startAlpha * .75, blur:12});
-      drawGlowCircle({x:beam.fromX, y:beam.fromY, radius:2.8 + progress * 5, color:beam.core, alpha:startAlpha, blur:5});
+      drawGlowCircle({x:beam.fromX, y:beam.fromY, radius:6 + progress * 10, color:beam.glow, alpha:startAlpha * .48, blur:4});
     }
 
     if(progress > .78){
       const impactProgress = Math.min(1, (progress - .78) / .22);
       const impactAlpha = (1 - impactProgress) * .9;
-      drawGlowCircle({x:beam.toX, y:beam.toY, radius:6 + impactProgress * 13, color:beam.glow, alpha:impactAlpha * .78, blur:14});
-      drawGlowCircle({x:beam.toX, y:beam.toY, radius:2.4 + impactProgress * 4.5, color:beam.core, alpha:impactAlpha, blur:5});
+      drawGlowCircle({x:beam.toX, y:beam.toY, radius:5 + impactProgress * 10, color:beam.glow, alpha:impactAlpha * .55, blur:5});
     }
   }
   ctx.restore();
@@ -239,15 +278,15 @@ export function drawImpactEffects({ctx, camera, impactEffects}){
     if(effect.kind === "laser"){
       const ring = 7 + easeOutCubic(progress) * radius;
       ctx.strokeStyle = colorWithAlpha(color, alpha * .78, "rgba(125,211,252,.78)");
-      ctx.shadowColor = colorWithAlpha(color, alpha, "rgba(125,211,252,1)");
-      ctx.shadowBlur = 12;
+      ctx.shadowColor = colorWithAlpha(color, alpha * .45, "rgba(125,211,252,.45)");
+      ctx.shadowBlur = 5;
       ctx.lineWidth = 1.7 * alpha;
       ctx.beginPath();
       ctx.arc(effect.x, effect.y, ring, 0, Math.PI * 2);
       ctx.stroke();
 
       ctx.fillStyle = colorWithAlpha(core, alpha, "rgba(255,255,255,1)");
-      ctx.shadowBlur = 16;
+      ctx.shadowBlur = 5;
       ctx.beginPath();
       ctx.arc(effect.x, effect.y, 2.5 + alpha * 5, 0, Math.PI * 2);
       ctx.fill();
@@ -256,28 +295,24 @@ export function drawImpactEffects({ctx, camera, impactEffects}){
     }
 
     const isMissile = effect.kind === "missile";
-    const shock = 10 + easeOutCubic(progress) * radius;
-    ctx.strokeStyle = colorWithAlpha(color, alpha * (isMissile ? .52 : .46), "rgba(255,180,72,.46)");
-    ctx.shadowColor = colorWithAlpha(color, alpha * .82, "rgba(255,180,72,.82)");
-    ctx.shadowBlur = isMissile ? 18 : 15;
-    ctx.lineWidth = (isMissile ? 2.2 : 2.6) * alpha;
+    const sprite = getImpactSprite(effect.kind);
+    const scale = .54 + easeOutCubic(progress) * (isMissile ? .58 : .42);
+    const size = radius * 2.35 * scale;
+    ctx.save();
+    ctx.globalAlpha = alpha * (isMissile ? 1 : .92);
+    ctx.translate(effect.x, effect.y);
+    ctx.rotate((effect.rotation || 0) + progress * (isMissile ? .20 : .12));
+    ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+    ctx.restore();
+
+    ctx.strokeStyle = colorWithAlpha(color, alpha * (isMissile ? .72 : .58), "rgba(255,180,72,.58)");
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = (isMissile ? 2.3 : 1.8) * alpha;
     ctx.beginPath();
-    ctx.arc(effect.x, effect.y, shock, 0, Math.PI * 2);
+    ctx.arc(effect.x, effect.y, 8 + easeOutCubic(progress) * radius, 0, Math.PI * 2);
     ctx.stroke();
 
-    const flashRadius = (isMissile ? 12 : 10) + radius * .28 * (1 - progress);
-    const gradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, flashRadius);
-    gradient.addColorStop(0, colorWithAlpha(core, alpha, "rgba(255,255,255,1)"));
-    gradient.addColorStop(.38, colorWithAlpha(color, alpha * .58, "rgba(255,180,72,.58)"));
-    gradient.addColorStop(1, colorWithAlpha(color, 0, "rgba(255,180,72,0)"));
-    ctx.fillStyle = gradient;
-    ctx.shadowColor = colorWithAlpha(color, alpha, "rgba(255,180,72,1)");
-    ctx.shadowBlur = isMissile ? 24 : 20;
-    ctx.beginPath();
-    ctx.arc(effect.x, effect.y, flashRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    for(const spark of effect.sparks || []) drawImpactSpark(ctx, effect, spark, progress, alpha, isMissile ? 1.08 : 1);
+    for(const spark of effect.sparks || []) drawImpactSpark(ctx, effect, spark, progress, alpha, isMissile ? 1.15 : .95);
 
     if(effect.smoke?.length){
       ctx.globalCompositeOperation = "source-over";
@@ -286,8 +321,7 @@ export function drawImpactEffects({ctx, camera, impactEffects}){
         const sx = effect.x + Math.cos(smoke.angle) * drift;
         const sy = effect.y + Math.sin(smoke.angle) * drift;
         ctx.fillStyle = `rgba(100,116,139,${alpha * smoke.alpha})`;
-        ctx.shadowColor = `rgba(148,163,184,${alpha * smoke.alpha * .55})`;
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 0;
         ctx.beginPath();
         ctx.arc(sx, sy, smoke.size * (.55 + progress), 0, Math.PI * 2);
         ctx.fill();

@@ -28,7 +28,7 @@ export function setAmmoCooldown(ammoCooldowns, ammo, seconds, getCooldown){
   ammoCooldowns[key] = Math.max(getCooldown(ammo), seconds || ammo.cooldown || 1);
 }
 
-export function createProjectile({owner, startX, startY, targetId, damage, travelTime, radius, color, particle, slotIndex, hitChance, sourceId, kind, sprite, curveSide = 0, curveStrength = 0, visualOnly = false, onHitEffect = null}){
+export function createProjectile({owner, startX, startY, targetId, damage, travelTime, radius, color, particle, slotIndex, hitChance, sourceId, kind, sprite, curveSide = 0, curveStrength = 0, visualOnly = false, onHitEffect = null, salvoId = null, salvoSize = 1}){
   return {
     owner,
     fromX:startX,
@@ -48,6 +48,8 @@ export function createProjectile({owner, startX, startY, targetId, damage, trave
     sprite,
     visualOnly,
     onHitEffect,
+    salvoId,
+    salvoSize,
     curveSide,
     curveStrength,
     trail:kind === "rocket" || kind === "missile" ? [] : null,
@@ -81,7 +83,7 @@ export function updateProjectiles({bullets, dt, getTarget, onImpact}){
     if((bullet.kind === "rocket" || bullet.kind === "missile") && bullet.trail){
       bullet.trail.push({x:bullet.x, y:bullet.y, life:.42, max:.42});
       for(const point of bullet.trail) point.life -= dt;
-      bullet.trail = bullet.trail.filter(point=>point.life > 0).slice(-18);
+      bullet.trail = bullet.trail.filter(point=>point.life > 0).slice(-8);
     }
     if(progress >= 1){
       onImpact(bullet);

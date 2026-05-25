@@ -1,10 +1,10 @@
 ﻿export const portals = [
-  { id:"blue", name:"Portail Bleu", img:"assets/portals/portail_bleu.svg", level:"NIV. 1-10", requirement:{level:1}, piecesRequired:20, novaCost:30000, dropZones:["ASTRA-01","ASTRA-02"], dropChance:0.001, reward:"20 000 NOVA · 20 000 munitions x4 · 1 Laser MK-IV", open:false },
-  { id:"violet", name:"Portail Violet", img:"assets/portals/portail_violet.svg", level:"NIV. 11-20", requirement:{level:8}, piecesRequired:35, novaCost:65000, dropZones:["Zone 11-20"], dropChance:0, reward:"Récompenses avancées", open:false },
-  { id:"red", name:"Portail Rouge", img:"assets/portals/portail_rouge.svg", level:"NIV. 21-30", requirement:{level:16}, piecesRequired:50, novaCost:125000, dropZones:["Zone 21-30"], dropChance:0, reward:"Récompenses expertes", open:false },
-  { id:"emerald", name:"Portail Émeraude", img:"assets/portals/portail_emeraude.svg", level:"NIV. 31-40", requirement:{level:24}, piecesRequired:70, novaCost:210000, dropZones:["Zone 31-40"], dropChance:0, reward:"Récompenses élites", open:false },
-  { id:"void", name:"Portail du Néant", img:"assets/portals/portail_neant.svg", level:"NIV. 41-50", requirement:{level:34}, piecesRequired:95, novaCost:340000, dropZones:["Zone 41-50"], dropChance:0, reward:"Récompenses néant", open:false },
-  { id:"ancient", name:"Portail Ancestral", img:"assets/portals/portail_ancestral.svg", level:"NIV. 51+", requirement:{level:45}, piecesRequired:140, novaCost:520000, dropZones:["Zone 51+"], dropChance:0, reward:"Récompenses mythiques", open:false }
+  { id:"blue", name:"Portail Bleu", img:"assets/portals/portail_bleu.svg", level:"NIV. 10+", requirement:{level:10}, piecesRequired:20, novaCost:30000, dropZones:["ASTRA-01","ASTRA-02","ASTRA-03"], dropChance:0.001, reward:"20 000 NOVA · 20 000 munitions x4 · 1 Laser MK-IV", open:false },
+  { id:"violet", name:"Portail Violet", img:"assets/portals/portail_violet.svg", level:"NIV. 15+", requirement:{level:15}, piecesRequired:35, novaCost:65000, dropZones:["ASTRA-03","ASTRA-04","ASTRA-05"], dropChance:0.001, reward:"Récompenses avancées", open:false },
+  { id:"red", name:"Portail Rouge", img:"assets/portals/portail_rouge.svg", level:"NIV. 20+", requirement:{level:20}, piecesRequired:50, novaCost:125000, dropZones:["Zone 21-30"], dropChance:0, reward:"Récompenses expertes", open:false },
+  { id:"emerald", name:"Portail Émeraude", img:"assets/portals/portail_emeraude.svg", level:"NIV. 30+", requirement:{level:30}, piecesRequired:70, novaCost:210000, dropZones:["Zone 31-40"], dropChance:0, reward:"Récompenses élites", open:false },
+  { id:"void", name:"Portail du Néant", img:"assets/portals/portail_neant.svg", level:"NIV. 35+", requirement:{level:35}, piecesRequired:95, novaCost:340000, dropZones:["Zone 41-50"], dropChance:0, reward:"Récompenses néant", open:false },
+  { id:"ancient", name:"Portail Ancestral", img:"assets/portals/portail_ancestral.svg", level:"NIV. 40+", requirement:{level:40}, piecesRequired:140, novaCost:520000, dropZones:["Zone 51+"], dropChance:0, reward:"Récompenses mythiques", open:false }
 ];
 
 export const skills = [
@@ -14,14 +14,34 @@ export const skills = [
     short:"Dégâts",
     icon:"⚔",
     theme:"offense",
-    desc:"Optimise les systèmes offensifs du vaisseau. Chaque niveau augmente les dégâts des lasers de 2 %.",
+    desc:"Optimise les systèmes offensifs du vaisseau. Chaque compétence possède plusieurs rangs avant d'ouvrir la suivante.",
     maxLevel:5,
     levels:[
-      {skillPoints:1, priceType:"credits", price:10000, stats:{weaponDamagePercent:0.02}, label:"+2 % dégâts laser"},
-      {skillPoints:2, priceType:"credits", price:75000, stats:{weaponDamagePercent:0.02}, label:"+2 % dégâts laser"},
-      {skillPoints:3, priceType:"credits", price:350000, stats:{weaponDamagePercent:0.02}, label:"+2 % dégâts laser"},
-      {skillPoints:4, priceType:"premium", price:250, stats:{weaponDamagePercent:0.02}, label:"+2 % dégâts laser"},
-      {skillPoints:5, priceType:"credits", price:2000000, stats:{weaponDamagePercent:0.02}, label:"+2 % dégâts laser"}
+      {name:"Calibrage laser", ranks:[
+        {skillPoints:1, priceType:"credits", price:10000, stats:{weaponDamageMultiplier:1.02}, label:"+2 % dégâts laser"},
+        {skillPoints:1, priceType:"credits", price:500000, stats:{weaponDamageMultiplier:1.04}, label:"+4 % dégâts laser"},
+        {skillPoints:1, costs:{premium:1000, materials:{alliage_cuivre_zinc:500, plaque_nickel_titane:500}}, stats:{weaponDamageMultiplier:1.06}, label:"+6 % dégâts laser"}
+      ]},
+      {name:"Surcharge stable", ranks:[
+        {skillPoints:1, priceType:"credits", price:125000, stats:{rocketDamageMultiplier:1.02}, label:"+2 % dégâts roquette"},
+        {skillPoints:1, priceType:"credits", price:250000, stats:{rocketDamageMultiplier:1.04}, label:"+4 % dégâts roquette"},
+        {skillPoints:1, priceType:"credits", price:500000, stats:{rocketDamageMultiplier:1.06}, label:"+6 % dégâts roquette"}
+      ]},
+      {name:"Noyau offensif", ranks:[
+        {skillPoints:1, priceType:"credits", price:750000, stats:{missileDamageMultiplier:1.02}, label:"+2 % dégâts missile"},
+        {skillPoints:1, priceType:"credits", price:1250000, stats:{missileDamageMultiplier:1.04}, label:"+4 % dégâts missile"},
+        {skillPoints:1, priceType:"credits", price:2000000, stats:{missileDamageMultiplier:1.06}, label:"+6 % dégâts missile"}
+      ]},
+      {name:"Cadence roquettes", ranks:[
+        {skillPoints:1, priceType:"premium", price:250, stats:{rocketCooldownMultiplier:0.95}, label:"-5 % délai roquette"},
+        {skillPoints:1, priceType:"premium", price:500, stats:{rocketCooldownMultiplier:0.90}, label:"-10 % délai roquette"},
+        {skillPoints:1, priceType:"premium", price:900, stats:{rocketCooldownMultiplier:0.85}, label:"-15 % délai roquette"}
+      ]},
+      {name:"Calibrage laser II", ranks:[
+        {skillPoints:1, priceType:"credits", price:3000000, stats:{weaponDamageMultiplier:1.0188679245}, label:"+8 % dégâts laser"},
+        {skillPoints:1, priceType:"credits", price:4500000, stats:{weaponDamageMultiplier:1.0377358491}, label:"+10 % dégâts laser"},
+        {skillPoints:1, priceType:"credits", price:6500000, stats:{weaponDamageMultiplier:1.0849056604, blueLaserBeams:1}, label:"+15 % dégâts laser · lasers bleus"}
+      ]}
     ]
   },
   {
@@ -30,14 +50,34 @@ export const skills = [
     short:"Bouclier",
     icon:"⬢",
     theme:"defense",
-    desc:"Renforce la survie du vaisseau. Chaque niveau donne +5 % d’absorption au bouclier et un bonus de capacité.",
+    desc:"Renforce la survie du vaisseau. Chaque compétence possède plusieurs rangs avant d'ouvrir la suivante.",
     maxLevel:5,
     levels:[
-      {skillPoints:1, priceType:"credits", price:10000, stats:{shieldAbsorbBonus:0.05, shieldBonus:30}, label:"+5 % absorption · +30 bouclier"},
-      {skillPoints:2, priceType:"credits", price:75000, stats:{shieldAbsorbBonus:0.05, shieldBonus:35}, label:"+5 % absorption · +35 bouclier"},
-      {skillPoints:3, priceType:"credits", price:350000, stats:{shieldAbsorbBonus:0.05, shieldBonus:40}, label:"+5 % absorption · +40 bouclier"},
-      {skillPoints:4, priceType:"premium", price:250, stats:{shieldAbsorbBonus:0.05, shieldBonus:45, regen:1}, label:"+5 % absorption · +45 bouclier"},
-      {skillPoints:5, priceType:"credits", price:2000000, stats:{shieldAbsorbBonus:0.05, shieldBonus:50, regen:1}, label:"+5 % absorption · +50 bouclier"}
+      {name:"Trame bouclier", ranks:[
+        {skillPoints:1, priceType:"credits", price:10000, stats:{shieldMultiplier:1.02}, label:"+2 % bouclier"},
+        {skillPoints:1, priceType:"credits", price:500000, stats:{shieldMultiplier:1.04}, label:"+4 % bouclier"},
+        {skillPoints:1, costs:{premium:1000, materials:{alliage_cuivre_zinc:500, plaque_nickel_titane:500}}, stats:{shieldMultiplier:1.06}, label:"+6 % bouclier"}
+      ]},
+      {name:"Condensateurs", ranks:[
+        {skillPoints:1, priceType:"credits", price:125000, stats:{evasionChance:0.02}, label:"+2 % esquive"},
+        {skillPoints:1, priceType:"credits", price:250000, stats:{evasionChance:0.04}, label:"+4 % esquive"},
+        {skillPoints:1, priceType:"credits", price:500000, stats:{evasionChance:0.06}, label:"+6 % esquive"}
+      ]},
+      {name:"Blindage actif", ranks:[
+        {skillPoints:1, priceType:"credits", price:750000, stats:{shieldAbsorbBonus:0.02}, label:"+2 % absorption bouclier"},
+        {skillPoints:1, priceType:"credits", price:1250000, stats:{shieldAbsorbBonus:0.04}, label:"+4 % absorption bouclier"},
+        {skillPoints:1, priceType:"credits", price:2000000, stats:{shieldAbsorbBonus:0.06}, label:"+6 % absorption bouclier"}
+      ]},
+      {name:"Régénération", ranks:[
+        {skillPoints:1, priceType:"premium", price:250, stats:{regenMultiplier:1.02}, label:"+2 % régénération bouclier"},
+        {skillPoints:1, priceType:"premium", price:500, stats:{regenMultiplier:1.04}, label:"+4 % régénération bouclier"},
+        {skillPoints:1, priceType:"premium", price:900, stats:{regenMultiplier:1.06}, label:"+6 % régénération bouclier"}
+      ]},
+      {name:"Renfort de coque", ranks:[
+        {skillPoints:1, priceType:"credits", price:3000000, stats:{hullMultiplier:1.02}, label:"+2 % vie du vaisseau"},
+        {skillPoints:1, priceType:"credits", price:4500000, stats:{hullMultiplier:1.04}, label:"+4 % vie du vaisseau"},
+        {skillPoints:1, priceType:"credits", price:6500000, stats:{hullMultiplier:1.10}, label:"+10 % vie du vaisseau"}
+      ]}
     ]
   },
   {
@@ -49,11 +89,31 @@ export const skills = [
     desc:"Développe les fonctions de soutien : mobilité, soute et logistique de combat.",
     maxLevel:5,
     levels:[
-      {skillPoints:1, priceType:"credits", price:10000, stats:{vitesse:4, cargo:5, loot:3}, label:"+4 vitesse · +5 cargo · +3 % crédits"},
-      {skillPoints:2, priceType:"credits", price:75000, stats:{vitesse:4, cargo:5, loot:3}, label:"+4 vitesse · +5 cargo · +3 % crédits"},
-      {skillPoints:3, priceType:"credits", price:350000, stats:{vitesse:5, cargo:6, loot:4, repairBotDelayReduction:1}, label:"+5 vitesse · +6 cargo · -1s drone réparation"},
-      {skillPoints:4, priceType:"premium", price:250, stats:{vitesse:5, cargo:7, loot:4}, label:"+5 vitesse · +7 cargo · +4 % crédits"},
-      {skillPoints:5, priceType:"credits", price:2000000, stats:{vitesse:6, cargo:7, loot:5, repairBotDelayReduction:1}, label:"+6 vitesse · +7 cargo · -1s drone réparation"}
+      {name:"Propulseurs", ranks:[
+        {skillPoints:1, priceType:"credits", price:10000, stats:{speedMultiplier:1.02}, label:"+2 % vitesse"},
+        {skillPoints:1, priceType:"credits", price:500000, stats:{speedMultiplier:1.04}, label:"+4 % vitesse"},
+        {skillPoints:1, costs:{premium:1000, materials:{alliage_cuivre_zinc:500, plaque_nickel_titane:500}}, stats:{speedMultiplier:1.06}, label:"+6 % vitesse"}
+      ]},
+      {name:"Soute optimisée", ranks:[
+        {skillPoints:1, priceType:"credits", price:125000, stats:{lootMultiplier:1.02}, label:"+2 % crédits"},
+        {skillPoints:1, priceType:"credits", price:250000, stats:{lootMultiplier:1.04}, label:"+4 % crédits"},
+        {skillPoints:1, priceType:"credits", price:500000, stats:{lootMultiplier:1.06}, label:"+6 % crédits"}
+      ]},
+      {name:"Drone soutien", ranks:[
+        {skillPoints:1, priceType:"credits", price:750000, stats:{cargoMultiplier:1.04}, label:"+4 % taille de soute"},
+        {skillPoints:1, priceType:"credits", price:1250000, stats:{cargoMultiplier:1.08}, label:"+8 % taille de soute"},
+        {skillPoints:1, priceType:"credits", price:2000000, stats:{cargoMultiplier:1.12}, label:"+12 % taille de soute"}
+      ]},
+      {name:"Drone réparation", ranks:[
+        {skillPoints:1, priceType:"premium", price:250, stats:{repairBotHealMultiplier:1.05}, label:"+5 % soin drone"},
+        {skillPoints:1, priceType:"premium", price:500, stats:{repairBotHealMultiplier:1.10}, label:"+10 % soin drone"},
+        {skillPoints:1, priceType:"premium", price:900, stats:{repairBotHealMultiplier:1.15}, label:"+15 % soin drone"}
+      ]},
+      {name:"Protocoles NOVA", ranks:[
+        {skillPoints:1, priceType:"credits", price:3000000, stats:{novaMultiplier:1.02}, label:"+2 % NOVA"},
+        {skillPoints:1, priceType:"credits", price:4500000, stats:{novaMultiplier:1.04}, label:"+4 % NOVA"},
+        {skillPoints:1, priceType:"credits", price:6500000, stats:{novaMultiplier:1.06}, label:"+6 % NOVA"}
+      ]}
     ]
   }
 ];

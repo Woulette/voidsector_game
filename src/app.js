@@ -2,6 +2,7 @@ import { ammoTypes } from "./data/catalog.js";
 import {
   addAmmo,
   addInventoryItem,
+  addPortalPiece,
   canAfford,
   ensureShipLoadout,
   findEquippedSlot,
@@ -19,6 +20,7 @@ import {
   isPortalUnlocked,
   loadState,
   saveState,
+  setGraphicsQuality,
   spend,
   rushRefineryUpgrade,
   rushRefineryShipment,
@@ -35,13 +37,39 @@ import {
   unlockPortal
 } from "./core/store.js";
 import { createCombatGame } from "./game/combat.js";
-import { renderAll, renderDroneSection, renderLoadout, renderRefinery, renderShop, setView } from "./ui/render.js";
+import { renderAll, renderRefinery, renderShop, setView } from "./ui/render.js";
 import { showToast } from "./ui/toast.js";
 import { DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeSlotKeybinds } from "./core/keybinds.js";
 
 const Game = createCombatGame({renderAll, showToast});
 let inventoryClickTimer = null;
 let pendingKeybindSlot = null;
+
+function getInventoryScrollSnapshot(){
+  const grid = document.querySelector(".rpg-inventory-grid");
+  return {
+    gridTop: grid ? grid.scrollTop : null,
+    windowX: window.scrollX,
+    windowY: window.scrollY
+  };
+}
+
+function restoreInventoryScroll(snapshot){
+  requestAnimationFrame(()=>{
+    const grid = document.querySelector(".rpg-inventory-grid");
+    if(grid && snapshot.gridTop !== null){
+      const maxTop = Math.max(0, grid.scrollHeight - grid.clientHeight);
+      grid.scrollTop = Math.min(snapshot.gridTop, maxTop);
+    }
+    window.scrollTo(snapshot.windowX, snapshot.windowY);
+  });
+}
+
+function renderAllPreserveInventoryScroll(){
+  const snapshot = getInventoryScrollSnapshot();
+  renderAll();
+  restoreInventoryScroll(snapshot);
+}
 
 function equipSelectedShip(){
   const ship = getShip(store.state.selectedShip);
@@ -123,6 +151,68 @@ function buyDroneFormation(id){
   renderAll();
 }
 
+const SPACE_CASTER_REWARDS = [
+  {kind:"piece", label:"Piece de portail", amount:1, weight:4},
+  {kind:"ammo", id:"ammo_x2", label:"Munitions x2", amount:250, weight:23},
+  {kind:"ammo", id:"ammo_x3", label:"Munitions x3", amount:100, weight:12},
+  {kind:"ammo", id:"ammo_x4", label:"Munitions x4", amount:35, weight:5},
+  {kind:"ammo", id:"rocket_r1", label:"Roquettes R-1", amount:12, weight:27},
+  {kind:"ammo", id:"rocket_r2", label:"Roquettes R-2", amount:6, weight:14},
+  {kind:"ammo", id:"rocket_r3", label:"Roquettes R-3", amount:2, weight:6},
+  {kind:"ammo", id:"missile_m1", label:"Missiles MS-1", amount:5, weight:5},
+  {kind:"ammo", id:"missile_m2", label:"Missiles MS-2", amount:2, weight:4}
+];
+
+function getSpaceCasterCost(){
+  return 100;
+}
+
+function canDropPortalPiece(portal){
+  const completed = Math.max(0, Number(store.state.completedPortals?.[portal.id] || 0));
+  return completed > 0 || getPortalPieces(portal.id) < portal.piecesRequired;
+}
+
+function getSpaceCasterRewards(portal){
+  return SPACE_CASTER_REWARDS.filter(reward=>reward.kind !== "piece" || canDropPortalPiece(portal));
+}
+
+function pickSpaceCasterReward(portal){
+  const rewards = getSpaceCasterRewards(portal);
+  const total = rewards.reduce((sum, reward)=>sum + reward.weight, 0);
+  let roll = Math.random() * total;
+  for(const reward of rewards){
+    roll -= reward.weight;
+    if(roll <= 0) return reward;
+  }
+  return rewards[0];
+}
+
+function runSpaceCaster(id, count = 1){
+  const portal = getPortal(id);
+  if(!portal) return;
+  const rollCount = [1, 10, 100].includes(Number(count)) ? Number(count) : 1;
+  const cost = getSpaceCasterCost() * rollCount;
+  if(!canAfford("premium", cost)) return showToast("Pas assez de NOVA pour lancer le Space Caster.");
+  spend("premium", cost);
+  store.state.selectedPortalCasterId = portal.id;
+  const summary = new Map();
+  for(let i = 0; i < rollCount; i++){
+    const reward = pickSpaceCasterReward(portal);
+    const label = reward.kind === "piece" ? `Piece ${portal.name}` : reward.label;
+    const img = reward.kind === "piece" ? portal.img : ammoTypes.find(ammo=>ammo.id === reward.id)?.img;
+    if(reward.kind === "piece") addPortalPiece(portal.id, reward.amount);
+    else addAmmo(reward.id, reward.amount);
+    const current = summary.get(label) || {label, amount:0, img};
+    current.amount += reward.amount;
+    if(!current.img && img) current.img = img;
+    summary.set(label, current);
+  }
+  store.state.portalCasterResults = Array.from(summary.values());
+  saveState();
+  showToast(`Space Caster : ${rollCount} lancement(s).`);
+  renderAll();
+}
+
 function canMoveInventoryItemToTarget(inventoryUid, target){
   const equipped = findEquippedSlot(inventoryUid);
   if(!equipped) return true;
@@ -169,7 +259,7 @@ function equipPart(type, index, inventoryUid){
     }
     store.state.shipLoadouts[ship.id] = loadout;
     showToast(`${item.name} équipé sur ${ship.name}.`);
-    renderAll();
+    renderAllPreserveInventoryScroll();
     return;
   }
 
@@ -183,10 +273,7 @@ function equipPart(type, index, inventoryUid){
     drones[index] = inventoryUid;
     saveState();
     showToast(`${item.name} équipé sur Drone ${index+1}.`);
-    renderAll();
-    store.state.droneLoadout[index] = inventoryUid;
-    saveState();
-    renderDroneSection();
+    renderAllPreserveInventoryScroll();
   }
 }
 
@@ -227,7 +314,7 @@ function unequipPart(type, index){
     const drones = getDroneLoadout();
     if(index >= 0 && index < drones.length) drones[index] = null;
     showToast(`Drone ${index+1} vidé.`);
-    renderAll();
+    renderAllPreserveInventoryScroll();
     return;
   }
   const ship = getShip(store.state.selectedShip);
@@ -239,13 +326,14 @@ function unequipPart(type, index){
   else if(type === "extra") loadout.extras[index] = null;
   store.state.shipLoadouts[ship.id] = loadout;
   showToast(`Slot ${index+1} vidé sur ${ship.name}.`);
-  renderAll();
+  renderAllPreserveInventoryScroll();
 }
 
 
 function unlockPortalWithPieces(id){
   const portal = getPortal(id);
   if(!portal) return;
+  if(store.state.player.level < portal.requirement.level) return showToast(`Niveau ${portal.requirement.level} requis pour dÃ©verrouiller ${portal.name}.`);
   if(isPortalUnlocked(id)) return showToast(`${portal.name} est déjà déverrouillé.`);
   if(getPortalPieces(id) < portal.piecesRequired) return showToast(`Il faut ${portal.piecesRequired} pièces.`);
   store.state.portalPieces[id] = Math.max(0, getPortalPieces(id) - portal.piecesRequired);
@@ -256,7 +344,9 @@ function unlockPortalWithPieces(id){
 
 function unlockPortalWithNova(id){
   const portal = getPortal(id);
+  if(portal && store.state.player.level < portal.requirement.level) return showToast(`Niveau ${portal.requirement.level} requis pour deverrouiller ${portal.name}.`);
   if(!portal) return;
+  if(store.state.player.level < portal.requirement.level) return showToast(`Niveau ${portal.requirement.level} requis pour dÃƒÂ©verrouiller ${portal.name}.`);
   if(isPortalUnlocked(id)) return showToast(`${portal.name} est déjà déverrouillé.`);
   if(!canAfford("premium", portal.novaCost)) return showToast("Pas assez de NOVA.");
   spend("premium", portal.novaCost);
@@ -305,6 +395,41 @@ document.addEventListener("click", (e)=>{
     saveState();
     showToast("Touches des slots réinitialisées.");
     renderAll();
+    return;
+  }
+
+  const profileTab = e.target.closest("[data-profile-tab]");
+  if(profileTab){
+    store.profileTab = profileTab.dataset.profileTab || "overview";
+    renderAll();
+    return;
+  }
+
+  const profileTitleBtn = e.target.closest("[data-profile-title]");
+  if(profileTitleBtn){
+    store.state.player.activeTitleId = profileTitleBtn.dataset.profileTitle || null;
+    saveState();
+    renderAll();
+    return;
+  }
+
+  const profileTitleVisibilityBtn = e.target.closest("[data-profile-title-visibility]");
+  if(profileTitleVisibilityBtn){
+    store.state.player.titleVisible = store.state.player.titleVisible === false;
+    saveState();
+    renderAll();
+    return;
+  }
+
+  const graphicsQualityBtn = e.target.closest("[data-set-graphics-quality]");
+  if(graphicsQualityBtn){
+    const quality = setGraphicsQuality(graphicsQualityBtn.dataset.setGraphicsQuality);
+    saveState();
+    showToast(`Qualite graphique : ${quality}.`);
+    renderAll();
+    document.querySelectorAll("[data-set-graphics-quality]").forEach(btn=>{
+      btn.classList.toggle("active", btn.dataset.setGraphicsQuality === quality);
+    });
     return;
   }
 
@@ -464,8 +589,27 @@ document.addEventListener("click", (e)=>{
   const portalUnlockPieces = e.target.closest("[data-unlock-portal-pieces]");
   if(portalUnlockPieces){ unlockPortalWithPieces(portalUnlockPieces.dataset.unlockPortalPieces); return; }
 
-  const portalUnlockNova = e.target.closest("[data-unlock-portal-nova]");
-  if(portalUnlockNova){ unlockPortalWithNova(portalUnlockNova.dataset.unlockPortalNova); return; }
+  const spaceCasterCount = e.target.closest("[data-space-caster-count]");
+  if(spaceCasterCount){
+    store.state.selectedPortalCasterId = spaceCasterCount.dataset.spaceCasterPortal;
+    store.state.portalCasterPendingCount = [1, 10, 100].includes(Number(spaceCasterCount.dataset.spaceCasterCount)) ? Number(spaceCasterCount.dataset.spaceCasterCount) : 1;
+    saveState();
+    renderAll();
+    return;
+  }
+
+  const spaceCasterPay = e.target.closest("[data-space-caster-pay]");
+  if(spaceCasterPay){ runSpaceCaster(spaceCasterPay.dataset.spaceCasterPay, store.state.portalCasterPendingCount); return; }
+
+  const portalCasterSelect = e.target.closest("[data-portal-caster-select]");
+  if(portalCasterSelect && !e.target.closest("[data-start-portal]")){
+    if(store.state.selectedPortalCasterId !== portalCasterSelect.dataset.portalCasterSelect) store.state.portalCasterResults = [];
+    store.state.selectedPortalCasterId = portalCasterSelect.dataset.portalCasterSelect;
+    store.state.portalCasterPendingCount = 1;
+    saveState();
+    renderAll();
+    return;
+  }
 
   const portalBtn = e.target.closest("[data-start-portal]");
   if(portalBtn){
@@ -498,7 +642,7 @@ document.addEventListener("click", (e)=>{
     clearTimeout(inventoryClickTimer);
     if(e.detail > 1) return;
     inventoryClickTimer = setTimeout(()=>{
-      renderAll();
+      renderAllPreserveInventoryScroll();
     }, 180);
     return;
   }
@@ -514,7 +658,7 @@ document.addEventListener("click", (e)=>{
     const uid = inventoryUnequipBtn.dataset.inventoryUnequip;
     if(!unequipInventoryItem(uid)) return showToast("Objet déjà retiré.");
     showToast("Équipement retiré.");
-    renderAll();
+    renderAllPreserveInventoryScroll();
     return;
   }
 

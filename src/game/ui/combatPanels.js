@@ -84,7 +84,9 @@ export function createCombatPanels({
   getEquipmentUpgradeLevel,
   getEquipmentUpgradeCost,
   isRefineryComplete,
-  formatDuration
+  formatDuration,
+  graphicsQualityPresets = [],
+  getGraphicsQuality
 }){
   let spawnPanelMode = null;
   let spawnPanelRefreshT = 0;
@@ -128,6 +130,7 @@ export function createCombatPanels({
     if(mode === "quests") return document.getElementById("combatUtilityPanelQuests");
     if(mode === "group") return document.getElementById("combatUtilityPanelGroup");
     if(mode === "map") return document.getElementById("combatUtilityPanelMap");
+    if(mode === "settings") return document.getElementById("combatUtilityPanelSettings");
     return null;
   }
 
@@ -135,6 +138,7 @@ export function createCombatPanels({
     if(mode === "quests") return document.getElementById("combatUtilityContentQuests");
     if(mode === "group") return document.getElementById("combatUtilityContentGroup");
     if(mode === "map") return document.getElementById("combatUtilityContentMap");
+    if(mode === "settings") return document.getElementById("combatUtilityContentSettings");
     return null;
   }
 
@@ -300,11 +304,20 @@ export function createCombatPanels({
     </div>`;
   }
 
+  function getMapPortals(map){
+    if(!map) return [];
+    if(Array.isArray(map.portals)) return map.portals;
+    return map.portal ? [map.portal] : [];
+  }
+
   function renderMapUtilityContent(){
     const current = getCurrentMap?.() || maps[0] || {};
     const player = getPlayer?.();
     const spawn = current.spawn || {x:0, y:0};
-    const portal = current.portal || null;
+    const portals = getMapPortals(current);
+    const portalLabel = portals.length
+      ? portals.map(portal=>maps.find(map=>map.id === portal.targetMap)?.name || portal.label || "Actif").join(" / ")
+      : "Aucun";
     const playerPoint = player ? {x:player.x, y:player.y} : spawn;
     return `<div class="combat-map-card">
       <div class="combat-map-head">
@@ -315,9 +328,28 @@ export function createCombatPanels({
       <div class="combat-map-meta">
         <span>Position <b>${escapeHtml(current.name || "Inconnue")}</b></span>
         <span>Coord. locale <b>${Math.round(playerPoint.x || 0)} / ${Math.round(playerPoint.y || 0)}</b></span>
-        <span>Portail <b>${portal ? escapeHtml(maps.find(map=>map.id === portal.targetMap)?.name || portal.label || "Actif") : "Aucun"}</b></span>
+        <span>Portail <b>${escapeHtml(portalLabel)}</b></span>
       </div>
       <div class="combat-map-note">Les routes ivoire sont des corridors neutres entre firmes. Les routes internes restent discrètes et teintées par faction.</div>
+    </div>`;
+  }
+
+  function renderSettingsUtilityContent(){
+    const quality = getGraphicsQuality?.() || store.state.graphicsQuality || "high";
+    return `<div class="combat-settings-card">
+      <div class="combat-map-head">
+        <div><span>Rendu</span><strong>Qualite graphique</strong></div>
+        <small>Applique en direct</small>
+      </div>
+      <div class="quality-option-grid combat-quality-grid">
+        ${graphicsQualityPresets.map(preset=>`
+          <button class="quality-option ${quality === preset.id ? "active" : ""}" data-set-graphics-quality="${preset.id}" type="button">
+            <strong>${escapeHtml(preset.name)}</strong>
+            <span>${escapeHtml(preset.desc)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <p class="group-panel-note">Moyenne retire les nuages proches et garde les asteroides. Basse garde surtout la planete et les etoiles.</p>
     </div>`;
   }
 
@@ -334,8 +366,20 @@ export function createCombatPanels({
     syncUtilityDockButtons();
   }
 
+  function refreshSettingsUtilityPanel({show = false} = {}){
+    const panel = getUtilityPanel("settings");
+    const content = getUtilityContent("settings");
+    if(!panel || !content) return;
+    if(show){
+      applyUtilityPanelLayout("settings", panel);
+      panel.classList.remove("hidden");
+    }
+    content.innerHTML = renderSettingsUtilityContent();
+    syncUtilityDockButtons();
+  }
+
   function openUtilityPanel(mode){
-    if(!["group", "quests", "map"].includes(mode)) return;
+    if(!["group", "quests", "map", "settings"].includes(mode)) return;
     const panel = getUtilityPanel(mode);
     const content = getUtilityContent(mode);
     if(!panel || !content) return;
@@ -350,6 +394,10 @@ export function createCombatPanels({
     }
     if(mode === "map"){
       refreshMapUtilityPanel({show:true});
+      return;
+    }
+    if(mode === "settings"){
+      refreshSettingsUtilityPanel({show:true});
       return;
     }
     refreshGroupUtilityPanel({show:true, focus:true});

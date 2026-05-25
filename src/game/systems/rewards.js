@@ -107,11 +107,11 @@ export function createRewardSystem({
     registerKill(enemy.kind);
     const currentMap = getCurrentMap();
     const questCompleted = recordQuestKill(enemy.kind, currentMap.name);
-    const lootBonus = getSkillBonus().loot || 0;
     const loot = enemy.loot || enemyTypes[enemy.kind]?.loot || enemyTypes.drone_pirate.loot;
-    const credits = Math.round(loot.credits * (1 + lootBonus / 100) * (1 + enemy.level * .06));
-    const xp = Math.round(loot.xp * (1 + enemy.level * .08));
-    const premium = Math.max(Number(loot.premium || 0), Number(loot.premium || 0));
+    const skillBonus = getSkillBonus?.() || {};
+    const credits = Math.round(Number(loot.credits || 0) * Number(skillBonus.lootMultiplier || 1));
+    const xp = Math.round(Number(loot.xp || 0));
+    const premium = Math.round(Number(loot.premium || 0) * Number(skillBonus.novaMultiplier || 1));
     store.state.player.credits += credits;
     store.state.player.premium += premium;
     if(addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de compétence.`);
@@ -130,11 +130,16 @@ export function createRewardSystem({
     pushLootNotice({credits:0, xp:0, premium:0, materials:materialLabels});
   }
 
+  function showLootNotice(loot){
+    pushLootNotice(loot || {});
+  }
+
   return {
     reset,
     tick,
     rewardEnemy,
     showCargoLoot,
+    showLootNotice,
     getLootNotices:()=>lootNotices.slice()
   };
 }

@@ -46,36 +46,38 @@
 .combat-wallet span{display:grid;gap:3px;text-transform:uppercase;letter-spacing:.8px}
 .combat-wallet b{font-size:16px}
 .target-panel{
-  position:absolute;z-index:7;top:18px;left:50%;transform:translateX(-50%);width:330px;padding:11px 13px 12px;
+  position:absolute;z-index:7;top:18px;left:50%;transform:translateX(-50%);width:max-content;min-width:230px;max-width:min(520px,calc(100vw - 40px));padding:6px 8px 7px;
   background:
     linear-gradient(180deg,rgba(7,20,34,.96),rgba(2,9,18,.94)),
     rgba(3,12,24,.94);
   border:1px solid rgba(248,113,113,.42);
-  box-shadow:0 0 22px rgba(239,68,68,.12), inset 0 0 18px rgba(56,189,248,.05), var(--shadow);
-  clip-path:polygon(13px 0,100% 0,100% calc(100% - 13px),calc(100% - 13px) 100%,0 100%,0 13px);
+  box-shadow:0 0 16px rgba(239,68,68,.10), inset 0 0 12px rgba(56,189,248,.04), var(--shadow);
+  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
 }
-.target-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.target-panel-head{display:grid;grid-template-columns:max-content auto auto;align-items:center;gap:8px;margin-bottom:5px}
 .target-panel-head span{display:block;color:#7dd3fc;font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:900}
-.target-panel h3{font-size:17px;text-transform:uppercase;letter-spacing:1px;margin:1px 0 0;color:#f8fafc;text-shadow:0 0 10px rgba(248,113,113,.22)}
-.target-close{width:25px;height:25px;display:grid;place-items:center;border:1px solid rgba(248,113,113,.55);background:rgba(127,29,29,.42);color:#fecaca;font-size:20px;font-weight:900;line-height:1;cursor:pointer}
+.target-panel h3{font-size:13px;text-transform:uppercase;letter-spacing:.35px;margin:0;color:#f8fafc;text-shadow:0 0 8px rgba(248,113,113,.18);white-space:nowrap;overflow:visible;text-overflow:clip}
+.target-level-badge{display:inline-flex;align-items:center;gap:2px;padding:1px 4px;border:1px solid rgba(56,189,248,.32);background:rgba(7,24,42,.58);color:#7dd3fc;font-size:8px;line-height:1;text-transform:uppercase;white-space:nowrap}
+.target-level-badge span{color:#f8fafc;font-size:13px;letter-spacing:0;text-shadow:0 0 8px rgba(56,189,248,.45)}
+.target-close{width:16px;height:16px;display:grid;place-items:center;border:1px solid rgba(248,113,113,.55);background:rgba(127,29,29,.42);color:#fecaca;font-size:13px;font-weight:900;line-height:1;cursor:pointer}
 .target-close:hover{border-color:rgba(254,202,202,.9);background:rgba(185,28,28,.72);color:#fff}
-.target-panel .target-bar{height:8px;background:rgba(38,11,18,.82);border:1px solid rgba(239,68,68,.30);margin:0 0 7px;box-shadow:inset 0 0 10px rgba(0,0,0,.42)}
+.target-panel .target-bar{height:5px;background:rgba(38,11,18,.82);border:1px solid rgba(239,68,68,.30);margin:0 0 2px;box-shadow:inset 0 0 8px rgba(0,0,0,.38)}
 .target-panel .target-bar span{display:block;height:100%;background:linear-gradient(90deg,#ef4444,#fb7185);box-shadow:0 0 12px rgba(239,68,68,.45)}
-.target-panel .target-bar.target-shield{height:6px;background:rgba(7,24,42,.82);border-color:rgba(56,189,248,.28);margin-top:2px}
+.target-panel .target-bar.target-shield{height:4px;background:rgba(7,24,42,.82);border-color:rgba(56,189,248,.28);margin-top:0}
 .target-panel .target-bar.target-shield span{background:linear-gradient(90deg,#0284c7,#38bdf8,#dff6ff);box-shadow:0 0 12px rgba(56,189,248,.42)}
-.target-health{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;color:#fecaca;font-size:12px;text-transform:uppercase;letter-spacing:.65px}
-.target-health.target-shield-text{color:#bae6fd;margin-bottom:9px}
-.target-health b{color:#f8fafc;font-size:13px}
-.target-stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.target-stat{padding:6px 7px;border:1px solid rgba(56,189,248,.18);background:rgba(7,24,42,.42)}
-.target-stat span{display:block;color:#7dd3fc;font-size:9px;text-transform:uppercase;letter-spacing:.8px;font-weight:900}
-.target-stat b{display:block;margin-top:2px;color:#f8fafc;font-size:13px;line-height:1}
+.target-health{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px;color:#fecaca;font-size:8px;text-transform:uppercase;letter-spacing:.3px}
+.target-health.target-shield-text{color:#bae6fd;margin-bottom:4px}
+.target-health b{color:#f8fafc;font-size:9px}
 .loot-popup{
   position:absolute;z-index:12;top:58px;left:50%;transform:translateX(-50%);
   display:flex;flex-direction:column;align-items:center;gap:5px;
   min-width:0;padding:0;background:transparent;border:0;color:#dff6ff;box-shadow:none;text-align:center;pointer-events:none;
 }
 .loot-line{padding:2px 8px;background:rgba(2,10,19,.34);border:1px solid rgba(125,211,252,.10);color:#dff6ff;font-size:14px;font-weight:900;letter-spacing:.45px;text-shadow:0 1px 2px #000,0 0 8px rgba(56,189,248,.35);transition:opacity .18s linear}
+.portal-timer-hud{position:absolute;top:82px;left:50%;transform:translateX(-50%);z-index:5;display:grid;gap:2px;justify-items:center;min-width:120px;padding:8px 18px;border:1px solid rgba(56,189,248,.38);background:rgba(3,13,25,.74);color:#8ee7ff;text-transform:uppercase;clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px)}
+.portal-timer-hud.hidden{display:none}
+.portal-timer-hud strong{font-size:36px;line-height:1;color:#38bdf8;text-shadow:0 0 16px rgba(56,189,248,.7)}
+.portal-timer-hud span{font-size:10px;letter-spacing:1.1px;color:#c8f3ff}
 .poison-status{
   position:absolute;z-index:13;top:68px;left:395px;
   display:grid;grid-template-columns:28px 112px auto;align-items:center;gap:8px;
@@ -135,6 +137,41 @@
   0%,100%{filter:brightness(1);transform:translateX(-50%) scale(1)}
   50%{filter:brightness(1.35);transform:translateX(-50%) scale(1.018)}
 }
+.combat-perf-panel{
+  position:absolute;
+  z-index:8;
+  top:64px;
+  right:14px;
+  width:142px;
+  display:grid;
+  gap:3px;
+  padding:8px 9px;
+  background:rgba(2,10,19,.86);
+  border-color:rgba(56,189,248,.26);
+  color:#b8d7e8;
+  pointer-events:none;
+  opacity:.82;
+}
+.combat-perf-panel strong{
+  color:#dff6ff;
+  font-size:10px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+.combat-perf-panel span{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.35px;
+  color:#8fb9d6;
+}
+.combat-perf-panel b{
+  color:#7dd3fc;
+  font-size:10px;
+  font-variant-numeric:tabular-nums;
+}
 .combat-utility-dock{
   position:absolute;
   z-index:6;
@@ -186,6 +223,11 @@
   left:306px;
   right:auto;
   width:560px;
+}
+.combat-utility-panel[data-utility-mode="settings"]{
+  left:306px;
+  right:auto;
+  width:360px;
 }
 .combat-utility-panel.hidden{display:none}
 .combat-utility-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;cursor:move;user-select:none}
@@ -313,6 +355,8 @@
 .group-panel-member{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;border:1px solid rgba(56,189,248,.18);background:rgba(7,24,42,.42)}
 .group-panel-member strong{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:#ecfeff}
 .group-panel-member span{font-size:11px;color:#86efac;text-transform:uppercase;letter-spacing:.7px}
+.combat-settings-card{display:grid;gap:10px}
+.combat-quality-grid{grid-template-columns:1fr}
 .combat-quest-slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
 .combat-quest-slot{height:34px;display:grid;align-content:center;justify-items:center;gap:2px;border:1px solid rgba(239,68,68,.36);background:rgba(69,10,10,.32);color:#fee2e2;cursor:pointer}
 .combat-quest-slot:hover{border-color:rgba(248,113,113,.78);background:rgba(127,29,29,.42)}
@@ -356,6 +400,7 @@
   .top-nav{flex-wrap:wrap}.nav-tab{height:42px;min-width:auto}
   .banner{display:block}.pass-card{margin-top:10px;width:100%}
   .game-topbar{height:auto;align-items:flex-start;flex-direction:column}.combat-status{min-width:0;width:100%}.combat-wallet{margin-left:0}
+  .combat-perf-panel{top:auto;right:10px;bottom:188px}
   .combat-utility-dock{top:auto;left:auto;right:10px;bottom:124px}
   .combat-utility-panel{top:auto;right:10px;bottom:174px;width:calc(100vw - 20px)}
   .combat-utility-panel[data-utility-mode="map"]{left:10px;right:auto;width:calc(100vw - 20px)}

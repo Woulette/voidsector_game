@@ -2,6 +2,7 @@ import { createProjectile, rollBetween } from "./projectiles.js";
 
 export function createWeaponSystem(deps){
   let rocketSide = -1;
+  let missileSalvoSeq = 1;
 
   function getRocketDamageMultiplier(){
     const player = deps.getPlayer();
@@ -122,9 +123,17 @@ export function createWeaponSystem(deps){
     const damage = volley.rollDamage() * (ammo.multiplier || 1);
     const startX = player.x + Math.cos(a)*45;
     const startY = player.y + Math.sin(a)*45;
-    deps.addLaserBeam?.({ammoId:ammo.id, fromX:startX, fromY:startY, toX:enemy.x, toY:enemy.y, targetId:enemy.id});
+    deps.addLaserBeam?.({
+      ammoId:ammo.id,
+      fromX:startX,
+      fromY:startY,
+      toX:enemy.x,
+      toY:enemy.y,
+      targetId:enemy.id,
+      blueLaser:Boolean(player.blueLaserBeams && ammo.id !== "ammo_x4")
+    });
     deps.resolveLaserHit?.(enemy, damage, deps.playerHitChance, ammo);
-    particles.push({x:startX,y:startY,life:.16,max:.16,size:14,color:ammo.id === "ammo_x4" ? "rgba(255,132,24,.65)" : "rgba(255,218,72,.62)"});
+    particles.push({x:startX,y:startY,life:.16,max:.16,size:14,color:player.blueLaserBeams && ammo.id !== "ammo_x4" ? "rgba(56,189,248,.65)" : ammo.id === "ammo_x4" ? "rgba(255,132,24,.65)" : "rgba(255,218,72,.62)"});
     deps.saveState();
     deps.refreshActionBar();
     deps.refreshQuickPanel();
@@ -168,8 +177,9 @@ export function createWeaponSystem(deps){
     const particles = deps.getParticles();
     const minDamage = Number(ammo.damageMin ?? ammo.damage ?? 0);
     const maxDamage = Number(ammo.damageMax ?? ammo.damage ?? minDamage);
-    const totalDamage = rollBetween(minDamage * needed, maxDamage * needed) * (launcher.effect?.missileDamageMultiplier || 1) * Number(player.extraBonus?.missileDamageMultiplier || 1);
+    const damageMultiplier = (launcher.effect?.missileDamageMultiplier || 1) * Number(player.extraBonus?.missileDamageMultiplier || 1);
     const travelTime = Math.max(.28, Math.min(1.65, dist / (ammo.speed || 520) + .18));
+    const salvoId = `missile-${missileSalvoSeq++}`;
     for(let i = 0; i < needed; i++){
       const spread = (i - (needed - 1) / 2) * 30;
       const curveSide = i % 2 === 0 ? 1 : -1;
@@ -183,8 +193,10 @@ export function createWeaponSystem(deps){
         sprite:ammo.projectileImg || ammo.img || null,
         curveSide,
         curveStrength:46 + i * 8,
-        damage:i === Math.floor(needed / 2) ? totalDamage : 0,
-        visualOnly:i !== Math.floor(needed / 2),
+        damage:rollBetween(minDamage, maxDamage) * damageMultiplier,
+        visualOnly:false,
+        salvoId,
+        salvoSize:needed,
         travelTime,
         radius:7,
         color:ammo.color,

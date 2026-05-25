@@ -25,6 +25,7 @@ export function installCombatInputHandlers({
   clearSelectedEnemy,
   hasSelectedEnemy,
   tryUseMapPortal,
+  attackSelectedWithActiveLaser,
   selectActionSlot,
   getStationAt,
   findEnemyAt,
@@ -192,6 +193,7 @@ export function installCombatInputHandlers({
       const enemy = findEnemyAt(world);
       if(enemy){
         setSelectedEnemy(enemy);
+        if(e.detail >= 2) attackSelectedWithActiveLaser?.();
         mouseMoveHeld = false;
         setMouseMoveHeld?.(false);
       }else{

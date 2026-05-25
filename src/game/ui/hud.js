@@ -61,10 +61,8 @@ export function updateTargetPanel(enemy){
     panel.dataset.hasShield = String(hasShield);
     panel.innerHTML = `
       <div class="target-panel-head">
-        <div>
-          <span>Cible verrouillee</span>
-          <h3 data-target-name></h3>
-        </div>
+        <h3 data-target-name></h3>
+        <b class="target-level-badge">NIV. <span data-target-level></span></b>
         <button class="target-close" type="button" data-target-close aria-label="Fermer la cible">x</button>
       </div>
       <div class="target-bar"><span data-target-hp-fill></span></div>
@@ -73,11 +71,6 @@ export function updateTargetPanel(enemy){
         <div class="target-bar target-shield"><span data-target-shield-fill></span></div>
         <div class="target-health target-shield-text"><span>Bouclier</span><b data-target-shield-text></b></div>
       ` : ""}
-      <div class="target-stat-grid">
-        <div class="target-stat"><span>Niv.</span><b data-target-level></b></div>
-        <div class="target-stat"><span>Portee</span><b data-target-range></b></div>
-        <div class="target-stat"><span>Vitesse</span><b data-target-speed></b></div>
-      </div>
     `;
   }
   panel.querySelector("[data-target-name]").textContent = enemy.type;
@@ -88,8 +81,6 @@ export function updateTargetPanel(enemy){
     panel.querySelector("[data-target-shield-text]").textContent = `${fmt(shield)} / ${fmt(shieldMax)}`;
   }
   panel.querySelector("[data-target-level]").textContent = enemy.level;
-  panel.querySelector("[data-target-range]").textContent = fmt(enemy.attackRange || 600);
-  panel.querySelector("[data-target-speed]").textContent = fmt(Math.round(enemy.speed || 0));
 }
 
 export function updatePoisonStatus(effect){
@@ -116,9 +107,12 @@ export function updateLootPopup({notices = []}){
   el.innerHTML = notices.map(notice=>{
     const loot = notice.loot || {};
     const parts = [];
+    if(loot.message) parts.push(loot.message);
     if(loot.credits) parts.push(`+${fmt(loot.credits)} CR`);
     if(loot.xp) parts.push(`+${fmt(loot.xp)} XP`);
     if(loot.premium) parts.push(`+${fmt(loot.premium)} NOVA`);
+    if(loot.ammo?.length) parts.push(...loot.ammo);
+    if(loot.items?.length) parts.push(...loot.items);
     if(loot.piece) parts.push(loot.piece);
     if(loot.materials?.length) parts.push(`Cargo : ${loot.materials.join(" · ")}`);
     const opacity = Math.max(0, Math.min(1, Number(notice.remaining || 0) / Number(notice.duration || 5)));

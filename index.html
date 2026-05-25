@@ -75,6 +75,7 @@
           <button class="hangar-tab-btn active" data-hangar-tab="vaisseau">Vaisseau</button>
           <button class="hangar-tab-btn" data-hangar-tab="drone">Drone</button>
           <button class="hangar-tab-btn" data-hangar-tab="skills">Compétences</button>
+          <button class="hangar-tab-btn" data-hangar-tab="profile">Profil</button>
         </div>
 
         <section id="hangarListPanel" class="panel hangar-panel frame">
@@ -126,6 +127,7 @@
           </div>
           <div id="hangarSkillGrid" class="skill-grid skill-grid-full" data-skill-grid></div>
         </section>
+        <section id="profileSection" class="panel profile-panel frame hidden"></section>
         <section id="extraSection" class="hidden"></section>
       </section>
 
@@ -207,6 +209,7 @@
           </div>
           <div id="portalGrid" class="portal-grid portal-grid-full"></div>
         </section>
+        <aside id="portalCasterPanel" class="panel portals-caster-panel frame"></aside>
       </section>
 
       <section class="page-view refinery-view" data-page="refinery">
@@ -273,6 +276,10 @@
     </div>
     <div id="gameTargetPanel" class="target-panel hidden"></div>
     <div id="lootPopup" class="loot-popup hidden"></div>
+    <div id="portalTimerHud" class="portal-timer-hud hidden">
+      <strong>30</strong>
+      <span>Vague suivante</span>
+    </div>
     <div id="poisonStatus" class="poison-status hidden" aria-live="polite">
       <div class="poison-status-icon">!</div>
       <div class="poison-status-body">
@@ -296,12 +303,20 @@
       <strong>ZONE NON-AGRESSION</strong>
       <span>Protection active</span>
     </div>
+    <div id="combatPerfPanel" class="combat-perf-panel frame" aria-live="off">
+      <strong>PERF</strong>
+      <span>FPS <b data-perf-fps>--</b></span>
+      <span>Frame <b data-perf-frame>--</b> ms</span>
+      <span>Update <b data-perf-update>--</b> ms</span>
+      <span>Draw <b data-perf-draw>--</b> ms</span>
+      <span>Objets <b data-perf-objects>--</b></span>
+    </div>
     <div id="combatUtilityDock" class="combat-utility-dock frame" aria-label="Modules rapides">
       <button data-utility-panel="group" type="button" title="Groupe" aria-label="Groupe"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="9" r="2.6"></circle><path d="M3.5 19c.7-3.5 2.8-5.2 6.3-5.2s5.6 1.7 6.3 5.2"></path><path d="M13.8 14.1c2.8.2 4.7 1.8 5.4 4.9"></path></svg></button>
       <button data-utility-panel="refinery" type="button" title="Raffinage" aria-label="Raffinage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l-1 6 4 8-2 4H7l-2-4 4-8z"></path><path d="M9 9h6"></path><path d="M8 17h8"></path></svg></button>
       <button data-utility-panel="quests" type="button" title="Quetes" aria-label="Quetes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l2 2v16H5V5z"></path><path d="M8 8h8"></path><path d="M8 12h6"></path><path d="M8 16h5"></path></svg></button>
       <button data-utility-panel="map" type="button" title="Carte" aria-label="Carte"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2z"></path><path d="M9 4v14"></path><path d="M15 6v14"></path><circle cx="12" cy="12" r="1.7"></circle></svg></button>
-      <button class="disabled" type="button" disabled title="Clan" aria-label="Clan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 4.4-2.6 7.4-7 9-4.4-1.6-7-4.6-7-9V7z"></path><path d="M9 12l2 2 4-5"></path></svg></button>
+      <button data-utility-panel="settings" type="button" title="Reglages" aria-label="Reglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 4.4-2.6 7.4-7 9-4.4-1.6-7-4.6-7-9V7z"></path><path d="M9 12l2 2 4-5"></path></svg></button>
       <button class="disabled" type="button" disabled title="Journal" aria-label="Journal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h11l1 2v14H6z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path><path d="M9 16h4"></path></svg></button>
     </div>
     <div id="combatUtilityPanelGroup" class="combat-utility-panel frame hidden" data-utility-mode="group">
@@ -321,6 +336,12 @@
         <strong>CARTE</strong>
       </div>
       <div id="combatUtilityContentMap" class="combat-utility-content"></div>
+    </div>
+    <div id="combatUtilityPanelSettings" class="combat-utility-panel frame hidden" data-utility-mode="settings">
+      <div class="combat-utility-panel-head">
+        <strong>REGLAGES</strong>
+      </div>
+      <div id="combatUtilityContentSettings" class="combat-utility-content"></div>
     </div>
     <canvas id="gameCanvas"></canvas>
     <div id="gameActionBar" class="action-bar frame"></div>

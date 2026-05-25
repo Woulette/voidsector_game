@@ -8,6 +8,7 @@ export function createPlayerLifecycle({
   setTeleportLock,
   updateHud,
   showToast,
+  pushDamageText,
   onDeath
 }){
   function respawn({x, y, map, hpRatio = 0.2, message = "Vaisseau detruit. Respawn."} = {}){
@@ -53,6 +54,21 @@ export function createPlayerLifecycle({
       hullPart = incoming;
     }
     if(hullPart > 0) player.hp -= hullPart;
+    if(incoming > 0 && player.hp > 0 && Number(player.damageToHpChance || 0) > 0 && Math.random() <= Number(player.damageToHpChance || 0)){
+      const healed = Math.max(1, Math.round(incoming * 0.5));
+      const before = player.hp;
+      player.hp = Math.min(player.maxHp, player.hp + healed);
+      const gained = Math.round(player.hp - before);
+      if(gained > 0){
+        pushDamageText?.({
+          x:player.x + 34,
+          y:player.y - 82,
+          value:`+${gained} HP`,
+          color:"rgba(134,239,172,",
+          shadowColor:"rgba(34,197,94,.85)"
+        });
+      }
+    }
     if(player.hp <= 0) onDeath?.();
   }
 

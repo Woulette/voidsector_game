@@ -4,11 +4,13 @@ import { DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js";
 import {
   RANK_TABLE,
   RANK_POINT_RULES,
+  GRAPHICS_QUALITY_PRESETS,
   addAmmo,
   canAfford,
   findEquippedSlot,
   getAmmoCount,
   getCurrentRank,
+  getCompletedPortalCount,
   getDroneCatalog,
   getDroneLoadout,
   getDronePurchasePrice,
@@ -28,11 +30,17 @@ import {
   getRankProgress,
   getShip,
   getShipCombatStats,
+  getSkillBonus,
+  getSkillProgress,
+  getRealSpeedFromStat,
+  getGraphicsQuality,
   isPortalUnlocked,
   priceLabel,
   saveState,
+  setGraphicsQuality,
   store
 } from "../core/store.js";
+import { ENEMY_TYPES } from "../game/combatData.js";
 
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
 import { renderShop } from "./renderShop.js";
@@ -55,7 +63,7 @@ export function renderTop(){
   const pilotRank = document.getElementById("pilotRank");
   if(pilotRank) pilotRank.textContent = rank.name;
   const pilotStats = document.getElementById("pilotStats");
-  if(pilotStats) pilotStats.textContent = `${fmt(state.player.totalKills || 0)} kills · score ${fmt(rankProgress.score)}`;
+  if(pilotStats) pilotStats.textContent = `${fmt(state.player.totalKills || 0)} kills monstres · score ${fmt(rankProgress.score)}`;
   const gradeBox = document.getElementById("gradeCard");
   if(gradeBox){
     gradeBox.innerHTML = `
@@ -310,10 +318,168 @@ export function renderDroneSection(){
     </div>`;
 }
 
+function formatDuration(seconds){
+  const total = Math.max(0, Math.floor(Number(seconds || 0)));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if(hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  return `${minutes}m ${String(total % 60).padStart(2, "0")}s`;
+}
+
+function formatPercentFromMultiplier(multiplier){
+  return `${Math.round((Number(multiplier || 1) - 1) * 100)}%`;
+}
+
+function profileCompareRow(label, before, after, suffix = ""){
+  const fmtValue = value=>typeof value === "number" ? fmt(Math.round(value)) : value;
+  const improved = Number(after || 0) > Number(before || 0);
+  return `<div class="profile-compare-row ${improved ? "improved" : ""}">
+    <span>${label}</span><b>${fmtValue(before)}${suffix}</b><i></i><strong>${fmtValue(after)}${suffix}</strong>
+  </div>`;
+}
+
+function getProfileStatsRows(){
+  const stats = getShipCombatStats(store.state.activeShip);
+  const skill = getSkillBonus();
+  const safeMultiplier = key=>Math.max(0.0001, Number(skill[key] || 1));
+  const speedStat = Math.max(0, (Number(stats.vitesseReelle || 0) - 120) / 2.15);
+  const beforeSpeed = getRealSpeedFromStat(speedStat / safeMultiplier("speedMultiplier"));
+  return [
+    profileCompareRow("Vie", stats.vie / safeMultiplier("hullMultiplier"), stats.vie, " PV"),
+    profileCompareRow("Bouclier", stats.bouclier / safeMultiplier("shieldMultiplier"), stats.bouclier),
+    profileCompareRow("Régénération", stats.regen / safeMultiplier("regenMultiplier"), stats.regen, "/s"),
+    profileCompareRow("Vitesse réelle", beforeSpeed, stats.vitesseReelle),
+    profileCompareRow("Soute", stats.cargo / safeMultiplier("cargoMultiplier"), stats.cargo),
+    profileCompareRow("Dégâts laser", "0%", formatPercentFromMultiplier(skill.weaponDamageMultiplier || 1)),
+    profileCompareRow("Dégâts roquette", "0%", formatPercentFromMultiplier(skill.rocketDamageMultiplier || 1)),
+    profileCompareRow("Dégâts missile", "0%", formatPercentFromMultiplier(skill.missileDamageMultiplier || 1)),
+    profileCompareRow("Crédits gagnés", "0%", formatPercentFromMultiplier(skill.lootMultiplier || 1)),
+    profileCompareRow("NOVA gagnés", "0%", formatPercentFromMultiplier(skill.novaMultiplier || 1)),
+    profileCompareRow("Esquive", "0%", `${Math.round(Number(skill.evasionChance || 0) * 100)}%`),
+    profileCompareRow("Conversion vie", "0%", `${Math.round(Number(skill.damageToHpChance || 0) * 100)}%`)
+  ].join("");
+}
+
+function profileAchievements(){
+  const player = store.state.player;
+  const completedPortals = getCompletedPortalCount();
+  const completedQuests = Object.keys(store.state.completedQuestClaims || {}).length;
+  const spentSkills = skills.reduce((sum, skill)=>sum + Number(getSkillProgress(skill.id).completedRanks || 0), 0);
+  return [
+    {id:"first_contact", name:"Premier contact", desc:"Détruire ton premier monstre.", done:Number(player.totalKills || 0) >= 1, title:"Premier sang"},
+    {id:"hunter_100", name:"Chasseur confirmé", desc:"Détruire 100 monstres.", done:Number(player.totalKills || 0) >= 100, title:"Traqueur spatial"},
+    {id:"veteran_25", name:"Pilote vétéran", desc:"Atteindre le niveau 25.", done:Number(player.level || 1) >= 25, title:"Vétéran d'Astra"},
+    {id:"portal_mastery", name:"Maîtrise des portails", desc:"Terminer au moins un portail.", done:completedPortals > 0, title:"Nettoyeur d'Astra"},
+    {id:"quest_5", name:"Mercenaire fiable", desc:"Réclamer 5 récompenses de quête.", done:completedQuests >= 5, title:"Mercenaire fiable"},
+    {id:"inventory_30", name:"Ingénieur de bord", desc:"Posséder 30 objets d'équipement.", done:(store.state.inventoryItems || []).length >= 30, title:"Ingénieur de bord"},
+    {id:"skill_15", name:"Spécialiste", desc:"Investir 15 rangs de compétences.", done:spentSkills >= 15, title:"Spécialiste"},
+    {id:"drone_5", name:"Escadron drone", desc:"Posséder 5 drones.", done:Number(store.state.ownedDroneCount || 0) >= 5, title:"Chef d'escadron"},
+    {id:"hunter_500", name:"Chasseur abyssal", desc:"Détruire 500 monstres.", done:Number(player.totalKills || 0) >= 500, title:"Chasseur abyssal"}
+  ];
+}
+
+function profileTitles(){
+  return profileAchievements()
+    .filter(achievement=>achievement.title)
+    .map(achievement=>({
+      id:achievement.id,
+      name:achievement.title,
+      desc:`Titre obtenu avec le succès : ${achievement.name}.`,
+      unlocked:achievement.done
+    }));
+}
+
+function getActiveProfileTitle(){
+  const player = store.state.player;
+  if(player.titleVisible === false || !player.activeTitleId) return null;
+  return profileTitles().find(title=>title.id === player.activeTitleId && title.unlocked) || null;
+}
+
+function renderProfileTabContent(tab){
+  const player = store.state.player;
+  const rank = getCurrentRank();
+  const nextRank = getNextRank();
+  const rankProgress = getRankProgress();
+  const activeShip = getShip(store.state.activeShip);
+  const stats = getShipCombatStats(store.state.activeShip);
+  const completedPortals = getCompletedPortalCount();
+  if(tab === "stats"){
+    return `<section class="profile-card profile-wide">
+      <div class="profile-card-head"><span class="tiny">AVANT / APRÈS</span><h3>Impact des compétences</h3></div>
+      <div class="profile-compare-head"><span>Stat</span><b>Sans compétences</b><strong>Actuel</strong></div>
+      <div class="profile-compare-list">${getProfileStatsRows()}</div>
+    </section>`;
+  }
+  if(tab === "titles"){
+    const activeTitle = getActiveProfileTitle();
+    const titles = profileTitles();
+    return `<section class="profile-card profile-wide">
+      <div class="profile-card-head">
+        <span class="tiny">TITRES</span>
+        <h3>Identité pilote</h3>
+        <button class="blue-button small" data-profile-title-visibility type="button">${player.titleVisible === false ? "Afficher en jeu" : "Masquer en jeu"}</button>
+      </div>
+      <div class="profile-list">${titles.map(title=>{
+        const equipped = activeTitle?.id === title.id;
+        const state = equipped ? "Équipé" : (title.unlocked ? "Débloqué" : "Verrouillé");
+        const action = title.unlocked
+          ? `<button class="blue-button small" data-profile-title="${equipped ? "" : title.id}" type="button">${equipped ? "Retirer" : "Activer"}</button>`
+          : "";
+        return `<article><strong>${title.name}</strong><span>${state}</span><p>${title.desc}</p>${action}</article>`;
+      }).join("")}</div>
+    </section>`;
+  }
+  if(tab === "achievements"){
+    return `<section class="profile-card profile-wide"><div class="profile-card-head"><span class="tiny">SUCCÈS</span><h3>Achievements</h3></div><div class="profile-achievement-grid">${profileAchievements().map(achievement=>`<article class="${achievement.done ? "done" : ""}"><b>${achievement.done ? "OK" : "--"}</b><strong>${achievement.name}</strong><span>${achievement.desc}</span></article>`).join("")}</div></section>`;
+  }
+  if(tab === "bestiary"){
+    const entries = Object.entries(ENEMY_TYPES).map(([id, enemy])=>({id, name:enemy.name, count:Number(store.state.killStats?.[id] || 0)})).sort((a,b)=>b.count - a.count || a.name.localeCompare(b.name));
+    return `<section class="profile-card profile-wide"><div class="profile-card-head"><span class="tiny">BESTIAIRE</span><h3>Monstres détruits</h3></div><div class="profile-kill-table">${entries.map(entry=>`<div><span>${entry.name}</span><strong>${fmt(entry.count)}</strong></div>`).join("")}</div></section>`;
+  }
+  const activeTitle = getActiveProfileTitle();
+  return `<div class="profile-overview-grid">
+    <section class="profile-card hero">
+      <div class="profile-rank">${rankIcon(rank, rank.name)}</div>
+      <div><span class="tiny">COMMANDANT</span><h3>${player.name}</h3><p>${activeTitle ? `${activeTitle.name} · ` : ""}${rank.name} · Niveau ${fmt(player.level)}</p></div>
+      <div class="mini-bar"><span style="width:${rankProgress.progress}%"></span></div>
+      <small>${nextRank ? `Prochain grade : ${nextRank.name} · ${fmt(rankProgress.remaining)} points restants` : "Grade maximum atteint"}</small>
+    </section>
+    <section class="profile-card"><div class="profile-card-head"><span class="tiny">VAISSEAU</span><h3>${activeShip.name}</h3></div><div class="profile-stat-grid">
+      <div><span>PV</span><b>${fmt(stats.vie)}</b></div><div><span>Bouclier</span><b>${fmt(stats.bouclier)}</b></div><div><span>Vitesse</span><b>${fmt(stats.vitesseReelle)}</b></div><div><span>Soute</span><b>${fmt(stats.cargo)}</b></div>
+    </div></section>
+    <section class="profile-card"><div class="profile-card-head"><span class="tiny">PROGRESSION</span><h3>Compte</h3></div><div class="profile-stat-grid">
+      <div><span>Temps en jeu</span><b>${formatDuration(player.totalPlaySeconds)}</b></div><div><span>Kills monstres</span><b>${fmt(player.totalKills || 0)}</b></div><div><span>Kills joueurs</span><b>${fmt(player.totalPlayerKills || 0)}</b></div><div><span>Portails finis</span><b>${fmt(completedPortals)}</b></div><div><span>Quêtes finies</span><b>${fmt(Object.keys(store.state.completedQuestClaims || {}).length)}</b></div>
+    </div></section>
+  </div>`;
+}
+
+export function renderProfile(){
+  const section = document.getElementById("profileSection");
+  if(!section) return;
+  const tabs = [
+    {id:"overview", label:"Vue"},
+    {id:"stats", label:"Stats"},
+    {id:"titles", label:"Titres"},
+    {id:"achievements", label:"Succès"},
+    {id:"bestiary", label:"Bestiaire"}
+  ];
+  if(!tabs.some(tab=>tab.id === store.profileTab)) store.profileTab = "overview";
+  section.innerHTML = `
+    <div class="panel-head">
+      <div><span class="tiny">PILOTE</span><h2>Profil</h2></div>
+      <span class="badge">Dossier commandant</span>
+    </div>
+    <div class="profile-layout">
+      <nav class="profile-tabs">${tabs.map(tab=>`<button class="${store.profileTab === tab.id ? "active" : ""}" data-profile-tab="${tab.id}" type="button">${tab.label}</button>`).join("")}</nav>
+      <div class="profile-content">${renderProfileTabContent(store.profileTab)}</div>
+    </div>`;
+}
+
 export function renderSettingsSection(){
   const settings = document.getElementById("settingsPanel");
   if(!settings) return;
   const keys = store.state.slotKeybinds || DEFAULT_SLOT_KEYBINDS;
+  const quality = getGraphicsQuality();
   settings.innerHTML = `
     <div class="panel-head">
       <div><span class="tiny">PARAMÈTRES</span><h2>Touches des slots</h2></div>
@@ -330,6 +496,20 @@ export function renderSettingsSection(){
       `).join("")}
     </div>
     <div class="settings-note">Les lasers restent en tir automatique. Les roquettes restent manuelles sauf si tu équipes un extra d'auto-lancement.</div>
+    <div class="settings-block">
+      <div class="panel-head compact">
+        <div><span class="tiny">RENDU</span><h2>Qualite graphique</h2></div>
+      </div>
+      <div class="quality-option-grid">
+        ${GRAPHICS_QUALITY_PRESETS.map(preset=>`
+          <button class="quality-option ${quality === preset.id ? "active" : ""}" data-set-graphics-quality="${preset.id}" type="button">
+            <strong>${preset.name}</strong>
+            <span>${preset.desc}</span>
+          </button>
+        `).join("")}
+      </div>
+      <p class="settings-help">Moyenne retire les nuages proches et reduit les etoiles. Basse garde surtout la planete et les etoiles.</p>
+    </div>
     <div class="danger-zone">
       <div>
         <span class="tiny">SAUVEGARDE</span>
@@ -358,6 +538,7 @@ export function renderAll(){
   renderSelectedShip();
   renderLoadout();
   renderDroneSection();
+  renderProfile();
   renderExtraSection();
   renderSettingsSection();
   renderLeaderboard();
@@ -379,6 +560,7 @@ export function renderHangarMode(){
   const loadoutPanel = document.getElementById("shipLoadoutPanel");
   const droneSection = document.getElementById("droneSection");
   const hangarSkillsSection = document.getElementById("hangarSkillsSection");
+  const profileSection = document.getElementById("profileSection");
   const extraSection = document.getElementById("extraSection");
   if(store.hangarTab === "extra") store.hangarTab = "vaisseau";
   const shipMode = store.hangarTab === "vaisseau";
@@ -391,6 +573,7 @@ export function renderHangarMode(){
   if(loadoutPanel) loadoutPanel.classList.toggle("hidden", !shipMode || !store.hangarDetailOpen);
   if(droneSection) droneSection.classList.toggle("hidden", store.hangarTab !== "drone");
   if(hangarSkillsSection) hangarSkillsSection.classList.toggle("hidden", store.hangarTab !== "skills");
+  if(profileSection) profileSection.classList.toggle("hidden", store.hangarTab !== "profile");
   if(extraSection) extraSection.classList.add("hidden");
 }
 

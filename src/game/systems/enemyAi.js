@@ -6,6 +6,12 @@ function isFinitePoint(x, y){
   return Number.isFinite(x) && Number.isFinite(y);
 }
 
+function getMapPortals(map){
+  if(!map) return [];
+  if(Array.isArray(map.portals)) return map.portals;
+  return map.portal ? [map.portal] : [];
+}
+
 function isValidPatrolPoint(map, x, y, player){
   if(!map?.width || !map?.height) return false;
   const margin = 90;
@@ -15,9 +21,9 @@ function isValidPatrolPoint(map, x, y, player){
     const radius = (map.spawn.safeRadius || map.spawn.r || 260) + 220;
     if(Math.hypot(x - map.spawn.x, y - map.spawn.y) < radius) return false;
   }
-  if(map.portal){
-    const radius = (map.portal.safeRadius || map.portal.r || 120) + 170;
-    if(Math.hypot(x - map.portal.x, y - map.portal.y) < radius) return false;
+  for(const portal of getMapPortals(map)){
+    const radius = (portal.safeRadius || portal.r || 120) + 170;
+    if(Math.hypot(x - portal.x, y - portal.y) < radius) return false;
   }
   if(player && Math.hypot(x - player.x, y - player.y) < 360) return false;
   return true;
@@ -48,14 +54,56 @@ function pickPatrolDestination(enemy, map, player){
   };
 }
 
+function resolveEnemyOverlap(enemies, map){
+  if(!Array.isArray(enemies) || enemies.length < 2) return;
+  for(let pass = 0; pass < 2; pass++){
+    for(let i = 0; i < enemies.length; i++){
+      const a = enemies[i];
+      if(!a) continue;
+      for(let j = i + 1; j < enemies.length; j++){
+        const b = enemies[j];
+        if(!b) continue;
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let distance = Math.hypot(dx, dy);
+        const minDistance = Math.max(28, ((a.radius || 24) + (b.radius || 24)) * .78);
+        if(distance >= minDistance) continue;
+        if(distance < .001){
+          const angle = ((a.id || i) * 2.399 + (b.id || j)) % (Math.PI * 2);
+          dx = Math.cos(angle);
+          dy = Math.sin(angle);
+          distance = 1;
+        }
+        const push = (minDistance - distance) * .5;
+        const nx = dx / distance;
+        const ny = dy / distance;
+        a.x -= nx * push;
+        a.y -= ny * push;
+        b.x += nx * push;
+        b.y += ny * push;
+      }
+    }
+  }
+  if(map?.width && map?.height){
+    for(const enemy of enemies){
+      enemy.x = clamp(enemy.x, -map.width / 2 + 40, map.width / 2 - 40);
+      enemy.y = clamp(enemy.y, -map.height / 2 + 40, map.height / 2 - 40);
+    }
+  }
+}
+
 export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, leashRange, playerCollisionRadius, onEnemyAttack}){
   for(const enemy of enemies){
+    const beforeX = enemy.x;
+    const beforeY = enemy.y;
     const dx = player.x-enemy.x;
     const dy = player.y-enemy.y;
     const distance = Math.hypot(dx,dy) || 1;
     const range = enemy.attackRange || 600;
-    if(safeMode) enemy.aggro = false;
-    else if(!enemy.aggro && enemy.kind !== "drone_pirate" && distance < Math.max(aggroRange, range + 120)) enemy.aggro = true;
+    if(safeMode){
+      enemy.aggro = false;
+      enemy.hitT = Math.max(enemy.hitT || 0, enemy.attackCooldown || 1.4);
+    }else if(!enemy.aggro && enemy.kind !== "drone_pirate" && distance < Math.max(aggroRange, range + 120)) enemy.aggro = true;
 
     let returningHome = false;
     if(enemy.aggro && distance > leashRange){
@@ -114,20 +162,15 @@ export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, l
       const sideX = -dirY;
       const sideY = dirX;
       if(enemy.kind === "drone_pirate"){
-        const preferredDistance = Math.max(80, range - 10);
-        const orbit = Math.sin((enemy.id * 1.7) + performance.now() / 620) > 0 ? 1 : -1;
-        if(distance > preferredDistance + 34){
-          targetX = player.x - dirX * preferredDistance + sideX * orbit * 90;
-          targetY = player.y - dirY * preferredDistance + sideY * orbit * 90;
-          speed = enemy.speed;
-        }else if(distance < preferredDistance - 70){
-          targetX = enemy.x - dirX * 180 + sideX * orbit * 80;
-          targetY = enemy.y - dirY * 180 + sideY * orbit * 80;
+        const preferredDistance = Math.max(110, range - 45);
+        if(distance > range - 20){
+          targetX = player.x - dirX * preferredDistance;
+          targetY = player.y - dirY * preferredDistance;
           speed = enemy.speed;
         }else{
-          targetX = enemy.x + sideX * orbit * 120;
-          targetY = enemy.y + sideY * orbit * 120;
-          speed = enemy.speed;
+          targetX = enemy.x;
+          targetY = enemy.y;
+          speed = 0;
         }
       }else if(enemy.kind === "raider_astral"){
         const contactDistance = Math.max(70, enemy.radius + playerCollisionRadius + 22);
@@ -189,11 +232,15 @@ export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, l
       enemy.x = clamp(enemy.x, -map.width / 2 + 40, map.width / 2 - 40);
       enemy.y = clamp(enemy.y, -map.height / 2 + 40, map.height / 2 - 40);
     }
-    enemy.angle = Math.atan2(dy,dx)+Math.PI/2;
+    const moveDx = enemy.x - beforeX;
+    const moveDy = enemy.y - beforeY;
+    if(enemy.aggro && !safeMode) enemy.angle = Math.atan2(dy,dx)+Math.PI/2;
+    else if(Math.hypot(moveDx, moveDy) > .5) enemy.angle = Math.atan2(moveDy, moveDx)+Math.PI/2;
     enemy.hitT -= dt;
     if(!safeMode && enemy.aggro && distance <= range && enemy.hitT <= 0){
       onEnemyAttack(enemy, dx, dy, distance);
       enemy.hitT = enemy.attackCooldown || 1.4;
     }
   }
+  resolveEnemyOverlap(enemies, map);
 }

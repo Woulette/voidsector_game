@@ -336,7 +336,7 @@ function drawRepairDrone({ctx, camera, cache, player}){
   });
 }
 
-function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotName}){
+function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotName, pilotTitle}){
   const px = player.x - camera.x;
   const py = player.y - camera.y;
   const rankImg = cache[rankAssetPath];
@@ -359,6 +359,15 @@ function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilot
   ctx.strokeStyle = "rgba(2,6,17,.82)";
   ctx.strokeText(pilotName, startX + (rankImg ? iconSize + gap : 0), nameY);
   ctx.fillText(pilotName, startX + (rankImg ? iconSize + gap : 0), nameY);
+  if(pilotTitle){
+    ctx.font = "800 12px Rajdhani, Arial";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#fef08a";
+    ctx.strokeStyle = "rgba(2,6,17,.86)";
+    ctx.lineWidth = 3;
+    ctx.strokeText(pilotTitle, px, nameY + 18);
+    ctx.fillText(pilotTitle, px, nameY + 18);
+  }
   ctx.restore();
 }
 
@@ -404,6 +413,7 @@ export function drawPlayerLayer({
   rank,
   rankAssetPath,
   pilotName,
+  pilotTitle,
   getItemFromInventoryUid,
   droneFormation,
   defaultProfile,
@@ -414,5 +424,5 @@ export function drawPlayerLayer({
   drawRotatedImage({ctx, camera, img:cache[ship.combatImg || ship.img], x:player.x, y:player.y, w:96, h:96, angle:player.angle});
   drawRepairDrone({ctx, camera, cache, player});
   drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, droneFormation});
-  drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotName});
+  drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotName, pilotTitle});
 }

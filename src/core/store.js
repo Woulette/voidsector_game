@@ -2,7 +2,7 @@ import { ammoTypes, defaultState, droneCatalog, droneFormations, equipment, port
 import { clone, fmt } from "./utils.js";
 import { normalizeSlotKeybinds } from "./keybinds.js";
 import { getSkillBonus } from "./skillStore.js";
-export { getSkillBonus, getSkillDefinition, getSkillLevel, getSkillUpgradeData, upgradeSkill } from "./skillStore.js";
+export { canAffordSkillCost, getNodeMaxRank, getSkillBonus, getSkillDefinition, getSkillLevel, getSkillProgress, getSkillRanks, getSkillUpgradeData, skillCostLabel, upgradeSkill } from "./skillStore.js";
 import {
   addAmmo,
   addInventoryItem,
@@ -166,6 +166,7 @@ export const store = {
   currentView:"hangar",
   hangarDetailOpen:false,
   hangarTab:"vaisseau",
+  profileTab:"overview",
   selectedInventoryUid:null,
   selectedShopProduct:null,
   selectedShopAmmoMultiplier:1,
@@ -178,6 +179,37 @@ export const store = {
 const MAX_ACTIVE_QUESTS = 5;
 const MIN_PLAYER_CREDITS = 1000000000;
 const MIN_PLAYER_PREMIUM = 1000000;
+export const GRAPHICS_QUALITY_PRESETS = [
+  {id:"high", name:"Haute", multiplier:1, desc:"Décor complet"},
+  {id:"medium", name:"Moyenne", multiplier:.5, desc:"50% étoiles, sans nuages proches"},
+  {id:"low", name:"Basse", multiplier:.2, desc:"Planete et 20% étoiles"}
+];
+export function normalizeGraphicsQuality(value){
+  return GRAPHICS_QUALITY_PRESETS.some(preset=>preset.id === value) ? value : "high";
+}
+export function getGraphicsQuality(){
+  return normalizeGraphicsQuality(store.state?.graphicsQuality);
+}
+export function setGraphicsQuality(value){
+  store.state.graphicsQuality = normalizeGraphicsQuality(value);
+  return store.state.graphicsQuality;
+}
+export function getSpentSkillPoints(state = store.state){
+  return skills.reduce((total, skill)=>{
+    const ranks = Array.isArray(state?.skillRanks?.[skill.id]) ? state.skillRanks[skill.id] : [];
+    return total + skill.levels.reduce((sum, node, nodeIndex)=>{
+      const nodeRanks = Array.isArray(node.ranks) ? node.ranks : [node];
+      const rank = Math.max(0, Math.min(nodeRanks.length, Number(ranks[nodeIndex] || 0)));
+      return sum + nodeRanks.slice(0, rank).reduce((rankSum, step)=>rankSum + Number(step.skillPoints || 0), 0);
+    }, 0);
+  }, 0);
+}
+export function syncSkillPoints(state = store.state){
+  const earned = Math.max(0, Math.floor(Number(state?.player?.level || 0)));
+  const spent = getSpentSkillPoints(state);
+  state.player.skillPoints = Math.max(0, earned - spent);
+  return state.player.skillPoints;
+}
 export function getShip(id){ return ships.find(s=>s.id===id) || ships[0]; }
 export function getItem(id){ return equipment.find(i=>i.id===id); }
 export function getAmmo(id){ return ammoTypes.find(a=>a.id===id) || null; }
@@ -235,6 +267,10 @@ export function normalizeState(saved){
   merged.player = {...base.player, ...(saved?.player || {})};
   merged.player.totalXp = Math.max(0, Number(merged.player.totalXp || 0));
   merged.player.totalKills = Math.max(0, Number(merged.player.totalKills || 0));
+  merged.player.totalPlayerKills = Math.max(0, Number(merged.player.totalPlayerKills || 0));
+  merged.player.totalPlaySeconds = Math.max(0, Number(merged.player.totalPlaySeconds || 0));
+  merged.player.activeTitleId = typeof merged.player.activeTitleId === "string" ? merged.player.activeTitleId : null;
+  merged.player.titleVisible = merged.player.titleVisible !== false;
   enforcePlayerCurrencyMinimums(merged.player);
   merged.ownedShips = Array.isArray(saved?.ownedShips) ? saved.ownedShips.filter(id=>ships.some(s=>s.id===id)) : base.ownedShips;
   merged.ownedItems = Array.isArray(saved?.ownedItems) ? saved.ownedItems.filter(id=>equipment.some(i=>i.id===id)) : base.ownedItems;
@@ -251,19 +287,50 @@ export function normalizeState(saved){
   merged.ownedDroneFormations = Array.isArray(saved?.ownedDroneFormations) ? saved.ownedDroneFormations.filter(id=>droneFormations.some(formation=>formation.id === id)) : clone(base.ownedDroneFormations || []);
   if(!merged.ownedDroneFormations.includes("base")) merged.ownedDroneFormations.unshift("base");
   merged.activeDroneFormation = merged.ownedDroneFormations.includes(saved?.activeDroneFormation) ? saved.activeDroneFormation : (merged.ownedDroneFormations.includes(base.activeDroneFormation) ? base.activeDroneFormation : null);
-  merged.skillLevels = {...(base.skillLevels || {})};
+  merged.skillLevels = {};
+  merged.skillRanks = {};
   if(saved?.skillLevels && typeof saved.skillLevels === "object"){
     for(const skill of skills){
-      merged.skillLevels[skill.id] = Math.max(0, Math.min(Number(skill.maxLevel || skill.levels.length || 0), Number(saved.skillLevels[skill.id] || 0)));
+      const legacyLevel = Math.max(0, Math.min(Number(skill.maxLevel || skill.levels.length || 0), Number(saved.skillLevels[skill.id] || 0)));
+      const savedRanks = Array.isArray(saved?.skillRanks?.[skill.id]) ? saved.skillRanks[skill.id] : null;
+      merged.skillRanks[skill.id] = skill.levels.map((node, index)=>{
+        const maxRank = Array.isArray(node.ranks) ? node.ranks.length : 1;
+        if(savedRanks) return Math.max(0, Math.min(maxRank, Number(savedRanks[index] || 0)));
+        return index < legacyLevel ? maxRank : 0;
+      });
+      merged.skillLevels[skill.id] = merged.skillRanks[skill.id].reduce((sum, rank, index)=>{
+        const node = skill.levels[index];
+        const maxRank = Array.isArray(node.ranks) ? node.ranks.length : 1;
+        return sum + (rank >= maxRank ? 1 : 0);
+      }, 0);
     }
+  }
+  for(const skill of skills){
+    if(merged.skillRanks[skill.id]) continue;
+    const savedRanks = Array.isArray(saved?.skillRanks?.[skill.id]) ? saved.skillRanks[skill.id] : null;
+    merged.skillRanks[skill.id] = skill.levels.map((node, index)=>{
+      const maxRank = Array.isArray(node.ranks) ? node.ranks.length : 1;
+      return savedRanks ? Math.max(0, Math.min(maxRank, Number(savedRanks[index] || 0))) : 0;
+    });
+    merged.skillLevels[skill.id] = merged.skillRanks[skill.id].reduce((sum, rank, index)=>{
+      const node = skill.levels[index];
+      const maxRank = Array.isArray(node.ranks) ? node.ranks.length : 1;
+      return sum + (rank >= maxRank ? 1 : 0);
+    }, 0);
   }
   // Migration légère de l'ancien système (liste de compétences débloquées) vers les nouvelles branches.
   if((!saved?.skillLevels || typeof saved.skillLevels !== "object") && Array.isArray(saved?.unlockedSkills) && saved.unlockedSkills.length){
     const legacyCount = saved.unlockedSkills.length;
-    if(legacyCount >= 1) merged.skillLevels.damage = Math.min(1, skills.find(s=>s.id === "damage").maxLevel || 1);
-    if(legacyCount >= 2) merged.skillLevels.shield = Math.min(1, skills.find(s=>s.id === "shield").maxLevel || 1);
-    if(legacyCount >= 3) merged.skillLevels.utility = Math.min(1, skills.find(s=>s.id === "utility").maxLevel || 1);
+    ["damage","shield","utility"].forEach((id, index)=>{
+      if(legacyCount < index + 1) return;
+      const skill = skills.find(s=>s.id === id);
+      if(!skill) return;
+      const firstNode = skill.levels[0];
+      merged.skillRanks[id][0] = Array.isArray(firstNode.ranks) ? firstNode.ranks.length : 1;
+      merged.skillLevels[id] = 1;
+    });
   }
+  syncSkillPoints(merged);
   merged.ammoInventory = {...base.ammoInventory};
   if(saved?.ammoInventory && typeof saved.ammoInventory === "object"){
     for(const ammo of ammoTypes) merged.ammoInventory[ammo.id] = Math.max(0, Number(saved.ammoInventory[ammo.id] ?? base.ammoInventory?.[ammo.id] ?? 0));
@@ -272,9 +339,24 @@ export function normalizeState(saved){
     const value = Array.isArray(saved?.actionSlots) ? saved.actionSlots[i] : base.actionSlots[i];
     return value && (ammoTypes.some(a=>a.id === value) || equipment.some(item=>item.id === value && (item.category === "extra" || item.slotType === "missileLauncher"))) ? value : null;
   });
+  {
+    const lastLaserAmmo = ammoTypes.find(ammo=>ammo.id === saved?.lastLaserAmmoId && ammo.weaponClass === "laser")
+      || ammoTypes.find(ammo=>ammo.id === base.lastLaserAmmoId && ammo.weaponClass === "laser");
+    merged.lastLaserAmmoId = lastLaserAmmo?.id || null;
+  }
   merged.slotKeybinds = normalizeSlotKeybinds(saved?.slotKeybinds || base.slotKeybinds);
+  merged.graphicsQuality = normalizeGraphicsQuality(saved?.graphicsQuality || base.graphicsQuality);
   merged.portalPieces = {...(base.portalPieces || {})};
   if(saved?.portalPieces && typeof saved.portalPieces === "object") for(const key of Object.keys(base.portalPieces || {})) merged.portalPieces[key] = Math.max(0, Number(saved.portalPieces[key] || 0));
+  merged.portalRuns = {};
+  if(saved?.portalRuns && typeof saved.portalRuns === "object"){
+    for(const portal of portals){
+      const run = saved.portalRuns[portal.id];
+      if(!run || typeof run !== "object") continue;
+      const lives = Math.max(0, Math.min(3, Math.round(Number(run.lives || 0))));
+      if(lives > 0) merged.portalRuns[portal.id] = {lives, status:run.status === "dead" ? "dead" : "active"};
+    }
+  }
   merged.unlockedPortals = Array.isArray(saved?.unlockedPortals) ? saved.unlockedPortals.filter(id=>portals.some(p=>p.id === id)) : clone(base.unlockedPortals || []);
   merged.completedPortals = saved?.completedPortals && typeof saved.completedPortals === "object" ? {...saved.completedPortals} : {...(base.completedPortals || {})};
   merged.killStats = saved?.killStats && typeof saved.killStats === "object" ? {...saved.killStats} : {};
@@ -521,7 +603,7 @@ export function getExtraBonus(shipId = store.state.activeShip){
   const bonus = {
     autoRocket:false,
     autoMissile:false,
-    rocketCooldownMultiplier:1,
+    rocketCooldownMultiplier:Number(skill.rocketCooldownMultiplier || 1),
     rocketDamageBonus:0,
     repairBot:false,
     repairBotAuto:false,
@@ -540,6 +622,7 @@ export function getExtraBonus(shipId = store.state.activeShip){
     if(effect.repairBotDelay) bonus.repairBotDelay = Math.max(1, Math.min(bonus.repairBotDelay, effect.repairBotDelay));
   }
   bonus.rocketCooldownMultiplier = Math.max(0.25, bonus.rocketCooldownMultiplier);
+  bonus.repairBotHealRate *= Number(skill.repairBotHealMultiplier || 1);
   return bonus;
 }
 
@@ -590,25 +673,33 @@ export function getShipCombatStats(shipId = store.state.activeShip){
     + boostedGeneratorValue(droneGenerators, "regen", 1, droneBoost);
   const generatorSpeed = boostedGeneratorValue(shipGenerators, "vitesse", 2)
     + boostedGeneratorValue(droneGenerators, "vitesse", 2, droneBoost);
-  const vitesse = (ship.stats.vitesse + (skill.vitesse || 0) + generatorSpeed) * Number(formationBonus.speedMultiplier || 1);
-  const bouclier = (shieldFromGenerators > 0 ? shieldFromGenerators + (skill.shieldBonus || 0) : 0) * Number(formationBonus.shieldMultiplier || 1);
+  const vitesse = (ship.stats.vitesse + (skill.vitesse || 0) + generatorSpeed)
+    * Number(formationBonus.speedMultiplier || 1)
+    * Number(skill.speedMultiplier || 1);
+  const bouclier = (shieldFromGenerators > 0 ? shieldFromGenerators + (skill.shieldBonus || 0) : 0)
+    * Number(formationBonus.shieldMultiplier || 1)
+    * Number(skill.shieldMultiplier || 1);
   const extraBonus = getExtraBonus(shipId);
-  extraBonus.rocketDamageMultiplier = Number(formationBonus.rocketDamageMultiplier || 1);
-  extraBonus.missileDamageMultiplier = Number(formationBonus.missileDamageMultiplier || 1);
+  extraBonus.rocketDamageMultiplier = Number(formationBonus.rocketDamageMultiplier || 1) * Number(skill.rocketDamageMultiplier || 1);
+  extraBonus.missileDamageMultiplier = Number(formationBonus.missileDamageMultiplier || 1) * Number(skill.missileDamageMultiplier || 1);
   return {
-    vie: ship.stats.vie + (skill.vie || 0),
+    vie: (ship.stats.vie + (skill.vie || 0)) * Number(skill.hullMultiplier || 1),
     vitesse,
     vitesseReelle:getRealSpeedFromStat(vitesse),
-    cargo: ship.stats.cargo + (skill.cargo || 0),
+    cargo: (ship.stats.cargo + (skill.cargo || 0)) * Number(skill.cargoMultiplier || 1),
     maxLasers: ship.stats.maxLasers,
     maxGenerators: ship.stats.maxGenerators,
     maxExtras:ship.stats.maxExtras || 3,
     droneCount: getDroneLoadout().length,
     bouclier,
-    regen: (regen + (skill.regen || 0)) * Number(formationBonus.regenMultiplier || 1),
+    regen: (regen + (skill.regen || 0)) * Number(formationBonus.regenMultiplier || 1) * Number(skill.regenMultiplier || 1),
     weaponDamage: skill.weaponDamage || 0,
-    weaponDamagePercent: (skill.weaponDamagePercent || 0) + (Number(formationBonus.laserDamageMultiplier || 1) - 1),
+    weaponDamageMultiplier: Number(skill.weaponDamageMultiplier || 1) * Number(formationBonus.laserDamageMultiplier || 1),
+    weaponDamagePercent: Number(skill.weaponDamageMultiplier || 1) * Number(formationBonus.laserDamageMultiplier || 1) - 1,
     shieldAbsorbRatio: Math.max(0, Math.min(0.9, 0.5 + Number(skill.shieldAbsorbBonus || 0))),
+    evasionChance: Math.max(0, Math.min(0.75, Number(skill.evasionChance || 0))),
+    damageToHpChance: Math.max(0, Math.min(0.5, Number(skill.damageToHpChance || 0))),
+    blueLaserBeams: Number(skill.blueLaserBeams || 0) > 0,
     extraBonus
   };
 }
@@ -621,10 +712,10 @@ export function addXP(amount){
   while(store.state.player.xp >= store.state.player.xpNext){
     store.state.player.xp -= store.state.player.xpNext;
     store.state.player.level += 1;
-    store.state.player.skillPoints += 1;
     store.state.player.xpNext = Math.round(store.state.player.xpNext * 1.35 + 50);
     leveled = true;
   }
+  syncSkillPoints();
   store.state.player.rankScore = getRankScore();
   return leveled;
 }

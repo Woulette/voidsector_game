@@ -8,19 +8,40 @@ export function seededRandom(seed){
   };
 }
 
+function getEnemyTypeKind(enemyType){
+  return Object.keys(ENEMY_TYPES).find(key=>ENEMY_TYPES[key] === enemyType) || "drone_pirate";
+}
+
+function getEnemyTypeById(kind){
+  return ENEMY_TYPES[kind] || ENEMY_TYPES.drone_pirate;
+}
+
 function chooseEnemyType(map, rnd){
   const list = map.enemyTypes?.length ? map.enemyTypes : [{id:"drone_pirate", weight:1}];
   const total = list.reduce((sum, entry)=>sum + entry.weight, 0) || 1;
   let roll = rnd() * total;
   for(const entry of list){
     roll -= entry.weight;
-    if(roll <= 0) return ENEMY_TYPES[entry.id] || ENEMY_TYPES.drone_pirate;
+    if(roll <= 0) return getEnemyTypeById(entry.id);
   }
-  return ENEMY_TYPES[list[list.length-1].id] || ENEMY_TYPES.drone_pirate;
+  return getEnemyTypeById(list[list.length-1].id);
 }
 
 function randomBetween(rnd, min, max){
   return min + rnd() * (max - min);
+}
+
+function randomIntegerRange(rnd, range, fallback){
+  const source = Array.isArray(range) ? range : fallback;
+  const min = Math.floor(Number(source?.[0] ?? 1));
+  const max = Math.floor(Number(source?.[1] ?? min));
+  return Math.floor(min + rnd() * (max - min + 1));
+}
+
+function getMapPortals(map){
+  if(!map) return [];
+  if(Array.isArray(map.portals)) return map.portals;
+  return map.portal ? [map.portal] : [];
 }
 
 export function findEnemySpawnPosition(map, rnd = Math.random, player = null){
@@ -39,15 +60,15 @@ function isValidEnemySpawnPosition(map, x, y, player = null){
   if(!map) return false;
   if(x < -map.width / 2 || x > map.width / 2 || y < -map.height / 2 || y > map.height / 2) return false;
   if(map.spawn && Math.hypot(x - map.spawn.x, y - map.spawn.y) < (map.spawn.r || 260) + 520) return false;
-  if(map.portal && Math.hypot(x - map.portal.x, y - map.portal.y) < 360) return false;
+  if(getMapPortals(map).some(portal=>Math.hypot(x - portal.x, y - portal.y) < 360)) return false;
   if(player && Math.hypot(x - player.x, y - player.y) < 420) return false;
   return true;
 }
 
-export function createMapEnemy({map, id, rnd = Math.random, player = null}){
+export function createMapEnemy({map, id, rnd = Math.random, player = null, kind = null}){
   const {x, y} = findEnemySpawnPosition(map, rnd, player);
-  const level = Math.floor(map.enemyLevel[0] + rnd()*(map.enemyLevel[1]-map.enemyLevel[0]+1));
-  const enemyType = chooseEnemyType(map, rnd);
+  const enemyType = kind ? getEnemyTypeById(kind) : chooseEnemyType(map, rnd);
+  const level = randomIntegerRange(rnd, enemyType.levelRange, map.enemyLevel);
   const maxHp = enemyType.maxHp(level);
   const maxShield = enemyType.maxShield?.(level) || 0;
   return {
@@ -56,7 +77,7 @@ export function createMapEnemy({map, id, rnd = Math.random, player = null}){
     hp:maxHp,maxHp,
     shield:maxShield,maxShield,
     level,
-    kind:Object.keys(ENEMY_TYPES).find(key=>ENEMY_TYPES[key] === enemyType) || "drone_pirate",
+    kind:kind || getEnemyTypeKind(enemyType),
     type:enemyType.name,
     img:enemyType.img,
     width:enemyType.width,
@@ -125,7 +146,16 @@ export function buildMapState(map, startEnemySeq=1){
   const rnd = seededRandom(1000 + map.enemySeed);
   const generatedEnemies = [];
   let nextEnemySeq = startEnemySeq;
-  for(let i=0;i<map.enemyCount;i++){
+  const fixedEnemyCounts = Object.entries(map.fixedEnemyCounts || {});
+  let fixedTotal = 0;
+  for(const [kind, count] of fixedEnemyCounts){
+    const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+    fixedTotal += safeCount;
+    for(let i=0;i<safeCount;i++){
+      generatedEnemies.push(createMapEnemy({map, id:nextEnemySeq++, rnd, kind}));
+    }
+  }
+  for(let i=0;i<Math.max(0, (map.enemyCount || 0) - fixedTotal);i++){
     generatedEnemies.push(createMapEnemy({map, id:nextEnemySeq++, rnd}));
   }
   return {

@@ -1,4 +1,5 @@
 import { addMaterial } from "./cargoStore.js";
+import { skills } from "../data/catalog.js";
 import { addXP, getQuest, store } from "./store.js";
 
 const MAX_ACTIVE_QUESTS = 5;
@@ -59,6 +60,24 @@ function progressQuestKill(quest){
   return next >= target;
 }
 
+function getQuestRewardMultipliers(){
+  const result = {credits:1, premium:1};
+  const skillRanks = store.state?.skillRanks || {};
+  for(const skill of skills){
+    const ranks = Array.isArray(skillRanks[skill.id]) ? skillRanks[skill.id] : [];
+    for(let i = 0; i < skill.levels.length; i++){
+      const node = skill.levels[i];
+      const nodeRanks = Array.isArray(node?.ranks) ? node.ranks : [];
+      const rank = Math.max(0, Math.min(nodeRanks.length, Number(ranks[i] || 0)));
+      if(rank <= 0) continue;
+      const stats = nodeRanks[rank - 1]?.stats || {};
+      result.credits *= Number(stats.lootMultiplier || 1);
+      result.premium *= Number(stats.novaMultiplier || 1);
+    }
+  }
+  return result;
+}
+
 export function recordQuestKill(kind, zoneName){
   if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.length) return false;
   const activeIds = store.state.activeQuestIds.filter(id=>getQuest(id) && !store.state.completedQuestClaims?.[id]).slice(0, MAX_ACTIVE_QUESTS);
@@ -77,7 +96,9 @@ export function claimQuest(id){
   if(!quest) return {ok:false, reason:"Quete introuvable."};
   if(store.state.completedQuestClaims?.[id]) return {ok:false, reason:"Quete deja terminee."};
   if(!canClaimQuest(id)) return {ok:false, reason:"Objectif non rempli."};
-  store.state.player.credits += Number(quest.rewards.credits || 0);
+  const multipliers = getQuestRewardMultipliers();
+  store.state.player.credits += Math.round(Number(quest.rewards.credits || 0) * multipliers.credits);
+  store.state.player.premium += Math.round(Number(quest.rewards.premium || 0) * multipliers.premium);
   addXP(Number(quest.rewards.xp || 0));
   for(const [materialId, amount] of Object.entries(quest.rewards.materials || {})) addMaterial(materialId, amount);
   if(!store.state.completedQuestClaims || typeof store.state.completedQuestClaims !== "object") store.state.completedQuestClaims = {};

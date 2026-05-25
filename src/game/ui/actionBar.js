@@ -52,7 +52,8 @@ export function updateActionBarDom({root=document, activeLaserSlot, selectedRock
     el.classList.toggle("ready", !!repairState?.ok || isCpuReady);
     el.classList.toggle("blocked", (!!repairState && !repairState.ok && !repairBotActive) || Boolean(cpu && !missileState?.ready));
     const cd = el.querySelector(".cooldown");
-    if(cd && ammo) cd.style.height = `${Math.min(100, getAmmoCooldown(ammo) / getEffectiveAmmoCooldown(ammo) * 100)}%`;
+    if(cd && ammo?.weaponClass === "missile") cd.style.height = "0%";
+    else if(cd && ammo) cd.style.height = `${Math.min(100, getAmmoCooldown(ammo) / getEffectiveAmmoCooldown(ammo) * 100)}%`;
     else if(cd && cpu) cd.style.height = `${Math.max(0, 100 - Math.min(100, Number(missileState?.progress || 0)))}%`;
     else if(cd) cd.style.height = "0%";
     const count = el.querySelector(".slot-count");

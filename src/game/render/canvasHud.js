@@ -1,19 +1,52 @@
 export function drawDamageTexts({ctx, camera, damageTexts}){
   ctx.save();
-  ctx.font = "900 18px Rajdhani, Arial";
   ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
   for(const t of damageTexts){
-    const a = Math.max(0,t.life/t.max);
-    ctx.fillStyle = t.color ? `${t.color}${a})` : `rgba(255,230,140,${a})`;
-    ctx.shadowColor = t.shadowColor || (t.color ? "rgba(248,113,113,.8)" : "rgba(250,204,21,.8)");
-    ctx.shadowBlur = 10;
+    const a = Math.max(0, t.life / t.max);
+    const progress = Math.max(0, Math.min(1, 1 - a));
     const label = typeof t.value === "string" ? t.value : `-${t.value}`;
-    ctx.fillText(label, t.x-camera.x, t.y-camera.y);
+    const isMiss = label === "MISS";
+    const isNumber = !Number.isNaN(Number(t.value));
+    const pop = Math.sin(Math.min(1, progress / .28) * Math.PI);
+    const grow = 1 - Math.pow(1 - progress, 2.2);
+    const jitter = Math.sin(progress * Math.PI * 8 + (t.wobble || 0)) * (1 - progress) * (isMiss ? .6 : 1.2);
+    const fade = Math.min(1, a * 1.65);
+    const size = isMiss ? 15 + grow * 3 + pop * 2 : 16 + grow * 8 + pop * 4;
+    const x = t.x - camera.x + jitter;
+    const y = t.y - camera.y;
+    const fill = t.color ? `${t.color}${fade})` : `rgba(255,78,64,${fade})`;
+    const glow = t.shadowColor || (isNumber ? "rgba(255,70,42,.95)" : "rgba(96,165,250,.82)");
+
+    ctx.font = `900 ${size}px Rajdhani, Arial`;
+    ctx.lineJoin = "round";
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = isMiss ? 8 + pop * 5 : 11 + pop * 22 + grow * 6;
+    ctx.strokeStyle = `rgba(22,2,5,${fade})`;
+    ctx.lineWidth = isMiss ? 3 : 3.5 + pop * 1.5;
+    ctx.strokeText(label, x, y);
+    ctx.fillStyle = fill;
+    ctx.fillText(label, x, y);
+
+    if(!isMiss){
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = fade * (0.22 + grow * 0.18);
+      ctx.strokeStyle = t.shadowColor || "rgba(255,112,67,.72)";
+      ctx.lineWidth = 1.4;
+      ctx.strokeText(label, x, y);
+      ctx.globalAlpha = 1;
+    }
   }
   ctx.restore();
 }
 
-export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget}){
+function getMapPortals(map){
+  if(!map) return [];
+  if(Array.isArray(map.portals)) return map.portals;
+  return map.portal ? [map.portal] : [];
+}
+
+export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget, revealAllEnemies = false}){
   const {x, y, w, h} = rect;
   const headerH = 22;
   const sx = w/currentMap.width, sy = h/currentMap.height;
@@ -52,9 +85,9 @@ export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget}
     ctx.fillStyle = "rgba(86,255,79,.55)";
     ctx.beginPath(); ctx.arc(mapX(currentMap.spawn.x),mapY(currentMap.spawn.y),5,0,Math.PI*2); ctx.fill();
   }
-  if(currentMap.portal){
+  for(const portal of getMapPortals(currentMap)){
     ctx.fillStyle = "rgba(168,85,247,.95)";
-    ctx.beginPath(); ctx.arc(mapX(currentMap.portal.x),mapY(currentMap.portal.y),5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(mapX(portal.x),mapY(portal.y),5,0,Math.PI*2); ctx.fill();
   }
   ctx.strokeStyle = "rgba(56,189,248,.25)";
   ctx.beginPath(); ctx.arc(mapX(player.x),mapY(player.y),Math.max(5,player.radar*sx),0,Math.PI*2); ctx.stroke();
@@ -71,7 +104,7 @@ export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget}
     ctx.beginPath(); ctx.arc(mapX(moveTarget.x), mapY(moveTarget.y),4,0,Math.PI*2); ctx.fill();
   }
   for(const e of enemies){
-    if(Math.hypot(e.x-player.x,e.y-player.y) > player.radar) continue;
+    if(!revealAllEnemies && Math.hypot(e.x-player.x,e.y-player.y) > player.radar) continue;
     ctx.fillStyle = "#ef4444";
     ctx.fillRect(mapX(e.x)-2,mapY(e.y)-2,4,4);
   }

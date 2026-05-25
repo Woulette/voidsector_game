@@ -1,8 +1,12 @@
+import { getMapPortals } from "../combatData.js";
+import { drawMapPortals } from "./mapPortals.js";
+
 function viewWidth(canvas){ return canvas.__renderWidth || canvas.__viewWidth || canvas.clientWidth || canvas.width; }
 function viewHeight(canvas){ return canvas.__renderHeight || canvas.__viewHeight || canvas.clientHeight || canvas.height; }
 const parallaxAsteroidCache = new Map();
 const parallaxDustSpeckCache = new Map();
 const asteroidSpriteCache = new Map();
+const parallaxCloudSpriteCache = new Map();
 let vignetteCache = null;
 
 function getTilePath(tileMap, col, row){
@@ -335,6 +339,53 @@ function drawParallaxTiles({ctx, canvas, cache, currentMap, camera}){
   ctx.restore();
 }
 
+function getParallaxCloudSprite(cloud){
+  const r = cloud.r || 360;
+  const logicalSize = Math.max(260, r * 2.65);
+  const bufferSize = Math.max(128, Math.min(1024, Math.ceil(logicalSize)));
+  const key = [
+    cloud.seed || 0,
+    Math.round(r),
+    Math.round((cloud.alpha || .22) * 1000),
+    Math.round((cloud.scale || 1) * 1000),
+    Math.round((cloud.squeeze || .62) * 1000),
+    cloud.blobs || 9,
+    cloud.core || "",
+    cloud.mid || "",
+    cloud.edge || ""
+  ].join("|");
+  if(parallaxCloudSpriteCache.has(key)) return parallaxCloudSpriteCache.get(key);
+
+  const buffer = document.createElement("canvas");
+  buffer.width = bufferSize;
+  buffer.height = bufferSize;
+  const bctx = buffer.getContext("2d");
+  const k = bufferSize / logicalSize;
+  const center = bufferSize / 2;
+  const rnd = seededValue(17000 + (cloud.seed || 0) * 997);
+  const blobs = cloud.blobs || 9;
+  bctx.globalCompositeOperation = "screen";
+  for(let i = 0; i < blobs; i++){
+    const angle = rnd() * Math.PI * 2;
+    const dist = Math.pow(rnd(), .72) * r * .72;
+    const bx = center + Math.cos(angle) * dist * k;
+    const by = center + Math.sin(angle) * dist * (cloud.squeeze || .62) * k;
+    const br = r * (.18 + rnd() * .30) * (cloud.scale || 1) * k;
+    const alpha = (cloud.alpha || .22) * (.55 + rnd() * .55);
+    const g = bctx.createRadialGradient(bx, by, 0, bx, by, br);
+    g.addColorStop(0, cloud.core || `rgba(255,176,72,${alpha})`);
+    g.addColorStop(.28, cloud.mid || `rgba(220,54,28,${alpha * .46})`);
+    g.addColorStop(.68, cloud.edge || `rgba(92,18,24,${alpha * .16})`);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    bctx.fillStyle = g;
+    bctx.fillRect(bx - br, by - br, br * 2, br * 2);
+  }
+  bctx.globalCompositeOperation = "source-over";
+  const sprite = {buffer, logicalSize};
+  parallaxCloudSpriteCache.set(key, sprite);
+  return sprite;
+}
+
 function drawParallaxClouds({ctx, canvas, currentMap, camera, layers, defaultComposite = "screen"}){
   const clouds = layers || [];
   if(!clouds.length) return;
@@ -348,22 +399,8 @@ function drawParallaxClouds({ctx, canvas, currentMap, camera, layers, defaultCom
     const r = cloud.r || 360;
     if(sx + r * 2 < -160 || sx - r * 2 > w + 160 || sy + r * 2 < -160 || sy - r * 2 > h + 160) continue;
     const rnd = seededValue(17000 + (cloud.seed || 0) * 997);
-    const blobs = cloud.blobs || 9;
-    for(let i = 0; i < blobs; i++){
-      const angle = rnd() * Math.PI * 2;
-      const dist = Math.pow(rnd(), .72) * r * .72;
-      const bx = sx + Math.cos(angle) * dist;
-      const by = sy + Math.sin(angle) * dist * (cloud.squeeze || .62);
-      const br = r * (.18 + rnd() * .30) * (cloud.scale || 1);
-      const alpha = (cloud.alpha || .22) * (.55 + rnd() * .55);
-      const g = ctx.createRadialGradient(bx, by, 0, bx, by, br);
-      g.addColorStop(0, cloud.core || `rgba(255,176,72,${alpha})`);
-      g.addColorStop(.28, cloud.mid || `rgba(220,54,28,${alpha * .46})`);
-      g.addColorStop(.68, cloud.edge || `rgba(92,18,24,${alpha * .16})`);
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(bx - br, by - br, br * 2, br * 2);
-    }
+    const sprite = getParallaxCloudSprite(cloud);
+    ctx.drawImage(sprite.buffer, sx - sprite.logicalSize / 2, sy - sprite.logicalSize / 2, sprite.logicalSize, sprite.logicalSize);
     ctx.strokeStyle = cloud.filament || `rgba(255,124,42,${(cloud.alpha || .22) * .34})`;
     ctx.lineWidth = Math.max(1, r * .006);
     const filamentCount = Number.isFinite(cloud.filaments) ? cloud.filaments : 5;
@@ -412,6 +449,59 @@ function drawParallaxGlowSpots({ctx, canvas, currentMap, camera}){
     g.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = g;
     ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+  }
+  ctx.globalCompositeOperation = "source-over";
+  ctx.restore();
+}
+
+function drawParallaxStarLights({ctx, canvas, currentMap, camera}){
+  const lights = currentMap?.parallaxScene?.starLights || [];
+  if(!lights.length) return;
+  const w = viewWidth(canvas), h = viewHeight(canvas);
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  const now = performance.now();
+  for(const light of lights){
+    const p = Number.isFinite(light.p) ? light.p : .03;
+    const sx = light.x - camera.x * p + w / 2;
+    const sy = light.y - camera.y * p + h / 2;
+    const r = light.r || 760;
+    if(sx + r < -120 || sx - r > w + 120 || sy + r < -120 || sy - r > h + 120) continue;
+    const flicker = .92 + Math.sin(now / (light.speed || 1500) + (light.seed || 0)) * .08;
+    const alpha = (Number.isFinite(light.alpha) ? light.alpha : .62) * flicker;
+    const coreRadius = Math.max(10, r * (light.coreRadius || .035));
+
+    const halo = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+    halo.addColorStop(0, `rgba(255,255,255,${alpha})`);
+    halo.addColorStop(.055, `rgba(255,255,255,${alpha * .72})`);
+    halo.addColorStop(.16, `rgba(219,244,255,${alpha * .30})`);
+    halo.addColorStop(.42, `rgba(125,211,252,${alpha * .075})`);
+    halo.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = halo;
+    ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+
+    const bloom = ctx.createRadialGradient(sx, sy, coreRadius * .8, sx, sy, r * .46);
+    bloom.addColorStop(0, `rgba(255,255,255,${alpha * .28})`);
+    bloom.addColorStop(.34, `rgba(226,245,255,${alpha * .12})`);
+    bloom.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(Math.sin(now / 4200 + (light.seed || 0)) * .10);
+    ctx.scale(1.45, .58);
+    ctx.fillStyle = bloom;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * .46, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    const core = ctx.createRadialGradient(sx, sy, 0, sx, sy, coreRadius);
+    core.addColorStop(0, "rgba(255,255,255,1)");
+    core.addColorStop(.38, `rgba(255,255,255,${Math.min(1, alpha * .95)})`);
+    core.addColorStop(1, "rgba(186,230,253,0)");
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(sx, sy, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.globalCompositeOperation = "source-over";
   ctx.restore();
@@ -599,15 +689,23 @@ function drawParallaxAsteroids({ctx, canvas, currentMap, camera}){
   ctx.restore();
 }
 
-function drawCloseSpeedStars({ctx, canvas, camera, asteroids, player}){
+function graphicsQualityStep(value){
+  if(value === "low") return 5;
+  if(value === "medium") return 2;
+  return 1;
+}
+
+function drawCloseSpeedStars({ctx, canvas, camera, asteroids, player, graphicsQuality = "high"}){
   if(!asteroids?.length) return;
   const w = viewWidth(canvas);
   const h = viewHeight(canvas);
   const now = performance.now() * 0.001;
+  const step = graphicsQualityStep(graphicsQuality);
   ctx.save();
   ctx.translate(-camera.x,-camera.y);
   ctx.globalCompositeOperation = "screen";
-  for(const star of asteroids){
+  for(let i = 0; i < asteroids.length; i += step){
+    const star = asteroids[i];
     const drift = star.drift || 0;
     const driftX = drift ? Math.sin(now * (star.driftSpeed || .7) + (star.phase || 0)) * drift : 0;
     const driftY = drift ? Math.cos(now * (star.driftSpeed || .7) * .83 + (star.phase || 0) * 1.37) * drift * .65 : 0;
@@ -645,13 +743,14 @@ function drawParallaxVignette({ctx, canvas}){
   ctx.drawImage(vignetteCache.buffer, 0, 0, w, h);
 }
 
-function drawParallaxBackground({ctx, canvas, cache, currentMap, camera, stars, dust}){
+function drawParallaxBackground({ctx, canvas, cache, currentMap, camera, stars, dust, graphicsQuality = "high"}){
   drawParallaxNebulae({ctx, canvas, currentMap, camera});
   drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera});
   drawParallaxStars({ctx, canvas, camera, stars, dust});
   drawParallaxDustSpecks({ctx, canvas, currentMap, camera});
   drawParallaxTiles({ctx, canvas, cache, currentMap, camera});
   drawParallaxLightClouds({ctx, canvas, currentMap, camera});
+  if(graphicsQuality === "high") drawParallaxStarLights({ctx, canvas, currentMap, camera});
   drawParallaxImages({ctx, canvas, cache, currentMap, camera});
   drawParallaxForegroundClouds({ctx, canvas, currentMap, camera});
   drawParallaxAsteroids({ctx, canvas, currentMap, camera});
@@ -659,8 +758,9 @@ function drawParallaxBackground({ctx, canvas, cache, currentMap, camera, stars, 
   drawParallaxVignette({ctx, canvas});
 }
 
-function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars, dust}){
+function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars, dust, graphicsQuality = "high"}){
   const w = viewWidth(canvas), h = viewHeight(canvas);
+  const quality = currentMap?.parallaxScene?.qualityOverride || graphicsQuality;
   const bg = ctx.createLinearGradient(0,0,w,h);
   const colors = currentMap?.parallaxScene?.background || ["#01040b", "#07182b", "#01040b"];
   bg.addColorStop(0, colors[0] || "#01040b");
@@ -670,17 +770,18 @@ function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars,
   ctx.fillRect(0,0,w,h);
 
   if(currentMap?.parallaxScene?.enabled){
-    drawParallaxNebulae({ctx, canvas, currentMap, camera});
-    drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera});
-    drawParallaxStars({ctx, canvas, camera, stars, dust});
-    drawParallaxDustSpecks({ctx, canvas, currentMap, camera});
-    drawParallaxTiles({ctx, canvas, cache, currentMap, camera});
-    drawParallaxLightClouds({ctx, canvas, currentMap, camera});
+    if(quality !== "low") drawParallaxNebulae({ctx, canvas, currentMap, camera});
+    if(quality !== "low") drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera});
+    drawParallaxStars({ctx, canvas, camera, stars, dust:quality === "low" ? [] : dust});
+    if(quality === "high") drawParallaxDustSpecks({ctx, canvas, currentMap, camera});
+    if(quality !== "low") drawParallaxTiles({ctx, canvas, cache, currentMap, camera});
+    if(quality !== "low") drawParallaxLightClouds({ctx, canvas, currentMap, camera});
+    if(quality === "high") drawParallaxStarLights({ctx, canvas, currentMap, camera});
     drawParallaxImages({ctx, canvas, cache, currentMap, camera});
-    drawParallaxForegroundClouds({ctx, canvas, currentMap, camera});
-    drawParallaxAsteroids({ctx, canvas, currentMap, camera});
-    drawParallaxGlowSpots({ctx, canvas, currentMap, camera});
-    drawParallaxVignette({ctx, canvas});
+    if(quality === "high") drawParallaxForegroundClouds({ctx, canvas, currentMap, camera});
+    if(quality !== "low") drawParallaxAsteroids({ctx, canvas, currentMap, camera});
+    if(quality !== "low") drawParallaxGlowSpots({ctx, canvas, currentMap, camera});
+    if(quality !== "low") drawParallaxVignette({ctx, canvas});
     return;
   }
 
@@ -840,31 +941,7 @@ function drawWorldMarkers({ctx, camera, currentMap, player, safeReady, stations}
   drawSpawnStations({ctx, stations});
   }
 
-  const portal = currentMap.portal;
-  if(portal){
-    const safeR = portal.safeRadius || Math.max(180, portal.r * 2.2);
-    const grad = ctx.createRadialGradient(portal.x,portal.y,4,portal.x,portal.y,safeR);
-    grad.addColorStop(0,"rgba(168,85,247,.95)");
-    grad.addColorStop(.35,"rgba(56,189,248,.28)");
-    grad.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(portal.x,portal.y,safeR,0,Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(196,181,253,.26)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(portal.x,portal.y,safeR,0,Math.PI*2);
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(168,85,247,.9)";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(portal.x,portal.y,portal.r,0,Math.PI*2);
-    ctx.stroke();
-    ctx.fillStyle = "#e9d5ff";
-    ctx.font = "700 16px Rajdhani, Arial";
-    ctx.fillText(`${portal.label} · APPUIE J`, portal.x-92, portal.y-safeR-16);
-  }
+  drawMapPortals({ctx, currentMap, getMapPortals});
   ctx.restore();
 }
 
