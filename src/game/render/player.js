@@ -237,7 +237,35 @@ function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profi
   ctx.restore();
 }
 
-function drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, droneFormation}){
+function drawDroneSprite({ctx, camera, img, x, y, angle, upgraded}){
+  ctx.save();
+  ctx.translate(Math.round(x - camera.x), Math.round(y - camera.y));
+  ctx.rotate(angle);
+  if(upgraded){
+    ctx.shadowColor = "rgba(239,68,68,.78)";
+    ctx.shadowBlur = 16;
+  }
+  if(img && img.complete){
+    ctx.drawImage(img, -17, -17, 34, 34);
+    if(upgraded){
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = "rgba(239,68,68,.58)";
+      ctx.fillRect(-17, -17, 34, 34);
+    }
+  }else{
+    ctx.fillStyle = upgraded ? "#ef4444" : "#38bdf8";
+    ctx.beginPath();
+    ctx.moveTo(0, -17);
+    ctx.lineTo(17, 17);
+    ctx.lineTo(0, 11);
+    ctx.lineTo(-17, 17);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, getDronePermanentUpgrade, droneFormation}){
   if(!drones.length) return;
   const img = cache["assets/drones/drone_test_sprite.webp"];
   const time = performance.now() / 1000;
@@ -261,7 +289,7 @@ function drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInvent
     const pos = localToWorld(player, point.x, point.y + pulse, player.droneFormationAngle);
     const x = pos.x;
     const y = pos.y;
-    drawRotatedImage({ctx, camera, img, x, y, w:34, h:34, angle:player.angle});
+    drawDroneSprite({ctx, camera, img, x, y, angle:player.angle, upgraded:Boolean(getDronePermanentUpgrade?.(index))});
   });
 }
 
@@ -415,6 +443,7 @@ export function drawPlayerLayer({
   pilotName,
   pilotTitle,
   getItemFromInventoryUid,
+  getDronePermanentUpgrade,
   droneFormation,
   defaultProfile,
   profiles
@@ -423,6 +452,6 @@ export function drawPlayerLayer({
   drawPlayerStatusBars({ctx, camera, player});
   drawRotatedImage({ctx, camera, img:cache[ship.combatImg || ship.img], x:player.x, y:player.y, w:96, h:96, angle:player.angle});
   drawRepairDrone({ctx, camera, cache, player});
-  drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, droneFormation});
+  drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, getDronePermanentUpgrade, droneFormation});
   drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotName, pilotTitle});
 }

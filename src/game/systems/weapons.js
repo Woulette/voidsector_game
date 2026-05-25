@@ -19,8 +19,9 @@ export function createWeaponSystem(deps){
       const upgradeBonus = getUpgradeLevel(item.id) * 10 + bonus;
       const min = Number(item.weapon.minDamage ?? item.weapon.damage ?? 0) + upgradeBonus;
       const max = Number(item.weapon.maxDamage ?? item.weapon.damage ?? min) + upgradeBonus;
-      acc.min += min;
-      acc.max += max;
+      const multiplier = Math.max(1, Number(item.droneDamageMultiplier || 1));
+      acc.min += min * multiplier;
+      acc.max += max * multiplier;
       return acc;
     }, {min:0, max:0});
     return rollBetween(range.min, range.max);

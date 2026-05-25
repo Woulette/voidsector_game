@@ -22,6 +22,7 @@ import {
   getCurrentRank,
   getDroneLoadout,
   getDroneFormation,
+  getDronePermanentUpgrade,
   getEquippedDroneLasers,
   getEquippedLauncher,
   getEquippedExtras,
@@ -771,16 +772,78 @@ export function createCombatGame({renderAll, showToast}){
     return MAPS.find(map=>String(map.name || "").toUpperCase() === targetName) || MAPS[0];
   }
 
-  function getPortalCompletionRewards(portal){
-    const isBlue = portal?.id === "blue";
-    return {
-      credits:isBlue ? 3000000 : 0,
-      xp:isBlue ? 400000 : 0,
-      premium:20000,
-      ammoX4:20000,
-      itemId:"laser_mk4",
-      itemName:"Laser MK-IV"
+  function getPortalCompletionRewards(portal, completedCount = 0){
+    const base = {
+      credits:0,
+      xp:0,
+      premium:0,
+      ammoX4:0,
+      ammoX6:0,
+      itemId:null,
+      itemName:null,
+      itemDrops:[],
+      unlocks:[]
     };
+    if(portal?.id === "blue"){
+      const dropsMk4 = completedCount <= 0 || Math.random() < 0.5;
+      return {
+        ...base,
+        credits:3000000,
+        xp:400000,
+        premium:20000,
+        ammoX4:20000,
+        itemId:dropsMk4 ? "laser_mk4" : null,
+        itemName:dropsMk4 ? "Laser MK-IV" : null
+      };
+    }
+    if(portal?.id === "violet"){
+      return {
+        ...base,
+        premium:35000,
+        ammoX4:35000,
+        unlocks:["Accès vaisseaux à compétence"]
+      };
+    }
+    if(portal?.id === "red"){
+      return {
+        ...base,
+        premium:50000,
+        ammoX4:50000,
+        itemDrops:Math.random() < 0.5 ? [{id:"drone_overdrive_chip", name:"Noyau Overdrive Drone"}] : []
+      };
+    }
+    if(portal?.id === "emerald"){
+      return {
+        ...base,
+        premium:50000,
+        ammoX4:25000,
+        itemDrops:Math.random() < 0.33 ? [{id:"laser_mk4", name:"Laser MK-IV"}] : [],
+        unlocks:["Accès améliorations"]
+      };
+    }
+    if(portal?.id === "void"){
+      return {
+        ...base,
+        premium:60000,
+        ammoX4:30000,
+        itemDrops:[
+          ...(Math.random() < 0.33 ? [{id:"laser_mk4", name:"Laser MK-IV"}] : []),
+          ...(Math.random() < 0.33 ? [{id:"drone_overdrive_chip", name:"Noyau Overdrive Drone"}] : [])
+        ],
+        unlocks:["Accès recettes"]
+      };
+    }
+    if(portal?.id === "ancient"){
+      const dropsDrone = completedCount <= 0 || Math.random() < 0.5;
+      return {
+        ...base,
+        premium:100000,
+        ammoX6:10000,
+        itemDrops:dropsDrone ? [{id:"ancestral_drone_core", name:"Noyau de Drone Ancestral"}] : [],
+        unlocks:["Accès prestige", "Cap niveau 100", "Laser ancestral craftable"]
+      };
+    }
+    return base;
   }
 
   function spawnPortalExit(){
@@ -824,13 +887,16 @@ export function createCombatGame({renderAll, showToast}){
   function completePortalRun(){
     if(portalCompleted || !activePortal) return;
     portalCompleted = true;
-    const completionRewards = getPortalCompletionRewards(activePortal);
+    const previousCompletions = Math.max(0, Number(store.state.completedPortals?.[activePortal.id] || 0));
+    const completionRewards = getPortalCompletionRewards(activePortal, previousCompletions);
     markPortalCompleted(activePortal.id);
     if(store.state.portalRuns) delete store.state.portalRuns[activePortal.id];
     store.state.player.credits += completionRewards.credits;
     store.state.player.premium += completionRewards.premium;
     addAmmo("ammo_x4", completionRewards.ammoX4);
-    addInventoryItem(completionRewards.itemId);
+    addAmmo("ammo_x6", completionRewards.ammoX6);
+    if(completionRewards.itemId) addInventoryItem(completionRewards.itemId);
+    for(const drop of completionRewards.itemDrops || []) addInventoryItem(drop.id);
     if(addXP(completionRewards.xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de compÃ©tence.`);
     spawnPortalExit();
     rewards.showLootNotice({
@@ -838,8 +904,15 @@ export function createCombatGame({renderAll, showToast}){
       credits:completionRewards.credits,
       xp:completionRewards.xp,
       premium:completionRewards.premium,
-      ammo:[`+${fmt(completionRewards.ammoX4)} munitions x4`],
-      items:[`+1 ${completionRewards.itemName}`]
+      ammo:[
+        ...(completionRewards.ammoX4 ? [`+${fmt(completionRewards.ammoX4)} munitions x4`] : []),
+        ...(completionRewards.ammoX6 ? [`+${fmt(completionRewards.ammoX6)} munitions x6`] : [])
+      ],
+      items:[
+        ...(completionRewards.itemName ? [`+1 ${completionRewards.itemName}`] : []),
+        ...(completionRewards.itemDrops || []).map(drop=>`+1 ${drop.name}`),
+        ...(completionRewards.unlocks || [])
+      ]
     });
     showToast(`${activePortal.name} termine : portail de sortie ouvert.`);
     saveState();
@@ -1671,6 +1744,7 @@ export function createCombatGame({renderAll, showToast}){
       pilotName:store.state.player.name || "PILOTE",
       pilotTitle:store.state.player.titleVisible === false ? "" : (PROFILE_TITLES[store.state.player.activeTitleId] || ""),
       getItemFromInventoryUid,
+      getDronePermanentUpgrade,
       droneFormation:store.state.activeDroneFormation,
       defaultProfile:DEFAULT_ENGINE_PROFILE,
       profiles:SHIP_ENGINE_PROFILES

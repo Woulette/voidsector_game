@@ -5,6 +5,28 @@ export function getItemFromInventoryUid(uid){ return getItem(getInventoryItem(ui
 function getItemFromInventoryUidIn(uid, inventoryItems = store.state?.inventoryItems || []){
   return getItem(inventoryItems.find(entry=>entry.uid === uid)?.itemId);
 }
+
+export function isDroneCompatibleEquipment(item){
+  if(item?.category === "canon") return true;
+  if(item?.category !== "generateur") return false;
+  return Number(item.stats?.bouclier || 0) > 0 || Number(item.stats?.regen || 0) > 0;
+}
+
+export function isDronePermanentUpgradeItem(item){
+  return item?.slotType === "droneUpgrade" || item?.category === "drone_upgrade";
+}
+
+export function getDronePermanentUpgrade(index){
+  const upgrades = store.state?.dronePermanentUpgrades;
+  return upgrades && typeof upgrades === "object" ? upgrades[index] || null : null;
+}
+
+export function getDroneDamageMultiplier(index){
+  const upgradeId = getDronePermanentUpgrade(index);
+  const item = upgradeId ? getItem(upgradeId) : null;
+  return Math.max(1, Number(item?.effect?.droneDamageMultiplier || 1));
+}
+
 export function getEquipmentUpgradeLevel(itemId){
   return Math.max(0, Number(store.state?.equipmentUpgrades?.[itemId] || 0));
 }
@@ -35,6 +57,7 @@ function consumeUpgradeMaterial(materialId, amount, options = {}){
 export function upgradeEquipment(itemId, options = {}){
   const item = getItem(itemId) || getAmmo(itemId);
   if(!item || !(["canon","generateur"].includes(item.category) || (item.category === "munition" && item.weaponClass === "rocket"))) return {ok:false, reason:"Equipement non ameliorable."};
+  if(Math.max(0, Number(store.state?.completedPortals?.emerald || 0)) <= 0) return {ok:false, reason:"Portail Emeraude termine requis pour ameliorer l'equipement."};
   const current = getEquipmentUpgradeLevel(itemId);
   if(current >= 10) return {ok:false, reason:"Niveau maximum atteint."};
   const cost = getEquipmentUpgradeCost(item);
@@ -146,7 +169,7 @@ export function cleanDroneLoadout(raw, inventoryItems = store.state?.inventoryIt
   return Array.from({length:Math.min(max, source.length)}, (_,i)=>{
     const uid = source[i] ?? null;
     const item = uid ? getItemFromInventoryUidIn(uid, inventoryItems) : null;
-    return uid && item && ["canon","generateur"].includes(item.category) ? uid : null;
+    return uid && isDroneCompatibleEquipment(item) ? uid : null;
   });
 }
 
@@ -164,6 +187,21 @@ export function getInventoryCount(itemId){
   return store.state.inventoryItems.filter(entry=>entry.itemId === itemId).length;
 }
 
+export function applyDronePermanentUpgrade(index, inventoryUid){
+  const target = Math.max(0, Number(index || 0));
+  if(target >= getDroneLoadout().length) return {ok:false, reason:"Aucun drone a cet emplacement."};
+  const entryIndex = store.state.inventoryItems.findIndex(entry=>entry.uid === inventoryUid);
+  const entry = entryIndex >= 0 ? store.state.inventoryItems[entryIndex] : null;
+  const item = entry ? getItem(entry.itemId) : null;
+  if(!isDronePermanentUpgradeItem(item)) return {ok:false, reason:"Cet objet n'est pas une amelioration de drone."};
+  if(getDronePermanentUpgrade(target)) return {ok:false, reason:`Drone ${target + 1} deja ameliore.`};
+  if(!store.state.dronePermanentUpgrades || typeof store.state.dronePermanentUpgrades !== "object") store.state.dronePermanentUpgrades = {};
+  store.state.dronePermanentUpgrades[target] = item.id;
+  store.state.inventoryItems.splice(entryIndex, 1);
+  if(store.selectedInventoryUid === inventoryUid) store.selectedInventoryUid = null;
+  return {ok:true, item, index:target};
+}
+
 export function getDronePurchasePrice(index = store.state.ownedDroneCount){
   const drone = getDroneCatalog();
   return drone.basePrice * Math.pow(2, Math.max(0, Number(index || 0)));
@@ -173,7 +211,7 @@ export function getDroneLoadout(){
   const owned = Math.max(0, Math.min(getDroneCatalog().maxOwned || 8, Number(store.state.ownedDroneCount || 0)));
   store.state.droneLoadout = Array.isArray(store.state.droneLoadout) ? store.state.droneLoadout : [];
   while(store.state.droneLoadout.length < owned) store.state.droneLoadout.push(null);
-  store.state.droneLoadout = store.state.droneLoadout.slice(0, owned);
+  if(store.state.droneLoadout.length > owned) store.state.droneLoadout.length = owned;
   return store.state.droneLoadout;
 }
 

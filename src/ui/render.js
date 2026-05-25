@@ -6,6 +6,7 @@ import {
   RANK_POINT_RULES,
   GRAPHICS_QUALITY_PRESETS,
   addAmmo,
+  applyDronePermanentUpgrade,
   canAfford,
   findEquippedSlot,
   getAmmoCount,
@@ -13,6 +14,7 @@ import {
   getCompletedPortalCount,
   getDroneCatalog,
   getDroneLoadout,
+  getDronePermanentUpgrade,
   getDronePurchasePrice,
   getInventoryByCategory,
   getInventoryCount,
@@ -25,6 +27,8 @@ import {
   getLoadout,
   getNextRank,
   getPortalPieces,
+  getPlayerLevelCap,
+  getPrestigeStatus,
   getRankAssetPath,
   getRankBreakdown,
   getRankProgress,
@@ -34,6 +38,8 @@ import {
   getSkillProgress,
   getRealSpeedFromStat,
   getGraphicsQuality,
+  isDroneCompatibleEquipment,
+  isDronePermanentUpgradeItem,
   isPortalUnlocked,
   priceLabel,
   saveState,
@@ -157,6 +163,7 @@ function equipmentInventoryBadge(item){
   }
   if(item.slotType === "missileLauncher") return "LM";
   if(item.slotType === "rocketLauncher") return "LR";
+  if(isDronePermanentUpgradeItem(item)) return "DR+";
   if(item.category === "generateur") return "G";
   return "E";
 }
@@ -192,6 +199,13 @@ function selectedItemStatsHtml(item){
       <span><b>Recharge</b><strong>${item.stats?.recharge || "0.00s"}</strong></span>
     </div>`;
   }
+  if(isDronePermanentUpgradeItem(item)){
+    return `<div class="selected-item-stat-lines">
+      <span><b>Drone</b><strong>+50% degats laser</strong></span>
+      <span><b>Statut</b><strong>Permanent</strong></span>
+      <span><b>Retrait</b><strong>Impossible</strong></span>
+    </div>`;
+  }
   return `<p>${statLabelForItem(item)}</p>`;
 }
 
@@ -207,7 +221,7 @@ function renderSelectedInventoryDetail(){
     ? selectedEquipped?.location === "drone"
     : selectedEquipped?.location === "ship" && selectedEquipped?.shipId === store.state.selectedShip;
   const compatibleWithActivePanel = store.hangarTab === "drone"
-    ? ["canon", "generateur"].includes(selectedItem.category)
+    ? isDroneCompatibleEquipment(selectedItem) || isDronePermanentUpgradeItem(selectedItem)
     : ["canon", "generateur", "extra"].includes(selectedItem.category) || ["missileLauncher", "rocketLauncher"].includes(selectedItem.slotType);
   const actionButtons = selectedEquipped
     ? `${!equippedInActivePanel && compatibleWithActivePanel ? `<button class="blue-button small" data-inventory-equip="${selectedEntry.uid}">Déplacer ici</button>` : ""}
@@ -267,8 +281,9 @@ export function renderLoadout(){
 
 function renderDroneSlot(uid, index){
   const item = getItemFromInventoryUid(uid);
-  return `<article class="drone-slot-card" data-drop-part="drone" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""}>
-    <div class="drone-slot-head"><span class="badge">Drone ${index+1}</span><span>${item ? item.category.toUpperCase() : "VIDE"}</span></div>
+  const upgraded = Boolean(getDronePermanentUpgrade(index));
+  return `<article class="drone-slot-card ${upgraded ? "upgraded" : ""}" data-drop-part="drone" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""}>
+    <div class="drone-slot-head"><span class="badge">Drone ${index+1}</span><span>${upgraded ? "ROUGE +50%" : item ? item.category.toUpperCase() : "VIDE"}</span></div>
     <div class="drone-slot-body" data-drop-part="drone" data-drop-index="${index}">
       <img class="drone-preview" src="assets/drones/drone_test_sprite.webp" alt="Drone ${index+1}">
       <div class="drone-module ${item ? "filled" : ""}">
@@ -283,7 +298,8 @@ export function renderDroneSection(){
   if(!section) return;
   const droneDef = getDroneCatalog();
   const drones = getDroneLoadout();
-  const inventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur")];
+  const inventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur"), ...getInventoryByCategory("drone_upgrade")]
+    .filter(entry=>isDroneCompatibleEquipment(entry.item) || isDronePermanentUpgradeItem(entry.item));
   const emptyCells = Array.from({length:Math.max(0, 40 - inventoryEntries.length)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
   const nextPrice = drones.length >= droneDef.maxOwned ? null : getDronePurchasePrice(drones.length);
   section.innerHTML = `
@@ -295,7 +311,7 @@ export function renderDroneSection(){
           ${statLine("Drones possédés", drones.length, droneDef.maxOwned)}
           ${statLine("Max drones", droneDef.maxOwned, droneDef.maxOwned)}
           <div class="stat-line special-line"><span>Emplacements</span><b>1 par drone</b></div>
-          <div class="stat-line special-line"><span>Compatibilité</span><b>Laser ou générateur</b></div>
+          <div class="stat-line special-line"><span>Compatibilité</span><b>Laser, bouclier ou overdrive</b></div>
           <div class="stat-line special-line"><span>Prix suivant</span><b>${nextPrice ? priceLabel(droneDef.priceType, nextPrice) : "MAX"}</b></div>
         </div>
         <button class="blue-button" data-buy-combat-drone ${(!nextPrice || !canAfford(droneDef.priceType, nextPrice)) ? "disabled" : ""}>${nextPrice ? "ACHETER UN DRONE" : "MAX DRONES"}</button>
@@ -363,6 +379,8 @@ function getProfileStatsRows(){
 function profileAchievements(){
   const player = store.state.player;
   const completedPortals = getCompletedPortalCount();
+  const prestige = getPrestigeStatus();
+  const levelCap = getPlayerLevelCap();
   const completedQuests = Object.keys(store.state.completedQuestClaims || {}).length;
   const spentSkills = skills.reduce((sum, skill)=>sum + Number(getSkillProgress(skill.id).completedRanks || 0), 0);
   return [
@@ -403,6 +421,8 @@ function renderProfileTabContent(tab){
   const activeShip = getShip(store.state.activeShip);
   const stats = getShipCombatStats(store.state.activeShip);
   const completedPortals = getCompletedPortalCount();
+  const prestige = getPrestigeStatus();
+  const levelCap = getPlayerLevelCap();
   if(tab === "stats"){
     return `<section class="profile-card profile-wide">
       <div class="profile-card-head"><span class="tiny">AVANT / APRÈS</span><h3>Impact des compétences</h3></div>
@@ -448,8 +468,12 @@ function renderProfileTabContent(tab){
       <div><span>PV</span><b>${fmt(stats.vie)}</b></div><div><span>Bouclier</span><b>${fmt(stats.bouclier)}</b></div><div><span>Vitesse</span><b>${fmt(stats.vitesseReelle)}</b></div><div><span>Soute</span><b>${fmt(stats.cargo)}</b></div>
     </div></section>
     <section class="profile-card"><div class="profile-card-head"><span class="tiny">PROGRESSION</span><h3>Compte</h3></div><div class="profile-stat-grid">
-      <div><span>Temps en jeu</span><b>${formatDuration(player.totalPlaySeconds)}</b></div><div><span>Kills monstres</span><b>${fmt(player.totalKills || 0)}</b></div><div><span>Kills joueurs</span><b>${fmt(player.totalPlayerKills || 0)}</b></div><div><span>Portails finis</span><b>${fmt(completedPortals)}</b></div><div><span>Quêtes finies</span><b>${fmt(Object.keys(store.state.completedQuestClaims || {}).length)}</b></div>
+      <div><span>Temps en jeu</span><b>${formatDuration(player.totalPlaySeconds)}</b></div><div><span>Kills monstres</span><b>${fmt(player.totalKills || 0)}</b></div><div><span>Kills joueurs</span><b>${fmt(player.totalPlayerKills || 0)}</b></div><div><span>Portails finis</span><b>${fmt(completedPortals)}</b></div><div><span>Quêtes finies</span><b>${fmt(Object.keys(store.state.completedQuestClaims || {}).length)}</b></div><div><span>Cap niveau</span><b>${fmt(levelCap)}</b></div><div><span>Prestige</span><b>${fmt(store.state.prestigeCount || 0)}</b></div>
     </div></section>
+    <section class="profile-card"><div class="profile-card-head"><span class="tiny">PRESTIGE</span><h3>Boucle suivante</h3></div>
+      <p>${prestige.ok ? "Pret : retour niveau 1, competences conservees, cap niveau 100." : prestige.reason}</p>
+      <button class="blue-button" data-prestige type="button" ${prestige.ok ? "" : "disabled"}>PRESTIGE</button>
+    </section>
   </div>`;
 }
 

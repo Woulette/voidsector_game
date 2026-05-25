@@ -63,6 +63,8 @@ export const equipment = [
   { id:"extra_rocket_accelerator", name:"Puce Accélérateur Roquettes", short:"Accél. R", category:"extra", slotType:"extra", img:"assets/equipment/extra_rocket_accelerator_chip.png", rarity:"ÉPIQUE", priceType:"premium", price:35000, stats:{extra:"Délai roquette /2"}, effect:{rocketCooldownMultiplier:0.5}},
   { id:"extra_repair_bot", name:"Drone de Réparation IA", short:"Drone-R", category:"extra", slotType:"extra", img:"assets/equipment/drone_repair_ai.png", rarity:"TACTIQUE", priceType:"credits", price:78000, stats:{extra:"Répare 2% HP / s"}, effect:{repairBot:true, repairBotHealRate:0.02, repairBotDelay:5}},
   { id:"extra_repair_auto", name:"IA d'Auto-Réparation", short:"Auto-Répa", category:"extra", slotType:"extra", img:"assets/equipment/repair_ai_software.png", rarity:"PREMIUM", priceType:"premium", price:120, stats:{extra:"Active le drone auto"}, effect:{repairBotAuto:true}},
+  { id:"drone_overdrive_chip", name:"Noyau Overdrive Drone", short:"Overdrive", category:"drone_upgrade", slotType:"droneUpgrade", img:"assets/equipment/extra_rocket_auto_chip.png", rarity:"PORTAIL", priceType:"premium", price:0, shop:false, stats:{extra:"Amélioration permanente : drone rouge, lasers du drone +50%"}, effect:{droneDamageMultiplier:1.5}},
+  { id:"ancestral_drone_core", name:"Noyau de Drone Ancestral", short:"Drone Anc.", category:"drone_blueprint", slotType:"future", img:"assets/drones/drone_test_sprite.webp", rarity:"ANCESTRAL", priceType:"premium", price:0, shop:false, stats:{extra:"Prototype futur : drone à 2 emplacements"}},
   { id:"ammo_module", name:"Module de Munitions", short:"Munitions", category:"module", slotType:"future", img:"assets/equipment/module_munitions.svg", rarity:"COMMUN", priceType:"credits", price:8000, stats:{bonusDegats:6}}
 ];
 
@@ -231,6 +233,24 @@ export const ammoTypes = [
     color:"rgba(248,250,252,.98)",
     particle:"rgba(226,232,240,.86)",
     desc:"Munition rare de portail. Multiplie par x4 la somme des dégâts des lasers équipés."
+  },
+  {
+    id:"ammo_x6",
+    name:"Munition Type 6",
+    short:"M-6",
+    category:"munition",
+    rarity:"ANCESTRAL",
+    priceType:"premium",
+    price:0,
+    amount:1000,
+    shop:false,
+    img:"assets/equipment/ammo_laser_x4_same_preview.png",
+    weaponClass:"laser",
+    multiplier:6,
+    cooldown:1,
+    color:"rgba(248,250,252,.98)",
+    particle:"rgba(252,165,165,.92)",
+    desc:"Munition ancestrale. Multiplie par x6 la somme des dégâts des lasers équipés."
   },
   {
     id:"rocket_r1",

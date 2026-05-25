@@ -1,8 +1,9 @@
-import { ammoTypes } from "./data/catalog.js";
+import { ammoTypes, portals, rawMaterialCatalog } from "./data/catalog.js";
 import {
   addAmmo,
   addInventoryItem,
   addPortalPiece,
+  applyDronePermanentUpgrade,
   canAfford,
   ensureShipLoadout,
   findEquippedSlot,
@@ -14,9 +15,14 @@ import {
   getItem,
   getItemFromInventoryUid,
   getLoadout,
+  getMaterialStorageCap,
   getPortal,
   getPortalPieces,
+  getShipPurchaseLockReason,
   getShip,
+  isDroneCompatibleEquipment,
+  isDronePermanentUpgradeItem,
+  performPrestige,
   isPortalUnlocked,
   loadState,
   saveState,
@@ -88,6 +94,8 @@ function equipSelectedShip(){
 function buyShip(id){
   const ship = getShip(id);
   if(store.state.ownedShips.includes(id)) return;
+  const lockReason = getShipPurchaseLockReason(ship);
+  if(lockReason) return showToast(lockReason);
   if(!canAfford(ship.priceType, ship.price)) return showToast("Fonds insuffisants.");
   spend(ship.priceType, ship.price);
   store.state.ownedShips.push(id);
@@ -213,6 +221,43 @@ function runSpaceCaster(id, count = 1){
   renderAll();
 }
 
+function applyDevProgressionBoost(){
+  if(!store.state) return;
+  store.state.player.level = Math.max(Number(store.state.player.level || 0), 999);
+  store.state.player.xp = Math.max(Number(store.state.player.xp || 0), 0);
+  store.state.player.xpNext = Math.max(Number(store.state.player.xpNext || 0), 1);
+  store.state.player.credits = Math.max(Number(store.state.player.credits || 0), 1000000000);
+  store.state.player.premium = Math.max(Number(store.state.player.premium || 0), 1000000);
+  store.state.player.skillPoints = Math.max(Number(store.state.player.skillPoints || 0), 999);
+
+  if(!store.state.refineryLevels || typeof store.state.refineryLevels !== "object") store.state.refineryLevels = {};
+  for(const material of rawMaterialCatalog){
+    store.state.refineryLevels[material.id] = Number(material.maxLevel || 20);
+  }
+  store.state.refineryModules = {storage:20, transport:20};
+  store.state.refineryUpgradeJobs = {};
+  store.state.refineryShipmentJob = null;
+  store.state.refineryProductionDisabled = {};
+  store.state.refineryLastTick = Date.now();
+  store.state.unlockedPortals = portals.map(portal=>portal.id);
+  store.state.completedPortals = portals.reduce((completed, portal)=>{
+    completed[portal.id] = Math.max(1, Number(store.state.completedPortals?.[portal.id] || 0));
+    return completed;
+  }, {});
+
+  if(!store.state.cargoHold || typeof store.state.cargoHold !== "object") store.state.cargoHold = {};
+  for(const material of rawMaterialCatalog){
+    store.state.cargoHold[material.id] = getMaterialStorageCap(material.id);
+  }
+  saveState();
+  renderAll();
+  showToast("Mode test : raffinerie max, stocks pleins, points disponibles.");
+}
+
+window.voidsectorDev = {
+  maxTest:applyDevProgressionBoost
+};
+
 function canMoveInventoryItemToTarget(inventoryUid, target){
   const equipped = findEquippedSlot(inventoryUid);
   if(!equipped) return true;
@@ -266,7 +311,15 @@ function equipPart(type, index, inventoryUid){
   if(type === "drone"){
     const drones = getDroneLoadout();
     if(index >= drones.length) return showToast("Aucun drone à cet emplacement.");
-    if(!["canon","generateur"].includes(item.category)) return showToast("Un drone accepte uniquement un laser ou un générateur.");
+    if(isDronePermanentUpgradeItem(item)){
+      const result = applyDronePermanentUpgrade(index, inventoryUid);
+      if(!result.ok) return showToast(result.reason);
+      saveState();
+      showToast(`Drone ${index+1} passe en overdrive rouge : lasers du drone +50%.`);
+      renderAllPreserveInventoryScroll();
+      return;
+    }
+    if(!isDroneCompatibleEquipment(item)) return showToast("Un drone accepte uniquement un laser ou un générateur de bouclier.");
     if(drones[index] && drones[index] !== inventoryUid) unequipInventoryItem(drones[index]);
     if(!canMoveInventoryItemToTarget(inventoryUid, {location:"drone", index})) return;
     for(let i=0;i<drones.length;i++) if(drones[i] === inventoryUid) drones[i] = null;
@@ -285,7 +338,13 @@ function autoEquipInventoryItem(inventoryUid){
   if(store.hangarTab === "drone"){
     const drones = getDroneLoadout();
     if(!drones.length) return showToast("Achète d'abord un drone.");
-    if(!["canon","generateur"].includes(item.category)) return showToast("Cet équipement n'est pas compatible avec les drones.");
+    if(isDronePermanentUpgradeItem(item)){
+      const index = drones.findIndex((_, i)=>!store.state.dronePermanentUpgrades?.[i]);
+      if(index < 0) return showToast("Tous les drones sont deja ameliores.");
+      equipPart("drone", index, inventoryUid);
+      return;
+    }
+    if(!isDroneCompatibleEquipment(item)) return showToast("Cet équipement n'est pas compatible avec les drones.");
     const currentIndex = drones.indexOf(inventoryUid);
     let index = currentIndex >= 0 ? currentIndex : drones.findIndex(uid=>!uid);
     if(index < 0) index = 0;
@@ -417,6 +476,16 @@ document.addEventListener("click", (e)=>{
   if(profileTitleVisibilityBtn){
     store.state.player.titleVisible = store.state.player.titleVisible === false;
     saveState();
+    renderAll();
+    return;
+  }
+
+  const prestigeBtn = e.target.closest("[data-prestige]");
+  if(prestigeBtn){
+    const result = performPrestige();
+    if(!result.ok) return showToast(result.reason);
+    saveState();
+    showToast(`Prestige ${result.prestige} actif : retour niveau 1, cap niveau 100 conserve.`);
     renderAll();
     return;
   }

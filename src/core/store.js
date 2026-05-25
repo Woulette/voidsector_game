@@ -2,10 +2,11 @@ import { ammoTypes, defaultState, droneCatalog, droneFormations, equipment, port
 import { clone, fmt } from "./utils.js";
 import { normalizeSlotKeybinds } from "./keybinds.js";
 import { getSkillBonus } from "./skillStore.js";
-export { canAffordSkillCost, getNodeMaxRank, getSkillBonus, getSkillDefinition, getSkillLevel, getSkillProgress, getSkillRanks, getSkillUpgradeData, skillCostLabel, upgradeSkill } from "./skillStore.js";
+export { canAffordSkillCost, getNodeMaxRank, getSkillBonus, getSkillDefinition, getSkillLevel, getSkillNodeLockReason, getSkillNodePortalRequirement, getSkillProgress, getSkillRanks, getSkillUpgradeData, hasCompletedSkillNodePortal, isSkillNodeUnlocked, skillCostLabel, upgradeSkill } from "./skillStore.js";
 import {
   addAmmo,
   addInventoryItem,
+  applyDronePermanentUpgrade,
   cleanDroneLoadout,
   cleanLoadout,
   consumeAmmo,
@@ -14,12 +15,16 @@ import {
   getAmmoCount,
   getDroneLoadout,
   getDronePurchasePrice,
+  getDroneDamageMultiplier,
+  getDronePermanentUpgrade,
   getEquipmentUpgradeCost,
   getEquipmentUpgradeLevel,
   getInventoryByCategory,
   getInventoryCount,
   getInventoryItem,
   getItemFromInventoryUid,
+  isDroneCompatibleEquipment,
+  isDronePermanentUpgradeItem,
   getLoadout,
   getWeaponAverageDamage,
   makeEmptyLoadout,
@@ -30,6 +35,7 @@ import {
 export {
   addAmmo,
   addInventoryItem,
+  applyDronePermanentUpgrade,
   cleanDroneLoadout,
   cleanLoadout,
   consumeAmmo,
@@ -38,12 +44,16 @@ export {
   getAmmoCount,
   getDroneLoadout,
   getDronePurchasePrice,
+  getDroneDamageMultiplier,
+  getDronePermanentUpgrade,
   getEquipmentUpgradeCost,
   getEquipmentUpgradeLevel,
   getInventoryByCategory,
   getInventoryCount,
   getInventoryItem,
   getItemFromInventoryUid,
+  isDroneCompatibleEquipment,
+  isDronePermanentUpgradeItem,
   getLoadout,
   getWeaponAverageDamage,
   makeEmptyLoadout,
@@ -235,6 +245,37 @@ export function spend(type, price){
   enforcePlayerCurrencyMinimums();
 }
 export function getPortal(id){ return portals.find(p=>p.id===id) || null; }
+export function getCompletedPortalCountForId(id){
+  return Math.max(0, Number(store.state?.completedPortals?.[id] || 0));
+}
+export function hasCompletedPortal(id){
+  return getCompletedPortalCountForId(id) > 0;
+}
+export function isEquipmentUpgradeUnlocked(){
+  return hasCompletedPortal("emerald");
+}
+export function isRecipeSystemUnlocked(){
+  return hasCompletedPortal("void");
+}
+export function isPrestigeUnlocked(){
+  return hasCompletedPortal("ancient");
+}
+export function getPlayerLevelCap(){
+  return isPrestigeUnlocked() ? 100 : 50;
+}
+export function getShipRequiredCompletedPortal(ship){
+  if(!ship) return null;
+  return ship.requiresCompletedPortal || ship.requiresPortalCompletion || (ship.skillShip ? "violet" : null);
+}
+export function getShipPurchaseLockReason(ship){
+  const portalId = getShipRequiredCompletedPortal(ship);
+  if(!portalId || getCompletedPortalCountForId(portalId) > 0) return "";
+  const portalName = getPortal(portalId)?.name || portalId;
+  return `Pré requis : ${portalName} terminé`;
+}
+export function isShipPurchaseUnlocked(ship){
+  return !getShipPurchaseLockReason(ship);
+}
 export function getQuest(id){ return questCatalog.find(q=>q.id === id) || null; }
 export function getAllQuests(){ return questCatalog.slice(); }
 export function getRawMaterial(id){ return rawMaterialCatalog.find(item=>item.id === id) || null; }
@@ -259,6 +300,40 @@ export function markPortalCompleted(id){
 export function getCompletedPortalCount(){
   const completed = store.state.completedPortals || {};
   return Object.values(completed).reduce((sum, value)=>sum + Math.max(0, Number(value || 0)), 0);
+}
+
+export function hasMaxedFirstLoopSkills(state = store.state){
+  return skills.every(skill=>{
+    const ranks = Array.isArray(state?.skillRanks?.[skill.id]) ? state.skillRanks[skill.id] : [];
+    return skill.levels.every((node, index)=>{
+      const maxRank = Array.isArray(node.ranks) ? node.ranks.length : 1;
+      return Math.max(0, Number(ranks[index] || 0)) >= maxRank;
+    });
+  });
+}
+
+export function getPrestigeStatus(){
+  const levelOk = Number(store.state?.player?.level || 1) >= 50;
+  const portalOk = isPrestigeUnlocked();
+  const skillsOk = hasMaxedFirstLoopSkills();
+  return {
+    ok:levelOk && portalOk && skillsOk,
+    levelOk,
+    portalOk,
+    skillsOk,
+    reason:!portalOk ? "Portail Ancestral termine requis." : !levelOk ? "Niveau 50 requis." : !skillsOk ? "Toutes les competences de premiere boucle doivent etre au maximum." : ""
+  };
+}
+
+export function performPrestige(){
+  const status = getPrestigeStatus();
+  if(!status.ok) return {ok:false, reason:status.reason};
+  store.state.prestigeCount = Math.max(0, Number(store.state.prestigeCount || 0)) + 1;
+  store.state.player.level = 1;
+  store.state.player.xp = 0;
+  store.state.player.xpNext = 1800;
+  syncSkillPoints();
+  return {ok:true, prestige:store.state.prestigeCount};
 }
 
 export function normalizeState(saved){
@@ -359,6 +434,8 @@ export function normalizeState(saved){
   }
   merged.unlockedPortals = Array.isArray(saved?.unlockedPortals) ? saved.unlockedPortals.filter(id=>portals.some(p=>p.id === id)) : clone(base.unlockedPortals || []);
   merged.completedPortals = saved?.completedPortals && typeof saved.completedPortals === "object" ? {...saved.completedPortals} : {...(base.completedPortals || {})};
+  merged.dronePermanentUpgrades = saved?.dronePermanentUpgrades && typeof saved.dronePermanentUpgrades === "object" ? {...saved.dronePermanentUpgrades} : {...(base.dronePermanentUpgrades || {})};
+  merged.prestigeCount = Math.max(0, Number(saved?.prestigeCount || base.prestigeCount || 0));
   merged.killStats = saved?.killStats && typeof saved.killStats === "object" ? {...saved.killStats} : {};
   merged.cargoHold = {...(base.cargoHold || {})};
   if(saved?.cargoHold && typeof saved.cargoHold === "object"){
@@ -566,7 +643,7 @@ function migrateLoadoutItemIds(){
     if(!value) return null;
     if(getInventoryItem(value) && !used.has(value)){ used.add(value); return value; }
     const item = getItem(value);
-    if(!item || !["canon","generateur"].includes(item.category)) return null;
+    if(!isDroneCompatibleEquipment(item)) return null;
     let entry = store.state.inventoryItems.find(candidate=>candidate.itemId === value && !used.has(candidate.uid));
     if(!entry) entry = addInventoryItem(value);
     used.add(entry.uid);
@@ -645,7 +722,12 @@ export function getEquippedDroneItems(){
 }
 
 export function getEquippedDroneLasers(){
-  return getDroneLoadout().map(getItemFromInventoryUid).filter(item=>item?.category === "canon");
+  return getDroneLoadout()
+    .map((uid, index)=>{
+      const item = getItemFromInventoryUid(uid);
+      return item?.category === "canon" ? {...item, droneIndex:index, droneDamageMultiplier:getDroneDamageMultiplier(index)} : null;
+    })
+    .filter(Boolean);
 }
 
 export function getEquippedDroneGenerators(){
@@ -709,12 +791,14 @@ export function addXP(amount){
   store.state.player.xp += gain;
   store.state.player.totalXp = Math.max(0, Number(store.state.player.totalXp || 0)) + gain;
   let leveled = false;
-  while(store.state.player.xp >= store.state.player.xpNext){
+  const levelCap = getPlayerLevelCap();
+  while(store.state.player.level < levelCap && store.state.player.xp >= store.state.player.xpNext){
     store.state.player.xp -= store.state.player.xpNext;
     store.state.player.level += 1;
     store.state.player.xpNext = Math.round(store.state.player.xpNext * 1.35 + 50);
     leveled = true;
   }
+  if(store.state.player.level >= levelCap) store.state.player.xp = Math.min(store.state.player.xp, store.state.player.xpNext);
   syncSkillPoints();
   store.state.player.rankScore = getRankScore();
   return leveled;

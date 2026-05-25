@@ -3,8 +3,20 @@ import { canAfford, spend, store, syncSkillPoints } from "./store.js";
 
 const MATERIAL_LABELS = {
   alliage_cuivre_zinc:"Alliage",
-  plaque_nickel_titane:"Plaque"
+  plaque_nickel_titane:"Plaque",
+  catalyseur_quantique:"Catalyseur",
+  conducteur_renforce:"Conducteur",
+  blindage_composite:"Blindage",
+  noyau_astra:"Noyau"
 };
+
+const SKILL_PORTAL_REQUIREMENTS = [
+  {portalId:"blue", label:"Portail Bleu"},
+  {portalId:"violet", label:"Portail Violet"},
+  {portalId:"red", label:"Portail Rouge"},
+  {portalId:"emerald", label:"Portail Émeraude"},
+  {portalId:"void", label:"Portail du Néant"}
+];
 
 function getSkillCostEntries(step){
   const costs = step?.costs;
@@ -95,6 +107,39 @@ export function getSkillProgress(id){
   };
 }
 
+export function isSkillNodeUnlocked(nodeIndex){
+  return !getSkillNodeLockReason(nodeIndex);
+}
+
+export function getSkillNodePortalRequirement(nodeIndex){
+  const index = Math.max(0, Number(nodeIndex || 0));
+  return SKILL_PORTAL_REQUIREMENTS[index] || null;
+}
+
+export function hasCompletedSkillNodePortal(nodeIndex){
+  const requirement = getSkillNodePortalRequirement(nodeIndex);
+  if(!requirement) return true;
+  return Math.max(0, Number(store.state?.completedPortals?.[requirement.portalId] || 0)) > 0;
+}
+
+function hasCompletedPreviousSkillNode(nodeIndex){
+  const index = Math.max(0, Number(nodeIndex || 0));
+  if(index <= 0) return true;
+  return skills.every(skill=>{
+    const previousNode = skill.levels?.[index - 1];
+    if(!previousNode) return true;
+    const ranks = getSkillRanks(skill.id);
+    return Number(ranks[index - 1] || 0) >= getNodeMaxRank(previousNode);
+  });
+}
+
+export function getSkillNodeLockReason(nodeIndex){
+  const requirement = getSkillNodePortalRequirement(nodeIndex);
+  if(requirement && !hasCompletedSkillNodePortal(nodeIndex)) return `Pré requis : ${requirement.label}`;
+  if(!hasCompletedPreviousSkillNode(nodeIndex)) return "Pré requis : rangs précédents 3/3";
+  return "";
+}
+
 export function getSkillUpgradeData(id){
   const skill = getSkillDefinition(id);
   if(!skill) return null;
@@ -112,6 +157,8 @@ export function upgradeSkill(id){
   if(progress.completedNodes >= Number(skill.maxLevel || skill.levels.length || 0)) return {ok:false, reason:"Branche terminee."};
   const next = getSkillUpgradeData(id);
   if(!next) return {ok:false, reason:"Rang introuvable."};
+  const lockReason = getSkillNodeLockReason(next.nodeIndex);
+  if(lockReason) return {ok:false, reason:lockReason};
   if(Number(store.state.player.skillPoints || 0) < Number(next.skillPoints || 0)) return {ok:false, reason:"Pas assez de points de competence."};
   if(!canAffordSkillCost(next)) return {ok:false, reason:"Ressources insuffisantes."};
   store.state.player.skillPoints -= Number(next.skillPoints || 0);

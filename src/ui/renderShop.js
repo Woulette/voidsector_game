@@ -5,6 +5,7 @@ import {
   getAmmoCount,
   getDronePurchasePrice,
   getInventoryCount,
+  getShipPurchaseLockReason,
   getShipCombatStats,
   priceLabel,
   store
@@ -35,8 +36,11 @@ function productMatchesFilter(product){
   return product.category === store.shopFilter;
 }
 
-function productUnlocked(product){ return true; }
-function productLockLabel(product){ return ""; }
+function productLockLabel(product){
+  if(product.kind === "ship") return getShipPurchaseLockReason(product.data);
+  return "";
+}
+function productUnlocked(product){ return !productLockLabel(product); }
 
 const SHOP_FILTER_META = {
   vaisseau:{title:"Vaisseaux", subtitle:"Flotte disponible à l'achat : châssis progressifs sans verrou de niveau.", empty:"Aucun vaisseau à afficher."},
@@ -314,7 +318,7 @@ function renderShopDetail(product){
       <p class="shop-detail-copy">${ship.className}. ${ship.special ? `Aptitude : ${ship.special}.` : "Aucun sort spécial."}</p>
       ${lockHtml}
       <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
-      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Statut</small><strong>${active ? "Actif" : owned ? "Possédé" : priceLabel(ship.priceType, ship.price)}</strong></div><button class="blue-button" data-buy-shop-ship="${ship.id}" ${(owned || !canAfford(ship.priceType, ship.price)) ? "disabled" : ""}>${owned ? "DÉJÀ ACHETÉ" : "ACHETER"}</button></div>`;
+      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Statut</small><strong>${active ? "Actif" : owned ? "Possédé" : priceLabel(ship.priceType, ship.price)}</strong></div><button class="blue-button" data-buy-shop-ship="${ship.id}" ${(owned || !unlocked || !canAfford(ship.priceType, ship.price)) ? "disabled" : ""}>${owned ? "DÉJÀ ACHETÉ" : "ACHETER"}</button></div>`;
     return;
   }
   if(product.kind === "ammo"){

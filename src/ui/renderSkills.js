@@ -1,5 +1,5 @@
 import { skills } from "../data/catalog.js";
-import { canAffordSkillCost, getNodeMaxRank, getSkillLevel, getSkillProgress, getSkillUpgradeData, skillCostLabel, store } from "../core/store.js";
+import { canAffordSkillCost, getNodeMaxRank, getSkillLevel, getSkillNodeLockReason, getSkillProgress, getSkillUpgradeData, isSkillNodeUnlocked, skillCostLabel, store } from "../core/store.js";
 
 const BRANCH_META = {
   damage:{label:"Dégâts", code:"DMG", desc:"Armes laser, cadence offensive et rendement des tirs."},
@@ -38,15 +38,17 @@ function renderSkillNode(skill, node, index, progress, canUpgrade){
   const rank = progress.ranks[index] || 0;
   const maxRank = getNodeMaxRank(node);
   const done = rank >= maxRank;
-  const available = index === progress.nodeIndex && !done && canUpgrade;
-  const locked = index > progress.nodeIndex || (index === progress.nodeIndex && !done && !canUpgrade);
+  const nodeUnlocked = isSkillNodeUnlocked(index);
+  const lockReason = done ? "" : getSkillNodeLockReason(index);
+  const available = nodeUnlocked && index === progress.nodeIndex && !done && canUpgrade;
+  const locked = !nodeUnlocked || index > progress.nodeIndex || (index === progress.nodeIndex && !done && !canUpgrade);
   const nodeName = node?.name || `Palier ${index + 1}`;
   return `<button class="skill-node ${done ? "done" : ""} ${available ? "available" : ""} ${locked ? "locked" : ""}" type="button" ${available ? `data-unlock-skill="${skill.id}"` : "disabled"}>
     <span class="skill-node-core">${done ? "✓" : roman(index)}</span>
     <span class="skill-node-title">${nodeName}</span>
     ${renderRankDots(rank, maxRank)}
     <small>Rang ${rank}/${maxRank} · ${currentNodeLabel(node, rank)}</small>
-    <em>${done ? "Débloqué" : nodePriceLabel(node, rank)}</em>
+    <em>${done ? "Débloqué" : lockReason || nodePriceLabel(node, rank)}</em>
   </button>`;
 }
 
@@ -64,7 +66,8 @@ function renderBranch(skill){
   const progress = getSkillProgress(skill.id);
   const maxLevel = Number(skill.maxLevel || skill.levels.length || 0);
   const next = getSkillUpgradeData(skill.id);
-  const canUpgrade = !!next && store.state.player.skillPoints >= Number(next.skillPoints || 0) && canAffordSkillCost(next);
+  const nextLockReason = next ? getSkillNodeLockReason(next.nodeIndex) : "";
+  const canUpgrade = !!next && isSkillNodeUnlocked(next.nodeIndex) && store.state.player.skillPoints >= Number(next.skillPoints || 0) && canAffordSkillCost(next);
   const percent = progress.totalRanks ? Math.round(progress.completedRanks / progress.totalRanks * 100) : 0;
   const activeBonus = activeBonuses(skill, progress);
 
@@ -80,7 +83,7 @@ function renderBranch(skill){
     </div>
     <aside class="skill-branch-summary">
       <strong>${level >= maxLevel ? "Branche terminée" : `${next?.node?.name || "Prochain palier"} · rang ${(next?.rankIndex ?? 0) + 1}/${getNodeMaxRank(next?.node)}`}</strong>
-      <small>${level >= maxLevel ? "Tous les paliers sont débloqués." : (next?.label || "Aucun palier disponible.")}</small>
+      <small>${level >= maxLevel ? "Tous les paliers sont débloqués." : (nextLockReason || next?.label || "Aucun palier disponible.")}</small>
       <span>${activeBonus || "Aucun bonus actif."}</span>
     </aside>
   </section>`;
