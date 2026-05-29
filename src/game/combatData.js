@@ -7,7 +7,7 @@ export const MAPS = [
     // Repère de carte : X gauche/droite, Y haut/bas. Le spawn est maintenant en bas à gauche.
     spawn:{x:-4300,y:3300,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430},
     portal:{x:4300,y:-3300,r:95,safeRadius:230,targetMap:1,targetX:-4300,targetY:3300,label:"VERS ASTRA-02"},
-    enemyCount:30,
+    enemyCount:40,
     enemyLevel:[1,3],
     enemySeed:7,
     closeStarCount:4280,
@@ -62,8 +62,8 @@ export const MAPS = [
       ]
     },
     enemyTypes:[
-      {id:"drone_pirate", weight:.70},
-      {id:"raider_astral", weight:.30}
+      {id:"drone_pirate", weight:.50},
+      {id:"raider_astral", weight:.50}
     ]
   },
   {
@@ -111,6 +111,12 @@ export const MAPS = [
       {x:-4300,y:3300,r:95,safeRadius:230,targetMap:0,targetX:4300,targetY:-3300,label:"VERS ASTRA-01"},
       {x:-4300,y:-3300,r:95,safeRadius:230,targetMap:2,targetX:-4300,targetY:3300,label:"VERS ASTRA-03"},
       {x:4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:-4300,targetY:3300,label:"VERS ASTRA-04"}
+    ],
+    closedPortals:[
+      {x:4300,y:-3300,r:95,safeRadius:230,label:"PORTAIL FERME", damaged:true, closed:true}
+    ],
+    questNpcs:[
+      {id:"astra02_portal_mechanic", name:"Ricky", npcImg:"assets/ships/npc/npc_saucer.png", x:4470, y:-3180, radius:82, size:132, marker:"!", label:"RICKY"}
     ],
     enemyCount:40,
     enemyLevel:[3,7],
@@ -173,9 +179,9 @@ export const MAPS = [
       ]
     },
     enemyTypes:[
-      {id:"drone_pirate", weight:.30},
-      {id:"raider_astral", weight:.46},
-      {id:"chasseur_spectral", weight:.24}
+      {id:"drone_pirate", weight:1},
+      {id:"raider_astral", weight:1},
+      {id:"chasseur_spectral", weight:1}
     ]
   },
   {

@@ -28,6 +28,7 @@ import {
   getLoadout,
   getWeaponAverageDamage,
   makeEmptyLoadout,
+  removeInventoryItems,
   setActionSlot,
   unequipInventoryItem,
   upgradeEquipment
@@ -57,6 +58,7 @@ export {
   getLoadout,
   getWeaponAverageDamage,
   makeEmptyLoadout,
+  removeInventoryItems,
   setActionSlot,
   unequipInventoryItem,
   upgradeEquipment
@@ -67,11 +69,20 @@ import {
   claimQuest,
   getActiveQuest,
   getActiveQuests,
+  getQuestObjectiveProgress,
   getQuestProgress,
+  recordQuestCoordinateVisit,
+  recordQuestDeath,
+  recordQuestHpLoss,
   recordQuestKill,
-  recordQuestRefineryModuleUpgradeStart
+  recordQuestMapVisit,
+  recordQuestNpcTalk,
+  recordQuestRefineryMaterialUpgradeStart,
+  recordQuestRefineryModuleUpgradeStart,
+  recordQuestSpaceCasterUse,
+  recordQuestTimeElapsed
 } from "./questStore.js";
-export { acceptQuest, canClaimQuest, claimQuest, getActiveQuest, getActiveQuests, getQuestProgress, recordQuestKill, recordQuestRefineryModuleUpgradeStart } from "./questStore.js";
+export { acceptQuest, canClaimQuest, claimQuest, getActiveQuest, getActiveQuests, getQuestObjectiveProgress, getQuestProgress, recordQuestCoordinateVisit, recordQuestDeath, recordQuestHpLoss, recordQuestItemPickup, recordQuestKill, recordQuestMapVisit, recordQuestNpcTalk, recordQuestRefineryMaterialUpgradeStart, recordQuestRefineryModuleUpgradeStart, recordQuestSpaceCasterUse, recordQuestTimeElapsed, rollQuestItemDropFromKill } from "./questStore.js";
 import { getRankScore } from "./rankStore.js";
 export {
   RANK_TABLE,
@@ -101,6 +112,7 @@ import {
 export {
   addMaterial,
   addShipCargoMaterial,
+  addShipCargoMaterialForced,
   consumeShipCargoMaterial,
   consumeMaterial,
   getCargoUsed,
@@ -597,6 +609,7 @@ export function normalizeState(saved){
   merged.activeQuestIds = [...new Set([...savedActiveQuestIds, legacyActiveQuestId].filter(id=>getQuest(id) && !saved?.completedQuestClaims?.[id]))].slice(0, MAX_ACTIVE_QUESTS);
   merged.activeQuestId = merged.activeQuestIds.includes(legacyActiveQuestId) ? legacyActiveQuestId : (merged.activeQuestIds[0] || base.activeQuestId);
   merged.questProgress = saved?.questProgress && typeof saved.questProgress === "object" ? {...saved.questProgress} : {...(base.questProgress || {})};
+  merged.questFailProgress = saved?.questFailProgress && typeof saved.questFailProgress === "object" ? {...saved.questFailProgress} : {...(base.questFailProgress || {})};
   merged.completedQuestClaims = saved?.completedQuestClaims && typeof saved.completedQuestClaims === "object" ? {...saved.completedQuestClaims} : {...(base.completedQuestClaims || {})};
   merged.uiLayout = {...(base.uiLayout || {})};
   if(saved?.uiLayout && typeof saved.uiLayout === "object"){
@@ -758,7 +771,7 @@ export function getExtraBonus(shipId = store.state.activeShip){
 }
 
 export function getRealSpeedFromStat(vitesse){
-  return Math.round(120 + Number(vitesse || 0) * 2.15);
+  return Math.round(Number(vitesse || 0));
 }
 
 export function getEquippedLasers(shipId = store.state.activeShip){

@@ -188,6 +188,7 @@
 }
 .combat-utility-dock:hover{opacity:.96;background:rgba(3,12,24,.82);border-color:rgba(56,189,248,.36)}
 .combat-utility-dock button{
+  position:relative;
   width:40px;
   height:40px;
   display:grid;
@@ -204,6 +205,24 @@
 .combat-utility-dock button:hover{border-color:rgba(125,211,252,.62);background:rgba(14,165,233,.16);color:#f0fbff;box-shadow:inset 0 0 16px rgba(56,189,248,.08)}
 .combat-utility-dock button.active{border-color:rgba(250,204,21,.72);background:rgba(113,63,18,.34);color:#fef3c7;box-shadow:0 0 16px rgba(250,204,21,.22),inset 0 0 14px rgba(250,204,21,.12)}
 .combat-utility-dock button.disabled{opacity:.32;cursor:not-allowed;box-shadow:none}
+.combat-utility-badge{
+  position:absolute;
+  right:-5px;
+  top:-6px;
+  min-width:18px;
+  height:18px;
+  display:grid;
+  place-items:center;
+  padding:0 5px;
+  border:1px solid rgba(254,240,138,.88);
+  background:linear-gradient(180deg,#facc15,#ca8a04);
+  color:#111827;
+  font-size:11px;
+  font-weight:900;
+  line-height:1;
+  box-shadow:0 0 12px rgba(250,204,21,.42),0 2px 6px rgba(0,0,0,.45);
+  pointer-events:none;
+}
 .combat-utility-panel{
   position:absolute;
   z-index:7;
@@ -419,22 +438,54 @@
 .combat-quest-focus-head div{display:grid;gap:2px;min-width:0}
 .combat-quest-focus-head span{font-size:10px;color:#7dd3fc;text-transform:uppercase;letter-spacing:.55px}
 .combat-quest-focus-head strong{font-size:13px;color:#f8fafc;text-transform:uppercase;line-height:1.05;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.combat-quest-focus-head img{width:44px;height:38px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(56,189,248,.22))}
+.combat-quest-focus-head .combat-quest-objective-icon{width:44px;height:38px}
+.combat-quest-focus-head .combat-quest-objective-icon img{width:44px;height:38px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(56,189,248,.22))}
+.combat-quest-focus-head .combat-quest-objective-icon.material-pair{display:grid;grid-template-columns:1fr 1fr;gap:2px;align-items:center}
+.combat-quest-focus-head .combat-quest-objective-icon.material-pair img{width:22px;height:30px}
 .combat-quest-detail-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;min-width:0}
 .combat-quest-detail-tabs button{min-width:0;height:28px;padding:0 3px;border:1px solid rgba(56,189,248,.18);background:rgba(3,15,29,.62);color:#8fb9d6;font:900 10px/1 var(--font);text-align:center;text-transform:uppercase;letter-spacing:0;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .combat-quest-detail-tabs button:hover{border-color:rgba(125,211,252,.45);color:#e0f7ff}
 .combat-quest-detail-tabs button.active{border-color:rgba(250,204,21,.68);background:rgba(113,63,18,.32);color:#fef3c7}
+.npc-dialogue{position:fixed;z-index:70;pointer-events:auto;opacity:0;transform:translateY(10px) scale(.97);transition:opacity .18s ease,transform .18s ease;filter:drop-shadow(0 16px 28px rgba(0,0,0,.48))}
+.npc-dialogue.visible{opacity:1;transform:translateY(0) scale(1)}
+.npc-dialogue-box{position:relative;min-height:92px;border:2px solid rgba(56,189,248,.72);border-radius:18px;background:linear-gradient(180deg,rgba(6,24,43,.98),rgba(2,10,20,.98));box-shadow:inset 0 0 0 1px rgba(168,85,247,.28),inset 0 0 28px rgba(56,189,248,.08),0 0 22px rgba(56,189,248,.20);padding:13px 16px 18px;cursor:pointer;overflow:visible}
+.npc-dialogue.line-swap .npc-dialogue-box{animation:npcDialogueSwap .20s ease}
+.npc-dialogue-box::before{content:"";position:absolute;left:calc(var(--npc-arrow-x, 50%) - 28px);bottom:-30px;width:56px;height:34px;background:rgba(56,189,248,.72);clip-path:polygon(50% 100%,0 0,100% 0)}
+.npc-dialogue-box::after{content:"";position:absolute;left:calc(var(--npc-arrow-x, 50%) - 24px);bottom:-25px;width:48px;height:30px;background:linear-gradient(180deg,rgba(2,10,20,.98),rgba(6,24,43,.98));clip-path:polygon(50% 100%,0 0,100% 0)}
+.npc-dialogue-tail{display:none}
+.npc-dialogue-head{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid rgba(56,189,248,.24);padding-bottom:8px;margin-bottom:10px;text-transform:uppercase}
+.npc-dialogue-head span{color:#7dd3fc;font:900 12px/1 var(--font);letter-spacing:.8px}
+.npc-dialogue-close{display:grid;place-items:center;width:24px;height:24px;border:1px solid rgba(250,204,21,.45);background:rgba(113,63,18,.20);color:#facc15;font:900 17px/1 var(--font);cursor:pointer}
+.npc-dialogue-close:hover{border-color:rgba(250,204,21,.82);background:rgba(113,63,18,.42);color:#fef3c7}
+.npc-dialogue p{margin:0;min-height:42px;color:#e6fbff;font:800 15px/1.34 var(--font);letter-spacing:0;text-shadow:0 0 10px rgba(125,211,252,.10)}
+.npc-dialogue-cursor{display:inline-block;width:7px;height:14px;margin-left:3px;vertical-align:-2px;background:#7dd3fc;box-shadow:0 0 8px rgba(125,211,252,.55);animation:npcCursorBlink .75s steps(2,end) infinite}
+@keyframes npcDialogueSwap{0%{transform:translateY(5px);opacity:.55}100%{transform:translateY(0);opacity:1}}
+@keyframes npcCursorBlink{0%,44%{opacity:1}45%,100%{opacity:.15}}
 .combat-quest-objectives{display:grid;gap:5px}
 .combat-quest-objective-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:6px;align-items:center;padding:5px;border:1px solid rgba(56,189,248,.12);background:rgba(2,10,19,.42)}
-.combat-quest-objective-row img{width:30px;height:28px;object-fit:contain}
+.combat-quest-objective-row.locked{border-color:rgba(71,85,105,.22);background:rgba(2,8,14,.28);opacity:.42;filter:grayscale(.9)}
+.combat-quest-objective-row.locked b{color:#6b7f90}
+.combat-quest-objective-icon{display:grid;place-items:center;width:30px;height:28px}
+.combat-quest-objective-icon img{width:30px;height:28px;object-fit:contain}
+.combat-quest-objective-icon img.rotate-180{transform:rotate(180deg)}
+.combat-quest-objective-icon.material-pair{grid-template-columns:1fr 1fr;gap:1px}
+.combat-quest-objective-icon.material-pair img{width:15px;height:22px}
 .combat-quest-objective-row div{display:grid;gap:1px;min-width:0;text-transform:uppercase}
 .combat-quest-objective-row strong{font-size:10px;color:#e8f8ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .combat-quest-objective-row span{font-size:9px;color:#7dd3fc;letter-spacing:.35px}
 .combat-quest-objective-row b{font-size:12px;color:#facc15}
-.combat-quest-rewards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
-.combat-quest-rewards div{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;padding:6px;border:1px solid rgba(56,189,248,.12);background:rgba(2,10,19,.42);text-transform:uppercase}
-.combat-quest-rewards span{font-size:9px;color:#7dd3fc;letter-spacing:.35px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.combat-quest-rewards b{font-size:11px;color:#f8fafc}
+.combat-quest-rewards{display:grid;gap:5px}
+.combat-quest-reward-line{display:grid;gap:5px}
+.combat-quest-reward-line.two{grid-template-columns:1fr 1fr}
+.combat-quest-reward-line.list{grid-template-columns:1fr}
+.combat-quest-reward-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:6px;min-width:0;min-height:34px;padding:5px 6px;border:1px solid rgba(56,189,248,.12);background:rgba(2,10,19,.42);text-transform:uppercase}
+.combat-quest-reward-row img{width:22px;height:22px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(125,211,252,.24))}
+.combat-quest-reward-row span{font-size:9px;color:#7dd3fc;letter-spacing:.35px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combat-quest-reward-row b{font-size:11px;color:#f8fafc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combat-quest-reward-row.nova{border-color:rgba(250,204,21,.32);background:rgba(113,63,18,.14)}
+.combat-quest-reward-row.nova span,.combat-quest-reward-row.nova b{color:#facc15}
+.combat-quest-reward-row.item b{font-size:10px}
+.combat-quest-reward-icon{display:grid;place-items:center;width:22px;height:22px;border:1px solid rgba(56,189,248,.22);background:rgba(8,47,73,.25);color:#dff6ff!important;font-size:8px!important;font-weight:900;letter-spacing:0!important}
 .combat-quest-description{min-height:58px;margin:0;padding:7px;border:1px solid rgba(56,189,248,.12);background:rgba(2,10,19,.42);font-size:10px;color:#c5dfef;line-height:1.35}
 .game-help{position:absolute;left:14px;bottom:14px;z-index:3;padding:10px 12px;font-size:13px;color:#a8c9dc;background:rgba(3,12,24,.82)}
 @media (max-width:1250px){

@@ -7,8 +7,10 @@ export function createRewardSystem({
   getSkillBonus,
   registerKill,
   recordQuestKill,
+  rollQuestItemDropFromKill,
   addXP,
   spawnPortalPieceDrop,
+  spawnQuestItemDrop,
   getSelectedEnemy,
   clearSelectedEnemy,
   getParticles,
@@ -72,6 +74,7 @@ export function createRewardSystem({
     registerKill(enemy.kind);
     const currentMap = getCurrentMap();
     const questCompleted = recordQuestKill(enemy.kind, currentMap.name);
+    const questItemDrop = rollQuestItemDropFromKill?.(enemy.kind, currentMap.name);
     const loot = enemy.loot || enemyTypes[enemy.kind]?.loot || enemyTypes.drone_pirate.loot;
     const skillBonus = getSkillBonus?.() || {};
     const credits = Math.round(Number(loot.credits || 0) * Number(skillBonus.lootMultiplier || 1));
@@ -83,9 +86,10 @@ export function createRewardSystem({
 
     const pieceDrop = rollPortalPiece();
     if(pieceDrop) spawnPortalPieceDrop?.(enemy, pieceDrop);
+    if(questItemDrop) spawnQuestItemDrop?.(enemy, questItemDrop);
     if(questCompleted) showToast("Quete terminee : retourne au relais pour reclamer la recompense.");
 
-    pushLootNotice({credits, xp, premium, piece:pieceDrop ? `Piece ${pieceDrop.name} au sol` : null});
+    pushLootNotice({credits, xp, premium, piece:questItemDrop ? `${questItemDrop.itemName} au sol` : pieceDrop ? `Piece ${pieceDrop.name} au sol` : null});
     spawnRewardParticles(enemy);
     saveState();
   }

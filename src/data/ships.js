@@ -6,7 +6,7 @@ export const ships = [
     img:"assets/ships/Orion.png",
     priceType:"credits",
     price:0,
-    stats:{vie:20000, vitesse:502.3255813953488, cargo:5000, maxLasers:8, maxGenerators:10, maxExtras:5},
+    stats:{vie:20000, vitesse:1500, cargo:5000, maxLasers:8, maxGenerators:10, maxExtras:5},
     special:null
   },
   {
@@ -16,7 +16,7 @@ export const ships = [
     img:"assets/ships/Orion.png",
     priceType:"credits",
     price:0,
-    stats:{vie:2500, vitesse:97.67441860465117, cargo:250, maxLasers:1, maxGenerators:1, maxExtras:1},
+    stats:{vie:2500, vitesse:300, cargo:250, maxLasers:1, maxGenerators:1, maxExtras:1},
     special:null
   },
   {
@@ -27,7 +27,7 @@ export const ships = [
     combatImg:"assets/ships/combat/Velox.png",
     priceType:"credits",
     price:35000,
-    stats:{vie:8000, vitesse:111.62790697674419, cargo:500, maxLasers:3, maxGenerators:3, maxExtras:2},
+    stats:{vie:8000, vitesse:330, cargo:500, maxLasers:3, maxGenerators:3, maxExtras:2},
     special:null
   },
   {
@@ -36,8 +36,8 @@ export const ships = [
     className:"Croiseur d'assaut",
     img:"assets/ships/Valkyrie.png",
     priceType:"credits",
-    price:200000,
-    stats:{vie:25000, vitesse:106.97674418604652, cargo:1000, maxLasers:6, maxGenerators:7, maxExtras:3},
+    price:500000,
+    stats:{vie:35000, vitesse:300, cargo:1000, maxLasers:6, maxGenerators:7, maxExtras:3},
     special:null
   },
   {
@@ -46,8 +46,8 @@ export const ships = [
     className:"Chasseur d'elite",
     img:"assets/ships/Razorion.png",
     priceType:"credits",
-    price:500000,
-    stats:{vie:20000, vitesse:125.58139534883722, cargo:700, maxLasers:8, maxGenerators:5, maxExtras:3},
+    price:2500000,
+    stats:{vie:30000, vitesse:330, cargo:700, maxLasers:8, maxGenerators:5, maxExtras:3},
     special:null
   },
   {
@@ -56,8 +56,8 @@ export const ships = [
     className:"Prototype faux 3D 2D",
     img:"assets/ships/Astra 3D Test.png",
     priceType:"credits",
-    price:0,
-    stats:{vie:20000, vitesse:125.58139534883722, cargo:700, maxLasers:8, maxGenerators:5, maxExtras:3},
+    price:25000000,
+    stats:{vie:70000, vitesse:340, cargo:1500, maxLasers:10, maxGenerators:7, maxExtras:5},
     special:null
   },
   {
@@ -66,8 +66,8 @@ export const ships = [
     className:"Cuirasse lourde",
     img:"assets/ships/Helion Titan.png",
     priceType:"credits",
-    price:1300000,
-    stats:{vie:80000, vitesse:83.72093023255815, cargo:1500, maxLasers:6, maxGenerators:10, maxExtras:5},
+    price:10000000,
+    stats:{vie:80000, vitesse:270, cargo:1500, maxLasers:6, maxGenerators:10, maxExtras:5},
     special:null
   }
 ];

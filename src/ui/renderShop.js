@@ -6,7 +6,6 @@ import {
   getDronePurchasePrice,
   getInventoryCount,
   getShipPurchaseLockReason,
-  getShipCombatStats,
   priceLabel,
   store
 } from "../core/store.js";
@@ -70,7 +69,7 @@ function productDetailStats(product){
     const ship = product.data;
     return [
       `Vie ${ship.stats.vie}`,
-      `Vitesse réelle ${getShipCombatStats(ship.id).vitesseReelle}`,
+      `Vitesse ${ship.stats.vitesse}`,
       `Cargo ${ship.stats.cargo}`,
       `Lasers ${ship.stats.maxLasers}`,
       `Générateurs ${ship.stats.maxGenerators}`,
@@ -151,6 +150,12 @@ function productDetailStats(product){
       "SLOT EXTRA VAISSEAU"
     ];
   }
+  if(item.category === "quest_item"){
+    return [
+      `EFFET ${item.stats?.extra || "Objet de quete"}`,
+      `Stock ${fmt(getInventoryCount(item.id))}`
+    ];
+  }
   return statLabelForItem(item).split(" · ");
 }
 
@@ -190,6 +195,12 @@ function shopItemStatsHtml(item){
     return `<div class="shop-item-stat-lines">
       <span><b>Effet</b>${item.stats?.extra || "Bonus passif"}</span>
       <span><b>Slot</b>Extra vaisseau</span>
+    </div>`;
+  }
+  if(item.category === "quest_item"){
+    return `<div class="shop-item-stat-lines">
+      <span><b>Effet</b>${item.stats?.extra || "Objet de quete"}</span>
+      <span><b>Stock</b>${fmt(getInventoryCount(item.id))}</span>
     </div>`;
   }
   return `<p>${statLabelForItem(item)}</p>`;
@@ -240,7 +251,7 @@ function renderShopListCard(product, selected){
         <div class="shop-list-head"><h4>${ship.name}</h4></div>
         <p>${ship.className}</p>
         <div class="shop-list-meta"><span>${productStatusText(product)}</span><strong>${owned ? "OK" : priceLabel(ship.priceType, ship.price)}</strong></div>
-        <div class="shop-list-meta"><span>${ship.stats.vie} PV · ${getShipCombatStats(ship.id).vitesseReelle} vitesse</span>${lockBadge}</div>
+        <div class="shop-list-meta"><span>${ship.stats.vie} PV · ${ship.stats.vitesse} vitesse</span>${lockBadge}</div>
       </div>
     </article>`;
   }
@@ -292,7 +303,7 @@ function renderShopListCard(product, selected){
     <div class="shop-list-copy">
       <div class="shop-list-head"><h4>${item.name}</h4><span class="badge">${item.rarity}</span></div>
       ${shopItemStatsHtml(item)}
-      <div class="shop-list-meta"><span>${item.category.toUpperCase()}</span><strong>${priceLabel(item.priceType, item.price)}</strong></div>
+      <div class="shop-list-meta"><span>${(item.shopCategory || item.category).toUpperCase()}</span><strong>${priceLabel(item.priceType, item.price)}</strong></div>
       ${lockLine}
     </div>
   </article>`;
@@ -368,9 +379,9 @@ function renderShopDetail(product){
   }
   const item = product.data;
   const ownedCount = getInventoryCount(item.id);
-  const equipText = item.category === "canon" ? "Peut être équipé dans un slot laser de vaisseau ou de drone." : item.category === "generateur" ? "Peut être équipé dans un slot générateur de vaisseau ou dans un drone." : item.category === "extra" ? "Peut être équipé dans un slot extra du vaisseau." : "Prévu pour une future étape de gameplay.";
+  const equipText = item.category === "canon" ? "Peut être équipé dans un slot laser de vaisseau ou de drone." : item.category === "generateur" ? "Peut être équipé dans un slot générateur de vaisseau ou dans un drone." : item.category === "extra" ? "Peut être équipé dans un slot extra du vaisseau." : item.category === "quest_item" ? "Objet de quete a rapporter au PNJ demandeur." : "Prévu pour une future étape de gameplay.";
   detail.innerHTML = `
-    <div class="shop-detail-top"><span class="badge">${item.category.toUpperCase()}</span><span class="badge">${item.rarity}</span></div>
+    <div class="shop-detail-top"><span class="badge">${(item.shopCategory || item.category).toUpperCase()}</span><span class="badge">${item.rarity}</span></div>
     <div class="shop-detail-art"><img src="${item.img}" alt="${item.name}"></div>
     <h3>${item.name}</h3>
     <p class="shop-detail-copy">${equipText}</p>

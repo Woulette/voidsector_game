@@ -31,7 +31,7 @@ export function createCombatEnemyRuntime({
     if(gameMode !== "open" || !enemy || enemy.respawnScheduled || isServerControlledEnemy(enemy)) return;
     const mapState = getMapState(currentMap);
     mapState.respawnQueue = mapState.respawnQueue || [];
-    mapState.respawnQueue.push({remaining:5});
+    mapState.respawnQueue.push({remaining:5, kind:enemy.kind});
     enemy.respawnScheduled = true;
   }
 
@@ -49,7 +49,7 @@ export function createCombatEnemyRuntime({
     for(let i = queue.length - 1; i >= 0; i--){
       if(queue[i].remaining > 0) continue;
       if(enemies.length >= maxEnemies) continue;
-      const enemy = createMapEnemy({map:currentMap, id:enemySeq++, player});
+      const enemy = createMapEnemy({map:currentMap, id:enemySeq++, player, kind:queue[i].kind});
       enemies.push(enemy);
       mapState.enemies = enemies;
       queue.splice(i, 1);

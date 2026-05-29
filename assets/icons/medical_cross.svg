@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Soin">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <circle cx="32" cy="32" r="25" fill="#061827" stroke="#38bdf8" stroke-width="2.4" opacity=".96"/>
+  <circle cx="32" cy="32" r="20" fill="#020711" stroke="#22c55e" stroke-width="1.6" opacity=".94"/>
+  <path d="M27 14h10v13h13v10H37v13H27V37H14V27h13z"
+        fill="#22c55e" stroke="#d9ffe9" stroke-width="2.4" filter="url(#glow)"/>
+  <path d="M29.8 17h4.4v12.8H47v4.4H34.2V47h-4.4V34.2H17v-4.4h12.8z"
+        fill="#9fffc4" opacity=".42"/>
+</svg>

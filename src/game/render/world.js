@@ -1,5 +1,6 @@
 import { getMapPortals } from "../combatData.js";
 import { drawMapPortals } from "./mapPortals.js";
+import { ships } from "../../data/catalog.js";
 
 function viewWidth(canvas){ return canvas.__renderWidth || canvas.__viewWidth || canvas.clientWidth || canvas.width; }
 function viewHeight(canvas){ return canvas.__renderHeight || canvas.__viewHeight || canvas.clientHeight || canvas.height; }
@@ -899,7 +900,64 @@ function drawSpawnStations({ctx, stations}){
   }
 }
 
-function drawWorldMarkers({ctx, camera, currentMap, player, safeReady, stations}){
+function drawQuestNpcs({ctx, cache, currentMap}){
+  const npcs = Array.isArray(currentMap?.questNpcs) ? currentMap.questNpcs : [];
+  if(!npcs.length) return;
+  const now = performance.now();
+  for(const npc of npcs){
+    const ship = ships.find(entry=>entry.id === npc.shipId);
+    const img = cache?.[npc.npcImg || ship?.combatImg || ship?.img || ""] || null;
+    const pulse = .5 + Math.sin(now / 240 + npc.x * .01) * .5;
+    const radius = Number(npc.radius || 115);
+    const size = Number(npc.size || 126);
+    ctx.save();
+    ctx.translate(npc.x, npc.y);
+    ctx.strokeStyle = `rgba(250,204,21,${.56 + pulse * .22})`;
+    ctx.fillStyle = "rgba(250,204,21,.08)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    if(img?.complete && img.naturalWidth){
+      ctx.save();
+      ctx.rotate(Number(npc.rotation ?? -.25));
+      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }else{
+      ctx.fillStyle = "rgba(56,189,248,.70)";
+      ctx.beginPath();
+      ctx.moveTo(size * .45, 0);
+      ctx.lineTo(-size * .32, -size * .25);
+      ctx.lineTo(-size * .12, 0);
+      ctx.lineTo(-size * .32, size * .25);
+      ctx.closePath();
+      ctx.fill();
+    }
+    const markerY = -radius - 24 - pulse * 4;
+    ctx.fillStyle = "rgba(250,204,21,.95)";
+    ctx.shadowColor = "rgba(250,204,21,.85)";
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.moveTo(0, markerY + 30);
+    ctx.lineTo(-18, markerY + 5);
+    ctx.quadraticCurveTo(0, markerY - 20, 18, markerY + 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#04101d";
+    ctx.font = "900 28px Rajdhani, Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(npc.marker || "!", 0, markerY + 4);
+    ctx.fillStyle = "rgba(248,250,252,.96)";
+    ctx.font = "800 15px Rajdhani, Arial";
+    ctx.fillText(npc.label || npc.name || "PNJ", 0, radius + 30);
+    ctx.restore();
+  }
+}
+
+function drawWorldMarkers({ctx, camera, currentMap, player, safeReady, stations, cache}){
   ctx.save();
   ctx.translate(-camera.x,-camera.y);
   const spawn = currentMap.spawn;
@@ -942,6 +1000,14 @@ function drawWorldMarkers({ctx, camera, currentMap, player, safeReady, stations}
   }
 
   drawMapPortals({ctx, currentMap, getMapPortals});
+  if(Array.isArray(currentMap.closedPortals) && currentMap.closedPortals.length){
+    drawMapPortals({
+      ctx,
+      currentMap:{...currentMap, portal:null, portals:currentMap.closedPortals},
+      getMapPortals:map=>map.portals || []
+    });
+  }
+  drawQuestNpcs({ctx, cache, currentMap});
   ctx.restore();
 }
 

@@ -1,6 +1,7 @@
 export function createCombatCargoSystem({
   addPortalPiece,
   addShipCargoMaterial,
+  recordQuestItemPickup,
   getAllRawMaterials,
   getShipCargoCapacity,
   getShipCargoUsed,
@@ -58,6 +59,32 @@ export function createCombatCargoSystem({
       glow:"rgba(168,85,247,.25)",
       glowCore:"rgba(216,180,254,.55)",
       fallback:"rgba(168,85,247,.86)",
+      expiresAt:Number(source.expiresAt || Date.now() + DROP_TTL_MS)
+    };
+    groundMaterials.push(node);
+    return node;
+  }
+
+  function spawnQuestItemDrop(enemy, item, source = {}){
+    if(!enemy || !item?.itemId) return null;
+    const node = {
+      uid:source.uid || `quest_item_${item.itemId}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      kind:"questItem",
+      itemId:item.itemId,
+      questId:item.questId || null,
+      objectiveId:item.objectiveId || null,
+      id:item.itemId,
+      name:item.itemName || "Objet de quete",
+      label:"QUETE",
+      img:item.itemImg || "assets/quest_items/contaminated_sample.png",
+      x:Number(source.x ?? enemy.x) + (source.x === undefined ? (Math.random() - .5) * 70 : 0),
+      y:Number(source.y ?? enemy.y) + (source.y === undefined ? (Math.random() - .5) * 70 : 0),
+      radius:32,
+      size:42,
+      phase:Math.random() * Math.PI * 2,
+      glow:"rgba(34,197,94,.24)",
+      glowCore:"rgba(134,239,172,.58)",
+      fallback:"rgba(34,197,94,.86)",
       expiresAt:Number(source.expiresAt || Date.now() + DROP_TTL_MS)
     };
     groundMaterials.push(node);
@@ -133,6 +160,24 @@ export function createCombatCargoSystem({
       onCargoChanged?.();
       return true;
     }
+    if(node.kind === "questItem"){
+      const completed = recordQuestItemPickup?.(node.itemId);
+      if(!completed && node.questId){
+        pendingGroundMaterial = null;
+        showToast("Objet de quete non requis pour le moment.");
+        onCargoChanged?.();
+        return false;
+      }
+      groundMaterials.splice(index, 1);
+      particles().push({x:node.x, y:node.y, life:.42, max:.42, size:28, color:node.glowCore || "rgba(134,239,172,.58)"});
+      saveState();
+      showToast(`${node.name} recupere.`);
+      rewards.showLootNotice({piece:`${node.name} recupere`});
+      pendingGroundMaterial = null;
+      onCargoChanged?.();
+      if(getSpawnPanelMode()) onSpawnPanelRefresh?.(getSpawnPanelMode());
+      return true;
+    }
     const result = addShipCargoMaterial(node.id, 1);
     if(result.added <= 0){
       pendingGroundMaterial = null;
@@ -180,6 +225,7 @@ export function createCombatCargoSystem({
     clear,
     spawnCargoBox,
     spawnPortalPieceDrop,
+    spawnQuestItemDrop,
     findCargoBoxAt,
     findGroundMaterialAt,
     collectCargoBox,

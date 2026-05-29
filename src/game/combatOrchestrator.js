@@ -29,12 +29,14 @@ import {
   getEquipmentUpgradeCost,
   getEquipmentUpgradeLevel,
   getEquippedLasers,
+  getInventoryCount,
   getItem,
   getItemFromInventoryUid,
   getMaterialCount,
   getRankAssetPath,
   RANK_TABLE,
   GRAPHICS_QUALITY_PRESETS,
+  getQuestObjectiveProgress,
   getQuestProgress,
   getRefineryJob,
   getRefineryRecipes,
@@ -48,7 +50,15 @@ import {
   getSkillBonus,
   isRefineryComplete,
   recordWeaponUse,
+  recordQuestCoordinateVisit,
+  recordQuestDeath,
+  recordQuestHpLoss,
+  recordQuestItemPickup,
   recordQuestKill,
+  recordQuestMapVisit,
+  recordQuestNpcTalk,
+  recordQuestTimeElapsed,
+  rollQuestItemDropFromKill,
   refineShipCargoRecipe,
   registerKill,
   saveState,
@@ -139,6 +149,7 @@ export function createCombatGame({renderAll, showToast}){
   let last = 0;
   let hudT = 0;
   let quickPanelRefreshT = 0;
+  let coordinateQuestCheckT = 0;
   let enemySeq = 1;
   let currentMap = MAPS[0];
   let teleportLock = 0;
@@ -150,6 +161,7 @@ export function createCombatGame({renderAll, showToast}){
   let mouseMoveHeld = false;
   let combatCargoExpanded = false;
   let deathState = null;
+  let npcDialogue = null;
   let deathRespawnHandlersInstalled = false;
   const combatMetricModes = {hp:"bar", shield:"bar", xp:"bar"};
   function getCombatState(){
@@ -264,7 +276,8 @@ export function createCombatGame({renderAll, showToast}){
     setState:setCombatState,
     updatePoisonStatus,
     pushDamageText,
-    handlePlayerDeath
+    handlePlayerDeath,
+    onPlayerHpLost:handleQuestHpLoss
   });
 
   function refreshPlayerStatsFromLoadout(){
@@ -328,6 +341,7 @@ export function createCombatGame({renderAll, showToast}){
     getActiveQuest,
     getActiveQuests,
     getAllQuests,
+    getQuestObjectiveProgress,
     getQuestProgress,
     claimQuest,
     getItem,
@@ -357,8 +371,10 @@ export function createCombatGame({renderAll, showToast}){
     getSkillBonus,
     registerKill,
     recordQuestKill,
+    rollQuestItemDropFromKill,
     addXP,
     spawnPortalPieceDrop:(enemy, portal)=>cargo.spawnPortalPieceDrop(enemy, portal),
+    spawnQuestItemDrop:(enemy, item)=>cargo.spawnQuestItemDrop(enemy, item),
     getSelectedEnemy:()=>selectedEnemy,
     clearSelectedEnemy,
     getParticles:()=>particles,
@@ -369,6 +385,7 @@ export function createCombatGame({renderAll, showToast}){
   cargo = createCombatCargoSystem({
     addPortalPiece,
     addShipCargoMaterial,
+    recordQuestItemPickup,
     getAllRawMaterials,
     getShipCargoCapacity,
     getShipCargoUsed,
@@ -569,7 +586,7 @@ export function createCombatGame({renderAll, showToast}){
   });
 
   function preload(){
-    preloadCombatAssets({cache, ships, equipment:[...equipment, ...getAllRawMaterials(), ...portals, {img:"assets/materials/cargo_box.svg"}], ammoTypes, enemyTypes:ENEMY_TYPES, maps:MAPS, ranks:RANK_TABLE, getRankAssetPath});
+    preloadCombatAssets({cache, ships, equipment:[...equipment, ...getAllRawMaterials(), ...portals, {img:"assets/materials/cargo_box.svg"}, {img:"assets/quest_items/contaminated_sample.png"}, {img:"assets/quest_items/teleportation_fluid.png"}], ammoTypes, enemyTypes:ENEMY_TYPES, maps:MAPS, ranks:RANK_TABLE, getRankAssetPath});
   }
   function resetPerfMetrics(){
     perf.reset();
@@ -596,7 +613,10 @@ export function createCombatGame({renderAll, showToast}){
   function isSafeModeActive(){ return worldState.isSafeModeActive(); }
 
   function clearPoison(){ statusEffects.clearPoison(); }
-  function handlePlayerDeath(){ deathRespawn.handlePlayerDeath(); }
+  function handlePlayerDeath(){
+    handleQuestFailures(recordQuestDeath(), "mort du pilote");
+    deathRespawn.handlePlayerDeath();
+  }
   function chooseDeathRespawn(choice){ deathRespawn.chooseRespawn(choice); }
   function markCombatActivity(reason = "combat"){
     if(reason === "outgoing"){
@@ -607,6 +627,190 @@ export function createCombatGame({renderAll, showToast}){
 
   function getStationAt(world){ return worldState.getStationAt(world); }
 
+  function findQuestNpcAt(world){
+    const npcs = Array.isArray(currentMap?.questNpcs) ? currentMap.questNpcs : [];
+    return npcs.find(npc=>Math.hypot(world.x - npc.x, world.y - npc.y) <= (npc.radius || 90)) || null;
+  }
+
+  function getQuestObjectiveState(quest, objectiveId){
+    const objective = quest?.objectives?.find(entry=>entry.id === objectiveId);
+    if(!quest || !objective) return {progress:0, target:0};
+    const index = quest.objectives.indexOf(objective);
+    const key = objective.id || `${objective.type || "objective"}:${objective.target || objective.module || objective.map || objective.zone || index}:${index}`;
+    return {
+      progress:getQuestObjectiveProgress(quest.id, key),
+      target:Number(objective.count || 0)
+    };
+  }
+
+  function isQuestObjectiveDone(quest, objectiveId){
+    const state = getQuestObjectiveState(quest, objectiveId);
+    return state.target > 0 && state.progress >= state.target;
+  }
+
+  function getRickyQuest(){
+    return getActiveQuests().find(quest=>quest.id === "quest_lv5_call_for_help") || null;
+  }
+
+  function getQuestNpcDialogue(npc){
+    if(npc.id !== "astra02_portal_mechanic") return {lines:[`${npc.name || "PNJ"} n'a rien a te demander pour le moment.`], progress:false};
+    const quest = getRickyQuest();
+    if(!quest) return {lines:["Signal bloque. Passe par le relais de quetes avant de revenir."], progress:false};
+    if(!isQuestObjectiveDone(quest, "portal_coord")) return {lines:["Approche du portail ferme, je capte mal ton signal."], progress:false};
+    if(!isQuestObjectiveDone(quest, "talk_start")){
+      return {
+        lines:[
+          "Mon petit fils !!",
+          "J'ai merder mon petit fils et coincé à l'intérieur avec mon pistou portgun.",
+          "Arh c'est pas le moment ! ont se fait attaquer."
+        ],
+        progress:true
+      };
+    }
+    const combatDone = ["traqueurs", "parasites", "vorak", "orbes"].every(id=>isQuestObjectiveDone(quest, id));
+    if(combatDone && !isQuestObjectiveDone(quest, "talk_return")){
+      return {
+        lines:[
+          "Belle bête tu les as bien remis à leur place.",
+          "Il faudrait me trouver du fluide de téléportation mais ici il n'y en as pas essaye de voir en magasin."
+        ],
+        progress:true
+      };
+    }
+    if(!combatDone) return {lines:["Nettoie la zone d'abord ! 2 traqueurs abyssaux, 6 parasites, 8 Vorak et 15 orbes, puis reviens me voir."], progress:false};
+    if(!isQuestObjectiveDone(quest, "fluides")){
+      const fluides = getInventoryCount("teleportation_fluid");
+      if(fluides >= 10){
+        return {lines:["Ahah impréssionant. Retourne a ta station reviens me voir une fois plus aguéris j'aurais encore besoin de toi"], progress:true};
+      }
+      return {lines:[`Il me faut 10 fluides de téléportation. Tu en as ${fluides}/10. Regarde dans les extras du magasin.`], progress:false};
+    }
+    return {lines:["Le portail ne bougera pas sans pieces. On aura encore du boulot."], progress:false};
+  }
+
+  function getNpcDialoguePanel(){
+    let panel = document.getElementById("npcDialoguePanel");
+    if(panel) return panel;
+    panel = document.createElement("div");
+    panel.id = "npcDialoguePanel";
+    panel.className = "npc-dialogue hidden";
+    panel.innerHTML = `
+      <div class="npc-dialogue-box">
+        <div class="npc-dialogue-head"><span data-npc-name></span><button type="button" class="npc-dialogue-close" aria-label="Fermer le dialogue">×</button></div>
+        <p><span data-npc-line></span><i class="npc-dialogue-cursor"></i></p>
+      </div>`;
+    document.getElementById("gameScreen")?.appendChild(panel);
+    panel.addEventListener("click", e=>{
+      e.preventDefault();
+      if(e.target.closest(".npc-dialogue-close")){
+        closeNpcDialogue();
+        return;
+      }
+      advanceNpcDialogue();
+    });
+    return panel;
+  }
+
+  function positionNpcDialogue(){
+    if(!npcDialogue?.npc) return false;
+    const panel = getNpcDialoguePanel();
+    if(panel.classList.contains("hidden")) return false;
+    const rect = canvas.getBoundingClientRect();
+    const zoom = Number(camera.zoom || 1);
+    const npc = npcDialogue.npc;
+    const npcSize = Number(npc.size || 120);
+    const rawX = rect.left + (Number(npc.x || 0) - camera.x) * zoom;
+    const rawY = rect.top + (Number(npc.y || 0) - camera.y - npcSize * .68) * zoom;
+    const offscreenMargin = 90;
+    if(rawX < -offscreenMargin || rawX > window.innerWidth + offscreenMargin || rawY < -offscreenMargin || rawY > window.innerHeight + offscreenMargin){
+      closeNpcDialogue();
+      return false;
+    }
+    const width = Math.min(440, Math.max(300, window.innerWidth - 32));
+    const margin = 14;
+    const left = Math.max(margin, Math.min(window.innerWidth - width - margin, rawX - width / 2));
+    const top = Math.max(82, Math.min(window.innerHeight - 190, rawY - 132));
+    const arrowX = Math.max(28, Math.min(width - 28, rawX - left));
+    panel.style.width = `${width}px`;
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.setProperty("--npc-arrow-x", `${arrowX}px`);
+    return true;
+  }
+
+  function renderNpcDialogue(){
+    const panel = getNpcDialoguePanel();
+    const line = npcDialogue?.lines?.[npcDialogue.index] || "";
+    panel.querySelector("[data-npc-name]").textContent = npcDialogue?.npc?.name || "PNJ";
+    npcDialogue.lineText = line;
+    npcDialogue.visibleText = "";
+    npcDialogue.charIndex = 0;
+    npcDialogue.typeTimer = 0;
+    panel.querySelector("[data-npc-line]").textContent = "";
+    panel.classList.remove("hidden");
+    panel.classList.remove("visible", "line-swap");
+    positionNpcDialogue();
+    requestAnimationFrame(()=>{
+      panel.classList.add("visible", "line-swap");
+      window.setTimeout(()=>panel.classList.remove("line-swap"), 220);
+    });
+  }
+
+  function closeNpcDialogue(){
+    const panel = document.getElementById("npcDialoguePanel");
+    panel?.classList.remove("visible", "line-swap");
+    panel?.classList.add("hidden");
+    npcDialogue = null;
+  }
+
+  function advanceNpcDialogue(){
+    if(!npcDialogue) return;
+    if((npcDialogue.charIndex || 0) < String(npcDialogue.lineText || "").length){
+      npcDialogue.charIndex = String(npcDialogue.lineText || "").length;
+      npcDialogue.visibleText = npcDialogue.lineText || "";
+      document.getElementById("npcDialoguePanel")?.querySelector("[data-npc-line]")?.replaceChildren(document.createTextNode(npcDialogue.visibleText));
+      return;
+    }
+    npcDialogue.index += 1;
+    if(npcDialogue.index < npcDialogue.lines.length){
+      renderNpcDialogue();
+      return;
+    }
+    const npc = npcDialogue.npc;
+    const shouldProgress = npcDialogue.progress;
+    closeNpcDialogue();
+    if(shouldProgress && recordQuestNpcTalk(npc.id, currentMap.name)){
+      saveState();
+      const panelMode = panels.getSpawnPanelMode?.();
+      if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
+      updateHud();
+      showToast("Objectif mis a jour.");
+    }
+  }
+
+  function interactQuestNpc(npc){
+    const dialogue = getQuestNpcDialogue(npc);
+    npcDialogue = {npc, lines:dialogue.lines, progress:dialogue.progress, index:0};
+    player.vx = 0;
+    player.vy = 0;
+    moveTarget = null;
+    mouseMoveHeld = false;
+    renderNpcDialogue();
+  }
+
+  function updateNpcDialogueTyping(dt){
+    if(!npcDialogue) return;
+    const line = String(npcDialogue.lineText || "");
+    if((npcDialogue.charIndex || 0) >= line.length) return;
+    npcDialogue.typeTimer = Number(npcDialogue.typeTimer || 0) + dt * 42;
+    const nextIndex = Math.min(line.length, Math.floor(npcDialogue.typeTimer));
+    if(nextIndex <= (npcDialogue.charIndex || 0)) return;
+    npcDialogue.charIndex = nextIndex;
+    npcDialogue.visibleText = line.slice(0, nextIndex);
+    const target = document.getElementById("npcDialoguePanel")?.querySelector("[data-npc-line]");
+    if(target) target.textContent = npcDialogue.visibleText;
+  }
+
   function formatDuration(ms){
     const total = Math.max(0, Math.ceil(ms / 1000));
     const m = Math.floor(total / 60);
@@ -614,7 +818,14 @@ export function createCombatGame({renderAll, showToast}){
     return `${m}:${String(s).padStart(2,"0")}`;
   }
 
-  function loadMap(mapId, x, y, options = {}){ worldState.loadMap(mapId, x, y, options); }
+  function loadMap(mapId, x, y, options = {}){
+    worldState.loadMap(mapId, x, y, options);
+    if(recordQuestMapVisit(currentMap?.name)){
+      saveState();
+      const panelMode = panels.getSpawnPanelMode?.();
+      if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
+    }
+  }
 
   function installDebugCommands(){
     installCombatDebugCommands({
@@ -715,6 +926,7 @@ export function createCombatGame({renderAll, showToast}){
     document.getElementById("gameScreen").classList.add("hidden");
     document.getElementById("combatQuickPanel").classList.add("hidden");
     deathRespawn.setPanelVisible(false);
+    closeNpcDialogue();
     clearPoison();
     panels.closeUtilityPanel();
     panels.closeSpawnPanel();
@@ -884,7 +1096,17 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function damagePlayer(amount){
-    lifecycle.damage(amount);
+    handleQuestHpLoss(lifecycle.damage(amount));
+  }
+  function handleQuestHpLoss(amount){
+    handleQuestFailures(recordQuestHpLoss(amount), "limite de vie depassee");
+  }
+  function handleQuestFailures(failedQuests, reason){
+    if(!failedQuests.length) return;
+    saveState();
+    failedQuests.forEach(quest=>showToast(`${quest.title} : ${reason}, progression remise a zero.`));
+    const panelMode = panels.getSpawnPanelMode?.();
+    if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
   }
   function rewardEnemy(enemy){
     if(isServerControlledEnemy(enemy)) return;
@@ -915,6 +1137,19 @@ export function createCombatGame({renderAll, showToast}){
 
   function update(dt){
     frameUpdate.update(dt);
+    if(npcDialogue){
+      if(positionNpcDialogue()) updateNpcDialogueTyping(dt);
+    }
+    handleQuestFailures(recordQuestTimeElapsed(dt), "temps depasse");
+    coordinateQuestCheckT -= dt;
+    if(coordinateQuestCheckT <= 0 && player && currentMap){
+      coordinateQuestCheckT = .25;
+      if(recordQuestCoordinateVisit({x:player.x, y:player.y}, currentMap.name)){
+        saveState();
+        const panelMode = panels.getSpawnPanelMode?.();
+        if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
+      }
+    }
   }
 
   function updateEnemies(dt){
@@ -1004,6 +1239,8 @@ export function createCombatGame({renderAll, showToast}){
       actions.setActiveLaserSlot(null);
       actions.updateGameActionBar();
     },
+    findQuestNpcAt,
+    interactQuestNpc,
     attackSelectedWithActiveLaser,
     renderSpawnInteractionPanel:panels.renderSpawnInteractionPanel,
     openUtilityPanel:panels.openUtilityPanel,

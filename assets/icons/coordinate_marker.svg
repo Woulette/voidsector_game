@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Coordonnees">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="32" cy="51" rx="18" ry="6" fill="none" stroke="#facc15" stroke-width="2.4" opacity=".95"/>
+  <ellipse cx="32" cy="51" rx="11" ry="3.6" fill="none" stroke="#38bdf8" stroke-width="1.8" opacity=".92"/>
+  <path d="M32 5c-10.2 0-18.5 8.1-18.5 18.1 0 13.4 18.5 29.9 18.5 29.9s18.5-16.5 18.5-29.9C50.5 13.1 42.2 5 32 5z"
+        fill="#061827" stroke="#38bdf8" stroke-width="3" filter="url(#glow)"/>
+  <path d="M32 8.5c-8.2 0-14.9 6.5-14.9 14.6 0 9.3 10.8 21.1 14.9 25.2 4.1-4.1 14.9-15.9 14.9-25.2C46.9 15 40.2 8.5 32 8.5z"
+        fill="#020711" stroke="#facc15" stroke-width="1.2" opacity=".95"/>
+  <circle cx="32" cy="23.5" r="7.2" fill="#dff9ff" stroke="#38bdf8" stroke-width="2.4"/>
+  <circle cx="32" cy="23.5" r="3.2" fill="#04101d"/>
+</svg>

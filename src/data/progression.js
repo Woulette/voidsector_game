@@ -142,13 +142,8 @@ export const refineryRecipes = [
 ];
 
 const generatedCombatQuests = [
-  ["quest_astra01_raider_easy_01", "normal", 3, "Rushers en fuite", "Détruis 8 Vorak rushers dans ASTRA-01.", "raider_astral", 8, "ASTRA-01", 18000, 940, {nickel_brut:12}],
+  ["quest_lv3_combat_drone_companion", "normal", 3, "Un drone de compagnie", "Possède au moins 1 drone de combat. Si tu en possèdes déjà un, retourne simplement au relais.", "owned_combat_drone", 1, "Hangar", 23000, 3500, {}, 200],
   ["quest_astra01_raider_easy_02", "daily", 3, "Prime de patrouille", "Détruis 12 Vorak rushers dans ASTRA-01.", "raider_astral", 12, "ASTRA-01", 26000, 1300, {nickel_brut:16, titane_fissure:8}],
-  ["quest_astra02_orb_normal_01", "normal", 4, "Entrée ASTRA-02", "Détruis 14 Orbes sentinelles dans ASTRA-02.", "drone_pirate", 14, "ASTRA-02", 24000, 1350, {cuivre_orbital:18, zinc_spatial:10}],
-  ["quest_astra02_raider_normal_01", "normal", 5, "Couloir instable", "Détruis 16 Vorak rushers dans ASTRA-02.", "raider_astral", 16, "ASTRA-02", 32000, 1800, {nickel_brut:18, titane_fissure:10}],
-  ["quest_astra02_spectral_normal_01", "normal", 7, "Signal spectral", "Détruis 10 Parasites astraux dans ASTRA-02.", "chasseur_spectral", 10, "ASTRA-02", 43000, 2500, {silice_conductrice:18, catalyseur_quantique:1}],
-  ["quest_astra02_spectral_daily_01", "daily", 8, "Prime spectrale", "Détruis 16 Parasites astraux dans ASTRA-02.", "chasseur_spectral", 16, "ASTRA-02", 66000, 3600, {silice_conductrice:28, catalyseur_quantique:2}],
-  ["quest_astra03_raider_normal_01", "normal", 8, "Raiders de frontière", "Détruis 14 Vorak rushers dans ASTRA-03.", "raider_astral", 14, "ASTRA-03", 48000, 3000, {nickel_brut:24, titane_fissure:14}],
   ["quest_astra03_spectral_normal_01", "normal", 9, "Essaim spectral", "Détruis 18 Parasites astraux dans ASTRA-03.", "chasseur_spectral", 18, "ASTRA-03", 74000, 4300, {silice_conductrice:34, catalyseur_quantique:2}],
   ["quest_astra03_spectral_hard_01", "weekly", 10, "Purge ASTRA-03", "Détruis 35 Parasites astraux dans ASTRA-03.", "chasseur_spectral", 35, "ASTRA-03", 150000, 9200, {silice_conductrice:70, catalyseur_quantique:5}],
   ["quest_astra04_spectral_hard_01", "normal", 12, "Ombres d'ASTRA-04", "Détruis 22 Parasites astraux dans ASTRA-04.", "chasseur_spectral", 22, "ASTRA-04", 115000, 7200, {silice_conductrice:50, catalyseur_quantique:4}],
@@ -164,15 +159,15 @@ const generatedCombatQuests = [
   ["quest_astra05_boss_weekly_01", "weekly", 20, "Nettoyage des rushers boss", "Détruis 25 Boss Vorak rushers dans ASTRA-05.", "boss_raider_astral", 25, "ASTRA-05", 500000, 36000, {conducteur_renforce:10, blindage_composite:10, noyau_astra:2}],
   ["quest_astra05_boss_weekly_02", "weekly", 22, "Siège d'ASTRA-05", "Détruis 12 Boss Cuirasses ambre dans ASTRA-05.", "boss_cuirasse_ambre", 12, "ASTRA-05", 1200000, 70000, {conducteur_renforce:20, blindage_composite:20, noyau_astra:5}],
   ["quest_cyan01_raider_easy_01", "daily", 3, "Prime Cyan", "Détruis 10 Vorak rushers dans CYAN-01.", "raider_astral", 10, "CYAN-01", 22000, 1150, {nickel_brut:14, zinc_spatial:8}]
-].map(([id, category, requiredLevel, title, desc, target, count, zone, credits, xp, materials])=>({
+].map(([id, category, requiredLevel, title, desc, target, count, zone, credits, xp, materials, premium = 0])=>({
   id,
   category,
   requiredLevel,
   title,
   giver:"Relais de Commandement",
   desc,
-  objective:{type:"kill", target, count, zone},
-  rewards:{credits, xp, materials}
+  objective:target === "owned_combat_drone" ? {type:"owned_combat_drone", count, zone, label:"Drone de Combat"} : {type:"kill", target, count, zone},
+  rewards:{credits, premium, xp, materials}
 }));
 
 export const questCatalog = [
@@ -208,6 +203,22 @@ export const questCatalog = [
     rewards:{credits:10000, premium:150, xp:500, items:["reactor_ion"], materials:{}}
   },
   {
+    id:"quest_lv1_comprehension_acquisition",
+    category:"normal",
+    requiredLevel:1,
+    title:"Compréhension acquisition",
+    rare:true,
+    giver:"Relais de Commandement",
+    desc:"Prouve que tu maitrises les bases d'ASTRA-01 et rejoins ASTRA-02 au moins une fois.",
+    unlock:{type:"complete_level_quests", level:1},
+    objectives:[
+      {id:"orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:5, zones:["ASTRA-01","ASTRA-02"]},
+      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:5, zones:["ASTRA-01","ASTRA-02"]},
+      {id:"astra02", type:"visit_map", map:"ASTRA-02", label:"Atteindre ASTRA-02", count:1}
+    ],
+    rewards:{credits:75000, premium:500, xp:1500, materials:{}, shipCargoMaterialsForced:{noyau_astra:100}}
+  },
+  {
     id:"quest_daily_cleanup",
     category:"daily",
     requiredLevel:4,
@@ -216,6 +227,130 @@ export const questCatalog = [
     desc:"Elimine 8 ennemis dans ASTRA-01 pour maintenir la route commerciale ouverte.",
     objective:{type:"kill", target:"drone_pirate", count:8, zone:"ASTRA-01"},
     rewards:{credits:18000, xp:900, materials:{cuivre_orbital:14, zinc_spatial:4}}
+  },
+  {
+    id:"quest_lv4_place_au_combat",
+    category:"normal",
+    requiredLevel:4,
+    title:"Place au combat",
+    giver:"Relais de Commandement",
+    desc:"Détruis 15 Orbes sentinelles dans les zones ASTRA.",
+    objective:{type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:15, zones:["ASTRA-01","ASTRA-02"]},
+    rewards:{credits:75000, premium:250, xp:6500, materials:{}}
+  },
+  {
+    id:"quest_lv3_prepare_future",
+    category:"normal",
+    requiredLevel:3,
+    title:"Prévoir pour l'avenir",
+    giver:"Relais de Commandement",
+    desc:"Lance l'amélioration niveau 2 du cuivre, du nickel et de la silice dans la raffinerie.",
+    objectives:[
+      {id:"cuivre_lv2", type:"refinery_material_upgrade_start", material:"cuivre_orbital", label:"Cuivre niveau 2", targetLevel:2, count:1},
+      {id:"nickel_lv2", type:"refinery_material_upgrade_start", material:"nickel_brut", label:"Nickel niveau 2", targetLevel:2, count:1},
+      {id:"silice_lv2", type:"refinery_material_upgrade_start", material:"silice_conductrice", label:"Silice niveau 2", targetLevel:2, count:1}
+    ],
+    rewards:{credits:23000, premium:200, xp:3500, materials:{}}
+  },
+  {
+    id:"quest_lv3_new_range",
+    category:"normal",
+    requiredLevel:3,
+    title:"Nouvelle Gamme",
+    giver:"Relais de Commandement",
+    desc:"Achète un Velox puis équipe-le. Si le Velox est déjà ton vaisseau actif, retourne simplement au relais.",
+    objective:{type:"equipped_ship", shipId:"velox", label:"Velox équipé", count:1, zone:"Hangar"},
+    rewards:{credits:23000, premium:200, xp:3500, materials:{}}
+  },
+  {
+    id:"quest_lv3_one_step_after_another",
+    category:"normal",
+    requiredLevel:3,
+    title:"Un pas aprés l'autre",
+    giver:"Relais de Commandement",
+    desc:"Détruis 3 Vorak rushers et 5 Orbes sentinelles dans ASTRA-01 ou ASTRA-02, puis rejoins les deux coordonnées indiquées.",
+    objectives:[
+      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:3, zones:["ASTRA-01","ASTRA-02"]},
+      {id:"orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:5, zones:["ASTRA-01","ASTRA-02"]},
+      {id:"coord_a", type:"visit_coordinates", label:"Coord X -430 Y 0", x:-430, y:0, scale:10, tolerance:6, zones:["ASTRA-01","ASTRA-02"], count:1},
+      {id:"coord_b", type:"visit_coordinates", label:"Coord X 170 Y 120", x:170, y:120, scale:10, tolerance:6, zones:["ASTRA-01","ASTRA-02"], count:1}
+    ],
+    rewards:{credits:32000, premium:200, xp:5000, materials:{}}
+  },
+  {
+    id:"quest_lv3_alert_vigilance",
+    category:"normal",
+    requiredLevel:3,
+    title:"Alerte vigilence",
+    rare:true,
+    giver:"Relais de Commandement",
+    desc:"Elimine les cibles demandees sans perdre plus de 3000 points de vie. Si la limite est depassee, la mission repart de zero.",
+    unlock:{type:"complete_level_quests", level:3},
+    objectives:[
+      {id:"astra01_orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:5, zone:"ASTRA-01"},
+      {id:"astra02_vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:5, zone:"ASTRA-02"},
+      {id:"astra02_parasites", type:"kill", target:"chasseur_spectral", label:"Parasite vert", count:2, zone:"ASTRA-02"}
+    ],
+    failConditions:{hpLossLimit:3000},
+    rewards:{credits:250000, premium:800, xp:15000, materials:{}, portalPieces:{blue:1}, ammo:{ammo_x2:3000}}
+  },
+  {
+    id:"quest_lv4_establish_recon",
+    category:"normal",
+    requiredLevel:4,
+    title:"Établir reconaissance",
+    giver:"Relais de Commandement",
+    desc:"Va dans ASTRA-02 et élimine 5 Parasites astraux et 5 Vorak rushers en moins de 5 minutes.",
+    objectives:[
+      {id:"astra02", type:"visit_map", map:"ASTRA-02", label:"Atteindre ASTRA-02", count:1},
+      {id:"parasites", type:"kill", target:"chasseur_spectral", label:"Parasite vert", count:5, zone:"ASTRA-02"},
+      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:5, zone:"ASTRA-02"}
+    ],
+    failConditions:{timeLimit:300},
+    rewards:{credits:75000, premium:250, xp:6500, materials:{}}
+  },
+  {
+    id:"quest_lv4_contaminated_samples",
+    category:"normal",
+    requiredLevel:4,
+    title:"Echantillions contaminé",
+    rare:true,
+    giver:"Relais de Commandement",
+    desc:"Détruis des Parasites astraux jusqu'à récupérer un échantillon contaminé. Si tu meurs avant de le rapporter au relais, l'échantillon est perdu.",
+    unlock:{type:"complete_level_quests", level:4},
+    objective:{type:"quest_item_drop", target:"chasseur_spectral", label:"Échantillon contaminé", itemId:"contaminated_sample", itemName:"Échantillon contaminé", itemImg:"assets/quest_items/contaminated_sample.png", dropChance:.10, count:1, zone:"ASTRA-02"},
+    failConditions:{deathResets:true},
+    rewards:{credits:350000, premium:1000, xp:20000, materials:{}, ammo:{rocket_r2:100}}
+  },
+  {
+    id:"quest_lv5_call_for_help",
+    category:"normal",
+    requiredLevel:5,
+    title:"Un apelle a l'aide",
+    red:true,
+    giver:"Relais de Commandement",
+    desc:"Rejoins le portail ferme d'ASTRA-02, aide Ricky a repousser l'attaque, puis rapporte-lui le fluide de teleportation demande.",
+    objectives:[
+      {id:"portal_coord", type:"visit_coordinates", label:"Coord X 430 Y -330", x:430, y:-330, scale:10, tolerance:10, zone:"ASTRA-02", count:1},
+      {id:"talk_start", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Parler a Ricky", zone:"ASTRA-02", count:1, requiresObjective:"portal_coord"},
+      {id:"traqueurs", type:"kill", target:"cuirasse_nebulaire", label:"Traqueur abyssal", count:2, zone:"ASTRA-03", requiresObjective:"talk_start"},
+      {id:"parasites", type:"kill", target:"chasseur_spectral", label:"Parasite vert", count:6, zones:["ASTRA-02","ASTRA-03"], requiresObjective:"talk_start"},
+      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:8, zones:["ASTRA-01","ASTRA-02"], requiresObjective:"talk_start"},
+      {id:"orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:15, zones:["ASTRA-01","ASTRA-02"], requiresObjective:"talk_start"},
+      {id:"talk_return", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Retourner voir Ricky", zone:"ASTRA-02", count:1, requiresObjectives:["traqueurs","parasites","vorak","orbes"]},
+      {id:"fluides", type:"deliver_item", npcId:"astra02_portal_mechanic", itemId:"teleportation_fluid", itemName:"Fluide de Teleportation", itemImg:"assets/quest_items/teleportation_fluid.png", label:"Ramener 10 fluides de teleportation", zone:"ASTRA-02", count:10, consumeItems:true, requiresObjective:"talk_return"}
+    ],
+    rewards:{credits:2000000, premium:10000, xp:300000, materials:{}, itemCounts:{teleportation_fluid:10}, items:["laser_mk3"], ammo:{ammo_x3:5000}}
+  },
+  {
+    id:"quest_lv8_la_roue_tourne",
+    category:"normal",
+    requiredLevel:8,
+    title:"La roue tourne",
+    giver:"Relais de Commandement",
+    desc:"Va dans les portails et lance le Space Caster x100 une fois.",
+    objective:{type:"space_caster_use", label:"Space Caster", count:100, zone:"Portails"},
+    rewards:{credits:150000, premium:300, xp:30000, materials:{}}
   },
   {
     id:"quest_weekly_assault",

@@ -31,7 +31,9 @@ import {
   spend,
   rushRefineryUpgrade,
   rushRefineryShipment,
+  recordQuestRefineryMaterialUpgradeStart,
   recordQuestRefineryModuleUpgradeStart,
+  recordQuestSpaceCasterUse,
   startRefineryJob,
   startRefineryMaterialUpgrade,
   startRefineryModuleUpgrade,
@@ -258,9 +260,11 @@ function runSpaceCaster(id, count = 1){
     if(!current.img && img) current.img = img;
     summary.set(label, current);
   }
+  const questCompleted = recordQuestSpaceCasterUse(rollCount);
   store.state.portalCasterResults = Array.from(summary.values());
   saveState();
   showToast(`Space Caster : ${rollCount} lancement(s).`);
+  if(questCompleted) showToast("Quete terminee : retourne au relais pour reclamer la recompense.");
   renderAll();
 }
 
@@ -648,6 +652,7 @@ document.addEventListener("click", (e)=>{
   const confirmMaterialUpgradeBtn = e.target.closest("#refineryPanel [data-confirm-refinery-upgrade]");
   if(confirmMaterialUpgradeBtn){
     const result = startRefineryMaterialUpgrade(confirmMaterialUpgradeBtn.dataset.confirmRefineryUpgrade);
+    if(result.ok) recordQuestRefineryMaterialUpgradeStart(confirmMaterialUpgradeBtn.dataset.confirmRefineryUpgrade, result.level);
     showToast(result.ok ? `${result.material.name} niveau ${result.level} en construction.` : result.reason);
     store.selectedRefineryUpgrade = result.ok ? null : store.selectedRefineryUpgrade;
     saveState();
