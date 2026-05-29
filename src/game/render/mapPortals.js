@@ -73,6 +73,33 @@ function drawPortalVisual({ctx, portal, now}){
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+  if(portal.damaged){
+    ctx.globalCompositeOperation = "source-over";
+    ctx.rotate(-.34);
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "rgba(248,113,113,.88)";
+    ctx.shadowColor = "rgba(239,68,68,.75)";
+    ctx.shadowBlur = 18;
+    for(let i = 0; i < 4; i++){
+      const y = coreR * (-.56 + i * .34);
+      ctx.beginPath();
+      ctx.moveTo(-coreR * .92, y);
+      ctx.lineTo(-coreR * .35, y + 16);
+      ctx.lineTo(coreR * .06, y - 10);
+      ctx.lineTo(coreR * .78, y + 12);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    ctx.rotate(.34);
+    ctx.fillStyle = "rgba(248,113,113,.94)";
+    for(let i = 0; i < 7; i++){
+      const a = now / 380 + i * 1.71;
+      const d = coreR * (1.06 + (i % 3) * .16);
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * d, Math.sin(a * 1.12) * d, 3 + (i % 2), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   ctx.restore();
 }
 
@@ -83,6 +110,10 @@ export function drawMapPortals({ctx, currentMap, getMapPortals}){
     drawPortalVisual({ctx, portal, now});
     ctx.fillStyle = "#e9d5ff";
     ctx.font = "700 16px Rajdhani, Arial";
+    if(portal.closed){
+      ctx.fillText(portal.label || "PORTAIL FERME", portal.x - 78, portal.y - safeR - 16);
+      continue;
+    }
     ctx.fillText(`${portal.label} · APPUIE J`, portal.x - 92, portal.y - safeR - 16);
   }
 }

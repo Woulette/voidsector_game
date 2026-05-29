@@ -3,7 +3,8 @@ export function createCombatStatusEffectSystem({
   setState,
   updatePoisonStatus,
   pushDamageText,
-  handlePlayerDeath
+  handlePlayerDeath,
+  onPlayerHpLost
 }){
   function clearPoison(){
     const {player} = getState();
@@ -56,7 +57,9 @@ export function createCombatStatusEffectSystem({
       effect.tick += effect.interval;
       const dealt = Math.max(0, Math.round(effect.damage || 0));
       if(dealt > 0){
+        const hpBefore = Number(player.hp || 0);
         player.hp -= dealt;
+        onPlayerHpLost?.(Math.max(0, hpBefore - Number(player.hp || 0)));
         player.secondsSinceDamage = 0;
         pushDamageText({
           x:player.x,

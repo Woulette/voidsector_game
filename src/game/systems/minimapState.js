@@ -1,5 +1,5 @@
 export function createMiniMapState({canvas, getCurrentMap, initialLayout = null, onChange}){
-  const state = {x:null, y:92, w:184, h:150, minW:150, maxW:330};
+  const state = {x:null, y:92, w:310, h:170, minW:220, minH:120, maxW:720, maxH:430};
   applyLayout(initialLayout, false);
 
   function viewWidth(){ return canvas.__viewWidth || canvas.clientWidth || canvas.width; }
@@ -18,7 +18,7 @@ export function createMiniMapState({canvas, getCurrentMap, initialLayout = null,
     if(Number.isFinite(Number(layout.x))) state.x = Number(layout.x);
     if(Number.isFinite(Number(layout.y))) state.y = Number(layout.y);
     if(Number.isFinite(Number(layout.w))) state.w = Math.max(state.minW, Math.min(state.maxW, Number(layout.w)));
-    if(Number.isFinite(Number(layout.h))) state.h = Math.max(90, Math.min(300, Number(layout.h)));
+    if(Number.isFinite(Number(layout.h))) state.h = Math.max(state.minH, Math.min(state.maxH, Number(layout.h)));
     if(shouldNotify) notify();
   }
 
@@ -37,11 +37,13 @@ export function createMiniMapState({canvas, getCurrentMap, initialLayout = null,
 
   function resize(delta){
     const oldW = state.w;
-    const nextW = Math.max(state.minW, Math.min(state.maxW, state.w + delta));
-    if(nextW === oldW) return;
+    const oldH = state.h;
     const ratio = state.h / state.w;
+    const nextW = Math.max(state.minW, Math.min(state.maxW, state.w + delta * 2));
+    if(nextW === oldW) return;
     state.w = nextW;
-    state.h = Math.round(nextW * ratio);
+    state.h = Math.max(state.minH, Math.min(state.maxH, Math.round(nextW * ratio)));
+    if(state.h === oldH && nextW === oldW) return;
     setPosition(state.x ?? viewWidth() - state.w - 18, state.y, false);
     notify();
   }

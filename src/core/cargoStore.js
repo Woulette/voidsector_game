@@ -75,3 +75,13 @@ export function addShipCargoMaterial(id, amount=1, shipId = store.state.activeSh
   return {added, remaining:requested - added, used:getShipCargoUsed(shipId), capacity};
 }
 
+export function addShipCargoMaterialForced(id, amount=1, shipId = store.state.activeShip){
+  if(!getRawMaterial(id)) return {added:0, used:getShipCargoUsed(shipId), capacity:getShipCargoCapacity(shipId)};
+  const added = Math.max(0, Math.ceil(Number(amount || 0)));
+  if(added > 0){
+    const cargo = getShipCargo(shipId);
+    cargo[id] = Math.max(0, Number(cargo[id] || 0)) + added;
+  }
+  return {added, used:getShipCargoUsed(shipId), capacity:getShipCargoCapacity(shipId)};
+}
+

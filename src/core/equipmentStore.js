@@ -187,6 +187,19 @@ export function getInventoryCount(itemId){
   return store.state.inventoryItems.filter(entry=>entry.itemId === itemId).length;
 }
 
+export function removeInventoryItems(itemId, amount){
+  const need = Math.max(0, Number(amount || 0));
+  if(need <= 0) return true;
+  if(getInventoryCount(itemId) < need) return false;
+  let removed = 0;
+  store.state.inventoryItems = store.state.inventoryItems.filter(entry=>{
+    if(entry.itemId !== itemId || removed >= need) return true;
+    removed += 1;
+    return false;
+  });
+  return removed === need;
+}
+
 export function applyDronePermanentUpgrade(index, inventoryUid){
   const target = Math.max(0, Number(index || 0));
   if(target >= getDroneLoadout().length) return {ok:false, reason:"Aucun drone a cet emplacement."};

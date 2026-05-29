@@ -79,6 +79,7 @@ export function createCombatPanels({
   getActiveQuest,
   getActiveQuests,
   getAllQuests,
+  getQuestObjectiveProgress,
   getQuestProgress,
   claimQuest,
   getItem,
@@ -101,6 +102,7 @@ export function createCombatPanels({
   let spawnPanelMode = null;
   let spawnPanelRefreshT = 0;
   let utilityPanelRefreshT = 0;
+  let utilityBadgeRefreshT = 0;
   let groupMembers = [];
   let selectedQuestId = null;
   let selectedQuestCategory = "available";
@@ -166,7 +168,33 @@ export function createCombatPanels({
       const utilityOpen = !!panel && !panel.classList.contains("hidden");
       const refineryOpen = mode === "refinery" && spawnPanelMode === "refinery" && !document.getElementById("spawnInteractionPanel")?.classList.contains("hidden");
       btn.classList.toggle("active", utilityOpen || refineryOpen);
+      if(mode === "quests") syncQuestDockBadge(btn);
     });
+  }
+
+  function getClaimableQuestCount(){
+    return getActiveQuests().filter(quest=>{
+      const objectives = Array.isArray(quest.objectives) ? quest.objectives : [quest.objective];
+      const target = objectives.filter(Boolean).reduce((sum, objective)=>sum + Number(objective.count || 0), 0);
+      return target > 0 && getQuestProgress(quest.id) >= target && !store.state.completedQuestClaims?.[quest.id];
+    }).length;
+  }
+
+  function syncQuestDockBadge(btn){
+    const count = getClaimableQuestCount();
+    let badge = btn.querySelector(".combat-utility-badge");
+    if(count <= 0){
+      badge?.remove();
+      btn.removeAttribute("data-notify");
+      return;
+    }
+    if(!badge){
+      badge = document.createElement("span");
+      badge.className = "combat-utility-badge";
+      btn.appendChild(badge);
+    }
+    badge.textContent = String(Math.min(99, count));
+    btn.dataset.notify = "quests";
   }
 
   function applyUtilityPanelLayout(mode, panel){
@@ -217,7 +245,9 @@ export function createCombatPanels({
       detailTab:combatQuestDetailTab,
       enemyTypes,
       rawMaterials:getAllRawMaterials(),
-      getQuestProgress
+      getQuestProgress,
+      getQuestObjectiveProgress,
+      questFailProgress:store.state.questFailProgress || {}
     });
   }
 
@@ -687,6 +717,7 @@ export function createCombatPanels({
       spawnPanelMode = null;
       return;
     }
+    const questListScrollTop = mode === "quests" ? content.querySelector(".quest-strip-list")?.scrollTop : null;
     spawnPanelMode = mode;
     spawnPanelRefreshT = 1;
     panel.classList.toggle("refinery-mode", mode === "refinery");
@@ -744,6 +775,10 @@ export function createCombatPanels({
     });
     title.textContent = rendered.title;
     content.innerHTML = rendered.html;
+    if(questListScrollTop !== null){
+      const questList = content.querySelector(".quest-strip-list");
+      if(questList) questList.scrollTop = questListScrollTop;
+    }
   }
 
   function selectQuestForPanel(questId){
@@ -813,6 +848,11 @@ export function createCombatPanels({
   }
 
   function tick(dt){
+    utilityBadgeRefreshT -= dt;
+    if(utilityBadgeRefreshT <= 0){
+      syncUtilityDockButtons();
+      utilityBadgeRefreshT = .25;
+    }
     if(spawnPanelMode){
       const spawnPanel = document.getElementById("spawnInteractionPanel");
       spawnPanelRefreshT -= dt;

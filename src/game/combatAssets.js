@@ -4,7 +4,8 @@ export function preloadCombatAssets({cache, ships, equipment, ammoTypes = [], en
   const mapDecor = maps.flatMap(map=>[
     ...(map.parallaxScene?.backdrops?.map(layer=>layer.src) || []),
     ...(map.parallaxScene?.images?.map(layer=>layer.src) || []),
-    ...(map.parallaxScene?.tiles?.map(layer=>layer.src) || [])
+    ...(map.parallaxScene?.tiles?.map(layer=>layer.src) || []),
+    ...(map.questNpcs?.map(npc=>npc.npcImg).filter(Boolean) || [])
   ]);
   const mapTiles = maps.flatMap(map=>{
     const tileMap = map.tileMap;

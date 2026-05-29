@@ -34,6 +34,9 @@ export function createCombatWorldStateSystem({
     getMapPortals(map).forEach((portal, index)=>{
       zones.push({id:`portal-${index}`, label:portal.label || "Zone portail", x:portal.x, y:portal.y, r:(portal.safeRadius || Math.max(330, (portal.r || 90) * 3.5)) * 1.95, type:"portal"});
     });
+    (map?.closedPortals || []).forEach((portal, index)=>{
+      zones.push({id:`closed-portal-${index}`, label:portal.label || "Zone portail", x:portal.x, y:portal.y, r:(portal.safeRadius || Math.max(330, (portal.r || 90) * 3.5)) * 1.95, type:"portal"});
+    });
     return zones;
   }
 

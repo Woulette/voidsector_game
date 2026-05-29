@@ -56,6 +56,7 @@ export const defaultState = {
   activeQuestIds:[],
   activeQuestId:null,
   questProgress:{},
+  questFailProgress:{},
   completedQuestClaims:{},
   uiLayout:{
     combatUtilityPanel:null,

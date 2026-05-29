@@ -46,6 +46,12 @@ function getMapPortals(map){
   return map.portal ? [map.portal] : [];
 }
 
+function formatCompactCoord({x, y}){
+  const shortX = Math.round(Number(x || 0) / 10);
+  const shortY = Math.round(Number(y || 0) / 10);
+  return `X ${shortX}  Y ${shortY}`;
+}
+
 export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget, revealAllEnemies = false, groupPlayers = []}){
   const {x, y, w, h} = rect;
   const headerH = 22;
@@ -63,6 +69,9 @@ export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget,
   ctx.fillStyle = "#8ee7ff";
   ctx.font = "700 11px Rajdhani, Arial";
   ctx.fillText(currentMap.name, x+9, y+15);
+  ctx.fillStyle = "#bfefff";
+  ctx.font = "600 12px Rajdhani, Arial";
+  ctx.fillText(formatCompactCoord(player), x + 88, y + 15);
   const minus = {x:x+w-42, y:y+4, w:16, h:14};
   const plus = {x:x+w-22, y:y+4, w:16, h:14};
   for(const [label, box] of [["-", minus], ["+", plus]]){
@@ -78,8 +87,8 @@ export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget,
   ctx.textAlign = "left";
 
   ctx.strokeStyle = "rgba(56,189,248,.16)";
-  for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(x+i*w/4,y+headerH); ctx.lineTo(x+i*w/4,y+h); ctx.stroke(); }
-  for(let i=1;i<3;i++){ ctx.beginPath(); ctx.moveTo(x,y+headerH+i*(h-headerH)/3); ctx.lineTo(x+w,y+headerH+i*(h-headerH)/3); ctx.stroke(); }
+  for(let i=1;i<5;i++){ ctx.beginPath(); ctx.moveTo(x+i*w/5,y+headerH); ctx.lineTo(x+i*w/5,y+h); ctx.stroke(); }
+  for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(x,y+headerH+i*(h-headerH)/4); ctx.lineTo(x+w,y+headerH+i*(h-headerH)/4); ctx.stroke(); }
 
   if(currentMap.spawn && currentMap.spawn.kind !== "portal"){
     ctx.fillStyle = "rgba(86,255,79,.55)";

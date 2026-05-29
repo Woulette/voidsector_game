@@ -28,6 +28,8 @@ export function installCombatInputHandlers({
   attackSelectedWithActiveLaser,
   selectActionSlot,
   getStationAt,
+  findQuestNpcAt,
+  interactQuestNpc,
   findEnemyAt,
   findCargoBoxAt,
   setCargoDestination,
@@ -180,6 +182,11 @@ export function installCombatInputHandlers({
       const station = getStationAt(world);
       if(station && Math.hypot(world.x - currentMap.spawn.x, world.y - currentMap.spawn.y) <= (currentMap.spawn.safeRadius || currentMap.spawn.r || 260)){
         renderSpawnInteractionPanel(station.id);
+        return;
+      }
+      const questNpc = findQuestNpcAt?.(world);
+      if(questNpc){
+        interactQuestNpc?.(questNpc);
         return;
       }
       const cargo = findCargoBoxAt?.(world);

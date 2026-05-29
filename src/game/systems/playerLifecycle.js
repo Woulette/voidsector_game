@@ -36,6 +36,7 @@ export function createPlayerLifecycle({
   function damage(amount){
     const player = getPlayer();
     const incoming = Math.max(0, Number(amount || 0));
+    const hpBeforeDamage = Number(player.hp || 0);
     if(incoming > 0){
       markCombatActivity("incoming");
       player.secondsSinceDamage = 0;
@@ -54,6 +55,7 @@ export function createPlayerLifecycle({
       hullPart = incoming;
     }
     if(hullPart > 0) player.hp -= hullPart;
+    const hpLost = Math.max(0, hpBeforeDamage - Number(player.hp || 0));
     if(incoming > 0 && player.hp > 0 && Number(player.damageToHpChance || 0) > 0 && Math.random() <= Number(player.damageToHpChance || 0)){
       const healed = Math.max(1, Math.round(incoming * 0.5));
       const before = player.hp;
@@ -70,6 +72,7 @@ export function createPlayerLifecycle({
       }
     }
     if(player.hp <= 0) onDeath?.();
+    return hpLost;
   }
 
   return {respawn, damage};

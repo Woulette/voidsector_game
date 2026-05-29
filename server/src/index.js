@@ -33,7 +33,7 @@ let instanceSeq = 1;
 const PORTAL_WAVE_TOTAL = 30;
 
 const WORLD_MAPS = {
-  "0":{id:"0", name:"ASTRA-01", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320}, seed:7, count:30, level:[1,3], enemyTypes:[["drone_pirate", .70], ["raider_astral", .30]]},
+  "0":{id:"0", name:"ASTRA-01", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320}, seed:7, count:40, level:[1,3], enemyTypes:[["drone_pirate", .50], ["raider_astral", .50]]},
   "1":{id:"1", name:"ASTRA-02", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320}, seed:19, count:40, level:[3,7], enemyTypes:[["drone_pirate", .30], ["raider_astral", .46], ["chasseur_spectral", .24]]},
   "2":{id:"2", name:"ASTRA-03", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320}, seed:29, count:42, level:[7,10], enemyTypes:[["raider_astral", .36], ["chasseur_spectral", .64]]},
   "3":{id:"3", name:"ASTRA-04", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320}, seed:41, count:45, level:[10,14], enemyTypes:[["raider_astral", .24], ["chasseur_spectral", .76]]},
@@ -48,7 +48,6 @@ const SERVER_QUESTS = [
   ["quest_weekly_assault", "chasseur_spectral", 15, "ASTRA-02"],
   ["quest_astra01_orb_easy_01", "drone_pirate", 10, "ASTRA-01"],
   ["quest_astra01_orb_easy_02", "drone_pirate", 18, "ASTRA-01"],
-  ["quest_astra01_raider_easy_01", "raider_astral", 8, "ASTRA-01"],
   ["quest_astra01_raider_easy_02", "raider_astral", 12, "ASTRA-01"],
   ["quest_astra02_orb_normal_01", "drone_pirate", 14, "ASTRA-02"],
   ["quest_astra02_raider_normal_01", "raider_astral", 16, "ASTRA-02"],
