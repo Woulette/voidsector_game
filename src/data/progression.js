@@ -1,10 +1,10 @@
 ﻿export const portals = [
-  { id:"blue", name:"Portail Bleu", img:"assets/portals/portail_bleu.svg", level:"NIV. 10+", requirement:{level:10}, piecesRequired:20, novaCost:30000, dropZones:["ASTRA-01","ASTRA-02","ASTRA-03"], dropChance:0.001, reward:"20 000 NOVA · 20 000 munitions x4 · Laser MK-IV garanti puis 50%", open:false },
-  { id:"violet", name:"Portail Violet", img:"assets/portals/portail_violet.svg", level:"NIV. 15+", requirement:{level:15}, piecesRequired:35, novaCost:65000, dropZones:["ASTRA-03","ASTRA-04","ASTRA-05"], dropChance:0.001, reward:"35 000 NOVA · 35 000 munitions x4 · Accès vaisseaux à compétence", open:false },
-  { id:"red", name:"Portail Rouge", img:"assets/portals/portail_rouge.svg", level:"NIV. 20+", requirement:{level:20}, piecesRequired:50, novaCost:125000, dropZones:["Zone 21-30"], dropChance:0, reward:"50 000 NOVA · 50 000 munitions x4 · 50% Noyau Overdrive Drone", open:false },
-  { id:"emerald", name:"Portail Émeraude", img:"assets/portals/portail_emeraude.svg", level:"NIV. 30+", requirement:{level:30}, piecesRequired:70, novaCost:210000, dropZones:["Zone 31-40"], dropChance:0, reward:"50 000 NOVA · 25 000 munitions x4 · 33% Laser MK-IV · Accès améliorations", open:false },
-  { id:"void", name:"Portail du Néant", img:"assets/portals/portail_neant.svg", level:"NIV. 35+", requirement:{level:35}, piecesRequired:95, novaCost:340000, dropZones:["Zone 41-50"], dropChance:0, reward:"60 000 NOVA · 30 000 munitions x4 · 33% Laser MK-IV · 33% Noyau Overdrive · Accès recettes", open:false },
-  { id:"ancient", name:"Portail Ancestral", img:"assets/portals/portail_ancestral.svg", level:"NIV. 40+", requirement:{level:40}, piecesRequired:140, novaCost:520000, dropZones:["Zone 51+"], dropChance:0, reward:"100 000 NOVA · 10 000 munitions x6 · Drone ancestral garanti puis 50% · Accès prestige", open:false }
+  { id:"blue", name:"Portail Bleu", img:"assets/portals/portail_bleu.svg", pieceImg:"assets/portal_pieces/portal_piece_blue.png", level:"NIV. 15+", requirement:{level:15}, piecesRequired:20, novaCost:30000, dropZones:["ASTRA-01","ASTRA-02","ASTRA-03"], dropChance:0.0033, reward:"20 000 NOVA · 20 000 munitions x4 · Laser MK-IV garanti puis 50%", open:false },
+  { id:"violet", name:"Portail Violet", img:"assets/portals/portail_violet.svg", level:"NIV. 20+", requirement:{level:20}, piecesRequired:35, novaCost:65000, dropZones:["ASTRA-03","ASTRA-04","ASTRA-05"], dropChance:0.0033, reward:"35 000 NOVA · 35 000 munitions x4 · Accès vaisseaux à compétence", open:false },
+  { id:"red", name:"Portail Rouge", img:"assets/portals/portail_rouge.svg", level:"NIV. 25+", requirement:{level:25}, piecesRequired:50, novaCost:125000, dropZones:["Zone 21-30"], dropChance:0.0033, reward:"50 000 NOVA · 50 000 munitions x4 · 50% Noyau Overdrive Drone", open:false },
+  { id:"emerald", name:"Portail Émeraude", img:"assets/portals/portail_emeraude.svg", level:"NIV. 35+", requirement:{level:35}, piecesRequired:70, novaCost:210000, dropZones:["Zone 31-40"], dropChance:0.0033, reward:"50 000 NOVA · 25 000 munitions x4 · 33% Laser MK-IV · Accès améliorations", open:false },
+  { id:"void", name:"Portail du Néant", img:"assets/portals/portail_neant.svg", level:"NIV. 40+", requirement:{level:40}, piecesRequired:95, novaCost:340000, dropZones:["Zone 41-50"], dropChance:0.0033, reward:"60 000 NOVA · 30 000 munitions x4 · 33% Laser MK-IV · 33% Noyau Overdrive · Accès recettes", open:false },
+  { id:"ancient", name:"Portail Ancestral", img:"assets/portals/portail_ancestral.svg", level:"NIV. 45+", requirement:{level:45}, piecesRequired:140, novaCost:520000, dropZones:["Zone 51+"], dropChance:0.0033, reward:"100 000 NOVA · 10 000 munitions x6 · Drone ancestral garanti puis 50% · Accès prestige", open:false }
 ];
 
 export const skills = [
@@ -141,36 +141,71 @@ export const refineryRecipes = [
   {id:"refine_noyau_astra", name:"Stabilisation Noyau d'Astra", outputId:"noyau_astra", outputAmount:1, durationMs:240_000, costs:{catalyseur_quantique:10, conducteur_renforce:10, blindage_composite:10}, desc:"Stabilise les composants avancés avec un catalyseur spécial."}
 ];
 
+const generatedCombatQuests = [
+  ["quest_astra01_raider_easy_01", "normal", 3, "Rushers en fuite", "Détruis 8 Vorak rushers dans ASTRA-01.", "raider_astral", 8, "ASTRA-01", 18000, 940, {nickel_brut:12}],
+  ["quest_astra01_raider_easy_02", "daily", 3, "Prime de patrouille", "Détruis 12 Vorak rushers dans ASTRA-01.", "raider_astral", 12, "ASTRA-01", 26000, 1300, {nickel_brut:16, titane_fissure:8}],
+  ["quest_astra02_orb_normal_01", "normal", 4, "Entrée ASTRA-02", "Détruis 14 Orbes sentinelles dans ASTRA-02.", "drone_pirate", 14, "ASTRA-02", 24000, 1350, {cuivre_orbital:18, zinc_spatial:10}],
+  ["quest_astra02_raider_normal_01", "normal", 5, "Couloir instable", "Détruis 16 Vorak rushers dans ASTRA-02.", "raider_astral", 16, "ASTRA-02", 32000, 1800, {nickel_brut:18, titane_fissure:10}],
+  ["quest_astra02_spectral_normal_01", "normal", 7, "Signal spectral", "Détruis 10 Parasites astraux dans ASTRA-02.", "chasseur_spectral", 10, "ASTRA-02", 43000, 2500, {silice_conductrice:18, catalyseur_quantique:1}],
+  ["quest_astra02_spectral_daily_01", "daily", 8, "Prime spectrale", "Détruis 16 Parasites astraux dans ASTRA-02.", "chasseur_spectral", 16, "ASTRA-02", 66000, 3600, {silice_conductrice:28, catalyseur_quantique:2}],
+  ["quest_astra03_raider_normal_01", "normal", 8, "Raiders de frontière", "Détruis 14 Vorak rushers dans ASTRA-03.", "raider_astral", 14, "ASTRA-03", 48000, 3000, {nickel_brut:24, titane_fissure:14}],
+  ["quest_astra03_spectral_normal_01", "normal", 9, "Essaim spectral", "Détruis 18 Parasites astraux dans ASTRA-03.", "chasseur_spectral", 18, "ASTRA-03", 74000, 4300, {silice_conductrice:34, catalyseur_quantique:2}],
+  ["quest_astra03_spectral_hard_01", "weekly", 10, "Purge ASTRA-03", "Détruis 35 Parasites astraux dans ASTRA-03.", "chasseur_spectral", 35, "ASTRA-03", 150000, 9200, {silice_conductrice:70, catalyseur_quantique:5}],
+  ["quest_astra04_spectral_hard_01", "normal", 12, "Ombres d'ASTRA-04", "Détruis 22 Parasites astraux dans ASTRA-04.", "chasseur_spectral", 22, "ASTRA-04", 115000, 7200, {silice_conductrice:50, catalyseur_quantique:4}],
+  ["quest_astra04_spectral_hard_02", "weekly", 14, "Front spectral lourd", "Détruis 45 Parasites astraux dans ASTRA-04.", "chasseur_spectral", 45, "ASTRA-04", 240000, 16000, {silice_conductrice:110, catalyseur_quantique:8}],
+  ["quest_astra05_boss_orb_01", "normal", 18, "Boss sentinelles", "Détruis 5 Boss Orbes sentinelles dans ASTRA-05.", "boss_drone_pirate", 5, "ASTRA-05", 90000, 6500, {cuivre_orbital:60, zinc_spatial:30, catalyseur_quantique:3}],
+  ["quest_astra05_boss_raider_01", "normal", 18, "Boss rushers", "Détruis 5 Boss Vorak rushers dans ASTRA-05.", "boss_raider_astral", 5, "ASTRA-05", 110000, 7600, {nickel_brut:60, titane_fissure:30, catalyseur_quantique:3}],
+  ["quest_astra05_boss_spectral_01", "normal", 19, "Boss parasites", "Détruis 5 Boss Parasites astraux dans ASTRA-05.", "boss_chasseur_spectral", 5, "ASTRA-05", 150000, 9800, {silice_conductrice:70, catalyseur_quantique:4}],
+  ["quest_astra05_boss_nebular_01", "normal", 20, "Traqueurs d'élite", "Détruis 4 Boss Traqueurs abyssaux dans ASTRA-05.", "boss_cuirasse_nebulaire", 4, "ASTRA-05", 190000, 12000, {alliage_cuivre_zinc:8, plaque_nickel_titane:8, catalyseur_quantique:5}],
+  ["quest_astra05_boss_crystal_01", "normal", 21, "Cristaux d'élite", "Détruis 4 Boss Cristaux du néant dans ASTRA-05.", "boss_cristal_du_neant", 4, "ASTRA-05", 260000, 15500, {conducteur_renforce:5, blindage_composite:5, catalyseur_quantique:6}],
+  ["quest_astra05_boss_amber_01", "normal", 22, "Cuirasses d'élite", "Détruis 3 Boss Cuirasses ambre dans ASTRA-05.", "boss_cuirasse_ambre", 3, "ASTRA-05", 420000, 25000, {conducteur_renforce:8, blindage_composite:8, noyau_astra:1}],
+  ["quest_astra05_boss_daily_01", "daily", 18, "Prime orbes boss", "Détruis 10 Boss Orbes sentinelles dans ASTRA-05.", "boss_drone_pirate", 10, "ASTRA-05", 180000, 12000, {catalyseur_quantique:8}],
+  ["quest_astra05_boss_daily_02", "daily", 20, "Prime parasites boss", "Détruis 8 Boss Parasites astraux dans ASTRA-05.", "boss_chasseur_spectral", 8, "ASTRA-05", 240000, 16000, {silice_conductrice:120, catalyseur_quantique:10}],
+  ["quest_astra05_boss_weekly_01", "weekly", 20, "Nettoyage des rushers boss", "Détruis 25 Boss Vorak rushers dans ASTRA-05.", "boss_raider_astral", 25, "ASTRA-05", 500000, 36000, {conducteur_renforce:10, blindage_composite:10, noyau_astra:2}],
+  ["quest_astra05_boss_weekly_02", "weekly", 22, "Siège d'ASTRA-05", "Détruis 12 Boss Cuirasses ambre dans ASTRA-05.", "boss_cuirasse_ambre", 12, "ASTRA-05", 1200000, 70000, {conducteur_renforce:20, blindage_composite:20, noyau_astra:5}],
+  ["quest_cyan01_raider_easy_01", "daily", 3, "Prime Cyan", "Détruis 10 Vorak rushers dans CYAN-01.", "raider_astral", 10, "CYAN-01", 22000, 1150, {nickel_brut:14, zinc_spatial:8}]
+].map(([id, category, requiredLevel, title, desc, target, count, zone, credits, xp, materials])=>({
+  id,
+  category,
+  requiredLevel,
+  title,
+  giver:"Relais de Commandement",
+  desc,
+  objective:{type:"kill", target, count, zone},
+  rewards:{credits, xp, materials}
+}));
+
 export const questCatalog = [
   {
     id:"quest_drone_cleanup",
     category:"normal",
     requiredLevel:1,
-    title:"Nettoyage de drones",
+    title:"Un passe droit ?",
+    special:true,
     giver:"Relais de Commandement",
-    desc:"Élimine 6 Drones pirates dans ASTRA-01 pour sécuriser le couloir de départ.",
-    objective:{type:"kill", target:"drone_pirate", count:6, zone:"ASTRA-01"},
-    rewards:{credits:9000, xp:420, materials:{cuivre_orbital:10, zinc_spatial:3}}
+    desc:"Sécurise la zone et reviens me voir, je t'offrirai ton passe droit.",
+    objective:{type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:3, zones:["ASTRA-01","ASTRA-02"]},
+    rewards:{credits:200000, premium:5000, xp:500, items:["laser_mk3", "launcher_rocket_mk1"], materials:{}}
   },
   {
     id:"quest_raider_patrol",
     category:"normal",
-    requiredLevel:3,
-    title:"Patrouille astrale",
+    requiredLevel:1,
+    title:"Pulvérisé à la racine",
     giver:"Relais de Commandement",
-    desc:"Intercepte 4 Raiders astraux autour du portail d'ASTRA-01.",
-    objective:{type:"kill", target:"raider_astral", count:4, zone:"ASTRA-01"},
-    rewards:{credits:13500, xp:650, materials:{nickel_brut:8, titane_fissure:4}}
+    desc:"Nettoie la zone et reviens me voir quand les Vorak rushers ne seront plus une menace.",
+    objective:{type:"kill", target:"raider_astral", label:"Vorak rusher", count:3, zones:["ASTRA-01","ASTRA-02"]},
+    rewards:{credits:10000, premium:150, xp:500, items:["shield_omega"], materials:{zinc_spatial:1000, cuivre_orbital:1000, nickel_brut:1000, titane_fissure:1000, silice_conductrice:1000}}
   },
   {
     id:"quest_spectral_scan",
     category:"normal",
-    requiredLevel:8,
-    title:"Balayage spectral",
+    requiredLevel:1,
+    title:"Un choix rationelle",
     giver:"Relais de Commandement",
-    desc:"Abats 5 Chasseurs spectraux dans ASTRA-02 pour calibrer les scanners.",
-    objective:{type:"kill", target:"chasseur_spectral", count:5, zone:"ASTRA-02"},
-    rewards:{credits:22000, xp:1200, materials:{silice_conductrice:8, catalyseur_quantique:1}}
+    desc:"Améliore le module de stockage dans la raffinerie. Le lancement suffit, tu n'as pas besoin d'attendre la fin.",
+    objective:{type:"refinery_module_upgrade_start", module:"storage", targetLevel:2, count:1},
+    rewards:{credits:10000, premium:150, xp:500, items:["reactor_ion"], materials:{}}
   },
   {
     id:"quest_daily_cleanup",
@@ -191,7 +226,8 @@ export const questCatalog = [
     desc:"Neutralise une force spectrale dans ASTRA-02. Contrat lourd reserve aux pilotes prepares.",
     objective:{type:"kill", target:"chasseur_spectral", count:15, zone:"ASTRA-02"},
     rewards:{credits:85000, xp:4200, materials:{silice_conductrice:18, catalyseur_quantique:2}}
-  }
+  },
+  ...generatedCombatQuests
 ];
 
 export const pageText = {

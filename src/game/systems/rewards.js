@@ -2,16 +2,13 @@ export function createRewardSystem({
   store,
   portals,
   enemyTypes,
-  rawDropTable,
   getCurrentMap,
   getGameMode,
-  getAllRawMaterials,
   getSkillBonus,
   registerKill,
   recordQuestKill,
   addXP,
-  addPortalPiece,
-  spawnCargoBox,
+  spawnPortalPieceDrop,
   getSelectedEnemy,
   clearSelectedEnemy,
   getParticles,
@@ -49,41 +46,9 @@ export function createRewardSystem({
     const currentMap = getCurrentMap();
     for(const portal of portals){
       if(!portal.dropChance || !(portal.dropZones || []).includes(currentMap.name)) continue;
-      if(Math.random() <= portal.dropChance){
-        addPortalPiece(portal.id, 1);
-        showToast(`Pièce de ${portal.name} trouvée !`);
-        return portal;
-      }
+      if(Math.random() <= portal.dropChance) return portal;
     }
     return null;
-  }
-
-  function materialDropsFromLoot(loot){
-    const rawMaterials = getAllRawMaterials();
-    return Object.entries(loot?.materials || {})
-      .map(([id, amount])=>{
-        const safeAmount = Math.max(0, Math.round(Number(amount || 0)));
-        if(safeAmount <= 0) return null;
-        const material = rawMaterials.find(item=>item.id === id);
-        return {id, amount:safeAmount, label:`${safeAmount} ${material?.short || id}`};
-      })
-      .filter(Boolean);
-  }
-
-  function rollMaterials(loot){
-    const fixedMaterials = materialDropsFromLoot(loot);
-    if(fixedMaterials.length) return fixedMaterials;
-    const materials = [];
-    const rawMaterials = getAllRawMaterials();
-    for(const drop of rawDropTable){
-      if(Math.random() > drop.chance) continue;
-      const amount = Math.floor(drop.min + Math.random() * (drop.max - drop.min + 1));
-      if(amount > 0){
-        const material = rawMaterials.find(item=>item.id === drop.id);
-        materials.push({id:drop.id, amount, label:`${amount} ${material?.short || drop.id}`});
-      }
-    }
-    return materials;
   }
 
   function spawnRewardParticles(enemy){
@@ -114,14 +79,13 @@ export function createRewardSystem({
     const premium = Math.round(Number(loot.premium || 0) * Number(skillBonus.novaMultiplier || 1));
     store.state.player.credits += credits;
     store.state.player.premium += premium;
-    if(addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de compétence.`);
+    if(addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
 
     const pieceDrop = rollPortalPiece();
-    const materials = rollMaterials(loot);
-    if(materials.length) spawnCargoBox(enemy, materials);
-    if(questCompleted) showToast("Quête terminée : retourne au relais pour réclamer la récompense.");
+    if(pieceDrop) spawnPortalPieceDrop?.(enemy, pieceDrop);
+    if(questCompleted) showToast("Quete terminee : retourne au relais pour reclamer la recompense.");
 
-    pushLootNotice({credits, xp, premium, piece:pieceDrop ? `+1 pièce ${pieceDrop.name}` : null});
+    pushLootNotice({credits, xp, premium, piece:pieceDrop ? `Piece ${pieceDrop.name} au sol` : null});
     spawnRewardParticles(enemy);
     saveState();
   }

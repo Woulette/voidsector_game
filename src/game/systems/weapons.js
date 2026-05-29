@@ -75,6 +75,7 @@ export function createWeaponSystem(deps){
         deps.refreshQuickPanel();
         return false;
       }
+      deps.recordWeaponUse?.("rocket", 1);
       deps.markCombatActivity("outgoing");
       enemy.aggro = true;
       rocketSide *= -1;
@@ -119,6 +120,7 @@ export function createWeaponSystem(deps){
       deps.refreshQuickPanel();
       return false;
     }
+    deps.recordWeaponUse?.("laser", volley.count);
     deps.markCombatActivity("outgoing");
     enemy.aggro = true;
     const damage = volley.rollDamage() * (ammo.multiplier || 1);
@@ -167,6 +169,7 @@ export function createWeaponSystem(deps){
       deps.refreshQuickPanel();
       return false;
     }
+    deps.recordWeaponUse?.("missile", needed);
     deps.markCombatActivity("outgoing");
     enemy.aggro = true;
     const a = Math.atan2(dy, dx);

@@ -242,7 +242,10 @@ export const MAPS = [
     name:"ASTRA-04",
     width:10000,
     height:8000,
-    portal:{x:-4300,y:3300,r:95,safeRadius:230,targetMap:1,targetX:4300,targetY:3300,label:"VERS ASTRA-02"},
+    portals:[
+      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:1,targetX:4300,targetY:3300,label:"VERS ASTRA-02"},
+      {x:4300,y:-3300,r:95,safeRadius:230,targetMap:4,targetX:-4300,targetY:3300,label:"VERS ASTRA-05"}
+    ],
     enemyCount:50,
     enemyLevel:[8,12],
     enemySeed:43,
@@ -296,6 +299,70 @@ export const MAPS = [
     fixedEnemyCounts:{
       cuirasse_ambre:6
     }
+  },
+  {
+    id:4,
+    name:"ASTRA-05",
+    width:10000,
+    height:8000,
+    spawn:{x:-4300,y:3300,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430},
+    portal:{x:-4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:4300,targetY:-3300,label:"VERS ASTRA-04"},
+    enemyCount:30,
+    enemyLevel:[18,24],
+    enemySeed:59,
+    closeStarCount:1840,
+    parallaxScene:{
+      enabled:true,
+      hideGrid:true,
+      tileAlpha:0,
+      background:["#010104", "#06010a", "#010102"],
+      nebulae:[
+        {x:-980,y:420,r:1040,p:.075,color:"rgba(88,28,135,.12)",mid:"rgba(168,85,247,.040)",edge:"rgba(0,0,0,0)"},
+        {x:760,y:-760,r:1180,p:.060,color:"rgba(185,28,28,.10)",mid:"rgba(251,146,60,.032)",edge:"rgba(0,0,0,0)"},
+        {x:1580,y:780,r:820,p:.11,color:"rgba(96,165,250,.070)",mid:"rgba(30,64,175,.030)",edge:"rgba(0,0,0,0)"}
+      ],
+      dustSpecks:[
+        {x:-220,y:-180,w:1800,h:620,count:135,p:.11,sizeMin:.22,sizeMax:.82,alphaMin:.012,alphaMax:.052,colors:["216,180,254","248,113,113","191,219,254"]},
+        {x:520,y:420,w:1500,h:520,count:96,p:.17,sizeMin:.20,sizeMax:.72,alphaMin:.010,alphaMax:.040,colors:["168,85,247","251,146,60","147,197,253"]},
+        {x:-780,y:720,w:1080,h:420,count:64,p:.25,sizeMin:.18,sizeMax:.60,alphaMin:.008,alphaMax:.030,colors:["255,237,213","127,29,29","216,180,254"]}
+      ],
+      tiles:[],
+      images:[],
+      lightClouds:[
+        {x:-520,y:-80,r:720,p:.050,seed:501,alpha:.116,blobs:13,filaments:0,rotation:.18,squeeze:.44,core:"rgba(168,85,247,.116)",mid:"rgba(88,28,135,.052)",edge:"rgba(18,3,24,.012)"},
+        {x:460,y:280,r:620,p:.065,seed:502,alpha:.098,blobs:11,filaments:0,rotation:-.30,squeeze:.52,core:"rgba(248,113,113,.098)",mid:"rgba(153,27,27,.040)",edge:"rgba(18,3,4,.010)"},
+        {x:980,y:-420,r:520,p:.080,seed:503,alpha:.082,blobs:9,filaments:0,rotation:.44,squeeze:.50,core:"rgba(96,165,250,.082)",mid:"rgba(30,64,175,.034)",edge:"rgba(18,3,4,.010)"}
+      ],
+      foregroundClouds:[
+        {x:-1740,y:1360,r:520,p:.50,seed:521,alpha:.108,blobs:16,filaments:0,scale:.72,squeeze:.44,core:"rgba(168,85,247,.108)",mid:"rgba(88,28,135,.052)",edge:"rgba(18,3,24,.012)"},
+        {x:-660,y:760,r:440,p:.54,seed:522,alpha:.092,blobs:14,filaments:0,scale:.66,squeeze:.50,core:"rgba(248,113,113,.092)",mid:"rgba(153,27,27,.044)",edge:"rgba(18,3,4,.011)"},
+        {x:980,y:-1040,r:460,p:.48,seed:523,alpha:.088,blobs:14,filaments:0,scale:.64,squeeze:.46,core:"rgba(96,165,250,.088)",mid:"rgba(30,64,175,.040)",edge:"rgba(18,3,5,.010)"},
+        {x:1780,y:-520,r:380,p:.56,seed:524,alpha:.076,blobs:12,filaments:0,scale:.60,squeeze:.52,core:"rgba(251,146,60,.076)",mid:"rgba(127,29,29,.032)",edge:"rgba(18,3,4,.009)"}
+      ],
+      glowSpots:[
+        {x:160,y:-160,r:520,p:.10,color:"rgba(168,85,247,.040)"},
+        {x:-920,y:600,r:440,p:.15,color:"rgba(248,113,113,.034)"},
+        {x:1180,y:780,r:360,p:.18,color:"rgba(96,165,250,.028)"}
+      ],
+      starLights:[
+        {x:-60,y:-40,r:800,p:.034,seed:601,alpha:.56,speed:1500,coreRadius:.032},
+        {x:220,y:110,r:660,p:.038,seed:602,alpha:.46,speed:1720,coreRadius:.030}
+      ],
+      asteroidFields:[
+        {x:-520,y:-1020,w:5000,h:1800,count:38,p:.12,angle:-.08,alpha:.42,sizeMin:2,sizeMax:9,sizePower:1.6,craters:0,tint:"slate",shadeMin:24,shadeMax:58},
+        {x:780,y:-620,w:4100,h:1960,count:32,p:.20,angle:.13,alpha:.56,sizeMin:5,sizeMax:17,sizePower:1.8,craters:1,tint:"rust",shadeMin:22,shadeMax:54},
+        {x:-320,y:280,w:3200,h:1640,count:22,p:.28,angle:-.15,alpha:.72,sizeMin:9,sizeMax:24,sizePower:2.0,craters:2,tint:"slate",shadeMin:20,shadeMax:48},
+        {x:1260,y:560,w:2000,h:1320,count:8,p:.34,angle:.08,alpha:.92,sizeMin:18,sizeMax:36,sizePower:2.3,craters:3,tint:"rust",shadeMin:18,shadeMax:46}
+      ]
+    },
+    enemyTypes:[
+      {id:"boss_drone_pirate", weight:.16},
+      {id:"boss_raider_astral", weight:.18},
+      {id:"boss_chasseur_spectral", weight:.20},
+      {id:"boss_cuirasse_nebulaire", weight:.20},
+      {id:"boss_cristal_du_neant", weight:.16},
+      {id:"boss_cuirasse_ambre", weight:.10}
+    ]
   }
 ];
 
@@ -303,6 +370,19 @@ export function getMapPortals(map){
   if(!map) return [];
   if(Array.isArray(map.portals)) return map.portals;
   return map.portal ? [map.portal] : [];
+}
+
+const BOSS_STAT_MULTIPLIER = 4;
+function multiplyMaterials(materials = {}, multiplier = BOSS_STAT_MULTIPLIER){
+  return Object.fromEntries(Object.entries(materials).map(([id, amount])=>[id, Math.max(0, Math.round(Number(amount || 0) * multiplier))]));
+}
+function multiplyLoot(loot, multiplier = BOSS_STAT_MULTIPLIER){
+  return {
+    credits:Math.max(0, Math.round(Number(loot?.credits || 0) * multiplier)),
+    xp:Math.max(0, Math.round(Number(loot?.xp || 0) * multiplier)),
+    premium:Math.max(0, Math.round(Number(loot?.premium || 0) * multiplier)),
+    materials:multiplyMaterials(loot?.materials, multiplier)
+  };
 }
 
 export const ENEMY_TYPES = {
@@ -485,6 +565,187 @@ export const ENEMY_TYPES = {
         plaque_nickel_titane:5
       }
     }
+  },
+  boss_drone_pirate:{
+    name:"Boss Orbe sentinelle",
+    img:"assets/enemies/enemy_cyan_orb.png",
+    levelRange:[18,24],
+    maxHp:()=>800 * BOSS_STAT_MULTIPLIER,
+    speed:()=>190,
+    radius:32,
+    width:88,
+    height:88,
+    attackRange:500,
+    shieldAbsorbRatio:.8,
+    attackDamage:(level)=>(34 + level*4) * BOSS_STAT_MULTIPLIER,
+    attackCooldown:1.25,
+    projectileSpeed:680,
+    color:"rgba(248,113,113,.95)",
+    particle:"rgba(252,165,165,.72)",
+    loot:multiplyLoot({
+      credits:1200,
+      xp:350,
+      premium:2,
+      materials:{nickel_brut:10, titane_fissure:10, silice_conductrice:10}
+    })
+  },
+  boss_raider_astral:{
+    name:"Boss Vorak rusher",
+    img:"assets/enemies/enemy_red_rusher.png",
+    levelRange:[18,24],
+    maxHp:(level)=>(1450 + level*170) * BOSS_STAT_MULTIPLIER,
+    speed:()=>220,
+    radius:42,
+    width:104,
+    height:104,
+    attackRange:250,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:90 * BOSS_STAT_MULTIPLIER,
+    attackDamageMax:140 * BOSS_STAT_MULTIPLIER,
+    attackDamage:()=>115 * BOSS_STAT_MULTIPLIER,
+    attackCooldown:1.35,
+    projectileSpeed:640,
+    color:"rgba(251,146,60,.95)",
+    particle:"rgba(253,186,116,.72)",
+    loot:multiplyLoot({
+      credits:1500,
+      xp:500,
+      premium:3,
+      materials:{cuivre_orbital:10, zinc_spatial:10, nickel_brut:10}
+    })
+  },
+  boss_chasseur_spectral:{
+    name:"Boss Parasite astral",
+    img:"assets/enemies/enemy_green_parasite.png",
+    levelRange:[18,24],
+    maxHp:()=>3500 * BOSS_STAT_MULTIPLIER,
+    maxShield:()=>1500 * BOSS_STAT_MULTIPLIER,
+    speed:()=>200,
+    radius:42,
+    width:104,
+    height:104,
+    attackRange:350,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:150 * BOSS_STAT_MULTIPLIER,
+    attackDamageMax:250 * BOSS_STAT_MULTIPLIER,
+    attackDamage:()=>200 * BOSS_STAT_MULTIPLIER,
+    attackCooldown:1.55,
+    projectileSpeed:620,
+    color:"rgba(168,85,247,.95)",
+    particle:"rgba(216,180,254,.72)",
+    onHitEffect:{type:"poison", damage:50 * BOSS_STAT_MULTIPLIER, interval:2, duration:10},
+    loot:multiplyLoot({
+      credits:4000,
+      xp:1700,
+      premium:5,
+      materials:{
+        cuivre_orbital:20,
+        zinc_spatial:20,
+        nickel_brut:20,
+        titane_fissure:20,
+        silice_conductrice:20
+      }
+    })
+  },
+  boss_cuirasse_nebulaire:{
+    name:"Boss Traqueur abyssal",
+    img:"assets/enemies/enemy_blue_spider.png",
+    levelRange:[18,24],
+    maxHp:()=>8000 * BOSS_STAT_MULTIPLIER,
+    maxShield:()=>2000 * BOSS_STAT_MULTIPLIER,
+    speed:()=>150,
+    radius:54,
+    width:126,
+    height:126,
+    attackRange:350,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:250 * BOSS_STAT_MULTIPLIER,
+    attackDamageMax:350 * BOSS_STAT_MULTIPLIER,
+    attackDamage:()=>300 * BOSS_STAT_MULTIPLIER,
+    attackCooldown:1.70,
+    projectileSpeed:590,
+    color:"rgba(96,165,250,.95)",
+    particle:"rgba(191,219,254,.72)",
+    loot:multiplyLoot({
+      credits:7000,
+      xp:3000,
+      premium:8,
+      materials:{
+        cuivre_orbital:30,
+        zinc_spatial:30,
+        nickel_brut:30,
+        titane_fissure:30,
+        silice_conductrice:30
+      }
+    })
+  },
+  boss_cuirasse_ambre:{
+    name:"Boss Cuirasse ambre",
+    img:"assets/enemies/generated/astra4_ember_cuirass.png",
+    levelRange:[18,24],
+    maxHp:()=>80000 * BOSS_STAT_MULTIPLIER,
+    maxShield:()=>50000 * BOSS_STAT_MULTIPLIER,
+    speed:()=>165,
+    radius:70,
+    width:164,
+    height:164,
+    attackRange:350,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:1300 * BOSS_STAT_MULTIPLIER,
+    attackDamageMax:1500 * BOSS_STAT_MULTIPLIER,
+    attackDamage:()=>1500 * BOSS_STAT_MULTIPLIER,
+    attackCooldown:1.65,
+    projectileSpeed:610,
+    color:"rgba(251,146,60,.95)",
+    particle:"rgba(253,186,116,.72)",
+    loot:multiplyLoot({
+      credits:100000,
+      xp:20000,
+      premium:30,
+      materials:{
+        cuivre_orbital:120,
+        zinc_spatial:120,
+        nickel_brut:120,
+        titane_fissure:120,
+        silice_conductrice:120,
+        alliage_cuivre_zinc:8,
+        plaque_nickel_titane:8
+      }
+    })
+  },
+  boss_cristal_du_neant:{
+    name:"Boss Cristal du neant",
+    img:"assets/enemies/enemy_purple_crystal.png",
+    levelRange:[18,24],
+    maxHp:()=>40000 * BOSS_STAT_MULTIPLIER,
+    maxShield:()=>20000 * BOSS_STAT_MULTIPLIER,
+    speed:()=>170,
+    radius:56,
+    width:128,
+    height:128,
+    attackRange:400,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:800 * BOSS_STAT_MULTIPLIER,
+    attackDamageMax:1000 * BOSS_STAT_MULTIPLIER,
+    attackDamage:()=>900 * BOSS_STAT_MULTIPLIER,
+    attackCooldown:1.85,
+    projectileSpeed:560,
+    color:"rgba(168,85,247,.95)",
+    particle:"rgba(216,180,254,.72)",
+    loot:multiplyLoot({
+      credits:60000,
+      xp:12000,
+      premium:20,
+      materials:{
+        cuivre_orbital:80,
+        zinc_spatial:80,
+        nickel_brut:80,
+        titane_fissure:80,
+        silice_conductrice:80,
+        alliage_cuivre_zinc:5,
+        plaque_nickel_titane:5
+      }
+    })
   }
 };
 
@@ -507,7 +768,14 @@ export const ENEMY_HIT_CHANCE = {
   raider_astral:0.89,
   chasseur_spectral:0.91,
   cuirasse_nebulaire:0.93,
-  cuirasse_ambre:0.92
+  cuirasse_ambre:0.92,
+  cristal_du_neant:0.92,
+  boss_drone_pirate:0.86,
+  boss_raider_astral:0.89,
+  boss_chasseur_spectral:0.91,
+  boss_cuirasse_nebulaire:0.93,
+  boss_cuirasse_ambre:0.92,
+  boss_cristal_du_neant:0.92
 };
 
 export const PORTAL_WAVE_TOTAL = 30;

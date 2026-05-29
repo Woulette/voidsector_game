@@ -1,6 +1,6 @@
 import { addMaterial } from "./cargoStore.js";
 import { skills } from "../data/catalog.js";
-import { addXP, getQuest, store } from "./store.js";
+import { addInventoryItem, addXP, getQuest, store } from "./store.js";
 
 const MAX_ACTIVE_QUESTS = 5;
 export function getActiveQuest(){
@@ -43,6 +43,7 @@ export function acceptQuest(id){
 function questMatchesKill(quest, kind, zoneName){
   if(!quest || quest.objective.type !== "kill") return false;
   if(quest.objective.target && quest.objective.target !== kind) return false;
+  if(Array.isArray(quest.objective.zones) && quest.objective.zones.length && !quest.objective.zones.includes(zoneName)) return false;
   if(quest.objective.zone && quest.objective.zone !== zoneName) return false;
   return true;
 }
@@ -91,6 +92,23 @@ export function recordQuestKill(kind, zoneName){
   return fallbackQuest ? progressQuestKill(fallbackQuest) : false;
 }
 
+function questMatchesRefineryModuleUpgradeStart(quest, moduleId, targetLevel){
+  const objective = quest?.objective || {};
+  if(objective.type !== "refinery_module_upgrade_start") return false;
+  if(objective.module && objective.module !== moduleId) return false;
+  if(Number(objective.targetLevel || 0) && Number(targetLevel || 0) !== Number(objective.targetLevel || 0)) return false;
+  return true;
+}
+
+export function recordQuestRefineryModuleUpgradeStart(moduleId, targetLevel){
+  if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.length) return false;
+  const activeIds = store.state.activeQuestIds.filter(id=>getQuest(id) && !store.state.completedQuestClaims?.[id]).slice(0, MAX_ACTIVE_QUESTS);
+  const matchingQuest = activeIds
+    .map(id=>getQuest(id))
+    .find(quest=>canProgressQuest(quest) && questMatchesRefineryModuleUpgradeStart(quest, moduleId, targetLevel));
+  return matchingQuest ? progressQuestKill(matchingQuest) : false;
+}
+
 export function claimQuest(id){
   const quest = getQuest(id);
   if(!quest) return {ok:false, reason:"Quete introuvable."};
@@ -101,6 +119,7 @@ export function claimQuest(id){
   store.state.player.premium += Math.round(Number(quest.rewards.premium || 0) * multipliers.premium);
   addXP(Number(quest.rewards.xp || 0));
   for(const [materialId, amount] of Object.entries(quest.rewards.materials || {})) addMaterial(materialId, amount);
+  for(const itemId of quest.rewards.items || []) addInventoryItem(itemId);
   if(!store.state.completedQuestClaims || typeof store.state.completedQuestClaims !== "object") store.state.completedQuestClaims = {};
   store.state.completedQuestClaims[id] = true;
   if(Array.isArray(store.state.activeQuestIds)) store.state.activeQuestIds = store.state.activeQuestIds.filter(questId=>questId !== id).slice(0, MAX_ACTIVE_QUESTS);

@@ -68,9 +68,10 @@ import {
   getActiveQuest,
   getActiveQuests,
   getQuestProgress,
-  recordQuestKill
+  recordQuestKill,
+  recordQuestRefineryModuleUpgradeStart
 } from "./questStore.js";
-export { acceptQuest, canClaimQuest, claimQuest, getActiveQuest, getActiveQuests, getQuestProgress, recordQuestKill } from "./questStore.js";
+export { acceptQuest, canClaimQuest, claimQuest, getActiveQuest, getActiveQuests, getQuestProgress, recordQuestKill, recordQuestRefineryModuleUpgradeStart } from "./questStore.js";
 import { getRankScore } from "./rankStore.js";
 export {
   RANK_TABLE,
@@ -187,8 +188,28 @@ export const store = {
 };
 
 const MAX_ACTIVE_QUESTS = 5;
-const MIN_PLAYER_CREDITS = 1000000000;
-const MIN_PLAYER_PREMIUM = 1000000;
+const MIN_PLAYER_CREDITS = 0;
+const MIN_PLAYER_PREMIUM = 0;
+export const XP_CURVE_VERSION = 4;
+const XP_FIXED_NEXT_BY_LEVEL = {
+  1:3000,
+  2:12000,
+  3:35000,
+  4:51000,
+  5:80000,
+  6:113000,
+  7:169000,
+  8:220000,
+  9:314000,
+  10:580000,
+  11:984000,
+  12:1432000,
+  13:1899000
+};
+const XP_FIXED_LAST_LEVEL = 13;
+const XP_TARGET_LEVEL = 49;
+const XP_TARGET_NEXT = 2000000000;
+const XP_GROWTH_AFTER_FIXED = Math.pow(XP_TARGET_NEXT / XP_FIXED_NEXT_BY_LEVEL[XP_FIXED_LAST_LEVEL], 1 / (XP_TARGET_LEVEL - XP_FIXED_LAST_LEVEL));
 export const GRAPHICS_QUALITY_PRESETS = [
   {id:"high", name:"Haute", multiplier:1, desc:"Décor complet"},
   {id:"medium", name:"Moyenne", multiplier:.5, desc:"50% étoiles, sans nuages proches"},
@@ -219,6 +240,11 @@ export function syncSkillPoints(state = store.state){
   const spent = getSpentSkillPoints(state);
   state.player.skillPoints = Math.max(0, earned - spent);
   return state.player.skillPoints;
+}
+export function getXpNextForLevel(level = 1){
+  const targetLevel = Math.max(1, Math.floor(Number(level || 1)));
+  if(XP_FIXED_NEXT_BY_LEVEL[targetLevel]) return XP_FIXED_NEXT_BY_LEVEL[targetLevel];
+  return Math.round(XP_FIXED_NEXT_BY_LEVEL[XP_FIXED_LAST_LEVEL] * Math.pow(XP_GROWTH_AFTER_FIXED, targetLevel - XP_FIXED_LAST_LEVEL));
 }
 export function getShip(id){ return ships.find(s=>s.id===id) || ships[0]; }
 export function getItem(id){ return equipment.find(i=>i.id===id); }
@@ -288,6 +314,17 @@ export function addPortalPiece(id, amount=1){
   store.state.portalPieces[id] = getPortalPieces(id) + Math.max(0, Number(amount || 0));
   return store.state.portalPieces[id];
 }
+export function recordWeaponUse(type, amount=1){
+  const keys = {
+    laser:"laserShotsFired",
+    rocket:"rocketShotsFired",
+    missile:"missileShotsFired"
+  };
+  const key = keys[type];
+  if(!key) return 0;
+  store.state.player[key] = Math.max(0, Number(store.state.player[key] || 0)) + Math.max(0, Math.floor(Number(amount || 0)));
+  return store.state.player[key];
+}
 export function isPortalUnlocked(id){ return Array.isArray(store.state.unlockedPortals) && store.state.unlockedPortals.includes(id); }
 export function unlockPortal(id){
   if(!store.state.unlockedPortals) store.state.unlockedPortals = [];
@@ -331,7 +368,8 @@ export function performPrestige(){
   store.state.prestigeCount = Math.max(0, Number(store.state.prestigeCount || 0)) + 1;
   store.state.player.level = 1;
   store.state.player.xp = 0;
-  store.state.player.xpNext = 1800;
+  store.state.player.xpNext = getXpNextForLevel(1);
+  store.state.xpCurveVersion = XP_CURVE_VERSION;
   syncSkillPoints();
   return {ok:true, prestige:store.state.prestigeCount};
 }
@@ -340,10 +378,26 @@ export function normalizeState(saved){
   const base = clone(defaultState);
   const merged = {...base, ...(saved || {})};
   merged.player = {...base.player, ...(saved?.player || {})};
+  if(saved && Number(saved.economyVersion || 0) < base.economyVersion){
+    merged.player.credits = 0;
+    merged.player.premium = 0;
+  }
+  merged.economyVersion = base.economyVersion;
+  if(Number(saved?.xpCurveVersion || 0) < XP_CURVE_VERSION){
+    merged.player.xpNext = getXpNextForLevel(merged.player.level);
+    merged.player.xp = Math.min(Math.max(0, Number(merged.player.xp || 0)), merged.player.xpNext);
+  }else{
+    merged.player.xpNext = Math.max(1, Number(merged.player.xpNext || getXpNextForLevel(merged.player.level)));
+    merged.player.xp = Math.max(0, Number(merged.player.xp || 0));
+  }
+  merged.xpCurveVersion = XP_CURVE_VERSION;
   merged.player.totalXp = Math.max(0, Number(merged.player.totalXp || 0));
   merged.player.totalKills = Math.max(0, Number(merged.player.totalKills || 0));
   merged.player.totalPlayerKills = Math.max(0, Number(merged.player.totalPlayerKills || 0));
   merged.player.totalPlaySeconds = Math.max(0, Number(merged.player.totalPlaySeconds || 0));
+  merged.player.laserShotsFired = Math.max(0, Number(merged.player.laserShotsFired || 0));
+  merged.player.rocketShotsFired = Math.max(0, Number(merged.player.rocketShotsFired || 0));
+  merged.player.missileShotsFired = Math.max(0, Number(merged.player.missileShotsFired || 0));
   merged.player.activeTitleId = typeof merged.player.activeTitleId === "string" ? merged.player.activeTitleId : null;
   merged.player.titleVisible = merged.player.titleVisible !== false;
   enforcePlayerCurrencyMinimums(merged.player);
@@ -795,7 +849,7 @@ export function addXP(amount){
   while(store.state.player.level < levelCap && store.state.player.xp >= store.state.player.xpNext){
     store.state.player.xp -= store.state.player.xpNext;
     store.state.player.level += 1;
-    store.state.player.xpNext = Math.round(store.state.player.xpNext * 1.35 + 50);
+    store.state.player.xpNext = getXpNextForLevel(store.state.player.level);
     leveled = true;
   }
   if(store.state.player.level >= levelCap) store.state.player.xp = Math.min(store.state.player.xp, store.state.player.xpNext);

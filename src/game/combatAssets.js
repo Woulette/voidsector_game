@@ -23,7 +23,7 @@ export function preloadCombatAssets({cache, ships, equipment, ammoTypes = [], en
   const misc = ["assets/drones/drone_test_sprite.webp", "assets/equipment/rocket_projectile.png", ...rankImages];
   [
     ...ships.flatMap(ship=>[ship.img, ship.combatImg]).filter(Boolean),
-    ...equipment.flatMap(item=>[item.img, item.projectileImg]).filter(Boolean),
+    ...equipment.flatMap(item=>[item.img, item.projectileImg, item.pieceImg]).filter(Boolean),
     ...ammoTypes.flatMap(ammo=>[ammo.img, ammo.projectileImg]).filter(Boolean),
     ...enemySprites,
     ...mapImages,

@@ -3,7 +3,8 @@ export { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment
 export { pageText, portals, questCatalog, rawMaterialCatalog, refineryRecipes, skills } from "./progression.js";
 
 export const defaultState = {
-  player:{name:"NOVA-37", level:1, xp:0, xpNext:1800, credits:85000, premium:20, skillPoints:1, totalXp:0, totalKills:0, totalPlayerKills:0, totalPlaySeconds:0, rankScore:0, activeTitleId:null, titleVisible:true},
+  economyVersion:1,
+  player:{name:"NOVA-37", level:1, xp:0, xpNext:3000, credits:0, premium:0, skillPoints:1, totalXp:0, totalKills:0, totalPlayerKills:0, totalPlaySeconds:0, laserShotsFired:0, rocketShotsFired:0, missileShotsFired:0, rankScore:0, activeTitleId:null, titleVisible:true},
   activeShip:"orion",
   selectedShip:"orion",
   ownedShips:["orion", "test_runner"],

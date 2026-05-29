@@ -43,6 +43,8 @@ export function installCombatInputHandlers({
   setCombatQuestDetailTab,
   selectQuestForPanel,
   selectQuestCategoryForPanel,
+  selectQuestTypeForPanel,
+  toggleLockedQuestsForPanel,
   setRefineryPanelTab,
   openShipRefineRecipe,
   closeShipRefineRecipe,
@@ -519,6 +521,16 @@ export function installCombatInputHandlers({
     const questCategoryBtn = e.target.closest("[data-quest-category]");
     if(questCategoryBtn){
       selectQuestCategoryForPanel?.(questCategoryBtn.dataset.questCategory);
+      return;
+    }
+    const questTypeBtn = e.target.closest("[data-quest-type]");
+    if(questTypeBtn){
+      selectQuestTypeForPanel?.(questTypeBtn.dataset.questType);
+      return;
+    }
+    const lockedQuestBtn = e.target.closest("[data-toggle-locked-quests]");
+    if(lockedQuestBtn){
+      toggleLockedQuestsForPanel?.();
       return;
     }
     const viewQuestBtn = e.target.closest("[data-view-quest]");

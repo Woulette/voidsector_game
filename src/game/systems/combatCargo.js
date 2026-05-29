@@ -1,4 +1,5 @@
 export function createCombatCargoSystem({
+  addPortalPiece,
   addShipCargoMaterial,
   getAllRawMaterials,
   getShipCargoCapacity,
@@ -17,6 +18,7 @@ export function createCombatCargoSystem({
   let groundMaterials = [];
   let pendingCargoBox = null;
   let pendingGroundMaterial = null;
+  const DROP_TTL_MS = 60000;
 
   function clear(){
     cargoBoxes = [];
@@ -36,6 +38,30 @@ export function createCombatCargoSystem({
     };
     cargoBoxes.push(box);
     return box;
+  }
+
+  function spawnPortalPieceDrop(enemy, portal, source = {}){
+    if(!enemy || !portal) return null;
+    const node = {
+      uid:source.uid || `portal_piece_${portal.id}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      kind:"portalPiece",
+      portalId:portal.id,
+      id:portal.id,
+      name:`Piece ${portal.name}`,
+      label:"PIECE",
+      img:portal.pieceImg || portal.img,
+      x:Number(source.x ?? enemy.x) + (source.x === undefined ? (Math.random() - .5) * 70 : 0),
+      y:Number(source.y ?? enemy.y) + (source.y === undefined ? (Math.random() - .5) * 70 : 0),
+      radius:32,
+      size:42,
+      phase:Math.random() * Math.PI * 2,
+      glow:"rgba(168,85,247,.25)",
+      glowCore:"rgba(216,180,254,.55)",
+      fallback:"rgba(168,85,247,.86)",
+      expiresAt:Number(source.expiresAt || Date.now() + DROP_TTL_MS)
+    };
+    groundMaterials.push(node);
+    return node;
   }
 
   function findCargoBoxAt(world){
@@ -91,6 +117,22 @@ export function createCombatCargoSystem({
   function collectGroundMaterial(node){
     const index = groundMaterials.findIndex(entry=>entry.uid === node.uid);
     if(index < 0) return false;
+    if(node.expiresAt && Date.now() >= node.expiresAt){
+      groundMaterials.splice(index, 1);
+      pendingGroundMaterial = null;
+      return false;
+    }
+    if(node.kind === "portalPiece"){
+      addPortalPiece(node.portalId || node.id, 1);
+      groundMaterials.splice(index, 1);
+      particles().push({x:node.x, y:node.y, life:.42, max:.42, size:28, color:node.glowCore || "rgba(216,180,254,.58)"});
+      saveState();
+      showToast(`+1 ${node.name}.`);
+      rewards.showLootNotice({piece:`+1 ${node.name}`});
+      pendingGroundMaterial = null;
+      onCargoChanged?.();
+      return true;
+    }
     const result = addShipCargoMaterial(node.id, 1);
     if(result.added <= 0){
       pendingGroundMaterial = null;
@@ -126,15 +168,25 @@ export function createCombatCargoSystem({
     }
   }
 
+  function tick(){
+    const now = Date.now();
+    const before = groundMaterials.length;
+    groundMaterials = groundMaterials.filter(node=>!node.expiresAt || node.expiresAt > now);
+    if(pendingGroundMaterial && !groundMaterials.some(node=>node.uid === pendingGroundMaterial.uid)) pendingGroundMaterial = null;
+    return before - groundMaterials.length;
+  }
+
   return {
     clear,
     spawnCargoBox,
+    spawnPortalPieceDrop,
     findCargoBoxAt,
     findGroundMaterialAt,
     collectCargoBox,
     collectGroundMaterial,
     setCargoDestination,
     setGroundMaterialDestination,
+    tick,
     updatePending,
     getCargoBoxes:()=>cargoBoxes,
     setCargoBoxes:value=>{ cargoBoxes = Array.isArray(value) ? value : []; },

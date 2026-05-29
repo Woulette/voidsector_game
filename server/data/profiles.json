@@ -1,0 +1,146 @@
+{
+  "mmoprofilepersisttest": {
+    "updatedAt": 1779744131795,
+    "player": {
+      "credits": 2222,
+      "premium": 66,
+      "skillPoints": 8
+    },
+    "cargoHold": {
+      "cuivre_orbital": 101
+    },
+    "skillRanks": {
+      "utility": [
+        2,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "skillLevels": {
+      "utility": 0
+    },
+    "completedPortals": {
+      "blue": 1
+    },
+    "portalPieces": {
+      "blue": 3
+    },
+    "refineryLevels": {
+      "cuivre_orbital": 4
+    },
+    "refineryModules": {
+      "storage": 3,
+      "transport": 2
+    },
+    "refineryUpgradeJobs": {},
+    "refineryShipmentJob": null,
+    "refineryJob": null,
+    "refineryProductionDisabled": {},
+    "refineryLastTick": 55
+  },
+  "nova-37": {
+    "updatedAt": 1779817952390,
+    "player": {
+      "name": "NOVA-37",
+      "level": 3,
+      "xp": 601,
+      "xpNext": 6849,
+      "credits": 16890,
+      "premium": 24,
+      "skillPoints": 3,
+      "totalXp": 4881,
+      "totalKills": 6,
+      "totalPlayerKills": 0,
+      "totalPlaySeconds": 726.2878820002736,
+      "rankScore": 5451,
+      "activeTitleId": null,
+      "titleVisible": true
+    },
+    "cargoHold": {
+      "cuivre_orbital": 25000,
+      "zinc_spatial": 25000,
+      "nickel_brut": 25000,
+      "titane_fissure": 25000,
+      "silice_conductrice": 25000,
+      "alliage_cuivre_zinc": 0,
+      "plaque_nickel_titane": 0,
+      "conducteur_renforce": 0,
+      "blindage_composite": 0,
+      "catalyseur_quantique": 0,
+      "noyau_astra": 0
+    },
+    "skillRanks": {
+      "damage": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "shield": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "utility": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "skillLevels": {
+      "damage": 0,
+      "shield": 0,
+      "utility": 0
+    },
+    "completedPortals": {},
+    "portalPieces": {
+      "blue": 0,
+      "violet": 0,
+      "red": 0,
+      "emerald": 0,
+      "void": 0,
+      "ancient": 0
+    },
+    "refineryLevels": {
+      "cuivre_orbital": 1,
+      "zinc_spatial": 1,
+      "nickel_brut": 1,
+      "titane_fissure": 1,
+      "silice_conductrice": 1,
+      "alliage_cuivre_zinc": 0,
+      "plaque_nickel_titane": 0,
+      "conducteur_renforce": 0,
+      "blindage_composite": 0,
+      "catalyseur_quantique": 0,
+      "noyau_astra": 0
+    },
+    "refineryModules": {
+      "storage": 1,
+      "transport": 1
+    },
+    "refineryUpgradeJobs": {},
+    "refineryShipmentJob": null,
+    "refineryJob": null,
+    "refineryProductionDisabled": {
+      "cuivre_orbital": false,
+      "zinc_spatial": false,
+      "nickel_brut": false,
+      "titane_fissure": false,
+      "silice_conductrice": false,
+      "alliage_cuivre_zinc": false,
+      "plaque_nickel_titane": false,
+      "conducteur_renforce": false,
+      "blindage_composite": false,
+      "catalyseur_quantique": false,
+      "noyau_astra": false
+    },
+    "refineryLastTick": 1779817934585
+  }
+}

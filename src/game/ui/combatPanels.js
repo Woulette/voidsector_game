@@ -1,5 +1,11 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
 import { renderSpawnPanelContent } from "./spawnPanel.js";
+import {
+  multiplayer,
+  connectMultiplayer,
+  inviteMultiplayerPlayer,
+  startCoopTestInstance
+} from "../../multiplayer/client.js";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
@@ -55,6 +61,10 @@ const GLOBAL_FIRMS = {
   cyan:{name:"Cyan Coalition", short:"CYAN"}
 };
 
+function clampPercent(value){
+  return Math.max(0, Math.min(100, Number(value || 0)));
+}
+
 export function createCombatPanels({
   store,
   saveState,
@@ -93,21 +103,28 @@ export function createCombatPanels({
   let utilityPanelRefreshT = 0;
   let groupMembers = [];
   let selectedQuestId = null;
-  let selectedQuestCategory = "normal";
+  let selectedQuestCategory = "available";
+  let selectedQuestType = "normal";
+  let showLockedQuests = false;
   let combatQuestDetailTab = "quest";
   let refineryPanelTab = "raffinage";
   let selectedShipRefineRecipeId = null;
+  let groupHudRefreshT = 0;
+  let groupHudDragReady = false;
 
   function reset(){
     groupMembers = [];
     const activeQuest = getActiveQuest();
-    selectedQuestCategory = activeQuest?.category || "normal";
-    selectedQuestId = activeQuest?.id || getAllQuests().find(quest=>(quest.category || "normal") === selectedQuestCategory)?.id || null;
+    selectedQuestCategory = activeQuest ? "active" : "available";
+    selectedQuestType = activeQuest?.category || "normal";
+    selectedQuestId = activeQuest?.id || getAllQuests().find(quest=>!store.state.completedQuestClaims?.[quest.id])?.id || null;
     combatQuestDetailTab = "quest";
     refineryPanelTab = "raffinage";
     selectedShipRefineRecipeId = null;
     spawnPanelRefreshT = 0;
     utilityPanelRefreshT = 0;
+    groupHudRefreshT = 0;
+    refreshGroupFloatingHud();
   }
 
   function getSpawnPanelMode(){
@@ -183,6 +200,12 @@ export function createCombatPanels({
     saveState();
   }
 
+  function saveGroupFloatingHudLayout(layout){
+    if(!store.state.uiLayout || typeof store.state.uiLayout !== "object") store.state.uiLayout = {};
+    store.state.uiLayout.groupFloatingHud = layout;
+    saveState();
+  }
+
   function renderCombatQuestTracker(){
     const activeQuests = getActiveQuests();
     const trackedQuest = getActiveQuest();
@@ -211,17 +234,220 @@ export function createCombatPanels({
     syncUtilityDockButtons();
   }
 
+  function getGroupMapLabel(state){
+    const id = state?.mapId;
+    const found = maps.find(map=>String(map.id) === String(id) || String(map.name) === String(id));
+    return found?.name || (id !== undefined && id !== null ? String(id) : "Hors combat");
+  }
+
+  function resolveGroupMemberState(member){
+    const currentMap = getCurrentMap?.();
+    const localPlayer = getPlayer?.();
+    if(member.id === multiplayer.playerId && localPlayer){
+      return {
+        x:localPlayer.x,
+        y:localPlayer.y,
+        hp:localPlayer.hp,
+        maxHp:localPlayer.maxHp,
+        shield:localPlayer.shield,
+        maxShield:localPlayer.maxShield,
+        mapId:currentMap?.id ?? currentMap?.name ?? "unknown",
+        updatedAt:Date.now()
+      };
+    }
+    return multiplayer.remotePlayers.get(member.id)?.state || multiplayer.players.find(player=>player.id === member.id)?.state || member.state || null;
+  }
+
+  function renderGroupMemberMeter(label, value, max, className){
+    const safeMax = Math.max(1, Number(max || value || 1));
+    const percent = clampPercent(Number(value || 0) / safeMax * 100);
+    return `<div class="group-member-meter ${className}"><span>${label}</span><b>${Math.round(Number(value || 0))}/${Math.round(safeMax)}</b><i style="width:${percent}%"></i></div>`;
+  }
+
+  function renderGroupMemberCard(member){
+    const currentMap = getCurrentMap?.();
+    const localPlayer = getPlayer?.();
+    const state = resolveGroupMemberState(member);
+    const isLocal = member.id === multiplayer.playerId;
+    const role = member.id === multiplayer.group?.leaderId ? "Chef" : "Membre";
+    const sameMap = state && currentMap && String(state.mapId) === String(currentMap.id);
+    const distance = state && localPlayer && sameMap && !isLocal ? Math.round(Math.hypot(Number(state.x || 0) - localPlayer.x, Number(state.y || 0) - localPlayer.y)) : null;
+    const lastSeen = state?.updatedAt ? Math.max(0, Math.round((Date.now() - Number(state.updatedAt || 0)) / 1000)) : null;
+    return `
+      <div class="group-member-card ${isLocal ? "local" : ""}">
+        <div class="group-member-head">
+          <strong>${escapeHtml(member.name || (isLocal ? multiplayer.name : "Pilote"))}</strong>
+          <span>${role}${isLocal ? " · Toi" : ""}</span>
+        </div>
+        <div class="group-member-meta">
+          <span>Carte <b>${escapeHtml(getGroupMapLabel(state))}</b></span>
+          <span>${sameMap ? "Même carte" : "Autre carte"}</span>
+          ${distance !== null ? `<span>Distance <b>${distance}</b></span>` : ""}
+          ${lastSeen !== null && !isLocal ? `<span>Signal <b>${lastSeen}s</b></span>` : ""}
+        </div>
+        ${state ? `
+          <div class="group-member-meters">
+            ${renderGroupMemberMeter("PV", state.hp, state.maxHp, "hp")}
+            ${renderGroupMemberMeter("Bouclier", state.shield, state.maxShield, "shield")}
+          </div>
+        ` : `<p class="group-panel-note">En attente du signal joueur.</p>`}
+      </div>
+    `;
+  }
+
+  function ensureGroupFloatingHud(){
+    let hud = document.getElementById("groupFloatingHud");
+    if(!hud){
+      hud = document.createElement("div");
+      hud.id = "groupFloatingHud";
+      hud.className = "group-floating-hud frame hidden";
+      hud.innerHTML = `<div class="group-floating-head"><strong>Groupe</strong></div><div class="group-floating-content"></div>`;
+      document.getElementById("gameScreen")?.appendChild(hud);
+    }
+    if(!groupHudDragReady){
+      groupHudDragReady = true;
+      hud.querySelector(".group-floating-head")?.addEventListener("pointerdown", e=>{
+        e.preventDefault();
+        const rect = hud.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+        hud.setPointerCapture?.(e.pointerId);
+        hud.style.left = `${rect.left}px`;
+        hud.style.top = `${rect.top}px`;
+        hud.style.right = "auto";
+        hud.style.bottom = "auto";
+
+        const moveHud = moveEvent=>{
+          const hudRect = hud.getBoundingClientRect();
+          const maxLeft = Math.max(0, window.innerWidth - hudRect.width);
+          const maxTop = Math.max(0, window.innerHeight - hudRect.height);
+          const left = Math.max(0, Math.min(maxLeft, moveEvent.clientX - offsetX));
+          const top = Math.max(0, Math.min(maxTop, moveEvent.clientY - offsetY));
+          hud.style.left = `${left}px`;
+          hud.style.top = `${top}px`;
+        };
+        const stopDrag = upEvent=>{
+          hud.releasePointerCapture?.(upEvent.pointerId);
+          const finalRect = hud.getBoundingClientRect();
+          saveGroupFloatingHudLayout({left:finalRect.left, top:finalRect.top});
+          window.removeEventListener("pointermove", moveHud);
+          window.removeEventListener("pointerup", stopDrag);
+          window.removeEventListener("pointercancel", stopDrag);
+        };
+        window.addEventListener("pointermove", moveHud);
+        window.addEventListener("pointerup", stopDrag);
+        window.addEventListener("pointercancel", stopDrag);
+      });
+    }
+    return hud;
+  }
+
+  function applyGroupFloatingHudLayout(hud){
+    const layout = store.state?.uiLayout?.groupFloatingHud;
+    if(!layout || !Number.isFinite(Number(layout.left)) || !Number.isFinite(Number(layout.top))) return;
+    hud.style.left = `${Math.max(0, Number(layout.left))}px`;
+    hud.style.top = `${Math.max(0, Number(layout.top))}px`;
+    hud.style.right = "auto";
+    hud.style.bottom = "auto";
+  }
+
+  function refreshGroupFloatingHud(){
+    const hud = ensureGroupFloatingHud();
+    const content = hud.querySelector(".group-floating-content");
+    const members = multiplayer.group?.members || [];
+    if(!members.length){
+      hud.classList.add("hidden");
+      if(content) content.innerHTML = "";
+      return;
+    }
+    applyGroupFloatingHudLayout(hud);
+    hud.classList.remove("hidden");
+    if(content) content.innerHTML = members.map(renderGroupMemberCard).join("");
+  }
+
   function renderGroupUtilityContent(){
-    const membersHtml = groupMembers.length
-      ? groupMembers.map(name=>`<div class="group-panel-member"><strong>${escapeHtml(name)}</strong><span>Invite</span></div>`).join("")
-      : `<p class="group-panel-note">Aucun allie invite pour le moment.</p>`;
+    const onlinePlayers = multiplayer.players.filter(player=>player.id !== multiplayer.playerId);
+    const members = multiplayer.group?.members || [];
+    const currentMap = getCurrentMap?.();
+    const localPlayer = getPlayer?.();
+    const mapLabel = state=>{
+      const id = state?.mapId;
+      const found = maps.find(map=>String(map.id) === String(id) || String(map.name) === String(id));
+      return found?.name || (id !== undefined && id !== null ? String(id) : "Hors combat");
+    };
+    const resolveMemberState = member=>{
+      if(member.id === multiplayer.playerId && localPlayer){
+        return {
+          x:localPlayer.x,
+          y:localPlayer.y,
+          hp:localPlayer.hp,
+          maxHp:localPlayer.maxHp,
+          shield:localPlayer.shield,
+          maxShield:localPlayer.maxShield,
+          mapId:currentMap?.id ?? currentMap?.name ?? "unknown",
+          updatedAt:Date.now()
+        };
+      }
+      return multiplayer.remotePlayers.get(member.id)?.state || multiplayer.players.find(player=>player.id === member.id)?.state || member.state || null;
+    };
+    const renderMeter = (label, value, max, className)=>{
+      const safeMax = Math.max(1, Number(max || value || 1));
+      const percent = clampPercent(Number(value || 0) / safeMax * 100);
+      return `<div class="group-member-meter ${className}"><span>${label}</span><b>${Math.round(Number(value || 0))}/${Math.round(safeMax)}</b><i style="width:${percent}%"></i></div>`;
+    };
+    const membersHtml = members.length
+      ? members.map(member=>{
+        const state = resolveMemberState(member);
+        const isLocal = member.id === multiplayer.playerId;
+        const role = member.id === multiplayer.group?.leaderId ? "Chef" : "Membre";
+        const sameMap = state && currentMap && String(state.mapId) === String(currentMap.id);
+        const distance = state && localPlayer && sameMap && !isLocal ? Math.round(Math.hypot(Number(state.x || 0) - localPlayer.x, Number(state.y || 0) - localPlayer.y)) : null;
+        const lastSeen = state?.updatedAt ? Math.max(0, Math.round((Date.now() - Number(state.updatedAt || 0)) / 1000)) : null;
+        return `
+          <div class="group-member-card ${isLocal ? "local" : ""}">
+            <div class="group-member-head">
+              <strong>${escapeHtml(member.name || (isLocal ? multiplayer.name : "Pilote"))}</strong>
+              <span>${role}${isLocal ? " · Toi" : ""}</span>
+            </div>
+            <div class="group-member-meta">
+              <span>Carte <b>${escapeHtml(mapLabel(state))}</b></span>
+              <span>${sameMap ? "Même carte" : "Autre carte"}</span>
+              ${distance !== null ? `<span>Distance <b>${distance}</b></span>` : ""}
+              ${lastSeen !== null && !isLocal ? `<span>Signal <b>${lastSeen}s</b></span>` : ""}
+            </div>
+            ${state ? `
+              <div class="group-member-meters">
+                ${renderMeter("PV", state.hp, state.maxHp, "hp")}
+                ${renderMeter("Bouclier", state.shield, state.maxShield, "shield")}
+              </div>
+            ` : `<p class="group-panel-note">En attente du signal joueur.</p>`}
+          </div>
+        `;
+      }).join("")
+      : `<p class="group-panel-note">Aucun groupe actif.</p>`;
+    const invitesHtml = multiplayer.invites.length
+      ? `<div class="group-panel-list">${multiplayer.invites.map(invite=>`<div class="group-panel-member"><strong>${escapeHtml(invite.fromName || "Pilote")}</strong><span>Invitation</span><button class="blue-button small" data-mp-action="accept" data-group-id="${escapeHtml(invite.groupId)}" type="button">ACCEPTER</button><button class="blue-button small secondary" data-mp-action="decline" data-group-id="${escapeHtml(invite.groupId)}" type="button">REFUSER</button></div>`).join("")}</div>`
+      : "";
+    const playersHtml = onlinePlayers.length
+      ? onlinePlayers.map(player=>`<div class="group-panel-member"><strong>${escapeHtml(player.name)}</strong><span>${player.groupId ? "En groupe" : "En ligne"}</span><button class="blue-button small" data-mp-action="invite" data-player-id="${escapeHtml(player.id)}" type="button">INVITER</button></div>`).join("")
+      : `<p class="group-panel-note">Aucun autre joueur connecte.</p>`;
+    const status = multiplayer.connected ? `Connecte : ${escapeHtml(multiplayer.name)}` : multiplayer.connecting ? "Connexion..." : "Hors ligne";
     return `
       <div class="group-panel-form">
-        <input id="groupInviteName" type="text" maxlength="24" placeholder="Nom du pilote">
-        <button class="blue-button small" data-group-invite type="button">INVITER</button>
+        <input id="mpPlayerName" type="text" maxlength="24" value="${escapeHtml(multiplayer.name || store.state?.player?.name || "NOVA-37")}" placeholder="Pseudo">
+        <input id="mpServerUrl" type="text" value="${escapeHtml(multiplayer.serverUrl)}" placeholder="URL serveur">
+        ${multiplayer.connected
+          ? `<button class="blue-button small secondary" data-mp-action="disconnect" type="button">DECONNECTER</button>`
+          : `<button class="blue-button small" data-mp-action="connect" type="button">${multiplayer.connecting ? "CONNEXION" : "CONNECTER"}</button>`}
       </div>
-      <p class="group-panel-note">Prototype groupe : entre le nom d'un allie pour preparer l'invitation.</p>
-      <div class="group-panel-list">${membersHtml}</div>
+      <p class="group-panel-note">${status}. Pour jouer a distance, le serveur doit etre lance et accessible par les deux joueurs.</p>
+      ${invitesHtml}
+      <div class="group-panel-form">
+        <button class="blue-button small" data-mp-action="create-group" type="button">CREER GROUPE</button>
+        <button class="blue-button small" data-mp-action="start-coop-test" type="button">INSTANCE TEST</button>
+        <button class="blue-button small secondary" data-mp-action="leave-group" type="button">QUITTER GROUPE</button>
+      </div>
+      <div class="group-panel-list">${playersHtml}</div>
     `;
   }
 
@@ -235,8 +461,20 @@ export function createCombatPanels({
     }
     content.innerHTML = renderGroupUtilityContent();
     syncUtilityDockButtons();
-    if(focus) document.getElementById("groupInviteName")?.focus();
+    if(focus) document.getElementById("mpPlayerName")?.focus();
   }
+
+  function isEditingGroupUtilityPanel(){
+    const panel = getUtilityPanel("group");
+    const active = document.activeElement;
+    return !!panel && !!active && panel.contains(active) && !!active.closest("input, textarea, select");
+  }
+
+  window.addEventListener("voidsector:multiplayer-change", ()=>{
+    const panel = getUtilityPanel("group");
+    if(panel && !panel.classList.contains("hidden") && !isEditingGroupUtilityPanel()) refreshGroupUtilityPanel({show:true});
+    refreshGroupFloatingHud();
+  });
 
   function mapPercent(map, point, axis){
     const size = axis === "x" ? map.width : map.height;
@@ -430,14 +668,16 @@ export function createCombatPanels({
 
   function inviteGroupMember(name){
     const cleaned = String(name || "").trim().replace(/\s+/g, " ").slice(0, 24);
-    if(!cleaned) return showToast("Nom de pilote requis.");
-    if(groupMembers.some(member=>member.toLowerCase() === cleaned.toLowerCase())){
-      return showToast(`${cleaned} est deja dans la liste.`);
+    const found = multiplayer.players.find(player=>player.name.toLowerCase() === cleaned.toLowerCase() && player.id !== multiplayer.playerId);
+    if(found){
+      inviteMultiplayerPlayer(found.id);
+      return;
     }
-    groupMembers.push(cleaned);
-    showToast(`Invitation de groupe envoyee a ${cleaned}.`);
-    refreshGroupUtilityPanel({show:true, focus:true});
+    if(!multiplayer.connected) connectMultiplayer({name:cleaned || store.state?.player?.name});
+    else showToast("Choisis un joueur connecte a inviter.");
   }
+
+  void startCoopTestInstance;
 
   function renderSpawnInteractionPanel(mode = spawnPanelMode){
     const panel = document.getElementById("spawnInteractionPanel");
@@ -450,6 +690,7 @@ export function createCombatPanels({
     spawnPanelMode = mode;
     spawnPanelRefreshT = 1;
     panel.classList.toggle("refinery-mode", mode === "refinery");
+    panel.classList.toggle("quest-mode", mode === "quests");
     if(!mode){
       panel.classList.add("hidden");
       syncUtilityDockButtons();
@@ -475,6 +716,8 @@ export function createCombatPanels({
       activeQuests:getActiveQuests(),
       selectedQuestId,
       selectedQuestCategory,
+      selectedQuestType,
+      showLockedQuests,
       quests:getAllQuests(),
       playerLevel:store.state.player.level,
       enemyTypes,
@@ -509,8 +752,45 @@ export function createCombatPanels({
   }
 
   function selectQuestCategoryForPanel(category){
-    selectedQuestCategory = category || "normal";
-    const quests = getAllQuests().filter(quest=>(quest.category || "normal") === selectedQuestCategory);
+    selectedQuestCategory = ["available", "active", "completed"].includes(category) ? category : "available";
+    const activeIds = new Set(getActiveQuests().map(quest=>quest.id));
+    const completedClaims = store.state.completedQuestClaims || {};
+    const quests = getAllQuests().filter(quest=>{
+      if(completedClaims[quest.id]) return selectedQuestCategory === "completed";
+      if(activeIds.has(quest.id)) return selectedQuestCategory === "active";
+      if(!showLockedQuests && selectedQuestCategory === "available" && Number(store.state.player?.level || 1) < Number(quest.requiredLevel || 1)) return false;
+      return selectedQuestCategory === "available";
+    }).filter(quest=>(quest.category || "normal") === selectedQuestType);
+    if(!quests.some(quest=>quest.id === selectedQuestId)) selectedQuestId = quests[0]?.id || null;
+    renderSpawnInteractionPanel("quests");
+  }
+
+  function selectQuestTypeForPanel(type){
+    selectedQuestType = ["normal", "daily", "weekly"].includes(type) ? type : "normal";
+    const activeIds = new Set(getActiveQuests().map(quest=>quest.id));
+    const completedClaims = store.state.completedQuestClaims || {};
+    const quests = getAllQuests().filter(quest=>{
+      if((quest.category || "normal") !== selectedQuestType) return false;
+      if(completedClaims[quest.id]) return selectedQuestCategory === "completed";
+      if(activeIds.has(quest.id)) return selectedQuestCategory === "active";
+      if(!showLockedQuests && selectedQuestCategory === "available" && Number(store.state.player?.level || 1) < Number(quest.requiredLevel || 1)) return false;
+      return selectedQuestCategory === "available";
+    });
+    if(!quests.some(quest=>quest.id === selectedQuestId)) selectedQuestId = quests[0]?.id || null;
+    renderSpawnInteractionPanel("quests");
+  }
+
+  function toggleLockedQuestsForPanel(){
+    showLockedQuests = !showLockedQuests;
+    const activeIds = new Set(getActiveQuests().map(quest=>quest.id));
+    const completedClaims = store.state.completedQuestClaims || {};
+    const quests = getAllQuests().filter(quest=>{
+      if((quest.category || "normal") !== selectedQuestType) return false;
+      if(completedClaims[quest.id]) return selectedQuestCategory === "completed";
+      if(activeIds.has(quest.id)) return selectedQuestCategory === "active";
+      if(!showLockedQuests && selectedQuestCategory === "available" && Number(store.state.player?.level || 1) < Number(quest.requiredLevel || 1)) return false;
+      return selectedQuestCategory === "available";
+    });
     if(!quests.some(quest=>quest.id === selectedQuestId)) selectedQuestId = quests[0]?.id || null;
     renderSpawnInteractionPanel("quests");
   }
@@ -559,6 +839,20 @@ export function createCombatPanels({
         utilityPanelRefreshT = .25;
       }
     }
+    const groupPanel = getUtilityPanel("group");
+    if(groupPanel && !groupPanel.classList.contains("hidden") && !groupPanel.contains(document.activeElement)){
+      utilityPanelRefreshT -= dt;
+      if(utilityPanelRefreshT <= 0){
+        const content = getUtilityContent("group");
+        if(content) content.innerHTML = renderGroupUtilityContent();
+        utilityPanelRefreshT = .5;
+      }
+    }
+    groupHudRefreshT -= dt;
+    if(groupHudRefreshT <= 0){
+      refreshGroupFloatingHud();
+      groupHudRefreshT = .25;
+    }
   }
 
   return {
@@ -577,6 +871,8 @@ export function createCombatPanels({
     setCombatQuestDetailTab,
     selectQuestForPanel,
     selectQuestCategoryForPanel,
+    selectQuestTypeForPanel,
+    toggleLockedQuestsForPanel,
     setRefineryPanelTab,
     openShipRefineRecipe,
     closeShipRefineRecipe

@@ -1,4 +1,5 @@
 import { fmt } from "../../core/utils.js";
+import { equipment } from "../../data/catalog.js";
 
 function questProgressState(quest, getQuestProgress){
   const progress = getQuestProgress(quest.id);
@@ -11,16 +12,26 @@ function questObjectiveEntries(quest){
   return objectives.filter(Boolean);
 }
 
+function formatObjectiveZone(objective = {}){
+  if(Array.isArray(objective.zones) && objective.zones.length) return objective.zones.join(" / ");
+  return objective.zone || "Toutes zones";
+}
+
+function formatObjectiveName(objective = {}, targetType = null){
+  if(objective.type === "refinery_module_upgrade_start") return "Stockage niveau 2";
+  return objective.label || targetType?.name || objective.target?.replaceAll("_", " ") || "Cible";
+}
+
 function renderObjectiveTab({quest, enemyTypes, getQuestProgress}){
   const objectives = questObjectiveEntries(quest);
   return `<div class="combat-quest-objectives">${objectives.map(objective=>{
     const targetType = enemyTypes[objective.target];
     const progress = getQuestProgress(quest.id);
     const target = Number(objective.count || 0);
-    const name = targetType?.name || objective.target?.replaceAll("_", " ") || "Cible";
+    const name = formatObjectiveName(objective, targetType);
     return `<div class="combat-quest-objective-row">
       <img src="${targetType?.img || "assets/enemies/drone_pirate.png"}" alt="">
-      <div><strong>${name}</strong><span>${objective.zone || "Toutes zones"}</span></div>
+      <div><strong>${name}</strong><span>${formatObjectiveZone(objective)}</span></div>
       <b>${progress}/${target}</b>
     </div>`;
   }).join("")}</div>`;
@@ -28,9 +39,15 @@ function renderObjectiveTab({quest, enemyTypes, getQuestProgress}){
 
 function renderRewardsTab({quest, rawMaterials}){
   const materials = Object.entries(quest.rewards?.materials || {});
+  const items = quest.rewards?.items || [];
   return `<div class="combat-quest-rewards">
     <div><span>Credits</span><b>${fmt(quest.rewards?.credits || 0)}</b></div>
+    <div><span>NOVA</span><b>${fmt(quest.rewards?.premium || 0)}</b></div>
     <div><span>XP</span><b>${fmt(quest.rewards?.xp || 0)}</b></div>
+    ${items.map(id=>{
+      const item = equipment.find(entry=>entry.id === id);
+      return `<div><span>Objet</span><b>${item?.name || id}</b></div>`;
+    }).join("")}
     ${materials.map(([id, amount])=>{
       const material = rawMaterials.find(entry=>entry.id === id);
       return `<div><span>${material?.short || id.toUpperCase()}</span><b>${fmt(amount)}</b></div>`;
@@ -78,7 +95,7 @@ export function renderCombatQuestTracker({
       <div class="combat-quest-focus-head">
         <div>
           <strong>${selected.title}</strong>
-          <span>${selected.objective?.zone || "Toutes zones"}</span>
+          <span>${formatObjectiveZone(selected.objective)}</span>
         </div>
         <img src="${targetType?.img || "assets/enemies/drone_pirate.png"}" alt="">
       </div>

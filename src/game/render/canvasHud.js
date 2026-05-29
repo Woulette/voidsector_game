@@ -46,7 +46,7 @@ function getMapPortals(map){
   return map.portal ? [map.portal] : [];
 }
 
-export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget, revealAllEnemies = false}){
+export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget, revealAllEnemies = false, groupPlayers = []}){
   const {x, y, w, h} = rect;
   const headerH = 22;
   const sx = w/currentMap.width, sy = h/currentMap.height;
@@ -107,6 +107,29 @@ export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget,
     if(!revealAllEnemies && Math.hypot(e.x-player.x,e.y-player.y) > player.radar) continue;
     ctx.fillStyle = "#ef4444";
     ctx.fillRect(mapX(e.x)-2,mapY(e.y)-2,4,4);
+  }
+  for(const remote of groupPlayers || []){
+    const state = remote.state;
+    if(!state) continue;
+    const gx = mapX(Number(state.x || 0));
+    const gy = mapY(Number(state.y || 0));
+    ctx.save();
+    ctx.fillStyle = "rgba(250,204,21,.96)";
+    ctx.strokeStyle = "rgba(2,6,23,.88)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy - 6);
+    ctx.lineTo(gx + 6, gy);
+    ctx.lineTo(gx, gy + 6);
+    ctx.lineTo(gx - 6, gy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#fef9c3";
+    ctx.font = "800 9px Rajdhani, Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(String(remote.name || "ALLY").slice(0, 8).toUpperCase(), gx, gy - 9);
+    ctx.restore();
   }
   ctx.fillStyle = "#38bdf8";
   ctx.beginPath(); ctx.arc(mapX(player.x),mapY(player.y),4,0,Math.PI*2); ctx.fill();

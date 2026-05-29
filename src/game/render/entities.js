@@ -424,7 +424,8 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
   const time = performance.now();
   for(const enemy of enemies){
     const isPaused = Number(enemy.wanderPauseT || 0) > 0 && !enemy.aggro;
-    const idlePhase = time / 420 + enemy.id * 1.37;
+    const idPhase = Number.isFinite(Number(enemy.id)) ? Number(enemy.id) : String(enemy.id || "").split("").reduce((sum, char)=>sum + char.charCodeAt(0), 0);
+    const idlePhase = time / 420 + idPhase * 1.37;
     const idleY = isPaused ? Math.sin(idlePhase) * 4 : 0;
     const idleX = isPaused ? Math.cos(idlePhase * .72) * 2 : 0;
     const idleAngle = isPaused ? Math.sin(idlePhase * .85) * .08 : 0;

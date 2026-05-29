@@ -18,6 +18,7 @@ import {
   getMaterialStorageCap,
   getPortal,
   getPortalPieces,
+  getXpNextForLevel,
   getShipPurchaseLockReason,
   getShip,
   isDroneCompatibleEquipment,
@@ -30,6 +31,7 @@ import {
   spend,
   rushRefineryUpgrade,
   rushRefineryShipment,
+  recordQuestRefineryModuleUpgradeStart,
   startRefineryJob,
   startRefineryMaterialUpgrade,
   startRefineryModuleUpgrade,
@@ -40,9 +42,12 @@ import {
   toggleRefineryProduction,
   unequipInventoryItem,
   upgradeSkill,
-  unlockPortal
+  unlockPortal,
+  XP_CURVE_VERSION
 } from "./core/store.js";
 import { createCombatGame } from "./game/combat.js";
+import { multiplayer, startServerPortal, syncMultiplayerProfile } from "./multiplayer/client.js";
+import { initMultiplayer } from "./multiplayer/client.js";
 import { renderAll, renderRefinery, renderShop, setView } from "./ui/render.js";
 import { showToast } from "./ui/toast.js";
 import { DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeSlotKeybinds } from "./core/keybinds.js";
@@ -75,6 +80,44 @@ function renderAllPreserveInventoryScroll(){
   const snapshot = getInventoryScrollSnapshot();
   renderAll();
   restoreInventoryScroll(snapshot);
+}
+
+function saveAndSyncProfile(){
+  store.state.mmoProfileUpdatedAt = Date.now();
+  saveState();
+  syncMultiplayerProfile(store.state);
+}
+
+function applyServerProfile(profile){
+  if(!profile || typeof profile !== "object") return;
+  const currentVersion = Number(store.state.mmoProfileUpdatedAt || 0);
+  const incomingVersion = Number(profile.updatedAt || 0);
+  if(currentVersion > incomingVersion) return;
+  const clone = value=>JSON.parse(JSON.stringify(value || {}));
+  if(profile.player) store.state.player = {...store.state.player, ...clone(profile.player)};
+  store.state.player.xpNext = getXpNextForLevel(store.state.player.level);
+  store.state.player.xp = Math.min(Math.max(0, Number(store.state.player.xp || 0)), store.state.player.xpNext);
+  store.state.xpCurveVersion = XP_CURVE_VERSION;
+  for(const key of [
+    "cargoHold",
+    "skillRanks",
+    "skillLevels",
+    "completedPortals",
+    "portalPieces",
+    "refineryLevels",
+    "refineryModules",
+    "refineryUpgradeJobs",
+    "refineryProductionDisabled"
+  ]){
+    if(profile[key] && typeof profile[key] === "object") store.state[key] = clone(profile[key]);
+  }
+  store.state.refineryShipmentJob = profile.refineryShipmentJob ? clone(profile.refineryShipmentJob) : null;
+  store.state.refineryJob = profile.refineryJob ? clone(profile.refineryJob) : null;
+  if(Number.isFinite(Number(profile.refineryLastTick))) store.state.refineryLastTick = Number(profile.refineryLastTick);
+  store.state.mmoProfileUpdatedAt = incomingVersion || Date.now();
+  saveState();
+  renderAll();
+  showToast("Profil MMO synchronise.");
 }
 
 function equipSelectedShip(){
@@ -207,7 +250,7 @@ function runSpaceCaster(id, count = 1){
   for(let i = 0; i < rollCount; i++){
     const reward = pickSpaceCasterReward(portal);
     const label = reward.kind === "piece" ? `Piece ${portal.name}` : reward.label;
-    const img = reward.kind === "piece" ? portal.img : ammoTypes.find(ammo=>ammo.id === reward.id)?.img;
+    const img = reward.kind === "piece" ? (portal.pieceImg || portal.img) : ammoTypes.find(ammo=>ammo.id === reward.id)?.img;
     if(reward.kind === "piece") addPortalPiece(portal.id, reward.amount);
     else addAmmo(reward.id, reward.amount);
     const current = summary.get(label) || {label, amount:0, img};
@@ -418,6 +461,7 @@ function unlockSkill(id){
   const result = upgradeSkill(id);
   if(!result?.ok) return showToast(result?.reason || "Impossible d'améliorer cette compétence.");
   showToast(`${result.skill.name} niveau ${result.level} atteint.`);
+  saveAndSyncProfile();
   renderAll();
 }
 
@@ -614,6 +658,7 @@ document.addEventListener("click", (e)=>{
   const confirmModuleUpgradeBtn = e.target.closest("#refineryPanel [data-confirm-refinery-module-upgrade]");
   if(confirmModuleUpgradeBtn){
     const result = startRefineryModuleUpgrade(confirmModuleUpgradeBtn.dataset.confirmRefineryModuleUpgrade);
+    if(result.ok) recordQuestRefineryModuleUpgradeStart(confirmModuleUpgradeBtn.dataset.confirmRefineryModuleUpgrade, result.level);
     showToast(result.ok ? `${result.module} niveau ${result.level} en construction.` : result.reason);
     store.selectedRefineryUpgrade = result.ok ? null : store.selectedRefineryUpgrade;
     saveState();
@@ -683,6 +728,11 @@ document.addEventListener("click", (e)=>{
   const portalBtn = e.target.closest("[data-start-portal]");
   if(portalBtn){
     if(!store.state.activeShip) return showToast("Équipe un vaisseau avant d'entrer dans un portail.");
+    if(multiplayer.connected && multiplayer.group){
+      startServerPortal(portalBtn.dataset.startPortal);
+      Game.start("open");
+      return;
+    }
     Game.start(`portal:${portalBtn.dataset.startPortal}`);
     return;
   }
@@ -836,7 +886,11 @@ document.addEventListener("keydown", e=>{
 });
 
 window.addEventListener("beforeunload", ()=>{
-  try{ saveState(); }catch(e){}
+  try{ saveAndSyncProfile(); }catch(e){}
+});
+
+window.addEventListener("voidsector:profile-sync", event=>{
+  applyServerProfile(event.detail?.profile);
 });
 
 if(sessionStorage.getItem("voidsector-reset-requested") === "1"){
@@ -844,13 +898,20 @@ if(sessionStorage.getItem("voidsector-reset-requested") === "1"){
   localStorage.removeItem("voidsector-prototype-state");
 }
 loadState();
+initMultiplayer({
+  showToast,
+  getDefaultName:()=>store.state?.player?.name || "NOVA-37"
+});
 setView("hangar");
 renderAll();
 setInterval(()=>{
   const changed = tickRefineryProduction();
   const hasRefineryUpgrade = store.state?.refineryUpgradeJobs && Object.keys(store.state.refineryUpgradeJobs).length > 0;
   const hasRefineryShipment = !!store.state?.refineryShipmentJob;
-  if(changed) saveState();
+  if(changed) saveAndSyncProfile();
   if(store.currentView === "refinery" && (changed || hasRefineryUpgrade || hasRefineryShipment)) renderRefinery();
 }, 1000);
+setInterval(()=>{
+  syncMultiplayerProfile(store.state);
+}, 5000);
 showToast("Hangar vaisseaux / drones chargé.");

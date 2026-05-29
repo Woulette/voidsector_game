@@ -1,9 +1,16 @@
 import { fmt } from "../../core/utils.js";
+import { equipment } from "../../data/catalog.js";
 
 const QUEST_TABS = [
-  {id:"normal", label:"Quetes normales"},
-  {id:"daily", label:"Journalieres"},
-  {id:"weekly", label:"Hebdomadaires"}
+  {id:"available", label:"Quete"},
+  {id:"active", label:"En cours"},
+  {id:"completed", label:"Termin&eacute;"}
+];
+
+const QUEST_TYPE_TABS = [
+  {id:"normal", label:"Quete principale"},
+  {id:"daily", label:"Quete journaliere"},
+  {id:"weekly", label:"Quete hebdomadaire"}
 ];
 
 function questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel){
@@ -28,28 +35,70 @@ function questStatus({completed, claimable, active, locked}){
 function formatQuestObjective(quest){
   const objective = quest.objective || {};
   if(objective.type === "kill"){
-    const target = objective.target ? objective.target.replaceAll("_", " ").toUpperCase() : "CIBLES";
-    return `${objective.count || 0} ${target}`;
+    return quest.desc || "Securise la zone et reviens au relais.";
   }
+  if(objective.type === "refinery_module_upgrade_start") return quest.desc || "Ameliore le module de stockage dans la raffinerie.";
   return "OBJECTIF";
+}
+
+function formatQuestZone(objective = {}){
+  if(objective.type === "refinery_module_upgrade_start") return "";
+  if(Array.isArray(objective.zones) && objective.zones.length) return objective.zones.join(" / ");
+  return objective.zone || "Toutes zones";
 }
 
 function formatQuestMaterials(materials = {}, rawMaterials = []){
   const entries = Object.entries(materials);
-  if(!entries.length) return "Aucun";
   return entries.map(([id, amount])=>{
     const material = rawMaterials.find(entry=>entry.id === id);
-    return `<span class="quest-reward-item"><img src="${material?.img || "assets/materials/cargo_box.svg"}" alt=""><b>${amount}</b><small>${material?.short || id.toUpperCase()}</small></span>`;
+    return `<span class="quest-reward-item"><img src="${material?.img || "assets/materials/cargo_box.svg"}" alt=""><b>${fmt(amount)}</b><small>${material?.short || id.toUpperCase()}</small></span>`;
   }).join("");
+}
+
+function formatQuestItems(items = []){
+  return items.map(id=>{
+    const item = equipment.find(entry=>entry.id === id);
+    return `<span class="quest-reward-item"><img src="${item?.img || "assets/equipment/module_munitions.svg"}" alt=""><small>${item?.name || id}</small></span>`;
+  }).join("");
+}
+
+function renderQuestTargetIcons(quest, enemyTypes = {}){
+  if(quest.objective?.type === "refinery_module_upgrade_start"){
+    return `<div class="quest-target-icons"><span class="quest-target-icon"><img src="assets/materials/zinc_spatial.svg" alt="Raffinage"></span><span class="quest-target-icon"><img src="assets/materials/titane_fissure.svg" alt="Raffinage"></span></div>`;
+  }
+  const objectives = Array.isArray(quest.objectives) ? quest.objectives : [quest.objective];
+  const icons = objectives.filter(Boolean).map(objective=>{
+    const targetType = enemyTypes[objective.target];
+    const targetImage = targetType?.img || "assets/enemies/drone_pirate.png";
+    const rotateClass = objective.target === "raider_astral" || objective.target === "boss_raider_astral" ? " rotate-180" : "";
+    const count = Math.max(0, Number(objective.count || 0));
+    return `<span class="quest-target-icon"><img class="${rotateClass}" src="${targetImage}" alt="${targetType?.name || "Cible"}">${count ? `<b>x${count}</b>` : ""}</span>`;
+  }).join("");
+  return icons ? `<div class="quest-target-icons">${icons}</div>` : "";
 }
 
 function renderQuestTabs({activeCategory, quests}){
   return `<div class="quest-tabs">${QUEST_TABS.map(tab=>{
-    const count = quests.filter(quest=>(quest.category || "normal") === tab.id).length;
+    const count = quests.filter(quest=>quest.panelStatus === tab.id).length;
     return `<button class="quest-tab ${activeCategory === tab.id ? "active" : ""}" type="button" data-quest-category="${tab.id}">
       <span>${tab.label}</span><b>${count}</b>
     </button>`;
   }).join("")}</div>`;
+}
+
+function renderQuestTypeTabs({activeType, quests, activeCategory}){
+  return `<div class="quest-type-tabs">${QUEST_TYPE_TABS.map(tab=>{
+    const count = quests.filter(quest=>quest.panelStatus === activeCategory && quest.panelType === tab.id).length;
+    return `<button class="quest-type-tab ${activeType === tab.id ? "active" : ""}" type="button" data-quest-type="${tab.id}">
+      <span>${tab.label}</span><b>${count}</b>
+    </button>`;
+  }).join("")}</div>`;
+}
+
+function renderQuestLockToggle(showLockedQuests){
+  return `<button class="quest-lock-toggle ${showLockedQuests ? "open" : ""}" type="button" data-toggle-locked-quests aria-label="${showLockedQuests ? "Masquer les quetes verrouillees" : "Afficher les quetes verrouillees"}" title="${showLockedQuests ? "Masquer les quetes verrouillees" : "Afficher les quetes verrouillees"}">
+    <span aria-hidden="true"></span>
+  </button>`;
 }
 
 function renderQuestList({quests, selectedQuest, activeQuest, activeQuests = [], getQuestProgress, completedQuestClaims, playerLevel}){
@@ -58,9 +107,9 @@ function renderQuestList({quests, selectedQuest, activeQuest, activeQuests = [],
     const state = questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel);
     const active = activeIds.has(quest.id) || activeQuest?.id === quest.id;
     const selected = selectedQuest?.id === quest.id;
-    return `<button class="quest-strip ${selected ? "selected" : ""} ${active ? "active" : ""} ${state.claimable ? "claimable" : ""} ${state.locked ? "locked" : ""}" type="button" data-view-quest="${quest.id}">
+    return `<button class="quest-strip ${selected ? "selected" : ""} ${active ? "active" : ""} ${quest.special ? "special" : ""} ${state.claimable ? "claimable" : ""} ${state.locked ? "locked" : ""}" type="button" data-view-quest="${quest.id}">
       <span class="quest-strip-title">${quest.title}</span>
-      <span class="quest-strip-meta">LV ${state.requiredLevel} · ${state.progress}/${state.target} · ${quest.objective?.zone || "Toutes zones"}</span>
+      <span class="quest-strip-meta"><b>LV ${state.requiredLevel}</b></span>
       <span class="quest-strip-bar"><i style="width:${state.percent}%"></i></span>
     </button>`;
   }).join("");
@@ -70,29 +119,29 @@ function renderQuestDetail({quest, activeQuest, activeQuests = [], getQuestProgr
   const state = questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel);
   const active = activeQuests.some(entry=>entry.id === quest.id) || activeQuest?.id === quest.id;
   const tracked = activeQuest?.id === quest.id;
-  const targetType = enemyTypes[quest.objective?.target];
-  const targetImage = targetType?.img || "assets/enemies/drone_pirate.png";
-  const status = questStatus({...state, active});
-  return `<article class="quest-detail ${active ? "active" : ""} ${state.claimable ? "claimable" : ""} ${state.locked ? "locked" : ""}">
+  const itemRewards = formatQuestItems(quest.rewards?.items);
+  const materialRewards = formatQuestMaterials(quest.rewards?.materials, rawMaterials);
+  const zoneLabel = formatQuestZone(quest.objective);
+  const targetIcons = renderQuestTargetIcons(quest, enemyTypes);
+  return `<article class="quest-detail ${active ? "active" : ""} ${quest.special ? "special" : ""} ${state.claimable ? "claimable" : ""} ${state.locked ? "locked" : ""}">
     <div class="quest-detail-hero">
       <div class="quest-detail-copy">
         <span>${quest.giver || "Relais de Commandement"}</span>
         <strong>${quest.title}</strong>
-        <small>${status} · LV ${state.requiredLevel}</small>
       </div>
-      <img src="${targetImage}" alt="${targetType?.name || "Cible"}">
+      <div class="quest-level-badge"><span>LV</span><b>${state.requiredLevel}</b></div>
     </div>
-    <p>${quest.desc}</p>
-    <div class="quest-progress-row">
-      <div class="quest-progress-label"><span>${formatQuestObjective(quest)}</span><b>${state.progress}/${state.target}</b></div>
-      <div class="spawn-progress"><span style="width:${state.percent}%"></span></div>
-    </div>
-    <div class="quest-info-grid">
-      <div><span>Niveau</span><b>LV ${state.requiredLevel}</b></div>
-      <div><span>Zone</span><b>${quest.objective?.zone || "Toutes zones"}</b></div>
+    <div class="quest-section-title objective">Objectif</div>
+    <p class="quest-objective-text">${formatQuestObjective(quest)}</p>
+    ${targetIcons}
+    ${zoneLabel ? `<div class="quest-objective-meta"><span>Zone</span><b>${zoneLabel}</b></div>` : ""}
+    <div class="quest-reward-title">Recompenses</div>
+    <div class="quest-info-grid compact">
       <div><span>Credits</span><b>${fmt(quest.rewards?.credits || 0)}</b></div>
+      <div class="nova"><span>NOVA</span><b>${fmt(quest.rewards?.premium || 0)}</b></div>
       <div><span>XP</span><b>${fmt(quest.rewards?.xp || 0)}</b></div>
-      <div class="quest-material-rewards"><span>Materiaux</span><b>${formatQuestMaterials(quest.rewards?.materials, rawMaterials)}</b></div>
+      ${itemRewards ? `<div class="quest-material-rewards"><span>Objets</span><b>${itemRewards}</b></div>` : ""}
+      ${materialRewards ? `<div class="quest-material-rewards"><span>Materiaux</span><b>${materialRewards}</b></div>` : ""}
     </div>
     <div class="spawn-actions quest-actions">
       ${state.completed ? `<button class="blue-button small" type="button" disabled>Terminee</button>` : state.locked ? `<button class="blue-button small" type="button" disabled>LV ${state.requiredLevel} requis</button>` : state.claimable ? `<button class="blue-button small" data-claim-quest="${quest.id}" type="button">Reclamer</button>` : `<button class="blue-button small" data-accept-quest="${quest.id}" type="button" ${active ? "disabled" : ""}>${active ? (tracked ? "Suivie" : "En cours") : "Accepter"}</button>`}
@@ -100,24 +149,43 @@ function renderQuestDetail({quest, activeQuest, activeQuests = [], getQuestProgr
   </article>`;
 }
 
-function renderQuestPanel({activeQuest, activeQuests = [], selectedQuestId, selectedQuestCategory = "normal", quests, getQuestProgress, completedQuestClaims, enemyTypes = {}, rawMaterials = [], playerLevel = 1}){
-  const activeCategory = selectedQuestCategory || "normal";
-  const visibleQuests = quests.filter(quest=>(quest.category || "normal") === activeCategory);
-  const selectedQuest = visibleQuests.find(quest=>quest.id === selectedQuestId) || (activeQuest && (activeQuest.category || "normal") === activeCategory ? activeQuest : null) || visibleQuests[0];
+function getQuestPanelStatus(quest, activeQuests = [], completedQuestClaims = {}){
+  if(completedQuestClaims?.[quest.id]) return "completed";
+  if(activeQuests.some(entry=>entry.id === quest.id)) return "active";
+  return "available";
+}
+
+function renderQuestPanel({activeQuest, activeQuests = [], selectedQuestId, selectedQuestCategory = "available", selectedQuestType = "normal", showLockedQuests = false, quests, getQuestProgress, completedQuestClaims, enemyTypes = {}, rawMaterials = [], playerLevel = 1}){
+  const activeCategory = QUEST_TABS.some(tab=>tab.id === selectedQuestCategory) ? selectedQuestCategory : "available";
+  const activeType = QUEST_TYPE_TABS.some(tab=>tab.id === selectedQuestType) ? selectedQuestType : "normal";
+  const questsWithStatus = quests.map(quest=>({
+    ...quest,
+    panelStatus:getQuestPanelStatus(quest, activeQuests, completedQuestClaims),
+    panelType:quest.category || "normal"
+  }));
+  const shouldHideLocked = quest=>quest.panelStatus === "available" && !showLockedQuests && questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel).locked;
+  const displayQuests = questsWithStatus.filter(quest=>!shouldHideLocked(quest));
+  const visibleQuests = displayQuests
+    .filter(quest=>quest.panelStatus === activeCategory && quest.panelType === activeType)
+    .sort((a,b)=>Number(b.special || 0) - Number(a.special || 0) || Number(a.requiredLevel || 1) - Number(b.requiredLevel || 1) || String(a.title || "").localeCompare(String(b.title || ""), "fr"));
+  const selectedQuest = visibleQuests.find(quest=>quest.id === selectedQuestId)
+    || (activeQuest && getQuestPanelStatus(activeQuest, activeQuests, completedQuestClaims) === activeCategory && (activeQuest.category || "normal") === activeType ? activeQuest : null)
+    || visibleQuests[0];
   const claimableCount = visibleQuests.filter(quest=>questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel).claimable).length;
   const completedCount = visibleQuests.filter(quest=>completedQuestClaims?.[quest.id]).length;
   return {
     title:"RELAIS DE QUETES",
     html:`
-      ${renderQuestTabs({activeCategory, quests})}
+      ${renderQuestTabs({activeCategory, quests:displayQuests})}
+      ${renderQuestTypeTabs({activeType, quests:displayQuests, activeCategory})}
       <div class="quest-console">
         <aside class="quest-menu">
           <div class="quest-menu-head">
-            <span>Missions</span>
+            <span>${QUEST_TABS.find(tab=>tab.id === activeCategory)?.label || "Quete"}</span>
             <b>${claimableCount}</b>
           </div>
-          <div class="quest-strip-list">${visibleQuests.length ? renderQuestList({quests:visibleQuests, selectedQuest, activeQuest, activeQuests, getQuestProgress, completedQuestClaims, playerLevel}) : `<div class="spawn-panel-note">Aucune mission dans cette categorie.</div>`}</div>
-          <div class="quest-menu-foot">${completedCount}/${visibleQuests.length} terminees</div>
+          <div class="quest-strip-list">${visibleQuests.length ? renderQuestList({quests:visibleQuests, selectedQuest, activeQuest, activeQuests, getQuestProgress, completedQuestClaims, playerLevel}) : `<div class="spawn-panel-note">Aucune mission ici.</div>`}</div>
+          <div class="quest-menu-foot"><span>${completedCount}/${visibleQuests.length} terminees</span>${renderQuestLockToggle(showLockedQuests)}</div>
         </aside>
         <section class="quest-detail-wrap">
           ${selectedQuest ? renderQuestDetail({quest:selectedQuest, activeQuest, activeQuests, getQuestProgress, completedQuestClaims, enemyTypes, rawMaterials, playerLevel}) : `<div class="spawn-panel-note">Aucune mission disponible.</div>`}
@@ -238,3 +306,5 @@ function renderRefineryPanel({materials, recipes = [], shipCargo = {}, shipCargo
 export function renderSpawnPanelContent(options){
   return options.mode === "quests" ? renderQuestPanel(options) : renderRefineryPanel(options);
 }
+
+

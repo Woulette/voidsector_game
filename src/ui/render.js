@@ -27,7 +27,6 @@ import {
   getLoadout,
   getNextRank,
   getPortalPieces,
-  getPlayerLevelCap,
   getPrestigeStatus,
   getRankAssetPath,
   getRankBreakdown,
@@ -379,10 +378,18 @@ function getProfileStatsRows(){
 function profileAchievements(){
   const player = store.state.player;
   const completedPortals = getCompletedPortalCount();
-  const prestige = getPrestigeStatus();
-  const levelCap = getPlayerLevelCap();
   const completedQuests = Object.keys(store.state.completedQuestClaims || {}).length;
   const spentSkills = skills.reduce((sum, skill)=>sum + Number(getSkillProgress(skill.id).completedRanks || 0), 0);
+  const weaponAchievement = (id, name, label, current, target, title)=>({
+    id,
+    name,
+    desc:`${label} ${fmt(target)} fois. Progression : ${fmt(current)} / ${fmt(target)}.`,
+    done:Number(current || 0) >= target,
+    title
+  });
+  const laserShots = Number(player.laserShotsFired || 0);
+  const rocketShots = Number(player.rocketShotsFired || 0);
+  const missileShots = Number(player.missileShotsFired || 0);
   return [
     {id:"first_contact", name:"Premier contact", desc:"Détruire ton premier monstre.", done:Number(player.totalKills || 0) >= 1, title:"Premier sang"},
     {id:"hunter_100", name:"Chasseur confirmé", desc:"Détruire 100 monstres.", done:Number(player.totalKills || 0) >= 100, title:"Traqueur spatial"},
@@ -392,7 +399,18 @@ function profileAchievements(){
     {id:"inventory_30", name:"Ingénieur de bord", desc:"Posséder 30 objets d'équipement.", done:(store.state.inventoryItems || []).length >= 30, title:"Ingénieur de bord"},
     {id:"skill_15", name:"Spécialiste", desc:"Investir 15 rangs de compétences.", done:spentSkills >= 15, title:"Spécialiste"},
     {id:"drone_5", name:"Escadron drone", desc:"Posséder 5 drones.", done:Number(store.state.ownedDroneCount || 0) >= 5, title:"Chef d'escadron"},
-    {id:"hunter_500", name:"Chasseur abyssal", desc:"Détruire 500 monstres.", done:Number(player.totalKills || 0) >= 500, title:"Chasseur abyssal"}
+    {id:"hunter_500", name:"Chasseur abyssal", desc:"Détruire 500 monstres.", done:Number(player.totalKills || 0) >= 500, title:"Chasseur abyssal"},
+    weaponAchievement("laser_100k", "Canon chaud", "Tirer au laser", laserShots, 100000, "Canonnier laser"),
+    weaponAchievement("laser_1m", "Rideau laser", "Tirer au laser", laserShots, 1000000, "Deluge photonique"),
+    weaponAchievement("laser_10m", "Faisceau massif", "Tirer au laser", laserShots, 10000000, "Architecte de faisceaux"),
+    weaponAchievement("laser_100m", "Tempete laser", "Tirer au laser", laserShots, 100000000, "Tempete laser"),
+    weaponAchievement("laser_1b", "Milliard photonique", "Tirer au laser", laserShots, 1000000000, "Legende photonique"),
+    weaponAchievement("rocket_25k", "Soute explosive", "Utiliser une roquette", rocketShots, 25000, "Artilleur orbital"),
+    weaponAchievement("rocket_250k", "Salves lourdes", "Utiliser une roquette", rocketShots, 250000, "Maitre roquettes"),
+    weaponAchievement("rocket_25m", "Barrage orbital", "Utiliser une roquette", rocketShots, 25000000, "Barrage orbital"),
+    weaponAchievement("missile_10k", "Verrouillage", "Utiliser un missile", missileShots, 10000, "Artilleur guide"),
+    weaponAchievement("missile_1m", "Pluie guidee", "Utiliser un missile", missileShots, 1000000, "Commandant missile"),
+    weaponAchievement("missile_100m", "Doctrine orbitale", "Utiliser un missile", missileShots, 100000000, "Doctrine orbitale")
   ];
 }
 
@@ -422,7 +440,6 @@ function renderProfileTabContent(tab){
   const stats = getShipCombatStats(store.state.activeShip);
   const completedPortals = getCompletedPortalCount();
   const prestige = getPrestigeStatus();
-  const levelCap = getPlayerLevelCap();
   if(tab === "stats"){
     return `<section class="profile-card profile-wide">
       <div class="profile-card-head"><span class="tiny">AVANT / APRÈS</span><h3>Impact des compétences</h3></div>
@@ -468,7 +485,7 @@ function renderProfileTabContent(tab){
       <div><span>PV</span><b>${fmt(stats.vie)}</b></div><div><span>Bouclier</span><b>${fmt(stats.bouclier)}</b></div><div><span>Vitesse</span><b>${fmt(stats.vitesseReelle)}</b></div><div><span>Soute</span><b>${fmt(stats.cargo)}</b></div>
     </div></section>
     <section class="profile-card"><div class="profile-card-head"><span class="tiny">PROGRESSION</span><h3>Compte</h3></div><div class="profile-stat-grid">
-      <div><span>Temps en jeu</span><b>${formatDuration(player.totalPlaySeconds)}</b></div><div><span>Kills monstres</span><b>${fmt(player.totalKills || 0)}</b></div><div><span>Kills joueurs</span><b>${fmt(player.totalPlayerKills || 0)}</b></div><div><span>Portails finis</span><b>${fmt(completedPortals)}</b></div><div><span>Quêtes finies</span><b>${fmt(Object.keys(store.state.completedQuestClaims || {}).length)}</b></div><div><span>Cap niveau</span><b>${fmt(levelCap)}</b></div><div><span>Prestige</span><b>${fmt(store.state.prestigeCount || 0)}</b></div>
+      <div><span>Temps en jeu</span><b>${formatDuration(player.totalPlaySeconds)}</b></div><div><span>Kills monstres</span><b>${fmt(player.totalKills || 0)}</b></div><div><span>Kills joueurs</span><b>${fmt(player.totalPlayerKills || 0)}</b></div><div><span>Portails finis</span><b>${fmt(completedPortals)}</b></div><div><span>Quêtes finies</span><b>${fmt(Object.keys(store.state.completedQuestClaims || {}).length)}</b></div><div><span>Tirs laser</span><b>${fmt(player.laserShotsFired || 0)}</b></div><div><span>Roquettes</span><b>${fmt(player.rocketShotsFired || 0)}</b></div><div><span>Missiles</span><b>${fmt(player.missileShotsFired || 0)}</b></div><div><span>Prestige</span><b>${fmt(store.state.prestigeCount || 0)}</b></div>
     </div></section>
     <section class="profile-card"><div class="profile-card-head"><span class="tiny">PRESTIGE</span><h3>Boucle suivante</h3></div>
       <p>${prestige.ok ? "Pret : retour niveau 1, competences conservees, cap niveau 100." : prestige.reason}</p>
