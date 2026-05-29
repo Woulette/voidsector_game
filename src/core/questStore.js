@@ -1,4 +1,4 @@
-import { addMaterial, addShipCargoMaterialForced } from "./cargoStore.js";
+import * as cargoStore from "./cargoStore.js";
 import { questCatalog, skills } from "../data/catalog.js";
 import { addAmmo, addInventoryItem, addPortalPiece, addXP, getInventoryCount, getQuest, removeInventoryItems, store } from "./store.js";
 
@@ -438,8 +438,11 @@ export function claimQuest(id){
   store.state.player.credits += Math.round(Number(quest.rewards.credits || 0) * multipliers.credits);
   store.state.player.premium += Math.round(Number(quest.rewards.premium || 0) * multipliers.premium);
   addXP(Number(quest.rewards.xp || 0));
-  for(const [materialId, amount] of Object.entries(quest.rewards.materials || {})) addMaterial(materialId, amount);
-  for(const [materialId, amount] of Object.entries(quest.rewards.shipCargoMaterialsForced || {})) addShipCargoMaterialForced(materialId, amount);
+  for(const [materialId, amount] of Object.entries(quest.rewards.materials || {})) cargoStore.addMaterial(materialId, amount);
+  for(const [materialId, amount] of Object.entries(quest.rewards.shipCargoMaterialsForced || {})){
+    const addForced = cargoStore.addShipCargoMaterialForced || cargoStore.addShipCargoMaterial || cargoStore.addMaterial;
+    addForced(materialId, amount);
+  }
   for(const [portalId, amount] of Object.entries(quest.rewards.portalPieces || {})) addPortalPiece(portalId, amount);
   for(const [ammoId, amount] of Object.entries(quest.rewards.ammo || {})) addAmmo(ammoId, amount);
   for(const [itemId, amount] of Object.entries(quest.rewards.itemCounts || {})){
