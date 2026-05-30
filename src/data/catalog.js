@@ -4,7 +4,8 @@ export { pageText, portals, questCatalog, rawMaterialCatalog, refineryRecipes, s
 
 export const defaultState = {
   economyVersion:1,
-  player:{name:"NOVA-37", level:1, xp:0, xpNext:3000, credits:0, premium:0, skillPoints:1, totalXp:0, totalKills:0, totalPlayerKills:0, totalPlaySeconds:0, laserShotsFired:0, rocketShotsFired:0, missileShotsFired:0, rankScore:0, activeTitleId:null, titleVisible:true},
+  rankKillPointsVersion:2,
+  player:{name:"NOVA-37", level:1, xp:0, xpNext:3000, credits:0, premium:0, skillPoints:1, totalXp:0, reputation:0, totalKills:0, monsterRankPoints:0, totalPlayerKills:0, totalPlaySeconds:0, laserShotsFired:0, rocketShotsFired:0, missileShotsFired:0, rankScore:0, activeTitleId:null, titleVisible:true},
   activeShip:"orion",
   selectedShip:"orion",
   ownedShips:["orion", "test_runner"],
@@ -27,6 +28,7 @@ export const defaultState = {
   unlockedPortals:[],
   completedPortals:{},
   prestigeCount:0,
+  rankKillStats:{},
   unlockedSkills:[],
   skillLevels:{damage:0, shield:0, utility:0},
   skillRanks:{damage:[0,0,0,0,0], shield:[0,0,0,0,0], utility:[0,0,0,0,0]},

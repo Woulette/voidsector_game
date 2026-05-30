@@ -41,19 +41,13 @@ const WORLD_MAPS = {
   "20":{id:"20", name:"CYAN-01", width:10000, height:8000, spawn:{x:-2250, y:1450, r:320}, seed:207, count:20, level:[1,3], enemyTypes:[["drone_pirate", .70], ["raider_astral", .30]]}
 };
 const SERVER_QUESTS = [
-  ["quest_drone_cleanup", "drone_pirate", 6, "ASTRA-01"],
-  ["quest_raider_patrol", "raider_astral", 4, "ASTRA-01"],
-  ["quest_spectral_scan", "chasseur_spectral", 5, "ASTRA-02"],
+  ["quest_drone_cleanup", "drone_pirate", 3, "ASTRA-01"],
+  ["quest_drone_cleanup", "drone_pirate", 3, "ASTRA-02"],
+  ["quest_raider_patrol", "raider_astral", 3, "ASTRA-01"],
+  ["quest_raider_patrol", "raider_astral", 3, "ASTRA-02"],
   ["quest_daily_cleanup", "drone_pirate", 8, "ASTRA-01"],
-  ["quest_weekly_assault", "chasseur_spectral", 15, "ASTRA-02"],
-  ["quest_astra01_orb_easy_01", "drone_pirate", 10, "ASTRA-01"],
-  ["quest_astra01_orb_easy_02", "drone_pirate", 18, "ASTRA-01"],
   ["quest_astra01_raider_easy_02", "raider_astral", 12, "ASTRA-01"],
-  ["quest_astra02_orb_normal_01", "drone_pirate", 14, "ASTRA-02"],
-  ["quest_astra02_raider_normal_01", "raider_astral", 16, "ASTRA-02"],
-  ["quest_astra02_spectral_normal_01", "chasseur_spectral", 10, "ASTRA-02"],
-  ["quest_astra02_spectral_daily_01", "chasseur_spectral", 16, "ASTRA-02"],
-  ["quest_astra03_raider_normal_01", "raider_astral", 14, "ASTRA-03"],
+  ["quest_weekly_assault", "chasseur_spectral", 15, "ASTRA-02"],
   ["quest_astra03_spectral_normal_01", "chasseur_spectral", 18, "ASTRA-03"],
   ["quest_astra03_spectral_hard_01", "chasseur_spectral", 35, "ASTRA-03"],
   ["quest_astra04_spectral_hard_01", "chasseur_spectral", 22, "ASTRA-04"],
@@ -68,7 +62,6 @@ const SERVER_QUESTS = [
   ["quest_astra05_boss_daily_02", "boss_chasseur_spectral", 8, "ASTRA-05"],
   ["quest_astra05_boss_weekly_01", "boss_raider_astral", 25, "ASTRA-05"],
   ["quest_astra05_boss_weekly_02", "boss_cuirasse_ambre", 12, "ASTRA-05"],
-  ["quest_cyan01_orb_easy_01", "drone_pirate", 8, "CYAN-01"],
   ["quest_cyan01_raider_easy_01", "raider_astral", 10, "CYAN-01"]
 ].map(([id, target, count, zone])=>({id, target, count, zone}));
 
@@ -615,6 +608,7 @@ function emitWorldReward({enemy, mapId, attackerId}){
     io.to(player.id).emit("player:reward", {
       enemyId:enemy.id,
       enemyType:enemy.type,
+      enemyLevel:enemy.level,
       mapId,
       share,
       killerId:attackerId,

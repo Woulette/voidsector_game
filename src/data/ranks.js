@@ -1,35 +1,36 @@
 export const RANK_TABLE = [
   {id:"recrue", name:"Recrue", score:0, asset:"01_Recrue.svg"},
-  {id:"pilote_debutant", name:"Pilote débutant", score:250, asset:"02_Pilote_debutant.svg"},
-  {id:"pilote", name:"Pilote", score:650, asset:"03_Pilote.svg"},
-  {id:"pilote_confirme", name:"Pilote confirmé", score:1100, asset:"04_Pilote_confirme.svg"},
-  {id:"soldat_spatial", name:"Soldat spatial", score:1700, asset:"05_Soldat_spatial.svg"},
-  {id:"soldat_elite", name:"Soldat d'élite", score:2600, asset:"06_Soldat_d_elite.svg"},
-  {id:"caporal", name:"Caporal", score:3900, asset:"07_Caporal.svg"},
-  {id:"caporal_chef", name:"Caporal-chef", score:5500, asset:"08_Caporal-chef.svg"},
-  {id:"sergent", name:"Sergent", score:7500, asset:"09_Sergent.svg"},
-  {id:"sergent_chef", name:"Sergent-chef", score:9800, asset:"10_Sergent-chef.svg"},
-  {id:"adjudant", name:"Adjudant", score:12800, asset:"11_Adjudant.svg"},
-  {id:"adjudant_chef", name:"Adjudant-chef", score:16500, asset:"12_Adjudant-chef.svg"},
-  {id:"aspirant", name:"Aspirant", score:21000, asset:"13_Aspirant.svg"},
-  {id:"sous_lieutenant", name:"Sous-lieutenant", score:26000, asset:"14_Sous-lieutenant.svg"},
-  {id:"lieutenant", name:"Lieutenant", score:32000, asset:"15_Lieutenant.svg"},
-  {id:"capitaine", name:"Capitaine", score:39000, asset:"16_Capitaine.svg"},
-  {id:"commandant", name:"Commandant", score:47000, asset:"17_Commandant.svg"},
-  {id:"lieutenant_colonel", name:"Lieutenant-colonel", score:56000, asset:"18_Lieutenant-colonel.svg"},
-  {id:"colonel", name:"Colonel", score:68000, asset:"19_Colonel.svg"},
-  {id:"colonel_elite", name:"Colonel d'élite", score:82000, asset:"20_Colonel_d_elite.svg"},
-  {id:"general_brigade", name:"Général de brigade", score:100000, asset:"21_General_de_brigade.svg"},
-  {id:"general_division", name:"Général de division", score:125000, asset:"22_General_de_division.svg"},
-  {id:"general_corps_armee", name:"Général de corps d'armée", score:155000, asset:"23_General_de_corps_d_armee.svg"},
-  {id:"general_armee", name:"Général d'armée", score:190000, asset:"24_General_d_armee.svg"},
-  {id:"marechal", name:"Maréchal", score:230000, asset:"25_Marechal.svg"}
+  {id:"pilote_debutant", name:"Pilote débutant", score:500, asset:"02_Pilote_debutant.svg"},
+  {id:"pilote", name:"Pilote", score:1500, asset:"03_Pilote.svg"},
+  {id:"pilote_confirme", name:"Pilote confirmé", score:3500, asset:"04_Pilote_confirme.svg"},
+  {id:"soldat_spatial", name:"Soldat spatial", score:6000, asset:"05_Soldat_spatial.svg"},
+  {id:"soldat_elite", name:"Soldat d'élite", score:9000, asset:"06_Soldat_d_elite.svg"},
+  {id:"caporal", name:"Caporal", score:13000, asset:"07_Caporal.svg"},
+  {id:"caporal_chef", name:"Caporal-chef", score:18000, asset:"08_Caporal-chef.svg"},
+  {id:"sergent", name:"Sergent", score:25000, asset:"09_Sergent.svg"},
+  {id:"sergent_chef", name:"Sergent-chef", score:35000, asset:"10_Sergent-chef.svg"},
+  {id:"adjudant", name:"Adjudant", score:50000, asset:"11_Adjudant.svg"},
+  {id:"adjudant_chef", name:"Adjudant-chef", score:70000, asset:"12_Adjudant-chef.svg"},
+  {id:"aspirant", name:"Aspirant", score:95000, asset:"13_Aspirant.svg"},
+  {id:"sous_lieutenant", name:"Sous-lieutenant", score:130000, asset:"14_Sous-lieutenant.svg"},
+  {id:"lieutenant", name:"Lieutenant", score:180000, asset:"15_Lieutenant.svg"},
+  {id:"capitaine", name:"Capitaine", score:250000, asset:"16_Capitaine.svg"},
+  {id:"commandant", name:"Commandant", score:350000, asset:"17_Commandant.svg"},
+  {id:"lieutenant_colonel", name:"Lieutenant-colonel", score:500000, asset:"18_Lieutenant-colonel.svg"},
+  {id:"colonel", name:"Colonel", score:700000, asset:"19_Colonel.svg"},
+  {id:"colonel_elite", name:"Colonel d'élite", score:950000, asset:"20_Colonel_d_elite.svg"},
+  {id:"general_brigade", name:"Général de brigade", score:1300000, asset:"21_General_de_brigade.svg"},
+  {id:"general_division", name:"Général de division", score:1850000, asset:"22_General_de_division.svg"},
+  {id:"general_corps_armee", name:"Général de corps d'armée", score:2600000, asset:"23_General_de_corps_d_armee.svg"},
+  {id:"general_armee", name:"Général d'armée", score:3700000, asset:"24_General_d_armee.svg"},
+  {id:"marechal", name:"Maréchal", score:5000000, asset:"25_Marechal.svg"}
 ];
 
 export const RANK_POINT_RULES = [
-  {id:"xp", label:"Expérience totale gagnée", source:"XP gagnée sur les monstres, vagues et récompenses de portail", rate:"1 point de classement par XP", multiplier:1},
-  {id:"kill", label:"Monstres détruits", source:"Chaque mob tué en zone ou en portail", rate:"55 points de classement par kill", multiplier:55},
-  {id:"level", label:"Niveaux pilote", source:"Progression du niveau du commandant", rate:"120 points par niveau gagné après le niveau 1", multiplier:120},
+  {id:"xp", label:"Expérience totale gagnée", source:"XP totale gagnée", rate:"1 point par 100 000 XP", multiplier:0.00001},
+  {id:"reputation", label:"Réputation", source:"Réputation totale gagnée", rate:"1 point par 10 000 réputation", multiplier:0.0001},
+  {id:"kill", label:"Monstres détruits", source:"Points fixes au moment du kill selon l'écart de niveau", rate:"1/10 à 1/1000 point par monstre", multiplier:1},
+  {id:"level", label:"Niveaux pilote", source:"Progression du niveau du commandant", rate:"1 000 points par niveau gagné après le niveau 1", multiplier:1000},
   {id:"portal", label:"Portails terminés", source:"Nettoyage complet des 30 vagues d'un portail", rate:"2 500 points par portail terminé", multiplier:2500}
 ];
 
@@ -61,24 +62,41 @@ export function getRankForScore(score){
   return current;
 }
 
+export function calculateMonsterKillRankPoints(playerLevel=1, enemyLevel=1){
+  const gap = Math.max(0, Math.floor(Number(playerLevel || 1)) - Math.floor(Number(enemyLevel || 1)));
+  if(gap <= 4) return 1 / 10;
+  if(gap <= 9) return 1 / 25;
+  if(gap <= 14) return 1 / 100;
+  if(gap <= 19) return 1 / 150;
+  if(gap <= 24) return 1 / 200;
+  if(gap <= 29) return 1 / 300;
+  if(gap <= 34) return 1 / 500;
+  if(gap <= 39) return 1 / 700;
+  return 1 / 1000;
+}
+
 export function calculateRankScore(player={}, portalClears=0){
   const totalXp = Math.max(0, Number(player.totalXp || 0));
-  const totalKills = Math.max(0, Number(player.totalKills || 0));
+  const reputation = Math.max(0, Number(player.reputation || 0));
+  const monsterRankPoints = Math.max(0, Number(player.monsterRankPoints || 0));
   const levelBonus = Math.max(0, Number(player.level || 1) - 1);
   const clears = Math.max(0, Number(portalClears || 0));
-  return totalXp + totalKills * 55 + levelBonus * 120 + clears * 2500;
+  return Math.floor(totalXp / 100000) + Math.floor(reputation / 10000) + monsterRankPoints + levelBonus * 1000 + clears * 2500;
 }
 
 export function buildRankBreakdown(player={}, portalClears=0){
   const totalXp = Math.max(0, Number(player.totalXp || 0));
+  const reputation = Math.max(0, Number(player.reputation || 0));
   const totalKills = Math.max(0, Number(player.totalKills || 0));
+  const monsterRankPoints = Math.max(0, Number(player.monsterRankPoints || 0));
   const levelBonus = Math.max(0, Number(player.level || 1) - 1);
   const clears = Math.max(0, Number(portalClears || 0));
   return [
-    {id:"xp", label:"XP totale gagnée", source:"Monstres, vagues et récompenses de portail", amount:totalXp, rate:1, formula:`${totalXp} × 1`, points:totalXp},
-    {id:"kill", label:"Monstres détruits", source:"Chaque ennemi tué", amount:totalKills, rate:55, formula:`${totalKills} × 55`, points:totalKills * 55},
-    {id:"level", label:"Niveaux gagnés", source:"Chaque niveau après le niveau 1", amount:levelBonus, rate:120, formula:`${levelBonus} × 120`, points:levelBonus * 120},
-    {id:"portal", label:"Portails terminés", source:"30 vagues nettoyées + boss tué", amount:clears, rate:2500, formula:`${clears} × 2500`, points:clears * 2500}
+    {id:"xp", label:"XP totale gagnée", source:"1 point pour 100 000 XP", amount:totalXp, rate:0.00001, formula:`floor(${totalXp} / 100000)`, points:Math.floor(totalXp / 100000)},
+    {id:"reputation", label:"Réputation", source:"1 point pour 10 000 réputation", amount:reputation, rate:0.0001, formula:`floor(${reputation} / 10000)`, points:Math.floor(reputation / 10000)},
+    {id:"kill", label:"Monstres détruits", source:"1 point pour 10 monstres tués selon niveau joueur / ennemi", amount:totalKills, rate:null, formula:`${monsterRankPoints} points historiques`, points:monsterRankPoints},
+    {id:"level", label:"Niveaux gagnés", source:"1 000 points par niveau gagné", amount:levelBonus, rate:1000, formula:`${levelBonus} x 1000`, points:levelBonus * 1000},
+    {id:"portal", label:"Portails terminés", source:"2 500 points par portail terminé", amount:clears, rate:2500, formula:`${clears} x 2500`, points:clears * 2500}
   ];
 }
 

@@ -88,6 +88,7 @@ export {
   RANK_TABLE,
   RANK_POINT_RULES,
   LOCAL_LEADERBOARD_PREVIEW,
+  calculateMonsterKillRankPoints,
   getCurrentRank,
   getLeaderboardRows,
   getNextRank,
@@ -202,6 +203,7 @@ export const store = {
 const MAX_ACTIVE_QUESTS = 5;
 const MIN_PLAYER_CREDITS = 0;
 const MIN_PLAYER_PREMIUM = 0;
+const RANK_KILL_POINTS_VERSION = 2;
 export const XP_CURVE_VERSION = 4;
 const XP_FIXED_NEXT_BY_LEVEL = {
   1:3000,
@@ -404,7 +406,12 @@ export function normalizeState(saved){
   }
   merged.xpCurveVersion = XP_CURVE_VERSION;
   merged.player.totalXp = Math.max(0, Number(merged.player.totalXp || 0));
+  merged.player.reputation = Math.max(0, Number(merged.player.reputation || 0));
   merged.player.totalKills = Math.max(0, Number(merged.player.totalKills || 0));
+  merged.rankKillPointsVersion = RANK_KILL_POINTS_VERSION;
+  merged.player.monsterRankPoints = Number(saved?.rankKillPointsVersion || 0) >= RANK_KILL_POINTS_VERSION
+    ? Math.max(0, Number(saved?.player?.monsterRankPoints || 0))
+    : Math.max(0, Number(merged.player.totalKills || 0) / 10);
   merged.player.totalPlayerKills = Math.max(0, Number(merged.player.totalPlayerKills || 0));
   merged.player.totalPlaySeconds = Math.max(0, Number(merged.player.totalPlaySeconds || 0));
   merged.player.laserShotsFired = Math.max(0, Number(merged.player.laserShotsFired || 0));
@@ -503,6 +510,22 @@ export function normalizeState(saved){
   merged.dronePermanentUpgrades = saved?.dronePermanentUpgrades && typeof saved.dronePermanentUpgrades === "object" ? {...saved.dronePermanentUpgrades} : {...(base.dronePermanentUpgrades || {})};
   merged.prestigeCount = Math.max(0, Number(saved?.prestigeCount || base.prestigeCount || 0));
   merged.killStats = saved?.killStats && typeof saved.killStats === "object" ? {...saved.killStats} : {};
+  merged.rankKillStats = {};
+  if(saved?.rankKillStats && typeof saved.rankKillStats === "object"){
+    for(const [kind, entry] of Object.entries(saved.rankKillStats)){
+      merged.rankKillStats[kind] = {
+        kills:Math.max(0, Number(entry?.kills || 0)),
+        points:Math.max(0, Number(entry?.points || 0)),
+        lastEnemyLevel:Math.max(1, Number(entry?.lastEnemyLevel || 1)),
+        lastPlayerLevel:Math.max(1, Number(entry?.lastPlayerLevel || 1))
+      };
+    }
+  }
+  for(const [kind, kills] of Object.entries(merged.killStats)){
+    if(merged.rankKillStats[kind]) continue;
+    const count = Math.max(0, Number(kills || 0));
+    merged.rankKillStats[kind] = {kills:count, points:count / 10, lastEnemyLevel:1, lastPlayerLevel:1};
+  }
   merged.cargoHold = {...(base.cargoHold || {})};
   if(saved?.cargoHold && typeof saved.cargoHold === "object"){
     for(const mat of rawMaterialCatalog) merged.cargoHold[mat.id] = Math.max(0, Number(saved.cargoHold[mat.id] || 0));
@@ -869,4 +892,16 @@ export function addXP(amount){
   syncSkillPoints();
   store.state.player.rankScore = getRankScore();
   return leveled;
+}
+
+export function addReputation(amount){
+  const gain = Math.max(0, Math.round(Number(amount || 0)));
+  if(gain <= 0) return 0;
+  store.state.player.reputation = Math.max(0, Number(store.state.player.reputation || 0)) + gain;
+  store.state.player.rankScore = getRankScore();
+  return gain;
+}
+
+export function addReputationFromXp(xp, ratio = 0.1){
+  return addReputation(Math.max(0, Number(xp || 0)) * Math.max(0, Number(ratio || 0)));
 }

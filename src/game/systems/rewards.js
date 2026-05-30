@@ -9,6 +9,7 @@ export function createRewardSystem({
   recordQuestKill,
   rollQuestItemDropFromKill,
   addXP,
+  addReputationFromXp,
   spawnPortalPieceDrop,
   spawnQuestItemDrop,
   getSelectedEnemy,
@@ -18,7 +19,7 @@ export function createRewardSystem({
   showToast,
   onLootChanged
 }){
-  const LOOT_NOTICE_DURATION = 5;
+  const LOOT_NOTICE_DURATION = 3;
   const MAX_LOOT_NOTICES = 5;
   let lootNotices = [];
 
@@ -71,7 +72,7 @@ export function createRewardSystem({
 
   function rewardEnemy(enemy){
     if(getSelectedEnemy()?.id === enemy.id) clearSelectedEnemy();
-    registerKill(enemy.kind);
+    const rankPoints = registerKill(enemy.kind, enemy.level);
     const currentMap = getCurrentMap();
     const questCompleted = recordQuestKill(enemy.kind, currentMap.name);
     const questItemDrop = rollQuestItemDropFromKill?.(enemy.kind, currentMap.name);
@@ -82,6 +83,7 @@ export function createRewardSystem({
     const premium = Math.round(Number(loot.premium || 0) * Number(skillBonus.novaMultiplier || 1));
     store.state.player.credits += credits;
     store.state.player.premium += premium;
+    const reputation = addReputationFromXp?.(xp) || 0;
     if(addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
 
     const pieceDrop = rollPortalPiece();
@@ -89,7 +91,7 @@ export function createRewardSystem({
     if(questItemDrop) spawnQuestItemDrop?.(enemy, questItemDrop);
     if(questCompleted) showToast("Quete terminee : retourne au relais pour reclamer la recompense.");
 
-    pushLootNotice({credits, xp, premium, piece:questItemDrop ? `${questItemDrop.itemName} au sol` : pieceDrop ? `Piece ${pieceDrop.name} au sol` : null});
+    pushLootNotice({credits, xp, reputation, rankPoints, premium, piece:questItemDrop ? `${questItemDrop.itemName} au sol` : pieceDrop ? `Piece ${pieceDrop.name} au sol` : null});
     spawnRewardParticles(enemy);
     saveState();
   }

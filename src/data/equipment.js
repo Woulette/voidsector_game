@@ -52,17 +52,17 @@ export const equipment = [
     stats:{degats:"150-200", cadence:"1.00s", portee:550},
     weapon:{minDamage:150, maxDamage:200, cooldown:1.00, range:550, speed:1120, color:"rgba(248,250,252,.98)", particle:"rgba(191,219,254,.90)"}
   },
-  { id:"shield_gen", name:"Générateur A I", short:"Générateur A I", category:"generateur", slotType:"generator", img:"assets/equipment/generator_shield_mk1.png", rarity:"RARE", priceType:"credits", price:28000, stats:{bouclier:500, regen:15}},
-  { id:"shield_omega", name:"Générateur A II", short:"Générateur A II", category:"generateur", slotType:"generator", img:"assets/equipment/generator_shield_omega.png", rarity:"ÉPIQUE", priceType:"credits", price:112000, stats:{bouclier:1200, regen:35}},
-  { id:"engine_ion", name:"Générateur de Vitesse MK-I", short:"Vitesse I", category:"generateur", slotType:"generator", img:"assets/equipment/generator_speed_mk1.png", rarity:"RARE", priceType:"credits", price:35000, stats:{vitesse:4}},
-  { id:"reactor_ion", name:"Générateur de Vitesse MK-II", short:"Vitesse II", category:"generateur", slotType:"generator", img:"assets/equipment/generator_speed_mk2.png", rarity:"ÉPIQUE", priceType:"credits", price:72000, stats:{vitesse:7}},
-  { id:"launcher_missile_mk1", name:"Lance Missile MK-I", short:"L-Missile", category:"module", shopCategory:"canon", slotType:"missileLauncher", img:"assets/equipment/launcher_missile_mk1_slot.png", rarity:"STANDARD", priceType:"credits", price:35000, stats:{degats:"100%", recharge:"3.00s", portee:500, missiles:3, rechargeTotale:"9.00s"}, effect:{missileRange:500, missileReload:3, missileCapacity:3, missileDamageMultiplier:1}},
-  { id:"launcher_rocket_mk1", name:"Lance Roquette MK-I", short:"L-Roquette", category:"module", shopCategory:"canon", slotType:"rocketLauncher", img:"assets/equipment/launcher_rocket_mk1_slot.png", rarity:"STANDARD", priceType:"credits", price:35000, stats:{degats:"100%", cadence:"5.00s", portee:500}, effect:{rocketRange:500, rocketCooldown:5, rocketDamageMultiplier:1}},
+  { id:"shield_gen", name:"Générateur A I", short:"Générateur A I", category:"generateur", slotType:"generator", img:"assets/equipment/generator_shield_mk1.png", rarity:"RARE", priceType:"credits", price:150000, stats:{bouclier:500, regen:15}},
+  { id:"shield_omega", name:"Générateur A II", short:"Générateur A II", category:"generateur", slotType:"generator", img:"assets/equipment/generator_shield_omega.png", rarity:"ÉPIQUE", priceType:"premium", price:2500, stats:{bouclier:1200, regen:35}},
+  { id:"engine_ion", name:"Générateur de Vitesse MK-I", short:"Vitesse I", category:"generateur", slotType:"generator", img:"assets/equipment/generator_speed_mk1.png", rarity:"RARE", priceType:"credits", price:125000, stats:{vitesse:4}},
+  { id:"reactor_ion", name:"Générateur de Vitesse MK-II", short:"Vitesse II", category:"generateur", slotType:"generator", img:"assets/equipment/generator_speed_mk2.png", rarity:"ÉPIQUE", priceType:"premium", price:2000, stats:{vitesse:7}},
+  { id:"launcher_missile_mk1", name:"Lance Missile MK-I", short:"L-Missile", category:"module", shopCategory:"canon", slotType:"missileLauncher", img:"assets/equipment/launcher_missile_mk1_slot.png", rarity:"STANDARD", priceType:"credits", price:500000, stats:{degats:"100%", recharge:"3.00s", portee:500, missiles:3, rechargeTotale:"9.00s"}, effect:{missileRange:500, missileReload:3, missileCapacity:3, missileDamageMultiplier:1}},
+  { id:"launcher_rocket_mk1", name:"Lance Roquette MK-I", short:"L-Roquette", category:"module", shopCategory:"canon", slotType:"rocketLauncher", img:"assets/equipment/launcher_rocket_mk1_slot.png", rarity:"STANDARD", priceType:"credits", price:150000, stats:{degats:"100%", cadence:"5.00s", portee:500}, effect:{rocketRange:500, rocketCooldown:5, rocketDamageMultiplier:1}},
   { id:"extra_auto_rocket", name:"Puce Roquette Auto", short:"Auto-R", category:"extra", slotType:"extra", img:"assets/equipment/extra_rocket_auto_chip.png", rarity:"RARE", priceType:"premium", price:25000, stats:{extra:"Tir automatique roquette"}, effect:{autoRocket:true}},
   { id:"extra_auto_missile", name:"Puce Missile Auto", short:"Auto-M", category:"extra", slotType:"extra", img:"assets/equipment/extra_missile_auto_chip.png", rarity:"RARE", priceType:"premium", price:30000, stats:{extra:"Tir automatique missile"}, effect:{autoMissile:true}},
   { id:"extra_rocket_accelerator", name:"Puce Accélérateur Roquettes", short:"Accél. R", category:"extra", slotType:"extra", img:"assets/equipment/extra_rocket_accelerator_chip.png", rarity:"ÉPIQUE", priceType:"premium", price:35000, stats:{extra:"Délai roquette /2"}, effect:{rocketCooldownMultiplier:0.5}},
   { id:"extra_repair_bot", name:"Drone de Réparation IA", short:"Drone-R", category:"extra", slotType:"extra", img:"assets/equipment/drone_repair_ai.png", rarity:"TACTIQUE", priceType:"credits", price:78000, stats:{extra:"Répare 2% HP / s"}, effect:{repairBot:true, repairBotHealRate:0.02, repairBotDelay:5}},
-  { id:"extra_repair_auto", name:"IA d'Auto-Réparation", short:"Auto-Répa", category:"extra", slotType:"extra", img:"assets/equipment/repair_ai_software.png", rarity:"PREMIUM", priceType:"premium", price:120, stats:{extra:"Active le drone auto"}, effect:{repairBotAuto:true}},
+  { id:"extra_repair_auto", name:"IA d'Auto-Réparation", short:"Auto-Répa", category:"extra", slotType:"extra", img:"assets/equipment/repair_ai_software.png", rarity:"PREMIUM", priceType:"premium", price:20000, stats:{extra:"Active le drone auto"}, effect:{repairBotAuto:true}},
   { id:"teleportation_fluid", name:"Fluide de Téléportation", short:"Fluide TP", category:"quest_item", shopCategory:"extra", slotType:"questItem", img:"assets/quest_items/teleportation_fluid.png", rarity:"QUETE", priceType:"premium", price:100, stats:{extra:"Fluide verdatre requis par Ricky"}},
   { id:"drone_overdrive_chip", name:"Noyau Overdrive Drone", short:"Overdrive", category:"drone_upgrade", slotType:"droneUpgrade", img:"assets/equipment/extra_rocket_auto_chip.png", rarity:"PORTAIL", priceType:"premium", price:0, shop:false, stats:{extra:"Amélioration permanente : drone rouge, lasers du drone +50%"}, effect:{droneDamageMultiplier:1.5}},
   { id:"ancestral_drone_core", name:"Noyau de Drone Ancestral", short:"Drone Anc.", category:"drone_blueprint", slotType:"future", img:"assets/drones/drone_test_sprite.webp", rarity:"ANCESTRAL", priceType:"premium", price:0, shop:false, stats:{extra:"Prototype futur : drone à 2 emplacements"}},
@@ -109,8 +109,8 @@ export const droneFormations = [
     category:"droneFormation",
     img:"assets/equipment/drone_formation_cuirasse_cert.png",
     rarity:"TACTIQUE",
-    priceType:"credits",
-    price:150000,
+    priceType:"premium",
+    price:50000,
     stats:{
       bonus:"+30% bouclier / regen",
       malus:"-15% laser, -20% roquettes"
@@ -130,8 +130,8 @@ export const droneFormations = [
     category:"droneFormation",
     img:"assets/equipment/drone_formation_tir_cert.png",
     rarity:"OFFENSIVE",
-    priceType:"credits",
-    price:180000,
+    priceType:"premium",
+    price:50000,
     stats:{
       bonus:"+20% tirs laser",
       malus:"-10% vitesse, -15% bouclier"
@@ -150,8 +150,8 @@ export const droneFormations = [
     category:"droneFormation",
     img:"assets/equipment/drone_formation_vitesse_cert.png",
     rarity:"MOBILITÉ",
-    priceType:"credits",
-    price:160000,
+    priceType:"premium",
+    price:50000,
     stats:{
       bonus:"+5% vitesse",
       malus:"-15% laser, -20% roq/mis"

@@ -104,18 +104,32 @@ export function updateLootPopup({notices = []}){
   if(!el) return;
   if(!notices.length){ el.classList.add("hidden"); el.innerHTML = ""; return; }
   el.classList.remove("hidden");
-  el.innerHTML = notices.map(notice=>{
+  const activeIds = new Set(notices.map(notice=>String(notice.id)));
+  Array.from(el.children).forEach(child=>{
+    if(!activeIds.has(String(child.dataset.lootId || ""))) child.remove();
+  });
+  notices.forEach(notice=>{
     const loot = notice.loot || {};
-    const parts = [];
-    if(loot.message) parts.push(loot.message);
-    if(loot.credits) parts.push(`+${fmt(loot.credits)} CR`);
-    if(loot.xp) parts.push(`+${fmt(loot.xp)} XP`);
-    if(loot.premium) parts.push(`+${fmt(loot.premium)} NOVA`);
-    if(loot.ammo?.length) parts.push(...loot.ammo);
-    if(loot.items?.length) parts.push(...loot.items);
-    if(loot.piece) parts.push(loot.piece);
-    if(loot.materials?.length) parts.push(`Cargo : ${loot.materials.join(" · ")}`);
     const opacity = Math.max(0, Math.min(1, Number(notice.remaining || 0) / Number(notice.duration || 5)));
-    return `<div class="loot-line" style="opacity:${opacity.toFixed(3)}">${parts.join(" · ")}</div>`;
-  }).join("");
+    let line = Array.from(el.children).find(child=>child.dataset.lootId === String(notice.id));
+    if(!line){
+      const parts = [];
+      if(loot.message) parts.push({label:loot.message, value:""});
+      if(loot.credits) parts.push({label:"Crédit", value:`+${fmt(loot.credits)}`});
+      if(loot.premium) parts.push({label:"Nova", value:`+${fmt(loot.premium)}`});
+      if(loot.xp) parts.push({label:"Expérience gagnée", value:`+${fmt(loot.xp)}`});
+      if(loot.reputation) parts.push({label:"Réputation gagnée", value:`+${fmt(loot.reputation)}`});
+      if(loot.ammo?.length) parts.push(...loot.ammo.map(label=>({label, value:""})));
+      if(loot.items?.length) parts.push(...loot.items.map(label=>({label, value:""})));
+      if(loot.piece) parts.push({label:loot.piece, value:""});
+      if(loot.materials?.length) parts.push({label:"Cargo", value:loot.materials.join(" · ")});
+      line = document.createElement("div");
+      line.className = "loot-line";
+      line.dataset.lootId = String(notice.id);
+      line.innerHTML = parts.map(part=>`<div><span>${part.label}</span>${part.value ? `<b>${part.value}</b>` : ""}</div>`).join("");
+      el.prepend(line);
+    }
+    line.style.opacity = opacity.toFixed(3);
+  });
 }
+

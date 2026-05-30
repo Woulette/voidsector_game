@@ -1,8 +1,10 @@
+import { portals } from "../data/catalog.js";
+import { ENEMY_TYPES, MAPS } from "../game/combatData.js";
 import { fmt } from "../core/utils.js";
 import {
-  RANK_POINT_RULES,
   RANK_TABLE,
   getCurrentRank,
+  calculateMonsterKillRankPoints,
   getLeaderboardRows,
   getNextRank,
   getRankBreakdown,
@@ -10,7 +12,152 @@ import {
   store
 } from "../core/store.js";
 import { rankIcon, rankInline } from "./renderShared.js";
+
+let rankDetailsOpen = false;
+let rankDetailsEventsInstalled = false;
+
+function getEnemyLevelRange(kind){
+  const typeRange = ENEMY_TYPES[kind]?.levelRange;
+  if(Array.isArray(typeRange) && typeRange.length >= 2) return [Number(typeRange[0] || 1), Number(typeRange[1] || typeRange[0] || 1)];
+  const levels = [];
+  for(const map of MAPS){
+    const hasEnemy = (map.enemyTypes || []).some(entry=>(entry.id || entry[0]) === kind) || Object.hasOwn(map.fixedEnemyCounts || {}, kind);
+    if(hasEnemy && Array.isArray(map.enemyLevel)){
+      levels.push(Number(map.enemyLevel[0] || 1), Number(map.enemyLevel[1] || map.enemyLevel[0] || 1));
+    }
+  }
+  if(levels.length) return [Math.min(...levels), Math.max(...levels)];
+  return [1, 1];
+}
+
+function getCurrentEnemyLevelForRate(playerLevel, range){
+  const [min, max] = range;
+  return Math.max(min, Math.min(max, Math.floor(Number(playerLevel || 1))));
+}
+
+function getCurrentMonsterRateLabel(playerLevel, range){
+  const enemyLevel = getCurrentEnemyLevelForRate(playerLevel, range);
+  const points = calculateMonsterKillRankPoints(playerLevel, enemyLevel);
+  const denominator = Math.max(1, Math.round(1 / Math.max(points, 0.000001)));
+  return `1 / ${fmt(denominator)}`;
+}
+
+function shouldRotateMonsterImage(kind){
+  return ["raider_astral", "cuirasse_nebulaire", "cristal_du_neant"].includes(kind);
+}
+
+function monsterImageHtml(row){
+  if(!row.img) return "";
+  const rotated = shouldRotateMonsterImage(row.kind);
+  return `<img class="${rotated ? "rotate" : ""}" src="${row.img}" alt="" ${rotated ? `style="transform:rotate(180deg)"` : ""}>`;
+}
+
+function installRankDetailsEvents(){
+  if(rankDetailsEventsInstalled) return;
+  rankDetailsEventsInstalled = true;
+  document.addEventListener("click", e=>{
+    if(e.target.closest("[data-rank-details-open]")){
+      rankDetailsOpen = true;
+      renderLeaderboard();
+      return;
+    }
+    if(e.target.closest("[data-rank-details-close]") || e.target.classList?.contains("rank-details-modal")){
+      rankDetailsOpen = false;
+      renderLeaderboard();
+    }
+  });
+}
+
+function renderRankDetailsModal(breakdown){
+  if(!rankDetailsOpen) return "";
+  const player = store.state.player || {};
+  const playerLevel = Math.max(1, Number(player.level || 1));
+  const completedPortals = store.state.completedPortals || {};
+  const rankKillStats = store.state.rankKillStats || {};
+  const xpRow = breakdown.find(row=>row.id === "xp") || {};
+  const reputationRow = breakdown.find(row=>row.id === "reputation") || {};
+  const killRow = breakdown.find(row=>row.id === "kill") || {};
+  const levelRow = breakdown.find(row=>row.id === "level") || {};
+  const portalRow = breakdown.find(row=>row.id === "portal") || {};
+  const monsterRows = Object.entries(rankKillStats)
+    .map(([kind, entry])=>({
+      kind,
+      name:ENEMY_TYPES[kind]?.name || kind,
+      img:ENEMY_TYPES[kind]?.img || "",
+      levelRange:getEnemyLevelRange(kind),
+      kills:Math.max(0, Number(entry?.kills || 0)),
+      points:Math.max(0, Number(entry?.points || 0)),
+      lastPlayerLevel:Math.max(1, Number(entry?.lastPlayerLevel || 1)),
+      lastEnemyLevel:Math.max(1, Number(entry?.lastEnemyLevel || 1))
+    }))
+    .filter(row=>row.kills > 0 || row.points > 0)
+    .sort((a,b)=>b.points - a.points || b.kills - a.kills || a.name.localeCompare(b.name));
+  const portalRows = Object.entries(completedPortals)
+    .map(([id, count])=>({
+      id,
+      name:portals.find(portal=>portal.id === id)?.name || id,
+      count:Math.max(0, Number(count || 0)),
+      points:Math.max(0, Number(count || 0)) * 2500
+    }))
+    .filter(row=>row.count > 0)
+    .sort((a,b)=>b.points - a.points || a.name.localeCompare(b.name));
+
+  return `
+    <div class="rank-details-modal" role="dialog" aria-modal="true" aria-label="Details du score de grade">
+      <section class="rank-details-window frame">
+        <div class="rank-details-head">
+          <div>
+            <span class="tiny">SCORE DE GRADE</span>
+            <h3>Details du calcul</h3>
+          </div>
+          <button class="rank-details-close" type="button" data-rank-details-close aria-label="Fermer">×</button>
+        </div>
+        <div class="rank-details-summary">
+          <article><span>XP totale</span><strong>${fmt(player.totalXp || 0)}</strong><small>${fmt(xpRow.points || 0)} pts</small></article>
+          <article><span>Reputation</span><strong>${fmt(player.reputation || 0)}</strong><small>${fmt(reputationRow.points || 0)} pts</small></article>
+          <article><span>Monstres</span><strong>${fmt(player.totalKills || 0)}</strong><small>${fmt(killRow.points || 0)} pts</small></article>
+          <article><span>Niveaux</span><strong>${fmt(Math.max(0, Number(player.level || 1) - 1))}</strong><small>${fmt(levelRow.points || 0)} pts</small></article>
+          <article><span>Portails</span><strong>${fmt(portalRow.amount || 0)}</strong><small>${fmt(portalRow.points || 0)} pts</small></article>
+        </div>
+        <div class="rank-details-grid">
+          <section class="rank-detail-panel">
+            <span class="tiny">PROGRESSION</span>
+            <h4>XP, reputation et niveaux</h4>
+            <div class="rank-detail-lines">
+              <div><span>XP totale gagnee</span><b>${fmt(player.totalXp || 0)}</b><strong>${fmt(xpRow.points || 0)} pts</strong></div>
+              <div><span>Reputation totale</span><b>${fmt(player.reputation || 0)}</b><strong>${fmt(reputationRow.points || 0)} pts</strong></div>
+              <div><span>Niveau actuel</span><b>${fmt(player.level || 1)}</b><strong>${fmt(levelRow.points || 0)} pts</strong></div>
+            </div>
+          </section>
+          <section class="rank-detail-panel">
+            <span class="tiny">PORTAILS</span>
+            <h4>Portails termines</h4>
+            ${portalRows.length ? `<div class="rank-detail-table">
+              ${portalRows.map(row=>`<div><span>${row.name}</span><b>${fmt(row.count)}</b><strong>${fmt(row.points)} pts</strong></div>`).join("")}
+            </div>` : `<p class="rank-detail-empty">Aucun portail termine pour le moment.</p>`}
+          </section>
+        </div>
+        <section class="rank-detail-panel rank-detail-wide">
+          <span class="tiny">BESTIAIRE DE GRADE</span>
+          <h4>Monstres tues et points gagnes</h4>
+          ${monsterRows.length ? `<div class="rank-monster-table">
+            <div class="rank-monster-head"><span>Monstre</span><span>Kills</span><span>Taux actuel</span><span>Dernier niveau</span><span>Points</span></div>
+            ${monsterRows.map(row=>`<div>
+              <span class="rank-monster-name">${monsterImageHtml(row)}<span><b>${row.name}</b><small>Niv. ${fmt(row.levelRange[0])} a ${fmt(row.levelRange[1])}</small></span></span>
+              <b>${fmt(row.kills)}</b>
+              <em>${getCurrentMonsterRateLabel(playerLevel, row.levelRange)}</em>
+              <small>Joueur ${fmt(row.lastPlayerLevel)} / ennemi ${fmt(row.lastEnemyLevel)}</small>
+              <strong>${fmt(row.points)} pts</strong>
+            </div>`).join("")}
+          </div>` : `<p class="rank-detail-empty">Aucun monstre comptabilise pour le moment.</p>`}
+        </section>
+      </section>
+    </div>
+  `;
+}
+
 export function renderLeaderboard(){
+  installRankDetailsEvents();
   const panel = document.getElementById("leaderboardPanel");
   if(!panel) return;
   const rows = getLeaderboardRows();
@@ -95,7 +242,6 @@ export function renderLeaderboard(){
             <div>
               <strong>${row.label}</strong>
               <span>${row.source}</span>
-              <small>${row.formula}</small>
             </div>
             <b>${fmt(row.points)}</b>
           </article>`).join("")}
@@ -104,9 +250,7 @@ export function renderLeaderboard(){
           <span>Total calculé</span>
           <strong>${fmt(totalBreakdownPoints)}</strong>
         </div>
-        <div class="rank-rules-mini">
-          ${RANK_POINT_RULES.map(rule=>`<div><b>${rule.label}</b><span>${rule.rate}</span></div>`).join("")}
-        </div>
+        <button class="rank-details-button" type="button" data-rank-details-open>Détails</button>
       </aside>
     </div>
 
@@ -127,5 +271,6 @@ export function renderLeaderboard(){
         </article>`).join("")}
       </div>
     </section>
+    ${renderRankDetailsModal(breakdown)}
   `;
 }

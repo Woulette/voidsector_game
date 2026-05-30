@@ -1,5 +1,5 @@
 import { portals } from "../../data/catalog.js";
-import { addAmmo, addXP, getAllQuests, markPortalCompleted, saveState, store } from "../../core/store.js";
+import { addAmmo, addReputationFromXp, addXP, getAllQuests, markPortalCompleted, registerKill, saveState, store } from "../../core/store.js";
 import { fmt } from "../../core/utils.js";
 import { SAFE_ZONE_DELAY } from "../combatData.js";
 import { buildPortalEnvironment, createPortalMap } from "./portalState.js";
@@ -132,12 +132,14 @@ export function createCombatServerEventSystem({
       const credits = Math.max(0, Math.round(Number(event.credits || 0)));
       const xp = Math.max(0, Math.round(Number(event.xp || 0)));
       const premium = Math.max(0, Math.round(Number(event.premium || 0)));
+      const rankPoints = registerKill(event.enemyType || "server_enemy", event.enemyLevel);
+      const reputation = addReputationFromXp(xp);
       if(credits > 0) store.state.player.credits += credits;
       if(premium > 0) store.state.player.premium += premium;
       if(xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
-      rewards.showLootNotice?.({message:`${event.enemyType || "Ennemi"} detruit`, credits, xp, premium});
+      rewards.showLootNotice?.({message:`${event.enemyType || "Ennemi"} detruit`, credits, xp, reputation, rankPoints, premium});
       const shareLabel = Number(event.share || 1) < 1 ? " (partage groupe 50%)" : "";
-      showToast(`Butin serveur${shareLabel} : +${fmt(credits)} credits, +${fmt(xp)} XP${premium ? `, +${fmt(premium)} NOVA` : ""}.`);
+      showToast(`Butin serveur${shareLabel} : +${fmt(credits)} credits${premium ? `, +${fmt(premium)} NOVA` : ""}, +${fmt(xp)} XP, +${fmt(reputation)} reputation.`);
       saveState();
     }
     multiplayer.playerRewardEvents = remaining;

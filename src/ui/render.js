@@ -62,13 +62,17 @@ export function renderTop(){
   document.getElementById("xpFill").style.width = `${Math.min(100, state.player.xp / state.player.xpNext * 100)}%`;
   document.getElementById("creditsValue").textContent = fmt(state.player.credits);
   document.getElementById("premiumValue").textContent = fmt(state.player.premium);
+  const pilotRankIcon = document.getElementById("pilotRankIcon");
+  if(pilotRankIcon){
+    pilotRankIcon.src = getRankAssetPath(rank);
+    pilotRankIcon.alt = rank.name;
+    pilotRankIcon.title = rank.name;
+  }
   document.querySelectorAll("[data-skill-points], #skillPointsValue").forEach(skillPoints=>{
     skillPoints.textContent = state.player.skillPoints;
   });
-  const pilotRank = document.getElementById("pilotRank");
-  if(pilotRank) pilotRank.textContent = rank.name;
-  const pilotStats = document.getElementById("pilotStats");
-  if(pilotStats) pilotStats.textContent = `${fmt(state.player.totalKills || 0)} kills monstres · score ${fmt(rankProgress.score)}`;
+  const pilotRankLabel = document.getElementById("pilotRankLabel");
+  if(pilotRankLabel) pilotRankLabel.textContent = rank.name;
   const gradeBox = document.getElementById("gradeCard");
   if(gradeBox){
     gradeBox.innerHTML = `
@@ -485,7 +489,7 @@ function renderProfileTabContent(tab){
       <div><span>PV</span><b>${fmt(stats.vie)}</b></div><div><span>Bouclier</span><b>${fmt(stats.bouclier)}</b></div><div><span>Vitesse</span><b>${fmt(stats.vitesseReelle)}</b></div><div><span>Soute</span><b>${fmt(stats.cargo)}</b></div>
     </div></section>
     <section class="profile-card"><div class="profile-card-head"><span class="tiny">PROGRESSION</span><h3>Compte</h3></div><div class="profile-stat-grid">
-      <div><span>Temps en jeu</span><b>${formatDuration(player.totalPlaySeconds)}</b></div><div><span>Kills monstres</span><b>${fmt(player.totalKills || 0)}</b></div><div><span>Kills joueurs</span><b>${fmt(player.totalPlayerKills || 0)}</b></div><div><span>Portails finis</span><b>${fmt(completedPortals)}</b></div><div><span>Quêtes finies</span><b>${fmt(Object.keys(store.state.completedQuestClaims || {}).length)}</b></div><div><span>Tirs laser</span><b>${fmt(player.laserShotsFired || 0)}</b></div><div><span>Roquettes</span><b>${fmt(player.rocketShotsFired || 0)}</b></div><div><span>Missiles</span><b>${fmt(player.missileShotsFired || 0)}</b></div><div><span>Prestige</span><b>${fmt(store.state.prestigeCount || 0)}</b></div>
+      <div><span>Temps en jeu</span><b>${formatDuration(player.totalPlaySeconds)}</b></div><div><span>Reputation</span><b>${fmt(player.reputation || 0)}</b></div><div><span>Kills monstres</span><b>${fmt(player.totalKills || 0)}</b></div><div><span>Kills joueurs</span><b>${fmt(player.totalPlayerKills || 0)}</b></div><div><span>Portails finis</span><b>${fmt(completedPortals)}</b></div><div><span>Quêtes finies</span><b>${fmt(Object.keys(store.state.completedQuestClaims || {}).length)}</b></div><div><span>Prestige</span><b>${fmt(store.state.prestigeCount || 0)}</b></div>
     </div></section>
     <section class="profile-card"><div class="profile-card-head"><span class="tiny">PRESTIGE</span><h3>Boucle suivante</h3></div>
       <p>${prestige.ok ? "Pret : retour niveau 1, competences conservees, cap niveau 100." : prestige.reason}</p>
@@ -625,7 +629,9 @@ export function setView(view){
   renderHangarMode();
   document.querySelectorAll(".nav-tab").forEach(b=>b.classList.toggle("active", b.dataset.view === view));
   document.querySelectorAll(".page-view").forEach(p=>p.classList.toggle("active", p.dataset.page === view));
-  document.getElementById("pageTitle").textContent = pageText[view].title;
-  document.getElementById("pageSubtitle").textContent = pageText[view].subtitle;
+  const pageTitle = document.getElementById("pageTitle");
+  const pageSubtitle = document.getElementById("pageSubtitle");
+  if(pageTitle) pageTitle.textContent = pageText[view].title;
+  if(pageSubtitle) pageSubtitle.textContent = pageText[view].subtitle;
   window.scrollTo({top:0, behavior:"smooth"});
 }

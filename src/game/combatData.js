@@ -395,6 +395,7 @@ export const ENEMY_TYPES = {
   drone_pirate:{
     name:"Orbe sentinelle",
     img:"assets/enemies/enemy_cyan_orb.png",
+    levelRange:[1,4],
     maxHp:()=>800,
     speed:()=>190,
     radius:26,
@@ -417,7 +418,7 @@ export const ENEMY_TYPES = {
   raider_astral:{
     name:"Vorak rusher",
     img:"assets/enemies/enemy_red_rusher.png",
-    levelRange:[4,6],
+    levelRange:[4,7],
     maxHp:(level)=>1450 + level*170,
     speed:()=>220,
     radius:36,

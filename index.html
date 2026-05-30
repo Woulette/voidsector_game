@@ -12,19 +12,17 @@
     <header class="topbar">
       <section class="pilot-card frame">
         <div class="pilot-avatar">
-          <img src="assets/icons/profile.svg" alt="Profil pilote">
+          <img id="pilotRankIcon" src="assets/ranks/01_Recrue.svg" alt="Grade pilote">
         </div>
         <div>
-          <span class="tiny">COMMANDANT</span>
+          <span id="pilotRankLabel" class="tiny">RECRUE</span>
           <h1 id="pilotName">NOVA-37</h1>
-          <div id="pilotRank" class="pilot-rank-line">Recrue</div>
           <div class="level-line">
             <span id="levelText">NIV. 1</span>
             <div class="mini-bar"><span id="xpFill"></span></div>
             <span id="xpText">0 / 100</span>
           </div>
         </div>
-          <small id="pilotStats" class="pilot-stats">0 kills · score 0</small>
       </section>
 
       <nav class="top-nav frame">
@@ -60,14 +58,6 @@
         </div>
       </section>
     </header>
-
-    <section class="banner frame">
-      <div>
-        <strong id="pageTitle">HANGAR</strong>
-        <p id="pageSubtitle">Sélectionne ton vaisseau actif avant de partir en zone spatiale.</p>
-      </div>
-      <div id="gradeCard" class="pass-card grade-card"></div>
-    </section>
 
     <main class="page-container">
       <section class="page-view hangar-view active" data-page="hangar">

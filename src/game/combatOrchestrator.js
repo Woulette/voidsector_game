@@ -2,6 +2,7 @@ import { ammoTypes, droneFormations, equipment, portals, ships } from "../data/c
 import { fmt } from "../core/utils.js";
 import {
   addAmmo,
+  addReputationFromXp,
   addShipCargoMaterial,
   addPortalPiece,
   addXP,
@@ -373,6 +374,7 @@ export function createCombatGame({renderAll, showToast}){
     recordQuestKill,
     rollQuestItemDropFromKill,
     addXP,
+    addReputationFromXp,
     spawnPortalPieceDrop:(enemy, portal)=>cargo.spawnPortalPieceDrop(enemy, portal),
     spawnQuestItemDrop:(enemy, item)=>cargo.spawnQuestItemDrop(enemy, item),
     getSelectedEnemy:()=>selectedEnemy,

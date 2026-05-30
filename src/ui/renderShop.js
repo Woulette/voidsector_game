@@ -55,6 +55,12 @@ const SHOP_FILTER_META = {
 
 function productKey(product){ return `${product.kind}:${product.id}`; }
 function shopAmmoMultiplier(){ return [1, 10, 100, 1000].includes(Number(store.selectedShopAmmoMultiplier)) ? Number(store.selectedShopAmmoMultiplier) : 1; }
+function shopPriceClass(priceType){
+  return priceType === "premium" ? "shop-price premium" : "shop-price credits";
+}
+function shopPriceHtml(priceType, price){
+  return `<strong class="${shopPriceClass(priceType)}">${priceLabel(priceType, price)}</strong>`;
+}
 function renderAmmoPurchaseControls(ammo){
   const selected = shopAmmoMultiplier();
   return `<div class="shop-ammo-buy-options">
@@ -222,6 +228,14 @@ function shopAmmoStatsHtml(ammo){
     </div>`;
 }
 
+function shopShipStatsHtml(ship){
+  return `<div class="shop-item-stat-lines">
+      <span><b>Vie</b>${fmt(ship.stats.vie)}</span>
+      <span><b>Vitesse</b>${fmt(ship.stats.vitesse)}</span>
+      <span><b>Lasers</b>${fmt(ship.stats.maxLasers)}</span>
+    </div>`;
+}
+
 function renderShopDetailStat(line){
   const match = String(line).match(/^(BOUCLIER|REGENERATION|VITESSE|PACK|MULTIPLICATEUR|STOCK|EFFET|SLOT)\s+(.+)$/i) || String(line).match(/^(D\S+(?:\s+ROQUETTE|\s+MISSILE)?|PORT\S+[E\u00c9]|CADENCE|RECHARGE|CAPACIT\S+|RECHARGE TOTALE)\s+(.+)$/);
   if(match){
@@ -248,10 +262,10 @@ function renderShopListCard(product, selected){
     return `<article class="shop-list-card ${selected ? "selected" : ""} ${owned ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
       <div class="shop-list-art"><img src="${ship.img}" alt="${ship.name}"></div>
       <div class="shop-list-copy">
-        <div class="shop-list-head"><h4>${ship.name}</h4></div>
-        <p>${ship.className}</p>
-        <div class="shop-list-meta"><span>${productStatusText(product)}</span><strong>${owned ? "OK" : priceLabel(ship.priceType, ship.price)}</strong></div>
-        <div class="shop-list-meta"><span>${ship.stats.vie} PV · ${ship.stats.vitesse} vitesse</span>${lockBadge}</div>
+        <div class="shop-list-head"><h4>${ship.name}</h4><span class="badge">${ship.className}</span></div>
+        ${shopShipStatsHtml(ship)}
+        <div class="shop-list-meta"><span>${productStatusText(product)}</span>${owned ? "<strong>OK</strong>" : shopPriceHtml(ship.priceType, ship.price)}</div>
+        ${lockBadge ? `<div class="shop-list-meta">${lockBadge}</div>` : ""}
       </div>
     </article>`;
   }
@@ -264,7 +278,7 @@ function renderShopListCard(product, selected){
       <div class="shop-list-copy">
         <div class="shop-list-head"><h4>${ammo.name}</h4><span class="badge">${ammo.rarity}</span></div>
         ${ammoStats}
-        <div class="shop-list-meta"><span>${productStatusText(product)}</span><strong>${priceLabel(ammo.priceType, ammo.price)}</strong></div>
+        <div class="shop-list-meta"><span>${productStatusText(product)}</span>${shopPriceHtml(ammo.priceType, ammo.price)}</div>
         <div class="shop-list-meta"><span>Pack ${fmt(ammo.amount)}</span>${lockBadge}</div>
       </div>
     </article>`;
@@ -278,7 +292,7 @@ function renderShopListCard(product, selected){
       <div class="shop-list-copy">
         <div class="shop-list-head"><h4>${drone.name}</h4><span class="badge">${drone.rarity}</span></div>
         <p>1 slot par drone · max ${drone.maxOwned}</p>
-        <div class="shop-list-meta"><span>${productStatusText(product)}</span><strong>${next ? priceLabel(drone.priceType, next) : "MAX"}</strong></div>
+        <div class="shop-list-meta"><span>${productStatusText(product)}</span>${next ? shopPriceHtml(drone.priceType, next) : "<strong>MAX</strong>"}</div>
         <div class="shop-list-meta"><span>Prix x2 à chaque achat</span>${lockBadge}</div>
       </div>
     </article>`;
@@ -291,7 +305,7 @@ function renderShopListCard(product, selected){
       <div class="shop-list-copy">
         <div class="shop-list-head"><h4>${formation.name}</h4><span class="badge">${formation.rarity}</span></div>
         <div class="shop-item-stat-lines"><span><b>Bonus</b>${formation.stats.bonus}</span><span><b>Malus</b>${formation.stats.malus}</span></div>
-        <div class="shop-list-meta"><span>${productStatusText(product)}</span><strong>${owned ? "OK" : priceLabel(formation.priceType, formation.price)}</strong></div>
+        <div class="shop-list-meta"><span>${productStatusText(product)}</span>${owned ? "<strong>OK</strong>" : shopPriceHtml(formation.priceType, formation.price)}</div>
       </div>
     </article>`;
   }
@@ -303,7 +317,7 @@ function renderShopListCard(product, selected){
     <div class="shop-list-copy">
       <div class="shop-list-head"><h4>${item.name}</h4><span class="badge">${item.rarity}</span></div>
       ${shopItemStatsHtml(item)}
-      <div class="shop-list-meta"><span>${(item.shopCategory || item.category).toUpperCase()}</span><strong>${priceLabel(item.priceType, item.price)}</strong></div>
+      <div class="shop-list-meta"><span>${(item.shopCategory || item.category).toUpperCase()}</span>${shopPriceHtml(item.priceType, item.price)}</div>
       ${lockLine}
     </div>
   </article>`;
@@ -329,7 +343,7 @@ function renderShopDetail(product){
       <p class="shop-detail-copy">${ship.className}. ${ship.special ? `Aptitude : ${ship.special}.` : "Aucun sort spécial."}</p>
       ${lockHtml}
       <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
-      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Statut</small><strong>${active ? "Actif" : owned ? "Possédé" : priceLabel(ship.priceType, ship.price)}</strong></div><button class="blue-button" data-buy-shop-ship="${ship.id}" ${(owned || !unlocked || !canAfford(ship.priceType, ship.price)) ? "disabled" : ""}>${owned ? "DÉJÀ ACHETÉ" : "ACHETER"}</button></div>`;
+      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Statut</small>${active ? "<strong>Actif</strong>" : owned ? "<strong>Possédé</strong>" : shopPriceHtml(ship.priceType, ship.price)}</div><button class="blue-button" data-buy-shop-ship="${ship.id}" ${(owned || !unlocked || !canAfford(ship.priceType, ship.price)) ? "disabled" : ""}>${owned ? "DÉJÀ ACHETÉ" : "ACHETER"}</button></div>`;
     return;
   }
   if(product.kind === "ammo"){
@@ -344,7 +358,7 @@ function renderShopDetail(product){
       ${lockHtml}
       <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
       ${renderAmmoPurchaseControls(ammo)}
-      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix</small><strong>${priceLabel(ammo.priceType, ammo.price * shopAmmoMultiplier())}</strong></div><button class="blue-button" data-buy-ammo="${ammo.id}" data-buy-ammo-multiplier="${shopAmmoMultiplier()}" ${(!canAfford(ammo.priceType, ammo.price * shopAmmoMultiplier())) ? "disabled" : ""}>ACHETER</button></div>`;
+      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix</small>${shopPriceHtml(ammo.priceType, ammo.price * shopAmmoMultiplier())}</div><button class="blue-button" data-buy-ammo="${ammo.id}" data-buy-ammo-multiplier="${shopAmmoMultiplier()}" ${(!canAfford(ammo.priceType, ammo.price * shopAmmoMultiplier())) ? "disabled" : ""}>ACHETER</button></div>`;
     return;
   }
   if(product.kind === "drone"){
@@ -358,7 +372,7 @@ function renderShopDetail(product){
       <p class="shop-detail-copy">${drone.desc}</p>
       ${lockHtml}
       <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
-      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Suivant</small><strong>${next ? priceLabel(drone.priceType, next) : "MAX"}</strong></div><button class="blue-button" data-buy-combat-drone ${(!next || !canAfford(drone.priceType, next)) ? "disabled" : ""}>${next ? "ACHETER" : "MAX"}</button></div>`;
+      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Suivant</small>${next ? shopPriceHtml(drone.priceType, next) : "<strong>MAX</strong>"}</div><button class="blue-button" data-buy-combat-drone ${(!next || !canAfford(drone.priceType, next)) ? "disabled" : ""}>${next ? "ACHETER" : "MAX"}</button></div>`;
     return;
   }
   if(product.kind === "droneFormation"){
@@ -374,11 +388,10 @@ function renderShopDetail(product){
         ${renderShopDetailStat(`EFFET ${formation.stats.bonus}`)}
         ${renderShopDetailStat(`MALUS ${formation.stats.malus}`)}
       </div>
-      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Statut</small><strong>${active ? "ACTIVE" : owned ? "POSSÉDÉE" : priceLabel(formation.priceType, formation.price)}</strong></div><button class="blue-button" data-buy-drone-formation="${formation.id}" ${(!owned && !canAfford(formation.priceType, formation.price)) ? "disabled" : ""}>${active ? "ACTIVE" : owned ? "ACTIVER" : "ACHETER"}</button></div>`;
+      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Statut</small>${active ? "<strong>ACTIVE</strong>" : owned ? "<strong>POSSÉDÉE</strong>" : shopPriceHtml(formation.priceType, formation.price)}</div><button class="blue-button" data-buy-drone-formation="${formation.id}" ${(!owned && !canAfford(formation.priceType, formation.price)) ? "disabled" : ""}>${active ? "ACTIVE" : owned ? "ACTIVER" : "ACHETER"}</button></div>`;
     return;
   }
   const item = product.data;
-  const ownedCount = getInventoryCount(item.id);
   const equipText = item.category === "canon" ? "Peut être équipé dans un slot laser de vaisseau ou de drone." : item.category === "generateur" ? "Peut être équipé dans un slot générateur de vaisseau ou dans un drone." : item.category === "extra" ? "Peut être équipé dans un slot extra du vaisseau." : item.category === "quest_item" ? "Objet de quete a rapporter au PNJ demandeur." : "Prévu pour une future étape de gameplay.";
   detail.innerHTML = `
     <div class="shop-detail-top"><span class="badge">${(item.shopCategory || item.category).toUpperCase()}</span><span class="badge">${item.rarity}</span></div>
@@ -387,7 +400,7 @@ function renderShopDetail(product){
     <p class="shop-detail-copy">${equipText}</p>
     ${lockHtml}
     <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
-    <div class="shop-detail-footer"><div class="shop-detail-price"><small>Possession</small><strong>${ownedCount}</strong></div><button class="blue-button" data-buy-item="${item.id}" ${(!canAfford(item.priceType, item.price)) ? "disabled" : ""}>ACHETER</button></div>`;
+    <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix</small>${shopPriceHtml(item.priceType, item.price)}</div><button class="blue-button" data-buy-item="${item.id}" ${(!canAfford(item.priceType, item.price)) ? "disabled" : ""}>ACHETER</button></div>`;
 }
 
 export function renderShop(){
