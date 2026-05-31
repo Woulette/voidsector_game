@@ -21,7 +21,12 @@ export function preloadCombatAssets({cache, ships, equipment, ammoTypes = [], en
     return paths;
   });
   const rankImages = ranks.map(rank=>getRankAssetPath(rank));
-  const misc = ["assets/drones/drone_test_sprite.webp", "assets/equipment/rocket_projectile.png", ...rankImages];
+  const spawnAssets = [
+    "assets/spawn/spawn_dock.png",
+    "assets/spawn/spawn_quest_relay.png",
+    "assets/spawn/spawn_refinery.png"
+  ];
+  const misc = ["assets/drones/drone_test_sprite.webp", "assets/equipment/rocket_projectile.png", ...spawnAssets, ...rankImages];
   [
     ...ships.flatMap(ship=>[ship.img, ship.combatImg]).filter(Boolean),
     ...equipment.flatMap(item=>[item.img, item.projectileImg, item.pieceImg]).filter(Boolean),

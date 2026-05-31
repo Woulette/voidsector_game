@@ -178,9 +178,8 @@ export function installCombatInputHandlers({
           return;
         }
       }
-      const currentMap = getCurrentMap();
       const station = getStationAt(world);
-      if(station && Math.hypot(world.x - currentMap.spawn.x, world.y - currentMap.spawn.y) <= (currentMap.spawn.safeRadius || currentMap.spawn.r || 260)){
+      if(station){
         renderSpawnInteractionPanel(station.id);
         return;
       }

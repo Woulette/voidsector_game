@@ -30,7 +30,12 @@ export function createCombatWorldStateSystem({
   function getSafeAreas(map = getState().currentMap){
     if(getState().gameMode === "portal") return [];
     const zones = [];
-    if(map?.spawn && map.spawn.kind !== "portal") zones.push({id:"spawn", label:map.spawn.label || "Zone de spawn", x:map.spawn.x, y:map.spawn.y, r:map.spawn.safeRadius || map.spawn.r || 260, type:"spawn"});
+    if(map?.spawn && map.spawn.kind !== "portal"){
+      const rect = map.spawn.safeRect;
+      zones.push(rect
+        ? {id:"spawn", label:map.spawn.label || "Zone de spawn", type:"spawn", shape:"rect", minX:rect.minX, minY:rect.minY, maxX:rect.maxX, maxY:rect.maxY}
+        : {id:"spawn", label:map.spawn.label || "Zone de spawn", x:map.spawn.x, y:map.spawn.y, r:map.spawn.safeRadius || map.spawn.r || 260, type:"spawn", shape:"circle"});
+    }
     getMapPortals(map).forEach((portal, index)=>{
       zones.push({id:`portal-${index}`, label:portal.label || "Zone portail", x:portal.x, y:portal.y, r:(portal.safeRadius || Math.max(330, (portal.r || 90) * 3.5)) * 1.95, type:"portal"});
     });
@@ -51,7 +56,22 @@ export function createCombatWorldStateSystem({
 
   function getCurrentSafeArea(){
     const {player} = getState();
-    return getSafeAreas().find(zone=>Math.hypot(player.x-zone.x, player.y-zone.y) <= zone.r) || null;
+    return getSafeAreas().find(zone=>{
+      if(zone.shape === "rect"){
+        return player.x >= zone.minX && player.x <= zone.maxX && player.y >= zone.minY && player.y <= zone.maxY;
+      }
+      return Math.hypot(player.x-zone.x, player.y-zone.y) <= zone.r;
+    }) || null;
+  }
+
+  function isPointInSafeArea(point, map = getState().currentMap){
+    if(!point) return false;
+    return getSafeAreas(map).some(zone=>{
+      if(zone.shape === "rect"){
+        return point.x >= zone.minX && point.x <= zone.maxX && point.y >= zone.minY && point.y <= zone.maxY;
+      }
+      return Math.hypot(point.x-zone.x, point.y-zone.y) <= zone.r;
+    });
   }
 
   function isSafeModeActive(){
@@ -63,14 +83,47 @@ export function createCombatWorldStateSystem({
   function getSpawnStations(){
     const {gameMode, currentMap} = getState();
     if(gameMode !== "open" || !currentMap?.spawn || currentMap.spawn.kind === "portal") return [];
+    const spawn = currentMap.spawn;
+    if(spawn.hub === false) return [];
+    const sideX = spawn.x > 0 ? -1 : 1;
+    const sideY = spawn.y > 0 ? -1 : 1;
+    const stationY = spawn.y + sideY * 300;
+    const questX = spawn.x + sideX * 600;
+    const refineryX = spawn.x - sideX * 600;
     return [
-      {id:"quests", x:currentMap.spawn.x - 128, y:currentMap.spawn.y - 86, radius:48, title:"RELAIS DE QUETES", subtitle:"Recevoir et rendre des missions"},
-      {id:"refinery", x:currentMap.spawn.x + 132, y:currentMap.spawn.y - 90, radius:52, title:"RAFFINEUR", subtitle:"Fusionner et ameliorer l'equipement"}
+      {
+        id:"quests",
+        x:questX,
+        y:stationY,
+        radius:96,
+        marker:{x:questX, y:stationY - 180, radius:54, text:"!"},
+        asset:"assets/spawn/spawn_quest_relay.png",
+        assetWidth:266,
+        assetHeight:266,
+        title:"RELAIS DE QUETES",
+        subtitle:"Recevoir et rendre des missions"
+      },
+      {
+        id:"refinery",
+        x:refineryX,
+        y:stationY,
+        radius:102,
+        marker:{x:refineryX, y:stationY - 188, radius:54, text:"R"},
+        asset:"assets/spawn/spawn_refinery.png",
+        assetWidth:282,
+        assetHeight:282,
+        title:"RAFFINEUR",
+        subtitle:"Fusionner et ameliorer l'equipement"
+      }
     ];
   }
 
   function getStationAt(world){
-    return getSpawnStations().find(station=>Math.hypot(world.x-station.x, world.y-station.y) <= station.radius + 18) || null;
+    return getSpawnStations().find(station=>{
+      if(Math.hypot(world.x-station.x, world.y-station.y) <= station.radius + 28) return true;
+      const marker = station.marker;
+      return marker && Math.hypot(world.x-marker.x, world.y-marker.y) <= marker.radius + 26;
+    }) || null;
   }
 
   function loadMap(mapId, x, y, options = {}){
@@ -120,7 +173,7 @@ export function createCombatWorldStateSystem({
       radiationWarned:false
     });
     clampPlayerToMap();
-    player.safeZoneLock = options.safeNow ? 0 : SAFE_ZONE_DELAY;
+    player.safeZoneLock = options.safeNow || isPointInSafeArea(player, currentMap) ? 0 : SAFE_ZONE_DELAY;
     panels.closeSpawnPanel();
     saveState();
     showToast(`Entree dans ${currentMap.name}.`);

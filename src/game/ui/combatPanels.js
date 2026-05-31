@@ -17,53 +17,81 @@ function escapeHtml(value = ""){
   })[char]);
 }
 
-const GLOBAL_MAP_NODES = [
-  {id:"solaris-01", firm:"solaris", name:"SOLARIS-01", x:9, y:8},
-  {id:"solaris-02", firm:"solaris", name:"SOLARIS-02", x:20, y:16},
-  {id:"solaris-03", firm:"solaris", name:"SOLARIS-03", x:36, y:16},
-  {id:"solaris-04", firm:"solaris", name:"SOLARIS-04", x:20, y:29},
-  {id:"solaris-05", firm:"solaris", name:"SOLARIS-05", x:36, y:29},
-  {id:"virdis-01", firm:"virdis", name:"VIRDIS-01", x:91, y:8},
-  {id:"virdis-02", firm:"virdis", name:"VIRDIS-02", x:80, y:16},
-  {id:"virdis-03", firm:"virdis", name:"VIRDIS-03", x:64, y:16},
-  {id:"virdis-04", firm:"virdis", name:"VIRDIS-04", x:80, y:29},
-  {id:"virdis-05", firm:"virdis", name:"VIRDIS-05", x:64, y:29},
-  {id:"astra-01", firm:"astra", name:"ASTRA-01", x:9, y:66},
-  {id:"astra-02", firm:"astra", name:"ASTRA-02", x:20, y:58},
-  {id:"astra-03", firm:"astra", name:"ASTRA-03", x:36, y:58},
-  {id:"astra-04", firm:"astra", name:"ASTRA-04", x:20, y:45},
-  {id:"astra-05", firm:"astra", name:"ASTRA-05", x:36, y:45},
-  {id:"cyan-01", firm:"cyan", name:"CYAN-01", x:91, y:66},
-  {id:"cyan-02", firm:"cyan", name:"CYAN-02", x:80, y:58},
-  {id:"cyan-03", firm:"cyan", name:"CYAN-03", x:64, y:58},
-  {id:"cyan-04", firm:"cyan", name:"CYAN-04", x:80, y:45},
-  {id:"cyan-05", firm:"cyan", name:"CYAN-05", x:64, y:45},
-  {id:"nexus", firm:"nexus", name:"NEXUS PRIME", x:50, y:36}
-];
-
-const GLOBAL_MAP_LINKS = [
-  ["solaris-01","solaris-02"],["solaris-02","solaris-03"],["solaris-02","solaris-04"],["solaris-03","solaris-04"],["solaris-03","solaris-05"],["solaris-04","solaris-05"],["solaris-05","nexus"],
-  ["virdis-01","virdis-02"],["virdis-02","virdis-03"],["virdis-02","virdis-04"],["virdis-03","virdis-04"],["virdis-03","virdis-05"],["virdis-04","virdis-05"],["virdis-05","nexus"],
-  ["astra-01","astra-02"],["astra-02","astra-03"],["astra-02","astra-04"],["astra-03","astra-04"],["astra-03","astra-05"],["astra-04","astra-05"],["astra-05","nexus"],
-  ["cyan-01","cyan-02"],["cyan-02","cyan-03"],["cyan-02","cyan-04"],["cyan-03","cyan-04"],["cyan-03","cyan-05"],["cyan-04","cyan-05"],["cyan-05","nexus"],
-  ["solaris-03","virdis-03"],["solaris-05","virdis-05"],
-  ["astra-03","cyan-03"],["astra-05","cyan-05"],
-  ["solaris-04","astra-04"],["virdis-04","cyan-04"],
-  ["virdis-05","cyan-05"],["astra-05","solaris-05"]
-];
-
-function nodeById(id){ return GLOBAL_MAP_NODES.find(node=>node.id === id); }
-
-const GLOBAL_FIRMS = {
-  astra:{name:"Astra Dominion", short:"ASTRA"},
-  solaris:{name:"Solaris Pact", short:"SOLARIS"},
-  virdis:{name:"Virdis Union", short:"VIRDIS"},
-  cyan:{name:"Cyan Coalition", short:"CYAN"}
-};
-
 function clampPercent(value){
   return Math.max(0, Math.min(100, Number(value || 0)));
 }
+
+const GAME_MAP_SECTORS = [
+  {
+    id:"cyan",
+    name:"CYAN",
+    theme:"cyan",
+    label:"Firme bleue",
+    cells:[
+      {n:1, x:1.05, y:.9, portals:["bottom-right"]},
+      {n:2, x:2.25, y:2.15, portals:["top-left","bottom-left","right"]},
+      {n:4, x:3.5, y:2.15, portals:["left","top-right"]},
+      {n:3, x:2.25, y:3.4, bridge:"astra", portals:["bottom-left","top-left","right"]},
+      {n:5, x:3.5, y:3.4, portals:["left","right"]}
+    ],
+    links:[[1,2],[2,3],[2,4],[3,5],[4,5]]
+  },
+  {
+    id:"astra",
+    name:"ASTRA",
+    theme:"astra",
+    label:"Firme rouge",
+    cells:[
+      {n:3, x:2.25, y:4.85, bridge:"cyan", portals:["top-left","bottom-left","bottom-right","top-right"]},
+      {n:5, x:3.5, y:4.85, portals:["top-left","bottom-left","right"]},
+      {n:2, x:2.25, y:6.1, portals:["bottom-left","top-left","bottom-right"]},
+      {n:4, x:3.5, y:6.1, portals:["bottom-left","top-left","top-right"]},
+      {n:1, x:1.05, y:7.2, portals:["top-right"]}
+    ],
+    links:[[1,2],[2,3],[2,4],[3,5],[4,5],[3,4]]
+  },
+  {
+    id:"yellow",
+    name:"JAUNE",
+    theme:"auric",
+    label:"Firme jaune",
+    cells:[
+      {n:1, x:9.2, y:.9, portals:["bottom-left"]},
+      {n:4, x:6.85, y:2.15, portals:["left","right","bottom-left"]},
+      {n:2, x:8.1, y:2.15, portals:["left","top-right","bottom-right"]},
+      {n:5, x:6.85, y:3.4, portals:["left","top-right","right"]},
+      {n:3, x:8.1, y:3.4, portals:["top-right","bottom-right","left"]}
+    ],
+    links:[[1,2],[2,3],[2,4],[3,5],[4,5]]
+  },
+  {
+    id:"green",
+    name:"VERTE",
+    theme:"verdant",
+    label:"Firme verte",
+    cells:[
+      {n:5, x:6.85, y:4.85, portals:["left","right","bottom-right"]},
+      {n:3, x:8.1, y:4.85, portals:["top-left","left","top-right"]},
+      {n:4, x:6.85, y:6.1, portals:["left","right","top-left"]},
+      {n:2, x:8.1, y:6.1, portals:["left","bottom-right","top-right"]},
+      {n:1, x:9.2, y:7.2, portals:["top-left"]}
+    ],
+    links:[[1,2],[2,3],[2,4],[3,5],[4,5]]
+  }
+];
+
+const GAME_MAP_BRIDGES = [
+  {from:"CYAN-04", to:"JAUNE-04", label:"Liaison nord"},
+  {from:"CYAN-03", to:"ASTRA-03", label:"CYAN-03 / ASTRA-03"},
+  {from:"CYAN-05", to:"ASTRA-05", label:"Liaison verticale"},
+  {from:"ASTRA-04", to:"VERTE-04", label:"ASTRA-04 / VERTE-04"},
+  {from:"ASTRA-05", to:"CORE", label:"Acces noyau ASTRA"},
+  {from:"CYAN-05", to:"CORE", label:"Acces noyau CYAN"},
+  {from:"JAUNE-05", to:"CORE", label:"Acces noyau jaune"},
+  {from:"JAUNE-05", to:"VERTE-05", label:"Liaison verticale"},
+  {from:"JAUNE-03", to:"VERTE-03", label:"Liaison verticale"},
+  {from:"VERTE-05", to:"CORE", label:"Acces noyau vert"}
+];
 
 export function createCombatPanels({
   store,
@@ -148,16 +176,16 @@ export function createCombatPanels({
   function getUtilityPanel(mode){
     if(mode === "quests") return document.getElementById("combatUtilityPanelQuests");
     if(mode === "group") return document.getElementById("combatUtilityPanelGroup");
-    if(mode === "map") return document.getElementById("combatUtilityPanelMap");
     if(mode === "settings") return document.getElementById("combatUtilityPanelSettings");
+    if(mode === "map") return document.getElementById("combatUtilityPanelMap");
     return null;
   }
 
   function getUtilityContent(mode){
     if(mode === "quests") return document.getElementById("combatUtilityContentQuests");
     if(mode === "group") return document.getElementById("combatUtilityContentGroup");
-    if(mode === "map") return document.getElementById("combatUtilityContentMap");
     if(mode === "settings") return document.getElementById("combatUtilityContentSettings");
+    if(mode === "map") return document.getElementById("combatUtilityContentMap");
     return null;
   }
 
@@ -506,102 +534,6 @@ export function createCombatPanels({
     refreshGroupFloatingHud();
   });
 
-  function mapPercent(map, point, axis){
-    const size = axis === "x" ? map.width : map.height;
-    if(!size) return 50;
-    const value = axis === "x" ? point?.x : point?.y;
-    return Math.max(3, Math.min(97, ((Number(value || 0) + size / 2) / size) * 100));
-  }
-
-  function renderGlobalMap(current){
-    const currentName = String(current?.name || "").toUpperCase();
-    const orderedLinks = [...GLOBAL_MAP_LINKS].sort(([fromA, toA], [fromB, toB])=>{
-      const aFrom = nodeById(fromA);
-      const aTo = nodeById(toA);
-      const bFrom = nodeById(fromB);
-      const bTo = nodeById(toB);
-      const aInternal = aFrom && aTo && aFrom.firm === aTo.firm && aFrom.firm !== "nexus";
-      const bInternal = bFrom && bTo && bFrom.firm === bTo.firm && bFrom.firm !== "nexus";
-      return Number(aInternal) - Number(bInternal);
-    });
-    const links = orderedLinks.map(([fromId, toId])=>{
-      const from = nodeById(fromId);
-      const to = nodeById(toId);
-      if(!from || !to) return "";
-      const sameFirm = from.firm === to.firm && from.firm !== "nexus";
-      const className = sameFirm ? `firm-link ${from.firm}` : "cross-link";
-      const d = `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
-      return `<path class="route-back ${className}" d="${d}"></path><path class="route-main ${className}" d="${d}"></path>`;
-    }).join("");
-    const nodes = GLOBAL_MAP_NODES.map(node=>{
-      const active = node.name.toUpperCase() === currentName;
-      const isNexus = node.firm === "nexus";
-      return `<g class="galaxy-node ${node.firm} ${active ? "active" : ""} ${node.firm === "nexus" ? "central" : ""}" transform="translate(${node.x} ${node.y})">
-        ${isNexus
-          ? `<circle class="node-halo" r="8.5"></circle><rect class="node-ring" x="-5.2" y="-5.2" width="10.4" height="10.4"></rect><rect class="node-core" x="-1.9" y="-1.9" width="3.8" height="3.8"></rect>`
-          : `<rect class="node-halo" x="-5.4" y="-4.2" width="10.8" height="8.4"></rect><rect class="node-ring" x="-3.5" y="-2.8" width="7" height="5.6"></rect><rect class="node-core" x="-1.35" y="-1.05" width="2.7" height="2.1"></rect>`}
-        <text x="0" y="${node.firm === "nexus" ? -8.2 : -5.0}">${escapeHtml(node.name)}</text>
-      </g>`;
-    }).join("");
-    const legend = Object.entries(GLOBAL_FIRMS).map(([id, firm])=>`<span class="${id}"><i></i>${escapeHtml(firm.short)}</span>`).join("");
-    return `<div class="combat-galaxy-map">
-      <div class="combat-galaxy-legend">${legend}</div>
-      <svg viewBox="0 0 100 72" role="img" aria-label="Carte globale des firmes">
-        <defs>
-          <radialGradient id="galaxyNexusGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="rgba(245,222,196,.44)"></stop>
-            <stop offset="100%" stop-color="rgba(245,222,196,0)"></stop>
-          </radialGradient>
-          <filter id="routeGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation=".9" result="blur"></feGaussianBlur>
-            <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
-          </filter>
-        </defs>
-        <g class="sector-layer">
-          <polygon class="sector solaris" points="5,4 45,4 45,33 20,33 5,22"></polygon>
-          <polygon class="sector virdis" points="55,4 95,4 95,22 80,33 55,33"></polygon>
-          <polygon class="sector astra" points="5,42 20,68 45,68 45,40 20,40"></polygon>
-          <polygon class="sector cyan" points="55,40 80,40 95,50 95,68 55,68"></polygon>
-        </g>
-        <circle class="nexus-field" cx="50" cy="36" r="13"></circle>
-        <circle class="nexus-ring one" cx="50" cy="36" r="7.2"></circle>
-        <circle class="nexus-ring two" cx="50" cy="36" r="10.2"></circle>
-        <g class="route-layer">${links}</g>
-        <g class="node-layer">${nodes}</g>
-      </svg>
-    </div>`;
-  }
-
-  function getMapPortals(map){
-    if(!map) return [];
-    if(Array.isArray(map.portals)) return map.portals;
-    return map.portal ? [map.portal] : [];
-  }
-
-  function renderMapUtilityContent(){
-    const current = getCurrentMap?.() || maps[0] || {};
-    const player = getPlayer?.();
-    const spawn = current.spawn || {x:0, y:0};
-    const portals = getMapPortals(current);
-    const portalLabel = portals.length
-      ? portals.map(portal=>maps.find(map=>map.id === portal.targetMap)?.name || portal.label || "Actif").join(" / ")
-      : "Aucun";
-    const playerPoint = player ? {x:player.x, y:player.y} : spawn;
-    return `<div class="combat-map-card">
-      <div class="combat-map-head">
-        <div><span>Carte globale</span><strong>${escapeHtml(current.name || "Carte")}</strong></div>
-        <small>Réseau des firmes · accès Nexus</small>
-      </div>
-      ${renderGlobalMap(current)}
-      <div class="combat-map-meta">
-        <span>Position <b>${escapeHtml(current.name || "Inconnue")}</b></span>
-        <span>Coord. locale <b>${Math.round(playerPoint.x || 0)} / ${Math.round(playerPoint.y || 0)}</b></span>
-        <span>Portail <b>${escapeHtml(portalLabel)}</b></span>
-      </div>
-      <div class="combat-map-note">Les routes ivoire sont des corridors neutres entre firmes. Les routes internes restent discrètes et teintées par faction.</div>
-    </div>`;
-  }
-
   function renderSettingsUtilityContent(){
     const quality = getGraphicsQuality?.() || store.state.graphicsQuality || "high";
     return `<div class="combat-settings-card">
@@ -621,19 +553,6 @@ export function createCombatPanels({
     </div>`;
   }
 
-  function refreshMapUtilityPanel({show = false} = {}){
-    const panel = getUtilityPanel("map");
-    const content = getUtilityContent("map");
-    if(!panel || !content) return;
-    if(show){
-      applyUtilityPanelLayout("map", panel);
-      panel.classList.remove("hidden");
-    }
-    content.innerHTML = renderMapUtilityContent();
-    utilityPanelRefreshT = .25;
-    syncUtilityDockButtons();
-  }
-
   function refreshSettingsUtilityPanel({show = false} = {}){
     const panel = getUtilityPanel("settings");
     const content = getUtilityContent("settings");
@@ -646,8 +565,103 @@ export function createCombatPanels({
     syncUtilityDockButtons();
   }
 
+  function getMapByName(name){
+    const upper = String(name || "").toUpperCase();
+    return maps.find(map=>String(map.name || "").toUpperCase() === upper) || null;
+  }
+
+  function getCurrentMapName(){
+    return String(getCurrentMap?.()?.name || "").toUpperCase();
+  }
+
+  function getDisplayMapPortals(map){
+    if(!map) return [];
+    if(Array.isArray(map.portals)) return map.portals;
+    return map.portal ? [map.portal] : [];
+  }
+
+  function getPortalDirection(portal){
+    const left = Number(portal?.x || 0) <= -4000;
+    const right = Number(portal?.x || 0) >= 4000;
+    const top = Number(portal?.y || 0) <= -3000;
+    const bottom = Number(portal?.y || 0) >= 3000;
+    if(top && left) return "top-left";
+    if(top && right) return "top-right";
+    if(bottom && left) return "bottom-left";
+    if(bottom && right) return "bottom-right";
+    if(top) return "top";
+    if(bottom) return "bottom";
+    if(left) return "left";
+    if(right) return "right";
+    return "";
+  }
+
+  function renderGameMapPortals(map, cell){
+    const directions = new Set(getDisplayMapPortals(map).map(getPortalDirection).filter(Boolean));
+    if(!directions.size && cell) (cell.portals || []).forEach(direction=>directions.add(direction));
+    if(!directions.size) return "";
+    return `<i class="sector-map-portals" aria-hidden="true">${[...directions].map(direction=>`<b class="portal-dot ${direction}"></b>`).join("")}</i>`;
+  }
+
+  function renderGameMapNode(sector, cell){
+    const mapName = `${sector.name}-${String(cell.n).padStart(2, "0")}`;
+    const existing = getMapByName(mapName);
+    const current = getCurrentMapName() === mapName;
+    const classes = [
+      "sector-map-node",
+      sector.theme,
+      existing ? "available" : "future",
+      current ? "current" : "",
+      cell.bridge ? "bridge" : ""
+    ].filter(Boolean).join(" ");
+    return `<button class="${classes}" style="--grid-x:${cell.x};--grid-y:${cell.y}" type="button" disabled>
+      <span>${cell.n}</span>
+      <small>${escapeHtml(mapName)}</small>
+      ${renderGameMapPortals(existing, cell)}
+    </button>`;
+  }
+
+  function renderGameMapUtilityContent(){
+    const current = getCurrentMap?.();
+    const currentName = current?.name || "Hors secteur";
+    const mapCount = GAME_MAP_SECTORS.reduce((sum, sector)=>sum + sector.cells.length, 0) + 1;
+    const existingCount = GAME_MAP_SECTORS.reduce((sum, sector)=>sum + sector.cells.filter(cell=>getMapByName(`${sector.name}-${String(cell.n).padStart(2, "0")}`)).length, 0) + (getMapByName("CORE") ? 1 : 0);
+    return `<div class="sector-map-card">
+      <div class="combat-map-head">
+        <div><span>Reseau territorial</span><strong>${escapeHtml(currentName)}</strong></div>
+        <small>${existingCount}/${mapCount} secteurs actifs</small>
+      </div>
+      <div class="sector-map-board" aria-label="Carte des firmes">
+        <div class="sector-core-node" style="--grid-x:5.15;--grid-y:4.1"><span>CORE</span><small>Carte speciale</small>${renderGameMapPortals(getMapByName("CORE"))}</div>
+        ${GAME_MAP_SECTORS.map(sector=>sector.cells.map(cell=>renderGameMapNode(sector, cell)).join("")).join("")}
+      </div>
+      <div class="sector-map-legend">
+        <span class="astra">ASTRA</span>
+        <span class="cyan">CYAN</span>
+        <span class="auric">JAUNE</span>
+        <span class="verdant">VERTE</span>
+        <span class="future">A creer</span>
+      </div>
+      <div class="sector-map-routes">
+        ${GAME_MAP_BRIDGES.map(route=>`<div><b>${escapeHtml(route.from)}</b><span>${escapeHtml(route.label)}</span><b>${escapeHtml(route.to)}</b></div>`).join("")}
+      </div>
+    </div>`;
+  }
+
+  function refreshMapUtilityPanel({show = false} = {}){
+    const panel = getUtilityPanel("map");
+    const content = getUtilityContent("map");
+    if(!panel || !content) return;
+    if(show){
+      applyUtilityPanelLayout("map", panel);
+      panel.classList.remove("hidden");
+    }
+    content.innerHTML = renderGameMapUtilityContent();
+    syncUtilityDockButtons();
+  }
+
   function openUtilityPanel(mode){
-    if(!["group", "quests", "map", "settings"].includes(mode)) return;
+    if(!["group", "quests", "settings", "map"].includes(mode)) return;
     const panel = getUtilityPanel(mode);
     const content = getUtilityContent(mode);
     if(!panel || !content) return;
@@ -660,12 +674,12 @@ export function createCombatPanels({
       refreshQuestUtilityPanel({show:true});
       return;
     }
-    if(mode === "map"){
-      refreshMapUtilityPanel({show:true});
-      return;
-    }
     if(mode === "settings"){
       refreshSettingsUtilityPanel({show:true});
+      return;
+    }
+    if(mode === "map"){
+      refreshMapUtilityPanel({show:true});
       return;
     }
     refreshGroupUtilityPanel({show:true, focus:true});
@@ -870,15 +884,6 @@ export function createCombatPanels({
         utilityPanelRefreshT = .25;
       }
     }
-    const mapPanel = getUtilityPanel("map");
-    if(mapPanel && !mapPanel.classList.contains("hidden") && !mapPanel.matches(":hover")){
-      utilityPanelRefreshT -= dt;
-      if(utilityPanelRefreshT <= 0){
-        const content = getUtilityContent("map");
-        if(content) content.innerHTML = renderMapUtilityContent();
-        utilityPanelRefreshT = .25;
-      }
-    }
     const groupPanel = getUtilityPanel("group");
     if(groupPanel && !groupPanel.classList.contains("hidden") && !groupPanel.contains(document.activeElement)){
       utilityPanelRefreshT -= dt;
@@ -886,6 +891,15 @@ export function createCombatPanels({
         const content = getUtilityContent("group");
         if(content) content.innerHTML = renderGroupUtilityContent();
         utilityPanelRefreshT = .5;
+      }
+    }
+    const mapPanel = getUtilityPanel("map");
+    if(mapPanel && !mapPanel.classList.contains("hidden")){
+      utilityPanelRefreshT -= dt;
+      if(utilityPanelRefreshT <= 0){
+        const content = getUtilityContent("map");
+        if(content) content.innerHTML = renderGameMapUtilityContent();
+        utilityPanelRefreshT = .75;
       }
     }
     groupHudRefreshT -= dt;

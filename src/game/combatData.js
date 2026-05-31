@@ -5,7 +5,7 @@ export const MAPS = [
     width:10000,
     height:8000,
     // Repère de carte : X gauche/droite, Y haut/bas. Le spawn est maintenant en bas à gauche.
-    spawn:{x:-4300,y:3300,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430},
+    spawn:{x:-4300,y:3300,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430, safeRect:{minX:-5000, minY:2500, maxX:-3500, maxY:3950}},
     portal:{x:4300,y:-3300,r:95,safeRadius:230,targetMap:1,targetX:-4300,targetY:3300,label:"VERS ASTRA-02"},
     enemyCount:40,
     enemyLevel:[1,3],
@@ -189,7 +189,11 @@ export const MAPS = [
     name:"ASTRA-03",
     width:10000,
     height:8000,
-    portal:{x:-4300,y:3300,r:95,safeRadius:230,targetMap:1,targetX:-4300,targetY:-3300,label:"VERS ASTRA-02"},
+    portals:[
+      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:1,targetX:-4300,targetY:-3300,label:"VERS ASTRA-02"},
+      {x:4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:-4300,targetY:-3300,label:"VERS ASTRA-04"},
+      {x:4300,y:-3300,r:95,safeRadius:230,targetMap:4,targetX:-4300,targetY:-3300,label:"VERS ASTRA-05"}
+    ],
     enemyCount:50,
     enemyLevel:[6,10],
     enemySeed:31,
@@ -250,6 +254,7 @@ export const MAPS = [
     height:8000,
     portals:[
       {x:-4300,y:3300,r:95,safeRadius:230,targetMap:1,targetX:4300,targetY:3300,label:"VERS ASTRA-02"},
+      {x:-4300,y:-3300,r:95,safeRadius:230,targetMap:2,targetX:4300,targetY:3300,label:"VERS ASTRA-03"},
       {x:4300,y:-3300,r:95,safeRadius:230,targetMap:4,targetX:-4300,targetY:3300,label:"VERS ASTRA-05"}
     ],
     enemyCount:50,
@@ -311,8 +316,11 @@ export const MAPS = [
     name:"ASTRA-05",
     width:10000,
     height:8000,
-    spawn:{x:-4300,y:3300,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430},
-    portal:{x:-4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:4300,targetY:-3300,label:"VERS ASTRA-04"},
+    spawn:{x:-4300,y:3300,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430, hub:false},
+    portals:[
+      {x:-4300,y:-3300,r:95,safeRadius:230,targetMap:2,targetX:4300,targetY:-3300,label:"VERS ASTRA-03"},
+      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:4300,targetY:-3300,label:"VERS ASTRA-04"}
+    ],
     enemyCount:30,
     enemyLevel:[18,24],
     enemySeed:59,
@@ -371,6 +379,686 @@ export const MAPS = [
     ]
   }
 ];
+
+const FIRM_PORTAL_POINT = {
+  top:{x:0,y:-3300},
+  bottom:{x:0,y:3300},
+  left:{x:-4300,y:0},
+  right:{x:4300,y:0},
+  topLeft:{x:-4300,y:-3300},
+  topRight:{x:4300,y:-3300},
+  bottomLeft:{x:-4300,y:3300},
+  bottomRight:{x:4300,y:3300}
+};
+
+const FIRM_VISUALS = {
+  CYAN:{
+    baseId:20,
+    planet:"assets/maps/decor/planet_cyan_blue.png",
+    background:["#01040b", "#07182b", "#01040b"],
+    tint:"cyan",
+    seedOffset:200,
+    replacements:[
+      ["127,29,29","30,64,175"],["185,28,28","59,130,246"],["153,27,27","30,58,138"],
+      ["248,113,113","56,189,248"],["251,146,60","34,211,238"],["251,191,36","103,232,249"],
+      ["220,54,42","14,116,144"],["88,28,28","30,64,175"],["168,85,247","59,130,246"],
+      ["216,180,254","125,211,252"],["255,132,86","56,189,248"],["238,73,56","14,165,233"],
+      ["255,122,74","34,211,238"],["255,237,213","224,242,254"],["253,186,116","186,230,253"],
+      ["255,138,92","56,189,248"],["190,58,45","14,116,144"],["255,214,170","224,242,254"],
+      ["185,42,34","14,116,144"],["185,38,31","14,116,144"],["48,9,11","3,21,38"],
+      ["34,6,8","3,21,38"],["28,5,8","2,18,32"],["24,4,5","2,18,32"],
+      ["22,4,5","2,18,32"],["20,4,5","2,18,32"],["16,3,5","2,18,32"],
+      ["15,3,4","2,18,32"],["18,3,4","2,18,32"],["18,3,5","2,18,32"],
+      ["220,38,38","14,165,233"],["252,165,165","186,230,253"],["180,83,9","14,116,144"],
+      ["88,28,135","30,64,175"],["109,40,217","59,130,246"],["91,33,182","30,64,175"],
+      ["126,34,206","14,165,233"],["192,132,252","125,211,252"],["18,3,8","2,18,32"],
+      ["18,3,20","2,18,32"],["18,3,24","2,18,32"],["24,4,28","2,18,32"],
+      ["22,4,30","2,18,32"]
+    ],
+    cells:{
+      1:{x:-1,y:-1}, 2:{x:-1,y:0}, 3:{x:-1,y:1}, 4:{x:1,y:0}, 5:{x:1,y:1}
+    }
+  },
+  JAUNE:{
+    baseId:30,
+    planet:"assets/maps/decor/planet_solaris_yellow.png",
+    background:["#070401", "#1a1204", "#020201"],
+    tint:"gold",
+    seedOffset:300,
+    replacements:[
+      ["127,29,29","120,53,15"],["185,28,28","180,83,9"],["153,27,27","146,64,14"],
+      ["248,113,113","245,158,11"],["251,146,60","250,204,21"],["251,191,36","253,230,138"],
+      ["220,54,42","217,119,6"],["88,28,28","92,45,15"],["168,85,247","245,158,11"],
+      ["216,180,254","253,230,138"],["255,132,86","245,158,11"],["238,73,56","234,88,12"],
+      ["255,122,74","251,191,36"],["255,237,213","254,243,199"],["253,186,116","253,224,71"],
+      ["96,165,250","250,204,21"],["59,130,246","245,158,11"],["56,189,248","250,204,21"],
+      ["34,211,238","253,224,71"],["103,232,249","254,240,138"],["125,211,252","254,243,199"],
+      ["20,184,166","202,138,4"],["14,165,233","234,88,12"],["14,116,144","146,64,14"],
+      ["30,64,175","146,64,14"],["30,58,138","120,53,15"],
+      ["255,138,92","245,158,11"],["190,58,45","146,64,14"],["255,214,170","254,243,199"],
+      ["185,42,34","146,64,14"],["185,38,31","146,64,14"],["48,9,11","30,18,2"],
+      ["34,6,8","30,18,2"],["28,5,8","30,18,2"],["24,4,5","30,18,2"],
+      ["22,4,5","30,18,2"],["20,4,5","30,18,2"],["16,3,5","30,18,2"],
+      ["15,3,4","30,18,2"],["18,3,4","30,18,2"],["18,3,5","30,18,2"],
+      ["220,38,38","234,88,12"],["252,165,165","254,243,199"],["180,83,9","146,64,14"],
+      ["88,28,135","120,53,15"],["109,40,217","180,83,9"],["91,33,182","120,53,15"],
+      ["126,34,206","245,158,11"],["192,132,252","253,230,138"],["18,3,8","30,18,2"],
+      ["18,3,20","30,18,2"],["18,3,24","30,18,2"],["24,4,28","30,18,2"],
+      ["22,4,30","30,18,2"]
+    ],
+    cells:{
+      1:{x:1,y:-1}, 2:{x:1,y:0}, 3:{x:1,y:1}, 4:{x:-1,y:0}, 5:{x:-1,y:1}
+    }
+  },
+  VERTE:{
+    baseId:40,
+    planet:"assets/maps/decor/planet_virdis_green.png",
+    background:["#010603", "#06170c", "#010201"],
+    tint:"green",
+    seedOffset:400,
+    replacements:[
+      ["127,29,29","20,83,45"],["185,28,28","22,101,52"],["153,27,27","21,94,59"],
+      ["248,113,113","34,197,94"],["251,146,60","74,222,128"],["251,191,36","134,239,172"],
+      ["220,54,42","16,185,129"],["88,28,28","20,83,45"],["168,85,247","45,212,191"],
+      ["216,180,254","167,243,208"],["255,132,86","52,211,153"],["238,73,56","34,197,94"],
+      ["255,122,74","110,231,183"],["255,237,213","220,252,231"],["253,186,116","187,247,208"],
+      ["96,165,250","45,212,191"],["59,130,246","34,197,94"],["56,189,248","45,212,191"],
+      ["34,211,238","74,222,128"],["103,232,249","134,239,172"],["125,211,252","167,243,208"],
+      ["20,184,166","16,185,129"],["14,165,233","34,197,94"],["14,116,144","20,83,45"],
+      ["30,64,175","20,83,45"],["30,58,138","21,94,59"],
+      ["255,138,92","52,211,153"],["190,58,45","20,83,45"],["255,214,170","220,252,231"],
+      ["185,42,34","20,83,45"],["185,38,31","20,83,45"],["48,9,11","2,24,12"],
+      ["34,6,8","2,24,12"],["28,5,8","2,24,12"],["24,4,5","2,24,12"],
+      ["22,4,5","2,24,12"],["20,4,5","2,24,12"],["16,3,5","2,24,12"],
+      ["15,3,4","2,24,12"],["18,3,4","2,24,12"],["18,3,5","2,24,12"],
+      ["220,38,38","34,197,94"],["252,165,165","220,252,231"],["180,83,9","20,83,45"],
+      ["88,28,135","20,83,45"],["109,40,217","22,101,52"],["91,33,182","20,83,45"],
+      ["126,34,206","16,185,129"],["192,132,252","167,243,208"],["18,3,8","2,24,12"],
+      ["18,3,20","2,24,12"],["18,3,24","2,24,12"],["24,4,28","2,24,12"],
+      ["22,4,30","2,24,12"]
+    ],
+    cells:{
+      1:{x:1,y:1}, 2:{x:1,y:0}, 3:{x:1,y:-1}, 4:{x:-1,y:0}, 5:{x:-1,y:-1}
+    }
+  }
+};
+
+const FIRM_INTERNAL_PORTALS = {
+  CYAN:[
+    [1,"bottomRight",2,"topLeft"],
+    [2,"bottomLeft",3,"topLeft"],
+    [2,"right",4,"left"],
+    [4,"bottomRight",5,"topRight"],
+    [3,"right",5,"left"]
+  ],
+  JAUNE:[
+    [1,"bottomLeft",2,"topRight"],
+    [2,"bottomRight",3,"topRight"],
+    [2,"left",4,"right"],
+    [4,"bottomLeft",5,"topLeft"],
+    [5,"right",3,"left"]
+  ],
+  VERTE:[
+    [1,"topLeft",2,"bottomRight"],
+    [2,"topRight",3,"bottomRight"],
+    [2,"left",4,"right"],
+    [4,"topLeft",5,"bottomLeft"],
+    [5,"right",3,"left"]
+  ]
+};
+
+const CORE_MAP_ID = 50;
+
+const FIRM_LIGHT_PALETTES = {
+  CYAN:{core:"224,242,254", hot:"125,211,252", mid:"56,189,248", haze:"14,116,144"},
+  JAUNE:{core:"254,243,199", hot:"253,230,138", mid:"250,204,21", haze:"146,64,14"},
+  VERTE:{core:"220,252,231", hot:"134,239,172", mid:"34,197,94", haze:"20,83,45"}
+};
+
+function cloneData(value){
+  return JSON.parse(JSON.stringify(value));
+}
+
+function getAstraTemplate(num){
+  return MAPS.find(map=>map.name === `ASTRA-${String(num).padStart(2, "0")}`);
+}
+
+function firmMapId(firm, num){
+  return FIRM_VISUALS[firm].baseId + num - 1;
+}
+
+function portalFromDir({from, toMap, to, label}){
+  const p = FIRM_PORTAL_POINT[from];
+  const target = FIRM_PORTAL_POINT[to];
+  return {x:p.x,y:p.y,r:95,safeRadius:230,targetMap:toMap,targetX:target.x,targetY:target.y,label};
+}
+
+function themedString(value, firm){
+  const visual = FIRM_VISUALS[firm];
+  return visual.replacements.reduce((text, [from, to])=>text.split(from).join(to), value);
+}
+
+function themeObject(value, firm){
+  return JSON.parse(themedString(JSON.stringify(value), firm));
+}
+
+function getFirmPlanetPosition(firm, num){
+  const perMap = {
+    CYAN:{2:{x:250,y:-250}},
+    JAUNE:{2:{x:250,y:-250}},
+    VERTE:{2:{x:250,y:-250}}
+  };
+  if(perMap[firm]?.[num]) return perMap[firm][num];
+  const cell = FIRM_VISUALS[firm].cells[num] || {x:0,y:0};
+  return {
+    x:cell.x < 0 ? -640 : 640,
+    y:cell.y < 0 ? -520 : 460
+  };
+}
+
+function applyFirmVisuals(map, firm, num){
+  const visual = FIRM_VISUALS[firm];
+  const lights = FIRM_LIGHT_PALETTES[firm];
+  map.name = `${firm}-${String(num).padStart(2, "0")}`;
+  map.id = firmMapId(firm, num);
+  map.enemySeed = Number(map.enemySeed || 0) + visual.seedOffset;
+  map.parallaxScene = themeObject(map.parallaxScene || {}, firm);
+  map.parallaxScene.background = visual.background;
+  if(lights){
+    if(Array.isArray(map.parallaxScene.glowSpots)){
+      map.parallaxScene.glowSpots = map.parallaxScene.glowSpots.map(spot=>({
+        ...spot,
+        core:`rgba(${lights.core},${Number.isFinite(spot.alpha) ? spot.alpha : .42})`,
+        hot:`rgba(${lights.hot},${Number.isFinite(spot.alpha) ? spot.alpha * .7 : .28})`,
+        mid:spot.color || `rgba(${lights.mid},${Number.isFinite(spot.alpha) ? spot.alpha * .38 : .16})`
+      }));
+    }
+    if(Array.isArray(map.parallaxScene.starLights)){
+      map.parallaxScene.starLights = map.parallaxScene.starLights.map(light=>({
+        ...light,
+        colors:lights
+      }));
+    }
+  }
+  if(Array.isArray(map.parallaxScene.images)){
+    const planet = getFirmPlanetPosition(firm, num);
+    map.parallaxScene.images = map.parallaxScene.images.map(image=>{
+      const next = {...image};
+      if(String(next.src || "").includes("planet")){
+        next.src = visual.planet;
+        next.x = planet.x;
+        next.y = planet.y;
+      }
+      return next;
+    });
+    if(!map.parallaxScene.images.some(image=>String(image.src || "").includes("planet_")) && num === 1){
+      map.parallaxScene.images.unshift({src:visual.planet, x:planet.x, y:planet.y, w:1340, h:1340, p:.105, alpha:.98});
+    }
+  }
+  if(num === 1 && map.spawn){
+    const cell = visual.cells[1] || {x:-1,y:1};
+    map.spawn.x = cell.x < 0 ? -4300 : 4300;
+    map.spawn.y = cell.y < 0 ? -3300 : 3300;
+    map.spawn.safeRect = null;
+  }
+  delete map.questNpcs;
+  delete map.closedPortals;
+  delete map.portal;
+  map.firm = firm;
+  map.theme = visual.tint;
+  return map;
+}
+
+function buildFirmMaps(firm){
+  const maps = [1,2,3,4,5].map(num=>applyFirmVisuals(cloneData(getAstraTemplate(num)), firm, num));
+  const byNum = new Map(maps.map((map, index)=>[index + 1, map]));
+  maps.forEach(map=>{ map.portals = []; });
+  FIRM_INTERNAL_PORTALS[firm].forEach(([fromNum, fromDir, toNum, toDir])=>{
+    byNum.get(fromNum).portals.push(portalFromDir({
+      from:fromDir,
+      toMap:firmMapId(firm, toNum),
+      to:toDir,
+      label:`VERS ${firm}-${String(toNum).padStart(2, "0")}`
+    }));
+    byNum.get(toNum).portals.push(portalFromDir({
+      from:toDir,
+      toMap:firmMapId(firm, fromNum),
+      to:fromDir,
+      label:`VERS ${firm}-${String(fromNum).padStart(2, "0")}`
+    }));
+  });
+  return maps;
+}
+
+function upsertMaps(generatedMaps){
+  generatedMaps.forEach(map=>{
+    const existing = MAPS.findIndex(entry=>entry.id === map.id || entry.name === map.name);
+    if(existing >= 0) MAPS[existing] = map;
+    else MAPS.push(map);
+  });
+}
+
+function addPortalIfMissing(map, portal){
+  map.portals = Array.isArray(map.portals) ? map.portals : map.portal ? [map.portal] : [];
+  delete map.portal;
+  const exists = map.portals.some(existing=>
+    existing.targetMap === portal.targetMap
+    && existing.x === portal.x
+    && existing.y === portal.y
+  );
+  if(!exists) map.portals.push(portal);
+}
+
+function addSectorBridge(fromMapName, fromDir, toMapName, toDir){
+  const fromMap = MAPS.find(map=>map.name === fromMapName);
+  const toMap = MAPS.find(map=>map.name === toMapName);
+  if(!fromMap || !toMap) return;
+  addPortalIfMissing(fromMap, portalFromDir({from:fromDir, toMap:toMap.id, to:toDir, label:`VERS ${toMap.name}`}));
+  addPortalIfMissing(toMap, portalFromDir({from:toDir, toMap:fromMap.id, to:fromDir, label:`VERS ${fromMap.name}`}));
+}
+
+function getMapByName(name){
+  return MAPS.find(map=>map.name === name);
+}
+
+function removePortalsTo(map, targetMapId){
+  if(!map || targetMapId == null) return;
+  map.portals = (Array.isArray(map.portals) ? map.portals : map.portal ? [map.portal] : [])
+    .filter(portal=>portal.targetMap !== targetMapId);
+  delete map.portal;
+}
+
+function removePortalAtDir(map, dir){
+  if(!map) return;
+  const point = FIRM_PORTAL_POINT[dir];
+  if(!point) return;
+  map.portals = (Array.isArray(map.portals) ? map.portals : map.portal ? [map.portal] : [])
+    .filter(portal=>portal.x !== point.x || portal.y !== point.y);
+  delete map.portal;
+}
+
+function resetZoneFourPortals(firm, crossFirm){
+  const prefix = `${firm}-`;
+  const map4 = getMapByName(`${prefix}04`);
+  const map2 = getMapByName(`${prefix}02`);
+  const map3 = getMapByName(`${prefix}03`);
+  const map5 = getMapByName(`${prefix}05`);
+  const cross4 = getMapByName(`${crossFirm}-04`);
+  if(!map4 || !map2 || !map3 || !map5 || !cross4) return;
+
+  [map2, map3, map5, cross4].forEach(map=>removePortalsTo(map, map4.id));
+  removePortalAtDir(map2, "bottomRight");
+  removePortalAtDir(map3, "bottomRight");
+  removePortalAtDir(map5, "bottomLeft");
+  removePortalAtDir(cross4, "bottomRight");
+  map4.portals = [
+    portalFromDir({from:"bottomLeft", toMap:map2.id, to:"bottomRight", label:`VERS ${map2.name}`}),
+    portalFromDir({from:"topLeft", toMap:map3.id, to:"bottomRight", label:`VERS ${map3.name}`}),
+    portalFromDir({from:"topRight", toMap:map5.id, to:"bottomLeft", label:`VERS ${map5.name}`}),
+    portalFromDir({from:"bottomRight", toMap:cross4.id, to:"bottomRight", label:`VERS ${cross4.name}`})
+  ];
+  addPortalIfMissing(map2, portalFromDir({from:"bottomRight", toMap:map4.id, to:"bottomLeft", label:`VERS ${map4.name}`}));
+  addPortalIfMissing(map3, portalFromDir({from:"bottomRight", toMap:map4.id, to:"topLeft", label:`VERS ${map4.name}`}));
+  addPortalIfMissing(map5, portalFromDir({from:"bottomLeft", toMap:map4.id, to:"topRight", label:`VERS ${map4.name}`}));
+  addPortalIfMissing(cross4, portalFromDir({from:"bottomRight", toMap:map4.id, to:"bottomRight", label:`VERS ${map4.name}`}));
+}
+
+const ZONE_TWO_PORTAL_LAYOUT = {
+  ASTRA:{to1:"bottomLeft", from1:"topRight", to3:"topLeft", from3:"bottomLeft", to4:"bottomRight", from4:"bottomLeft"},
+  CYAN:{to1:"topLeft", from1:"bottomRight", to3:"bottomLeft", from3:"topLeft", to4:"topRight", from4:"topLeft"},
+  JAUNE:{to1:"topRight", from1:"bottomLeft", to3:"bottomRight", from3:"topRight", to4:"topLeft", from4:"bottomLeft"},
+  VERTE:{to1:"bottomRight", from1:"topLeft", to3:"topRight", from3:"bottomRight", to4:"bottomLeft", from4:"bottomRight"}
+};
+
+function resetZoneTwoPortals(firm){
+  const layout = ZONE_TWO_PORTAL_LAYOUT[firm];
+  const prefix = `${firm}-`;
+  const map1 = getMapByName(`${prefix}01`);
+  const map2 = getMapByName(`${prefix}02`);
+  const map3 = getMapByName(`${prefix}03`);
+  const map4 = getMapByName(`${prefix}04`);
+  if(!layout || !map1 || !map2 || !map3 || !map4) return;
+
+  [map1, map3, map4].forEach(map=>removePortalsTo(map, map2.id));
+  removePortalAtDir(map1, layout.from1);
+  removePortalAtDir(map3, layout.from3);
+  removePortalAtDir(map4, layout.from4);
+  map2.portals = [
+    portalFromDir({from:layout.to1, toMap:map1.id, to:layout.from1, label:`VERS ${map1.name}`}),
+    portalFromDir({from:layout.to3, toMap:map3.id, to:layout.from3, label:`VERS ${map3.name}`}),
+    portalFromDir({from:layout.to4, toMap:map4.id, to:layout.from4, label:`VERS ${map4.name}`})
+  ];
+  addPortalIfMissing(map1, portalFromDir({from:layout.from1, toMap:map2.id, to:layout.to1, label:`VERS ${map2.name}`}));
+  addPortalIfMissing(map3, portalFromDir({from:layout.from3, toMap:map2.id, to:layout.to3, label:`VERS ${map2.name}`}));
+  addPortalIfMissing(map4, portalFromDir({from:layout.from4, toMap:map2.id, to:layout.to4, label:`VERS ${map2.name}`}));
+}
+
+const ZONE_THREE_PORTAL_LAYOUT = {
+  ASTRA:{to2:"bottomLeft", from2:"topLeft", to4:"bottomRight", from4:"topLeft", to5:"topRight", from5:"topLeft", crossFirm:"CYAN", crossFrom:"topLeft", crossTo:"bottomLeft"},
+  CYAN:{to2:"topLeft", from2:"bottomLeft", to4:"topRight", from4:"bottomLeft", to5:"bottomRight", from5:"bottomLeft", crossFirm:"ASTRA", crossFrom:"bottomLeft", crossTo:"topLeft"},
+  JAUNE:{to2:"topRight", from2:"bottomRight", to4:"topLeft", from4:"bottomRight", to5:"bottomLeft", from5:"bottomRight", crossFirm:"VERTE", crossFrom:"bottomRight", crossTo:"topRight"},
+  VERTE:{to2:"bottomRight", from2:"topRight", to4:"bottomLeft", from4:"topLeft", to5:"topLeft", from5:"topRight", crossFirm:"JAUNE", crossFrom:"topRight", crossTo:"bottomRight"}
+};
+
+function resetZoneThreePortals(firm){
+  const layout = ZONE_THREE_PORTAL_LAYOUT[firm];
+  const prefix = `${firm}-`;
+  const map2 = getMapByName(`${prefix}02`);
+  const map3 = getMapByName(`${prefix}03`);
+  const map4 = getMapByName(`${prefix}04`);
+  const map5 = getMapByName(`${prefix}05`);
+  const cross3 = getMapByName(`${layout?.crossFirm || ""}-03`);
+  if(!layout || !map2 || !map3 || !map4 || !map5 || !cross3) return;
+
+  [map2, map4, map5, cross3].forEach(map=>removePortalsTo(map, map3.id));
+  removePortalAtDir(map2, layout.from2);
+  removePortalAtDir(map4, layout.from4);
+  removePortalAtDir(map5, layout.from5);
+  removePortalAtDir(cross3, layout.crossTo);
+
+  map3.portals = [
+    portalFromDir({from:layout.to2, toMap:map2.id, to:layout.from2, label:`VERS ${map2.name}`}),
+    portalFromDir({from:layout.to4, toMap:map4.id, to:layout.from4, label:`VERS ${map4.name}`}),
+    portalFromDir({from:layout.to5, toMap:map5.id, to:layout.from5, label:`VERS ${map5.name}`}),
+    portalFromDir({from:layout.crossFrom, toMap:cross3.id, to:layout.crossTo, label:`VERS ${cross3.name}`})
+  ];
+  addPortalIfMissing(map2, portalFromDir({from:layout.from2, toMap:map3.id, to:layout.to2, label:`VERS ${map3.name}`}));
+  addPortalIfMissing(map4, portalFromDir({from:layout.from4, toMap:map3.id, to:layout.to4, label:`VERS ${map3.name}`}));
+  addPortalIfMissing(map5, portalFromDir({from:layout.from5, toMap:map3.id, to:layout.to5, label:`VERS ${map3.name}`}));
+  addPortalIfMissing(cross3, portalFromDir({from:layout.crossTo, toMap:map3.id, to:layout.crossFrom, label:`VERS ${map3.name}`}));
+}
+
+const ZONE_FIVE_PORTAL_LAYOUT = {
+  ASTRA:{
+    to3:"topLeft", from3:"topRight",
+    to4:"bottomLeft", from4:"topRight",
+    toUpper:"topRight", upper:"CYAN", upperFrom:"bottomRight",
+    toCore:"top", coreFrom:"left",
+    toLower:"bottomRight", lower:"VERTE", lowerFrom:"bottomLeft"
+  },
+  CYAN:{
+    to3:"bottomLeft", from3:"bottomRight",
+    to4:"topLeft", from4:"topRight",
+    toUpper:"topRight", upper:"JAUNE", upperFrom:"topLeft",
+    toCore:"right", coreFrom:"top",
+    toLower:"bottomRight", lower:"ASTRA", lowerFrom:"topRight"
+  },
+  JAUNE:{
+    to3:"bottomRight", from3:"bottomLeft",
+    to4:"topRight", from4:"topRight",
+    toUpper:"topLeft", upper:"CYAN", upperFrom:"topRight",
+    toCore:"bottom", coreFrom:"right",
+    toLower:"bottomLeft", lower:"VERTE", lowerFrom:"topLeft"
+  },
+  VERTE:{
+    to3:"topRight", from3:"topLeft",
+    to4:"bottomRight", from4:"topRight",
+    toUpper:"topLeft", upper:"JAUNE", upperFrom:"bottomLeft",
+    toCore:"left", coreFrom:"bottom",
+    toLower:"bottomLeft", lower:"ASTRA", lowerFrom:"bottomRight"
+  }
+};
+
+function resetZoneFivePortals(firm){
+  const layout = ZONE_FIVE_PORTAL_LAYOUT[firm];
+  const prefix = `${firm}-`;
+  const map3 = getMapByName(`${prefix}03`);
+  const map4 = getMapByName(`${prefix}04`);
+  const map5 = getMapByName(`${prefix}05`);
+  const upper5 = getMapByName(`${layout?.upper || ""}-05`);
+  const lower5 = getMapByName(`${layout?.lower || ""}-05`);
+  const core = getMapByName("CORE");
+  if(!layout || !map3 || !map4 || !map5 || !upper5 || !lower5 || !core) return;
+
+  [map3, map4, upper5, lower5, core].forEach(map=>removePortalsTo(map, map5.id));
+  removePortalAtDir(map3, layout.from3);
+  removePortalAtDir(map4, layout.from4);
+  removePortalAtDir(upper5, layout.upperFrom);
+  removePortalAtDir(lower5, layout.lowerFrom);
+  removePortalAtDir(core, layout.coreFrom);
+
+  map5.portals = [
+    portalFromDir({from:layout.to3, toMap:map3.id, to:layout.from3, label:`VERS ${map3.name}`}),
+    portalFromDir({from:layout.to4, toMap:map4.id, to:layout.from4, label:`VERS ${map4.name}`}),
+    portalFromDir({from:layout.toUpper, toMap:upper5.id, to:layout.upperFrom, label:`VERS ${upper5.name}`}),
+    portalFromDir({from:layout.toCore, toMap:core.id, to:layout.coreFrom, label:"VERS CORE"}),
+    portalFromDir({from:layout.toLower, toMap:lower5.id, to:layout.lowerFrom, label:`VERS ${lower5.name}`})
+  ];
+  addPortalIfMissing(map3, portalFromDir({from:layout.from3, toMap:map5.id, to:layout.to3, label:`VERS ${map5.name}`}));
+  addPortalIfMissing(map4, portalFromDir({from:layout.from4, toMap:map5.id, to:layout.to4, label:`VERS ${map5.name}`}));
+  addPortalIfMissing(upper5, portalFromDir({from:layout.upperFrom, toMap:map5.id, to:layout.toUpper, label:`VERS ${map5.name}`}));
+  addPortalIfMissing(core, portalFromDir({from:layout.coreFrom, toMap:map5.id, to:layout.toCore, label:`VERS ${map5.name}`}));
+  addPortalIfMissing(lower5, portalFromDir({from:layout.lowerFrom, toMap:map5.id, to:layout.toLower, label:`VERS ${map5.name}`}));
+}
+
+function resetCyanFourPortals(){
+  const map2 = getMapByName("CYAN-02");
+  const map3 = getMapByName("CYAN-03");
+  const map4 = getMapByName("CYAN-04");
+  const map5 = getMapByName("CYAN-05");
+  const jaune4 = getMapByName("JAUNE-04");
+  if(!map2 || !map3 || !map4 || !map5 || !jaune4) return;
+
+  [map2, map3, map5, jaune4].forEach(map=>removePortalsTo(map, map4.id));
+  removePortalAtDir(map2, "topRight");
+  removePortalAtDir(map3, "topRight");
+  removePortalAtDir(map5, "topLeft");
+  removePortalAtDir(jaune4, "topLeft");
+
+  map4.portals = [
+    portalFromDir({from:"topLeft", toMap:map2.id, to:"topRight", label:"VERS CYAN-02"}),
+    portalFromDir({from:"bottomLeft", toMap:map3.id, to:"topRight", label:"VERS CYAN-03"}),
+    portalFromDir({from:"topRight", toMap:jaune4.id, to:"topLeft", label:"VERS JAUNE-04"}),
+    portalFromDir({from:"bottomRight", toMap:map5.id, to:"topLeft", label:"VERS CYAN-05"})
+  ];
+  addPortalIfMissing(map2, portalFromDir({from:"topRight", toMap:map4.id, to:"topLeft", label:"VERS CYAN-04"}));
+  addPortalIfMissing(map3, portalFromDir({from:"topRight", toMap:map4.id, to:"bottomLeft", label:"VERS CYAN-04"}));
+  addPortalIfMissing(jaune4, portalFromDir({from:"topLeft", toMap:map4.id, to:"topRight", label:"VERS CYAN-04"}));
+  addPortalIfMissing(map5, portalFromDir({from:"topLeft", toMap:map4.id, to:"bottomRight", label:"VERS CYAN-04"}));
+}
+
+function resetVerteFourAstraPortal(){
+  const astra4 = getMapByName("ASTRA-04");
+  const verte3 = getMapByName("VERTE-03");
+  const verte4 = getMapByName("VERTE-04");
+  const verte5 = getMapByName("VERTE-05");
+  if(!astra4 || !verte3 || !verte4 || !verte5) return;
+
+  removePortalsTo(verte4, astra4.id);
+  removePortalsTo(astra4, verte4.id);
+  removePortalsTo(verte4, verte3.id);
+  removePortalsTo(verte3, verte4.id);
+  removePortalsTo(verte4, verte5.id);
+  removePortalsTo(verte5, verte4.id);
+  removePortalAtDir(verte4, "topLeft");
+  removePortalAtDir(verte4, "topRight");
+  removePortalAtDir(verte3, "bottomLeft");
+  removePortalAtDir(verte5, "bottomLeft");
+  removePortalAtDir(verte5, "bottomRight");
+  removePortalAtDir(verte4, "bottomLeft");
+  removePortalAtDir(astra4, "bottomRight");
+
+  addPortalIfMissing(verte4, portalFromDir({from:"topLeft", toMap:verte5.id, to:"bottomLeft", label:"VERS VERTE-05"}));
+  addPortalIfMissing(verte5, portalFromDir({from:"bottomLeft", toMap:verte4.id, to:"topLeft", label:"VERS VERTE-04"}));
+  addPortalIfMissing(verte4, portalFromDir({from:"topRight", toMap:verte3.id, to:"bottomLeft", label:"VERS VERTE-03"}));
+  addPortalIfMissing(verte3, portalFromDir({from:"bottomLeft", toMap:verte4.id, to:"topRight", label:"VERS VERTE-04"}));
+  addPortalIfMissing(verte4, portalFromDir({from:"bottomLeft", toMap:astra4.id, to:"bottomRight", label:"VERS ASTRA-04"}));
+  addPortalIfMissing(astra4, portalFromDir({from:"bottomRight", toMap:verte4.id, to:"bottomLeft", label:"VERS VERTE-04"}));
+}
+
+function resetJauneFiveFourPortal(){
+  const jaune2 = getMapByName("JAUNE-02");
+  const jaune4 = getMapByName("JAUNE-04");
+  const jaune5 = getMapByName("JAUNE-05");
+  const cyan5 = getMapByName("CYAN-05");
+  if(!jaune2 || !jaune4 || !jaune5 || !cyan5) return;
+
+  removePortalsTo(jaune5, cyan5.id);
+  removePortalsTo(cyan5, jaune5.id);
+  removePortalsTo(jaune5, jaune4.id);
+  removePortalsTo(jaune4, jaune5.id);
+  removePortalAtDir(jaune5, "topLeft");
+  removePortalAtDir(jaune5, "topRight");
+  removePortalAtDir(jaune4, "topRight");
+  removePortalAtDir(jaune4, "bottomLeft");
+  removePortalAtDir(cyan5, "topRight");
+
+  addPortalIfMissing(jaune5, portalFromDir({from:"topLeft", toMap:jaune4.id, to:"bottomLeft", label:"VERS JAUNE-04"}));
+  addPortalIfMissing(jaune4, portalFromDir({from:"bottomLeft", toMap:jaune5.id, to:"topLeft", label:"VERS JAUNE-05"}));
+  addPortalIfMissing(jaune4, portalFromDir({from:"topRight", toMap:jaune2.id, to:"topLeft", label:"VERS JAUNE-02"}));
+  addPortalIfMissing(jaune2, portalFromDir({from:"topLeft", toMap:jaune4.id, to:"topRight", label:"VERS JAUNE-04"}));
+}
+
+function removeExtraMapFivePortals(){
+  const cyan4 = getMapByName("CYAN-04");
+  const cyan5 = getMapByName("CYAN-05");
+  const astra4 = getMapByName("ASTRA-04");
+  const astra5 = getMapByName("ASTRA-05");
+  if(cyan4 && cyan5){
+    removePortalsTo(cyan5, cyan4.id);
+    removePortalsTo(cyan4, cyan5.id);
+    removePortalAtDir(cyan5, "topLeft");
+    removePortalAtDir(cyan5, "topRight");
+    removePortalAtDir(cyan4, "bottomRight");
+    addPortalIfMissing(cyan5, portalFromDir({from:"topRight", toMap:cyan4.id, to:"bottomRight", label:"VERS CYAN-04"}));
+    addPortalIfMissing(cyan4, portalFromDir({from:"bottomRight", toMap:cyan5.id, to:"topRight", label:"VERS CYAN-05"}));
+  }
+  if(astra4 && astra5){
+    removePortalsTo(astra5, astra4.id);
+    removePortalsTo(astra4, astra5.id);
+    removePortalAtDir(astra5, "bottomLeft");
+    removePortalAtDir(astra4, "topRight");
+    addPortalIfMissing(astra4, portalFromDir({from:"topRight", toMap:astra5.id, to:"bottomRight", label:"VERS ASTRA-05"}));
+    addPortalIfMissing(astra5, portalFromDir({from:"bottomRight", toMap:astra4.id, to:"topRight", label:"VERS ASTRA-04"}));
+  }
+}
+
+function applySectorGraphPortals(){
+  const graphMaps = MAPS.filter(map=>["ASTRA", "CYAN", "JAUNE", "VERTE"].includes(map.firm || String(map.name || "").split("-")[0]));
+  graphMaps.forEach(map=>{ map.portals = []; delete map.portal; });
+
+  const links = [
+    ["CYAN-01", "bottomRight", "CYAN-02", "topLeft"],
+    ["CYAN-02", "bottomLeft", "CYAN-03", "topLeft"],
+    ["CYAN-02", "topRight", "CYAN-04", "topLeft"],
+    ["CYAN-03", "topRight", "CYAN-04", "bottomLeft"],
+    ["CYAN-03", "bottomRight", "CYAN-05", "bottomLeft"],
+    ["CYAN-04", "topRight", "JAUNE-04", "topLeft"],
+    ["CYAN-04", "bottomRight", "CYAN-05", "topRight"],
+    ["CYAN-05", "bottomRight", "ASTRA-05", "topRight"],
+
+    ["ASTRA-01", "topRight", "ASTRA-02", "bottomLeft"],
+    ["ASTRA-02", "topLeft", "ASTRA-03", "bottomLeft"],
+    ["ASTRA-02", "bottomRight", "ASTRA-04", "bottomLeft"],
+    ["ASTRA-03", "topLeft", "CYAN-03", "bottomLeft"],
+    ["ASTRA-03", "topRight", "ASTRA-05", "topLeft"],
+    ["ASTRA-03", "bottomRight", "ASTRA-04", "topLeft"],
+    ["ASTRA-04", "topRight", "ASTRA-05", "bottomRight"],
+    ["ASTRA-04", "bottomRight", "VERTE-04", "bottomLeft"],
+
+    ["JAUNE-01", "bottomLeft", "JAUNE-02", "topRight"],
+    ["JAUNE-02", "topLeft", "JAUNE-04", "topRight"],
+    ["JAUNE-02", "bottomRight", "JAUNE-03", "topRight"],
+    ["JAUNE-03", "topLeft", "JAUNE-04", "bottomRight"],
+    ["JAUNE-03", "bottomLeft", "JAUNE-05", "bottomRight"],
+    ["JAUNE-03", "bottomRight", "VERTE-03", "topRight"],
+    ["JAUNE-04", "bottomLeft", "JAUNE-05", "topLeft"],
+    ["JAUNE-05", "bottomLeft", "VERTE-05", "topLeft"],
+
+    ["VERTE-01", "topLeft", "VERTE-02", "bottomRight"],
+    ["VERTE-02", "topRight", "VERTE-03", "bottomRight"],
+    ["VERTE-02", "bottomLeft", "VERTE-04", "bottomRight"],
+    ["VERTE-03", "topLeft", "VERTE-05", "topRight"],
+    ["VERTE-03", "bottomLeft", "VERTE-04", "topRight"],
+    ["VERTE-04", "topLeft", "VERTE-05", "bottomLeft"],
+    ["VERTE-05", "topLeft", "JAUNE-05", "bottomLeft"]
+  ];
+
+  links.forEach(([fromName, fromDir, toName, toDir])=>{
+    const fromMap = getMapByName(fromName);
+    const toMap = getMapByName(toName);
+    if(!fromMap || !toMap) return;
+    addPortalIfMissing(fromMap, portalFromDir({from:fromDir, toMap:toMap.id, to:toDir, label:`VERS ${toMap.name}`}));
+    addPortalIfMissing(toMap, portalFromDir({from:toDir, toMap:fromMap.id, to:fromDir, label:`VERS ${fromMap.name}`}));
+  });
+
+  const core = getMapByName("CORE");
+  const coreLinks = [
+    ["ASTRA-05", "top", "left"],
+    ["CYAN-05", "right", "top"],
+    ["JAUNE-05", "bottom", "right"],
+    ["VERTE-05", "left", "bottom"]
+  ];
+  coreLinks.forEach(([mapName, fromDir, coreDir])=>{
+    const map = getMapByName(mapName);
+    if(!map || !core) return;
+    addPortalIfMissing(map, portalFromDir({from:fromDir, toMap:core.id, to:coreDir, label:"VERS CORE"}));
+  });
+}
+
+function buildCoreMap(){
+  const core = cloneData(getAstraTemplate(5));
+  core.id = CORE_MAP_ID;
+  core.name = "CORE";
+  core.firm = "CORE";
+  core.theme = "core";
+  core.spawn = {x:0,y:0,r:360,label:"NOYAU CENTRAL",safeRadius:520,decorRadius:600};
+  core.enemySeed = 900;
+  core.enemyCount = 55;
+  core.enemyLevel = [20,28];
+  core.parallaxScene = themeObject(core.parallaxScene || {}, "CYAN");
+  core.parallaxScene.background = ["#04010b", "#11051f", "#020104"];
+  core.parallaxScene.images = [];
+  core.portals = [
+    portalFromDir({from:"left", toMap:4, to:"right", label:"VERS ASTRA-05"}),
+    portalFromDir({from:"top", toMap:firmMapId("CYAN", 5), to:"right", label:"VERS CYAN-05"}),
+    portalFromDir({from:"right", toMap:firmMapId("JAUNE", 5), to:"left", label:"VERS JAUNE-05"}),
+    portalFromDir({from:"bottom", toMap:firmMapId("VERTE", 5), to:"left", label:"VERS VERTE-05"})
+  ];
+  return core;
+}
+
+upsertMaps([
+  ...buildFirmMaps("CYAN"),
+  ...buildFirmMaps("JAUNE"),
+  ...buildFirmMaps("VERTE"),
+  buildCoreMap()
+]);
+
+addPortalIfMissing(getAstraTemplate(3), portalFromDir({from:"topLeft", toMap:firmMapId("CYAN", 3), to:"bottomLeft", label:"VERS CYAN-03"}));
+addPortalIfMissing(getAstraTemplate(5), portalFromDir({from:"right", toMap:CORE_MAP_ID, to:"left", label:"VERS CORE"}));
+addPortalIfMissing(MAPS.find(map=>map.name === "CYAN-03"), portalFromDir({from:"bottomLeft", toMap:2, to:"topLeft", label:"VERS ASTRA-03"}));
+addPortalIfMissing(MAPS.find(map=>map.name === "CYAN-05"), portalFromDir({from:"right", toMap:CORE_MAP_ID, to:"top", label:"VERS CORE"}));
+addPortalIfMissing(MAPS.find(map=>map.name === "JAUNE-05"), portalFromDir({from:"left", toMap:CORE_MAP_ID, to:"right", label:"VERS CORE"}));
+addPortalIfMissing(MAPS.find(map=>map.name === "VERTE-05"), portalFromDir({from:"left", toMap:CORE_MAP_ID, to:"bottom", label:"VERS CORE"}));
+
+addSectorBridge("CYAN-04", "topRight", "JAUNE-04", "topLeft");
+addSectorBridge("CYAN-05", "bottomRight", "ASTRA-05", "topRight");
+addSectorBridge("JAUNE-05", "bottomLeft", "VERTE-05", "topLeft");
+addSectorBridge("JAUNE-03", "bottomRight", "VERTE-03", "topRight");
+addSectorBridge("ASTRA-04", "bottomRight", "VERTE-04", "bottomLeft");
+
+resetZoneFourPortals("ASTRA", "VERTE");
+resetZoneFourPortals("VERTE", "ASTRA");
+resetZoneFourPortals("CYAN", "JAUNE");
+resetZoneFourPortals("JAUNE", "CYAN");
+resetZoneTwoPortals("ASTRA");
+resetZoneTwoPortals("CYAN");
+resetZoneTwoPortals("JAUNE");
+resetZoneTwoPortals("VERTE");
+resetZoneThreePortals("ASTRA");
+resetZoneThreePortals("CYAN");
+resetZoneThreePortals("JAUNE");
+resetZoneThreePortals("VERTE");
+resetZoneFivePortals("ASTRA");
+resetZoneFivePortals("CYAN");
+resetZoneFivePortals("JAUNE");
+resetZoneFivePortals("VERTE");
+resetCyanFourPortals();
+resetVerteFourAstraPortal();
+resetJauneFiveFourPortal();
+removeExtraMapFivePortals();
+applySectorGraphPortals();
 
 export function getMapPortals(map){
   if(!map) return [];
