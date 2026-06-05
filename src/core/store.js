@@ -204,6 +204,8 @@ const MAX_ACTIVE_QUESTS = 5;
 const MIN_PLAYER_CREDITS = 0;
 const MIN_PLAYER_PREMIUM = 0;
 const RANK_KILL_POINTS_VERSION = 2;
+const DEFAULT_STATE_STORAGE_KEY = "voidsector-prototype-state";
+let stateStorageKey = DEFAULT_STATE_STORAGE_KEY;
 export const XP_CURVE_VERSION = 4;
 const XP_FIXED_NEXT_BY_LEVEL = {
   1:3000,
@@ -743,7 +745,7 @@ function migrateLoadoutItemIds(){
 
 export function loadState(){
   try{
-    const raw = localStorage.getItem("voidsector-prototype-state");
+    const raw = localStorage.getItem(stateStorageKey);
     return normalizeState(raw ? JSON.parse(raw) : null);
   }catch(e){
     return normalizeState(null);
@@ -754,7 +756,17 @@ export function saveState(){
   if(globalThis.__voidsectorResetInProgress) return;
   if(store.state.player) store.state.player.rankScore = getRankScore();
   enforcePlayerCurrencyMinimums();
-  localStorage.setItem("voidsector-prototype-state", JSON.stringify(store.state));
+  localStorage.setItem(stateStorageKey, JSON.stringify(store.state));
+}
+
+export function getStateStorageKey(){
+  return stateStorageKey;
+}
+
+export function setStateStorageScope(scope = "guest"){
+  const clean = String(scope || "guest").trim().toLowerCase().replace(/[^a-z0-9:_-]/g, "_") || "guest";
+  stateStorageKey = clean === "guest" ? DEFAULT_STATE_STORAGE_KEY : `${DEFAULT_STATE_STORAGE_KEY}:${clean}`;
+  return stateStorageKey;
 }
 
 export function getEquippedGenerators(shipId = store.state.activeShip){

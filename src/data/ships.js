@@ -16,7 +16,7 @@ export const ships = [
     img:"assets/ships/Orion.png",
     priceType:"credits",
     price:0,
-    stats:{vie:2500, vitesse:300, cargo:250, maxLasers:1, maxGenerators:1, maxExtras:1},
+    stats:{vie:5000, vitesse:300, cargo:250, maxLasers:1, maxGenerators:1, maxExtras:1},
     special:null
   },
   {
@@ -27,7 +27,7 @@ export const ships = [
     combatImg:"assets/ships/combat/Velox.png",
     priceType:"credits",
     price:35000,
-    stats:{vie:8000, vitesse:330, cargo:500, maxLasers:3, maxGenerators:3, maxExtras:2},
+    stats:{vie:15000, vitesse:330, cargo:500, maxLasers:3, maxGenerators:3, maxExtras:2},
     special:null
   },
   {
@@ -37,7 +37,7 @@ export const ships = [
     img:"assets/ships/Valkyrie.png",
     priceType:"credits",
     price:500000,
-    stats:{vie:35000, vitesse:300, cargo:1000, maxLasers:6, maxGenerators:7, maxExtras:3},
+    stats:{vie:50000, vitesse:300, cargo:1000, maxLasers:6, maxGenerators:7, maxExtras:3},
     special:null
   },
   {
@@ -47,7 +47,7 @@ export const ships = [
     img:"assets/ships/Razorion.png",
     priceType:"credits",
     price:2500000,
-    stats:{vie:30000, vitesse:330, cargo:700, maxLasers:8, maxGenerators:5, maxExtras:3},
+    stats:{vie:35000, vitesse:330, cargo:700, maxLasers:8, maxGenerators:5, maxExtras:3},
     special:null
   },
   {

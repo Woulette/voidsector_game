@@ -534,6 +534,33 @@ export function createCombatPanels({
     refreshGroupFloatingHud();
   });
 
+  function selectNextQuestAfterClaim(claimedQuestId){
+    if(!claimedQuestId) return;
+    if(!store.state.completedQuestClaims || typeof store.state.completedQuestClaims !== "object") store.state.completedQuestClaims = {};
+    store.state.completedQuestClaims[claimedQuestId] = true;
+    if(Array.isArray(store.state.activeQuestIds)){
+      store.state.activeQuestIds = store.state.activeQuestIds.filter(id=>id !== claimedQuestId);
+    }
+    if(store.state.activeQuestId === claimedQuestId) store.state.activeQuestId = store.state.activeQuestIds?.[0] || null;
+    if(selectedQuestId === claimedQuestId){
+      const activeIds = new Set(getActiveQuests().map(quest=>quest.id));
+      const completedClaims = store.state.completedQuestClaims || {};
+      const sameType = quest=>(quest.category || "normal") === selectedQuestType;
+      const activeQuest = getAllQuests().find(quest=>sameType(quest) && activeIds.has(quest.id));
+      const availableQuest = getAllQuests().find(quest=>sameType(quest) && !completedClaims[quest.id] && !activeIds.has(quest.id) && Number(store.state.player?.level || 1) >= Number(quest.requiredLevel || 1));
+      selectedQuestCategory = activeQuest ? "active" : "available";
+      selectedQuestId = activeQuest?.id || availableQuest?.id || null;
+    }
+    if(spawnPanelMode === "quests") renderSpawnInteractionPanel("quests");
+    refreshQuestUtilityPanel({show:true});
+    syncUtilityDockButtons();
+  }
+
+  window.addEventListener("voidsector:multiplayer-change", event=>{
+    const reason = String(event.detail?.reason || "");
+    if(reason === "quest:claimed") selectNextQuestAfterClaim(event.detail?.payload?.id);
+  });
+
   function renderSettingsUtilityContent(){
     const quality = getGraphicsQuality?.() || store.state.graphicsQuality || "high";
     return `<div class="combat-settings-card">
@@ -703,11 +730,14 @@ export function createCombatPanels({
   function claimCombatQuest(questId){
     const result = claimQuest(questId);
     if(!result.ok) return showToast(result.reason);
+    if(result.serverPending){
+      showToast(`Reclamation envoyee : ${result.quest.title}`);
+      return;
+    }
     saveState();
     showToast(`Recompense recue : ${result.quest.title}`);
+    selectNextQuestAfterClaim(questId);
     updateHud();
-    if(spawnPanelMode) renderSpawnInteractionPanel(spawnPanelMode);
-    refreshQuestUtilityPanel({show:true});
   }
 
   function inviteGroupMember(name){
@@ -797,6 +827,14 @@ export function createCombatPanels({
 
   function selectQuestForPanel(questId){
     selectedQuestId = questId;
+    renderSpawnInteractionPanel("quests");
+  }
+
+  function markQuestAcceptedForPanel(questId){
+    const quest = getAllQuests().find(entry=>entry.id === questId);
+    selectedQuestId = questId;
+    selectedQuestCategory = "active";
+    selectedQuestType = quest?.category || selectedQuestType || "normal";
     renderSpawnInteractionPanel("quests");
   }
 
@@ -924,6 +962,7 @@ export function createCombatPanels({
     claimCombatQuest,
     setCombatQuestDetailTab,
     selectQuestForPanel,
+    markQuestAcceptedForPanel,
     selectQuestCategoryForPanel,
     selectQuestTypeForPanel,
     toggleLockedQuestsForPanel,

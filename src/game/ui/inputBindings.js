@@ -44,6 +44,7 @@ export function installCombatInputHandlers({
   claimCombatQuest,
   setCombatQuestDetailTab,
   selectQuestForPanel,
+  markQuestAcceptedForPanel,
   selectQuestCategoryForPanel,
   selectQuestTypeForPanel,
   toggleLockedQuestsForPanel,
@@ -519,6 +520,7 @@ export function installCombatInputHandlers({
       const amount = Math.max(1, Math.floor(Number(input?.value || 1)));
       const result = refineShipCargoRecipe(confirmShipRefineBtn.dataset.confirmShipRefine, amount);
       if(!result.ok) showToast(result.reason);
+      else if(result.serverPending){ showToast("Fusion envoyee au serveur."); closeShipRefineRecipe?.(); }
       else { saveState(); showToast(`Fusion : +${result.outputAmount} ${result.output?.name || result.recipe.outputId}.`); closeShipRefineRecipe?.(); }
       renderSpawnInteractionPanel("refinery");
       updateHud();
@@ -549,14 +551,17 @@ export function installCombatInputHandlers({
       const result = acceptQuest(acceptBtn.dataset.acceptQuest);
       if(!result.ok) showToast(result.reason);
       else { saveState(); showToast(`Quête acceptée : ${result.quest.title}`); }
-      renderSpawnInteractionPanel("quests");
+      if(result.ok) markQuestAcceptedForPanel?.(acceptBtn.dataset.acceptQuest);
+      else renderSpawnInteractionPanel("quests");
       updateHud();
       return;
     }
     const claimBtn = e.target.closest("[data-claim-quest]");
     if(claimBtn){
       const result = claimQuest(claimBtn.dataset.claimQuest);
+      const claimIsServerPending = Boolean(result.serverPending);
       if(!result.ok) showToast(result.reason);
+      else if(claimIsServerPending) showToast(`Reclamation envoyee : ${result.quest.title}`);
       else { saveState(); showToast(`Récompense reçue : ${result.quest.title}`); }
       renderSpawnInteractionPanel("quests");
       updateHud();
@@ -585,6 +590,7 @@ export function installCombatInputHandlers({
       const itemId = upgradeBtn.dataset.upgradeShipItem || upgradeBtn.dataset.upgradeItem;
       const result = upgradeEquipment(itemId, upgradeBtn.dataset.upgradeShipItem ? {materialSource:"shipCargo"} : {});
       if(!result.ok) showToast(result.reason);
+      else if(result.serverPending) showToast(`Amelioration envoyee au serveur : ${itemId}.`);
       else { saveState(); showToast(`Amelioration appliquee : ${itemId} +${result.level}`); }
       renderSpawnInteractionPanel("refinery");
       updateHud();

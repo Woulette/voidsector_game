@@ -84,6 +84,7 @@ function normalizeServerEnemy(serverEnemy, existing = null){
     hitT:Number.POSITIVE_INFINITY,
     attackCooldown:Number.POSITIVE_INFINITY,
     moving:Boolean(buffered?.moving || serverEnemy.moving || Math.hypot(Number(serverEnemy.vx || 0), Number(serverEnemy.vy || 0)) > 4),
+    attackT:Math.max(0, Number(serverEnemy.attackT || 0)),
     recentHitTimer:Math.max(Number(existing?.recentHitTimer || 0), Number(serverEnemy.recentHitTimer || 0))
   };
 }

@@ -9,3 +9,6 @@ Thumbs.db
 
 .vercel
 tmp/
+server/.env
+server/data/accounts.json
+server/data/sessions.json

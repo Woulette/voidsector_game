@@ -101,6 +101,8 @@ export function createWeaponSystem(deps){
         particle:ammo.particle,
         slotIndex,
         targetId:enemy.id,
+        ammoId:ammo.id,
+        serverFireCount:1,
         hitChance:deps.playerHitChance
       }));
       particles.push({x:startX,y:startY,life:.24,max:.24,size:26,color:ammo.particle});
@@ -206,6 +208,8 @@ export function createWeaponSystem(deps){
         color:ammo.color,
         particle:ammo.particle,
         targetId:enemy.id,
+        ammoId:ammo.id,
+        serverFireCount:needed,
         hitChance:deps.playerHitChance
       }));
       particles.push({x:startX, y:startY, life:.24, max:.24, size:22, color:ammo.particle});

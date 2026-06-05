@@ -51,6 +51,22 @@ import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderSha
 import { renderShop } from "./renderShop.js";
 import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js";
 import { renderRefinery } from "./renderRefinery.js";
+import { multiplayer } from "../multiplayer/client.js";
+
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g, char=>({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    "\"":"&quot;",
+    "'":"&#39;"
+  }[char]));
+}
+
+function maxShipStat(key, fallback = 1){
+  return Math.max(fallback, ...ships.map(ship=>Number(ship.stats?.[key] || 0)));
+}
+
 export function renderTop(){
   const { state } = store;
   const rank = getCurrentRank();
@@ -127,12 +143,12 @@ export function renderSelectedShip(){
       </div>`;
   }
   document.getElementById("selectedShipStats").innerHTML = [
-    statLine("Vie", ship.stats.vie, 5000),
-    statLine("Vitesse réelle", stats.vitesseReelle, 520),
-    statLine("Cargo", ship.stats.cargo, 100),
-    statLine("Slots lasers", ship.stats.maxLasers, 8),
-    statLine("Slots générateurs", ship.stats.maxGenerators, 10),
-    statLine("Slots extras", ship.stats.maxExtras || 3, 5),
+    statLine("Vie", ship.stats.vie, maxShipStat("vie")),
+    statLine("Vitesse réelle", stats.vitesseReelle, Math.max(maxShipStat("vitesse"), stats.vitesseReelle)),
+    statLine("Cargo", ship.stats.cargo, maxShipStat("cargo")),
+    statLine("Slots lasers", ship.stats.maxLasers, maxShipStat("maxLasers")),
+    statLine("Slots générateurs", ship.stats.maxGenerators, maxShipStat("maxGenerators")),
+    statLine("Slots extras", ship.stats.maxExtras || 3, maxShipStat("maxExtras")),
     `<div class="stat-line special-line"><span>Sort spécial</span><b>Aucun</b></div>`,
     `<div class="stat-line special-line"><span>Avec équipement</span><b>${fmt(stats.vie)} PV · ${fmt(stats.bouclier)} bouclier · Vitesse ${fmt(stats.vitesseReelle)}</b></div>`
   ].join("");
@@ -140,6 +156,9 @@ export function renderSelectedShip(){
   btn.textContent = active ? "DÉSÉQUIPER CE VAISSEAU" : "ÉQUIPER CE VAISSEAU";
   btn.classList.toggle("danger", active);
   btn.disabled = false;
+  btn.textContent = active ? "VAISSEAU EQUIPE" : "EQUIPER CE VAISSEAU";
+  btn.classList.toggle("danger", false);
+  btn.disabled = active;
 }
 
 function renderInventoryCell(entry, shipId = null){
@@ -435,6 +454,50 @@ function getActiveProfileTitle(){
   return profileTitles().find(title=>title.id === player.activeTitleId && title.unlocked) || null;
 }
 
+function renderMmoAccountCard(){
+  const account = multiplayer.auth?.account;
+  const pending = Boolean(multiplayer.auth?.pending);
+  const error = multiplayer.auth?.error ? `<p class="account-error">${escapeHtml(multiplayer.auth.error)}</p>` : "";
+  if(account){
+    return `<section class="profile-card profile-wide mmo-account-card">
+      <div class="profile-card-head"><span class="tiny">MMO</span><h3>Compte connecte</h3></div>
+      <div class="profile-stat-grid">
+        <div><span>Pseudo</span><b>${escapeHtml(account.username)}</b></div>
+        <div><span>Email</span><b>${escapeHtml(account.email)}</b></div>
+      </div>
+      <p>La progression serveur sera maintenant liee a ce compte.</p>
+      <button class="blue-button secondary small" data-auth-action="logout" type="button">DECONNEXION</button>
+    </section>`;
+  }
+  const serverControls = multiplayer.connected
+    ? `<span class="badge">Serveur connecte</span>`
+    : `<div class="account-form-row" data-mp-form>
+        <input data-mp-player-name type="text" maxlength="24" value="${escapeHtml(multiplayer.name || store.state?.player?.name || "NOVA-37")}" placeholder="Pseudo multi">
+        <input data-mp-server-url type="text" value="${escapeHtml(multiplayer.serverUrl)}" placeholder="URL serveur">
+        <button class="blue-button small" data-mp-action="connect" type="button">${multiplayer.connecting ? "CONNEXION" : "CONNECTER SERVEUR"}</button>
+      </div>`;
+  return `<section class="profile-card profile-wide mmo-account-card">
+    <div class="profile-card-head"><span class="tiny">MMO</span><h3>Compte serveur</h3>${serverControls}</div>
+    ${error}
+    <div class="account-form-grid">
+      <div class="account-form-box">
+        <strong>Connexion</strong>
+        <input id="authLogin" type="text" autocomplete="username" placeholder="Email ou pseudo">
+        <input id="authPassword" type="password" autocomplete="current-password" placeholder="Mot de passe">
+        <button class="blue-button small" data-auth-action="login" type="button" ${pending ? "disabled" : ""}>${pending ? "..." : "CONNECTER"}</button>
+      </div>
+      <div class="account-form-box">
+        <strong>Inscription</strong>
+        <input id="authRegisterEmail" type="email" autocomplete="email" placeholder="Email">
+        <input id="authRegisterUsername" type="text" maxlength="24" autocomplete="username" placeholder="Pseudo public">
+        <input id="authRegisterPassword" type="password" autocomplete="new-password" placeholder="Mot de passe">
+        <button class="blue-button small" data-auth-action="register" type="button" ${pending ? "disabled" : ""}>${pending ? "..." : "CREER COMPTE"}</button>
+      </div>
+    </div>
+    <p>${multiplayer.connected ? "Cree un compte ou connecte-toi pour lier la sauvegarde MMO au serveur." : "Tu peux creer un compte directement : le jeu connectera le serveur avant l'inscription."}</p>
+  </section>`;
+}
+
 function renderProfileTabContent(tab){
   const player = store.state.player;
   const rank = getCurrentRank();
@@ -495,6 +558,7 @@ function renderProfileTabContent(tab){
       <p>${prestige.ok ? "Pret : retour niveau 1, competences conservees, cap niveau 100." : prestige.reason}</p>
       <button class="blue-button" data-prestige type="button" ${prestige.ok ? "" : "disabled"}>PRESTIGE</button>
     </section>
+    ${renderMmoAccountCard()}
   </div>`;
 }
 
@@ -625,7 +689,13 @@ export function renderHangarMode(){
 export function setView(view){
   if(!pageText[view]) view = "hangar";
   store.currentView = view;
-  if(view !== "hangar") store.hangarDetailOpen = false;
+  if(view === "hangar"){
+    store.hangarTab = "vaisseau";
+    store.hangarDetailOpen = false;
+  }else{
+    store.hangarDetailOpen = false;
+  }
+  renderHangarTabs();
   renderHangarMode();
   document.querySelectorAll(".nav-tab").forEach(b=>b.classList.toggle("active", b.dataset.view === view));
   document.querySelectorAll(".page-view").forEach(p=>p.classList.toggle("active", p.dataset.page === view));

@@ -110,7 +110,7 @@ import { createCombatHudController } from "./ui/combatHudController.js";
 import { installCombatInputHandlers } from "./ui/inputBindings.js";
 import { createCombatActions } from "./ui/combatActions.js";
 import { createCombatPanels } from "./ui/combatPanels.js";
-import { getGroupRemotePlayers, multiplayer, sendPlayerSnapshot, sendServerEnemyHit } from "../multiplayer/client.js";
+import { acceptServerQuest, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendPlayerSnapshot, sendServerEnemyHit, upgradeServerEquipment } from "../multiplayer/client.js";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
@@ -164,6 +164,7 @@ export function createCombatGame({renderAll, showToast}){
   let deathState = null;
   let npcDialogue = null;
   let deathRespawnHandlersInstalled = false;
+  let logoutRequest = null;
   const combatMetricModes = {hp:"bar", shield:"bar", xp:"bar"};
   function getCombatState(){
     return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalTransition, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
@@ -257,6 +258,7 @@ export function createCombatGame({renderAll, showToast}){
   const hitResolution = createCombatHitResolutionSystem({
     getState:getCombatState,
     setState:setCombatState,
+    isServerControlledEnemy,
     damageEnemy,
     damagePlayer,
     rewardEnemy,
@@ -328,6 +330,43 @@ export function createCombatGame({renderAll, showToast}){
     fireManualRocket,
     fireManualMissile
   });
+
+  function acceptQuestAction(questId){
+    if(multiplayer.connected && acceptServerQuest(questId)){
+      const quest = getAllQuests().find(entry=>entry.id === questId) || {id:questId, title:"quete serveur"};
+      const local = acceptQuest(questId);
+      return local.ok ? {...local, serverPending:true} : {ok:true, quest, serverPending:true};
+    }
+    return acceptQuest(questId);
+  }
+
+  function claimQuestAction(questId){
+    if(multiplayer.connected && claimServerQuest(questId)){
+      const quest = getAllQuests().find(entry=>entry.id === questId) || {id:questId, title:"quete serveur"};
+      return {ok:true, quest, serverPending:true};
+    }
+    return claimQuest(questId);
+  }
+
+  function refineShipCargoRecipeAction(recipeId, amount = 1){
+    if(multiplayer.connected && refineServerShipCargo({recipeId, amount, shipId:store.state.activeShip})){
+      const recipe = getRefineryRecipes().find(entry=>entry.id === recipeId) || {id:recipeId, outputId:"materiau"};
+      return {ok:true, recipe, output:null, outputAmount:0, serverPending:true};
+    }
+    return refineShipCargoRecipe(recipeId, amount);
+  }
+
+  function upgradeEquipmentAction(itemId, options = {}){
+    if(multiplayer.connected && upgradeServerEquipment({
+      itemId,
+      materialSource:options.materialSource === "shipCargo" ? "shipCargo" : "cargoHold",
+      shipId:options.shipId || store.state.activeShip
+    })){
+      return {ok:true, level:getEquipmentUpgradeLevel(itemId) + 1, serverPending:true};
+    }
+    return upgradeEquipment(itemId, options);
+  }
+
   const panels = createCombatPanels({
     store,
     saveState,
@@ -344,7 +383,7 @@ export function createCombatGame({renderAll, showToast}){
     getAllQuests,
     getQuestObjectiveProgress,
     getQuestProgress,
-    claimQuest,
+    claimQuest:claimQuestAction,
     getItem,
     getRefineryJob,
     getRefineryRecipes,
@@ -395,6 +434,7 @@ export function createCombatGame({renderAll, showToast}){
     getSpawnPanelMode:()=>panels.getSpawnPanelMode(),
     fmt,
     rewards,
+    requestServerLootPickup,
     saveState,
     showToast,
     onCargoChanged:()=>updateHud(),
@@ -781,12 +821,15 @@ export function createCombatGame({renderAll, showToast}){
     const npc = npcDialogue.npc;
     const shouldProgress = npcDialogue.progress;
     closeNpcDialogue();
-    if(shouldProgress && recordQuestNpcTalk(npc.id, currentMap.name)){
+    const progressed = shouldProgress && (multiplayer.connected
+      ? progressServerQuest({type:"talk_npc", npcId:npc.id, zoneName:currentMap.name})
+      : recordQuestNpcTalk(npc.id, currentMap.name));
+    if(progressed){
       saveState();
       const panelMode = panels.getSpawnPanelMode?.();
       if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
       updateHud();
-      showToast("Objectif mis a jour.");
+      if(!multiplayer.connected) showToast("Objectif mis a jour.");
     }
   }
 
@@ -822,11 +865,50 @@ export function createCombatGame({renderAll, showToast}){
 
   function loadMap(mapId, x, y, options = {}){
     worldState.loadMap(mapId, x, y, options);
-    if(recordQuestMapVisit(currentMap?.name)){
+    const progressed = multiplayer.connected
+      ? false
+      : recordQuestMapVisit(currentMap?.name);
+    if(progressed){
       saveState();
       const panelMode = panels.getSpawnPanelMode?.();
       if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
     }
+  }
+
+  function resumeWorldSession(session = {}){
+    if(!running || !session) return false;
+    const rawMapId = session.mapId ?? 0;
+    const mapId = Number.isFinite(Number(rawMapId)) ? Number(rawMapId) : rawMapId;
+    const x = Number(session.x);
+    const y = Number(session.y);
+    if(!Number.isFinite(x) || !Number.isFinite(y)) return false;
+    loadMap(mapId, x, y, {safeNow:true});
+    player.angle = Number(session.angle || player.angle || 0);
+    const shipChanged = String(session.source || "") === "ship-change";
+    const stats = shipChanged ? getShipCombatStats(store.state.activeShip) : null;
+    const maxHp = Math.max(1, Number(shipChanged ? stats?.vie : (session.maxHp || player.maxHp || 1)));
+    const maxShield = Math.max(0, Number(shipChanged ? stats?.bouclier : (session.maxShield || player.maxShield || 0)));
+    player.maxHp = maxHp;
+    player.hp = Math.max(1, Math.min(maxHp, Number(shipChanged ? maxHp : (session.hp || maxHp))));
+    player.maxShield = maxShield;
+    player.shield = Math.max(0, Math.min(maxShield, Number(shipChanged ? maxShield : (session.shield || 0))));
+    if(shipChanged && stats){
+      player.regen = stats.regen;
+      player.speed = stats.vitesseReelle;
+      player.displayedSpeed = stats.vitesseReelle;
+      player.damageBonus = stats.weaponDamage;
+      player.damageMultiplier = Number(stats.weaponDamageMultiplier || (1 + Number(stats.weaponDamagePercent || 0)));
+      player.shieldAbsorbRatio = Math.max(0, Math.min(0.9, Number(stats.shieldAbsorbRatio ?? 0.5)));
+      player.evasionChance = Math.max(0, Math.min(0.75, Number(stats.evasionChance || 0)));
+      player.damageToHpChance = Math.max(0, Math.min(0.5, Number(stats.damageToHpChance || 0)));
+      player.blueLaserBeams = Boolean(stats.blueLaserBeams);
+      player.extraBonus = stats.extraBonus || player.extraBonus;
+    }
+    player.isDead = false;
+    player.secondsSinceDamage = 999;
+    updateHud();
+    showToast("Position de jeu reprise depuis le serveur.");
+    return true;
   }
 
   function installDebugCommands(){
@@ -859,12 +941,156 @@ export function createCombatGame({renderAll, showToast}){
   function loadPortalArena(portalId){
     portalRun.loadArena(portalId);
   }
+  function getLogoutButton(){
+    return document.getElementById("returnDashboardBtn");
+  }
+
+  function setLogoutButtonLabel(label, pending = false){
+    const button = getLogoutButton();
+    if(!button) return;
+    button.textContent = label;
+    button.classList.toggle("danger", pending);
+  }
+
+  function getLogoutBlockReason(){
+    if(!player || player.isDead) return "vaisseau detruit";
+    if(portalTransition || teleportLock > 0) return "transfert en cours";
+    if(mouseMoveHeld || moveTarget) return "deplacement en cours";
+    if(Math.hypot(Number(player.vx || 0), Number(player.vy || 0)) > 8) return "vaisseau en mouvement";
+    if(Number(player.secondsSinceDamage || 999) < 15) return "degats recents";
+    if(Number(player.lastAggression || 0) > 0 && performance.now() - Number(player.lastAggression || 0) < 15000) return "combat recent";
+    if(selectedEnemy && selectedEnemy.hp > 0) return "cible verrouillee";
+    const nearbyAggro = (enemies || []).some(enemy=>enemy?.hp > 0 && enemy.aggro && Math.hypot(enemy.x - player.x, enemy.y - player.y) < 900);
+    if(nearbyAggro) return "ennemi engage";
+    return "";
+  }
+
+  function cancelLogout(reason = "deconnexion annulee"){
+    if(!logoutRequest) return;
+    logoutRequest = null;
+    setLogoutButtonLabel("DECONNEXION");
+    showToast(`Deconnexion annulee : ${reason}.`);
+  }
+
+  function completeLogout(){
+    logoutRequest = null;
+    saveState();
+    disconnectMultiplayer();
+    running = false;
+    document.getElementById("gameScreen").classList.add("hidden");
+    document.getElementById("combatQuickPanel").classList.add("hidden");
+    closeNpcDialogue();
+    clearPoison();
+    panels.closeUtilityPanel();
+    panels.closeSpawnPanel();
+    setLogoutButtonLabel("DECONNEXION");
+    showToast("Session de jeu deconnectee.");
+    setTimeout(()=>{
+      window.close();
+      document.body.innerHTML = `<section class="dashboard"><div class="panel frame" style="max-width:520px;margin:16vh auto;padding:24px"><div class="panel-head"><div><span class="tiny">SESSION</span><h2>Deconnecte</h2></div></div><p class="settings-help">Tu peux fermer cet onglet. Le launcher reste ouvert.</p></div></section>`;
+    }, 250);
+  }
+
+  function requestLogout(){
+    if(!running) return;
+    const reason = getLogoutBlockReason();
+    if(reason){
+      showToast(`Deconnexion impossible : ${reason}.`);
+      return;
+    }
+    if(multiplayer.connected && requestServerLogout()){
+      showToast("Demande de deconnexion envoyee au serveur.");
+      return;
+    }
+    logoutRequest = {remaining:15, completeAt:Date.now() + 15000, server:false};
+    setLogoutButtonLabel("DECO 15S", true);
+    showToast("Deconnexion dans 15 secondes. Reste immobile et hors combat.");
+  }
+
+  function handleServerLogoutChange(event){
+    const reason = String(event.detail?.reason || "");
+    const payload = event.detail?.payload || {};
+    if(!running && reason !== "logout:complete") return;
+    if(reason === "logout:started"){
+      const remainingMs = Math.max(0, Number(payload.delayMs || 15000));
+      logoutRequest = {
+        remaining:remainingMs / 1000,
+        completeAt:Date.now() + remainingMs,
+        server:true
+      };
+      setLogoutButtonLabel(`DECO ${Math.ceil(logoutRequest.remaining)}S`, true);
+      showToast("Deconnexion serveur dans 15 secondes. Reste immobile et hors combat.");
+      return;
+    }
+    if(reason === "logout:rejected"){
+      logoutRequest = null;
+      setLogoutButtonLabel("DECONNEXION");
+      showToast(`Deconnexion refusee par le serveur : ${payload.reason || "condition invalide"}.`);
+      return;
+    }
+    if(reason === "logout:cancelled"){
+      cancelLogout(payload.reason || "serveur");
+      return;
+    }
+    if(reason === "logout:complete"){
+      completeLogout();
+    }
+  }
+
+  function updateLogoutRequest(dt){
+    if(!logoutRequest) return;
+    const reason = getLogoutBlockReason();
+    if(reason){
+      cancelLogout(reason);
+      return;
+    }
+    if(Number(logoutRequest.completeAt || 0) > 0){
+      logoutRequest.remaining = Math.max(0, (Number(logoutRequest.completeAt) - Date.now()) / 1000);
+    }else{
+      logoutRequest.remaining = Math.max(0, Number(logoutRequest.remaining || 0) - dt);
+    }
+    setLogoutButtonLabel(`DECO ${Math.ceil(logoutRequest.remaining)}S`, true);
+    if(logoutRequest.remaining <= 0 && !logoutRequest.server) completeLogout();
+  }
+
+  function refreshActiveLoadout(){
+    if(!running || !player) return false;
+    const stats = getShipCombatStats(store.state.activeShip);
+    const previousHpRatio = player.maxHp > 0 ? player.hp / player.maxHp : 1;
+    const previousShieldRatio = player.maxShield > 0 ? player.shield / player.maxShield : 0;
+    player.maxHp = Math.max(1, Number(stats.vie || player.maxHp || 1));
+    player.hp = Math.max(1, Math.min(player.maxHp, Math.round(player.maxHp * previousHpRatio)));
+    player.maxShield = Math.max(0, Number(stats.bouclier || 0));
+    player.shield = Math.max(0, Math.min(player.maxShield, Math.round(player.maxShield * previousShieldRatio)));
+    player.regen = stats.regen;
+    player.speed = stats.vitesseReelle;
+    player.displayedSpeed = stats.vitesseReelle;
+    player.damageBonus = stats.weaponDamage;
+    player.damageMultiplier = Number(stats.weaponDamageMultiplier || (1 + Number(stats.weaponDamagePercent || 0)));
+    player.shieldAbsorbRatio = Math.max(0, Math.min(0.9, Number(stats.shieldAbsorbRatio ?? 0.5)));
+    player.evasionChance = Math.max(0, Math.min(0.75, Number(stats.evasionChance || 0)));
+    player.damageToHpChance = Math.max(0, Math.min(0.5, Number(stats.damageToHpChance || 0)));
+    player.blueLaserBeams = Boolean(stats.blueLaserBeams);
+    player.extraBonus = stats.extraBonus || {autoRocket:false, autoMissile:false, rocketCooldownMultiplier:1, rocketDamageBonus:0, repairBot:false, repairBotAuto:false, repairBotHealRate:0.02, repairBotDelay:15};
+    if(!player.extraBonus.repairBot){
+      player.repairBotActive = false;
+      player.repairBotTickTimer = 0;
+    }
+    actions.cleanCombatActionSlots();
+    actions.renderGameActionBar();
+    actions.renderCombatQuickPanel();
+    updateHud();
+    return true;
+  }
+
   function start(entry="open"){
     if(running) return;
     preload(); resize();
     resetPerfMetrics();
     miniMap.applyLayout(store.state?.uiLayout?.miniMap, false);
     running = true;
+    logoutRequest = null;
+    setLogoutButtonLabel("DECONNEXION");
     installDebugCommands();
     document.getElementById("dashboard").classList.add("hidden");
     document.getElementById("gameScreen").classList.remove("hidden");
@@ -924,6 +1150,8 @@ export function createCombatGame({renderAll, showToast}){
   function stop(save=true){
     if(!running) return;
     running = false;
+    logoutRequest = null;
+    setLogoutButtonLabel("DECONNEXION");
     document.getElementById("dashboard").classList.remove("hidden");
     document.getElementById("gameScreen").classList.add("hidden");
     document.getElementById("combatQuickPanel").classList.add("hidden");
@@ -939,7 +1167,7 @@ export function createCombatGame({renderAll, showToast}){
     if(save){
       saveState();
       renderAll();
-      showToast("Retour hangar.");
+      showToast("Retour launcher.");
     }
   }
 
@@ -1014,12 +1242,12 @@ export function createCombatGame({renderAll, showToast}){
     return hitResolution.rollBetween(min, max);
   }
 
-  function damageEnemy(enemy, amount){
+  function damageEnemy(enemy, amount, context = {}){
     const incoming = Math.max(0, Number(amount || 0));
     enemy.recentHitTimer = 4;
     if(isServerControlledEnemy(enemy)){
-      sendServerEnemyHit(getServerEnemyId(enemy), incoming);
-      return;
+      sendServerEnemyHit(getServerEnemyId(enemy), incoming, {...context, serverCalculated:true});
+      return false;
     }
     const maxShield = Number(enemy.maxShield || 0);
     if(maxShield > 0 && enemy.shield > 0){
@@ -1030,9 +1258,10 @@ export function createCombatGame({renderAll, showToast}){
       enemy.shield -= absorbed;
       hullPart += shieldPart - absorbed;
       if(hullPart > 0) enemy.hp -= hullPart;
-      return;
+      return true;
     }
     enemy.hp -= incoming;
+    return true;
   }
 
   function syncServerControlledEnemies(){
@@ -1098,6 +1327,7 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function damagePlayer(amount){
+    cancelLogout("degats recus");
     handleQuestHpLoss(lifecycle.damage(amount));
   }
   function handleQuestHpLoss(amount){
@@ -1139,14 +1369,18 @@ export function createCombatGame({renderAll, showToast}){
 
   function update(dt){
     frameUpdate.update(dt);
+    updateLogoutRequest(dt);
     if(npcDialogue){
       if(positionNpcDialogue()) updateNpcDialogueTyping(dt);
     }
     handleQuestFailures(recordQuestTimeElapsed(dt), "temps depasse");
     coordinateQuestCheckT -= dt;
     if(coordinateQuestCheckT <= 0 && player && currentMap){
-      coordinateQuestCheckT = .25;
-      if(recordQuestCoordinateVisit({x:player.x, y:player.y}, currentMap.name)){
+      coordinateQuestCheckT = multiplayer.connected ? 1 : .25;
+      const progressed = multiplayer.connected
+        ? progressServerQuest({type:"visit_coordinates", x:player.x, y:player.y, zoneName:currentMap.name})
+        : recordQuestCoordinateVisit({x:player.x, y:player.y}, currentMap.name);
+      if(progressed && !multiplayer.connected){
         saveState();
         const panelMode = panels.getSpawnPanelMode?.();
         if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
@@ -1252,6 +1486,7 @@ export function createCombatGame({renderAll, showToast}){
     claimCombatQuest:panels.claimCombatQuest,
     setCombatQuestDetailTab:panels.setCombatQuestDetailTab,
     selectQuestForPanel:panels.selectQuestForPanel,
+    markQuestAcceptedForPanel:panels.markQuestAcceptedForPanel,
     selectQuestCategoryForPanel:panels.selectQuestCategoryForPanel,
     selectQuestTypeForPanel:panels.selectQuestTypeForPanel,
     toggleLockedQuestsForPanel:panels.toggleLockedQuestsForPanel,
@@ -1273,14 +1508,14 @@ export function createCombatGame({renderAll, showToast}){
     shiftCombatPanelTabs:actions.shiftCombatPanelTabs,
     buyCombatAmmo:actions.buyCombatAmmo,
     activateRepairBot,
-    acceptQuest,
-    claimQuest,
+    acceptQuest:acceptQuestAction,
+    claimQuest:claimQuestAction,
     startRefineryJob,
     claimRefineryJob,
     getShipRefineryRecipeData,
-    refineShipCargoRecipe,
+    refineShipCargoRecipe:refineShipCargoRecipeAction,
     depositCombatBoostMaterial,
-    upgradeEquipment,
+    upgradeEquipment:upgradeEquipmentAction,
     showToast
   });
 
@@ -1291,6 +1526,10 @@ export function createCombatGame({renderAll, showToast}){
     combatCargoExpanded = !combatCargoExpanded;
     updateHud();
   });
+  window.addEventListener("voidsector:multiplayer-change", handleServerLogoutChange);
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState === "visible") updateLogoutRequest(0);
+  });
 
-  return {start, stop, get running(){return running;}};
+  return {start, stop, requestLogout, resumeWorldSession, refreshActiveLoadout, get running(){return running;}};
 }

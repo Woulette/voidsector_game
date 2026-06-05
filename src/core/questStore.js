@@ -44,6 +44,7 @@ export function getQuestObjectiveKey(objective = {}, index = 0){
 
 export function getQuestObjectiveProgress(id, objectiveKey){
   const quest = getQuest(id);
+  if(quest && !store.state?.activeQuestIds?.includes(id) && !store.state?.completedQuestClaims?.[id]) return 0;
   const objectiveEntry = quest ? getQuestObjectives(quest).map((objective, index)=>({objective, index})).find(entry=>getQuestObjectiveKey(entry.objective, entry.index) === objectiveKey) : null;
   if(objectiveEntry?.objective?.type === "owned_combat_drone"){
     return Math.min(Math.max(0, Number(objectiveEntry.objective.count || 0)), Math.max(0, Number(store.state?.ownedDroneCount || 0)));
@@ -51,6 +52,18 @@ export function getQuestObjectiveProgress(id, objectiveKey){
   if(objectiveEntry?.objective?.type === "equipped_ship"){
     const requiredShip = objectiveEntry.objective.shipId;
     return requiredShip && store.state?.activeShip === requiredShip ? Math.max(0, Number(objectiveEntry.objective.count || 1)) : 0;
+  }
+  if(objectiveEntry?.objective?.type === "refinery_module_upgrade_start"){
+    const objective = objectiveEntry.objective;
+    const targetLevel = Math.max(0, Number(objective.targetLevel || 0));
+    const currentLevel = Math.max(0, Number(store.state?.refineryModules?.[objective.module] || 0));
+    if(targetLevel > 0 && currentLevel >= targetLevel) return Math.max(0, Number(objective.count || 1));
+  }
+  if(objectiveEntry?.objective?.type === "refinery_material_upgrade_start"){
+    const objective = objectiveEntry.objective;
+    const targetLevel = Math.max(0, Number(objective.targetLevel || 0));
+    const currentLevel = Math.max(0, Number(store.state?.refineryLevels?.[objective.material] || 0));
+    if(targetLevel > 0 && currentLevel >= targetLevel) return Math.max(0, Number(objective.count || 1));
   }
   const stored = store.state?.questProgress?.[id];
   if(typeof stored === "object" && stored !== null) return Math.max(0, Number(stored[objectiveKey] || 0));
@@ -65,6 +78,7 @@ export function canClaimQuest(id){
   const quest = getQuest(id);
   if(!quest) return false;
   if(store.state.completedQuestClaims?.[id]) return false;
+  if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.includes(id)) return false;
   return getQuestObjectives(quest).every((objective, index)=>{
     const target = Math.max(0, Number(objective.count || 0));
     return getQuestObjectiveProgress(id, getQuestObjectiveKey(objective, index)) >= target;
@@ -194,14 +208,14 @@ export function recordQuestKill(kind, zoneName){
 function objectiveMatchesRefineryModuleUpgradeStart(objective = {}, moduleId, targetLevel){
   if(objective.type !== "refinery_module_upgrade_start") return false;
   if(objective.module && objective.module !== moduleId) return false;
-  if(Number(objective.targetLevel || 0) && Number(targetLevel || 0) !== Number(objective.targetLevel || 0)) return false;
+  if(Number(objective.targetLevel || 0) && Number(targetLevel || 0) < Number(objective.targetLevel || 0)) return false;
   return true;
 }
 
 function objectiveMatchesRefineryMaterialUpgradeStart(objective = {}, materialId, targetLevel){
   if(objective.type !== "refinery_material_upgrade_start") return false;
   if(objective.material && objective.material !== materialId) return false;
-  if(Number(objective.targetLevel || 0) && Number(targetLevel || 0) !== Number(objective.targetLevel || 0)) return false;
+  if(Number(objective.targetLevel || 0) && Number(targetLevel || 0) < Number(objective.targetLevel || 0)) return false;
   return true;
 }
 
@@ -433,6 +447,7 @@ export function claimQuest(id){
   const quest = getQuest(id);
   if(!quest) return {ok:false, reason:"Quete introuvable."};
   if(store.state.completedQuestClaims?.[id]) return {ok:false, reason:"Quete deja terminee."};
+  if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.includes(id)) return {ok:false, reason:"Quete non active."};
   if(!canClaimQuest(id)) return {ok:false, reason:"Objectif non rempli."};
   const multipliers = getQuestRewardMultipliers();
   store.state.player.credits += Math.round(Number(quest.rewards.credits || 0) * multipliers.credits);

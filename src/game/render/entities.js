@@ -428,16 +428,17 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
     const idlePhase = time / 420 + idPhase * 1.37;
     const idleY = isPaused ? Math.sin(idlePhase) * 4 : 0;
     const idleX = isPaused ? Math.cos(idlePhase * .72) * 2 : 0;
-    const idleAngle = isPaused ? Math.sin(idlePhase * .85) * .08 : 0;
+    const attackPulse = Math.max(0, Math.min(1, Number(enemy.attackT || 0) / .32));
+    const attackScale = 1 + attackPulse * .10;
     drawRotatedImage({
       ctx,
       camera,
       img:cache[enemy.img] || cache["assets/ships/intercepteur.png"],
       x:enemy.x + idleX,
       y:enemy.y + idleY,
-      w:enemy.width || 72,
-      h:enemy.height || 72,
-      angle:enemy.angle + idleAngle
+      w:(enemy.width || 72) * attackScale,
+      h:(enemy.height || 72) * attackScale,
+      angle:Math.PI
     });
     const isSelected = selectedEnemy && selectedEnemy.id === enemy.id;
     if(isSelected || Number(enemy.recentHitTimer || 0) > 0){

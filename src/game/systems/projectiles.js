@@ -28,7 +28,7 @@ export function setAmmoCooldown(ammoCooldowns, ammo, seconds, getCooldown){
   ammoCooldowns[key] = Math.max(getCooldown(ammo), seconds || ammo.cooldown || 1);
 }
 
-export function createProjectile({owner, startX, startY, targetId, damage, travelTime, radius, color, particle, slotIndex, hitChance, sourceId, kind, sprite, curveSide = 0, curveStrength = 0, visualOnly = false, onHitEffect = null, salvoId = null, salvoSize = 1}){
+export function createProjectile({owner, startX, startY, targetId, damage, travelTime, radius, color, particle, slotIndex, hitChance, sourceId, kind, sprite, curveSide = 0, curveStrength = 0, visualOnly = false, onHitEffect = null, salvoId = null, salvoSize = 1, ammoId = null, serverFireCount = 1}){
   return {
     owner,
     fromX:startX,
@@ -50,6 +50,8 @@ export function createProjectile({owner, startX, startY, targetId, damage, trave
     onHitEffect,
     salvoId,
     salvoSize,
+    ammoId,
+    serverFireCount,
     curveSide,
     curveStrength,
     trail:kind === "rocket" || kind === "missile" ? [] : null,

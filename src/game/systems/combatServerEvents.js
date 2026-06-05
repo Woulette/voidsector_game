@@ -2,6 +2,7 @@ import { portals } from "../../data/catalog.js";
 import { addAmmo, addReputationFromXp, addXP, getAllQuests, markPortalCompleted, registerKill, saveState, store } from "../../core/store.js";
 import { fmt } from "../../core/utils.js";
 import { SAFE_ZONE_DELAY } from "../combatData.js";
+import { createProjectile } from "./projectiles.js";
 import { buildPortalEnvironment, createPortalMap } from "./portalState.js";
 
 export function createCombatServerEventSystem({
@@ -20,6 +21,8 @@ export function createCombatServerEventSystem({
   updateLootPopup,
   portalStartingLives
 }){
+  const processedRewardIds = new Set();
+
   function getCurrentMapToken(map){
     return String(map?.id ?? map?.name ?? "");
   }
@@ -78,13 +81,16 @@ export function createCombatServerEventSystem({
       if(!portal || portalCompleted) continue;
       setState({activePortal:portal, portalCompleted:true});
       const reward = event.reward || {};
-      markPortalCompleted(portal.id);
-      store.state.player.credits += Math.max(0, Math.round(Number(reward.credits || 0)));
-      store.state.player.premium += Math.max(0, Math.round(Number(reward.premium || 0)));
-      addAmmo("ammo_x4", Math.max(0, Math.round(Number(reward.ammoX4 || 0))));
-      addAmmo("ammo_x6", Math.max(0, Math.round(Number(reward.ammoX6 || 0))));
+      const rewardAppliedByServer = Boolean(event.rewardAppliedByServer);
+      if(!rewardAppliedByServer){
+        markPortalCompleted(portal.id);
+        store.state.player.credits += Math.max(0, Math.round(Number(reward.credits || 0)));
+        store.state.player.premium += Math.max(0, Math.round(Number(reward.premium || 0)));
+        addAmmo("ammo_x4", Math.max(0, Math.round(Number(reward.ammoX4 || 0))));
+        addAmmo("ammo_x6", Math.max(0, Math.round(Number(reward.ammoX6 || 0))));
+      }
       const xp = Math.max(0, Math.round(Number(reward.xp || 0)));
-      if(xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
+      if(!rewardAppliedByServer && xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
       spawnPortalExit();
       rewards.showLootNotice({
         message:"Portail serveur termine",
@@ -120,6 +126,66 @@ export function createCombatServerEventSystem({
     multiplayer.playerDamageEvents = remaining;
   }
 
+  function applyEnemyAttackEvents(){
+    if(!multiplayer.enemyAttackEvents?.length) return;
+    const {player, currentMap, enemies, bullets, particles} = getState();
+    const remaining = [];
+    for(const event of multiplayer.enemyAttackEvents){
+      if(String(event.mapId ?? "") !== getCurrentMapToken(currentMap)){
+        remaining.push(event);
+        continue;
+      }
+      const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId || event.sourceId));
+      if(enemy){
+        enemy.attackT = Math.max(Number(enemy.attackT || 0), Number(event.life || .22));
+        enemy.recentHitTimer = Math.max(Number(enemy.recentHitTimer || 0), .35);
+      }
+      const fromX = Number(event.fromX ?? enemy?.x ?? player.x);
+      const fromY = Number(event.fromY ?? enemy?.y ?? player.y);
+      const toX = Number(event.toX ?? player.x);
+      const toY = Number(event.toY ?? player.y);
+      const distance = Math.hypot(toX - fromX, toY - fromY) || 1;
+      const speed = Math.max(120, Number(event.projectileSpeed || enemy?.projectileSpeed || 600));
+      bullets.push(createProjectile({
+        owner:"serverEnemy",
+        startX:fromX,
+        startY:fromY,
+        targetId:"player",
+        damage:0,
+        travelTime:Math.max(.11, Math.min(1.15, distance / speed + .06)),
+        radius:5,
+        color:event.color || enemy?.color || "rgba(248,113,113,.95)",
+        particle:event.particle || enemy?.particle || "rgba(252,165,165,.75)",
+        sourceId:event.enemyId || event.sourceId,
+        hitChance:1,
+        visualOnly:true
+      }));
+      particles.push({x:fromX, y:fromY, life:.16, max:.16, size:16, color:event.particle || enemy?.particle || "rgba(252,165,165,.72)"});
+    }
+    multiplayer.enemyAttackEvents = remaining;
+  }
+
+  function applyCombatHitEvents(){
+    if(!multiplayer.combatEvents?.length) return;
+    const {enemies} = getState();
+    const events = multiplayer.combatEvents.splice(0);
+    const remaining = [];
+    for(const event of events){
+      const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId));
+      if(!enemy){
+        if((performance.now() - Number(event.receivedAt || 0)) < 1000) remaining.push(event);
+        continue;
+      }
+      const damage = Math.max(0, Math.round(Number(event.damage || 0)));
+      if(damage > 0){
+        pushDamageText({x:enemy.x, y:enemy.y - enemy.radius - 16, value:damage});
+      }else{
+        pushDamageText({x:enemy.x, y:enemy.y - enemy.radius - 16, value:"MISS", color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"});
+      }
+    }
+    multiplayer.combatEvents = remaining;
+  }
+
   function applyRewardEvents(){
     if(!multiplayer.playerRewardEvents?.length) return;
     const {currentMap} = getState();
@@ -129,18 +195,28 @@ export function createCombatServerEventSystem({
         remaining.push(event);
         continue;
       }
+      const rewardId = event.rewardId || `${event.enemyId || "enemy"}:${event.killerId || "killer"}:${event.mapId || "map"}:${event.at || 0}`;
+      if(processedRewardIds.has(rewardId)) continue;
+      processedRewardIds.add(rewardId);
+      if(processedRewardIds.size > 300){
+        const oldest = processedRewardIds.values().next().value;
+        processedRewardIds.delete(oldest);
+      }
       const credits = Math.max(0, Math.round(Number(event.credits || 0)));
       const xp = Math.max(0, Math.round(Number(event.xp || 0)));
       const premium = Math.max(0, Math.round(Number(event.premium || 0)));
-      const rankPoints = registerKill(event.enemyType || "server_enemy", event.enemyLevel);
-      const reputation = addReputationFromXp(xp);
-      if(credits > 0) store.state.player.credits += credits;
-      if(premium > 0) store.state.player.premium += premium;
-      if(xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
+      const rewardAppliedByServer = Boolean(event.rewardAppliedByServer);
+      const rankPoints = rewardAppliedByServer ? 0 : registerKill(event.enemyType || "server_enemy", event.enemyLevel);
+      const reputation = rewardAppliedByServer ? 0 : addReputationFromXp(xp);
+      if(!rewardAppliedByServer){
+        if(credits > 0) store.state.player.credits += credits;
+        if(premium > 0) store.state.player.premium += premium;
+        if(xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
+      }
       rewards.showLootNotice?.({message:`${event.enemyType || "Ennemi"} detruit`, credits, xp, reputation, rankPoints, premium});
       const shareLabel = Number(event.share || 1) < 1 ? " (partage groupe 50%)" : "";
       showToast(`Butin serveur${shareLabel} : +${fmt(credits)} credits${premium ? `, +${fmt(premium)} NOVA` : ""}, +${fmt(xp)} XP, +${fmt(reputation)} reputation.`);
-      saveState();
+      if(!rewardAppliedByServer) saveState();
     }
     multiplayer.playerRewardEvents = remaining;
     updateLootPopup();
@@ -156,20 +232,32 @@ export function createCombatServerEventSystem({
         remaining.push(event);
         continue;
       }
-      if(event.kind !== "portalPiece") continue;
-      const portal = portals.find(item=>item.id === event.portalId);
-      if(!portal) continue;
-      cargo.spawnPortalPieceDrop(
-        {x:Number(event.x || player.x), y:Number(event.y || player.y)},
-        portal,
-        {
-          uid:event.id,
-          x:Number(event.x || player.x),
-          y:Number(event.y || player.y),
-          expiresAt:Number(event.expiresAt || Date.now() + 60000)
-        }
-      );
-      showToast(`Piece ${portal.name} detectee au sol.`);
+      if(event.kind === "portalPiece"){
+        const portal = portals.find(item=>item.id === event.portalId);
+        if(!portal) continue;
+        cargo.spawnPortalPieceDrop(
+          {x:Number(event.x || player.x), y:Number(event.y || player.y)},
+          portal,
+          {
+            uid:event.id,
+            x:Number(event.x || player.x),
+            y:Number(event.y || player.y),
+            expiresAt:Number(event.expiresAt || Date.now() + 60000),
+            serverControlled:Boolean(event.serverControlled)
+          }
+        );
+        showToast(`Piece ${portal.name} detectee au sol.`);
+        continue;
+      }
+      cargo.spawnServerLootDrop?.({
+        ...event,
+        x:Number(event.x || player.x),
+        y:Number(event.y || player.y),
+        expiresAt:Number(event.expiresAt || Date.now() + 60000),
+        serverControlled:Boolean(event.serverControlled)
+      });
+      const amountLabel = Number(event.amount || 1) > 1 ? ` x${event.amount}` : "";
+      showToast(`${event.name || "Butin serveur"}${amountLabel} detecte au sol.`);
     }
     multiplayer.lootDropEvents = remaining;
   }
@@ -184,13 +272,23 @@ export function createCombatServerEventSystem({
         const quest = quests.find(entry=>entry.id === update?.id);
         if(!quest) continue;
         if(!store.state.questProgress || typeof store.state.questProgress !== "object") store.state.questProgress = {};
-        const previous = Math.max(0, Number(store.state.questProgress[quest.id] || 0));
+        const objectiveKey = update.objectiveKey ? String(update.objectiveKey) : "";
+        const hasMultipleObjectives = Array.isArray(quest.objectives) && quest.objectives.length > 1;
+        const stored = store.state.questProgress[quest.id];
+        const previous = objectiveKey && hasMultipleObjectives
+          ? Math.max(0, Number((stored && typeof stored === "object" ? stored[objectiveKey] : 0) || 0))
+          : Math.max(0, Number((stored && typeof stored === "object" ? 0 : stored) || 0));
         const target = Number(update.target || quest.objective?.count || 0);
-        const next = Number.isFinite(Number(update.delta))
-          ? Math.min(target, previous + Math.max(0, Number(update.delta || 0)))
-          : Math.max(previous, Math.min(target, Number(update.progress || 0)));
+        const next = Number.isFinite(Number(update.progress))
+          ? Math.max(previous, Math.min(target, Number(update.progress || 0)))
+          : Math.min(target, previous + Math.max(0, Number(update.delta || 0)));
         if(next <= previous) continue;
-        store.state.questProgress[quest.id] = next;
+        if(objectiveKey && hasMultipleObjectives){
+          if(!store.state.questProgress[quest.id] || typeof store.state.questProgress[quest.id] !== "object") store.state.questProgress[quest.id] = {};
+          store.state.questProgress[quest.id][objectiveKey] = next;
+        }else{
+          store.state.questProgress[quest.id] = next;
+        }
         changed = true;
         if(update.completed) showToast(`Objectif serveur termine : ${quest.title}.`);
       }
@@ -203,7 +301,9 @@ export function createCombatServerEventSystem({
   }
 
   function applyAll(){
+    applyEnemyAttackEvents();
     applyDamageEvents();
+    applyCombatHitEvents();
     applyRewardEvents();
     applyLootDropEvents();
     applyQuestProgressEvents();
@@ -214,6 +314,7 @@ export function createCombatServerEventSystem({
     loadPortalArena,
     applyPortalEvents,
     applyDamageEvents,
+    applyCombatHitEvents,
     applyRewardEvents,
     applyLootDropEvents,
     applyQuestProgressEvents,

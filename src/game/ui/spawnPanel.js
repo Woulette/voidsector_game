@@ -238,7 +238,8 @@ function renderQuestList({quests, selectedQuest, activeQuest, activeQuests = [],
     const state = questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel);
     const active = activeIds.has(quest.id) || activeQuest?.id === quest.id;
     const selected = selectedQuest?.id === quest.id;
-    return `<button class="quest-strip ${selected ? "selected" : ""} ${active ? "active" : ""} ${quest.special ? "special" : ""} ${quest.rare ? "rare" : ""} ${quest.red ? "red" : ""} ${state.claimable ? "claimable" : ""} ${state.locked ? "locked" : ""}" type="button" data-view-quest="${quest.id}">
+    const claimable = active && state.claimable;
+    return `<button class="quest-strip ${selected ? "selected" : ""} ${active ? "active" : ""} ${quest.special ? "special" : ""} ${quest.rare ? "rare" : ""} ${quest.red ? "red" : ""} ${claimable ? "claimable" : ""} ${state.locked ? "locked" : ""}" type="button" data-view-quest="${quest.id}">
       <span class="quest-strip-title">${quest.title}</span>
       <span class="quest-strip-meta"><b>LV ${state.requiredLevel}</b></span>
       <span class="quest-strip-bar"><i style="width:${state.percent}%"></i></span>
@@ -249,6 +250,7 @@ function renderQuestList({quests, selectedQuest, activeQuest, activeQuests = [],
 function renderQuestDetail({quest, activeQuest, activeQuests = [], getQuestProgress, completedQuestClaims, enemyTypes, rawMaterials, playerLevel}){
   const state = questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel);
   const active = activeQuests.some(entry=>entry.id === quest.id) || activeQuest?.id === quest.id;
+  const claimable = active && state.claimable;
   const tracked = activeQuest?.id === quest.id;
   const itemRewards = formatQuestItems(quest.rewards?.items) + formatQuestItemCounts(quest.rewards?.itemCounts);
   const portalPieceRewards = formatQuestPortalPieces(quest.rewards?.portalPieces);
@@ -257,7 +259,7 @@ function renderQuestDetail({quest, activeQuest, activeQuests = [], getQuestProgr
   const zoneLabel = formatQuestZone(quest);
   const visitObjectives = renderQuestVisitObjectives(quest);
   const targetIcons = renderQuestTargetIcons(quest, enemyTypes);
-  return `<article class="quest-detail ${active ? "active" : ""} ${quest.special ? "special" : ""} ${quest.rare ? "rare" : ""} ${quest.red ? "red" : ""} ${state.claimable ? "claimable" : ""} ${state.locked ? "locked" : ""}">
+  return `<article class="quest-detail ${active ? "active" : ""} ${quest.special ? "special" : ""} ${quest.rare ? "rare" : ""} ${quest.red ? "red" : ""} ${claimable ? "claimable" : ""} ${state.locked ? "locked" : ""}">
     <div class="quest-detail-hero">
       <div class="quest-detail-copy">
         <span>${quest.giver || "Relais de Commandement"}</span>
@@ -280,7 +282,7 @@ function renderQuestDetail({quest, activeQuest, activeQuests = [], getQuestProgr
       ${materialRewards ? `<div class="quest-material-rewards"><span>Materiaux</span><b>${materialRewards}</b></div>` : ""}
     </div>
     <div class="spawn-actions quest-actions">
-      ${state.completed ? `<button class="blue-button small" type="button" disabled>Terminee</button>` : state.locked ? `<button class="blue-button small" type="button" disabled>${quest.prereqLocked ? "Prerequis requis" : `LV ${state.requiredLevel} requis`}</button>` : state.claimable ? `<button class="blue-button small" data-claim-quest="${quest.id}" type="button">Reclamer</button>` : `<button class="blue-button small" data-accept-quest="${quest.id}" type="button" ${active ? "disabled" : ""}>${active ? (tracked ? "Suivie" : "En cours") : "Accepter"}</button>`}
+      ${state.completed ? `<button class="blue-button small" type="button" disabled>Terminee</button>` : state.locked ? `<button class="blue-button small" type="button" disabled>${quest.prereqLocked ? "Prerequis requis" : `LV ${state.requiredLevel} requis`}</button>` : claimable ? `<button class="blue-button small" data-claim-quest="${quest.id}" type="button">Reclamer</button>` : `<button class="blue-button small" data-accept-quest="${quest.id}" type="button" ${active ? "disabled" : ""}>${active ? (tracked ? "Suivie" : "En cours") : "Accepter"}</button>`}
     </div>
   </article>`;
 }
@@ -314,7 +316,8 @@ function renderQuestPanel({activeQuest, activeQuests = [], selectedQuestId, sele
   const selectedQuest = visibleQuests.find(quest=>quest.id === selectedQuestId)
     || (activeQuest && getQuestPanelStatus(activeQuest, activeQuests, completedQuestClaims) === activeCategory && (activeQuest.category || "normal") === activeType ? activeQuest : null)
     || visibleQuests[0];
-  const claimableCount = visibleQuests.filter(quest=>questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel).claimable).length;
+  const activeIds = new Set(activeQuests.map(quest=>quest.id));
+  const claimableCount = visibleQuests.filter(quest=>activeIds.has(quest.id) && questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel).claimable).length;
   const completedCount = visibleQuests.filter(quest=>completedQuestClaims?.[quest.id]).length;
   return {
     title:"RELAIS DE QUETES",

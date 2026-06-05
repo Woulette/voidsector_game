@@ -21,7 +21,7 @@ export function createCombatEnemyRuntime({
 
   function getBulletTarget(bullet){
     const {player, enemies} = getState();
-    if(bullet.owner === "enemy") return {x:player.x, y:player.y, entity:player};
+    if(bullet.owner === "enemy" || bullet.owner === "serverEnemy") return {x:player.x, y:player.y, entity:player};
     const enemy = enemies.find(e=>e.id === bullet.targetId && e.hp > 0);
     return enemy ? {x:enemy.x, y:enemy.y, entity:enemy} : null;
   }

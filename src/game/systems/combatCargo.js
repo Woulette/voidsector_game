@@ -9,6 +9,7 @@ export function createCombatCargoSystem({
   getSpawnPanelMode,
   fmt,
   rewards,
+  requestServerLootPickup,
   saveState,
   showToast,
   onCargoChanged,
@@ -59,7 +60,8 @@ export function createCombatCargoSystem({
       glow:"rgba(168,85,247,.25)",
       glowCore:"rgba(216,180,254,.55)",
       fallback:"rgba(168,85,247,.86)",
-      expiresAt:Number(source.expiresAt || Date.now() + DROP_TTL_MS)
+      expiresAt:Number(source.expiresAt || Date.now() + DROP_TTL_MS),
+      serverControlled:Boolean(source.serverControlled)
     };
     groundMaterials.push(node);
     return node;
@@ -86,6 +88,35 @@ export function createCombatCargoSystem({
       glowCore:"rgba(134,239,172,.58)",
       fallback:"rgba(34,197,94,.86)",
       expiresAt:Number(source.expiresAt || Date.now() + DROP_TTL_MS)
+    };
+    groundMaterials.push(node);
+    return node;
+  }
+
+  function spawnServerLootDrop(event = {}){
+    const kind = String(event.kind || "");
+    const node = {
+      uid:event.id || `server_loot_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      kind,
+      id:event.materialId || event.ammoId || event.itemId || event.portalId || event.id,
+      materialId:event.materialId || null,
+      ammoId:event.ammoId || null,
+      itemId:event.itemId || null,
+      portalId:event.portalId || null,
+      name:event.name || event.portalName || "Butin serveur",
+      label:event.label || (kind === "ammo" ? "AMMO" : kind === "item" ? "ITEM" : kind === "material" ? "MAT" : "LOOT"),
+      img:event.img || "assets/equipment/ammo_laser_x2_same_preview.png",
+      amount:Math.max(1, Math.round(Number(event.amount || 1))),
+      x:Number(event.x || 0),
+      y:Number(event.y || 0),
+      radius:32,
+      size:42,
+      phase:Math.random() * Math.PI * 2,
+      glow:kind === "item" ? "rgba(250,204,21,.24)" : kind === "ammo" ? "rgba(56,189,248,.20)" : "rgba(34,197,94,.18)",
+      glowCore:kind === "item" ? "rgba(253,224,71,.58)" : kind === "ammo" ? "rgba(125,211,252,.58)" : "rgba(134,239,172,.52)",
+      fallback:kind === "item" ? "rgba(250,204,21,.86)" : kind === "ammo" ? "rgba(56,189,248,.82)" : "rgba(34,197,94,.78)",
+      expiresAt:Number(event.expiresAt || Date.now() + DROP_TTL_MS),
+      serverControlled:Boolean(event.serverControlled)
     };
     groundMaterials.push(node);
     return node;
@@ -147,6 +178,19 @@ export function createCombatCargoSystem({
     if(node.expiresAt && Date.now() >= node.expiresAt){
       groundMaterials.splice(index, 1);
       pendingGroundMaterial = null;
+      return false;
+    }
+    if(node.serverControlled){
+      if(requestServerLootPickup?.(node.uid)){
+        groundMaterials.splice(index, 1);
+        particles().push({x:node.x, y:node.y, life:.42, max:.42, size:28, color:node.glowCore || "rgba(216,180,254,.58)"});
+        const amountLabel = Number(node.amount || 1) > 1 ? ` x${node.amount}` : "";
+        showToast(`Ramassage serveur : ${node.name}${amountLabel}.`);
+        rewards.showLootNotice({piece:`${node.name}${amountLabel} envoye au serveur`});
+        pendingGroundMaterial = null;
+        onCargoChanged?.();
+        return true;
+      }
       return false;
     }
     if(node.kind === "portalPiece"){
@@ -226,6 +270,7 @@ export function createCombatCargoSystem({
     spawnCargoBox,
     spawnPortalPieceDrop,
     spawnQuestItemDrop,
+    spawnServerLootDrop,
     findCargoBoxAt,
     findGroundMaterialAt,
     collectCargoBox,

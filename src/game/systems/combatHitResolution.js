@@ -28,6 +28,7 @@ function makeImpactSmoke(count){
 export function createCombatHitResolutionSystem({
   getState,
   setState,
+  isServerControlledEnemy,
   damageEnemy,
   damagePlayer,
   rewardEnemy,
@@ -117,6 +118,19 @@ export function createCombatHitResolutionSystem({
     const {enemies, missileSalvos} = getState();
     const enemy = target.entity;
     if(!enemy || enemy.hp <= 0 || bullet.visualOnly) return;
+    if(isServerControlledEnemy?.(enemy)){
+      const salvoId = bullet.salvoId;
+      const salvoSize = Math.max(1, Math.round(Number(bullet.salvoSize || 1)));
+      if(salvoId && salvoSize > 1){
+        const salvo = missileSalvos.get(salvoId) || {targetId:enemy.id, total:salvoSize, impacts:0};
+        salvo.impacts += 1;
+        missileSalvos.set(salvoId, salvo);
+        if(salvo.impacts < salvo.total) return;
+        missileSalvos.delete(salvoId);
+      }
+      damageEnemy(enemy, 1, {weaponClass:"missile", ammoId:bullet.ammoId, count:bullet.serverFireCount || salvoSize});
+      return;
+    }
     const hitChance = bullet.hitChance ?? PLAYER_HIT_CHANCE;
     const hit = Math.random() <= hitChance;
     const dealt = hit ? Math.round(bullet.damage) : 0;
@@ -139,10 +153,12 @@ export function createCombatHitResolutionSystem({
       const finalEnemy = enemies.find(e=>e.id === salvo.targetId && e.hp > 0) || enemy;
       if(!finalEnemy || finalEnemy.hp <= 0) return;
       if(salvo.damage > 0){
-        damageEnemy(finalEnemy, salvo.damage);
+        const applied = damageEnemy(finalEnemy, salvo.damage, {weaponClass:"missile", ammoId:bullet.ammoId, count:bullet.serverFireCount || salvo.total});
         finalEnemy.aggro = true;
-        pushDamageText({x:finalEnemy.x, y:finalEnemy.y-finalEnemy.radius-16, value:salvo.damage});
-        if(finalEnemy.hp <= 0) rewardEnemy(finalEnemy);
+        if(applied !== false){
+          pushDamageText({x:finalEnemy.x, y:finalEnemy.y-finalEnemy.radius-16, value:salvo.damage});
+          if(finalEnemy.hp <= 0) rewardEnemy(finalEnemy);
+        }
       }else{
         pushDamageText({x:finalEnemy.x, y:finalEnemy.y-finalEnemy.radius-16, value:"MISS", color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"});
       }
@@ -150,10 +166,12 @@ export function createCombatHitResolutionSystem({
     }
 
     if(hit){
-      damageEnemy(enemy, dealt);
+      const applied = damageEnemy(enemy, dealt, {weaponClass:"missile", ammoId:bullet.ammoId, count:bullet.serverFireCount || 1});
       enemy.aggro = true;
-      pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
-      if(enemy.hp <= 0) rewardEnemy(enemy);
+      if(applied !== false){
+        pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
+        if(enemy.hp <= 0) rewardEnemy(enemy);
+      }
     }else{
       pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:"MISS", color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"});
     }
@@ -200,12 +218,18 @@ export function createCombatHitResolutionSystem({
 
     const enemy = target.entity;
     if(!enemy || enemy.hp <= 0 || bullet.visualOnly) return;
+    if(isServerControlledEnemy?.(enemy)){
+      damageEnemy(enemy, 1, {weaponClass:bullet.kind === "rocket" ? "rocket" : "laser", ammoId:bullet.ammoId, count:bullet.serverFireCount || 1});
+      return;
+    }
     if(hit){
       const dealt = Math.round(bullet.damage);
-      damageEnemy(enemy, dealt);
+      const applied = damageEnemy(enemy, dealt, {weaponClass:bullet.kind === "rocket" ? "rocket" : "laser", ammoId:bullet.ammoId, count:bullet.serverFireCount || 1});
       enemy.aggro = true;
-      pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
-      if(enemy.hp <= 0) rewardEnemy(enemy);
+      if(applied !== false){
+        pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
+        if(enemy.hp <= 0) rewardEnemy(enemy);
+      }
     }else{
       pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:"MISS", color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"});
     }
@@ -214,13 +238,10 @@ export function createCombatHitResolutionSystem({
   function resolveLaserHit(enemy, damage, hitChance = PLAYER_HIT_CHANCE, ammo = null){
     const {player, currentMap} = getState();
     if(!enemy || enemy.hp <= 0) return false;
-    const hit = Math.random() <= hitChance;
-    if(hit){
-      const dealt = Math.round(damage);
-      damageEnemy(enemy, dealt);
-      enemy.aggro = true;
-      const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-      const laserColor = player.blueLaserBeams && ammo?.id !== "ammo_x4" ? "rgba(56,189,248,.9)" : ammo?.particle || ammo?.color || "rgba(250,204,21,.88)";
+    const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+    const laserColor = player.blueLaserBeams && ammo?.id !== "ammo_x4" ? "rgba(56,189,248,.9)" : ammo?.particle || ammo?.color || "rgba(250,204,21,.88)";
+    if(isServerControlledEnemy?.(enemy)){
+      damageEnemy(enemy, Math.round(damage), {weaponClass:"laser", ammoId:ammo?.id || "ammo_x1", count:1});
       spawnImpactEffect("laser", {x:enemy.x, y:enemy.y, color:laserColor, angle});
       sendPlayerLaserEffect({
         fromX:player.x + Math.cos(angle) * 45,
@@ -231,8 +252,27 @@ export function createCombatHitResolutionSystem({
         color:laserColor,
         life:.16
       });
-      pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
-      if(enemy.hp <= 0) rewardEnemy(enemy);
+      return true;
+    }
+    const hit = Math.random() <= hitChance;
+    if(hit){
+      const dealt = Math.round(damage);
+      const applied = damageEnemy(enemy, dealt, {weaponClass:"laser", ammoId:ammo?.id || "ammo_x1", count:1});
+      enemy.aggro = true;
+      spawnImpactEffect("laser", {x:enemy.x, y:enemy.y, color:laserColor, angle});
+      sendPlayerLaserEffect({
+        fromX:player.x + Math.cos(angle) * 45,
+        fromY:player.y + Math.sin(angle) * 45,
+        toX:enemy.x,
+        toY:enemy.y,
+        mapId:currentMap?.id ?? currentMap?.name ?? "unknown",
+        color:laserColor,
+        life:.16
+      });
+      if(applied !== false){
+        pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
+        if(enemy.hp <= 0) rewardEnemy(enemy);
+      }
       return true;
     }
     pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:"MISS", color:"rgba(255,236,179,", shadowColor:"rgba(250,204,21,.78)"});
