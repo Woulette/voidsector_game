@@ -23,7 +23,7 @@ export function createCombatQuestProgressSystem({
   function handleFailures(failedQuests, reason){
     if(!failedQuests.length) return;
     saveState();
-    failedQuests.forEach(quest=>showToast(`${quest.title} : ${reason}, progression remise a zero.`));
+    failedQuests.forEach(quest=>showToast(`${quest.title} : ${reason}, quete annulee.`));
     refreshQuestPanel();
   }
 
@@ -43,7 +43,7 @@ export function createCombatQuestProgressSystem({
   }
 
   function update(dt){
-    handleFailures(recordQuestTimeElapsed(dt), "temps depasse");
+    if(!multiplayer.connected) handleFailures(recordQuestTimeElapsed(dt), "temps depasse");
     coordinateCheckTimer -= dt;
     const player = getPlayer();
     const currentMap = getCurrentMap();

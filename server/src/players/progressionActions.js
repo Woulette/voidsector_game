@@ -162,18 +162,12 @@ export function unlockServerPortal(profile, {id, method = "pieces"} = {}){
     return {ok:false, reason:`Niveau ${portal.requirement.level} requis.`};
   }
   if(profile.unlockedPortals.includes(portal.id)) return {ok:false, reason:"Portail deja deverrouille."};
-  const cleanMethod = method === "nova" ? "nova" : "pieces";
-  if(cleanMethod === "nova"){
-    const cost = Math.max(0, Number(portal.novaCost || 0));
-    if(Number(profile.player.premium || 0) < cost) return {ok:false, reason:"Pas assez de NOVA."};
-    profile.player.premium -= cost;
-  }else{
-    const required = Math.max(0, Number(portal.piecesRequired || 0));
-    if(Number(profile.portalPieces[portal.id] || 0) < required) return {ok:false, reason:`Il faut ${required} pieces.`};
-    profile.portalPieces[portal.id] = Math.max(0, Number(profile.portalPieces[portal.id] || 0) - required);
-  }
+  if(method === "nova") return {ok:false, reason:"Les portails se deverrouillent uniquement avec des pieces."};
+  const required = Math.max(0, Number(portal.piecesRequired || 0));
+  if(Number(profile.portalPieces[portal.id] || 0) < required) return {ok:false, reason:`Il faut ${required} pieces.`};
+  profile.portalPieces[portal.id] = Math.max(0, Number(profile.portalPieces[portal.id] || 0) - required);
   profile.unlockedPortals.push(portal.id);
-  return {ok:true, portal:{id:portal.id, name:portal.name}, method:cleanMethod};
+  return {ok:true, portal:{id:portal.id, name:portal.name}, method:"pieces"};
 }
 
 function hasMaxedFirstLoopSkills(profile){

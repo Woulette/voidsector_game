@@ -8,12 +8,8 @@ function emitQuestProgress(socket, result){
   });
 }
 
-function emitProfileSync(socket, result){
-  if(result.profile) socket.emit("profile:sync", result.profile);
-}
-
 export function registerEconomyHandlers(socket, context){
-  const {guard, players, profileManager} = context;
+  const {emitProfileSync, guard, players, profileManager} = context;
 
   socket.on("space-caster:run", payload=>{
     if(!guard("space-caster:run")) return;
@@ -35,7 +31,7 @@ export function registerEconomyHandlers(socket, context){
       at:Date.now()
     });
     emitQuestProgress(socket, result);
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("refinery:upgrade-start", payload=>{
@@ -60,7 +56,7 @@ export function registerEconomyHandlers(socket, context){
       at:Date.now()
     });
     emitQuestProgress(socket, result);
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("refinery:upgrade-rush", payload=>{
@@ -84,7 +80,7 @@ export function registerEconomyHandlers(socket, context){
       cost:result.cost,
       at:Date.now()
     });
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("refinery:production-toggle", payload=>{
@@ -105,7 +101,7 @@ export function registerEconomyHandlers(socket, context){
       enabled:result.enabled,
       at:Date.now()
     });
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("refinery:job-start", payload=>{
@@ -121,7 +117,7 @@ export function registerEconomyHandlers(socket, context){
       return;
     }
     socket.emit("refinery:updated", {action:"job-start", recipe:result.recipe, at:Date.now()});
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("refinery:job-claim", ()=>{
@@ -137,7 +133,7 @@ export function registerEconomyHandlers(socket, context){
       return;
     }
     socket.emit("refinery:updated", {action:"job-claim", recipe:result.recipe, at:Date.now()});
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("refinery:shipment-start", payload=>{
@@ -166,7 +162,7 @@ export function registerEconomyHandlers(socket, context){
       duration:result.duration,
       at:Date.now()
     });
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("refinery:shipment-rush", ()=>{
@@ -188,7 +184,7 @@ export function registerEconomyHandlers(socket, context){
       cost:result.cost,
       at:Date.now()
     });
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("refinery:ship-cargo-refine", payload=>{
@@ -216,7 +212,7 @@ export function registerEconomyHandlers(socket, context){
       outputAmount:result.outputAmount,
       at:Date.now()
     });
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("shop:buy-ammo", payload=>{
@@ -242,7 +238,7 @@ export function registerEconomyHandlers(socket, context){
       multiplier:purchase.multiplier,
       at:Date.now()
     });
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("shop:buy-item", payload=>{
@@ -266,7 +262,7 @@ export function registerEconomyHandlers(socket, context){
       price:purchase.totalPrice,
       at:Date.now()
     });
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("shop:buy-ship", payload=>{
@@ -290,7 +286,7 @@ export function registerEconomyHandlers(socket, context){
       price:purchase.totalPrice,
       at:Date.now()
     });
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("shop:buy-drone", payload=>{
@@ -320,7 +316,7 @@ export function registerEconomyHandlers(socket, context){
       price:purchase.totalPrice,
       at:Date.now()
     });
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("shop:buy-drone-formation", payload=>{
@@ -346,6 +342,6 @@ export function registerEconomyHandlers(socket, context){
       price:alreadyOwned ? 0 : purchase.totalPrice,
       at:Date.now()
     });
-    emitProfileSync(socket, result);
+    emitProfileSync(player, result.profile);
   });
 }

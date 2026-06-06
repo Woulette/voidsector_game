@@ -1,4 +1,4 @@
-export function createSocketSessionManager({io, players, groups, profileManager, cleanName, emitPlayers, emitGroup, setPlayerMap}){
+export function createSocketSessionManager({io, players, groups, profileManager, cleanName, emitPlayers, emitGroup, resumeQuestTimers, setPlayerMap, syncPlayerStatusEffects}){
   function publicAuthPayload({account, session = null}){
     return {
       account,
@@ -87,7 +87,9 @@ export function createSocketSessionManager({io, players, groups, profileManager,
     }else{
       attachAccountToSocket(socket, account, session);
     }
-    const duplicatesToRemove = isGameClient ? duplicates : duplicates.filter(duplicate=>duplicate.clientMode !== "game");
+    const duplicatesToRemove = isGameClient
+      ? duplicates.filter(duplicate=>duplicate.clientMode === "game")
+      : duplicates.filter(duplicate=>duplicate.clientMode !== "game");
     for(const duplicate of duplicatesToRemove){
       if(transfersExistingState && duplicate.id === existing?.id) continue;
       const duplicateSocket = io.sockets.sockets.get(duplicate.id);
@@ -104,6 +106,8 @@ export function createSocketSessionManager({io, players, groups, profileManager,
       setPlayerMap(socket, resumeSession.mapId);
       socket.emit("player:resume", resumeSession);
     }
+    if(isGameClient) resumeQuestTimers?.(player);
+    if(isGameClient) syncPlayerStatusEffects?.(player);
     return resumeSession;
   }
 

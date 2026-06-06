@@ -1,4 +1,5 @@
 import { drawRotatedImage } from "./player.js";
+import { getEnemyRenderRotation } from "../../data/enemyVisuals.js";
 
 const impactSpriteCache = new Map();
 
@@ -438,7 +439,7 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
       y:enemy.y + idleY,
       w:(enemy.width || 72) * attackScale,
       h:(enemy.height || 72) * attackScale,
-      angle:Math.PI
+      angle:getEnemyRenderRotation(enemy.kind, enemy.angle)
     });
     const isSelected = selectedEnemy && selectedEnemy.id === enemy.id;
     if(isSelected || Number(enemy.recentHitTimer || 0) > 0){

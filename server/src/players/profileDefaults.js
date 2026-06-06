@@ -8,6 +8,8 @@ export function createDefaultProfile(){
     inventoryItems:[{uid:"inv_laser_mk1_1", itemId:"laser_mk1"}, {uid:"inv_repair_starter_2", itemId:"extra_repair_starter"}],
     nextInventoryUid:3,
     ammoInventory:{ammo_x1:2500, missile_m1:30, missile_m2:30},
+    actionSlots:["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"],
+    lastLaserAmmoId:"ammo_x1",
     shipLoadouts:{orion:{lasers:["inv_laser_mk1_1"], generators:[], extras:["inv_repair_starter_2", null, null]}},
     ownedDroneCount:0,
     droneLoadout:[],
@@ -49,6 +51,13 @@ function getNextProfileInventoryUid(items){
 export function ensureStarterRepairDrone(profile){
   if(!profile || typeof profile !== "object") return false;
   let changed = false;
+  if(!Array.isArray(profile.actionSlots)) profile.actionSlots = Array(9).fill(null);
+  if(!profile.actionSlots.some(Boolean)){
+    profile.actionSlots[0] = "ammo_x1";
+    profile.actionSlots[8] = "extra_repair_starter";
+    profile.lastLaserAmmoId = "ammo_x1";
+    changed = true;
+  }
   if(!Array.isArray(profile.inventoryItems)) profile.inventoryItems = [];
   if(!profile.inventoryItems.some(entry=>entry?.itemId === "extra_repair_starter")){
     const uid = makeStarterRepairUid(profile);

@@ -1,5 +1,6 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, equipment, portals } from "../../data/catalog.js";
+import { getEnemyAssetRotationStyle } from "../../data/enemyVisuals.js";
 
 const QUEST_TABS = [
   {id:"available", label:"Quete"},
@@ -176,9 +177,9 @@ function renderQuestTargetIcons(quest, enemyTypes = {}){
   const icons = objectives.filter(objective=>objective?.type === "kill").map(objective=>{
     const targetType = enemyTypes[objective.target];
     const targetImage = targetType?.img || "assets/enemies/drone_pirate.png";
-    const rotateClass = objective.target === "raider_astral" || objective.target === "boss_raider_astral" ? " rotate-180" : "";
+    const rotationStyle = getEnemyAssetRotationStyle(objective.target);
     const count = Math.max(0, Number(objective.count || 0));
-    return `<span class="quest-target-icon"><img class="${rotateClass}" src="${targetImage}" alt="${targetType?.name || "Cible"}">${count ? `<b>x${count}</b>` : ""}</span>`;
+    return `<span class="quest-target-icon"><img src="${targetImage}" alt="${targetType?.name || "Cible"}"${rotationStyle ? ` style="${rotationStyle}"` : ""}>${count ? `<b>x${count}</b>` : ""}</span>`;
   });
   const coordinateIcons = objectives.filter(objective=>objective?.type === "visit_coordinates").map(objective=>
     `<span class="quest-target-icon"><img src="assets/icons/coordinate_marker.svg" alt="Coordonnees"><b>LOC</b></span>`

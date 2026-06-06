@@ -1,7 +1,8 @@
 import { applyProgressionReward } from "../players/progression.js";
+import { applyServerReputationFromXp, updateRankScore } from "../players/rankProgression.js";
 import { PORTAL_CONFIGS, WORLD_ENEMY_TYPES } from "../world/definitions.js";
 
-export function createPortalInstanceManager({io, players, groups, profileManager, createGroup, emitInstance, portalWaveTotal}){
+export function createPortalInstanceManager({io, players, groups, profileManager, emitProfileSync, createGroup, emitInstance, portalWaveTotal}){
   let instanceSeq = 1;
 
   function createPortalEnemy(kind, wave, index, x, y, boss = false){
@@ -32,6 +33,9 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       attackRange:base.attackRange,
       attackDamage:Math.round(base.attackDamage(level) * (boss ? 1.65 : 1)),
       attackCooldown:base.attackCooldown,
+      projectileSpeed:base.projectileSpeed || 600,
+      particle:base.particle || base.color,
+      onHitEffect:base.onHitEffect || null,
       reward:base.reward(level),
       color:base.color,
       shieldAbsorbRatio:base.shieldAbsorbRatio,
@@ -106,6 +110,8 @@ export function createPortalInstanceManager({io, players, groups, profileManager
           if(Number(portal.reward?.ammoX6 || 0) > 0){
             profile.ammoInventory.ammo_x6 = Math.max(0, Number(profile.ammoInventory.ammo_x6 || 0)) + Math.max(0, Math.round(Number(portal.reward.ammoX6 || 0)));
           }
+          applyServerReputationFromXp(profile, portal.reward?.xp);
+          updateRankScore(profile);
           return {ok:true};
         }
       });
@@ -116,7 +122,7 @@ export function createPortalInstanceManager({io, players, groups, profileManager
         rewardAppliedByServer:true,
         at:now
       });
-      if(result.profile) io.to(memberId).emit("profile:sync", result.profile);
+      emitProfileSync?.(player, result.profile);
     }
     emitInstance(group);
   }

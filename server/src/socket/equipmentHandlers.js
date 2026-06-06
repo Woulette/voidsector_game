@@ -9,7 +9,8 @@ export function registerEquipmentHandlers(socket, context){
     canChangeActiveShipAtFirmSpawn,
     canChangeEquipmentAtFirmSpawn,
     finishEquipmentChangeAtFirmSpawn,
-    setPlayerMap
+    setPlayerMap,
+    emitProfileSync
   } = context;
 
   socket.on("ship:equip-active", payload=>{
@@ -191,6 +192,6 @@ export function registerEquipmentHandlers(socket, context){
       materialSource:result.materialSource,
       at:Date.now()
     });
-    if(result.profile) socket.emit("profile:sync", result.profile);
+    emitProfileSync(player, result.profile);
   });
 }

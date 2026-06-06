@@ -1,5 +1,5 @@
 export function registerProgressionHandlers(socket, context){
-  const {guard, players, profileManager} = context;
+  const {emitProfileSync, guard, players, profileManager} = context;
 
   socket.on("skill:upgrade", payload=>{
     if(!guard("skill:upgrade")) return;
@@ -20,7 +20,7 @@ export function registerProgressionHandlers(socket, context){
       rank:result.rank,
       at:Date.now()
     });
-    if(result.profile) socket.emit("profile:sync", result.profile);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("portal:unlock", payload=>{
@@ -40,7 +40,7 @@ export function registerProgressionHandlers(socket, context){
       method:result.method,
       at:Date.now()
     });
-    if(result.profile) socket.emit("profile:sync", result.profile);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("prestige:perform", ()=>{
@@ -59,6 +59,6 @@ export function registerProgressionHandlers(socket, context){
       prestige:result.prestige,
       at:Date.now()
     });
-    if(result.profile) socket.emit("profile:sync", result.profile);
+    emitProfileSync(player, result.profile);
   });
 }

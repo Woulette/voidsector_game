@@ -1,4 +1,5 @@
 import { applyProgressionReward, spendCurrency } from "./progression.js";
+import { applyServerReputationFromXp, registerServerMonsterKill, updateRankScore } from "./rankProgression.js";
 import { sanitizeProfile } from "./profileSanitize.js";
 
 export function createProfileMutations({profiles, persist, profileKeyForPlayer, getExistingProfile}){
@@ -6,11 +7,21 @@ export function createProfileMutations({profiles, persist, profileKeyForPlayer, 
     if(!player) return null;
     const key = profileKeyForPlayer(player);
     const existing = profiles.get(key) || sanitizeProfile({updatedAt:Date.now(), player:{}});
-    const next = sanitizeProfile({
+    const draft = {
       ...existing,
       updatedAt:Date.now(),
       player:applyProgressionReward(existing.player || {}, reward || {})
-    });
+    };
+    if(reward?.enemyKind || reward?.enemyType){
+      registerServerMonsterKill(draft, {
+        kind:reward.enemyKind || reward.enemyType,
+        enemyLevel:reward.enemyLevel,
+        playerLevel:existing.player?.level
+      });
+    }
+    applyServerReputationFromXp(draft, reward?.xp);
+    updateRankScore(draft);
+    const next = sanitizeProfile(draft);
     profiles.set(key, next);
     persist();
     return next;

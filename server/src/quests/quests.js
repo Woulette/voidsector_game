@@ -9,14 +9,17 @@ import {
   progressQuestObjective
 } from "./questState.js";
 
-export { acceptServerQuest } from "./questState.js";
+export { acceptServerQuest, trackServerQuest } from "./questState.js";
 export { claimServerQuest } from "./questRewards.js";
 
 export function progressServerQuestKill(profile, {kind, zoneName} = {}){
   normalizeQuestFields(profile);
   const activeIds = profile.activeQuestIds.filter(id=>getQuest(id) && !profile.completedQuestClaims?.[id]).slice(0, MAX_ACTIVE_QUESTS);
   const updates = [];
-  for(const id of activeIds){
+  const orderedIds = profile.activeQuestId && activeIds.includes(profile.activeQuestId)
+    ? [profile.activeQuestId, ...activeIds.filter(id=>id !== profile.activeQuestId)]
+    : activeIds;
+  for(const id of orderedIds){
     const quest = getQuest(id);
     const match = getQuestObjectives(quest)
       .map((objective, index)=>({objective, index}))
@@ -26,7 +29,10 @@ export function progressServerQuestKill(profile, {kind, zoneName} = {}){
           && objectiveRequirementsMet(profile, quest, entry.objective)
           && getQuestObjectiveProgress(profile, quest.id, entry.objective, entry.index) < target;
       });
-    if(match) updates.push(progressQuestObjective(profile, quest, match.objective, match.index));
+    if(match){
+      updates.push(progressQuestObjective(profile, quest, match.objective, match.index));
+      break;
+    }
   }
   return {ok:true, updates};
 }

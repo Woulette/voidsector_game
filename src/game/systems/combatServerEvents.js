@@ -14,6 +14,8 @@ export function createCombatServerEventSystem({
   rewards,
   panels,
   damagePlayer,
+  applyPlayerPoison,
+  clearPoison,
   pushDamageText,
   spawnPortalExit,
   showToast,
@@ -120,10 +122,30 @@ export function createCombatServerEventSystem({
       if(player.isDead) continue;
       const amount = Math.max(0, Math.round(Number(event.amount || 0)));
       if(amount <= 0) continue;
-      damagePlayer(amount);
-      pushDamageText({x:player.x, y:player.y - 58, value:amount, color:"rgba(248,113,113,", shadowColor:"rgba(248,113,113,.78)"});
+      const poison = event.damageType === "poison";
+      damagePlayer(amount, {
+        recordQuestHpLoss:false,
+        bypassShield:poison,
+        allowDamageToHp:!poison
+      });
+      pushDamageText({
+        x:player.x,
+        y:player.y - 58,
+        value:poison ? `-${amount}` : amount,
+        color:poison ? "rgba(74,222,128," : "rgba(248,113,113,",
+        shadowColor:poison ? "rgba(34,197,94,.78)" : "rgba(248,113,113,.78)"
+      });
     }
     multiplayer.playerDamageEvents = remaining;
+  }
+
+  function applyStatusEffectEvents(){
+    if(!multiplayer.playerStatusEffectEvents?.length) return;
+    for(const event of multiplayer.playerStatusEffectEvents.splice(0)){
+      if(event?.type !== "poison") continue;
+      if(event.active === false) clearPoison?.();
+      else applyPlayerPoison?.({...event, serverAuthoritative:true});
+    }
   }
 
   function applyEnemyAttackEvents(){
@@ -173,7 +195,17 @@ export function createCombatServerEventSystem({
     for(const event of events){
       const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId));
       if(!enemy){
-        if((performance.now() - Number(event.receivedAt || 0)) < 1000) remaining.push(event);
+        const x = Number(event.x);
+        const y = Number(event.y);
+        if(Number.isFinite(x) && Number.isFinite(y)){
+          const damage = Math.max(0, Math.round(Number(event.damage || 0)));
+          pushDamageText({
+            x,
+            y:y - Math.max(16, Number(event.radius || 0) + 16),
+            value:damage > 0 ? damage : "MISS",
+            ...(damage > 0 ? {} : {color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"})
+          });
+        }else if((performance.now() - Number(event.receivedAt || 0)) < 1000) remaining.push(event);
         continue;
       }
       const damage = Math.max(0, Math.round(Number(event.damage || 0)));
@@ -206,14 +238,14 @@ export function createCombatServerEventSystem({
       const xp = Math.max(0, Math.round(Number(event.xp || 0)));
       const premium = Math.max(0, Math.round(Number(event.premium || 0)));
       const rewardAppliedByServer = Boolean(event.rewardAppliedByServer);
-      const rankPoints = rewardAppliedByServer ? 0 : registerKill(event.enemyType || "server_enemy", event.enemyLevel);
-      const reputation = rewardAppliedByServer ? 0 : addReputationFromXp(xp);
+      const rankPoints = rewardAppliedByServer ? Math.max(0, Number(event.rankPoints || 0)) : registerKill(event.enemyType || "server_enemy", event.enemyLevel);
+      const reputation = rewardAppliedByServer ? Math.max(0, Math.round(Number(event.reputation || 0))) : addReputationFromXp(xp);
       if(!rewardAppliedByServer){
         if(credits > 0) store.state.player.credits += credits;
         if(premium > 0) store.state.player.premium += premium;
         if(xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
       }
-      rewards.showLootNotice?.({message:`${event.enemyType || "Ennemi"} detruit`, credits, xp, reputation, rankPoints, premium});
+      rewards.showLootNotice?.({credits, xp, reputation, rankPoints, premium});
       const shareLabel = Number(event.share || 1) < 1 ? " (partage groupe 50%)" : "";
       showToast(`Butin serveur${shareLabel} : +${fmt(credits)} credits${premium ? `, +${fmt(premium)} NOVA` : ""}, +${fmt(xp)} XP, +${fmt(reputation)} reputation.`);
       if(!rewardAppliedByServer) saveState();
@@ -300,13 +332,55 @@ export function createCombatServerEventSystem({
     }
   }
 
+  function applyQuestFailureEvents(){
+    if(!multiplayer.questFailureEvents?.length) return;
+    let changed = false;
+    if(!store.state.questFailProgress || typeof store.state.questFailProgress !== "object") store.state.questFailProgress = {};
+    if(!store.state.questProgress || typeof store.state.questProgress !== "object") store.state.questProgress = {};
+    for(const event of multiplayer.questFailureEvents){
+      for(const update of event.updates || []){
+        const questId = update?.questId || update?.id;
+        if(!questId || update.failType !== "hpLost") continue;
+        const current = store.state.questFailProgress[questId] && typeof store.state.questFailProgress[questId] === "object"
+          ? store.state.questFailProgress[questId]
+          : {};
+        store.state.questFailProgress[questId] = {
+          ...current,
+          hpLost:Math.max(0, Number(update.hpLost || 0))
+        };
+        changed = true;
+      }
+      for(const failed of event.failed || []){
+        const quest = getAllQuests().find(entry=>entry.id === (failed?.questId || failed?.id));
+        const questId = failed?.questId || failed?.id;
+        if(!questId) continue;
+        store.state.questProgress[questId] = Array.isArray(quest?.objectives) && quest.objectives.length > 1 ? {} : 0;
+        store.state.questFailProgress[questId] = {};
+        if(Array.isArray(store.state.activeQuestIds)){
+          store.state.activeQuestIds = store.state.activeQuestIds.filter(id=>id !== questId);
+        }
+        if(store.state.activeQuestId === questId) store.state.activeQuestId = store.state.activeQuestIds?.[0] || null;
+        const reason = failed?.failType === "timeElapsed" ? "temps depasse" : "limite de vie depassee";
+        showToast(`${failed.title || quest?.title || "Quete"} : ${reason}, quete annulee.`);
+        changed = true;
+      }
+    }
+    multiplayer.questFailureEvents = [];
+    if(changed){
+      saveState();
+      updateHud();
+    }
+  }
+
   function applyAll(){
     applyEnemyAttackEvents();
+    applyStatusEffectEvents();
     applyDamageEvents();
     applyCombatHitEvents();
     applyRewardEvents();
     applyLootDropEvents();
     applyQuestProgressEvents();
+    applyQuestFailureEvents();
     applyPortalEvents();
   }
 
@@ -318,6 +392,7 @@ export function createCombatServerEventSystem({
     applyRewardEvents,
     applyLootDropEvents,
     applyQuestProgressEvents,
+    applyQuestFailureEvents,
     applyAll
   };
 }

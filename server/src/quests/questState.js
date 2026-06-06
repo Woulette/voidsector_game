@@ -72,10 +72,13 @@ export function isQuestUnlocked(profile, quest){
   return true;
 }
 
-export function getInitialQuestFailProgress(quest){
+export function getInitialQuestFailProgress(quest, now = Date.now()){
   const result = {};
   if(quest?.failConditions?.hpLossLimit) result.hpLost = 0;
-  if(quest?.failConditions?.timeLimit) result.timeElapsed = 0;
+  if(quest?.failConditions?.timeLimit){
+    result.timeElapsed = 0;
+    result.timeStartedAt = now;
+  }
   if(quest?.failConditions?.deathResets) result.deathSafe = true;
   return result;
 }
@@ -103,11 +106,19 @@ export function acceptServerQuest(profile, id){
   if(profile.activeQuestIds.includes(quest.id)) return {ok:false, reason:"Quete deja en cours."};
   if(profile.activeQuestIds.length >= MAX_ACTIVE_QUESTS) return {ok:false, reason:`Maximum ${MAX_ACTIVE_QUESTS} quetes en cours.`};
   profile.activeQuestIds.push(quest.id);
-  profile.activeQuestId = quest.id;
+  if(!profile.activeQuestId) profile.activeQuestId = quest.id;
   profile.questProgress[quest.id] = getQuestObjectives(quest).length > 1 ? {} : 0;
   const failProgress = getInitialQuestFailProgress(quest);
   if(Object.keys(failProgress).length) profile.questFailProgress[quest.id] = failProgress;
   return {ok:true, quest:deepClone(quest)};
+}
+
+export function trackServerQuest(profile, id){
+  normalizeQuestFields(profile);
+  const questId = String(id || "");
+  if(!profile.activeQuestIds.includes(questId)) return {ok:false, reason:"Quete non active."};
+  profile.activeQuestId = questId;
+  return {ok:true, quest:deepClone(getQuest(questId))};
 }
 
 export function objectiveRequirementsMet(profile, quest, objective){

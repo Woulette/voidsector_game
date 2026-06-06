@@ -173,7 +173,7 @@ const progressionActions = createProgressionActions({
   multiplayer, store, ammoTypes, getPortal, getPortalPieces, isPortalUnlocked, canAfford, spend, addPortalPiece, addAmmo, unlockPortal, upgradeSkill,
   runServerSpaceCaster, progressServerQuest, recordQuestSpaceCasterUse, unlockServerPortal, upgradeServerSkill, saveAndSyncProfile, saveState, renderAll, showToast
 });
-const {runSpaceCaster, unlockPortalWithPieces, unlockPortalWithNova, unlockSkill} = progressionActions;
+const {runSpaceCaster, unlockPortalWithPieces, unlockSkill} = progressionActions;
 
 function applyDevProgressionBoost(){
   if(!store.state) return;
@@ -389,8 +389,6 @@ document.addEventListener("click", (e)=>{
   const portalUnlockPieces = e.target.closest("[data-unlock-portal-pieces]");
   if(portalUnlockPieces){ unlockPortalWithPieces(portalUnlockPieces.dataset.unlockPortalPieces); return; }
 
-  const portalUnlockNova = e.target.closest("[data-unlock-portal-nova]");
-  if(portalUnlockNova){ unlockPortalWithNova(portalUnlockNova.dataset.unlockPortalNova); return; }
 
   const spaceCasterCount = e.target.closest("[data-space-caster-count]");
   if(spaceCasterCount){

@@ -1,10 +1,10 @@
 ﻿export const portals = [
-  { id:"blue", name:"Portail Bleu", img:"assets/portals/portail_bleu.svg", pieceImg:"assets/portal_pieces/portal_piece_blue.png", level:"NIV. 15+", requirement:{level:15}, piecesRequired:20, novaCost:30000, dropZones:["ASTRA-01","ASTRA-02","ASTRA-03","ASTRA-04"], dropChance:0.0033, reward:"20 000 NOVA · 20 000 munitions x4 · Laser MK-IV garanti puis 50%", open:false },
-  { id:"violet", name:"Portail Violet", img:"assets/portals/portail_violet.svg", level:"NIV. 20+", requirement:{level:20}, piecesRequired:35, novaCost:65000, dropZones:["ASTRA-03","ASTRA-04","ASTRA-05"], dropChance:0.0033, reward:"35 000 NOVA · 35 000 munitions x4 · Accès vaisseaux à compétence", open:false },
-  { id:"red", name:"Portail Rouge", img:"assets/portals/portail_rouge.svg", level:"NIV. 25+", requirement:{level:25}, piecesRequired:50, novaCost:125000, dropZones:["Zone 21-30"], dropChance:0.0033, reward:"50 000 NOVA · 50 000 munitions x4 · 50% Noyau Overdrive Drone", open:false },
-  { id:"emerald", name:"Portail Émeraude", img:"assets/portals/portail_emeraude.svg", level:"NIV. 35+", requirement:{level:35}, piecesRequired:70, novaCost:210000, dropZones:["Zone 31-40"], dropChance:0.0033, reward:"50 000 NOVA · 25 000 munitions x4 · 33% Laser MK-IV · Accès améliorations", open:false },
-  { id:"void", name:"Portail du Néant", img:"assets/portals/portail_neant.svg", level:"NIV. 40+", requirement:{level:40}, piecesRequired:95, novaCost:340000, dropZones:["Zone 41-50"], dropChance:0.0033, reward:"60 000 NOVA · 30 000 munitions x4 · 33% Laser MK-IV · 33% Noyau Overdrive · Accès recettes", open:false },
-  { id:"ancient", name:"Portail Ancestral", img:"assets/portals/portail_ancestral.svg", level:"NIV. 45+", requirement:{level:45}, piecesRequired:140, novaCost:520000, dropZones:["Zone 51+"], dropChance:0.0033, reward:"100 000 NOVA · 10 000 munitions x6 · Drone ancestral garanti puis 50% · Accès prestige", open:false }
+  { id:"blue", name:"Portail Bleu", img:"assets/portals/portail_bleu.svg", pieceImg:"assets/portal_pieces/portal_piece_blue.png", level:"NIV. 15+", requirement:{level:15}, piecesRequired:20, dropZones:["ASTRA-01","ASTRA-02","ASTRA-03","ASTRA-04"], dropChance:0.0033, reward:"20 000 NOVA · 20 000 munitions x4 · Laser MK-IV garanti puis 50%", open:false },
+  { id:"violet", name:"Portail Violet", img:"assets/portals/portail_violet.svg", level:"NIV. 20+", requirement:{level:20}, piecesRequired:35, dropZones:["ASTRA-03","ASTRA-04","ASTRA-05"], dropChance:0.0033, reward:"35 000 NOVA · 35 000 munitions x4 · Accès vaisseaux à compétence", open:false },
+  { id:"red", name:"Portail Rouge", img:"assets/portals/portail_rouge.svg", level:"NIV. 25+", requirement:{level:25}, piecesRequired:50, dropZones:["Zone 21-30"], dropChance:0.0033, reward:"50 000 NOVA · 50 000 munitions x4 · 50% Noyau Overdrive Drone", open:false },
+  { id:"emerald", name:"Portail Émeraude", img:"assets/portals/portail_emeraude.svg", level:"NIV. 35+", requirement:{level:35}, piecesRequired:70, dropZones:["Zone 31-40"], dropChance:0.0033, reward:"50 000 NOVA · 25 000 munitions x4 · 33% Laser MK-IV · Accès améliorations", open:false },
+  { id:"void", name:"Portail du Néant", img:"assets/portals/portail_neant.svg", level:"NIV. 40+", requirement:{level:40}, piecesRequired:95, dropZones:["Zone 41-50"], dropChance:0.0033, reward:"60 000 NOVA · 30 000 munitions x4 · 33% Laser MK-IV · 33% Noyau Overdrive · Accès recettes", open:false },
+  { id:"ancient", name:"Portail Ancestral", img:"assets/portals/portail_ancestral.svg", level:"NIV. 45+", requirement:{level:45}, piecesRequired:140, dropZones:["Zone 51+"], dropChance:0.0033, reward:"100 000 NOVA · 10 000 munitions x6 · Drone ancestral garanti puis 50% · Accès prestige", open:false }
 ];
 
 export const skills = [
@@ -368,7 +368,7 @@ export const questCatalog = [
 export const pageText = {
   hangar:{title:"HANGAR", subtitle:"Configure ton vaisseau, tes drones et tes extras."},
   shop:{title:"MAGASIN", subtitle:"Progression par niveau : vaisseaux, lasers, roquettes, générateurs et drones."},
-  portals:{title:"PORTAILS DIMENSIONNELS", subtitle:"Déverrouille les portails avec des pièces ou des NOVA, puis affronte 30 vagues."},
+  portals:{title:"PORTAILS DIMENSIONNELS", subtitle:"Déverrouille les portails avec des pièces, puis affronte 30 vagues."},
   refinery:{title:"RAFFINERIE", subtitle:"Transforme tes matériaux bruts en ressources avancées pour améliorer ton équipement."},
   settings:{title:"PARAMÈTRES", subtitle:"Personnalise tes touches de slots."},
   leaderboard:{title:"CLASSEMENT", subtitle:"Classement local préparé pour le futur MMO : grades, points et règles de progression."}

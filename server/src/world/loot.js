@@ -1,6 +1,6 @@
 import { GROUND_LOOT_TTL_MS, LOOT_OWNER_TIMEOUT_MS, PORTAL_DROP_RULES, WORLD_MAPS } from "./definitions.js";
 
-export function createWorldLootManager({io, players, profileManager}){
+export function createWorldLootManager({io, players, profileManager, emitProfileSync}){
   const activeLootDrops = new Map();
 
   function updateLootOwner(enemy, attackerId){
@@ -134,7 +134,7 @@ export function createWorldLootManager({io, players, profileManager}){
       amount:drop.amount,
       at:Date.now()
     });
-    if(result.profile) socket.emit("profile:sync", result.profile);
+    emitProfileSync?.(player, result.profile);
   }
 
   function cleanupExpiredLootDrops(now = Date.now()){

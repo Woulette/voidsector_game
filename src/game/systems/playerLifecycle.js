@@ -33,7 +33,7 @@ export function createPlayerLifecycle({
     updateHud();
   }
 
-  function damage(amount){
+  function damage(amount, options = {}){
     const player = getPlayer();
     const incoming = Math.max(0, Number(amount || 0));
     const hpBeforeDamage = Number(player.hp || 0);
@@ -43,7 +43,9 @@ export function createPlayerLifecycle({
       player.repairBotActive = false;
       player.repairBotTickTimer = 0;
     }
-    const absorbRatio = player.shield > 0 ? Math.max(0, Math.min(0.9, Number(player.shieldAbsorbRatio ?? 0.5))) : 0;
+    const absorbRatio = options.bypassShield
+      ? 0
+      : player.shield > 0 ? Math.max(0, Math.min(0.9, Number(player.shieldAbsorbRatio ?? 0.5))) : 0;
     let shieldPart = incoming * absorbRatio;
     let hullPart = incoming - shieldPart;
     if(player.shield > 0){
@@ -56,7 +58,7 @@ export function createPlayerLifecycle({
     }
     if(hullPart > 0) player.hp -= hullPart;
     const hpLost = Math.max(0, hpBeforeDamage - Number(player.hp || 0));
-    if(incoming > 0 && player.hp > 0 && Number(player.damageToHpChance || 0) > 0 && Math.random() <= Number(player.damageToHpChance || 0)){
+    if(options.allowDamageToHp !== false && incoming > 0 && player.hp > 0 && Number(player.damageToHpChance || 0) > 0 && Math.random() <= Number(player.damageToHpChance || 0)){
       const healed = Math.max(1, Math.round(incoming * 0.5));
       const before = player.hp;
       player.hp = Math.min(player.maxHp, player.hp + healed);

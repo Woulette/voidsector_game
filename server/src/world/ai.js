@@ -10,7 +10,7 @@ function getEnemyAiKind(kind){
   return String(kind || "drone_pirate").replace(/^boss_/, "");
 }
 
-export function createWorldAiManager({io, players, presence, profileManager, isPlayerSafeOnMap}){
+export function createWorldAiManager({io, players, presence, profileManager, emitProfileSync, applyEnemyOnHitEffect, isPlayerSafeOnMap}){
   function canTargetPlayer(enemy, player, map, now){
     return canEnemyTargetPlayerInSafeZone({
       enemy,
@@ -39,7 +39,21 @@ export function createWorldAiManager({io, players, presence, profileManager, isP
 
   function emitEnemyAttack(enemy, map, target, amount){
     presence.markCombat(target, "attaque ennemi");
-    presence.applyDamageToPlayerState(target, amount);
+    const hpLost = presence.applyDamageToPlayerState(target, amount);
+    if(hpLost > 0){
+      const questResult = profileManager.applyQuestAction({
+        player:target,
+        action:{kind:"hp-loss", amount:hpLost}
+      });
+      emitProfileSync?.(target, questResult.profile);
+      if(questResult.updates?.length || questResult.failed?.length){
+        io.to(target.id).emit("quest:fail-progress", {
+          updates:questResult.updates || [],
+          failed:questResult.failed || [],
+          at:Date.now()
+        });
+      }
+    }
     profileManager.saveWorldSession({player:target, state:target.state, force:Number(target.state?.hp || 0) <= 0});
     enemy.attackAnimUntil = Date.now() + 320;
     const fromX = enemy.x;
@@ -72,6 +86,7 @@ export function createWorldAiManager({io, players, presence, profileManager, isP
       toY,
       at:Date.now()
     });
+    applyEnemyOnHitEffect?.(enemy, target);
   }
 
   function pickEnemyWanderTarget(enemy, map, now){

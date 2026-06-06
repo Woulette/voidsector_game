@@ -27,8 +27,9 @@ export function recordQuestHpLoss(amount){
     const state = store.state.questFailProgress[id] || {hpLost:0};
     const next = Math.max(0, Number(state.hpLost || 0)) + hpLoss;
     store.state.questFailProgress[id] = {...state, hpLost:next};
-    if(next > limit){
+    if(next >= limit){
       resetQuestRun(quest);
+      removeActiveQuest(id);
       failed.push(quest);
     }
   }

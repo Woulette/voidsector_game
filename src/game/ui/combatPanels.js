@@ -110,6 +110,7 @@ export function createCombatPanels({
   getQuestObjectiveProgress,
   getQuestProgress,
   claimQuest,
+  trackServerQuest,
   getItem,
   getRefineryJob,
   getRefineryRecipes,
@@ -719,6 +720,7 @@ export function createCombatPanels({
     store.state.activeQuestId = questId;
     selectedQuestId = questId;
     saveState();
+    if(multiplayer.connected) trackServerQuest?.(questId);
     refreshQuestUtilityPanel({show:true});
   }
 
@@ -830,11 +832,7 @@ export function createCombatPanels({
     renderSpawnInteractionPanel("quests");
   }
 
-  function markQuestAcceptedForPanel(questId){
-    const quest = getAllQuests().find(entry=>entry.id === questId);
-    selectedQuestId = questId;
-    selectedQuestCategory = "active";
-    selectedQuestType = quest?.category || selectedQuestType || "normal";
+  function markQuestAcceptedForPanel(){
     renderSpawnInteractionPanel("quests");
   }
 

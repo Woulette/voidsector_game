@@ -8,6 +8,10 @@ export function installProgressionSocketListeners({socket, multiplayer, emitChan
     pushEvent(multiplayer.questProgressEvents, event, 80);
     emitChange("quest:progress", event);
   });
+  socket.on("quest:fail-progress", event=>{
+    pushEvent(multiplayer.questFailureEvents, event, 80);
+    emitChange("quest:fail-progress", event);
+  });
   socket.on("quest:accepted", event=>{
     pushEvent(multiplayer.questEvents, event, 40, {type:"accepted"});
     toast(event?.title ? `Quete acceptee : ${event.title}` : "Quete acceptee.");
@@ -17,6 +21,9 @@ export function installProgressionSocketListeners({socket, multiplayer, emitChan
     pushEvent(multiplayer.questEvents, event, 40, {type:"claimed"});
     toast(event?.title ? `Recompense recue : ${event.title}` : "Recompense recue.");
     emitChange("quest:claimed", event);
+  });
+  socket.on("quest:tracked", event=>{
+    emitChange("quest:tracked", event);
   });
   socket.on("quest:error", payload=>{
     toast(payload?.message || "Action quete impossible.");

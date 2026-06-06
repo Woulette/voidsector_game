@@ -38,6 +38,7 @@ export function installPlayerSocketListeners({
   socket.on("player:laser", addRemoteEffect);
   socket.on("enemy:attack", effect=>pushEvent(multiplayer.enemyAttackEvents, effect, 80));
   socket.on("player:damage", event=>pushEvent(multiplayer.playerDamageEvents, event, 40));
+  socket.on("player:status-effect", event=>pushEvent(multiplayer.playerStatusEffectEvents, event, 20));
   socket.on("player:reward", event=>pushEvent(multiplayer.playerRewardEvents, event, 40));
   socket.on("loot:drop", event=>pushEvent(multiplayer.lootDropEvents, event, 40));
   socket.on("loot:picked", event=>{

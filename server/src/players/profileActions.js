@@ -1,7 +1,8 @@
 import { applyDronePermanentUpgrade, applyEquipmentUpgrade, equipInventoryUid, unequipInventoryUid, unequipSlot } from "../economy/equipment.js";
 import { claimServerRefineryJob, completeServerRefineryShipment, completeServerRefineryUpgrades, refineServerShipCargoRecipe, rushServerRefineryShipment, rushServerRefineryUpgrade, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, toggleServerRefineryProduction } from "../economy/refinery.js";
 import { runServerSpaceCaster } from "../economy/spaceCaster.js";
-import { acceptServerQuest, claimServerQuest, progressServerQuestAction, progressServerQuestKill } from "../quests/quests.js";
+import { acceptServerQuest, claimServerQuest, progressServerQuestAction, progressServerQuestKill, trackServerQuest } from "../quests/quests.js";
+import { checkServerQuestTimers, recordServerQuestHpLoss } from "../quests/questFailures.js";
 import { spendCurrency } from "./progression.js";
 import { performServerPrestige, unlockServerPortal, upgradeServerSkill } from "./progressionActions.js";
 import { sanitizeProfile } from "./profileSanitize.js";
@@ -145,6 +146,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     let result = null;
     if(action?.kind === "accept"){
       result = acceptServerQuest(profile, action.questId);
+    }else if(action?.kind === "track"){
+      result = trackServerQuest(profile, action.questId);
     }else if(action?.kind === "claim"){
       result = claimServerQuest(profile, action.questId);
     }else if(action?.kind === "kill"){
@@ -154,10 +157,15 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       });
     }else if(action?.kind === "progress"){
       result = progressServerQuestAction(profile, action);
+    }else if(action?.kind === "hp-loss"){
+      result = recordServerQuestHpLoss(profile, action.amount);
+    }else if(action?.kind === "timer-check"){
+      result = checkServerQuestTimers(profile, action.now);
     }else{
       result = {ok:false, reason:"Action quete invalide."};
     }
     if(!result.ok) return result;
+    if(action?.kind === "timer-check" && !result.changed) return result;
     const next = sanitizeProfile({
       ...profile,
       updatedAt:Date.now()

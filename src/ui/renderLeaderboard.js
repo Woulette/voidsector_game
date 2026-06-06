@@ -1,4 +1,5 @@
 import { portals } from "../data/catalog.js";
+import { getEnemyAssetRotationStyle } from "../data/enemyVisuals.js";
 import { ENEMY_TYPES, MAPS } from "../game/combatData.js";
 import { fmt } from "../core/utils.js";
 import {
@@ -42,14 +43,10 @@ function getCurrentMonsterRateLabel(playerLevel, range){
   return `1 / ${fmt(denominator)}`;
 }
 
-function shouldRotateMonsterImage(kind){
-  return ["raider_astral", "cuirasse_nebulaire", "cristal_du_neant"].includes(kind);
-}
-
 function monsterImageHtml(row){
   if(!row.img) return "";
-  const rotated = shouldRotateMonsterImage(row.kind);
-  return `<img class="${rotated ? "rotate" : ""}" src="${row.img}" alt="" ${rotated ? `style="transform:rotate(180deg)"` : ""}>`;
+  const rotationStyle = getEnemyAssetRotationStyle(row.kind);
+  return `<img src="${row.img}" alt=""${rotationStyle ? ` style="${rotationStyle}"` : ""}>`;
 }
 
 function installRankDetailsEvents(){

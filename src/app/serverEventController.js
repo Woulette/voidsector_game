@@ -20,9 +20,24 @@ export function createServerEventController({
 
   function applyPurchaseEvents(reason){
     if(reason === "shop:ammo-bought"){
+      let changed = false;
+      if(!store.state.ammoInventory || typeof store.state.ammoInventory !== "object") store.state.ammoInventory = {};
       for(const event of consume(multiplayer.shopAmmoEvents)){
         const amount = Math.max(0, Math.round(Number(event.amount || 0)));
-        if(event.id && amount > 0) showToast(`${event.name || "Munitions"} achetee cote serveur : +${amount.toLocaleString("fr-FR")}.`);
+        if(event.id && amount > 0){
+          const ammoId = String(event.id);
+          store.state.ammoInventory[ammoId] = Math.max(0, Number(store.state.ammoInventory[ammoId] || 0)) + amount;
+          const price = Math.max(0, Math.round(Number(event.price || 0)));
+          const currency = event.priceType === "premium" ? "premium" : "credits";
+          if(price > 0 && store.state.player) store.state.player[currency] = Math.max(0, Number(store.state.player[currency] || 0) - price);
+          changed = true;
+          showToast(`${event.name || "Munitions"} achetee cote serveur : +${amount.toLocaleString("fr-FR")}.`);
+        }
+      }
+      if(changed){
+        saveState();
+        renderAll();
+        window.dispatchEvent(new CustomEvent("voidsector:inventory-updated", {detail:{reason, type:"ammo"}}));
       }
       return true;
     }
@@ -86,6 +101,44 @@ export function createServerEventController({
     }
   }
 
+  function applyQuestFailureProgress(){
+    let changed = false;
+    if(!store.state.questFailProgress || typeof store.state.questFailProgress !== "object") store.state.questFailProgress = {};
+    if(!store.state.questProgress || typeof store.state.questProgress !== "object") store.state.questProgress = {};
+    for(const event of consume(multiplayer.questFailureEvents)){
+      for(const update of event.updates || []){
+        const questId = update?.questId || update?.id;
+        if(!questId || update.failType !== "hpLost") continue;
+        const current = store.state.questFailProgress[questId] && typeof store.state.questFailProgress[questId] === "object"
+          ? store.state.questFailProgress[questId]
+          : {};
+        store.state.questFailProgress[questId] = {
+          ...current,
+          hpLost:Math.max(0, Number(update.hpLost || 0))
+        };
+        changed = true;
+      }
+      for(const failed of event.failed || []){
+        const questId = failed?.questId || failed?.id;
+        if(!questId) continue;
+        const quest = questCatalog.find(entry=>entry.id === questId);
+        store.state.questProgress[questId] = Array.isArray(quest?.objectives) && quest.objectives.length > 1 ? {} : 0;
+        store.state.questFailProgress[questId] = {};
+        if(Array.isArray(store.state.activeQuestIds)){
+          store.state.activeQuestIds = store.state.activeQuestIds.filter(id=>id !== questId);
+        }
+        if(store.state.activeQuestId === questId) store.state.activeQuestId = store.state.activeQuestIds?.[0] || null;
+        const reason = failed?.failType === "timeElapsed" ? "temps depasse" : "limite de vie depassee";
+        showToast(`${failed.title || quest?.title || "Quete"} : ${reason}, quete annulee.`);
+        changed = true;
+      }
+    }
+    if(changed){
+      saveState();
+      renderAll();
+    }
+  }
+
   function applyRefineryEvents(){
     for(const event of consume(multiplayer.refineryEvents)){
       const messages = {
@@ -134,6 +187,7 @@ export function createServerEventController({
       return;
     }
     if(reason === "quest:progress") return applyQuestProgress();
+    if(reason === "quest:fail-progress") return applyQuestFailureProgress();
     if(reason === "refinery:updated") return applyRefineryEvents();
     if(reason === "space-caster:result") return applySpaceCasterEvents();
     if(reason === "auth:success") switchLocalProfileScope(accountProfileScope(event.detail?.payload?.account || multiplayer.auth.account));

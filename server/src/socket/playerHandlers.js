@@ -1,13 +1,16 @@
 export function registerPlayerHandlers(socket, context){
   const {
     cleanName,
+    emitProfileSync,
     emitPlayers,
     guard,
     players,
     presence,
     profileManager,
     publicPlayer,
+    resumeQuestTimers,
     setPlayerMap,
+    syncPlayerStatusEffects,
     syncProfileForPlayer
   } = context;
 
@@ -54,7 +57,9 @@ export function registerPlayerHandlers(socket, context){
     player.clientId = cleanClientId(payload?.clientId);
     if(!player.accountId) player.name = cleanName(payload?.name);
     player = takeoverGuestSocket(player, player.clientId);
+    if(player.clientMode === "game") resumeQuestTimers?.(player);
     syncProfileForPlayer(socket);
+    if(player.clientMode === "game") syncPlayerStatusEffects?.(player);
     emitPlayers();
   });
 
@@ -62,7 +67,10 @@ export function registerPlayerHandlers(socket, context){
     if(!guard("profile:save")) return;
     const player = players.get(socket.id);
     const incoming = profileManager.saveFromPayload({player, payload});
-    if(incoming) socket.emit("profile:saved", {updatedAt:incoming.updatedAt});
+    if(incoming){
+      socket.emit("profile:saved", {updatedAt:incoming.updatedAt});
+      emitProfileSync?.(player, incoming);
+    }
   });
 
   socket.on("player:state", payload=>{

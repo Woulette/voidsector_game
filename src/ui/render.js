@@ -74,7 +74,7 @@ export function renderTop(){
   const nextRank = getNextRank();
   document.getElementById("pilotName").textContent = state.player.name;
   document.getElementById("levelText").textContent = `NIV. ${state.player.level}`;
-  document.getElementById("xpText").textContent = `${fmt(state.player.xp)} / ${fmt(state.player.xpNext)}`;
+  document.getElementById("xpText").textContent = `XP ${fmt(state.player.xp)} / ${fmt(state.player.xpNext)}`;
   document.getElementById("xpFill").style.width = `${Math.min(100, state.player.xp / state.player.xpNext * 100)}%`;
   document.getElementById("creditsValue").textContent = fmt(state.player.credits);
   document.getElementById("premiumValue").textContent = fmt(state.player.premium);

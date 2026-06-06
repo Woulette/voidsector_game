@@ -126,7 +126,21 @@ export function updateLootPopup({notices = []}){
       line = document.createElement("div");
       line.className = "loot-line";
       line.dataset.lootId = String(notice.id);
-      line.innerHTML = parts.map(part=>`<div><span>${part.label}</span>${part.value ? `<b>${part.value}</b>` : ""}</div>`).join("");
+      const orderedParts = [];
+      const takeParts = predicate=>{
+        for(let index = 0; index < parts.length; index += 1){
+          if(!predicate(parts[index])) continue;
+          orderedParts.push(...parts.splice(index, 1));
+          index -= 1;
+        }
+      };
+      takeParts(part=>String(part.label || "").toLowerCase().includes("cr"));
+      takeParts(part=>String(part.label || "").toLowerCase() === "nova");
+      takeParts(part=>String(part.label || "").toLowerCase().includes("xp") || String(part.label || "").toLowerCase().includes("exp"));
+      takeParts(part=>String(part.label || "").toLowerCase().includes("putation"));
+      takeParts(part=>String(part.label || "").toLowerCase().includes("detruit"));
+      orderedParts.push(...parts);
+      line.innerHTML = orderedParts.map(part=>`<div><span>${part.label}</span>${part.value ? `<b>${part.value}</b>` : ""}</div>`).join("");
       el.prepend(line);
     }
     line.style.opacity = opacity.toFixed(3);

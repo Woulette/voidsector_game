@@ -11,6 +11,7 @@ import { createPresenceManager } from "./players/presence.js";
 import { createProfileManager } from "./players/profiles.js";
 import { createPortalInstanceManager } from "./portals/instances.js";
 import { createKillQuestProgress } from "./quests/killProgress.js";
+import { pauseServerQuestTimers, resumeServerQuestTimers } from "./quests/questFailures.js";
 import { createSocketRateLimiter } from "./socket/rateLimit.js";
 import { createEnemyHitHandler } from "./combat/enemyHits.js";
 import { registerAuthHandlers } from "./socket/authHandlers.js";
@@ -26,6 +27,7 @@ import { startServerTick } from "./tick/serverTick.js";
 import { createWorldAiManager } from "./world/ai.js";
 import { createWorldLootManager } from "./world/loot.js";
 import { createWorldRewardManager } from "./world/rewards.js";
+import { createWorldStatusEffectManager } from "./world/statusEffects.js";
 import { isPointInWorldSafeArea, publicEnemy } from "./world/spawn.js";
 import { createWorldStateManager } from "./world/state.js";
 
@@ -118,7 +120,7 @@ function progressProfileQuestAction(socket, action = {}){
       updates:result.updates,
       at:Date.now()
     });
-    if(result.profile) socket.emit("profile:sync", result.profile);
+    emitProfileSyncForPlayer(player, result.profile);
   }
   return result;
 }
@@ -150,11 +152,55 @@ const {
   setPlayerMap
 });
 
+function emitProfileSyncForPlayer(player, profile){
+  if(!player || !profile) return;
+  for(const accountPlayer of accountSocketsForPlayer(player)){
+    const accountSocket = io.sockets.sockets.get(accountPlayer.id);
+    accountSocket?.emit("profile:sync", profile);
+  }
+}
+
+function setQuestTimersConnected(player, connected, now = Date.now()){
+  if(!player || player.clientMode !== "game") return null;
+  if(!connected){
+    const hasOtherConnectedGameSocket = accountSocketsForPlayer(player).some(candidate=>
+      candidate.id !== player.id
+      && candidate.clientMode === "game"
+      && candidate.connected !== false
+    );
+    if(hasOtherConnectedGameSocket) return null;
+  }
+  const result = profileManager.updateProfileForPlayer({
+    player,
+    update:profile=>({
+      ok:true,
+      changed:connected ? resumeServerQuestTimers(profile, now) : pauseServerQuestTimers(profile, now)
+    })
+  });
+  if(!result?.changed) return null;
+  emitProfileSyncForPlayer(player, result.profile);
+  return result.profile;
+}
+
+const {
+  applyEnemyOnHitEffect,
+  syncPlayerStatusEffects,
+  updateStatusEffects
+} = createWorldStatusEffectManager({
+  io,
+  players,
+  presence,
+  profileManager,
+  emitProfileSync:emitProfileSyncForPlayer
+});
+
 const {updateWorldEnemy} = createWorldAiManager({
   io,
   players,
   presence,
   profileManager,
+  emitProfileSync:emitProfileSyncForPlayer,
+  applyEnemyOnHitEffect,
   isPlayerSafeOnMap
 });
 
@@ -166,7 +212,8 @@ const {
 } = createWorldLootManager({
   io,
   players,
-  profileManager
+  profileManager,
+  emitProfileSync:emitProfileSyncForPlayer
 });
 
 function emitPlayers(){
@@ -201,20 +248,24 @@ const {
   cleanName,
   emitPlayers,
   emitGroup,
-  setPlayerMap
+  resumeQuestTimers:player=>setQuestTimersConnected(player, true),
+  setPlayerMap,
+  syncPlayerStatusEffects
 });
 
 const {emitWorldReward} = createWorldRewardManager({
   io,
   players,
   groups,
-  profileManager
+  profileManager,
+  emitProfileSync:emitProfileSyncForPlayer
 });
 
 const {progressServerQuestsForKill} = createKillQuestProgress({
   io,
   players,
-  profileManager
+  profileManager,
+  emitProfileSync:emitProfileSyncForPlayer
 });
 
 const {
@@ -227,6 +278,7 @@ const {
   players,
   groups,
   profileManager,
+  emitProfileSync:emitProfileSyncForPlayer,
   createGroup,
   emitInstance,
   portalWaveTotal:config.portalWaveTotal
@@ -244,11 +296,38 @@ const {applyEnemyHit} = createEnemyHitHandler({
   players,
   presence,
   profileManager,
+  emitProfileSync:emitProfileSyncForPlayer,
   progressServerQuestsForKill,
   respawnWorldEnemy,
   updateLootOwner,
   portalWaveTotal
 });
+
+function updateQuestTimers(now){
+  const processedProfiles = new Set();
+  for(const player of players.values()){
+    if(player.clientMode !== "game" || player.connected === false) continue;
+    const profileKey = player.accountId ? `account:${player.accountId}` : `guest:${player.name}`;
+    if(processedProfiles.has(profileKey)) continue;
+    processedProfiles.add(profileKey);
+    const result = profileManager.applyQuestAction({
+      player,
+      action:{kind:"timer-check", now}
+    });
+    if(!result?.changed) continue;
+    if(result.failed?.length){
+      for(const accountPlayer of accountSocketsForPlayer(player)){
+        const accountSocket = io.sockets.sockets.get(accountPlayer.id);
+        accountSocket?.emit("quest:fail-progress", {
+          updates:[],
+          failed:result.failed,
+          at:now
+        });
+      }
+    }
+    emitProfileSyncForPlayer(player, result.profile);
+  }
+}
 
 startServerTick({
   cleanupExpiredLootDrops,
@@ -259,6 +338,8 @@ startServerTick({
   players,
   playersOnMap,
   presence,
+  updateStatusEffects,
+  updateQuestTimers,
   updateWorldEnemy
 });
 
@@ -277,6 +358,7 @@ io.on("connection", socket=>{
     guard,
     players,
     profileManager,
+    emitProfileSync:emitProfileSyncForPlayer,
     progressProfileQuestAction
   };
   registerAuthHandlers(socket, {
@@ -293,6 +375,8 @@ io.on("connection", socket=>{
     io,
     presence,
     publicPlayer,
+    resumeQuestTimers:player=>setQuestTimersConnected(player, true),
+    syncPlayerStatusEffects,
     setPlayerMap,
     syncProfileForPlayer
   });
@@ -328,6 +412,7 @@ io.on("connection", socket=>{
   registerDisconnectHandlers(socket, {
     ...socketContext,
     leaveCurrentGroup,
+    pauseQuestTimers:player=>setQuestTimersConnected(player, false),
     presence
   });
 });

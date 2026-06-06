@@ -41,12 +41,13 @@ Deja en place :
 - expeditions de raffinerie serveur : le serveur valide le stock, le cout credits, la place en soute, cree l'expedition, gere le rush NOVA et livre dans `shipCargo`.
 - craft de soute serveur : les recettes de fusion consomment les materiaux de `shipCargo`, verifient la capacite du vaisseau et ajoutent l'output cote serveur.
 - upgrades equipement serveur : les ameliorations canon / generateur / roquette consomment les materiaux cote serveur depuis `cargoHold` ou `shipCargo`, verifient le Portail Emeraude et synchronisent `equipmentUpgrades`.
-- progression serveur etendue : amelioration des competences, deverrouillage des portails par pieces / NOVA et prestige passent par Socket.IO, sont verifies cote serveur et synchronisent le profil.
+- progression serveur etendue : amelioration des competences, deverrouillage des portails par pieces et prestige passent par Socket.IO, sont verifies cote serveur et synchronisent le profil.
 - protection de `profile:save` renforcee : le client ne peut plus imposer `skillRanks`, `skillLevels`, `unlockedPortals`, `completedPortals`, `portalPieces` ou `prestigeCount` comme verite finale.
 - anti-double gain initial : les ennemis monde marquent leurs rewards/drops comme deja traites, le ramassage supprime le drop avant mutation profil, les portails marquent l'instance comme rewardee et le client n'applique plus localement les munitions / completion quand `rewardAppliedByServer` est actif.
 - recompenses portail serveur renforcees : fin de portail ajoute credits / NOVA / XP, compteur `completedPortals` et munitions portail directement dans le profil serveur.
+- progression rang serveur initiale : les kills monde MMO ajoutent maintenant reputation, totalKills, points de monstres, bestiaire de grade et score de rang cote serveur.
 
-Prochaine priorite : ajouter des verrous anti-spam par compte sur les actions sensibles, puis finir les derniers domaines encore trop clients : progression rang, vente / recyclage et controles admin minimum.
+Prochaine priorite : ajouter des verrous anti-spam par compte sur les actions sensibles, puis finir les derniers domaines encore trop clients : vente / recyclage et controles admin minimum.
 
 ## Definition de "MMO 100%" pour VoidSector
 

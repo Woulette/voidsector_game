@@ -8,7 +8,7 @@ const CLIENT_PROGRESS_TYPES = new Set([
 ]);
 
 export function registerQuestHandlers(socket, context){
-  const {guard, players, profileManager, progressProfileQuestAction} = context;
+  const {emitProfileSync, guard, players, profileManager, progressProfileQuestAction} = context;
 
   socket.on("quest:accept", payload=>{
     if(!guard("quest:accept")) return;
@@ -23,7 +23,7 @@ export function registerQuestHandlers(socket, context){
       return;
     }
     socket.emit("quest:accepted", {id:result.quest?.id, title:result.quest?.title, at:Date.now()});
-    if(result.profile) socket.emit("profile:sync", result.profile);
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("quest:claim", payload=>{
@@ -39,7 +39,23 @@ export function registerQuestHandlers(socket, context){
       return;
     }
     socket.emit("quest:claimed", {id:result.quest?.id, title:result.quest?.title, at:Date.now()});
-    if(result.profile) socket.emit("profile:sync", result.profile);
+    emitProfileSync(player, result.profile);
+  });
+
+  socket.on("quest:track", payload=>{
+    if(!guard("quest:track")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const result = profileManager.applyQuestAction({
+      player,
+      action:{kind:"track", questId:payload?.id}
+    });
+    if(!result.ok){
+      socket.emit("quest:error", {message:result.reason || "Suivi de quete impossible."});
+      return;
+    }
+    socket.emit("quest:tracked", {id:result.quest?.id, title:result.quest?.title, at:Date.now()});
+    emitProfileSync(player, result.profile);
   });
 
   socket.on("quest:progress", payload=>{

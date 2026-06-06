@@ -19,6 +19,9 @@ export function createSocketCommands({multiplayer}){
     claimServerQuest(id){
       return id ? emit(multiplayer, "quest:claim", {id}) : false;
     },
+    trackServerQuest(id){
+      return id ? emit(multiplayer, "quest:track", {id}) : false;
+    },
     progressServerQuest(payload = {}){
       return payload?.type ? emit(multiplayer, "quest:progress", payload) : false;
     },

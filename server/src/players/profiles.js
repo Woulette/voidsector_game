@@ -56,7 +56,10 @@ export function createProfileManager({cleanName, logger}){
     const accountKey = player.accountId ? accountProfileKey(player.accountId) : null;
     const accountProfile = accountKey ? profiles.get(accountKey) : null;
     if(accountProfile){
-      if(advanceRefineryState(accountProfile)){
+      const starterChanged = ensureStarterRepairDrone(accountProfile);
+      const refineryChanged = advanceRefineryState(accountProfile);
+      if(refineryChanged || starterChanged){
+        if(starterChanged) accountProfile.updatedAt = Date.now();
         profiles.set(accountKey, sanitizeProfile(accountProfile));
         persist();
       }
@@ -76,7 +79,10 @@ export function createProfileManager({cleanName, logger}){
     }
     const legacyProfile = profiles.get(profileKey(player.name));
     if(!legacyProfile) return;
-    if(advanceRefineryState(legacyProfile)){
+    const starterChanged = ensureStarterRepairDrone(legacyProfile);
+    const refineryChanged = advanceRefineryState(legacyProfile);
+    if(refineryChanged || starterChanged){
+      if(starterChanged) legacyProfile.updatedAt = Date.now();
       profiles.set(profileKey(player.name), sanitizeProfile(legacyProfile));
       persist();
     }
@@ -111,7 +117,8 @@ export function createProfileManager({cleanName, logger}){
     const existing = profiles.get(key);
     if(existing){
       const starterChanged = ensureStarterRepairDrone(existing);
-      if(advanceRefineryState(existing) || starterChanged){
+      const refineryChanged = advanceRefineryState(existing);
+      if(refineryChanged || starterChanged){
         if(starterChanged) existing.updatedAt = Date.now();
         profiles.set(key, sanitizeProfile(existing));
         persist();

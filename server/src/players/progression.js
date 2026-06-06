@@ -28,7 +28,11 @@ export const PROTECTED_PLAYER_FIELDS = [
   "totalXp",
   "level",
   "xpNext",
-  "skillPoints"
+  "skillPoints",
+  "reputation",
+  "totalKills",
+  "monsterRankPoints",
+  "rankScore"
 ];
 
 export function getXpNextForLevel(level = 1){
@@ -47,6 +51,10 @@ export function normalizeProgressionPlayer(player = {}){
     premium:Math.max(0, Math.round(Number(player.premium || 0))),
     xp:Math.max(0, Math.min(xpNext, Math.round(Number(player.xp || 0)))),
     totalXp:Math.max(0, Math.round(Number(player.totalXp || 0))),
+    reputation:Math.max(0, Math.round(Number(player.reputation || 0))),
+    totalKills:Math.max(0, Math.round(Number(player.totalKills || 0))),
+    monsterRankPoints:Math.max(0, Number(player.monsterRankPoints || 0)),
+    rankScore:Math.max(0, Number(player.rankScore || 0)),
     level,
     xpNext,
     skillPoints:Math.max(0, Math.round(Number(player.skillPoints || 0)))

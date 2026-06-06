@@ -51,6 +51,7 @@ export const multiplayer = {
   remoteEffects:[],
   enemyAttackEvents:[],
   playerDamageEvents:[],
+  playerStatusEffectEvents:[],
   playerRewardEvents:[],
   resumeEvents:[],
   lootDropEvents:[],
@@ -64,6 +65,7 @@ export const multiplayer = {
   combatEvents:[],
   lootPickupEvents:[],
   questProgressEvents:[],
+  questFailureEvents:[],
   questEvents:[],
   refineryEvents:[],
   spaceCasterEvents:[],
@@ -269,6 +271,7 @@ export function disconnectMultiplayer(){
   multiplayer.remoteEffects = [];
   multiplayer.enemyAttackEvents = [];
   multiplayer.playerDamageEvents = [];
+  multiplayer.playerStatusEffectEvents = [];
   multiplayer.playerRewardEvents = [];
   multiplayer.resumeEvents = [];
   multiplayer.lootDropEvents = [];
@@ -281,6 +284,7 @@ export function disconnectMultiplayer(){
   multiplayer.combatEvents = [];
   multiplayer.lootPickupEvents = [];
   multiplayer.questProgressEvents = [];
+  multiplayer.questFailureEvents = [];
   multiplayer.questEvents = [];
   multiplayer.refineryEvents = [];
   multiplayer.spaceCasterEvents = [];
@@ -308,6 +312,7 @@ export const syncMultiplayerProfile = state=>syncProfile(multiplayer, state);
 export const {
   acceptServerQuest,
   claimServerQuest,
+  trackServerQuest,
   progressServerQuest,
   upgradeServerSkill,
   unlockServerPortal,

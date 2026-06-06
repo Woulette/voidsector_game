@@ -20,9 +20,10 @@ export function createCombatStatusEffectSystem({
       damage:Number(effect.damage || 0),
       interval:Number(effect.interval || 1),
       duration,
-      remaining:duration,
+      remaining:Number(effect.remaining ?? duration),
       tick:Number(effect.interval || 1),
-      pulseT:0
+      pulseT:0,
+      serverAuthoritative:Boolean(effect.serverAuthoritative)
     };
     updatePoisonStatus(player.poisonEffect);
   }
@@ -55,7 +56,7 @@ export function createCombatStatusEffectSystem({
     }
     while(effect.tick <= 0 && effect.remaining > 0){
       effect.tick += effect.interval;
-      const dealt = Math.max(0, Math.round(effect.damage || 0));
+      const dealt = effect.serverAuthoritative ? 0 : Math.max(0, Math.round(effect.damage || 0));
       if(dealt > 0){
         const hpBefore = Number(player.hp || 0);
         player.hp -= dealt;

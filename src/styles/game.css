@@ -46,7 +46,7 @@
 .combat-wallet span{display:grid;gap:3px;text-transform:uppercase;letter-spacing:.8px}
 .combat-wallet b{font-size:16px}
 .target-panel{
-  position:absolute;z-index:7;top:18px;left:50%;transform:translateX(-50%);width:max-content;min-width:230px;max-width:min(520px,calc(100vw - 40px));padding:6px 8px 7px;
+  position:absolute;z-index:7;top:8px;left:50%;transform:translateX(-50%);width:max-content;min-width:230px;max-width:min(520px,calc(100vw - 40px));padding:6px 8px 7px;
   background:
     linear-gradient(180deg,rgba(7,20,34,.96),rgba(2,9,18,.94)),
     rgba(3,12,24,.94);
@@ -69,7 +69,7 @@
 .target-health.target-shield-text{color:#bae6fd;margin-bottom:4px}
 .target-health b{color:#f8fafc;font-size:9px}
 .loot-popup{
-  position:absolute;z-index:6;top:18px;left:46%;transform:translateX(-50%);
+  position:absolute;z-index:6;top:26px;left:46%;transform:translateX(-50%);
   display:flex;flex-direction:column;align-items:flex-start;gap:5px;
   min-width:0;padding:0;background:transparent;border:0;color:#dff6ff;box-shadow:none;text-align:center;pointer-events:none;
 }
@@ -468,7 +468,6 @@
 .combat-quest-objective-row.locked b{color:#6b7f90}
 .combat-quest-objective-icon{display:grid;place-items:center;width:30px;height:28px}
 .combat-quest-objective-icon img{width:30px;height:28px;object-fit:contain}
-.combat-quest-objective-icon img.rotate-180{transform:rotate(180deg)}
 .combat-quest-objective-icon.material-pair{grid-template-columns:1fr 1fr;gap:1px}
 .combat-quest-objective-icon.material-pair img{width:15px;height:22px}
 .combat-quest-objective-row div{display:grid;gap:1px;min-width:0;text-transform:uppercase}

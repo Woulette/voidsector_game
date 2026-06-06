@@ -93,19 +93,6 @@ export function createProgressionActions({
     renderAll();
   }
 
-  function unlockPortalWithNova(id){
-    if(multiplayer.connected && unlockServerPortal({id, method:"nova"})) return showToast("Deverrouillage du portail envoye au serveur.");
-    const portal = getPortal(id);
-    if(!portal) return;
-    if(store.state.player.level < portal.requirement.level) return showToast(`Niveau ${portal.requirement.level} requis pour deverrouiller ${portal.name}.`);
-    if(isPortalUnlocked(id)) return showToast(`${portal.name} est deja deverrouille.`);
-    if(!canAfford("premium", portal.novaCost)) return showToast("Pas assez de NOVA.");
-    spend("premium", portal.novaCost);
-    unlockPortal(id);
-    showToast(`${portal.name} deverrouille avec ${portal.novaCost.toLocaleString("fr-FR")} NOVA.`);
-    renderAll();
-  }
-
   function unlockSkill(id){
     if(multiplayer.connected && upgradeServerSkill(id)) return showToast("Amelioration envoyee au serveur.");
     const result = upgradeSkill(id);
@@ -115,5 +102,5 @@ export function createProgressionActions({
     renderAll();
   }
 
-  return {runSpaceCaster, unlockPortalWithPieces, unlockPortalWithNova, unlockSkill};
+  return {runSpaceCaster, unlockPortalWithPieces, unlockSkill};
 }

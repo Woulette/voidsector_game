@@ -12,10 +12,13 @@ export function createCombatActions({
   getDroneFormation,
   getEquippedExtras,
   getEquippedLauncher,
+  multiplayer,
+  buyServerAmmo,
   canAfford,
   spend,
   addAmmo,
   saveState,
+  syncProfile,
   refreshPlayerStats,
   setActionSlot,
   showToast,
@@ -68,7 +71,7 @@ export function createCombatActions({
     if(!isLaserAmmo(ammo)) return;
     if(store.state.lastLaserAmmoId === ammo.id) return;
     store.state.lastLaserAmmoId = ammo.id;
-    saveState();
+    saveAndSyncActionSlots();
   }
 
   function getLaserSlotForAttack(){
@@ -300,6 +303,10 @@ export function createCombatActions({
   function buyCombatAmmo(id){
     const ammo = getAmmo(id);
     if(!ammo) return;
+    if(multiplayer?.connected && buyServerAmmo?.(ammo.id, 1)){
+      showToast("Achat envoye au serveur.");
+      return;
+    }
     if(!canAfford(ammo.priceType, ammo.price)) return showToast("Fonds insuffisants.");
     spend(ammo.priceType, ammo.price);
     addAmmo(ammo.id, ammo.amount);
@@ -310,13 +317,18 @@ export function createCombatActions({
     showToast(`${ammo.name} achetee : +${ammo.amount}.`);
   }
 
+  function saveAndSyncActionSlots(){
+    saveState();
+    syncProfile?.();
+  }
+
   function assignAmmoToActionSlot(index, ammoId){
     const ammo = getAmmo(ammoId);
     if(!ammo) return;
     if(ammo.weaponClass === "rocket") selectedRocketAmmoId = ammo.id;
     setActionSlot(index, ammo.id);
     if((ammo.weaponClass === "rocket" || ammo.weaponClass === "missile") && activeLaserSlot === index) activeLaserSlot = null;
-    saveState();
+    saveAndSyncActionSlots();
     renderGameActionBar();
     renderCombatQuickPanel();
     showToast(`${ammo.name} placee en slot ${index+1}.`);
@@ -372,7 +384,7 @@ export function createCombatActions({
     const slotIndex = target >= 0 ? target : 0;
     store.state.actionSlots[slotIndex] = launcher.id;
     if(activeLaserSlot === slotIndex) activeLaserSlot = null;
-    saveState();
+    saveAndSyncActionSlots();
     renderGameActionBar();
     renderCombatQuickPanel();
     showToast(`${launcher.name} place en slot ${slotIndex+1}.`);
@@ -402,7 +414,7 @@ export function createCombatActions({
     store.state.actionSlots[fromIndex] = toValue;
     if(activeLaserSlot === fromIndex) activeLaserSlot = toIndex;
     else if(activeLaserSlot === toIndex) activeLaserSlot = fromIndex;
-    saveState();
+    saveAndSyncActionSlots();
     renderGameActionBar();
     renderCombatQuickPanel();
     showToast(`Slot ${fromIndex+1} deplace vers slot ${toIndex+1}.`);
@@ -414,7 +426,7 @@ export function createCombatActions({
     if(index < 0 || index >= 9 || !store.state.actionSlots[index]) return false;
     store.state.actionSlots[index] = null;
     if(activeLaserSlot === index) activeLaserSlot = null;
-    saveState();
+    saveAndSyncActionSlots();
     renderGameActionBar();
     renderCombatQuickPanel();
     showToast(`Slot ${index+1} vide.`);
@@ -432,7 +444,7 @@ export function createCombatActions({
     }
     setActionSlot(index, item.id);
     if(activeLaserSlot === index) activeLaserSlot = null;
-    saveState();
+    saveAndSyncActionSlots();
     renderGameActionBar();
     renderCombatQuickPanel();
     showToast(`${item.name} place en slot ${index+1}.`);
@@ -446,7 +458,7 @@ export function createCombatActions({
     }
     setActionSlot(index, formation.id);
     if(activeLaserSlot === index) activeLaserSlot = null;
-    saveState();
+    saveAndSyncActionSlots();
     renderGameActionBar();
     renderCombatQuickPanel();
     showToast(`${formation.name} placee en slot ${index+1}.`);

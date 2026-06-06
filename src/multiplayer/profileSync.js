@@ -10,6 +10,8 @@ export function syncMultiplayerProfile(multiplayer, state){
     inventoryItems:state.inventoryItems,
     nextInventoryUid:state.nextInventoryUid,
     ammoInventory:state.ammoInventory,
+    actionSlots:state.actionSlots,
+    lastLaserAmmoId:state.lastLaserAmmoId,
     shipLoadouts:state.shipLoadouts,
     ownedDroneCount:state.ownedDroneCount,
     droneLoadout:state.droneLoadout,
@@ -36,7 +38,9 @@ export function syncMultiplayerProfile(multiplayer, state){
     activeQuestId:state.activeQuestId,
     questProgress:state.questProgress,
     questFailProgress:state.questFailProgress,
-    completedQuestClaims:state.completedQuestClaims
+    completedQuestClaims:state.completedQuestClaims,
+    killStats:state.killStats,
+    rankKillStats:state.rankKillStats
   };
   multiplayer.socket.emit("profile:save", {name:multiplayer.name, profile});
 }

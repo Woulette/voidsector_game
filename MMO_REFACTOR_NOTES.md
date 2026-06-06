@@ -161,6 +161,10 @@ Fait :
   - drops prives de pieces portail
   - ramassage serveur de loot
   - expiration des drops actifs
+- `server/src/world/statusEffects.js`
+  - effets de statut infliges par les ennemis serveur
+  - poison autoritaire des Parasites et Boss Parasites
+  - synchronisation visuelle des effets avec le client
 - `server/src/portals/instances.js`
   - creation ennemis portail
   - generation des vagues serveur

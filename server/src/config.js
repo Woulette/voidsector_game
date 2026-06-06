@@ -29,6 +29,7 @@ export const config = {
     "equipment:drone-upgrade":{limit:12, windowMs:10000},
     "equipment:upgrade":{limit:20, windowMs:10000},
     "quest:accept":{limit:20, windowMs:10000},
+    "quest:track":{limit:40, windowMs:10000},
     "quest:claim":{limit:20, windowMs:10000},
     "quest:progress":{limit:30, windowMs:10000},
     "skill:upgrade":{limit:20, windowMs:10000},

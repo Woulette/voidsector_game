@@ -455,17 +455,22 @@
   top:calc(var(--y) * 1%);
   z-index:3;
   width:236px;
-  min-height:82px;
+  min-height:108px;
   display:grid;
   grid-template-columns:44px minmax(0,1fr);
   gap:10px;
   align-items:center;
-  padding:11px 12px;
+  padding:11px 12px 18px;
   transform:translate(-50%,-50%);
   border:1px solid rgba(142,165,178,.42);
   background:linear-gradient(180deg,rgba(10,31,48,.94),rgba(2,10,19,.98));
   clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px);
   box-shadow:0 0 22px rgba(125,211,252,.08), inset 0 0 22px rgba(142,165,178,.04);
+}
+.sky-utility-node .sky-node-progress{
+  left:12px;
+  right:12px;
+  bottom:7px;
 }
 .sky-utility-node.transport{border-color:rgba(56,189,248,.42)}
 .sky-utility-node.storage{border-color:rgba(142,165,178,.52)}

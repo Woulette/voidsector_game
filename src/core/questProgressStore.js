@@ -3,10 +3,13 @@ import { getQuest, removeInventoryItems, store } from "./store.js";
 
 export const MAX_ACTIVE_QUESTS = 5;
 
-export function getInitialQuestFailProgress(quest){
+export function getInitialQuestFailProgress(quest, now = Date.now()){
   const result = {};
   if(quest?.failConditions?.hpLossLimit) result.hpLost = 0;
-  if(quest?.failConditions?.timeLimit) result.timeElapsed = 0;
+  if(quest?.failConditions?.timeLimit){
+    result.timeElapsed = 0;
+    result.timeStartedAt = now;
+  }
   if(quest?.failConditions?.deathResets) result.deathSafe = true;
   return result;
 }
@@ -108,7 +111,7 @@ export function acceptQuest(id){
   if(store.state.activeQuestIds.includes(id)) return {ok:false, reason:"Quete deja en cours."};
   if(store.state.activeQuestIds.length >= MAX_ACTIVE_QUESTS) return {ok:false, reason:`Maximum ${MAX_ACTIVE_QUESTS} quetes en cours.`};
   store.state.activeQuestIds.push(id);
-  store.state.activeQuestId = id;
+  if(!store.state.activeQuestId) store.state.activeQuestId = id;
   if(!store.state.questProgress) store.state.questProgress = {};
   if(!store.state.questProgress[id]) store.state.questProgress[id] = getQuestObjectives(quest).length > 1 ? {} : 0;
   if(!store.state.questFailProgress || typeof store.state.questFailProgress !== "object") store.state.questFailProgress = {};

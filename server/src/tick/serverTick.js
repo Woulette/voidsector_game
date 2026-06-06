@@ -9,11 +9,14 @@ export function startServerTick({
   players,
   playersOnMap,
   presence,
+  updateStatusEffects,
+  updateQuestTimers,
   updateWorldEnemy
 }){
   let worldLastTick = Date.now();
   let worldEmitT = 0;
   let instanceEmitT = 0;
+  let questTimerT = 0;
 
   return setInterval(()=>{
     const now = Date.now();
@@ -21,6 +24,7 @@ export function startServerTick({
     worldLastTick = now;
     worldEmitT += dt;
     instanceEmitT += dt;
+    questTimerT += dt;
     const activeMapIds = new Set([...players.values()]
       .filter(player=>presence.isActiveForWorld(player, now))
       .map(player=>player.mapId)
@@ -51,6 +55,11 @@ export function startServerTick({
       for(const group of groups.values()) if(group.instance) emitInstance(group);
     }
     cleanupExpiredLootDrops(now);
+    updateStatusEffects?.(now);
+    if(questTimerT >= 1){
+      questTimerT = 0;
+      updateQuestTimers?.(now);
+    }
     presence.tick(now);
   }, 50);
 }

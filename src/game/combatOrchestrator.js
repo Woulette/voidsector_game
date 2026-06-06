@@ -120,7 +120,7 @@ import { installCombatInputHandlers } from "./ui/inputBindings.js";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js";
 import { createCombatPanels } from "./ui/combatPanels.js";
-import { acceptServerQuest, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendPlayerSnapshot, sendServerEnemyHit, upgradeServerEquipment } from "../multiplayer/client.js";
+import { acceptServerQuest, buyServerAmmo, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendPlayerSnapshot, sendServerEnemyHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
@@ -293,10 +293,13 @@ export function createCombatGame({renderAll, showToast}){
     getDroneFormation,
     getEquippedExtras,
     getEquippedLauncher,
+    multiplayer,
+    buyServerAmmo,
     canAfford,
     spend,
     addAmmo,
     saveState,
+    syncProfile:()=>syncMultiplayerProfile(store.state),
     refreshPlayerStats:refreshPlayerStatsFromLoadout,
     setActionSlot,
     showToast,
@@ -348,6 +351,7 @@ export function createCombatGame({renderAll, showToast}){
     getQuestObjectiveProgress,
     getQuestProgress,
     claimQuest:claimQuestAction,
+    trackServerQuest,
     getItem,
     getRefineryJob,
     getRefineryRecipes,
@@ -541,6 +545,8 @@ export function createCombatGame({renderAll, showToast}){
     rewards,
     panels,
     damagePlayer,
+    applyPlayerPoison,
+    clearPoison,
     pushDamageText,
     spawnPortalExit,
     showToast,
@@ -887,9 +893,10 @@ export function createCombatGame({renderAll, showToast}){
     return weapons.fireManualMissile(ammo, count);
   }
 
-  function damagePlayer(amount){
+  function damagePlayer(amount, options = {}){
     logout.cancel("degats recus");
-    questProgress.recordHpLoss(lifecycle.damage(amount));
+    const hpLost = lifecycle.damage(amount, options);
+    if(options.recordQuestHpLoss !== false) questProgress.recordHpLoss(hpLost);
   }
   function rewardEnemy(enemy){
     if(isServerControlledEnemy(enemy)) return;
@@ -1036,6 +1043,18 @@ export function createCombatGame({renderAll, showToast}){
     updateHud();
   });
   window.addEventListener("voidsector:multiplayer-change", logout.handleServerChange);
+  window.addEventListener("voidsector:inventory-updated", ()=>{
+    if(!running) return;
+    actions.updateGameActionBar();
+    actions.renderCombatQuickPanel();
+    updateHud();
+  });
+  window.addEventListener("voidsector:profile-applied", ()=>{
+    if(!running) return;
+    actions.updateGameActionBar();
+    actions.renderCombatQuickPanel();
+    updateHud();
+  });
   document.addEventListener("visibilitychange", ()=>{
     if(document.visibilityState === "visible") logout.update(0);
   });

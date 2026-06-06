@@ -1,5 +1,6 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, equipment, portals } from "../../data/catalog.js";
+import { getEnemyAssetRotationStyle } from "../../data/enemyVisuals.js";
 
 function questProgressState(quest, getQuestProgress){
   const progress = getQuestProgress(quest.id);
@@ -40,10 +41,6 @@ function formatObjectiveName(objective = {}, targetType = null){
   if(objective.type === "deliver_item") return objective.label || objective.itemName || "Objet a rapporter";
   if(objective.type === "space_caster_use") return objective.label || "Space Caster";
   return objective.label || targetType?.name || objective.target?.replaceAll("_", " ") || "Cible";
-}
-
-function shouldRotateTarget(target){
-  return target === "raider_astral" || target === "boss_raider_astral";
 }
 
 function formatTimer(seconds){
@@ -109,8 +106,8 @@ function renderObjectiveIcon(objective = {}, targetType = null){
     return `<span class="combat-quest-objective-icon"><img src="assets/portals/portail_bleu.svg" alt=""></span>`;
   }
   const img = objective.type === "visit_coordinates" || objective.type === "visit_map" ? "assets/icons/coordinate_marker.svg" : targetType?.img || "assets/enemies/drone_pirate.png";
-  const rotateClass = shouldRotateTarget(objective.target) ? " rotate-180" : "";
-  return `<span class="combat-quest-objective-icon"><img class="${rotateClass}" src="${img}" alt=""></span>`;
+  const rotationStyle = getEnemyAssetRotationStyle(objective.target);
+  return `<span class="combat-quest-objective-icon"><img src="${img}" alt=""${rotationStyle ? ` style="${rotationStyle}"` : ""}></span>`;
 }
 
 function renderObjectiveTab({quest, enemyTypes, getQuestProgress, getQuestObjectiveProgress, questFailProgress = {}}){
@@ -120,7 +117,11 @@ function renderObjectiveTab({quest, enemyTypes, getQuestProgress, getQuestObject
   const deathResets = !!quest.failConditions?.deathResets;
   const failState = questFailProgress?.[quest.id] || {};
   const hpLost = Math.max(0, Math.min(hpLossLimit, Number(failState.hpLost || 0)));
-  const timeElapsed = Math.max(0, Number(failState.timeElapsed || 0));
+  const startedAt = Math.max(0, Number(failState.timeStartedAt || 0));
+  const pausedAt = Math.max(0, Number(failState.timePausedAt || 0));
+  const timerNow = pausedAt || Date.now();
+  const absoluteElapsed = startedAt ? Math.max(0, (timerNow - startedAt) / 1000) : 0;
+  const timeElapsed = Math.max(0, Number(failState.timeElapsed || 0), absoluteElapsed);
   const timeRemaining = Math.max(0, timeLimit - timeElapsed);
   return `<div class="combat-quest-objectives">${objectives.map((objective, index)=>{
     const targetType = enemyTypes[objective.target];

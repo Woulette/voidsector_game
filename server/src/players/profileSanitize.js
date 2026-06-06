@@ -26,6 +26,16 @@ export function sanitizeWorldSession(value){
   };
 }
 
+export function sanitizeActionSlots(value){
+  if(!Array.isArray(value)){
+    return ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
+  }
+  return Array.from({length:9}, (_,index)=>{
+    const itemId = value[index];
+    return typeof itemId === "string" && itemId.length > 0 ? itemId : null;
+  });
+}
+
 export function sanitizeProfile(profile = {}){
   return {
     updatedAt:Math.max(0, Number(profile.updatedAt || Date.now())),
@@ -38,6 +48,8 @@ export function sanitizeProfile(profile = {}){
       : undefined,
     nextInventoryUid:Math.max(1, Math.floor(Number(profile.nextInventoryUid || 1))),
     ammoInventory:sanitizeObject(profile.ammoInventory),
+    actionSlots:sanitizeActionSlots(profile.actionSlots),
+    lastLaserAmmoId:typeof profile.lastLaserAmmoId === "string" ? profile.lastLaserAmmoId : null,
     shipLoadouts:sanitizeObject(profile.shipLoadouts),
     ownedDroneCount:Math.max(0, Math.floor(Number(profile.ownedDroneCount || 0))),
     droneLoadout:Array.isArray(profile.droneLoadout) ? profile.droneLoadout.map(value=>value === null ? null : String(value)) : undefined,
@@ -65,6 +77,8 @@ export function sanitizeProfile(profile = {}){
     questProgress:sanitizeObject(profile.questProgress),
     questFailProgress:sanitizeObject(profile.questFailProgress),
     completedQuestClaims:sanitizeObject(profile.completedQuestClaims),
+    killStats:sanitizeObject(profile.killStats),
+    rankKillStats:sanitizeObject(profile.rankKillStats),
     worldSession:sanitizeWorldSession(profile.worldSession)
   };
 }
@@ -104,7 +118,7 @@ export function preserveProtectedOwnership(incoming, existing){
     "shipCargo", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
     "portalPieces", "prestigeCount", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
-    "refineryProductionDisabled", "refineryLastTick"
+    "refineryProductionDisabled", "refineryLastTick", "killStats", "rankKillStats"
   ]){
     if(alwaysProtected.has(field) || hasProtectedOwnershipValue(existing, field)){
       incoming[field] = cloneProtectedValue(existing[field]);

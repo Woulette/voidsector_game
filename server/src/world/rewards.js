@@ -1,4 +1,6 @@
-export function createWorldRewardManager({io, players, groups, profileManager}){
+import { calculateMonsterKillRankPoints } from "../../../src/data/ranks.js";
+
+export function createWorldRewardManager({io, players, groups, profileManager, emitProfileSync}){
   function emitWorldReward({enemy, mapId, attackerId}){
     const attacker = players.get(attackerId);
     if(!attacker || !enemy || enemy.rewardGranted) return;
@@ -13,6 +15,10 @@ export function createWorldRewardManager({io, players, groups, profileManager}){
       const player = players.get(playerId);
       if(!player || player.mapId !== String(mapId)) continue;
       const share = player.id === attackerId ? 1 : 0.5;
+      const currentProfile = profileManager.getProfileForPlayer?.(player);
+      const xp = Math.max(0, Math.round(Number(reward.xp || 0) * share));
+      const rankPoints = calculateMonsterKillRankPoints(currentProfile?.player?.level || 1, enemy.level);
+      const reputation = Math.max(0, Math.round(xp * 0.1));
       io.to(player.id).emit("player:reward", {
         rewardId,
         enemyId:enemy.id,
@@ -22,8 +28,10 @@ export function createWorldRewardManager({io, players, groups, profileManager}){
         share,
         killerId:attackerId,
         credits:Math.max(0, Math.round(Number(reward.credits || 0) * share)),
-        xp:Math.max(0, Math.round(Number(reward.xp || 0) * share)),
+        xp,
         premium:Math.max(0, Math.round(Number(reward.premium || 0) * share)),
+        reputation,
+        rankPoints,
         rewardAppliedByServer:true,
         at:Date.now()
       });
@@ -32,10 +40,13 @@ export function createWorldRewardManager({io, players, groups, profileManager}){
         reward:{
           credits:Math.max(0, Math.round(Number(reward.credits || 0) * share)),
           xp:Math.max(0, Math.round(Number(reward.xp || 0) * share)),
-          premium:Math.max(0, Math.round(Number(reward.premium || 0) * share))
+          premium:Math.max(0, Math.round(Number(reward.premium || 0) * share)),
+          enemyKind:enemy.kind || enemy.type,
+          enemyType:enemy.type,
+          enemyLevel:enemy.level
         }
       });
-      if(profile) io.to(player.id).emit("profile:sync", profile);
+      emitProfileSync?.(player, profile);
     }
   }
 

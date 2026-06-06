@@ -24,6 +24,7 @@ Ces fichiers doivent rester courts et lisibles.
 ## Ou mettre le code client
 
 - Catalogue, getters simples : `src/core/catalogStore.js`
+- Orientation visuelle commune des monstres et de leurs icones : `src/data/enemyVisuals.js`
 - Monnaie locale legacy : `src/core/currencyStore.js`
 - XP / points de competence : `src/core/xpStore.js`
 - Graphismes : `src/core/graphicsStore.js`
@@ -100,3 +101,7 @@ Avant de modifier une feature MMO ou l'architecture :
 3. `REGLES_IMPORTANTES_AVANT_DE_CODER.md`
 
 Si ces fichiers contredisent une intuition rapide, suivre les fichiers et inspecter le code avant de modifier.
+
+Pour les sujets plateforme, site public, compte global, support, paiements ou futur portail Absyrion, lire aussi :
+
+- `ABSYRION_PLATFORM_PLAN.md`

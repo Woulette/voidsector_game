@@ -90,8 +90,9 @@ export function createPresenceManager({io, players, emitPlayers, config, onPlaye
   }
 
   function applyDamageToPlayerState(player, amount){
-    if(!player?.state) return;
+    if(!player?.state) return 0;
     let incoming = Math.max(0, Number(amount || 0));
+    const hpBeforeDamage = Number(player.state.hp || 0);
     const maxShield = Math.max(0, Number(player.state.maxShield || 0));
     if(maxShield > 0 && Number(player.state.shield || 0) > 0){
       const shieldPart = incoming * 0.8;
@@ -103,6 +104,7 @@ export function createPresenceManager({io, players, emitPlayers, config, onPlaye
     }
     if(incoming > 0) player.state.hp = Math.max(0, Number(player.state.hp || 0) - incoming);
     player.state.updatedAt = Date.now();
+    return Math.max(0, hpBeforeDamage - Number(player.state.hp || 0));
   }
 
   function syncMovementLogoutState(player){

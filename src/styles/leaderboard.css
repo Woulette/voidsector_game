@@ -79,7 +79,6 @@
 .rank-monster-table small{color:#8fb9d6}
 .rank-monster-name{display:flex!important;align-items:center;gap:9px;min-width:0}
 .rank-monster-name img{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(56,189,248,.24))}
-.rank-monster-name img.rotate{transform:rotate(180deg)!important}
 .rank-monster-name b{display:block;color:#e6fbff;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rank-monster-name small{display:block;font-size:11px;color:#8fb9d6}
 @media (max-width:1180px){
