@@ -1,7 +1,7 @@
 import { WORLD_MAPS } from "./definitions.js";
 import { createWorldEnemy, publicEnemy, seededRandom } from "./spawn.js";
 
-export function createWorldStateManager({io, players, progressProfileQuestAction}){
+export function createWorldStateManager({io, players, presence, progressProfileQuestAction}){
   const worldMaps = new Map();
 
   function getWorldMapState(mapId){
@@ -80,7 +80,7 @@ export function createWorldStateManager({io, players, progressProfileQuestAction
   }
 
   function playersOnMap(mapId){
-    return [...players.values()].filter(player=>player.mapId === String(mapId) && player.state);
+    return [...players.values()].filter(player=>player.mapId === String(mapId) && presence.isActiveForWorld(player));
   }
 
   return {

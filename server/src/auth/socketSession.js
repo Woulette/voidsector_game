@@ -57,8 +57,10 @@ export function createSocketSessionManager({io, players, groups, profileManager,
     if(!current || !account) return null;
     let resumeSession = null;
     const isGameClient = current.clientMode === "game";
-    const existing = [...players.values()].find(player=>player.id !== socket.id && player.accountId === account.id && player.state);
-    if(isGameClient && existing){
+    const duplicates = [...players.values()].filter(player=>player.id !== socket.id && player.accountId === account.id);
+    const existing = duplicates.find(player=>player.state) || duplicates[0] || null;
+    const transfersExistingState = Boolean(isGameClient && existing?.state);
+    if(transfersExistingState){
       resumeSession = buildResumeSessionFromState(existing.state, existing.connected === false ? "reconnect" : "takeover");
       const existingSocket = io.sockets.sockets.get(existing.id);
       const nextPlayer = {
@@ -84,6 +86,15 @@ export function createSocketSessionManager({io, players, groups, profileManager,
       if(nextPlayer.mapId) setPlayerMap(socket, nextPlayer.mapId);
     }else{
       attachAccountToSocket(socket, account, session);
+    }
+    const duplicatesToRemove = isGameClient ? duplicates : duplicates.filter(duplicate=>duplicate.clientMode !== "game");
+    for(const duplicate of duplicatesToRemove){
+      if(transfersExistingState && duplicate.id === existing?.id) continue;
+      const duplicateSocket = io.sockets.sockets.get(duplicate.id);
+      if(duplicate.mapRoom) duplicateSocket?.leave(duplicate.mapRoom);
+      replaceGroupMemberId(duplicate.id, socket.id);
+      players.delete(duplicate.id);
+      duplicateSocket?.disconnect(true);
     }
     const player = players.get(socket.id);
     if(isGameClient && !resumeSession){

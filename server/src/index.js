@@ -133,6 +133,7 @@ const {
 } = createWorldStateManager({
   io,
   players,
+  presence,
   progressProfileQuestAction
 });
 
@@ -289,6 +290,7 @@ io.on("connection", socket=>{
     ...socketContext,
     cleanName,
     emitPlayers,
+    io,
     presence,
     publicPlayer,
     setPlayerMap,

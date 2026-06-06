@@ -22,12 +22,15 @@ export function installPlayerSocketListeners({
   });
   socket.on("players:list", players=>{
     multiplayer.players = Array.isArray(players) ? players : [];
-    const liveIds = new Set(multiplayer.players.map(player=>player?.id).filter(Boolean));
+    const liveIds = new Set(multiplayer.players
+      .filter(player=>player?.connected !== false)
+      .map(player=>player?.id)
+      .filter(Boolean));
     for(const id of multiplayer.remotePlayers.keys()){
       if(!liveIds.has(id)) multiplayer.remotePlayers.delete(id);
     }
     for(const player of multiplayer.players){
-      if(player?.id && player.id !== multiplayer.playerId && player.state) upsertRemotePlayer(player);
+      if(player?.connected !== false && player?.id && player.id !== multiplayer.playerId && player.state) upsertRemotePlayer(player);
     }
     emitChange();
   });

@@ -10,6 +10,7 @@ export function createPresenceManager({io, players, emitPlayers, config, onPlaye
       name:"Pilote",
       accountId:null,
       account:null,
+      clientId:null,
       clientMode:"launcher",
       sessionExpiresAt:null,
       groupId:null,
@@ -36,6 +37,10 @@ export function createPresenceManager({io, players, emitPlayers, config, onPlaye
 
   function isRecentlyInCombat(player, now = Date.now()){
     return Number(player?.lastCombatAt || 0) > 0 && now - Number(player.lastCombatAt || 0) < combatRecentMs;
+  }
+
+  function isActiveForWorld(player, now = Date.now()){
+    return Boolean(player?.state) && (player.connected !== false || isRecentlyInCombat(player, now));
   }
 
   function getLogoutBlockReason(player, now = Date.now()){
@@ -152,6 +157,7 @@ export function createPresenceManager({io, players, emitPlayers, config, onPlaye
   return {
     createPlayer,
     markCombat,
+    isActiveForWorld,
     applyDamageToPlayerState,
     startLogout,
     cancelLogout,

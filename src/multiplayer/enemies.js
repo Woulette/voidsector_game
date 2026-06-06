@@ -23,7 +23,12 @@ function lerpAngle(a, b, t){
   return a + delta * t;
 }
 
-function sampleBufferedState(samples, delayMs = 115){
+const SERVER_ENEMY_INTERPOLATION_DELAY_MS = 170;
+const SERVER_ENEMY_MAX_EXTRAPOLATION_SECONDS = 0.08;
+const SERVER_ENEMY_SNAP_DISTANCE = 900;
+const SERVER_ENEMY_MAX_VISUAL_CORRECTION = 55;
+
+function sampleBufferedState(samples, delayMs = SERVER_ENEMY_INTERPOLATION_DELAY_MS){
   if(!Array.isArray(samples) || samples.length <= 0) return null;
   const ordered = samples.filter(sample=>Number.isFinite(sample?.at)).sort((a, b)=>a.at - b.at);
   if(!ordered.length) return null;
@@ -45,12 +50,18 @@ function sampleBufferedState(samples, delayMs = 115){
     };
   }
   const latest = ordered[ordered.length - 1];
-  const extrapolateSeconds = Math.max(0, Math.min(.12, (targetTime - latest.at) / 1000));
+  const extrapolateSeconds = Math.max(0, Math.min(SERVER_ENEMY_MAX_EXTRAPOLATION_SECONDS, (targetTime - latest.at) / 1000));
   return {
     ...latest,
     x:Number(latest.x || 0) + Number(latest.vx || 0) * extrapolateSeconds,
     y:Number(latest.y || 0) + Number(latest.vy || 0) * extrapolateSeconds
   };
+}
+
+function smoothPosition(previous, target, factor = .28){
+  const delta = target - previous;
+  if(Math.abs(delta) <= SERVER_ENEMY_MAX_VISUAL_CORRECTION) return lerp(previous, target, factor);
+  return previous + Math.sign(delta) * SERVER_ENEMY_MAX_VISUAL_CORRECTION;
 }
 
 function normalizeServerEnemy(serverEnemy, existing = null){
@@ -63,7 +74,7 @@ function normalizeServerEnemy(serverEnemy, existing = null){
   const previousY = Number(existing?.y ?? serverY);
   const previousAngle = Number(existing?.angle ?? serverAngle);
   const distance = Math.hypot(serverX - previousX, serverY - previousY);
-  const smooth = existing && distance < 650;
+  const smooth = existing && distance < SERVER_ENEMY_SNAP_DISTANCE;
   return {
     ...serverEnemy,
     id,
@@ -73,11 +84,11 @@ function normalizeServerEnemy(serverEnemy, existing = null){
     maxHp:Number(serverEnemy.maxHp || serverEnemy.hp || 1),
     shield:Number(serverEnemy.shield || 0),
     maxShield:Number(serverEnemy.maxShield || 0),
-    x:smooth ? lerp(previousX, serverX, .55) : serverX,
-    y:smooth ? lerp(previousY, serverY, .55) : serverY,
+    x:smooth ? smoothPosition(previousX, serverX) : serverX,
+    y:smooth ? smoothPosition(previousY, serverY) : serverY,
     serverX,
     serverY,
-    angle:smooth ? lerpAngle(previousAngle, serverAngle, .55) : serverAngle,
+    angle:smooth ? lerpAngle(previousAngle, serverAngle, .30) : serverAngle,
     vx:Number(buffered?.vx ?? serverEnemy.vx ?? 0),
     vy:Number(buffered?.vy ?? serverEnemy.vy ?? 0),
     aggro:false,

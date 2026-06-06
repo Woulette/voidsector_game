@@ -13,7 +13,7 @@ export function replaceServerEnemies(multiplayer, payload, scope){
   for(const enemy of Array.isArray(payload?.enemies) ? payload.enemies : []){
     if(!enemy?.id) continue;
     const existing = multiplayer.serverEnemies.get(enemy.id);
-    const samples = Array.isArray(existing?.samples) ? existing.samples.slice(-7) : [];
+    const samples = Array.isArray(existing?.samples) ? existing.samples.slice(-12) : [];
     samples.push({
       x:Number(enemy.x || 0),
       y:Number(enemy.y || 0),

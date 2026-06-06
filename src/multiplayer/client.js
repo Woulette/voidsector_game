@@ -18,6 +18,16 @@ const DEFAULT_SERVER_URL = "http://localhost:3001";
 const SERVER_STORAGE_KEY = "voidsector-multiplayer-server";
 const NAME_STORAGE_KEY = "voidsector-multiplayer-name";
 const AUTH_TOKEN_STORAGE_KEY = "voidsector-auth-token";
+const CLIENT_ID_STORAGE_KEY = "voidsector-client-id";
+
+function getClientId(){
+  let id = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+  if(!id){
+    id = `client_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(CLIENT_ID_STORAGE_KEY, id);
+  }
+  return id;
+}
 
 export const multiplayer = {
   socket:null,
@@ -32,6 +42,7 @@ export const multiplayer = {
     pending:false,
     error:""
   },
+  clientId:getClientId(),
   serverUrl:localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER_URL,
   clientMode:"launcher",
   name:localStorage.getItem(NAME_STORAGE_KEY) || "",
@@ -168,7 +179,7 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       multiplayer.connected = true;
       multiplayer.connecting = false;
       multiplayer.playerId = socket.id;
-      socket.emit("player:hello", {name:multiplayer.name, clientMode:multiplayer.clientMode});
+      socket.emit("player:hello", {name:multiplayer.name, clientMode:multiplayer.clientMode, clientId:multiplayer.clientId});
       if(multiplayer.auth.token) socket.emit("auth:session", {token:multiplayer.auth.token});
       auth.sendPendingAction();
       toast("Connecte au serveur multi.");

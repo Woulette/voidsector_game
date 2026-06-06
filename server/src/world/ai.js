@@ -237,7 +237,7 @@ export function createWorldAiManager({io, players, presence, profileManager, isP
     const attackDistance = attackTarget?.state
       ? Math.hypot(Number(attackTarget.state.x || 0) - enemy.x, Number(attackTarget.state.y || 0) - enemy.y)
       : Infinity;
-    if(attackTarget?.state && attackDistance <= Number(enemy.attackRange || 360) && now >= Number(enemy.nextAttackAt || 0)){
+    if(presence.isActiveForWorld(attackTarget, now) && attackDistance <= Number(enemy.attackRange || 360) && now >= Number(enemy.nextAttackAt || 0)){
       const amount = Math.max(1, Math.round(Number(enemy.attackDamage || 25) * (0.85 + Math.random() * 0.3)));
       enemy.nextAttackAt = now + Number(enemy.attackCooldown || 1400);
       emitEnemyAttack(enemy, map, attackTarget, amount);

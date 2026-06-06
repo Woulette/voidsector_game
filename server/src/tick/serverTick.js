@@ -21,7 +21,10 @@ export function startServerTick({
     worldLastTick = now;
     worldEmitT += dt;
     instanceEmitT += dt;
-    const activeMapIds = new Set([...players.values()].map(player=>player.mapId).filter(mapId=>WORLD_MAPS[String(mapId)]));
+    const activeMapIds = new Set([...players.values()]
+      .filter(player=>presence.isActiveForWorld(player, now))
+      .map(player=>player.mapId)
+      .filter(mapId=>WORLD_MAPS[String(mapId)]));
     for(const mapId of activeMapIds){
       const mapConfig = WORLD_MAPS[String(mapId)] || WORLD_MAPS["0"];
       const mapState = getWorldMapState(mapConfig.id);
@@ -39,7 +42,7 @@ export function startServerTick({
       const map = instance.type === "portal"
         ? {id:`portal-${instance.portal?.id || "blue"}`, room:group.id, width:5200, height:3600, spawn:{x:0, y:0, r:240}}
         : {id:"coop-test", room:group.id, width:5200, height:3600, spawn:{x:instance.spawn?.x || 0, y:instance.spawn?.y || 0, r:260}};
-      const instancePlayers = group.members.map(id=>players.get(id)).filter(player=>player?.state);
+      const instancePlayers = group.members.map(id=>players.get(id)).filter(player=>presence.isActiveForWorld(player, now));
       if(!instancePlayers.length) continue;
       for(const enemy of instance.enemies) updateWorldEnemy(enemy, map, instancePlayers, dt, now);
     }

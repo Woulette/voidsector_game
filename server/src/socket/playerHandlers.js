@@ -11,12 +11,49 @@ export function registerPlayerHandlers(socket, context){
     syncProfileForPlayer
   } = context;
 
+  function cleanClientId(value){
+    return String(value || "").trim().replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 80);
+  }
+
+  function takeoverGuestSocket(player, clientId){
+    if(!player || player.accountId || !clientId) return player;
+    const existing = [...players.values()].find(candidate=>
+      candidate.id !== player.id
+      && !candidate.accountId
+      && candidate.clientId === clientId
+    );
+    if(!existing) return player;
+    const existingSocket = context.io?.sockets?.sockets?.get(existing.id);
+    const nextPlayer = {
+      ...existing,
+      id:player.id,
+      name:player.name,
+      clientId,
+      clientMode:player.clientMode,
+      connected:true,
+      disconnecting:false,
+      logoutPending:null,
+      gracefulLogout:false,
+      removeAt:0,
+      mapRoom:null,
+      worldMapSent:false
+    };
+    if(existing.mapRoom) existingSocket?.leave(existing.mapRoom);
+    players.delete(existing.id);
+    players.set(player.id, nextPlayer);
+    existingSocket?.disconnect(true);
+    if(nextPlayer.mapId) setPlayerMap(socket, nextPlayer.mapId);
+    return nextPlayer;
+  }
+
   socket.on("player:hello", payload=>{
     if(!guard("player:hello")) return;
-    const player = players.get(socket.id);
+    let player = players.get(socket.id);
     if(!player) return;
     player.clientMode = payload?.clientMode === "game" ? "game" : "launcher";
+    player.clientId = cleanClientId(payload?.clientId);
     if(!player.accountId) player.name = cleanName(payload?.name);
+    player = takeoverGuestSocket(player, player.clientId);
     syncProfileForPlayer(socket);
     emitPlayers();
   });
