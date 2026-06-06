@@ -10,6 +10,54 @@ Objectif : reduire `server/src/index.js` sans changer le gameplay, en gardant le
 - Lancer `node --check` apres chaque extraction.
 - Ne pas modifier `server/data/profiles.json` pendant les refactors.
 
+## Lecture obligatoire avant de coder
+
+Avant toute modification MMO ou architecture, lire dans cet ordre :
+
+1. `MMO_100_PERCENT_PLAN.md`
+2. `MMO_REFACTOR_NOTES.md`
+3. `REGLES_IMPORTANTES_AVANT_DE_CODER.md`
+
+Le fichier `REGLES_IMPORTANTES_AVANT_DE_CODER.md` explique ou placer le code apres les extractions recentes. Ne pas regonfler les facades (`store.js`, `questStore.js`, `refineryStore.js`, `server/src/quests/quests.js`, `server/src/economy/refinery.js`, `server/src/index.js`) avec de la logique metier.
+
+## Etat actuel du decoupage
+
+Le gros decoupage structurel est en pause. Les anciens fichiers fourre-tout les plus critiques ont ete reduits en facades ou coordinateurs :
+
+- `server/src/index.js`
+- `server/src/quests/quests.js`
+- `server/src/economy/refinery.js`
+- `src/core/store.js`
+- `src/core/questStore.js`
+- `src/core/refineryStore.js`
+- `src/multiplayer/client.js`
+- `src/app.js`
+- `src/game/combatOrchestrator.js`
+
+Regle actuelle : ne plus decouper pour decouper. Ajouter du code dans le module de domaine existant, ou creer un nouveau module si la responsabilite ne rentre pas clairement dans les fichiers actuels.
+
+## Reste a decouper plus tard
+
+Pas urgent avant les corrections en jeu, mais a garder en tete :
+
+- `server/src/players/profiles.js`
+  - sensible car charge, normalise et sauvegarde les profils ;
+  - a reprendre seulement si une future modification profil l'alourdit.
+- `src/app.js`
+  - encore coordinateur UI global ;
+  - a reprendre seulement si on ajoute beaucoup de branchements UI.
+- `src/game/combatOrchestrator.js`
+  - encore gros ;
+  - a reprendre par domaines seulement si on touche au combat client.
+- `src/multiplayer/client.js`
+  - deja decoupe ;
+  - a reprendre seulement si de nouveaux events MMO le regonflent.
+- `server/src/players/profileActions.js`
+  - peut devenir gros avec l'anti-spam et les nouvelles actions autoritaires ;
+  - si ca arrive, separer les domaines action par action.
+
+Priorite suivante recommandee : corrections en jeu et securisation MMO, pas nouveau refactor structurel.
+
 ## Extraction 1 - Socket handlers autoritaires
 
 Fait :
@@ -334,3 +382,158 @@ Prochaines extractions recommandees :
 
 - extraire les derniers branchements UI generiques seulement si cela clarifie leur domaine ;
 - traiter ensuite `src/core/store.js`, qui reste le prochain fichier critique melangeant etat, sauvegarde et logique metier.
+
+## Extraction 7 - Store client core
+
+Premiere passe sur `src/core/store.js` :
+
+- `src/core/catalogStore.js`
+  - getters catalogue : vaisseaux, items, munitions, drones, portails, quetes, materiaux et recettes.
+- `src/core/currencyStore.js`
+  - labels de prix, verification credits / NOVA et depense locale temporaire.
+- `src/core/xpStore.js`
+  - courbe XP, calcul du prochain niveau et synchronisation des points de competence.
+- `src/core/graphicsStore.js`
+  - presets et normalisation de la qualite graphique.
+- `src/core/portalProgressStore.js`
+  - pieces de portails, completion, conditions de vaisseaux, prestige et verrous de progression.
+- `src/core/stateNormalizer.js`
+  - migration / nettoyage des sauvegardes locales ;
+  - protection des valeurs de profil ;
+  - initialisation du starter Orion, slots, drone de reparation, quetes, raffinerie, cargo et loadouts.
+- `src/core/combatStatsStore.js`
+  - equipements actifs vaisseau / drones ;
+  - bonus extras, drone de reparation, boosts temporaires et formations ;
+  - stats combat vaisseau ;
+  - XP, reputation et compteur d'utilisation des armes.
+
+Resultat :
+
+- `src/core/store.js` passe d'environ 950 a environ 170 lignes.
+- Le fichier reste la facade publique historique du store pour limiter les changements d'import.
+- Les responsabilites critiques sont maintenant separees entre catalogue, monnaie, XP, portails, normalisation d'etat et stats combat.
+- Smoke test OK sur `loadState()`, `normalizeState`, XP, Orion, drone starter, slots 1 / 9, stats combat et reputation.
+
+Prochaine extraction recommandee :
+
+- reprendre `src/core/refineryStore.js`, qui reste un gros domaine metier avec production, upgrades, expeditions et recettes ;
+- ou `src/core/questStore.js` si la prochaine priorite est la progression serveur / synchro quetes.
+
+## Extraction 8 - Raffinerie client
+
+Decoupage de `src/core/refineryStore.js` :
+
+- `src/core/refineryRules.js`
+  - constantes, modules, couts, courbes, durees et formules pures.
+- `src/core/refineryStateStore.js`
+  - niveaux materiaux, niveaux modules et activation production.
+- `src/core/refineryUpgradeStore.js`
+  - donnees d'upgrade ;
+  - demarrage, rush et completion des jobs d'amelioration ;
+  - upgrades instantanes legacy.
+- `src/core/refineryShipmentStore.js`
+  - capacite transport ;
+  - expeditions vers la soute ;
+  - rush et completion d'expedition ;
+  - craft / fusion en soute.
+
+Resultat :
+
+- `src/core/refineryStore.js` passe d'environ 636 a environ 84 lignes.
+- Il conserve les exports publics historiques via re-export pour ne pas casser les imports existants.
+- Smoke test OK sur niveaux, capacite stockage, production, upgrade data, expedition et `tickRefineryProduction()`.
+
+Prochaine extraction recommandee :
+
+- `src/core/questStore.js`, car il reste un domaine critique pour la synchro MMO temps reel ;
+- ensuite `server/src/quests/quests.js` pour aligner plus clairement la logique serveur des quetes.
+
+## Extraction 9 - Quetes client
+
+Decoupage de `src/core/questStore.js` :
+
+- `src/core/questObjectiveMatchers.js`
+  - matchers d'objectifs : kill, map, coordonnees, NPC, item drop, Space Caster et upgrades raffinerie.
+- `src/core/questProgressStore.js`
+  - quetes actives ;
+  - lecture de progression ;
+  - acceptation ;
+  - conditions d'objectifs et progression d'objectif.
+- `src/core/questFailureStore.js`
+  - reset de run ;
+  - echecs par perte de HP, temps limite et mort.
+- `src/core/questRewardStore.js`
+  - multipliers de recompense ;
+  - claim local legacy et application des rewards.
+
+Resultat :
+
+- `src/core/questStore.js` passe d'environ 474 a environ 141 lignes.
+- Il garde les exports publics historiques et devient surtout le dispatcher des evenements de progression client.
+- Smoke test OK sur acceptation, claim, progression, kill, NPC et echecs.
+
+Prochaine extraction recommandee :
+
+- `server/src/quests/quests.js`, pour clarifier la logique serveur qui doit rester l'autorite MMO ;
+- ou `server/src/economy/refinery.js` si on veut aligner les formules raffinerie serveur avec le decoupage client.
+
+## Extraction 10 - Quetes serveur
+
+Decoupage de `server/src/quests/quests.js` :
+
+- `server/src/quests/questState.js`
+  - catalogue quetes ;
+  - objectifs, progression et normalisation des champs profil ;
+  - acceptation serveur ;
+  - progression d'objectif.
+- `server/src/quests/questMatchers.js`
+  - matchers kill et actions serveur.
+- `server/src/quests/questRewards.js`
+  - multiplicateurs de recompense ;
+  - application des rewards serveur ;
+  - claim serveur.
+
+Resultat :
+
+- `server/src/quests/quests.js` passe d'environ 322 a environ 60 lignes.
+- Il reste la facade publique des quetes serveur avec `acceptServerQuest`, `claimServerQuest`, `progressServerQuestKill` et `progressServerQuestAction`.
+- Smoke test OK sur les exports publics.
+- `SERVER_CHECK_OK` sur tout `server/src`.
+
+Prochaine priorite essentielle :
+
+- ajouter les verrous anti-spam par compte sur les actions sensibles ;
+- finir les domaines encore trop clients : rang, vente / recyclage, controles admin minimum ;
+- aligner ou factoriser les formules raffinerie serveur si on veut eviter les divergences client / serveur.
+
+## Extraction 11 - Raffinerie serveur
+
+Decoupage de `server/src/economy/refinery.js` :
+
+- `server/src/economy/refineryRules.js`
+  - constantes, modules, couts, courbes, durees et formules pures serveur.
+- `server/src/economy/refineryProfile.js`
+  - acces profil : materiaux, soute, vaisseaux, niveaux raffinerie et activation production.
+- `server/src/economy/refineryUpgrades.js`
+  - calcul des upgrades ;
+  - demarrage, rush et completion des ameliorations.
+- `server/src/economy/refineryJobs.js`
+  - lancement / claim des jobs de raffinage simples.
+- `server/src/economy/refineryProduction.js`
+  - production automatique par tick serveur.
+- `server/src/economy/refineryShipments.js`
+  - expeditions vers soute ;
+  - rush / completion expedition ;
+  - craft de soute.
+
+Resultat :
+
+- `server/src/economy/refinery.js` passe d'environ 530 a environ 14 lignes.
+- Il reste la facade publique historique utilisee par `profileActions.js` et `profiles.js`.
+- Smoke test OK sur les exports raffinerie serveur.
+- `SERVER_CHECK_OK` sur tout `server/src`.
+
+Suite recommandee :
+
+- arreter le gros decoupage structurel ;
+- passer aux corrections en jeu et aux priorites MMO : anti-spam serveur, rang serveur, vente / recyclage serveur, admin minimum.
