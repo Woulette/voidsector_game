@@ -1,4 +1,5 @@
 import { WORLD_AI_REPATH_MS, WORLD_ENEMY_AGGRO_MULTIPLIER, WORLD_ENEMY_TARGET_MEMORY_MS } from "./constants.js";
+import { canEnemyTargetPlayerInSafeZone } from "./aggro.js";
 import { seededRandom } from "./spawn.js";
 
 function clamp(value, min, max){
@@ -10,11 +11,21 @@ function getEnemyAiKind(kind){
 }
 
 export function createWorldAiManager({io, players, presence, profileManager, isPlayerSafeOnMap}){
-  function nearestPlayer(enemy, candidates, map){
+  function canTargetPlayer(enemy, player, map, now){
+    return canEnemyTargetPlayerInSafeZone({
+      enemy,
+      player,
+      map,
+      now,
+      isPlayerSafeOnMap
+    });
+  }
+
+  function nearestPlayer(enemy, candidates, map, now){
     let best = null;
     let bestDistance = Infinity;
     for(const player of candidates){
-      if(isPlayerSafeOnMap(player, map)) continue;
+      if(!canTargetPlayer(enemy, player, map, now)) continue;
       const dx = Number(player.state.x || 0) - enemy.x;
       const dy = Number(player.state.y || 0) - enemy.y;
       const distance = Math.hypot(dx, dy);
@@ -74,7 +85,7 @@ export function createWorldAiManager({io, players, presence, profileManager, isP
   }
 
   function computeWorldEnemyDecision(enemy, map, mapPlayers, now){
-    const spottedTarget = nearestPlayer(enemy, mapPlayers, map);
+    const spottedTarget = nearestPlayer(enemy, mapPlayers, map, now);
     let targetX = enemy.x;
     let targetY = enemy.y;
     let speed = Number(enemy.speed || 160);
@@ -89,7 +100,7 @@ export function createWorldAiManager({io, players, presence, profileManager, isP
       const lockedPlayer = mapPlayers.find(player=>
         player.id === enemy.lockedPlayerId
         && player.state
-        && !isPlayerSafeOnMap(player, map)
+        && canTargetPlayer(enemy, player, map, now)
       );
       if(lockedPlayer){
         const dx = Number(lockedPlayer.state.x || 0) - enemy.x;
@@ -234,10 +245,11 @@ export function createWorldAiManager({io, players, presence, profileManager, isP
     }
 
     const attackTarget = decision.targetPlayerId ? players.get(decision.targetPlayerId) : null;
+    const canAttackTarget = canTargetPlayer(enemy, attackTarget, map, now);
     const attackDistance = attackTarget?.state
       ? Math.hypot(Number(attackTarget.state.x || 0) - enemy.x, Number(attackTarget.state.y || 0) - enemy.y)
       : Infinity;
-    if(presence.isActiveForWorld(attackTarget, now) && attackDistance <= Number(enemy.attackRange || 360) && now >= Number(enemy.nextAttackAt || 0)){
+    if(canAttackTarget && presence.isActiveForWorld(attackTarget, now) && attackDistance <= Number(enemy.attackRange || 360) && now >= Number(enemy.nextAttackAt || 0)){
       const amount = Math.max(1, Math.round(Number(enemy.attackDamage || 25) * (0.85 + Math.random() * 0.3)));
       enemy.nextAttackAt = now + Number(enemy.attackCooldown || 1400);
       emitEnemyAttack(enemy, map, attackTarget, amount);

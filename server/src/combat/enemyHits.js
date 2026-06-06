@@ -1,4 +1,5 @@
 import { resolveServerCombatFire } from "./damage.js";
+import { markEnemyAttackedByPlayer } from "../world/aggro.js";
 
 function applyDamageToEnemy(enemy, incoming){
   enemy.recentHitTimer = 4;
@@ -73,6 +74,7 @@ export function createEnemyHitHandler({
       const mapId = player.mapId;
       const wasAlive = worldEnemy.hp > 0;
       updateLootOwner(worldEnemy, socket.id);
+      markEnemyAttackedByPlayer(worldEnemy, socket.id);
       applyDamageToEnemy(worldEnemy, incoming);
       if(wasAlive && worldEnemy.hp <= 0){
         emitWorldReward({enemy:worldEnemy, mapId, attackerId:socket.id});
@@ -119,6 +121,7 @@ export function createEnemyHitHandler({
       }
     }else if(incoming <= 0) return;
     const wasAlive = enemy.hp > 0;
+    markEnemyAttackedByPlayer(enemy, socket.id);
     applyDamageToEnemy(enemy, incoming);
     if(instance.type === "portal" && wasAlive && enemy.hp <= 0 && !instance.completed){
       const alive = instance.enemies.some(entry=>entry.hp > 0);

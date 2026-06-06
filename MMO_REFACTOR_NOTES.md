@@ -125,6 +125,10 @@ Checks effectues :
 
 Fait :
 
+- `server/src/world/aggro.js`
+  - regle MMO safe-zone / riposte ;
+  - un joueur en zone non-agression est ignore sauf par l'ennemi qu'il vient d'attaquer ;
+  - la riposte expire apres 10 secondes sans nouvelle attaque du joueur.
 - `server/src/world/definitions.js`
   - `WORLD_MAPS`
   - `WORLD_ENEMY_TYPES`
