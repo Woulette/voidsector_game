@@ -82,6 +82,7 @@ import {
   SHIP_ENGINE_PROFILES
 } from "./combatData.js";
 import { preloadCombatAssets } from "./combatAssets.js";
+import { COMBAT_PROFILE_TITLES } from "./combatProfileTitles.js";
 import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js";
 import { createCombatSceneRenderer } from "./render/combatScene.js";
 import { createCombatLoop } from "./systems/combatLoop.js";
@@ -92,9 +93,16 @@ import { createCombatDeathRespawnSystem } from "./systems/combatDeathRespawn.js"
 import { createCombatFrameUpdateSystem } from "./systems/combatFrameUpdate.js";
 import { createCombatHitResolutionSystem } from "./systems/combatHitResolution.js";
 import { createCombatEnemyRuntime } from "./systems/combatEnemyRuntime.js";
+import { createCombatEnemyDamageSystem } from "./systems/combatEnemyDamage.js";
 import { createCombatInteractionSystem } from "./systems/combatInteractions.js";
+import { createCombatMultiplayerSyncSystem } from "./systems/combatMultiplayerSync.js";
 import { createCombatServerEventSystem } from "./systems/combatServerEvents.js";
+import { createCombatServerActions } from "./systems/combatServerActions.js";
 import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js";
+import { createCombatPortalNavigationSystem } from "./systems/combatPortalNavigation.js";
+import { applyCombatStatFields } from "./systems/combatPlayerStats.js";
+import { createCombatQuestProgressSystem } from "./systems/combatQuestProgress.js";
+import { createCombatSessionController } from "./systems/combatSession.js";
 import { createCombatStatusEffectSystem } from "./systems/combatStatusEffects.js";
 import { createCombatWorldStateSystem } from "./systems/combatWorldState.js";
 import { createCombatPerfSystem } from "./systems/combatPerf.js";
@@ -107,7 +115,9 @@ import { createRewardSystem } from "./systems/rewards.js";
 import { createWeaponSystem } from "./systems/weapons.js";
 import { updatePoisonStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
+import { createCombatLogoutController } from "./ui/combatLogoutController.js";
 import { installCombatInputHandlers } from "./ui/inputBindings.js";
+import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js";
 import { createCombatPanels } from "./ui/combatPanels.js";
 import { acceptServerQuest, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendPlayerSnapshot, sendServerEnemyHit, upgradeServerEquipment } from "../multiplayer/client.js";
@@ -123,34 +133,10 @@ export function createCombatGame({renderAll, showToast}){
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
   const cache = {};
-  const PROFILE_TITLES = {
-    first_contact:"Premier sang",
-    hunter_100:"Traqueur spatial",
-    veteran_25:"Vétéran d'Astra",
-    portal_mastery:"Nettoyeur d'Astra",
-    quest_5:"Mercenaire fiable",
-    inventory_30:"Ingénieur de bord",
-    skill_15:"Spécialiste",
-    drone_5:"Chef d'escadron",
-    hunter_500:"Chasseur abyssal",
-    laser_100k:"Canonnier laser",
-    laser_1m:"Deluge photonique",
-    laser_10m:"Architecte de faisceaux",
-    laser_100m:"Tempete laser",
-    laser_1b:"Legende photonique",
-    rocket_25k:"Artilleur orbital",
-    rocket_250k:"Maitre roquettes",
-    rocket_25m:"Barrage orbital",
-    missile_10k:"Artilleur guide",
-    missile_1m:"Commandant missile",
-    missile_100m:"Doctrine orbitale"
-  };
-
   let running = false;
   let last = 0;
   let hudT = 0;
   let quickPanelRefreshT = 0;
-  let coordinateQuestCheckT = 0;
   let enemySeq = 1;
   let currentMap = MAPS[0];
   let teleportLock = 0;
@@ -162,9 +148,6 @@ export function createCombatGame({renderAll, showToast}){
   let mouseMoveHeld = false;
   let combatCargoExpanded = false;
   let deathState = null;
-  let npcDialogue = null;
-  let deathRespawnHandlersInstalled = false;
-  let logoutRequest = null;
   const combatMetricModes = {hp:"bar", shield:"bar", xp:"bar"};
   function getCombatState(){
     return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalTransition, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
@@ -255,11 +238,16 @@ export function createCombatGame({renderAll, showToast}){
     pushDamageText,
     showToast
   });
+  const enemyDamage = createCombatEnemyDamageSystem({
+    isServerControlledEnemy,
+    getServerEnemyId,
+    sendServerEnemyHit
+  });
   const hitResolution = createCombatHitResolutionSystem({
     getState:getCombatState,
     setState:setCombatState,
     isServerControlledEnemy,
-    damageEnemy,
+    damageEnemy:enemyDamage.damage,
     damagePlayer,
     rewardEnemy,
     applyPlayerPoison
@@ -280,7 +268,7 @@ export function createCombatGame({renderAll, showToast}){
     updatePoisonStatus,
     pushDamageText,
     handlePlayerDeath,
-    onPlayerHpLost:handleQuestHpLoss
+    onPlayerHpLost:amount=>questProgress.recordHpLoss(amount)
   });
 
   function refreshPlayerStatsFromLoadout(){
@@ -292,16 +280,7 @@ export function createCombatGame({renderAll, showToast}){
     player.hp = Math.max(0, Math.min(player.maxHp, hpRatio * player.maxHp));
     player.maxShield = stats.bouclier;
     player.shield = player.maxShield > 0 ? Math.max(0, Math.min(player.maxShield, shieldRatio * player.maxShield)) : 0;
-    player.regen = stats.regen;
-    player.speed = stats.vitesseReelle;
-    player.displayedSpeed = stats.vitesseReelle;
-    player.damageBonus = stats.weaponDamage;
-    player.damageMultiplier = Number(stats.weaponDamageMultiplier || (1 + Number(stats.weaponDamagePercent || 0)));
-    player.shieldAbsorbRatio = Math.max(0, Math.min(0.9, Number(stats.shieldAbsorbRatio ?? 0.5)));
-    player.evasionChance = Math.max(0, Math.min(0.75, Number(stats.evasionChance || 0)));
-    player.damageToHpChance = Math.max(0, Math.min(0.5, Number(stats.damageToHpChance || 0)));
-    player.blueLaserBeams = Boolean(stats.blueLaserBeams);
-    player.extraBonus = stats.extraBonus || player.extraBonus;
+    applyCombatStatFields(player, stats);
   }
 
   actions = createCombatActions({
@@ -331,41 +310,26 @@ export function createCombatGame({renderAll, showToast}){
     fireManualMissile
   });
 
-  function acceptQuestAction(questId){
-    if(multiplayer.connected && acceptServerQuest(questId)){
-      const quest = getAllQuests().find(entry=>entry.id === questId) || {id:questId, title:"quete serveur"};
-      const local = acceptQuest(questId);
-      return local.ok ? {...local, serverPending:true} : {ok:true, quest, serverPending:true};
-    }
-    return acceptQuest(questId);
-  }
-
-  function claimQuestAction(questId){
-    if(multiplayer.connected && claimServerQuest(questId)){
-      const quest = getAllQuests().find(entry=>entry.id === questId) || {id:questId, title:"quete serveur"};
-      return {ok:true, quest, serverPending:true};
-    }
-    return claimQuest(questId);
-  }
-
-  function refineShipCargoRecipeAction(recipeId, amount = 1){
-    if(multiplayer.connected && refineServerShipCargo({recipeId, amount, shipId:store.state.activeShip})){
-      const recipe = getRefineryRecipes().find(entry=>entry.id === recipeId) || {id:recipeId, outputId:"materiau"};
-      return {ok:true, recipe, output:null, outputAmount:0, serverPending:true};
-    }
-    return refineShipCargoRecipe(recipeId, amount);
-  }
-
-  function upgradeEquipmentAction(itemId, options = {}){
-    if(multiplayer.connected && upgradeServerEquipment({
-      itemId,
-      materialSource:options.materialSource === "shipCargo" ? "shipCargo" : "cargoHold",
-      shipId:options.shipId || store.state.activeShip
-    })){
-      return {ok:true, level:getEquipmentUpgradeLevel(itemId) + 1, serverPending:true};
-    }
-    return upgradeEquipment(itemId, options);
-  }
+  const {
+    acceptQuestAction,
+    claimQuestAction,
+    refineShipCargoRecipeAction,
+    upgradeEquipmentAction
+  } = createCombatServerActions({
+    multiplayer,
+    getActiveShipId:()=>store.state.activeShip,
+    getAllQuests,
+    getRefineryRecipes,
+    getEquipmentUpgradeLevel,
+    acceptServerQuest,
+    claimServerQuest,
+    refineServerShipCargo,
+    upgradeServerEquipment,
+    acceptQuest,
+    claimQuest,
+    refineShipCargoRecipe,
+    upgradeEquipment
+  });
 
   const panels = createCombatPanels({
     store,
@@ -506,7 +470,7 @@ export function createCombatGame({renderAll, showToast}){
     getDroneLoadout,
     getItemFromInventoryUid,
     getDronePermanentUpgrade,
-    getPlayerTitle:()=>store.state.player.titleVisible === false ? "" : (PROFILE_TITLES[store.state.player.activeTitleId] || ""),
+    getPlayerTitle:()=>store.state.player.titleVisible === false ? "" : (COMBAT_PROFILE_TITLES[store.state.player.activeTitleId] || ""),
     getGroupRemotePlayers,
     miniMap,
     defaultEngineProfile:DEFAULT_ENGINE_PROFILE,
@@ -555,6 +519,19 @@ export function createCombatGame({renderAll, showToast}){
     portalWaveDelay:PORTAL_WAVE_DELAY,
     portalStartingLives:PORTAL_STARTING_LIVES
   });
+  const portalNavigation = createCombatPortalNavigationSystem({
+    mapList:MAPS,
+    getState:getCombatState,
+    setState:setCombatState,
+    actions,
+    getMapPortals,
+    findMapPortalAt,
+    createMapPortalTransition,
+    getMapState,
+    getHomeMapForPlayer,
+    loadMap,
+    showToast
+  });
   const serverEvents = createCombatServerEventSystem({
     multiplayer,
     getState:getCombatState,
@@ -570,6 +547,16 @@ export function createCombatGame({renderAll, showToast}){
     updateHud,
     updateLootPopup,
     portalStartingLives:PORTAL_STARTING_LIVES
+  });
+  const multiplayerSync = createCombatMultiplayerSyncSystem({
+    multiplayer,
+    getState:getCombatState,
+    setState:setCombatState,
+    actions,
+    beams,
+    hasServerControlledEnemies,
+    syncServerControlledEnemies:syncMultiplayerEnemies,
+    showToast
   });
   const frameUpdate = createCombatFrameUpdateSystem({
     multiplayer,
@@ -587,7 +574,7 @@ export function createCombatGame({renderAll, showToast}){
     isPlayerOutsideMap,
     emitPlayerEngineParticles,
     updateHud,
-    syncServerControlledEnemies,
+    syncServerControlledEnemies:multiplayerSync.syncEnemies,
     sendPlayerSnapshot,
     getCurrentRank,
     getActiveShip,
@@ -626,7 +613,98 @@ export function createCombatGame({renderAll, showToast}){
     setLastTime:value=>{ last = value; },
     onFrameMetrics:perf.recordFrameMetrics
   });
-
+  const questNpcDialogue = createQuestNpcDialogue({
+    canvas,
+    multiplayer,
+    getCamera:()=>camera,
+    getCurrentMap:()=>currentMap,
+    getPlayer:()=>player,
+    stopPlayerMovement:()=>{
+      player.vx = 0;
+      player.vy = 0;
+      moveTarget = null;
+      mouseMoveHeld = false;
+    },
+    getActiveQuests,
+    getQuestObjectiveProgress,
+    getInventoryCount,
+    progressServerQuest,
+    recordQuestNpcTalk,
+    saveState,
+    getSpawnPanelMode:()=>panels.getSpawnPanelMode?.(),
+    renderSpawnInteractionPanel:mode=>panels.renderSpawnInteractionPanel?.(mode),
+    updateHud,
+    showToast
+  });
+  const logout = createCombatLogoutController({
+    multiplayer,
+    requestServerLogout,
+    disconnectMultiplayer,
+    getRunning:()=>running,
+    setRunning:value=>{ running = value; },
+    getPlayer:()=>player,
+    getPortalTransition:()=>portalTransition,
+    getTeleportLock:()=>teleportLock,
+    getMouseMoveHeld:()=>mouseMoveHeld,
+    getMoveTarget:()=>moveTarget,
+    getSelectedEnemy:()=>selectedEnemy,
+    getEnemies:()=>enemies,
+    saveState,
+    closeNpcDialogue:questNpcDialogue.close,
+    clearPoison,
+    closeUtilityPanel:()=>panels.closeUtilityPanel(),
+    closeSpawnPanel:()=>panels.closeSpawnPanel(),
+    showToast
+  });
+  const questProgress = createCombatQuestProgressSystem({
+    multiplayer,
+    getPlayer:()=>player,
+    getCurrentMap:()=>currentMap,
+    progressServerQuest,
+    recordQuestCoordinateVisit,
+    recordQuestDeath,
+    recordQuestHpLoss,
+    recordQuestMapVisit,
+    recordQuestTimeElapsed,
+    saveState,
+    getSpawnPanelMode:()=>panels.getSpawnPanelMode?.(),
+    renderSpawnInteractionPanel:mode=>panels.renderSpawnInteractionPanel?.(mode),
+    showToast
+  });
+  const session = createCombatSessionController({
+    store,
+    mapList:MAPS,
+    radarRange:RADAR_RANGE,
+    getRunning:()=>running,
+    setRunning:value=>{ running = value; },
+    getState:getCombatState,
+    setState:setCombatState,
+    getShipCombatStats,
+    getCanvasViewWidth,
+    getCanvasViewHeight,
+    preload,
+    resize,
+    resetPerfMetrics,
+    applyMiniMapLayout:layout=>miniMap.applyLayout(layout, false),
+    installDebugCommands,
+    logout,
+    deathRespawn,
+    chooseDeathRespawn,
+    actions,
+    panels,
+    rewards,
+    beams,
+    cargo,
+    loadMap,
+    loadPortalArena,
+    updateHud,
+    frameLoop,
+    closeQuestNpcDialogue:questNpcDialogue.close,
+    clearPoison,
+    saveState,
+    renderAll,
+    showToast
+  });
   function preload(){
     preloadCombatAssets({cache, ships, equipment:[...equipment, ...getAllRawMaterials(), ...portals, {img:"assets/materials/cargo_box.svg"}, {img:"assets/quest_items/contaminated_sample.png"}, {img:"assets/quest_items/teleportation_fluid.png"}], ammoTypes, enemyTypes:ENEMY_TYPES, maps:MAPS, ranks:RANK_TABLE, getRankAssetPath});
   }
@@ -656,7 +734,7 @@ export function createCombatGame({renderAll, showToast}){
 
   function clearPoison(){ statusEffects.clearPoison(); }
   function handlePlayerDeath(){
-    handleQuestFailures(recordQuestDeath(), "mort du pilote");
+    questProgress.recordDeath();
     deathRespawn.handlePlayerDeath();
   }
   function chooseDeathRespawn(choice){ deathRespawn.chooseRespawn(choice); }
@@ -669,193 +747,6 @@ export function createCombatGame({renderAll, showToast}){
 
   function getStationAt(world){ return worldState.getStationAt(world); }
 
-  function findQuestNpcAt(world){
-    const npcs = Array.isArray(currentMap?.questNpcs) ? currentMap.questNpcs : [];
-    return npcs.find(npc=>Math.hypot(world.x - npc.x, world.y - npc.y) <= (npc.radius || 90)) || null;
-  }
-
-  function getQuestObjectiveState(quest, objectiveId){
-    const objective = quest?.objectives?.find(entry=>entry.id === objectiveId);
-    if(!quest || !objective) return {progress:0, target:0};
-    const index = quest.objectives.indexOf(objective);
-    const key = objective.id || `${objective.type || "objective"}:${objective.target || objective.module || objective.map || objective.zone || index}:${index}`;
-    return {
-      progress:getQuestObjectiveProgress(quest.id, key),
-      target:Number(objective.count || 0)
-    };
-  }
-
-  function isQuestObjectiveDone(quest, objectiveId){
-    const state = getQuestObjectiveState(quest, objectiveId);
-    return state.target > 0 && state.progress >= state.target;
-  }
-
-  function getRickyQuest(){
-    return getActiveQuests().find(quest=>quest.id === "quest_lv5_call_for_help") || null;
-  }
-
-  function getQuestNpcDialogue(npc){
-    if(npc.id !== "astra02_portal_mechanic") return {lines:[`${npc.name || "PNJ"} n'a rien a te demander pour le moment.`], progress:false};
-    const quest = getRickyQuest();
-    if(!quest) return {lines:["Signal bloque. Passe par le relais de quetes avant de revenir."], progress:false};
-    if(!isQuestObjectiveDone(quest, "portal_coord")) return {lines:["Approche du portail ferme, je capte mal ton signal."], progress:false};
-    if(!isQuestObjectiveDone(quest, "talk_start")){
-      return {
-        lines:[
-          "Mon petit fils !!",
-          "J'ai merder mon petit fils et coincé à l'intérieur avec mon pistou portgun.",
-          "Arh c'est pas le moment ! ont se fait attaquer."
-        ],
-        progress:true
-      };
-    }
-    const combatDone = ["traqueurs", "parasites", "vorak", "orbes"].every(id=>isQuestObjectiveDone(quest, id));
-    if(combatDone && !isQuestObjectiveDone(quest, "talk_return")){
-      return {
-        lines:[
-          "Belle bête tu les as bien remis à leur place.",
-          "Il faudrait me trouver du fluide de téléportation mais ici il n'y en as pas essaye de voir en magasin."
-        ],
-        progress:true
-      };
-    }
-    if(!combatDone) return {lines:["Nettoie la zone d'abord ! 2 traqueurs abyssaux, 6 parasites, 8 Vorak et 15 orbes, puis reviens me voir."], progress:false};
-    if(!isQuestObjectiveDone(quest, "fluides")){
-      const fluides = getInventoryCount("teleportation_fluid");
-      if(fluides >= 10){
-        return {lines:["Ahah impréssionant. Retourne a ta station reviens me voir une fois plus aguéris j'aurais encore besoin de toi"], progress:true};
-      }
-      return {lines:[`Il me faut 10 fluides de téléportation. Tu en as ${fluides}/10. Regarde dans les extras du magasin.`], progress:false};
-    }
-    return {lines:["Le portail ne bougera pas sans pieces. On aura encore du boulot."], progress:false};
-  }
-
-  function getNpcDialoguePanel(){
-    let panel = document.getElementById("npcDialoguePanel");
-    if(panel) return panel;
-    panel = document.createElement("div");
-    panel.id = "npcDialoguePanel";
-    panel.className = "npc-dialogue hidden";
-    panel.innerHTML = `
-      <div class="npc-dialogue-box">
-        <div class="npc-dialogue-head"><span data-npc-name></span><button type="button" class="npc-dialogue-close" aria-label="Fermer le dialogue">×</button></div>
-        <p><span data-npc-line></span><i class="npc-dialogue-cursor"></i></p>
-      </div>`;
-    document.getElementById("gameScreen")?.appendChild(panel);
-    panel.addEventListener("click", e=>{
-      e.preventDefault();
-      if(e.target.closest(".npc-dialogue-close")){
-        closeNpcDialogue();
-        return;
-      }
-      advanceNpcDialogue();
-    });
-    return panel;
-  }
-
-  function positionNpcDialogue(){
-    if(!npcDialogue?.npc) return false;
-    const panel = getNpcDialoguePanel();
-    if(panel.classList.contains("hidden")) return false;
-    const rect = canvas.getBoundingClientRect();
-    const zoom = Number(camera.zoom || 1);
-    const npc = npcDialogue.npc;
-    const npcSize = Number(npc.size || 120);
-    const rawX = rect.left + (Number(npc.x || 0) - camera.x) * zoom;
-    const rawY = rect.top + (Number(npc.y || 0) - camera.y - npcSize * .68) * zoom;
-    const offscreenMargin = 90;
-    if(rawX < -offscreenMargin || rawX > window.innerWidth + offscreenMargin || rawY < -offscreenMargin || rawY > window.innerHeight + offscreenMargin){
-      closeNpcDialogue();
-      return false;
-    }
-    const width = Math.min(440, Math.max(300, window.innerWidth - 32));
-    const margin = 14;
-    const left = Math.max(margin, Math.min(window.innerWidth - width - margin, rawX - width / 2));
-    const top = Math.max(82, Math.min(window.innerHeight - 190, rawY - 132));
-    const arrowX = Math.max(28, Math.min(width - 28, rawX - left));
-    panel.style.width = `${width}px`;
-    panel.style.left = `${left}px`;
-    panel.style.top = `${top}px`;
-    panel.style.setProperty("--npc-arrow-x", `${arrowX}px`);
-    return true;
-  }
-
-  function renderNpcDialogue(){
-    const panel = getNpcDialoguePanel();
-    const line = npcDialogue?.lines?.[npcDialogue.index] || "";
-    panel.querySelector("[data-npc-name]").textContent = npcDialogue?.npc?.name || "PNJ";
-    npcDialogue.lineText = line;
-    npcDialogue.visibleText = "";
-    npcDialogue.charIndex = 0;
-    npcDialogue.typeTimer = 0;
-    panel.querySelector("[data-npc-line]").textContent = "";
-    panel.classList.remove("hidden");
-    panel.classList.remove("visible", "line-swap");
-    positionNpcDialogue();
-    requestAnimationFrame(()=>{
-      panel.classList.add("visible", "line-swap");
-      window.setTimeout(()=>panel.classList.remove("line-swap"), 220);
-    });
-  }
-
-  function closeNpcDialogue(){
-    const panel = document.getElementById("npcDialoguePanel");
-    panel?.classList.remove("visible", "line-swap");
-    panel?.classList.add("hidden");
-    npcDialogue = null;
-  }
-
-  function advanceNpcDialogue(){
-    if(!npcDialogue) return;
-    if((npcDialogue.charIndex || 0) < String(npcDialogue.lineText || "").length){
-      npcDialogue.charIndex = String(npcDialogue.lineText || "").length;
-      npcDialogue.visibleText = npcDialogue.lineText || "";
-      document.getElementById("npcDialoguePanel")?.querySelector("[data-npc-line]")?.replaceChildren(document.createTextNode(npcDialogue.visibleText));
-      return;
-    }
-    npcDialogue.index += 1;
-    if(npcDialogue.index < npcDialogue.lines.length){
-      renderNpcDialogue();
-      return;
-    }
-    const npc = npcDialogue.npc;
-    const shouldProgress = npcDialogue.progress;
-    closeNpcDialogue();
-    const progressed = shouldProgress && (multiplayer.connected
-      ? progressServerQuest({type:"talk_npc", npcId:npc.id, zoneName:currentMap.name})
-      : recordQuestNpcTalk(npc.id, currentMap.name));
-    if(progressed){
-      saveState();
-      const panelMode = panels.getSpawnPanelMode?.();
-      if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
-      updateHud();
-      if(!multiplayer.connected) showToast("Objectif mis a jour.");
-    }
-  }
-
-  function interactQuestNpc(npc){
-    const dialogue = getQuestNpcDialogue(npc);
-    npcDialogue = {npc, lines:dialogue.lines, progress:dialogue.progress, index:0};
-    player.vx = 0;
-    player.vy = 0;
-    moveTarget = null;
-    mouseMoveHeld = false;
-    renderNpcDialogue();
-  }
-
-  function updateNpcDialogueTyping(dt){
-    if(!npcDialogue) return;
-    const line = String(npcDialogue.lineText || "");
-    if((npcDialogue.charIndex || 0) >= line.length) return;
-    npcDialogue.typeTimer = Number(npcDialogue.typeTimer || 0) + dt * 42;
-    const nextIndex = Math.min(line.length, Math.floor(npcDialogue.typeTimer));
-    if(nextIndex <= (npcDialogue.charIndex || 0)) return;
-    npcDialogue.charIndex = nextIndex;
-    npcDialogue.visibleText = line.slice(0, nextIndex);
-    const target = document.getElementById("npcDialoguePanel")?.querySelector("[data-npc-line]");
-    if(target) target.textContent = npcDialogue.visibleText;
-  }
-
   function formatDuration(ms){
     const total = Math.max(0, Math.ceil(ms / 1000));
     const m = Math.floor(total / 60);
@@ -865,50 +756,7 @@ export function createCombatGame({renderAll, showToast}){
 
   function loadMap(mapId, x, y, options = {}){
     worldState.loadMap(mapId, x, y, options);
-    const progressed = multiplayer.connected
-      ? false
-      : recordQuestMapVisit(currentMap?.name);
-    if(progressed){
-      saveState();
-      const panelMode = panels.getSpawnPanelMode?.();
-      if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
-    }
-  }
-
-  function resumeWorldSession(session = {}){
-    if(!running || !session) return false;
-    const rawMapId = session.mapId ?? 0;
-    const mapId = Number.isFinite(Number(rawMapId)) ? Number(rawMapId) : rawMapId;
-    const x = Number(session.x);
-    const y = Number(session.y);
-    if(!Number.isFinite(x) || !Number.isFinite(y)) return false;
-    loadMap(mapId, x, y, {safeNow:true});
-    player.angle = Number(session.angle || player.angle || 0);
-    const shipChanged = String(session.source || "") === "ship-change";
-    const stats = shipChanged ? getShipCombatStats(store.state.activeShip) : null;
-    const maxHp = Math.max(1, Number(shipChanged ? stats?.vie : (session.maxHp || player.maxHp || 1)));
-    const maxShield = Math.max(0, Number(shipChanged ? stats?.bouclier : (session.maxShield || player.maxShield || 0)));
-    player.maxHp = maxHp;
-    player.hp = Math.max(1, Math.min(maxHp, Number(shipChanged ? maxHp : (session.hp || maxHp))));
-    player.maxShield = maxShield;
-    player.shield = Math.max(0, Math.min(maxShield, Number(shipChanged ? maxShield : (session.shield || 0))));
-    if(shipChanged && stats){
-      player.regen = stats.regen;
-      player.speed = stats.vitesseReelle;
-      player.displayedSpeed = stats.vitesseReelle;
-      player.damageBonus = stats.weaponDamage;
-      player.damageMultiplier = Number(stats.weaponDamageMultiplier || (1 + Number(stats.weaponDamagePercent || 0)));
-      player.shieldAbsorbRatio = Math.max(0, Math.min(0.9, Number(stats.shieldAbsorbRatio ?? 0.5)));
-      player.evasionChance = Math.max(0, Math.min(0.75, Number(stats.evasionChance || 0)));
-      player.damageToHpChance = Math.max(0, Math.min(0.5, Number(stats.damageToHpChance || 0)));
-      player.blueLaserBeams = Boolean(stats.blueLaserBeams);
-      player.extraBonus = stats.extraBonus || player.extraBonus;
-    }
-    player.isDead = false;
-    player.secondsSinceDamage = 999;
-    updateHud();
-    showToast("Position de jeu reprise depuis le serveur.");
-    return true;
+    questProgress.recordMapVisit(currentMap?.name);
   }
 
   function installDebugCommands(){
@@ -941,236 +789,6 @@ export function createCombatGame({renderAll, showToast}){
   function loadPortalArena(portalId){
     portalRun.loadArena(portalId);
   }
-  function getLogoutButton(){
-    return document.getElementById("returnDashboardBtn");
-  }
-
-  function setLogoutButtonLabel(label, pending = false){
-    const button = getLogoutButton();
-    if(!button) return;
-    button.textContent = label;
-    button.classList.toggle("danger", pending);
-  }
-
-  function getLogoutBlockReason(){
-    if(!player || player.isDead) return "vaisseau detruit";
-    if(portalTransition || teleportLock > 0) return "transfert en cours";
-    if(mouseMoveHeld || moveTarget) return "deplacement en cours";
-    if(Math.hypot(Number(player.vx || 0), Number(player.vy || 0)) > 8) return "vaisseau en mouvement";
-    if(Number(player.secondsSinceDamage || 999) < 15) return "degats recents";
-    if(Number(player.lastAggression || 0) > 0 && performance.now() - Number(player.lastAggression || 0) < 15000) return "combat recent";
-    if(selectedEnemy && selectedEnemy.hp > 0) return "cible verrouillee";
-    const nearbyAggro = (enemies || []).some(enemy=>enemy?.hp > 0 && enemy.aggro && Math.hypot(enemy.x - player.x, enemy.y - player.y) < 900);
-    if(nearbyAggro) return "ennemi engage";
-    return "";
-  }
-
-  function cancelLogout(reason = "deconnexion annulee"){
-    if(!logoutRequest) return;
-    logoutRequest = null;
-    setLogoutButtonLabel("DECONNEXION");
-    showToast(`Deconnexion annulee : ${reason}.`);
-  }
-
-  function completeLogout(){
-    logoutRequest = null;
-    saveState();
-    disconnectMultiplayer();
-    running = false;
-    document.getElementById("gameScreen").classList.add("hidden");
-    document.getElementById("combatQuickPanel").classList.add("hidden");
-    closeNpcDialogue();
-    clearPoison();
-    panels.closeUtilityPanel();
-    panels.closeSpawnPanel();
-    setLogoutButtonLabel("DECONNEXION");
-    showToast("Session de jeu deconnectee.");
-    setTimeout(()=>{
-      window.close();
-      document.body.innerHTML = `<section class="dashboard"><div class="panel frame" style="max-width:520px;margin:16vh auto;padding:24px"><div class="panel-head"><div><span class="tiny">SESSION</span><h2>Deconnecte</h2></div></div><p class="settings-help">Tu peux fermer cet onglet. Le launcher reste ouvert.</p></div></section>`;
-    }, 250);
-  }
-
-  function requestLogout(){
-    if(!running) return;
-    const reason = getLogoutBlockReason();
-    if(reason){
-      showToast(`Deconnexion impossible : ${reason}.`);
-      return;
-    }
-    if(multiplayer.connected && requestServerLogout()){
-      showToast("Demande de deconnexion envoyee au serveur.");
-      return;
-    }
-    logoutRequest = {remaining:15, completeAt:Date.now() + 15000, server:false};
-    setLogoutButtonLabel("DECO 15S", true);
-    showToast("Deconnexion dans 15 secondes. Reste immobile et hors combat.");
-  }
-
-  function handleServerLogoutChange(event){
-    const reason = String(event.detail?.reason || "");
-    const payload = event.detail?.payload || {};
-    if(!running && reason !== "logout:complete") return;
-    if(reason === "logout:started"){
-      const remainingMs = Math.max(0, Number(payload.delayMs || 15000));
-      logoutRequest = {
-        remaining:remainingMs / 1000,
-        completeAt:Date.now() + remainingMs,
-        server:true
-      };
-      setLogoutButtonLabel(`DECO ${Math.ceil(logoutRequest.remaining)}S`, true);
-      showToast("Deconnexion serveur dans 15 secondes. Reste immobile et hors combat.");
-      return;
-    }
-    if(reason === "logout:rejected"){
-      logoutRequest = null;
-      setLogoutButtonLabel("DECONNEXION");
-      showToast(`Deconnexion refusee par le serveur : ${payload.reason || "condition invalide"}.`);
-      return;
-    }
-    if(reason === "logout:cancelled"){
-      cancelLogout(payload.reason || "serveur");
-      return;
-    }
-    if(reason === "logout:complete"){
-      completeLogout();
-    }
-  }
-
-  function updateLogoutRequest(dt){
-    if(!logoutRequest) return;
-    const reason = getLogoutBlockReason();
-    if(reason){
-      cancelLogout(reason);
-      return;
-    }
-    if(Number(logoutRequest.completeAt || 0) > 0){
-      logoutRequest.remaining = Math.max(0, (Number(logoutRequest.completeAt) - Date.now()) / 1000);
-    }else{
-      logoutRequest.remaining = Math.max(0, Number(logoutRequest.remaining || 0) - dt);
-    }
-    setLogoutButtonLabel(`DECO ${Math.ceil(logoutRequest.remaining)}S`, true);
-    if(logoutRequest.remaining <= 0 && !logoutRequest.server) completeLogout();
-  }
-
-  function refreshActiveLoadout(){
-    if(!running || !player) return false;
-    const stats = getShipCombatStats(store.state.activeShip);
-    const previousHpRatio = player.maxHp > 0 ? player.hp / player.maxHp : 1;
-    const previousShieldRatio = player.maxShield > 0 ? player.shield / player.maxShield : 0;
-    player.maxHp = Math.max(1, Number(stats.vie || player.maxHp || 1));
-    player.hp = Math.max(1, Math.min(player.maxHp, Math.round(player.maxHp * previousHpRatio)));
-    player.maxShield = Math.max(0, Number(stats.bouclier || 0));
-    player.shield = Math.max(0, Math.min(player.maxShield, Math.round(player.maxShield * previousShieldRatio)));
-    player.regen = stats.regen;
-    player.speed = stats.vitesseReelle;
-    player.displayedSpeed = stats.vitesseReelle;
-    player.damageBonus = stats.weaponDamage;
-    player.damageMultiplier = Number(stats.weaponDamageMultiplier || (1 + Number(stats.weaponDamagePercent || 0)));
-    player.shieldAbsorbRatio = Math.max(0, Math.min(0.9, Number(stats.shieldAbsorbRatio ?? 0.5)));
-    player.evasionChance = Math.max(0, Math.min(0.75, Number(stats.evasionChance || 0)));
-    player.damageToHpChance = Math.max(0, Math.min(0.5, Number(stats.damageToHpChance || 0)));
-    player.blueLaserBeams = Boolean(stats.blueLaserBeams);
-    player.extraBonus = stats.extraBonus || {autoRocket:false, autoMissile:false, rocketCooldownMultiplier:1, rocketDamageBonus:0, repairBot:false, repairBotAuto:false, repairBotHealRate:0.02, repairBotDelay:15};
-    if(!player.extraBonus.repairBot){
-      player.repairBotActive = false;
-      player.repairBotTickTimer = 0;
-    }
-    actions.cleanCombatActionSlots();
-    actions.renderGameActionBar();
-    actions.renderCombatQuickPanel();
-    updateHud();
-    return true;
-  }
-
-  function start(entry="open"){
-    if(running) return;
-    preload(); resize();
-    resetPerfMetrics();
-    miniMap.applyLayout(store.state?.uiLayout?.miniMap, false);
-    running = true;
-    logoutRequest = null;
-    setLogoutButtonLabel("DECONNEXION");
-    installDebugCommands();
-    document.getElementById("dashboard").classList.add("hidden");
-    document.getElementById("gameScreen").classList.remove("hidden");
-    deathRespawn.setPanelVisible(false);
-    if(!deathRespawnHandlersInstalled){
-      document.getElementById("deathRespawnPanel")?.addEventListener("click", e=>{
-        const btn = e.target.closest("[data-respawn-choice]");
-        if(btn) chooseDeathRespawn(btn.dataset.respawnChoice);
-      });
-      deathRespawnHandlersInstalled = true;
-    }
-    const stats = getShipCombatStats(store.state.activeShip);
-    if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
-    player = {
-      x:0,y:0,angle:0,
-      hp:stats.vie,maxHp:stats.vie,
-      shield:stats.bouclier,maxShield:stats.bouclier,regen:stats.regen,
-      speed:stats.vitesseReelle,
-      displayedSpeed:stats.vitesseReelle,
-      damageBonus:stats.weaponDamage,
-      damageMultiplier:Number(stats.weaponDamageMultiplier || (1 + Number(stats.weaponDamagePercent || 0))),
-      shieldAbsorbRatio:Math.max(0, Math.min(0.9, Number(stats.shieldAbsorbRatio ?? 0.5))),
-      evasionChance:Math.max(0, Math.min(0.75, Number(stats.evasionChance || 0))),
-      damageToHpChance:Math.max(0, Math.min(0.5, Number(stats.damageToHpChance || 0))),
-      blueLaserBeams:Boolean(stats.blueLaserBeams),
-      extraBonus:stats.extraBonus || {autoRocket:false, autoMissile:false, rocketCooldownMultiplier:1, rocketDamageBonus:0, repairBot:false, repairBotAuto:false, repairBotHealRate:0.02, repairBotDelay:15},
-      radar:RADAR_RANGE,
-      droneOrbit:0,
-      secondsSinceDamage:999,
-      repairBotActive:false,
-      repairBotTickTimer:0,
-      isDead:false,
-      safeZoneLock:0,
-      lastAggression:0,
-      vx:0,
-      vy:0,
-      enginePower:0,
-      engineAngle:0,
-      engineParticleT:0,
-      radiationTimer:30
-    };
-    camera = {x:-getCanvasViewWidth()/2,y:-getCanvasViewHeight()/2,zoom:1};
-    mouse = {x:getCanvasViewWidth()/2,y:getCanvasViewHeight()/2};
-    bullets = []; particles = []; impactEffects = []; damageTexts = []; missileSalvos.clear(); beams.clear(); cargo.clear(); selectedEnemy = null; moveTarget = null;
-    actions.cleanCombatActionSlots();
-    actions.reset();
-    panels.reset();
-    hudT = 0; rewards.reset();
-    if(typeof entry === "string" && entry.startsWith("portal:")) loadPortalArena(entry.split(":")[1] || "blue");
-    else loadMap(0, MAPS[0].spawn.x, MAPS[0].spawn.y);
-    actions.renderGameActionBar();
-    actions.renderCombatQuickPanel();
-    updateHud();
-    frameLoop.start();
-  }
-
-  function stop(save=true){
-    if(!running) return;
-    running = false;
-    logoutRequest = null;
-    setLogoutButtonLabel("DECONNEXION");
-    document.getElementById("dashboard").classList.remove("hidden");
-    document.getElementById("gameScreen").classList.add("hidden");
-    document.getElementById("combatQuickPanel").classList.add("hidden");
-    deathRespawn.setPanelVisible(false);
-    closeNpcDialogue();
-    clearPoison();
-    panels.closeUtilityPanel();
-    panels.closeSpawnPanel();
-    if(gameMode === "portal" && activePortal && !portalCompleted && portalLives > 0){
-      if(!store.state.portalRuns) store.state.portalRuns = {};
-      store.state.portalRuns[activePortal.id] = {lives:portalLives, status:player?.isDead ? "dead" : "active"};
-    }
-    if(save){
-      saveState();
-      renderAll();
-      showToast("Retour launcher.");
-    }
-  }
-
   function worldFromScreen(sx, sy){ return screenToWorld({sx, sy, camera}); }
 
   function findEnemyAt(world){
@@ -1242,63 +860,6 @@ export function createCombatGame({renderAll, showToast}){
     return hitResolution.rollBetween(min, max);
   }
 
-  function damageEnemy(enemy, amount, context = {}){
-    const incoming = Math.max(0, Number(amount || 0));
-    enemy.recentHitTimer = 4;
-    if(isServerControlledEnemy(enemy)){
-      sendServerEnemyHit(getServerEnemyId(enemy), incoming, {...context, serverCalculated:true});
-      return false;
-    }
-    const maxShield = Number(enemy.maxShield || 0);
-    if(maxShield > 0 && enemy.shield > 0){
-      const absorbRatio = Math.max(0, Math.min(1, Number(enemy.shieldAbsorbRatio ?? 0.8)));
-      const shieldPart = incoming * absorbRatio;
-      let hullPart = incoming - shieldPart;
-      const absorbed = Math.min(enemy.shield, shieldPart);
-      enemy.shield -= absorbed;
-      hullPart += shieldPart - absorbed;
-      if(hullPart > 0) enemy.hp -= hullPart;
-      return true;
-    }
-    enemy.hp -= incoming;
-    return true;
-  }
-
-  function syncServerControlledEnemies(){
-    syncCoopInstanceSpawn();
-    const synced = syncMultiplayerEnemies({
-      enemies,
-      multiplayerState:multiplayer,
-      selectedEnemy,
-      onSelectionLost:()=>{
-        actions.setActiveLaserSlot(null);
-        actions.updateGameActionBar();
-      }
-    });
-    enemies = synced.enemies;
-    selectedEnemy = synced.selectedEnemy;
-  }
-
-  function syncCoopInstanceSpawn(){
-    if(multiplayer.portalInstance?.portal) return;
-    const spawn = multiplayer.coopSpawn;
-    if(!spawn || spawn.applied) return;
-    if(!hasServerControlledEnemies(multiplayer)) return;
-    player.x = Number(spawn.x || player.x);
-    player.y = Number(spawn.y || player.y);
-    player.vx = 0;
-    player.vy = 0;
-    player.enginePower = 0;
-    moveTarget = null;
-    selectedEnemy = null;
-    bullets = [];
-    missileSalvos.clear();
-    beams.clear();
-    impactEffects = [];
-    multiplayer.coopSpawn = {...spawn, applied:true};
-    showToast("Instance coop test synchronisee.");
-  }
-
   function applyPlayerPoison(effect){
     statusEffects.applyPlayerPoison(effect);
   }
@@ -1327,18 +888,8 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function damagePlayer(amount){
-    cancelLogout("degats recus");
-    handleQuestHpLoss(lifecycle.damage(amount));
-  }
-  function handleQuestHpLoss(amount){
-    handleQuestFailures(recordQuestHpLoss(amount), "limite de vie depassee");
-  }
-  function handleQuestFailures(failedQuests, reason){
-    if(!failedQuests.length) return;
-    saveState();
-    failedQuests.forEach(quest=>showToast(`${quest.title} : ${reason}, progression remise a zero.`));
-    const panelMode = panels.getSpawnPanelMode?.();
-    if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
+    logout.cancel("degats recus");
+    questProgress.recordHpLoss(lifecycle.damage(amount));
   }
   function rewardEnemy(enemy){
     if(isServerControlledEnemy(enemy)) return;
@@ -1369,23 +920,9 @@ export function createCombatGame({renderAll, showToast}){
 
   function update(dt){
     frameUpdate.update(dt);
-    updateLogoutRequest(dt);
-    if(npcDialogue){
-      if(positionNpcDialogue()) updateNpcDialogueTyping(dt);
-    }
-    handleQuestFailures(recordQuestTimeElapsed(dt), "temps depasse");
-    coordinateQuestCheckT -= dt;
-    if(coordinateQuestCheckT <= 0 && player && currentMap){
-      coordinateQuestCheckT = multiplayer.connected ? 1 : .25;
-      const progressed = multiplayer.connected
-        ? progressServerQuest({type:"visit_coordinates", x:player.x, y:player.y, zoneName:currentMap.name})
-        : recordQuestCoordinateVisit({x:player.x, y:player.y}, currentMap.name);
-      if(progressed && !multiplayer.connected){
-        saveState();
-        const panelMode = panels.getSpawnPanelMode?.();
-        if(panelMode) panels.renderSpawnInteractionPanel?.(panelMode);
-      }
-    }
+    logout.update(dt);
+    questNpcDialogue.update(dt);
+    questProgress.update(dt);
   }
 
   function updateEnemies(dt){
@@ -1411,34 +948,6 @@ export function createCombatGame({renderAll, showToast}){
     hudController.updateLootPopup();
   }
 
-  function tryUseMapPortal(){
-    if(portalTransition) return true;
-    if(gameMode === "portal"){
-      if(!portalCompleted) return false;
-      const exitPortal = findMapPortalAt({map:currentMap, point:player, getMapPortals});
-      if(!exitPortal) return false;
-      const targetMap = MAPS.find(map=>map.id === exitPortal.targetMap) || getHomeMapForPlayer();
-      loadMap(targetMap.id, exitPortal.targetX, exitPortal.targetY, {safeNow:true});
-      showToast(`Retour vers ${targetMap.name}.`);
-      return true;
-    }
-    if(gameMode !== "open") return false;
-    const portal = findMapPortalAt({map:currentMap, point:player, getMapPortals});
-    if(!portal) return false;
-    if(teleportLock > 0) return true;
-    const targetMap = MAPS.find(map=>map.id === portal.targetMap);
-    if(targetMap) getMapState(targetMap);
-    portalTransition = createMapPortalTransition(portal);
-    player.vx = 0;
-    player.vy = 0;
-    moveTarget = null;
-    selectedEnemy = null;
-    actions.setActiveLaserSlot(null);
-    actions.updateGameActionBar();
-    showToast(`Transfert vers ${MAPS.find(map=>map.id === portal.targetMap)?.name || "secteur"}...`);
-    return true;
-  }
-
   installCombatInputHandlers({
     canvas,
     isRunning:()=>running,
@@ -1461,7 +970,7 @@ export function createCombatGame({renderAll, showToast}){
     getSlotKeybinds:()=>store.state.slotKeybinds,
     clearSelectedEnemy,
     hasSelectedEnemy:()=>!!selectedEnemy,
-    tryUseMapPortal,
+    tryUseMapPortal:portalNavigation.tryUseMapPortal,
     selectActionSlot:actions.selectActionSlot,
     getStationAt,
     findEnemyAt,
@@ -1475,8 +984,8 @@ export function createCombatGame({renderAll, showToast}){
       actions.setActiveLaserSlot(null);
       actions.updateGameActionBar();
     },
-    findQuestNpcAt,
-    interactQuestNpc,
+    findQuestNpcAt:questNpcDialogue.findAt,
+    interactQuestNpc:questNpcDialogue.interact,
     attackSelectedWithActiveLaser,
     renderSpawnInteractionPanel:panels.renderSpawnInteractionPanel,
     openUtilityPanel:panels.openUtilityPanel,
@@ -1526,10 +1035,17 @@ export function createCombatGame({renderAll, showToast}){
     combatCargoExpanded = !combatCargoExpanded;
     updateHud();
   });
-  window.addEventListener("voidsector:multiplayer-change", handleServerLogoutChange);
+  window.addEventListener("voidsector:multiplayer-change", logout.handleServerChange);
   document.addEventListener("visibilitychange", ()=>{
-    if(document.visibilityState === "visible") updateLogoutRequest(0);
+    if(document.visibilityState === "visible") logout.update(0);
   });
 
-  return {start, stop, requestLogout, resumeWorldSession, refreshActiveLoadout, get running(){return running;}};
+  return {
+    start:session.start,
+    stop:session.stop,
+    requestLogout:logout.request,
+    resumeWorldSession:session.resumeWorldSession,
+    refreshActiveLoadout:session.refreshActiveLoadout,
+    get running(){return running;}
+  };
 }

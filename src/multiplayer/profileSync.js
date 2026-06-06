@@ -1,0 +1,42 @@
+export function syncMultiplayerProfile(multiplayer, state){
+  if(!multiplayer.connected || !multiplayer.socket || !state) return;
+  if(multiplayer.auth.token && multiplayer.auth.account && !multiplayer.auth.profileReady) return;
+  const profile = {
+    updatedAt:Number(state.mmoProfileUpdatedAt || Date.now()),
+    player:state.player,
+    activeShip:state.activeShip,
+    selectedShip:state.selectedShip,
+    ownedShips:state.ownedShips,
+    inventoryItems:state.inventoryItems,
+    nextInventoryUid:state.nextInventoryUid,
+    ammoInventory:state.ammoInventory,
+    shipLoadouts:state.shipLoadouts,
+    ownedDroneCount:state.ownedDroneCount,
+    droneLoadout:state.droneLoadout,
+    dronePermanentUpgrades:state.dronePermanentUpgrades,
+    equipmentUpgrades:state.equipmentUpgrades,
+    ownedDroneFormations:state.ownedDroneFormations,
+    activeDroneFormation:state.activeDroneFormation,
+    cargoHold:state.cargoHold,
+    shipCargo:state.shipCargo,
+    skillRanks:state.skillRanks,
+    skillLevels:state.skillLevels,
+    unlockedPortals:state.unlockedPortals,
+    completedPortals:state.completedPortals,
+    portalPieces:state.portalPieces,
+    prestigeCount:state.prestigeCount,
+    refineryLevels:state.refineryLevels,
+    refineryModules:state.refineryModules,
+    refineryUpgradeJobs:state.refineryUpgradeJobs,
+    refineryShipmentJob:state.refineryShipmentJob || null,
+    refineryJob:state.refineryJob || null,
+    refineryProductionDisabled:state.refineryProductionDisabled,
+    refineryLastTick:state.refineryLastTick,
+    activeQuestIds:state.activeQuestIds,
+    activeQuestId:state.activeQuestId,
+    questProgress:state.questProgress,
+    questFailProgress:state.questFailProgress,
+    completedQuestClaims:state.completedQuestClaims
+  };
+  multiplayer.socket.emit("profile:save", {name:multiplayer.name, profile});
+}

@@ -1,0 +1,22 @@
+export const COMBAT_PROFILE_TITLES = {
+  first_contact:"Premier sang",
+  hunter_100:"Traqueur spatial",
+  veteran_25:"Vétéran d'Astra",
+  portal_mastery:"Nettoyeur d'Astra",
+  quest_5:"Mercenaire fiable",
+  inventory_30:"Ingénieur de bord",
+  skill_15:"Spécialiste",
+  drone_5:"Chef d'escadron",
+  hunter_500:"Chasseur abyssal",
+  laser_100k:"Canonnier laser",
+  laser_1m:"Deluge photonique",
+  laser_10m:"Architecte de faisceaux",
+  laser_100m:"Tempete laser",
+  laser_1b:"Legende photonique",
+  rocket_25k:"Artilleur orbital",
+  rocket_250k:"Maitre roquettes",
+  rocket_25m:"Barrage orbital",
+  missile_10k:"Artilleur guide",
+  missile_1m:"Commandant missile",
+  missile_100m:"Doctrine orbitale"
+};

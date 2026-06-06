@@ -428,6 +428,7 @@ export function normalizeState(saved){
     ? saved.inventoryItems.filter(entry=>entry?.uid && equipment.some(i=>i.id===entry.itemId))
     : (Array.isArray(saved?.ownedItems) ? saved.ownedItems.filter(id=>equipment.some(i=>i.id===id)).map((itemId,index)=>({uid:`inv_${itemId}_${index+1}`, itemId})) : clone(base.inventoryItems));
   if(!merged.inventoryItems.some(entry=>entry.itemId === "laser_mk1")) merged.inventoryItems.unshift({uid:"inv_laser_mk1_1", itemId:"laser_mk1"});
+  if(!merged.inventoryItems.some(entry=>entry.itemId === "extra_repair_starter")) merged.inventoryItems.push({uid:"inv_repair_starter_2", itemId:"extra_repair_starter"});
   merged.inventoryItems = dedupeInventoryUids(merged.inventoryItems);
   merged.nextInventoryUid = Math.max(
     Number(saved?.nextInventoryUid || base.nextInventoryUid || 1),
@@ -674,6 +675,7 @@ export function normalizeState(saved){
   }
   store.state = merged;
   migrateLoadoutItemIds();
+  ensureStarterRepairDrone();
   for(const shipId of merged.ownedShips) ensureShipLoadout(shipId);
   getDroneLoadout();
   merged.player.rankScore = getRankScore();
@@ -701,6 +703,24 @@ function getNextInventoryUid(items){
     return match ? Math.max(max, Number(match[1])) : max;
   }, 0);
   return Math.max(items.length + 1, maxSuffix + 1);
+}
+
+function ensureStarterRepairDrone(){
+  const starterUid = store.state.inventoryItems?.find(entry=>entry.itemId === "extra_repair_starter")?.uid;
+  if(!starterUid) return;
+  if(!store.state.shipLoadouts || typeof store.state.shipLoadouts !== "object") store.state.shipLoadouts = {};
+  const loadout = store.state.shipLoadouts.orion || makeEmptyLoadout("orion");
+  const extras = Array.isArray(loadout.extras) ? loadout.extras : [];
+  const hasRepairExtra = extras.some(uid=>{
+    const item = getItemFromInventoryUid(uid);
+    return item?.effect?.repairBot;
+  });
+  if(!hasRepairExtra && extras.length > 0) extras[0] = starterUid;
+  loadout.extras = extras;
+  store.state.shipLoadouts.orion = loadout;
+  if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
+  if(!store.state.actionSlots[0]) store.state.actionSlots[0] = "ammo_x1";
+  if(!store.state.actionSlots[8]) store.state.actionSlots[8] = "extra_repair_starter";
 }
 
 function migrateLoadoutItemIds(){
@@ -786,8 +806,9 @@ export function getExtraBonus(shipId = store.state.activeShip){
     rocketDamageBonus:0,
     repairBot:false,
     repairBotAuto:false,
-    repairBotHealRate:0.02,
-    repairBotDelay:Math.max(6, 15 - Math.max(0, Number(skill.repairBotDelayReduction || 0)))
+    repairBotHealRate:0,
+    repairBotDelay:Math.max(6, 15 - Math.max(0, Number(skill.repairBotDelayReduction || 0))),
+    repairBotImg:"assets/equipment/drone_repair_starter.png"
   };
   for(const item of getEquippedExtras(shipId)){
     const effect = item.effect || {};
@@ -799,6 +820,7 @@ export function getExtraBonus(shipId = store.state.activeShip){
     if(effect.repairBotAuto) bonus.repairBotAuto = true;
     if(effect.repairBotHealRate) bonus.repairBotHealRate = Math.max(bonus.repairBotHealRate, effect.repairBotHealRate);
     if(effect.repairBotDelay) bonus.repairBotDelay = Math.max(1, Math.min(bonus.repairBotDelay, effect.repairBotDelay));
+    if(effect.repairBotImg && Number(effect.repairBotHealRate || 0) >= Number(bonus.repairBotHealRate || 0)) bonus.repairBotImg = effect.repairBotImg;
   }
   bonus.rocketCooldownMultiplier = Math.max(0.25, bonus.rocketCooldownMultiplier);
   bonus.repairBotHealRate *= Number(skill.repairBotHealMultiplier || 1);

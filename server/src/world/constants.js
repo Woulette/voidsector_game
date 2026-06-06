@@ -1,0 +1,3 @@
+export const WORLD_AI_REPATH_MS = 1000;
+export const WORLD_ENEMY_AGGRO_MULTIPLIER = 1.2;
+export const WORLD_ENEMY_TARGET_MEMORY_MS = 10000;

@@ -25,7 +25,9 @@ export const SERVER_ITEM_SHOP = {
   extra_auto_rocket:{id:"extra_auto_rocket", name:"Puce Roquette Auto", priceType:"premium", price:25000},
   extra_auto_missile:{id:"extra_auto_missile", name:"Puce Missile Auto", priceType:"premium", price:30000},
   extra_rocket_accelerator:{id:"extra_rocket_accelerator", name:"Puce Accelerateur Roquettes", priceType:"premium", price:35000},
-  extra_repair_bot:{id:"extra_repair_bot", name:"Drone de Reparation IA", priceType:"credits", price:78000},
+  extra_repair_starter:{id:"extra_repair_starter", name:"Drone de Reparation Bleu", priceType:"credits", price:100000},
+  extra_repair_yellow:{id:"extra_repair_yellow", name:"Drone de Reparation Jaune", priceType:"credits", price:850000},
+  extra_repair_bot:{id:"extra_repair_bot", name:"Drone de Reparation Rouge", priceType:"premium", price:7000},
   extra_repair_auto:{id:"extra_repair_auto", name:"IA d'Auto-Reparation", priceType:"premium", price:20000},
   teleportation_fluid:{id:"teleportation_fluid", name:"Fluide de Teleportation", priceType:"premium", price:100},
   ammo_module:{id:"ammo_module", name:"Module de Munitions", priceType:"credits", price:8000}

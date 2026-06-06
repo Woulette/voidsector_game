@@ -41,20 +41,248 @@
     "refineryLastTick": 55
   },
   "nova-37": {
-    "updatedAt": 1779817952390,
+    "updatedAt": 1780258909826,
     "player": {
       "name": "NOVA-37",
-      "level": 3,
-      "xp": 601,
-      "xpNext": 6849,
-      "credits": 16890,
-      "premium": 24,
-      "skillPoints": 3,
-      "totalXp": 4881,
-      "totalKills": 6,
+      "level": 999,
+      "xp": 20456,
+      "xpNext": 1.1523367775947962e+89,
+      "credits": 0,
+      "premium": 0,
+      "skillPoints": 954,
+      "totalXp": 216600,
+      "reputation": 0,
+      "totalKills": 204,
+      "monsterRankPoints": 20.4,
       "totalPlayerKills": 0,
-      "totalPlaySeconds": 726.2878820002736,
-      "rankScore": 5451,
+      "totalPlaySeconds": 811.3816919985615,
+      "laserShotsFired": 0,
+      "rocketShotsFired": 0,
+      "missileShotsFired": 0,
+      "rankScore": 1013022.4,
+      "activeTitleId": null,
+      "titleVisible": true
+    },
+    "cargoHold": {
+      "cuivre_orbital": 9924510,
+      "zinc_spatial": 9363496,
+      "nickel_brut": 10000000,
+      "titane_fissure": 9363496,
+      "silice_conductrice": 9924510,
+      "alliage_cuivre_zinc": 1000000,
+      "plaque_nickel_titane": 1000000,
+      "conducteur_renforce": 100000,
+      "blindage_composite": 100000,
+      "catalyseur_quantique": 1000000,
+      "noyau_astra": 10000
+    },
+    "skillRanks": {
+      "damage": [
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "shield": [
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "utility": [
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    "skillLevels": {
+      "damage": 5,
+      "shield": 5,
+      "utility": 5
+    },
+    "completedPortals": {
+      "blue": 1,
+      "violet": 1,
+      "red": 1,
+      "emerald": 1,
+      "void": 1,
+      "ancient": 1
+    },
+    "portalPieces": {
+      "blue": 0,
+      "violet": 0,
+      "red": 0,
+      "emerald": 0,
+      "void": 0,
+      "ancient": 0
+    },
+    "refineryLevels": {
+      "cuivre_orbital": 20,
+      "zinc_spatial": 20,
+      "nickel_brut": 20,
+      "titane_fissure": 20,
+      "silice_conductrice": 20,
+      "alliage_cuivre_zinc": 20,
+      "plaque_nickel_titane": 20,
+      "conducteur_renforce": 20,
+      "blindage_composite": 20,
+      "catalyseur_quantique": 20,
+      "noyau_astra": 20
+    },
+    "refineryModules": {
+      "storage": 20,
+      "transport": 20
+    },
+    "refineryUpgradeJobs": {},
+    "refineryShipmentJob": null,
+    "refineryJob": null,
+    "refineryProductionDisabled": {
+      "cuivre_orbital": false,
+      "zinc_spatial": false,
+      "nickel_brut": false,
+      "titane_fissure": false,
+      "silice_conductrice": false,
+      "alliage_cuivre_zinc": false,
+      "plaque_nickel_titane": false,
+      "conducteur_renforce": false,
+      "blindage_composite": false,
+      "catalyseur_quantique": false,
+      "noyau_astra": false
+    },
+    "refineryLastTick": 1780258885773
+  },
+  "espérenda": {
+    "updatedAt": 1780256565642,
+    "player": {
+      "name": "NOVA-37",
+      "level": 8,
+      "xp": 79600,
+      "xpNext": 220000,
+      "credits": 2486135,
+      "premium": 17535,
+      "skillPoints": 8,
+      "totalXp": 542600,
+      "reputation": 7795,
+      "totalKills": 292,
+      "monsterRankPoints": 10.599999999999975,
+      "totalPlayerKills": 0,
+      "totalPlaySeconds": 15093.799179756787,
+      "laserShotsFired": 1741,
+      "rocketShotsFired": 37,
+      "missileShotsFired": 0,
+      "rankScore": 7015.6,
+      "activeTitleId": null,
+      "titleVisible": true
+    },
+    "cargoHold": {
+      "cuivre_orbital": 165379,
+      "zinc_spatial": 97503,
+      "nickel_brut": 165379,
+      "titane_fissure": 97503,
+      "silice_conductrice": 165379,
+      "alliage_cuivre_zinc": 0,
+      "plaque_nickel_titane": 0,
+      "conducteur_renforce": 0,
+      "blindage_composite": 0,
+      "catalyseur_quantique": 0,
+      "noyau_astra": 0
+    },
+    "skillRanks": {
+      "damage": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "shield": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "utility": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "skillLevels": {
+      "damage": 0,
+      "shield": 0,
+      "utility": 0
+    },
+    "completedPortals": {},
+    "portalPieces": {
+      "blue": 3,
+      "violet": 0,
+      "red": 0,
+      "emerald": 0,
+      "void": 0,
+      "ancient": 0
+    },
+    "refineryLevels": {
+      "cuivre_orbital": 2,
+      "zinc_spatial": 1,
+      "nickel_brut": 2,
+      "titane_fissure": 1,
+      "silice_conductrice": 2,
+      "alliage_cuivre_zinc": 0,
+      "plaque_nickel_titane": 0,
+      "conducteur_renforce": 0,
+      "blindage_composite": 0,
+      "catalyseur_quantique": 0,
+      "noyau_astra": 0
+    },
+    "refineryModules": {
+      "storage": 2,
+      "transport": 1
+    },
+    "refineryUpgradeJobs": {},
+    "refineryShipmentJob": null,
+    "refineryJob": null,
+    "refineryProductionDisabled": {
+      "cuivre_orbital": false,
+      "zinc_spatial": false,
+      "nickel_brut": false,
+      "titane_fissure": false,
+      "silice_conductrice": false,
+      "alliage_cuivre_zinc": false,
+      "plaque_nickel_titane": false,
+      "conducteur_renforce": false,
+      "blindage_composite": false,
+      "catalyseur_quantique": false,
+      "noyau_astra": false
+    },
+    "refineryLastTick": 1780256546673
+  },
+  "woul": {
+    "updatedAt": 1780258633083,
+    "player": {
+      "name": "NOVA-37",
+      "level": 1,
+      "xp": 1505,
+      "xpNext": 3000,
+      "credits": 1140,
+      "premium": 1,
+      "skillPoints": 1,
+      "totalXp": 1505,
+      "reputation": 31,
+      "totalKills": 1,
+      "monsterRankPoints": 0.1,
+      "totalPlayerKills": 0,
+      "totalPlaySeconds": 889.2292419995252,
+      "laserShotsFired": 34,
+      "rocketShotsFired": 0,
+      "missileShotsFired": 0,
+      "rankScore": 0.1,
       "activeTitleId": null,
       "titleVisible": true
     },
@@ -141,6 +369,330 @@
       "catalyseur_quantique": false,
       "noyau_astra": false
     },
-    "refineryLastTick": 1779817934585
+    "refineryLastTick": 1780258611071
+  },
+  "account:2405d663-716f-448c-a995-dccfaa0615c9": {
+    "updatedAt": 1780258506547,
+    "player": {
+      "name": "NOVA-37",
+      "level": 1,
+      "xp": 1505,
+      "xpNext": 3000,
+      "credits": 1140,
+      "premium": 1,
+      "skillPoints": 1,
+      "totalXp": 1505,
+      "reputation": 31,
+      "totalKills": 1,
+      "monsterRankPoints": 0.1,
+      "totalPlayerKills": 0,
+      "totalPlaySeconds": 888.9750419995263,
+      "laserShotsFired": 34,
+      "rocketShotsFired": 0,
+      "missileShotsFired": 0,
+      "rankScore": 0.1,
+      "activeTitleId": null,
+      "titleVisible": true
+    },
+    "cargoHold": {
+      "cuivre_orbital": 25000,
+      "zinc_spatial": 25000,
+      "nickel_brut": 25000,
+      "titane_fissure": 25000,
+      "silice_conductrice": 25000,
+      "alliage_cuivre_zinc": 0,
+      "plaque_nickel_titane": 0,
+      "conducteur_renforce": 0,
+      "blindage_composite": 0,
+      "catalyseur_quantique": 0,
+      "noyau_astra": 0
+    },
+    "skillRanks": {
+      "damage": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "shield": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "utility": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "skillLevels": {
+      "damage": 0,
+      "shield": 0,
+      "utility": 0
+    },
+    "completedPortals": {},
+    "portalPieces": {
+      "blue": 0,
+      "violet": 0,
+      "red": 0,
+      "emerald": 0,
+      "void": 0,
+      "ancient": 0
+    },
+    "refineryLevels": {
+      "cuivre_orbital": 1,
+      "zinc_spatial": 1,
+      "nickel_brut": 1,
+      "titane_fissure": 1,
+      "silice_conductrice": 1,
+      "alliage_cuivre_zinc": 0,
+      "plaque_nickel_titane": 0,
+      "conducteur_renforce": 0,
+      "blindage_composite": 0,
+      "catalyseur_quantique": 0,
+      "noyau_astra": 0
+    },
+    "refineryModules": {
+      "storage": 1,
+      "transport": 1
+    },
+    "refineryUpgradeJobs": {},
+    "refineryShipmentJob": null,
+    "refineryJob": null,
+    "refineryProductionDisabled": {
+      "cuivre_orbital": false,
+      "zinc_spatial": false,
+      "nickel_brut": false,
+      "titane_fissure": false,
+      "silice_conductrice": false,
+      "alliage_cuivre_zinc": false,
+      "plaque_nickel_titane": false,
+      "conducteur_renforce": false,
+      "blindage_composite": false,
+      "catalyseur_quantique": false,
+      "noyau_astra": false
+    },
+    "refineryLastTick": 1780258491071
+  },
+  "publiciposte@gmail.com": {
+    "updatedAt": 1780258643249,
+    "player": {
+      "name": "NOVA-37",
+      "level": 1,
+      "xp": 1505,
+      "xpNext": 3000,
+      "credits": 1140,
+      "premium": 1,
+      "skillPoints": 1,
+      "totalXp": 1505,
+      "reputation": 31,
+      "totalKills": 1,
+      "monsterRankPoints": 0.1,
+      "totalPlayerKills": 0,
+      "totalPlaySeconds": 895.5810759995047,
+      "laserShotsFired": 34,
+      "rocketShotsFired": 0,
+      "missileShotsFired": 0,
+      "rankScore": 0.1,
+      "activeTitleId": null,
+      "titleVisible": true
+    },
+    "cargoHold": {
+      "cuivre_orbital": 25000,
+      "zinc_spatial": 25000,
+      "nickel_brut": 25000,
+      "titane_fissure": 25000,
+      "silice_conductrice": 25000,
+      "alliage_cuivre_zinc": 0,
+      "plaque_nickel_titane": 0,
+      "conducteur_renforce": 0,
+      "blindage_composite": 0,
+      "catalyseur_quantique": 0,
+      "noyau_astra": 0
+    },
+    "skillRanks": {
+      "damage": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "shield": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "utility": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "skillLevels": {
+      "damage": 0,
+      "shield": 0,
+      "utility": 0
+    },
+    "completedPortals": {},
+    "portalPieces": {
+      "blue": 0,
+      "violet": 0,
+      "red": 0,
+      "emerald": 0,
+      "void": 0,
+      "ancient": 0
+    },
+    "refineryLevels": {
+      "cuivre_orbital": 1,
+      "zinc_spatial": 1,
+      "nickel_brut": 1,
+      "titane_fissure": 1,
+      "silice_conductrice": 1,
+      "alliage_cuivre_zinc": 0,
+      "plaque_nickel_titane": 0,
+      "conducteur_renforce": 0,
+      "blindage_composite": 0,
+      "catalyseur_quantique": 0,
+      "noyau_astra": 0
+    },
+    "refineryModules": {
+      "storage": 1,
+      "transport": 1
+    },
+    "refineryUpgradeJobs": {},
+    "refineryShipmentJob": null,
+    "refineryJob": null,
+    "refineryProductionDisabled": {
+      "cuivre_orbital": false,
+      "zinc_spatial": false,
+      "nickel_brut": false,
+      "titane_fissure": false,
+      "silice_conductrice": false,
+      "alliage_cuivre_zinc": false,
+      "plaque_nickel_titane": false,
+      "conducteur_renforce": false,
+      "blindage_composite": false,
+      "catalyseur_quantique": false,
+      "noyau_astra": false
+    },
+    "refineryLastTick": 1780258641071
+  },
+  "account:15b07f75-0147-4ae9-828b-15407dac8110": {
+    "updatedAt": 1780260568636,
+    "player": {
+      "name": "NOVA-37",
+      "level": 1,
+      "xp": 1505,
+      "xpNext": 3000,
+      "credits": 1140,
+      "premium": 1,
+      "skillPoints": 1,
+      "totalXp": 1505,
+      "reputation": 31,
+      "totalKills": 1,
+      "monsterRankPoints": 0.1,
+      "totalPlayerKills": 0,
+      "totalPlaySeconds": 1167.388675999874,
+      "laserShotsFired": 34,
+      "rocketShotsFired": 0,
+      "missileShotsFired": 0,
+      "rankScore": 0.1,
+      "activeTitleId": null,
+      "titleVisible": true
+    },
+    "cargoHold": {
+      "cuivre_orbital": 25000,
+      "zinc_spatial": 25000,
+      "nickel_brut": 25000,
+      "titane_fissure": 25000,
+      "silice_conductrice": 25000,
+      "alliage_cuivre_zinc": 0,
+      "plaque_nickel_titane": 0,
+      "conducteur_renforce": 0,
+      "blindage_composite": 0,
+      "catalyseur_quantique": 0,
+      "noyau_astra": 0
+    },
+    "skillRanks": {
+      "damage": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "shield": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "utility": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "skillLevels": {
+      "damage": 0,
+      "shield": 0,
+      "utility": 0
+    },
+    "completedPortals": {},
+    "portalPieces": {
+      "blue": 0,
+      "violet": 0,
+      "red": 0,
+      "emerald": 0,
+      "void": 0,
+      "ancient": 0
+    },
+    "refineryLevels": {
+      "cuivre_orbital": 1,
+      "zinc_spatial": 1,
+      "nickel_brut": 1,
+      "titane_fissure": 1,
+      "silice_conductrice": 1,
+      "alliage_cuivre_zinc": 0,
+      "plaque_nickel_titane": 0,
+      "conducteur_renforce": 0,
+      "blindage_composite": 0,
+      "catalyseur_quantique": 0,
+      "noyau_astra": 0
+    },
+    "refineryModules": {
+      "storage": 1,
+      "transport": 1
+    },
+    "refineryUpgradeJobs": {},
+    "refineryShipmentJob": null,
+    "refineryJob": null,
+    "refineryProductionDisabled": {
+      "cuivre_orbital": false,
+      "zinc_spatial": false,
+      "nickel_brut": false,
+      "titane_fissure": false,
+      "silice_conductrice": false,
+      "alliage_cuivre_zinc": false,
+      "plaque_nickel_titane": false,
+      "conducteur_renforce": false,
+      "blindage_composite": false,
+      "catalyseur_quantique": false,
+      "noyau_astra": false
+    },
+    "refineryLastTick": 1780261761071
   }
 }

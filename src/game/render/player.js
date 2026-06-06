@@ -17,7 +17,7 @@ export function drawRotatedImage({ctx, camera, img, x, y, w, h, angle, fallbackC
   ctx.restore();
 }
 
-const REPAIR_DRONE_IMG = "assets/equipment/drone_repair_ai.png";
+const REPAIR_DRONE_IMG = "assets/equipment/drone_repair_starter.png";
 
 function getEngineProfile({ship, defaultProfile, profiles}){
   const profile = profiles[ship.id] || defaultProfile;
@@ -295,7 +295,8 @@ function drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInvent
 
 function drawRepairDrone({ctx, camera, cache, player}){
   if(!player?.repairBotActive) return;
-  const img = cache[REPAIR_DRONE_IMG];
+  const repairImg = player.extraBonus?.repairBotImg || REPAIR_DRONE_IMG;
+  const img = cache[repairImg] || cache[REPAIR_DRONE_IMG];
   const time = performance.now() / 1000;
   const servicePoints = [
     {x:-36, y:-42, ox:-72, oy:-88},
