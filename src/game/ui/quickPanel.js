@@ -70,40 +70,28 @@ function renderFormationsPanel({droneFormations, ownedDroneFormations, activeDro
 }
 
 function renderShopPanel({ammoTypes, canAfford, getAmmoCount}){
-  return `<div class="combat-panel-grid">${ammoTypes.map(ammo=>{
-    const stock = getAmmoCount ? getAmmoCount(ammo.id) : 0;
-    const subtitle = ammo.weaponClass === "missile"
-      ? `${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)} dégâts - ${ammo.range} portée`
-      : ammo.weaponClass === "rocket"
-      ? `${ammo.damageMin}-${ammo.damageMax} - ${ammo.range} portée - 1 roquette / tir`
-      : `Multiplicateur x${ammo.multiplier}`;
-    const meta = ammo.weaponClass === "laser"
-      ? `Stock ${fmt(stock)} - Pack ${fmt(ammo.amount)} - ${fmt(ammo.price)} ${ammo.priceType === "premium" ? "NOVA" : "CR"}`
-      : `Pack ${fmt(ammo.amount)} - ${fmt(ammo.price)} ${ammo.priceType === "premium" ? "NOVA" : "CR"}`;
-    return `<article class="combat-pick-card">
+  const purchasableAmmo = ammoTypes.filter(ammo=>ammo.shop !== false);
+  return `<div class="combat-panel-grid combat-shop-grid">${purchasableAmmo.map(ammo=>{
+    const purchaseMultiplier = ammo.weaponClass === "laser" ? 1 : 100;
+    const packAmount = Math.max(1, Number(ammo.amount || 1)) * purchaseMultiplier;
+    const packPrice = Math.max(0, Number(ammo.price || 0)) * purchaseMultiplier;
+    const currency = ammo.priceType === "premium" ? "NOVA" : "CR";
+    return `<article class="combat-pick-card combat-shop-card">
       ${ammo.img ? `<img class="combat-ammo-icon" src="${ammo.img}" alt="${ammo.name}">` : `<div class="ammo-glyph" style="--ammo-color:${ammo.color}">${ammo.short}</div>`}
-      <div><strong>${ammo.name}</strong><span>${subtitle}</span><small>${meta}</small></div>
-      <button class="blue-button small" data-combat-buy-ammo="${ammo.id}" ${(!canAfford(ammo.priceType, ammo.price)) ? "disabled" : ""}>Acheter</button>
+      <div class="combat-shop-copy"><strong>${ammo.name}</strong><span>Pack ${fmt(packAmount)}</span><small>${fmt(packPrice)} ${currency}</small></div>
+      <button class="combat-buy-icon" data-combat-buy-ammo="${ammo.id}" data-combat-buy-multiplier="${purchaseMultiplier}" ${(!canAfford(ammo.priceType, packPrice)) ? "disabled" : ""} aria-label="Acheter ${ammo.name}" title="Acheter">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-2 8H8L6 3H3"/><path d="M8 18a1.4 1.4 0 1 0 0 .1M18 18a1.4 1.4 0 1 0 0 .1"/></svg>
+      </button>
     </article>`;
   }).join("")}</div>`;
 }
 
-function renderAmmoPanel({ammoTypes, getAmmoCount, laserVolleyCount}){
-  return `<div class="combat-panel-grid">${ammoTypes.map(ammo=>{
+function renderAmmoPanel({ammoTypes, getAmmoCount}){
+  return `<div class="combat-panel-grid combat-ammo-grid">${ammoTypes.map(ammo=>{
     const count = getAmmoCount(ammo.id);
-    const subtitle = ammo.weaponClass === "missile"
-      ? `Stock ${fmt(count)} · charge le lance-missile`
-      : ammo.weaponClass === "rocket"
-      ? `Stock ${fmt(count)} · 1 roquette / tir`
-      : `Stock ${fmt(count)} · ${laserVolleyCount || 1} conso / salve`;
-    const detail = ammo.weaponClass === "missile"
-      ? `${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)} dégâts par missile`
-      : ammo.weaponClass === "rocket"
-        ? `${ammo.damageMin}-${ammo.damageMax} dégâts · ${ammo.range} portée`
-        : `Glisse dans un slot 1-9 - Multiplicateur x${ammo.multiplier} - Pack ${fmt(ammo.amount)}`;
-    return `<button class="combat-pick-card ${count ? "" : "disabled"}" draggable="${count ? "true" : "false"}" data-combat-ammo-id="${ammo.id}" data-combat-ammo-class="${ammo.weaponClass}" type="button">
+    return `<button class="combat-pick-card combat-ammo-card ${count ? "" : "disabled"}" draggable="${count ? "true" : "false"}" data-combat-ammo-id="${ammo.id}" data-combat-ammo-class="${ammo.weaponClass}" type="button">
       ${ammo.img ? `<img class="combat-ammo-icon" src="${ammo.img}" alt="${ammo.name}">` : `<div class="ammo-glyph" style="--ammo-color:${ammo.color}">${ammo.short}</div>`}
-      <div><strong>${ammo.name}</strong><span>${subtitle}</span><small>${detail}</small></div>
+      <div class="combat-ammo-copy"><strong>${ammo.name}</strong><span>Stock ${fmt(count)}</span></div>
     </button>`;
   }).join("")}</div>`;
 }

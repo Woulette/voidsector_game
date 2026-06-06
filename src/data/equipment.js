@@ -1,4 +1,4 @@
-export const equipment = [
+﻿export const equipment = [
   {
     id:"laser_mk1",
     name:"Canon Laser MK-I",
@@ -171,7 +171,7 @@ export const droneFormations = [
 export const ammoTypes = [
   {
     id:"ammo_x1",
-    name:"Munition Type 1",
+    name:"Munition M-1",
     short:"M-1",
     category:"munition",
     rarity:"STANDARD",
@@ -188,7 +188,7 @@ export const ammoTypes = [
   },
   {
     id:"ammo_x2",
-    name:"Munition Type 2",
+    name:"Munition M-2",
     short:"M-2",
     category:"munition",
     rarity:"RENFORCÉE",
@@ -205,12 +205,12 @@ export const ammoTypes = [
   },
   {
     id:"ammo_x3",
-    name:"Munition Type 3",
+    name:"Munition M-3",
     short:"M-3",
     category:"munition",
     rarity:"ÉPIQUE",
     priceType:"premium",
-    price:1000,
+    price:300,
     amount:1000,
     img:"assets/equipment/ammo_laser_x3_same_preview.png",
     weaponClass:"laser",
@@ -222,12 +222,12 @@ export const ammoTypes = [
   },
   {
     id:"ammo_x4",
-    name:"Munition Type 4",
+    name:"Munition M-4",
     short:"M-4",
     category:"munition",
     rarity:"ANCIENNE",
     priceType:"premium",
-    price:2500,
+    price:800,
     amount:1000,
     img:"assets/equipment/ammo_laser_x4_same_preview.png",
     weaponClass:"laser",
@@ -239,7 +239,7 @@ export const ammoTypes = [
   },
   {
     id:"ammo_x6",
-    name:"Munition Type 6",
+    name:"Munition M-6",
     short:"M-6",
     category:"munition",
     rarity:"ANCESTRAL",
@@ -320,8 +320,8 @@ export const ammoTypes = [
   },
   {
     id:"missile_m1",
-    name:"Missile 1",
-    short:"MS-1",
+    name:"Missile R-1",
+    short:"R-1",
     category:"munition",
     rarity:"PROVISOIRE",
     priceType:"credits",
@@ -340,8 +340,8 @@ export const ammoTypes = [
   },
   {
     id:"missile_m2",
-    name:"Missile 2",
-    short:"MS-2",
+    name:"Missile R-2",
+    short:"R-2",
     category:"munition",
     rarity:"PROVISOIRE",
     priceType:"premium",

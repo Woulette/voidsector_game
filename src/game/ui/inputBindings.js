@@ -331,7 +331,10 @@ export function installCombatInputHandlers({
       return;
     }
     const buy = e.target.closest("[data-combat-buy-ammo]");
-    if(buy){ buyCombatAmmo(buy.dataset.combatBuyAmmo); return; }
+    if(buy){
+      buyCombatAmmo(buy.dataset.combatBuyAmmo, Number(buy.dataset.combatBuyMultiplier || 1));
+      return;
+    }
     const extraUse = e.target.closest("[data-combat-extra-use]");
     if(extraUse){ activateRepairBot(true); renderCombatQuickPanel(); updateHud(); return; }
     const extraSlot = e.target.closest("[data-combat-extra-slot]");

@@ -152,6 +152,7 @@
 .combat-panel-tabs button.active{border-color:rgba(56,189,248,.85);color:#fff;background:rgba(56,189,248,.16)}
 .combat-panel-tabs button.hidden{display:none}
 .combat-panel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;max-height:260px;overflow:auto;padding-right:4px}
+.combat-shop-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;max-height:130px}
 .combat-pick-card{
   display:grid;
   grid-template-columns:58px 1fr auto;
@@ -165,6 +166,44 @@
   text-align:left;
   cursor:grab;
 }
+.combat-shop-card{
+  grid-template-columns:48px minmax(0,1fr) 38px;
+  min-height:62px;
+  gap:7px;
+  padding:6px 7px;
+  cursor:default;
+}
+.combat-shop-card .combat-ammo-icon{width:44px;height:44px}
+.combat-shop-copy{min-width:0}
+.combat-shop-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.combat-shop-copy span,.combat-shop-copy small{display:block;margin-top:2px;white-space:nowrap;font-size:10px;line-height:1.15}
+.combat-shop-copy span{color:#8fc6e4}
+.combat-shop-copy small{color:#facc15}
+.combat-buy-icon{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(56,189,248,.45);
+  background:linear-gradient(180deg,rgba(8,47,73,.92),rgba(3,21,38,.96));
+  color:#bff3ff;
+  cursor:pointer;
+  clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+}
+.combat-buy-icon:hover{border-color:rgba(125,211,252,.9);box-shadow:0 0 12px rgba(56,189,248,.22)}
+.combat-buy-icon:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
+.combat-buy-icon svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.combat-ammo-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;max-height:122px}
+button.combat-pick-card.combat-ammo-card{
+  grid-template-columns:48px minmax(0,1fr);
+  min-height:58px;
+  gap:7px;
+  padding:6px 8px;
+}
+.combat-ammo-card .combat-ammo-icon{width:44px;height:44px}
+.combat-ammo-copy{min-width:0}
+.combat-ammo-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.combat-ammo-copy span{margin-top:4px;color:#8fc6e4;font-size:11px}
 button.combat-pick-card{grid-template-columns:58px 1fr}
 .combat-pick-card.disabled{opacity:.45;cursor:not-allowed}
 .combat-extra-icon{width:52px;height:52px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(56,189,248,.25))}

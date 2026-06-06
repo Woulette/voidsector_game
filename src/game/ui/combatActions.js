@@ -300,21 +300,24 @@ export function createCombatActions({
     updateGameActionBar();
   }
 
-  function buyCombatAmmo(id){
+  function buyCombatAmmo(id, multiplier = 1){
     const ammo = getAmmo(id);
     if(!ammo) return;
-    if(multiplayer?.connected && buyServerAmmo?.(ammo.id, 1)){
+    const count = [1, 10, 100, 1000].includes(Number(multiplier)) ? Number(multiplier) : 1;
+    const price = ammo.price * count;
+    const amount = ammo.amount * count;
+    if(multiplayer?.connected && buyServerAmmo?.(ammo.id, count)){
       showToast("Achat envoye au serveur.");
       return;
     }
-    if(!canAfford(ammo.priceType, ammo.price)) return showToast("Fonds insuffisants.");
-    spend(ammo.priceType, ammo.price);
-    addAmmo(ammo.id, ammo.amount);
+    if(!canAfford(ammo.priceType, price)) return showToast("Fonds insuffisants.");
+    spend(ammo.priceType, price);
+    addAmmo(ammo.id, amount);
     saveState();
     updateHud();
     renderGameActionBar();
     renderCombatQuickPanel();
-    showToast(`${ammo.name} achetee : +${ammo.amount}.`);
+    showToast(`${ammo.name} achetee : +${amount}.`);
   }
 
   function saveAndSyncActionSlots(){

@@ -1,15 +1,15 @@
-import { ships } from "../../../src/data/catalog.js";
+﻿import { ships } from "../../../src/data/catalog.js";
 
 export const SERVER_AMMO_SHOP = {
-  ammo_x1:{id:"ammo_x1", name:"Munition Type 1", priceType:"credits", price:10000, amount:1000},
-  ammo_x2:{id:"ammo_x2", name:"Munition Type 2", priceType:"credits", price:50000, amount:1000},
-  ammo_x3:{id:"ammo_x3", name:"Munition Type 3", priceType:"premium", price:1000, amount:1000},
-  ammo_x4:{id:"ammo_x4", name:"Munition Type 4", priceType:"premium", price:2500, amount:1000},
+  ammo_x1:{id:"ammo_x1", name:"Munition M-1", priceType:"credits", price:10000, amount:1000},
+  ammo_x2:{id:"ammo_x2", name:"Munition M-2", priceType:"credits", price:50000, amount:1000},
+  ammo_x3:{id:"ammo_x3", name:"Munition M-3", priceType:"premium", price:300, amount:1000},
+  ammo_x4:{id:"ammo_x4", name:"Munition M-4", priceType:"premium", price:800, amount:1000},
   rocket_r1:{id:"rocket_r1", name:"Roquette R-1", priceType:"credits", price:100, amount:1},
   rocket_r2:{id:"rocket_r2", name:"Roquette R-2", priceType:"credits", price:500, amount:1},
   rocket_r3:{id:"rocket_r3", name:"Roquette R-3", priceType:"premium", price:2, amount:1},
-  missile_m1:{id:"missile_m1", name:"Missile 1", priceType:"credits", price:1000, amount:1},
-  missile_m2:{id:"missile_m2", name:"Missile 2", priceType:"premium", price:3, amount:1}
+  missile_m1:{id:"missile_m1", name:"Missile R-1", priceType:"credits", price:1000, amount:1},
+  missile_m2:{id:"missile_m2", name:"Missile R-2", priceType:"premium", price:3, amount:1}
 };
 
 export const SERVER_ITEM_SHOP = {
