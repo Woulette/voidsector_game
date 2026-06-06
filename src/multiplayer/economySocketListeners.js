@@ -40,10 +40,6 @@ export function installEconomySocketListeners({socket, multiplayer, emitChange, 
     pushEvent(multiplayer.combatEvents, event, 80);
     emitChange("combat:hit", event);
   });
-  socket.on("combat:error", payload=>{
-    toast(payload?.message || "Tir serveur refuse.");
-    emitChange("combat:error", payload);
-  });
   socket.on("refinery:updated", event=>{
     pushEvent(multiplayer.refineryEvents, event, 40);
     emitChange("refinery:updated", event);

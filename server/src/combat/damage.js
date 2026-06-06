@@ -1,4 +1,5 @@
 import {ammoTypes} from "../../../src/data/equipment.js";
+import {skills} from "../../../src/data/progression.js";
 import {getItemFromInventoryUid, getServerItem} from "../economy/equipment.js";
 
 const fireCooldowns = new Map();
@@ -75,6 +76,35 @@ function getLauncher(profile, player, type){
   return null;
 }
 
+function getProfileSkillBonus(profile, key, defaultValue = 1){
+  let bonus = defaultValue;
+  for(const skill of skills){
+    const savedRanks = Array.isArray(profile?.skillRanks?.[skill.id]) ? profile.skillRanks[skill.id] : [];
+    for(let index = 0; index < skill.levels.length; index += 1){
+      const node = skill.levels[index];
+      const rank = Math.max(0, Number(savedRanks[index] || 0));
+      if(rank <= 0) continue;
+      const activeRank = Array.isArray(node.ranks) ? node.ranks[Math.min(rank, node.ranks.length) - 1] : node;
+      const value = activeRank?.stats?.[key];
+      if(value !== undefined) bonus *= Number(value || 1);
+    }
+  }
+  return bonus;
+}
+
+function getRocketCooldownMultiplier(profile, player){
+  const loadout = getShipLoadout(profile, player);
+  const extras = Array.isArray(loadout?.extras) ? loadout.extras : [];
+  let multiplier = getProfileSkillBonus(profile, "rocketCooldownMultiplier", 1);
+  for(const uid of extras){
+    const item = getItemFromInventoryUid(profile, uid);
+    if(item?.effect?.rocketCooldownMultiplier){
+      multiplier *= Number(item.effect.rocketCooldownMultiplier);
+    }
+  }
+  return Math.max(0.25, multiplier);
+}
+
 function sumLaserDamage(profile, lasers){
   return lasers.reduce((acc, item)=>{
     const upgradeBonus = getUpgradeLevel(profile, item.id) * 10;
@@ -120,7 +150,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload} = {}){
     if(!launcher) return {ok:false, reason:"Aucun lance roquette equipe."};
     consumed = 1;
     range = Number(launcher.effect?.rocketRange || ammo.range || 550);
-    cooldownMs = Math.max(500, Number(launcher.effect?.rocketCooldown || ammo.cooldown || 5) * 1000);
+    cooldownMs = Math.max(500, Number(launcher.effect?.rocketCooldown || ammo.cooldown || 5) * getRocketCooldownMultiplier(profile, player) * 1000);
     damage = (rollBetween(ammo.damageMin, ammo.damageMax) + getUpgradeLevel(profile, ammo.id) * 80) * Number(launcher.effect?.rocketDamageMultiplier || 1);
   }else if(weaponClass === "missile"){
     const launcher = getLauncher(profile, player, "missile");

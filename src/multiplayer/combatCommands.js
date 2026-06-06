@@ -16,7 +16,10 @@ export function createCombatCommands({multiplayer}){
       weaponClass:context.weaponClass || "laser",
       ammoId:context.ammoId || "ammo_x1",
       count:context.count || 1,
-      serverCalculated:Boolean(context.serverCalculated)
+      serverCalculated:Boolean(context.serverCalculated),
+      clientAimX:Number(context.clientAimX || 0),
+      clientAimY:Number(context.clientAimY || 0),
+      targetRadius:Number(context.targetRadius || 0)
     };
     multiplayer.socket.emit(payload.serverCalculated ? "combat:fire" : "enemy:hit", payload);
   }

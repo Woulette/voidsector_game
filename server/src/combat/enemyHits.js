@@ -46,13 +46,17 @@ export function createEnemyHitHandler({
         hit:false,
         damage:0,
         mapId:String(player?.mapId ?? ""),
-        x:Number(enemy?.x || 0),
-        y:Number(enemy?.y || 0),
-        radius:Number(enemy?.radius || 0),
+        x:Number(enemy?.x ?? payload?.clientAimX ?? 0),
+        y:Number(enemy?.y ?? payload?.clientAimY ?? 0),
+        radius:Number(enemy?.radius ?? payload?.targetRadius ?? 0),
         reason,
         at:Date.now()
       });
     };
+    if(!player){
+      if(payload?.serverCalculated) emitCombatMiss(null, "Joueur serveur introuvable.");
+      return;
+    }
     let incoming = Math.max(0, Math.min(5000000, Number(payload?.amount || 0)));
     let combatResult = null;
     if(payload?.serverCalculated){
