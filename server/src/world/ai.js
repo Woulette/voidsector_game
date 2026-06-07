@@ -10,6 +10,12 @@ function getEnemyAiKind(kind){
   return String(kind || "drone_pirate").replace(/^boss_/, "");
 }
 
+const PASSIVE_UNTIL_ATTACKED = new Set(["drone_pirate", "raider_astral"]);
+
+function requiresPlayerAttack(enemy){
+  return PASSIVE_UNTIL_ATTACKED.has(getEnemyAiKind(enemy?.kind));
+}
+
 export function createWorldAiManager({players, presence, launchEnemyAttack, isPlayerSafeOnMap}){
   function canTargetPlayer(enemy, player, map, now){
     return canEnemyTargetPlayerInSafeZone({
@@ -55,7 +61,9 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
     const aggroDistance = Math.max(780, Number(enemy.attackRange || 400) + 260) * WORLD_ENEMY_AGGRO_MULTIPLIER;
     let target = null;
 
-    if(spottedTarget && spottedTarget.distance <= aggroDistance){
+    const canAcquireByProximity = !requiresPlayerAttack(enemy);
+
+    if(canAcquireByProximity && spottedTarget && spottedTarget.distance <= aggroDistance){
       target = spottedTarget;
       enemy.lockedPlayerId = target.player.id;
       enemy.lockedPlayerLastSeenAt = now;

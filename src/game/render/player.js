@@ -298,27 +298,15 @@ function drawRepairDrone({ctx, camera, cache, player}){
   const repairImg = player.extraBonus?.repairBotImg || REPAIR_DRONE_IMG;
   const img = cache[repairImg] || cache[REPAIR_DRONE_IMG];
   const time = performance.now() / 1000;
-  const servicePoints = [
-    {x:-36, y:-42, ox:-72, oy:-88},
-    {x:38, y:-36, ox:78, oy:-82},
-    {x:42, y:28, ox:90, oy:62},
-    {x:-34, y:36, ox:-82, oy:70},
-    {x:0, y:-8, ox:0, oy:-100}
-  ];
-  const cycle = time * .68;
-  const step = Math.floor(cycle) % servicePoints.length;
-  const next = (step + 1) % servicePoints.length;
-  const mix = smoothstep(cycle - Math.floor(cycle));
-  const from = servicePoints[step];
-  const to = servicePoints[next];
+  const orbit = time * 1.15;
   const hover = Math.sin(time * 5.2) * 3;
-  const contactLocal = {
-    x:lerp(from.x, to.x, mix),
-    y:lerp(from.y, to.y, mix)
-  };
+  const orbitRadiusX = 92;
+  const orbitRadiusY = 78;
+  const centerPulse = Math.sin(time * 7.5) * 2;
+  const contactLocal = {x:centerPulse, y:centerPulse * .35};
   const droneLocal = {
-    x:lerp(from.ox, to.ox, mix) + Math.cos(time * 2.7) * 5,
-    y:lerp(from.oy, to.oy, mix) + hover
+    x:Math.cos(orbit) * orbitRadiusX + Math.cos(time * 2.7) * 5,
+    y:Math.sin(orbit) * orbitRadiusY + hover
   };
   const contact = localToWorld(player, contactLocal.x, contactLocal.y, player.angle);
   const drone = localToWorld(player, droneLocal.x, droneLocal.y, player.angle);
@@ -360,7 +348,7 @@ function drawRepairDrone({ctx, camera, cache, player}){
     y:drone.y,
     w:42,
     h:42,
-    angle:player.angle + Math.sin(time * 2.2) * .18,
+    angle:Math.atan2(player.y - drone.y, player.x - drone.x) + Math.PI / 2,
     fallbackColor:"#22d3ee"
   });
 }

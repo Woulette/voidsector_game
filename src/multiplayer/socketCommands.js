@@ -13,6 +13,9 @@ export function createSocketCommands({multiplayer}){
     requestServerLogout(){
       return emit(multiplayer, "session:logout-request");
     },
+    setupServerProfile({name, firmId} = {}){
+      return emit(multiplayer, "profile:setup", {name, firmId});
+    },
     sendChatMessage({channel = "global", text = ""} = {}){
       return emit(multiplayer, "chat:send", {channel, text});
     },

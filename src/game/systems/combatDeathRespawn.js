@@ -1,3 +1,5 @@
+import { getFirmHomeMapName } from "../../data/firms.js";
+
 export function createCombatDeathRespawnSystem({
   mapList,
   store,
@@ -14,6 +16,11 @@ export function createCombatDeathRespawnSystem({
   updateHud,
   portalStartingLives
 }){
+  function getHomeMap(){
+    const homeMapName = getFirmHomeMapName(store.state.player?.firmId || "astra");
+    return mapList.find(map=>String(map.name || "").toUpperCase() === homeMapName) || mapList[0];
+  }
+
   function renderPanelContent(){
     const {deathState, portalLives} = getState();
     const panel = document.getElementById("deathRespawnPanel");
@@ -25,13 +32,13 @@ export function createCombatDeathRespawnSystem({
       head.innerHTML = `<span>Vie de portail perdue</span><strong>${Math.max(0, portalLives)} / ${portalStartingLives} vies restantes</strong>`;
       actions.innerHTML = `
         <button data-respawn-choice="portal-resume" type="button">Reprendre le portail<br><small>Position de mort</small></button>
-        <button data-respawn-choice="spawn" type="button">Abandonner<br><small>Retour ASTRA-01</small></button>
+        <button data-respawn-choice="spawn" type="button">Abandonner<br><small>Retour ${getHomeMap().name}</small></button>
       `;
       return;
     }
     head.innerHTML = `<span>Vaisseau detruit</span><strong>Choisir un point de retour</strong>`;
     actions.innerHTML = `
-      <button data-respawn-choice="spawn" type="button">ASTRA-01<br><small>Gratuit - 20% PV</small></button>
+      <button data-respawn-choice="spawn" type="button">${getHomeMap().name}<br><small>Gratuit - 20% PV</small></button>
       <button data-respawn-choice="portal" type="button">Portail proche<br><small>100 NOVA</small></button>
       <button data-respawn-choice="death" type="button">Position actuelle<br><small>200 NOVA</small></button>
     `;
@@ -116,7 +123,7 @@ export function createCombatDeathRespawnSystem({
     if(failedId && store.state.portalRuns) delete store.state.portalRuns[failedId];
     player.isDead = false;
     clearPoison();
-    const map = mapList[0];
+    const map = getHomeMap();
     loadMap(map.id, map.spawn.x, map.spawn.y);
     player.hp = Math.max(1, Math.round(player.maxHp * 0.2));
     player.shield = player.maxShield;
@@ -144,7 +151,7 @@ export function createCombatDeathRespawnSystem({
     setState({
       portalLives,
       deathState:{
-        mapId:gameMode === "open" ? currentMap.id : 0,
+        mapId:gameMode === "open" ? currentMap.id : getHomeMap().id,
         gameMode,
         x:player.x,
         y:player.y,
@@ -184,8 +191,8 @@ export function createCombatDeathRespawnSystem({
       spend("premium", 200);
       finishRespawn({mapId:deathState.mapId, x:deathState.x, y:deathState.y, message:"Respawn à la position de destruction."});
     }else{
-      const map = mapList[0];
-      finishRespawn({mapId:map.id, x:map.spawn.x, y:map.spawn.y, message:"Respawn gratuit sur ASTRA-01."});
+      const map = getHomeMap();
+      finishRespawn({mapId:map.id, x:map.spawn.x, y:map.spawn.y, message:`Respawn gratuit sur ${map.name}.`});
     }
     saveState();
   }

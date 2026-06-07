@@ -1,4 +1,5 @@
 import { ammoTypes, droneCatalog, equipment, pageText, portals, ships, skills } from "../data/catalog.js";
+import { FIRMS, normalizeFirmId } from "../data/firms.js";
 import { fmt } from "../core/utils.js";
 import { DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js";
 import {
@@ -646,6 +647,45 @@ export function renderExtraSection(){
   if(extra) extra.innerHTML = "";
 }
 
+function renderFirmSetupGate(){
+  const account = multiplayer.auth?.account || null;
+  const needsSetup = Boolean(account && store.state?.player && store.state.player.firmSelected !== true);
+  let gate = document.getElementById("firmSetupGate");
+  if(!needsSetup){
+    gate?.remove();
+    return;
+  }
+  if(!gate){
+    gate = document.createElement("div");
+    gate.id = "firmSetupGate";
+    gate.className = "firm-setup-gate";
+    document.body.appendChild(gate);
+  }
+  const selectedFirm = normalizeFirmId(store.pendingFirmId || store.state.player.firmId || "astra");
+  const defaultName = store.state.player.name && store.state.player.name !== "NOVA-37"
+    ? store.state.player.name
+    : (account.username || "");
+  gate.innerHTML = `
+    <div class="firm-setup-panel frame">
+      <span class="tiny">PREMIERE CONNEXION MMO</span>
+      <h2>Choisis ton identite pilote</h2>
+      <p>Cette firme fixe ta base, tes maps de depart et tes quetes. Elle ne pourra plus etre changee ensuite.</p>
+      <label class="firm-setup-name">
+        <span>Nom du joueur</span>
+        <input id="firmSetupName" maxlength="24" value="${escapeHtml(defaultName)}" placeholder="Ton pseudo en jeu">
+      </label>
+      <div class="firm-choice-grid">
+        ${FIRMS.map(firm=>`
+          <button type="button" class="firm-choice ${selectedFirm === firm.id ? "active" : ""}" data-firm-choice="${firm.id}" style="--firm-color:${firm.color}">
+            <strong>${escapeHtml(firm.label)}</strong>
+            <span>Base ${escapeHtml(firm.homeMapName)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <button type="button" class="blue-button firm-setup-confirm" data-firm-setup-confirm>VALIDER ET ENTRER EN MMO</button>
+    </div>`;
+}
+
 export { renderShop } from "./renderShop.js";
 export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js";
 export { renderRefinery } from "./renderRefinery.js";
@@ -667,6 +707,7 @@ export function renderAll(){
   renderPortals();
   renderSkills();
   renderRefinery();
+  renderFirmSetupGate();
   saveState();
 }
 

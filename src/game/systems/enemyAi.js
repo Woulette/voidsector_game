@@ -12,6 +12,16 @@ function getMapPortals(map){
   return map.portal ? [map.portal] : [];
 }
 
+const PASSIVE_UNTIL_ATTACKED = new Set(["drone_pirate", "raider_astral"]);
+
+function getEnemyAiKind(kind){
+  return String(kind || "drone_pirate").replace(/^boss_/, "");
+}
+
+function requiresPlayerAttack(enemy){
+  return PASSIVE_UNTIL_ATTACKED.has(getEnemyAiKind(enemy?.kind));
+}
+
 function isValidPatrolPoint(map, x, y, player){
   if(!map?.width || !map?.height) return false;
   const margin = 90;
@@ -103,7 +113,7 @@ export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, l
     if(safeMode){
       enemy.aggro = false;
       enemy.hitT = Math.max(enemy.hitT || 0, enemy.attackCooldown || 1.4);
-    }else if(!enemy.aggro && enemy.kind !== "drone_pirate" && distance < Math.max(aggroRange, range + 120)) enemy.aggro = true;
+    }else if(!enemy.aggro && !requiresPlayerAttack(enemy) && distance < Math.max(aggroRange, range + 120)) enemy.aggro = true;
 
     let returningHome = false;
     if(enemy.aggro && distance > leashRange){

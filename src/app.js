@@ -49,7 +49,7 @@ import {
   XP_CURVE_VERSION
 } from "./core/store.js";
 import { createCombatGame } from "./game/combat.js?v=quest-claim-ui-1";
-import { applyServerDroneUpgrade, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, performServerPrestige, progressServerQuest, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
+import { applyServerDroneUpgrade, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, performServerPrestige, progressServerQuest, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
 import { initMultiplayer } from "./multiplayer/client.js";
 import { renderAll, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js";
 import { showToast } from "./ui/toast.js";
@@ -280,6 +280,25 @@ const refineryActions = createRefineryActions({
 });
 
 document.addEventListener("click", (e)=>{
+  const firmChoice = e.target.closest("[data-firm-choice]");
+  if(firmChoice){
+    store.pendingFirmId = firmChoice.dataset.firmChoice || "astra";
+    renderAll();
+    return;
+  }
+  const firmSetupConfirm = e.target.closest("[data-firm-setup-confirm]");
+  if(firmSetupConfirm){
+    const name = document.getElementById("firmSetupName")?.value || store.state.player.name || multiplayer.auth?.account?.username || "NOVA-37";
+    const firmId = store.pendingFirmId || store.state.player.firmId || "astra";
+    if(!multiplayer.connected) return showToast("Connexion serveur requise pour choisir la firme.");
+    if(setupServerProfile({name, firmId})){
+      showToast("Configuration du profil envoyee au serveur.");
+      return;
+    }
+    showToast("Impossible d'envoyer le profil au serveur.");
+    return;
+  }
+
   if(inventorySaleController.handleClick(e)) return;
   if(unequipAllController.handleClick(e)) return;
 
@@ -571,6 +590,12 @@ document.getElementById("backToShipsBtn").addEventListener("click", ()=>{
 });
 document.getElementById("startGameBtn").addEventListener("click", ()=>{
   if(!store.state.activeShip) return showToast("Équipe un vaisseau avant de lancer la mission.");
+  if(multiplayer.auth?.account && store.state.player?.firmSelected !== true){
+    showToast("Choisis ton nom de joueur et ta firme avant d'entrer en jeu.");
+    store.hangarTab = "profile";
+    renderAll();
+    return;
+  }
   const playUrl = new URL(window.location.href);
   playUrl.searchParams.set("mode", "game");
   const gameWindow = window.open(playUrl.toString(), "voidsector-game");

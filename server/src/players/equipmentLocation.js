@@ -1,13 +1,14 @@
 import { WORLD_MAPS } from "../world/definitions.js";
 import { ships } from "../../../src/data/ships.js";
+import { getFirmHomeMapName, normalizeFirmId } from "../../../src/data/firms.js";
 
 export function createEquipmentLocationManager({io, players, profileManager, setPlayerMap}){
   function getPlayerFirmId(player, profile = null){
-    return String(profile?.player?.firmId || player?.account?.firmId || "astra").toLowerCase();
+    return normalizeFirmId(profile?.player?.firmId || player?.account?.firmId || "astra");
   }
 
   function getHomeMapForFirm(firmId){
-    const targetName = `${String(firmId || "astra").toUpperCase()}-01`;
+    const targetName = getFirmHomeMapName(firmId);
     return Object.values(WORLD_MAPS).find(map=>String(map.name || "").toUpperCase() === targetName) || WORLD_MAPS["0"];
   }
 

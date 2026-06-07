@@ -1,7 +1,13 @@
 import { questCatalog } from "../data/catalog.js";
+import { normalizeFirmId } from "../data/firms.js";
 import { getQuest, removeInventoryItems, store } from "./store.js";
 
 export const MAX_ACTIVE_QUESTS = 5;
+
+export function questMatchesPlayerFirm(quest){
+  if(!quest?.firmId) return true;
+  return normalizeFirmId(quest.firmId) === normalizeFirmId(store.state?.player?.firmId || "astra");
+}
 
 export function getInitialQuestFailProgress(quest, now = Date.now()){
   const result = {};
@@ -15,12 +21,13 @@ export function getInitialQuestFailProgress(quest, now = Date.now()){
 }
 
 export function getActiveQuest(){
-  return getQuest(store.state.activeQuestId) || null;
+  const quest = getQuest(store.state.activeQuestId);
+  return quest && questMatchesPlayerFirm(quest) ? quest : null;
 }
 
 export function getActiveQuests(){
   const ids = Array.isArray(store.state?.activeQuestIds) ? store.state.activeQuestIds : [];
-  return ids.map(id=>getQuest(id)).filter(Boolean);
+  return ids.map(id=>getQuest(id)).filter(quest=>quest && questMatchesPlayerFirm(quest));
 }
 
 export function getQuestProgress(id){
@@ -99,7 +106,7 @@ export function isQuestUnlocked(quest){
     const level = Number(quest.unlock.level || quest.requiredLevel || 1);
     const completed = store.state.completedQuestClaims || {};
     return questCatalog
-      .filter(entry=>entry.id !== quest.id && !entry.rare && Number(entry.requiredLevel || 1) === level && (entry.category || "normal") === (quest.category || "normal"))
+      .filter(entry=>entry.id !== quest.id && questMatchesPlayerFirm(entry) && !entry.rare && Number(entry.requiredLevel || 1) === level && (entry.category || "normal") === (quest.category || "normal"))
       .every(entry=>completed[entry.id]);
   }
   return true;
@@ -108,12 +115,16 @@ export function isQuestUnlocked(quest){
 export function acceptQuest(id){
   const quest = getQuest(id);
   if(!quest) return {ok:false, reason:"Quete introuvable."};
+  if(!questMatchesPlayerFirm(quest)) return {ok:false, reason:"Quete reservee a une autre firme."};
   const requiredLevel = Number(quest.requiredLevel || 1);
   if(Number(store.state.player?.level || 1) < requiredLevel) return {ok:false, reason:`Niveau ${requiredLevel} requis.`};
   if(!isQuestUnlocked(quest)) return {ok:false, reason:"Quete rare verrouillee."};
   if(store.state.completedQuestClaims?.[id]) return {ok:false, reason:"Quete deja terminee."};
   if(!Array.isArray(store.state.activeQuestIds)) store.state.activeQuestIds = [];
-  store.state.activeQuestIds = store.state.activeQuestIds.filter(questId=>getQuest(questId) && !store.state.completedQuestClaims?.[questId]).slice(0, MAX_ACTIVE_QUESTS);
+  store.state.activeQuestIds = store.state.activeQuestIds.filter(questId=>{
+    const entry = getQuest(questId);
+    return entry && questMatchesPlayerFirm(entry) && !store.state.completedQuestClaims?.[questId];
+  }).slice(0, MAX_ACTIVE_QUESTS);
   if(store.state.activeQuestIds.includes(id)) return {ok:false, reason:"Quete deja en cours."};
   if(store.state.activeQuestIds.length >= MAX_ACTIVE_QUESTS) return {ok:false, reason:`Maximum ${MAX_ACTIVE_QUESTS} quetes en cours.`};
   store.state.activeQuestIds.push(id);

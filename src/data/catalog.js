@@ -1,11 +1,12 @@
 export { ships } from "./ships.js";
 export { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js";
+export { FIRMS, getFirmDefinition, getFirmHomeMapName, getFirmIdFromMapName, getFirmMapId, getFirmMapName, getFirmMapPrefix, normalizeFirmId } from "./firms.js";
 export { pageText, portals, questCatalog, rawMaterialCatalog, refineryRecipes, skills } from "./progression.js";
 
 export const defaultState = {
   economyVersion:1,
   rankKillPointsVersion:2,
-  player:{name:"NOVA-37", level:1, xp:0, xpNext:3000, credits:0, premium:0, skillPoints:1, totalXp:0, reputation:0, totalKills:0, monsterRankPoints:0, totalPlayerKills:0, totalPlaySeconds:0, laserShotsFired:0, rocketShotsFired:0, missileShotsFired:0, rankScore:0, activeTitleId:null, titleVisible:true},
+  player:{name:"NOVA-37", firmId:"astra", firmSelected:false, level:1, xp:0, xpNext:3000, credits:0, premium:0, skillPoints:1, totalXp:0, reputation:0, totalKills:0, monsterRankPoints:0, totalPlayerKills:0, totalPlaySeconds:0, laserShotsFired:0, rocketShotsFired:0, missileShotsFired:0, rankScore:0, activeTitleId:null, titleVisible:true},
   activeShip:"orion",
   selectedShip:"orion",
   ownedShips:["orion", "test_runner"],

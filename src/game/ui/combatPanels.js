@@ -1,6 +1,7 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
 import { renderSpawnPanelContent } from "./spawnPanel.js";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
+import { normalizeFirmId } from "../../data/firms.js";
 import {
   multiplayer,
   connectMultiplayer,
@@ -877,7 +878,7 @@ export function createCombatPanels({
       selectedQuestCategory,
       selectedQuestType,
       showLockedQuests,
-      quests:getAllQuests(),
+      quests:getAllQuests().filter(quest=>!quest.firmId || normalizeFirmId(quest.firmId) === normalizeFirmId(store.state.player?.firmId || "astra")),
       playerLevel:store.state.player.level,
       enemyTypes,
       rawMaterials:getAllRawMaterials(),

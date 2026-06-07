@@ -89,6 +89,33 @@ export function registerPlayerHandlers(socket, context){
     }
   });
 
+  socket.on("profile:setup", payload=>{
+    if(!guard("profile:setup")) return;
+    const player = players.get(socket.id);
+    if(!player?.accountId){
+      socket.emit("profile:setup-error", {message:"Connecte ton compte avant de choisir ta firme."});
+      return;
+    }
+    const result = profileManager.setupProfileForPlayer({
+      player,
+      name:payload?.name,
+      firmId:payload?.firmId
+    });
+    if(!result.ok){
+      socket.emit("profile:setup-error", {message:result.reason || "Configuration du profil impossible."});
+      return;
+    }
+    socket.emit("profile:setup-complete", {
+      name:result.profile?.player?.name,
+      firmId:result.profile?.player?.firmId,
+      firmLabel:result.firm?.label,
+      homeMap:result.firm?.homeMapName,
+      at:Date.now()
+    });
+    emitProfileSync?.(player, result.profile);
+    emitPlayers();
+  });
+
   socket.on("player:state", payload=>{
     if(!guard("player:state")) return;
     const player = players.get(socket.id);

@@ -1,4 +1,6 @@
-export const WORLD_MAPS = {
+import { FIRMS, getFirmMapId, getFirmMapName } from "../../../src/data/firms.js";
+
+const ASTRA_WORLD_MAPS = {
   "0":{id:"0", name:"ASTRA-01", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:320, safeRect:{minX:-5000, minY:2500, maxX:-3500, maxY:3950}}, portals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:7, count:40, level:[1,3], enemyTypes:[["drone_pirate", .50], ["raider_astral", .50]]},
   "1":{id:"1", name:"ASTRA-02", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], closedPortals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:19, count:40, level:[3,7], enemyTypes:[["drone_pirate", 1], ["raider_astral", 1], ["chasseur_spectral", 1]]},
   "2":{id:"2", name:"ASTRA-03", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], seed:31, count:50, level:[6,10], enemyTypes:[["chasseur_spectral", .56], ["cuirasse_nebulaire", .44]], fixedEnemyCounts:{cristal_du_neant:8}},
@@ -6,6 +8,83 @@ export const WORLD_MAPS = {
   "4":{id:"4", name:"ASTRA-05", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:320}, portals:[{x:4300, y:-3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}, {x:0, y:-3300, r:95, safeRadius:230}], seed:59, count:30, level:[18,24], enemyTypes:[["boss_drone_pirate", .16], ["boss_raider_astral", .18], ["boss_chasseur_spectral", .20], ["boss_cuirasse_nebulaire", .20], ["boss_cristal_du_neant", .16], ["boss_cuirasse_ambre", .10]]},
   "20":{id:"20", name:"CYAN-01", width:10000, height:8000, spawn:{x:-4300, y:-3300, r:320, safeRadius:320}, portals:[{x:4300, y:3300, r:95, safeRadius:230}], seed:207, count:20, level:[1,3], enemyTypes:[["drone_pirate", .70], ["raider_astral", .30]]}
 };
+
+const RICKY_PORTAL_BY_FIRM = {
+  astra:{portal:{x:4300, y:-3300}, npc:{x:4470, y:-3180}},
+  cyan:{portal:{x:4300, y:3300}, npc:{x:4470, y:3180}},
+  jaune:{portal:{x:-4300, y:3300}, npc:{x:-4470, y:3180}},
+  verte:{portal:{x:-4300, y:-3300}, npc:{x:-4470, y:-3180}}
+};
+
+function clone(value){
+  return JSON.parse(JSON.stringify(value));
+}
+
+function firmSeedOffset(firmId){
+  return {astra:0, cyan:200, jaune:300, verte:400}[firmId] || 0;
+}
+
+function buildFirmWorldMaps(){
+  const result = {};
+  for(const firm of FIRMS){
+    for(let num = 1; num <= 5; num += 1){
+      const template = ASTRA_WORLD_MAPS[String(num - 1)];
+      if(!template) continue;
+      const map = clone(template);
+      map.id = String(getFirmMapId(firm.id, num));
+      map.name = getFirmMapName(firm.id, num);
+      map.firmId = firm.id;
+      map.seed = Number(template.seed || 0) + firmSeedOffset(firm.id);
+      if(num === 1){
+        map.spawn = {
+          ...(map.spawn || {}),
+          x:Number(firm.spawn?.x ?? map.spawn?.x ?? 0),
+          y:Number(firm.spawn?.y ?? map.spawn?.y ?? 0),
+          r:Number(map.spawn?.r || 320),
+          safeRadius:Number(map.spawn?.safeRadius || 320)
+        };
+        map.spawn.safeRect = {
+          minX:map.spawn.x - 750,
+          minY:map.spawn.y - 750,
+          maxX:map.spawn.x + 750,
+          maxY:map.spawn.y + 750
+        };
+      }
+      if(num === 2){
+        const ricky = RICKY_PORTAL_BY_FIRM[firm.id] || RICKY_PORTAL_BY_FIRM.astra;
+        map.closedPortals = [{...ricky.portal, r:95, safeRadius:230}];
+        map.questNpcs = [{
+          id:`${firm.mapPrefix.toLowerCase()}02_portal_mechanic`,
+          name:"Ricky",
+          x:ricky.npc.x,
+          y:ricky.npc.y,
+          interactionRadius:260
+        }];
+      }
+      result[map.id] = map;
+    }
+  }
+  result["50"] = {
+    id:"50",
+    name:"CORE",
+    width:10000,
+    height:8000,
+    spawn:{x:0, y:0, r:420, safeRadius:420, safeRect:{minX:-520, minY:-520, maxX:520, maxY:520}},
+    portals:[
+      {x:-4300, y:0, r:95, safeRadius:230},
+      {x:0, y:-3300, r:95, safeRadius:230},
+      {x:4300, y:0, r:95, safeRadius:230},
+      {x:0, y:3300, r:95, safeRadius:230}
+    ],
+    seed:509,
+    count:48,
+    level:[24,30],
+    enemyTypes:[["boss_chasseur_spectral", .35], ["boss_cuirasse_nebulaire", .35], ["boss_cristal_du_neant", .30]]
+  };
+  return result;
+}
+
+export const WORLD_MAPS = buildFirmWorldMaps();
 export const WORLD_ENEMY_TYPES = {
   drone_pirate:{
     kind:"drone_pirate",

@@ -157,8 +157,7 @@ const generatedCombatQuests = [
   ["quest_astra05_boss_daily_01", "daily", 18, "Prime orbes boss", "Détruis 10 Boss Orbes sentinelles dans ASTRA-05.", "boss_drone_pirate", 10, "ASTRA-05", 180000, 12000, {catalyseur_quantique:8}],
   ["quest_astra05_boss_daily_02", "daily", 20, "Prime parasites boss", "Détruis 8 Boss Parasites astraux dans ASTRA-05.", "boss_chasseur_spectral", 8, "ASTRA-05", 240000, 16000, {silice_conductrice:120, catalyseur_quantique:10}],
   ["quest_astra05_boss_weekly_01", "weekly", 20, "Nettoyage des rushers boss", "Détruis 25 Boss Vorak rushers dans ASTRA-05.", "boss_raider_astral", 25, "ASTRA-05", 500000, 36000, {conducteur_renforce:10, blindage_composite:10, noyau_astra:2}],
-  ["quest_astra05_boss_weekly_02", "weekly", 22, "Siège d'ASTRA-05", "Détruis 12 Boss Cuirasses ambre dans ASTRA-05.", "boss_cuirasse_ambre", 12, "ASTRA-05", 1200000, 70000, {conducteur_renforce:20, blindage_composite:20, noyau_astra:5}],
-  ["quest_cyan01_raider_easy_01", "daily", 3, "Prime Cyan", "Détruis 10 Vorak rushers dans CYAN-01.", "raider_astral", 10, "CYAN-01", 22000, 1150, {nickel_brut:14, zinc_spatial:8}]
+  ["quest_astra05_boss_weekly_02", "weekly", 22, "Siège d'ASTRA-05", "Détruis 12 Boss Cuirasses ambre dans ASTRA-05.", "boss_cuirasse_ambre", 12, "ASTRA-05", 1200000, 70000, {conducteur_renforce:20, blindage_composite:20, noyau_astra:5}]
 ].map(([id, category, requiredLevel, title, desc, target, count, zone, credits, xp, materials, premium = 0])=>({
   id,
   category,
@@ -170,7 +169,87 @@ const generatedCombatQuests = [
   rewards:{credits, premium, xp, materials}
 }));
 
-export const questCatalog = [
+const QUEST_FIRMS = [
+  {id:"astra", label:"Astra", mapPrefix:"ASTRA"},
+  {id:"cyan", label:"Cyan", mapPrefix:"CYAN"},
+  {id:"jaune", label:"Jaune", mapPrefix:"JAUNE"},
+  {id:"verte", label:"Vert", mapPrefix:"VERTE"}
+];
+
+function getQuestFirmDefinition(firmId){
+  return QUEST_FIRMS.find(firm=>firm.id === firmId) || QUEST_FIRMS[0];
+}
+
+function getQuestFirmMapName(firmId, num){
+  const firm = getQuestFirmDefinition(firmId);
+  return `${firm.mapPrefix}-${String(num).padStart(2, "0")}`;
+}
+
+function deepClone(value){
+  return JSON.parse(JSON.stringify(value));
+}
+
+function firmNpcId(npcId, firmId){
+  if(String(npcId || "") !== "astra02_portal_mechanic") return npcId;
+  const prefix = getQuestFirmDefinition(firmId).mapPrefix.toLowerCase();
+  return `${prefix}02_portal_mechanic`;
+}
+
+function firmText(value, firmId){
+  if(typeof value !== "string") return value;
+  const firm = getQuestFirmDefinition(firmId);
+  return value.replace(/ASTRA/g, firm.mapPrefix).replace(/Astra/g, firm.label);
+}
+
+function firmZone(value, firmId){
+  const match = String(value || "").match(/^ASTRA-(\d{2})$/i);
+  if(!match) return value;
+  return getQuestFirmMapName(firmId, Number(match[1]));
+}
+
+function firmObjective(objective, firmId){
+  if(!objective || typeof objective !== "object" || Array.isArray(objective)) return objective;
+  const next = {};
+  for(const [key, value] of Object.entries(objective)){
+    if(key === "zone" || key === "map") next[key] = firmZone(value, firmId);
+    else if(key === "zones" && Array.isArray(value)) next[key] = value.map(zone=>firmZone(zone, firmId));
+    else if(key === "npcId") next[key] = firmNpcId(value, firmId);
+    else if(key === "id" && typeof value === "string") next[key] = firmText(value, firmId).toLowerCase();
+    else if(typeof value === "string") next[key] = firmText(value, firmId);
+    else next[key] = deepClone(value);
+  }
+  return next;
+}
+
+function firmQuestId(id, firmId){
+  if(firmId === "astra") return id;
+  const base = String(id || "quest");
+  if(base.startsWith("quest_astra")) return base.replace("quest_astra", `quest_${firmId}`);
+  return `${base}_${firmId}`;
+}
+
+function firmQuest(quest, firmId){
+  const next = deepClone(quest);
+  next.id = firmQuestId(quest.id, firmId);
+  next.sourceQuestId = quest.id;
+  next.firmId = firmId;
+  next.title = firmText(next.title, firmId);
+  next.desc = firmText(next.desc, firmId);
+  next.giver = firmText(next.giver, firmId);
+  if(next.objective) next.objective = firmObjective(next.objective, firmId);
+  if(Array.isArray(next.objectives)) next.objectives = next.objectives.map(objective=>firmObjective(objective, firmId));
+  return next;
+}
+
+function buildFirmQuestCatalog(baseQuests){
+  const result = [];
+  for(const firm of QUEST_FIRMS){
+    for(const quest of baseQuests) result.push(firmQuest(quest, firm.id));
+  }
+  return result;
+}
+
+const baseQuestCatalog = [
   {
     id:"quest_drone_cleanup",
     category:"normal",
@@ -364,6 +443,8 @@ export const questCatalog = [
   },
   ...generatedCombatQuests
 ];
+
+export const questCatalog = buildFirmQuestCatalog(baseQuestCatalog);
 
 export const pageText = {
   hangar:{title:"HANGAR", subtitle:"Configure ton vaisseau, tes drones et tes extras."},

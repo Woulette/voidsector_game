@@ -15,6 +15,14 @@ export function installPlayerSocketListeners({
     multiplayer.auth.profileReady = true;
     window.dispatchEvent(new CustomEvent("voidsector:profile-sync", {detail:{profile}}));
   });
+  socket.on("profile:setup-complete", event=>{
+    toast(event?.firmLabel ? `Profil pilote pret : ${event.firmLabel}.` : "Profil pilote pret.");
+    emitChange("profile:setup-complete", event);
+  });
+  socket.on("profile:setup-error", payload=>{
+    toast(payload?.message || "Configuration du profil impossible.");
+    emitChange("profile:setup-error", payload);
+  });
   socket.on("player:resume", session=>{
     pushEvent(multiplayer.resumeEvents, session, 10);
     window.dispatchEvent(new CustomEvent("voidsector:player-resume", {detail:{session}}));

@@ -1,4 +1,5 @@
 import { ammoTypes, defaultState, droneFormations, equipment, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js";
+import { normalizeFirmId } from "../data/firms.js";
 import { normalizeSlotKeybinds } from "./keybinds.js";
 import { getDroneCatalog, getItem, getQuest, getRawMaterial, getShip } from "./catalogStore.js";
 import { enforcePlayerCurrencyMinimums } from "./currencyStore.js";
@@ -38,6 +39,9 @@ export function normalizeState(saved){
     ? Math.max(0, Number(saved?.player?.monsterRankPoints || 0))
     : Math.max(0, Number(merged.player.totalKills || 0) / 10);
   merged.player.totalPlayerKills = Math.max(0, Number(merged.player.totalPlayerKills || 0));
+  merged.player.name = String(merged.player.name || "NOVA-37").trim().replace(/\s+/g, " ").slice(0, 24) || "NOVA-37";
+  merged.player.firmId = normalizeFirmId(merged.player.firmId || merged.player.firm || merged.player.company || merged.player.faction || "astra");
+  merged.player.firmSelected = Boolean(merged.player.firmSelected);
   merged.player.totalPlaySeconds = Math.max(0, Number(merged.player.totalPlaySeconds || 0));
   merged.player.laserShotsFired = Math.max(0, Number(merged.player.laserShotsFired || 0));
   merged.player.rocketShotsFired = Math.max(0, Number(merged.player.rocketShotsFired || 0));
@@ -280,7 +284,11 @@ export function normalizeState(saved){
   merged.equipmentUpgrades = saved?.equipmentUpgrades && typeof saved.equipmentUpgrades === "object" ? {...saved.equipmentUpgrades} : {...(base.equipmentUpgrades || {})};
   const savedActiveQuestIds = Array.isArray(saved?.activeQuestIds) ? saved.activeQuestIds : [];
   const legacyActiveQuestId = getQuest(saved?.activeQuestId)?.id || null;
-  merged.activeQuestIds = [...new Set([...savedActiveQuestIds, legacyActiveQuestId].filter(id=>getQuest(id) && !saved?.completedQuestClaims?.[id]))].slice(0, MAX_ACTIVE_QUESTS);
+  const matchesCurrentFirm = id=>{
+    const quest = getQuest(id);
+    return quest && (!quest.firmId || normalizeFirmId(quest.firmId) === normalizeFirmId(merged.player.firmId || "astra"));
+  };
+  merged.activeQuestIds = [...new Set([...savedActiveQuestIds, legacyActiveQuestId].filter(id=>matchesCurrentFirm(id) && !saved?.completedQuestClaims?.[id]))].slice(0, MAX_ACTIVE_QUESTS);
   merged.activeQuestId = merged.activeQuestIds.includes(legacyActiveQuestId) ? legacyActiveQuestId : (merged.activeQuestIds[0] || base.activeQuestId);
   merged.questProgress = saved?.questProgress && typeof saved.questProgress === "object" ? {...saved.questProgress} : {...(base.questProgress || {})};
   merged.questFailProgress = saved?.questFailProgress && typeof saved.questFailProgress === "object" ? {...saved.questFailProgress} : {...(base.questFailProgress || {})};

@@ -6,7 +6,7 @@ const REPAIR_EXTRA_ITEM_IDS = new Set(["extra_repair_starter", "extra_repair_yel
 export function createDefaultProfile(){
   return sanitizeProfile({
     updatedAt:Date.now(),
-    player:{level:1, skillPoints:1},
+    player:{name:"NOVA-37", firmId:"astra", firmSelected:false, level:1, skillPoints:1},
     ownedShips:["orion", "test_runner"],
     inventoryItems:[{uid:"inv_laser_mk1_1", itemId:"laser_mk1"}, {uid:"inv_repair_starter_2", itemId:"extra_repair_starter"}],
     nextInventoryUid:3,

@@ -1060,6 +1060,31 @@ resetJauneFiveFourPortal();
 removeExtraMapFivePortals();
 applySectorGraphPortals();
 
+const RICKY_PORTAL_BY_FIRM = {
+  ASTRA:{map:"ASTRA-02", npcId:"astra02_portal_mechanic", portal:{x:4300, y:-3300}, npc:{x:4470, y:-3180}},
+  CYAN:{map:"CYAN-02", npcId:"cyan02_portal_mechanic", portal:{x:4300, y:3300}, npc:{x:4470, y:3180}},
+  JAUNE:{map:"JAUNE-02", npcId:"jaune02_portal_mechanic", portal:{x:-4300, y:3300}, npc:{x:-4470, y:3180}},
+  VERTE:{map:"VERTE-02", npcId:"verte02_portal_mechanic", portal:{x:-4300, y:-3300}, npc:{x:-4470, y:-3180}}
+};
+
+function installFirmRickyPortals(){
+  for(const config of Object.values(RICKY_PORTAL_BY_FIRM)){
+    const map = MAPS.find(entry=>entry.name === config.map);
+    if(!map) continue;
+    map.closedPortals = [{...config.portal, r:95, safeRadius:230}];
+    map.questNpcs = [{
+      id:config.npcId,
+      name:"Ricky",
+      x:config.npc.x,
+      y:config.npc.y,
+      interactionRadius:260,
+      text:"Le portail est ferme. J'ai besoin de fluides et de renforts pour le stabiliser."
+    }];
+  }
+}
+
+installFirmRickyPortals();
+
 export function getMapPortals(map){
   if(!map) return [];
   if(Array.isArray(map.portals)) return map.portals;

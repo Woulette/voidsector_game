@@ -4,17 +4,43 @@ import { skills } from "../../../src/data/progression.js";
 import { getItemFromInventoryUid } from "../economy/equipment.js";
 import { WORLD_MAPS } from "../world/definitions.js";
 import { getWorldSafePortals, isPointInWorldSafeArea } from "../world/spawn.js";
+import { FIRMS, getFirmMapId } from "../../../src/data/firms.js";
 
 const MAP_EDGE_PADDING = 50;
 const PORTAL_TRANSFER_PADDING = 180;
 const MOVEMENT_JITTER_ALLOWANCE = 90;
-const WORLD_MAP_TRANSITIONS = new Set([
-  "0:1", "1:0",
-  "1:2", "2:1",
-  "1:3", "3:1",
-  "2:4", "4:2",
-  "3:4", "4:3"
-]);
+function buildWorldMapTransitions(){
+  const transitions = new Set();
+  const add = (a, b)=>{
+    transitions.add(`${a}:${b}`);
+    transitions.add(`${b}:${a}`);
+  };
+  for(const firm of FIRMS){
+    add(getFirmMapId(firm.id, 1), getFirmMapId(firm.id, 2));
+    add(getFirmMapId(firm.id, 2), getFirmMapId(firm.id, 3));
+    add(getFirmMapId(firm.id, 2), getFirmMapId(firm.id, 4));
+    add(getFirmMapId(firm.id, 3), getFirmMapId(firm.id, 5));
+    add(getFirmMapId(firm.id, 4), getFirmMapId(firm.id, 5));
+  }
+  const byName = new Map(Object.values(WORLD_MAPS).map(map=>[String(map.name || ""), Number(map.id)]));
+  for(const [from, to] of [
+    ["ASTRA-03", "CYAN-03"],
+    ["CYAN-04", "JAUNE-04"],
+    ["CYAN-05", "ASTRA-05"],
+    ["JAUNE-03", "VERTE-03"],
+    ["ASTRA-04", "VERTE-04"],
+    ["JAUNE-05", "VERTE-05"],
+    ["ASTRA-05", "CORE"],
+    ["CYAN-05", "CORE"],
+    ["JAUNE-05", "CORE"],
+    ["VERTE-05", "CORE"]
+  ]){
+    if(byName.has(from) && byName.has(to)) add(byName.get(from), byName.get(to));
+  }
+  return transitions;
+}
+
+const WORLD_MAP_TRANSITIONS = buildWorldMapTransitions();
 
 function finite(value, fallback = 0){
   const number = Number(value);
@@ -75,6 +101,11 @@ function getTrustedShipSession(profile, shipId){
   return null;
 }
 
+function getProfileHomeMapId(profile){
+  const firm = FIRMS.find(entry=>entry.id === String(profile?.player?.firmId || "astra").toLowerCase()) || FIRMS[0];
+  return String(firm.baseMapId);
+}
+
 function getShieldCap(profile, previous){
   const loadout = profile?.shipLoadouts?.[profile?.activeShip] || {};
   const generatorUids = [
@@ -110,6 +141,29 @@ function isNearMapPortal(point, map){
   });
 }
 
+function isNearStandardSectorPortal(point, map){
+  if(!map?.width || !map?.height) return false;
+  const x = finite(point?.x);
+  const y = finite(point?.y);
+  const halfW = map.width / 2;
+  const halfH = map.height / 2;
+  const portals = [
+    {x:halfW - 700, y:-halfH + 700},
+    {x:-halfW + 700, y:-halfH + 700},
+    {x:halfW - 700, y:halfH - 700},
+    {x:-halfW + 700, y:halfH - 700},
+    {x:0, y:-halfH + 700},
+    {x:0, y:halfH - 700},
+    {x:halfW - 700, y:0},
+    {x:-halfW + 700, y:0}
+  ];
+  return portals.some(portal=>Math.hypot(x - portal.x, y - portal.y) <= 420 + PORTAL_TRANSFER_PADDING);
+}
+
+function isNearMapTransferPoint(point, map){
+  return isNearMapPortal(point, map) || isNearStandardSectorPortal(point, map);
+}
+
 function instanceMapAllowed(player, mapId, groups){
   if(mapId === "coop-test"){
     const group = player?.groupId ? groups?.get(player.groupId) : null;
@@ -127,14 +181,14 @@ function canChangeMap({player, previous, nextMapId, nextPoint, groups}){
   if(previousMapId.startsWith("portal-") || previousMapId === "coop-test"){
     const nextMap = WORLD_MAPS[nextMapId];
     return Boolean(nextMap)
-      && (isNearMapPortal(nextPoint, nextMap) || isPointInWorldSafeArea(nextPoint, nextMap, PORTAL_TRANSFER_PADDING));
+      && (isNearMapTransferPoint(nextPoint, nextMap) || isPointInWorldSafeArea(nextPoint, nextMap, PORTAL_TRANSFER_PADDING));
   }
   const previousMap = WORLD_MAPS[previousMapId];
   const nextMap = WORLD_MAPS[nextMapId];
   if(!previousMap || !nextMap) return false;
   if(!WORLD_MAP_TRANSITIONS.has(`${previousMapId}:${nextMapId}`)) return false;
-  return isNearMapPortal(previous, previousMap)
-    && (isNearMapPortal(nextPoint, nextMap) || isPointInWorldSafeArea(nextPoint, nextMap, PORTAL_TRANSFER_PADDING));
+  return isNearMapTransferPoint(previous, previousMap)
+    && (isNearMapTransferPoint(nextPoint, nextMap) || isPointInWorldSafeArea(nextPoint, nextMap, PORTAL_TRANSFER_PADDING));
 }
 
 function allowedMovementDistance(profile, ship, elapsedSeconds){
@@ -210,7 +264,7 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
   const requestedMapId = String(payload?.mapId ?? previous?.mapId ?? player?.mapId ?? "0");
   const rawPoint = {x:finite(payload?.x, previous?.x), y:finite(payload?.y, previous?.y)};
   const trustedSession = getTrustedShipSession(profile, ship.id);
-  const expectedInitialMapId = String(trustedSession?.mapId ?? profile?.worldSession?.mapId ?? player?.mapId ?? "0");
+  const expectedInitialMapId = String(trustedSession?.mapId ?? profile?.worldSession?.mapId ?? player?.mapId ?? getProfileHomeMapId(profile));
   const requestedMapAllowed = instanceMapAllowed(player, requestedMapId, groups)
     || Boolean(WORLD_MAPS[requestedMapId]) && Boolean(previous || requestedMapId === expectedInitialMapId);
   let mapId = requestedMapAllowed ? requestedMapId : String(previous?.mapId ?? player?.mapId ?? "0");

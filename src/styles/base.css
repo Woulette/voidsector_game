@@ -58,6 +58,58 @@ body:before{
   background-size:88px 88px,132px 132px;background-position:0 0,42px 51px;
 }
 button{font:inherit}
+.firm-setup-gate{
+  position:fixed;
+  inset:0;
+  z-index:5000;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  background:radial-gradient(circle at 50% 35%,rgba(14,165,233,.18),rgba(2,6,17,.88) 48%,rgba(0,0,0,.94));
+  backdrop-filter:blur(5px);
+}
+.firm-setup-panel{
+  width:min(720px,calc(100vw - 34px));
+  padding:26px;
+  background:linear-gradient(145deg,rgba(3,12,24,.98),rgba(5,18,34,.95));
+  border-color:rgba(56,189,248,.45);
+  box-shadow:0 24px 80px rgba(0,0,0,.68),0 0 38px rgba(56,189,248,.18);
+}
+.firm-setup-panel h2{font-size:30px;letter-spacing:1.6px;margin:6px 0}
+.firm-setup-panel p{color:var(--muted);font-weight:700;letter-spacing:.4px;margin-bottom:18px}
+.firm-setup-name{display:grid;gap:7px;margin:16px 0}
+.firm-setup-name span{color:#8ed8f8;font-weight:800;text-transform:uppercase;letter-spacing:1.2px}
+.firm-setup-name input{
+  width:100%;
+  border:1px solid rgba(56,189,248,.42);
+  background:rgba(2,10,19,.86);
+  color:var(--text);
+  padding:13px 14px;
+  font:800 20px Rajdhani,Arial,sans-serif;
+  letter-spacing:1px;
+  outline:none;
+}
+.firm-choice-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}
+.firm-choice{
+  min-height:98px;
+  display:grid;
+  gap:5px;
+  place-items:center;
+  border:1px solid rgba(56,189,248,.22);
+  background:linear-gradient(180deg,rgba(8,31,52,.86),rgba(2,10,19,.92));
+  color:var(--text);
+  cursor:pointer;
+}
+.firm-choice strong{font:900 20px Orbitron,Rajdhani,sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:var(--firm-color)}
+.firm-choice span{font-weight:800;color:#8fbad0}
+.firm-choice.active{
+  border-color:var(--firm-color);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--firm-color) 45%,transparent),0 0 24px color-mix(in srgb,var(--firm-color) 28%,transparent);
+}
+.firm-setup-confirm{width:100%;justify-content:center;margin-top:4px;font-size:20px}
+@media (max-width:780px){
+  .firm-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 .dashboard{width:min(1480px,calc(100% - 18px));margin:0 auto;padding:10px 0 28px;overflow-x:hidden}
 .frame{
   position:relative;background:linear-gradient(145deg,rgba(3,12,24,.96),rgba(7,20,37,.86));

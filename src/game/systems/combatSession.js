@@ -1,4 +1,5 @@
 import { applyCombatStatFields, createCombatPlayer, DEFAULT_COMBAT_EXTRA_BONUS } from "./combatPlayerStats.js";
+import { getFirmHomeMapName } from "../../data/firms.js";
 
 export function createCombatSessionController({
   store,
@@ -165,7 +166,11 @@ export function createCombatSessionController({
     panels.reset();
     rewards.reset();
     if(typeof entry === "string" && entry.startsWith("portal:")) loadPortalArena(entry.split(":")[1] || "blue");
-    else loadMap(0, mapList[0].spawn.x, mapList[0].spawn.y);
+    else{
+      const homeMapName = getFirmHomeMapName(store.state.player?.firmId || "astra");
+      const homeMap = mapList.find(map=>String(map.name || "").toUpperCase() === homeMapName) || mapList[0];
+      loadMap(homeMap.id, homeMap.spawn.x, homeMap.spawn.y);
+    }
     actions.renderGameActionBar();
     actions.renderCombatQuickPanel();
     updateHud();

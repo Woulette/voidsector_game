@@ -1,6 +1,7 @@
 import { normalizeProgressionPlayer } from "./progression.js";
 import { getInventoryEntryQuantity, isStackableInventoryItem } from "../economy/inventoryStacks.js";
 import { cleanupDuplicateEquippedInventoryUids } from "../economy/equipment.js";
+import { normalizeFirmId } from "../../../src/data/firms.js";
 
 export function sanitizeObject(value){
   if(!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -109,6 +110,9 @@ export function sanitizeProfile(profile = {}){
     shipWorldSessions:sanitizeShipWorldSessions(profile.shipWorldSessions),
     starterRepairGranted:Boolean(profile.starterRepairGranted)
   };
+  sanitized.player.name = String(sanitized.player.name || "NOVA-37").trim().replace(/\s+/g, " ").slice(0, 24) || "NOVA-37";
+  sanitized.player.firmId = normalizeFirmId(sanitized.player.firmId || sanitized.player.firm || sanitized.player.company || sanitized.player.faction || "astra");
+  sanitized.player.firmSelected = Boolean(sanitized.player.firmSelected);
   cleanupDuplicateEquippedInventoryUids(sanitized);
   return sanitized;
 }

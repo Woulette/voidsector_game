@@ -1,4 +1,5 @@
 import { questCatalog } from "../../../src/data/progression.js";
+import { normalizeFirmId } from "../../../src/data/firms.js";
 
 export const MAX_ACTIVE_QUESTS = 5;
 
@@ -8,6 +9,11 @@ export function deepClone(value){
 
 export function getQuest(id){
   return questCatalog.find(quest=>quest.id === id) || null;
+}
+
+export function questMatchesProfileFirm(profile, quest){
+  if(!quest?.firmId) return true;
+  return normalizeFirmId(quest.firmId) === normalizeFirmId(profile?.player?.firmId || "astra");
 }
 
 export function getQuestObjectives(quest){
@@ -66,7 +72,7 @@ export function isQuestUnlocked(profile, quest){
     const level = Number(quest.unlock.level || quest.requiredLevel || 1);
     const completed = profile.completedQuestClaims || {};
     return questCatalog
-      .filter(entry=>entry.id !== quest.id && !entry.rare && Number(entry.requiredLevel || 1) === level && (entry.category || "normal") === (quest.category || "normal"))
+      .filter(entry=>entry.id !== quest.id && questMatchesProfileFirm(profile, entry) && !entry.rare && Number(entry.requiredLevel || 1) === level && (entry.category || "normal") === (quest.category || "normal"))
       .every(entry=>completed[entry.id]);
   }
   return true;
@@ -90,7 +96,10 @@ export function normalizeQuestFields(profile){
   if(!profile.completedQuestClaims || typeof profile.completedQuestClaims !== "object" || Array.isArray(profile.completedQuestClaims)) profile.completedQuestClaims = {};
   profile.activeQuestIds = profile.activeQuestIds
     .map(String)
-    .filter(id=>getQuest(id) && !profile.completedQuestClaims[id])
+    .filter(id=>{
+      const quest = getQuest(id);
+      return quest && questMatchesProfileFirm(profile, quest) && !profile.completedQuestClaims[id];
+    })
     .slice(0, MAX_ACTIVE_QUESTS);
   if(!profile.activeQuestIds.includes(profile.activeQuestId)) profile.activeQuestId = profile.activeQuestIds[0] || null;
 }
@@ -99,6 +108,7 @@ export function acceptServerQuest(profile, id){
   const quest = getQuest(String(id || ""));
   if(!quest) return {ok:false, reason:"Quete introuvable."};
   normalizeQuestFields(profile);
+  if(!questMatchesProfileFirm(profile, quest)) return {ok:false, reason:"Quete reservee a une autre firme."};
   const requiredLevel = Number(quest.requiredLevel || 1);
   if(Number(profile.player?.level || 1) < requiredLevel) return {ok:false, reason:`Niveau ${requiredLevel} requis.`};
   if(!isQuestUnlocked(profile, quest)) return {ok:false, reason:"Quete rare verrouillee."};

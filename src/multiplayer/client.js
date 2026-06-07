@@ -311,6 +311,7 @@ export const {
 } = auth;
 
 export const requestServerLogout = socketCommands.requestServerLogout;
+export const setupServerProfile = socketCommands.setupServerProfile;
 export const sendChatMessage = socketCommands.sendChatMessage;
 export {sendPlayerSnapshot, sendServerEnemyHit, sendPlayerLaserEffect};
 

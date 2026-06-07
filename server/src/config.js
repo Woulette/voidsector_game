@@ -37,7 +37,8 @@ export const config = {
     "refinery:shipment-rush":{minIntervalMs:350, limit:10, windowMs:10000},
     "refinery:ship-cargo-refine":{minIntervalMs:220, limit:20, windowMs:10000},
     "loot:pickup":{minIntervalMs:80, limit:30, windowMs:10000},
-    "portal:start":{minIntervalMs:1000, limit:5, windowMs:10000}
+    "portal:start":{minIntervalMs:1000, limit:5, windowMs:10000},
+    "profile:setup":{minIntervalMs:1200, limit:4, windowMs:30000}
   },
   socketRateLimits:{
     default:{limit:120, windowMs:1000},
@@ -47,6 +48,7 @@ export const config = {
     "loot:pickup":{limit:20, windowMs:10000},
     "player:laser":{limit:25, windowMs:1000},
     "profile:save":{limit:6, windowMs:10000},
+    "profile:setup":{limit:6, windowMs:60000},
     "auth:register":{limit:4, windowMs:60000},
     "auth:login":{limit:8, windowMs:60000},
     "auth:session":{limit:12, windowMs:60000},

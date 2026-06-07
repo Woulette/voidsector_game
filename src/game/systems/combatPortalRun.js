@@ -1,6 +1,7 @@
 import { addAmmo, addInventoryItem, addXP, markPortalCompleted, saveState, store } from "../../core/store.js";
 import { fmt } from "../../core/utils.js";
 import { portals } from "../../data/catalog.js";
+import { getFirmHomeMapName, normalizeFirmId } from "../../data/firms.js";
 import { PORTAL_WAVE_TOTAL, SAFE_ZONE_DELAY } from "../combatData.js";
 import { buildPortalEnvironment, buildPortalWave, createPortalMap } from "./portalState.js";
 
@@ -24,14 +25,11 @@ export function createCombatPortalRunSystem({
   }
 
   function getPlayerFirmId(){
-    return String(store.state.player?.firm || store.state.player?.company || store.state.player?.faction || "astra")
-      .trim()
-      .toLowerCase();
+    return normalizeFirmId(store.state.player?.firmId || store.state.player?.firm || store.state.player?.company || store.state.player?.faction || "astra");
   }
 
   function getHomeMapForPlayer(){
-    const firm = getPlayerFirmId();
-    const targetName = `${firm.toUpperCase()}-01`;
+    const targetName = getFirmHomeMapName(getPlayerFirmId());
     return mapList.find(map=>String(map.name || "").toUpperCase() === targetName) || mapList[0];
   }
 

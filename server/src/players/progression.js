@@ -22,6 +22,9 @@ const XP_FIXED_NEXT_BY_LEVEL = {
 };
 
 export const PROTECTED_PLAYER_FIELDS = [
+  "name",
+  "firmId",
+  "firmSelected",
   "credits",
   "premium",
   "xp",
