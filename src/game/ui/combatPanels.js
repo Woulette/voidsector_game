@@ -615,9 +615,10 @@ export function createCombatPanels({
       const state = resolveGroupMemberState(member);
       const isLocal = member.id === multiplayer.playerId;
       const memberIsLeader = member.id === multiplayer.group?.leaderId;
+      const mapName = getGroupMapLabel(state);
       return `
         <div class="group-compact-member ${isLocal ? "local" : ""}">
-          <div class="group-compact-name">${memberIsLeader ? `<span class="group-crown" title="Chef du groupe">&#9819;</span>` : ""}<strong>${escapeHtml(member.name || (isLocal ? multiplayer.name : "Pilote"))}</strong></div>
+          <div class="group-compact-name">${memberIsLeader ? `<span class="group-crown" title="Chef du groupe">&#9819;</span>` : ""}<strong>${escapeHtml(member.name || (isLocal ? multiplayer.name : "Pilote"))}</strong><span class="group-compact-map">${escapeHtml(mapName)}</span></div>
           <div class="group-compact-actions">
             ${!isLocal ? actionButton("ping", member.id, `<svg viewBox="0 0 24 24"><path d="M12 21s6-5.5 6-12a6 6 0 1 0-12 0c0 6.5 6 12 6 12z"></path><circle cx="12" cy="9" r="2"></circle></svg>`, "Ping GPS") : ""}
             ${isLeader && !isLocal ? actionButton("promote", member.id, "&#9819;", "Donner le role de chef") : ""}

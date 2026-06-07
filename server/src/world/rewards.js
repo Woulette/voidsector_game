@@ -1,6 +1,15 @@
 import { calculateMonsterKillRankPoints } from "../../../src/data/ranks.js";
 
 export function createWorldRewardManager({io, players, groups, profileManager, emitProfileSync}){
+  function getSameMapRewardRecipients(attacker, mapId){
+    const attackerGroup = attacker.groupId ? groups.get(attacker.groupId) : null;
+    const ids = attackerGroup?.members?.length ? attackerGroup.members : [attacker.id];
+    const recipients = ids
+      .map(id=>players.get(id))
+      .filter(player=>player && player.mapId === String(mapId) && player.connected !== false && player.clientMode === "game");
+    return recipients.length ? recipients : [attacker];
+  }
+
   function emitWorldReward({enemy, mapId, attackerId}){
     const attacker = players.get(attackerId);
     if(!attacker || !enemy || enemy.rewardGranted) return;
@@ -8,13 +17,10 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
     enemy.rewardGrantedAt = Date.now();
     enemy.rewardGrantedBy = attackerId;
     const rewardId = `${enemy.id}:${attackerId}:${enemy.rewardGrantedAt}`;
-    const attackerGroup = attacker.groupId ? groups.get(attacker.groupId) : null;
-    const recipientIds = attackerGroup?.members?.length ? attackerGroup.members : [attackerId];
+    const recipients = getSameMapRewardRecipients(attacker, mapId);
+    const share = recipients.length > 1 ? 1 / recipients.length : 1;
     const reward = enemy.reward || {credits:0, xp:0, premium:0};
-    for(const playerId of recipientIds){
-      const player = players.get(playerId);
-      if(!player || player.mapId !== String(mapId)) continue;
-      const share = player.id === attackerId ? 1 : 0.5;
+    for(const player of recipients){
       const currentProfile = profileManager.getProfileForPlayer?.(player);
       const xp = Math.max(0, Math.round(Number(reward.xp || 0) * share));
       const rankPoints = calculateMonsterKillRankPoints(currentProfile?.player?.level || 1, enemy.level);

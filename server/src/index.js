@@ -321,6 +321,7 @@ const {emitWorldReward} = createWorldRewardManager({
 const {progressServerQuestsForKill} = createKillQuestProgress({
   io,
   players,
+  groups,
   profileManager,
   emitProfileSync:emitProfileSyncForPlayer,
   emitQuestClaims:emitQuestClaimsForPlayer

@@ -1,5 +1,15 @@
 import { fmt } from "../../core/utils.js";
 
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g, char=>({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    "\"":"&quot;",
+    "'":"&#39;"
+  }[char]));
+}
+
 function clampPercent(value, max){
   const safeMax = Number(max) || 0;
   if(safeMax <= 0) return 0;
@@ -114,6 +124,7 @@ export function updateLootPopup({notices = []}){
     let line = Array.from(el.children).find(child=>child.dataset.lootId === String(notice.id));
     if(!line){
       const parts = [];
+      if(loot.questTitle) parts.push({kind:"quest", label:loot.questTitle, value:""});
       if(loot.message) parts.push({label:loot.message, value:""});
       if(loot.credits) parts.push({label:"Crédit", value:`+${fmt(loot.credits)}`});
       if(loot.premium) parts.push({label:"Nova", value:`+${fmt(loot.premium)}`});
@@ -134,13 +145,14 @@ export function updateLootPopup({notices = []}){
           index -= 1;
         }
       };
+      takeParts(part=>part.kind === "quest");
       takeParts(part=>String(part.label || "").toLowerCase().includes("cr"));
       takeParts(part=>String(part.label || "").toLowerCase() === "nova");
       takeParts(part=>String(part.label || "").toLowerCase().includes("xp") || String(part.label || "").toLowerCase().includes("exp"));
       takeParts(part=>String(part.label || "").toLowerCase().includes("putation"));
       takeParts(part=>String(part.label || "").toLowerCase().includes("detruit"));
       orderedParts.push(...parts);
-      line.innerHTML = orderedParts.map(part=>`<div><span>${part.label}</span>${part.value ? `<b>${part.value}</b>` : ""}</div>`).join("");
+      line.innerHTML = orderedParts.map(part=>`<div class="${part.kind === "quest" ? "loot-quest-title" : ""}"><span>${escapeHtml(part.label)}</span>${part.value ? `<b>${escapeHtml(part.value)}</b>` : ""}</div>`).join("");
       el.prepend(line);
     }
     line.style.opacity = opacity.toFixed(3);

@@ -69,7 +69,7 @@
 .target-health.target-shield-text{color:#bae6fd;margin-bottom:4px}
 .target-health b{color:#f8fafc;font-size:9px}
 .loot-popup{
-  position:absolute;z-index:6;top:26px;left:46%;transform:translateX(-50%);
+  position:absolute;z-index:14;top:26px;left:46%;transform:translateX(-50%);
   display:flex;flex-direction:column;align-items:flex-start;gap:5px;
   min-width:0;padding:0;background:transparent;border:0;color:#dff6ff;box-shadow:none;text-align:center;pointer-events:none;
 }
@@ -82,6 +82,8 @@
 .loot-line div:nth-child(n+5){animation-delay:.40s}
 .loot-line span{color:#fff;text-transform:none;font-size:15px;text-align:right;white-space:nowrap}
 .loot-line b{color:#fff;font-size:15px;text-align:left}
+.loot-line .loot-quest-title{grid-template-columns:1fr;justify-content:start}
+.loot-line .loot-quest-title span{text-align:left;color:#facc15;text-transform:uppercase;text-shadow:0 2px 2px #000,0 0 10px rgba(250,204,21,.28)}
 @keyframes lootRewardSettle{
   0%{opacity:0;transform:translateY(-14px) scale(1.34)}
   70%{opacity:1;transform:translateY(1px) scale(.96)}
@@ -557,6 +559,7 @@
 .group-compact-name{display:flex;align-items:center;gap:5px;min-width:0}
 .group-compact-name strong{overflow:hidden;text-overflow:ellipsis;color:#ecfeff;font-size:11px;text-transform:uppercase;white-space:nowrap}
 .group-crown{color:#facc15;font-size:14px;filter:drop-shadow(0 0 5px rgba(250,204,21,.5))}
+.group-compact-map{margin-left:auto;padding-left:6px;color:#7dd3fc;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.55px;white-space:nowrap}
 .group-compact-actions{display:flex;gap:3px}
 .group-icon-action{width:22px;height:22px;font-size:17px;line-height:1}
 .group-icon-action[title*="Retirer"],.group-icon-action[title*="Quitter"]{color:#f87171}

@@ -1,4 +1,4 @@
-import { portals } from "../../data/catalog.js";
+import { ammoTypes, equipment, portals, rawMaterialCatalog } from "../../data/catalog.js";
 import { addAmmo, addReputationFromXp, addXP, getAllQuests, markPortalCompleted, registerKill, saveState, store } from "../../core/store.js";
 import { fmt } from "../../core/utils.js";
 import { SAFE_ZONE_DELAY } from "../combatData.js";
@@ -28,6 +28,33 @@ export function createCombatServerEventSystem({
 
   function getCurrentMapToken(map){
     return String(map?.id ?? map?.name ?? "");
+  }
+
+  function compactQuestRewardLabels(reward = {}){
+    const labels = [];
+    const byId = (items, id)=>items.find(item=>String(item.id) === String(id));
+    for(const itemId of reward.items || []){
+      const item = byId(equipment, itemId);
+      labels.push(`+1 ${item?.short || item?.name || itemId}`);
+    }
+    for(const [itemId, amount] of Object.entries(reward.itemCounts || {})){
+      const item = byId(equipment, itemId);
+      labels.push(`+${fmt(amount)} ${item?.short || item?.name || itemId}`);
+    }
+    for(const [ammoId, amount] of Object.entries(reward.ammo || {})){
+      const ammo = byId(ammoTypes, ammoId);
+      labels.push(`+${fmt(amount)} ${ammo?.short || ammo?.name || ammoId}`);
+    }
+    for(const [portalId, amount] of Object.entries(reward.portalPieces || {})){
+      const portal = byId(portals, portalId);
+      labels.push(`+${fmt(amount)} piece ${portal?.name || portalId}`);
+    }
+    const materialRewards = {...(reward.materials || {}), ...(reward.shipCargoMaterialsForced || {})};
+    for(const [materialId, amount] of Object.entries(materialRewards)){
+      const material = byId(rawMaterialCatalog, materialId);
+      labels.push(`+${fmt(amount)} ${material?.short || material?.name || materialId}`);
+    }
+    return labels;
   }
 
   function loadPortalArena(event){
@@ -263,7 +290,8 @@ export function createCombatServerEventSystem({
         at:event.at || Date.now()
       }}));
       rewards.showLootNotice?.({credits, xp, reputation, rankPoints, premium});
-      const shareLabel = Number(event.share || 1) < 1 ? " (partage groupe 50%)" : "";
+      const shareValue = Number(event.share || 1);
+      const shareLabel = shareValue < 1 ? ` (partage groupe ${Math.round(shareValue * 100)}%)` : "";
       showToast(`Butin serveur${shareLabel} : +${fmt(credits)} credits${premium ? `, +${fmt(premium)} NOVA` : ""}, +${fmt(xp)} XP, +${fmt(reputation)} reputation.`);
       if(!rewardAppliedByServer) saveState();
     }
@@ -358,10 +386,12 @@ export function createCombatServerEventSystem({
       if(processedQuestClaimIds.has(claimId)) continue;
       processedQuestClaimIds.add(claimId);
       rewards.showLootNotice?.({
-        message:event.title ? `Quete terminee : ${event.title}` : "Quete terminee",
+        questTitle:event.title ? `Quete : ${event.title}` : "Quete terminee",
         credits:Math.max(0, Math.round(Number(reward.credits || 0))),
         xp:Math.max(0, Math.round(Number(reward.xp || 0))),
-        premium:Math.max(0, Math.round(Number(reward.premium || 0)))
+        premium:Math.max(0, Math.round(Number(reward.premium || 0))),
+        items:compactQuestRewardLabels(reward),
+        duration:10
       });
     }
   }
