@@ -42,6 +42,7 @@ export function installCombatInputHandlers({
   inviteGroupMember,
   handleSocialAction,
   handleGroupAction,
+  togglePerfPanelVisibility,
   selectSocialTab,
   selectSocialContact,
   trackCombatQuest,
@@ -460,6 +461,11 @@ export function installCombatInputHandlers({
       const groupAction = e.target.closest("[data-group-action]");
       if(groupAction){
         handleGroupAction?.(groupAction.dataset.groupAction, groupAction.dataset.playerId);
+        return;
+      }
+      const perfToggle = e.target.closest("[data-toggle-perf-panel]");
+      if(perfToggle){
+        togglePerfPanelVisibility?.();
         return;
       }
       const questTabBtn = e.target.closest("[data-combat-quest-tab]");

@@ -832,6 +832,22 @@ export function createCombatPanels({
     syncUtilityDockButtons();
   }
 
+  function isPerfPanelVisible(){
+    return store.state?.uiLayout?.perfVisible !== false;
+  }
+
+  function applyPerfPanelVisibility(){
+    document.getElementById("combatPerfPanel")?.classList.toggle("hidden", !isPerfPanelVisible());
+  }
+
+  function togglePerfPanelVisibility(){
+    if(!store.state.uiLayout || typeof store.state.uiLayout !== "object") store.state.uiLayout = {};
+    store.state.uiLayout.perfVisible = !isPerfPanelVisible();
+    applyPerfPanelVisibility();
+    saveState?.();
+    refreshSettingsUtilityPanel();
+  }
+
   window.addEventListener("voidsector:multiplayer-change", event=>{
     const reason = String(event.detail?.reason || "");
     if(reason === "quest:claimed") selectNextQuestAfterClaim(event.detail?.payload?.id);
@@ -839,6 +855,7 @@ export function createCombatPanels({
 
   function renderSettingsUtilityContent(){
     const quality = getGraphicsQuality?.() || store.state.graphicsQuality || "high";
+    const perfVisible = isPerfPanelVisible();
     return `<div class="combat-settings-card">
       <div class="combat-map-head">
         <div><span>Rendu</span><strong>Qualite graphique</strong></div>
@@ -853,6 +870,14 @@ export function createCombatPanels({
         `).join("")}
       </div>
       <p class="group-panel-note">Moyenne retire les nuages proches et garde les asteroides. Basse garde surtout la planete et les etoiles.</p>
+      <div class="combat-map-head">
+        <div><span>Interface</span><strong>Statistiques PERF</strong></div>
+        <small>${perfVisible ? "Visible" : "Masque"}</small>
+      </div>
+      <button class="quality-option ${perfVisible ? "active" : ""}" data-toggle-perf-panel type="button">
+        <strong>${perfVisible ? "Masquer PERF" : "Afficher PERF"}</strong>
+        <span>Active ou desactive le panneau FPS / frame / update / draw.</span>
+      </button>
     </div>`;
   }
 
@@ -1218,6 +1243,8 @@ export function createCombatPanels({
     renderSpawnInteractionPanel("refinery");
   }
 
+  applyPerfPanelVisibility();
+
   function tick(dt){
     utilityBadgeRefreshT -= dt;
     if(utilityBadgeRefreshT <= 0){
@@ -1289,6 +1316,7 @@ export function createCombatPanels({
     openUtilityPanel,
     inviteGroupMember,
     handleGroupAction,
+    togglePerfPanelVisibility,
     handleSocialAction,
     selectSocialTab,
     selectSocialContact,

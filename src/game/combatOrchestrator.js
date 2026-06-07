@@ -1021,6 +1021,7 @@ export function createCombatGame({renderAll, showToast}){
     inviteGroupMember:panels.inviteGroupMember,
     handleSocialAction:panels.handleSocialAction,
     handleGroupAction:panels.handleGroupAction,
+    togglePerfPanelVisibility:panels.togglePerfPanelVisibility,
     selectSocialTab:panels.selectSocialTab,
     selectSocialContact:panels.selectSocialContact,
     trackCombatQuest:panels.trackCombatQuest,
