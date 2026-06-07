@@ -52,7 +52,7 @@ function formatCompactCoord({x, y}){
   return `X ${shortX}  Y ${shortY}`;
 }
 
-export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget, revealAllEnemies = false, groupPlayers = []}){
+export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget, revealAllEnemies = false, groupPlayers = [], groupPingTarget = null}){
   const {x, y, w, h} = rect;
   const headerH = 22;
   const sx = w/currentMap.width, sy = h/currentMap.height;
@@ -134,6 +134,14 @@ export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget,
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    if(groupPingTarget?.targetId === remote.id && groupPingTarget.expiresAt > performance.now()){
+      const pulse = .5 + .5 * Math.sin(performance.now() / 110);
+      ctx.strokeStyle = `rgba(250,204,21,${.45 + pulse * .55})`;
+      ctx.lineWidth = 2 + pulse * 2;
+      ctx.beginPath();
+      ctx.arc(gx, gy, 10 + pulse * 9, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.fillStyle = "#fef9c3";
     ctx.font = "800 9px Rajdhani, Arial";
     ctx.textAlign = "center";

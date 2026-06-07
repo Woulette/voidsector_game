@@ -4,14 +4,17 @@ import { getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import {
   multiplayer,
-  connectMultiplayer,
   inviteMultiplayerPlayer,
+  inviteMultiplayerPlayerByName,
+  kickMultiplayerGroupMember,
+  leaveMultiplayerGroup,
+  pingMultiplayerGroupMember,
+  promoteMultiplayerGroupMember,
   removeSocialRelation,
   requestSocialSync,
   respondFriendRequest,
   sendFriendRequest,
-  setSocialCategory,
-  startCoopTestInstance
+  setSocialCategory
 } from "../../multiplayer/client.js";
 
 function escapeHtml(value = ""){
@@ -596,6 +599,41 @@ export function createCombatPanels({
     `;
   }
 
+  function renderCompactGroupUtilityContent(){
+    const members = multiplayer.group?.members || [];
+    const isLeader = multiplayer.group?.leaderId === multiplayer.playerId;
+    const actionButton = (action, targetId, label, title)=>`<button class="group-icon-action" data-group-action="${action}" data-player-id="${escapeHtml(targetId)}" type="button" title="${title}" aria-label="${title}">${label}</button>`;
+    const membersHtml = members.map(member=>{
+      const state = resolveGroupMemberState(member);
+      const isLocal = member.id === multiplayer.playerId;
+      const memberIsLeader = member.id === multiplayer.group?.leaderId;
+      return `
+        <div class="group-compact-member ${isLocal ? "local" : ""}">
+          <div class="group-compact-name">${memberIsLeader ? `<span class="group-crown" title="Chef du groupe">&#9819;</span>` : ""}<strong>${escapeHtml(member.name || (isLocal ? multiplayer.name : "Pilote"))}</strong></div>
+          <div class="group-compact-actions">
+            ${!isLocal ? actionButton("ping", member.id, `<svg viewBox="0 0 24 24"><path d="M12 21s6-5.5 6-12a6 6 0 1 0-12 0c0 6.5 6 12 6 12z"></path><circle cx="12" cy="9" r="2"></circle></svg>`, "Ping GPS") : ""}
+            ${isLeader && !isLocal ? actionButton("promote", member.id, "&#9819;", "Donner le role de chef") : ""}
+            ${isLocal ? actionButton("leave", member.id, "&times;", "Quitter le groupe") : isLeader ? actionButton("kick", member.id, "&times;", "Retirer du groupe") : ""}
+          </div>
+          ${state ? `<div class="group-compact-meters">${renderGroupMemberMeter("PV", state.hp, state.maxHp, "hp")}${renderGroupMemberMeter("Bouclier", state.shield, state.maxShield, "shield")}</div>` : `<p class="group-panel-note">Signal indisponible.</p>`}
+        </div>`;
+    }).join("");
+    const outgoing = (multiplayer.outgoingGroupInvites || []).filter(invite=>Number(invite.expiresAt || 0) > Date.now());
+    const outgoingHtml = outgoing.map(invite=>`<div class="group-pending-invite"><strong>${escapeHtml(invite.playerName || "Pilote")}</strong><span>Invitation envoyee</span></div>`).join("");
+    const invitesHtml = multiplayer.invites.length
+      ? `<div class="group-panel-list">${multiplayer.invites.map(invite=>`<div class="group-panel-member"><strong>${escapeHtml(invite.fromName || "Pilote")}</strong><span>Invitation</span><button class="blue-button small" data-mp-action="accept" data-group-id="${escapeHtml(invite.groupId)}" type="button">ACCEPTER</button><button class="blue-button small secondary" data-mp-action="decline" data-group-id="${escapeHtml(invite.groupId)}" type="button">REFUSER</button></div>`).join("")}</div>`
+      : "";
+    return `
+      <div class="group-invite-form">
+        <input id="groupInviteName" type="text" maxlength="24" placeholder="Nom du joueur">
+        <button class="group-invite-button" data-group-invite type="button" title="Inviter en groupe" aria-label="Inviter en groupe"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.6 2.6-5.3 5.8-5.3s5.2 1.7 5.9 5.3"></path><path d="M17 7v6M14 10h6"></path></svg></button>
+      </div>
+      ${invitesHtml}
+      ${outgoingHtml ? `<div class="group-pending-list">${outgoingHtml}</div>` : ""}
+      ${membersHtml ? `<div class="group-compact-list">${membersHtml}</div>` : ""}
+    `;
+  }
+
   function refreshGroupUtilityPanel({show = false, focus = false} = {}){
     const panel = getUtilityPanel("group");
     const content = getUtilityContent("group");
@@ -604,9 +642,9 @@ export function createCombatPanels({
       applyUtilityPanelLayout("group", panel);
       panel.classList.remove("hidden");
     }
-    content.innerHTML = renderGroupUtilityContent();
+    content.innerHTML = renderCompactGroupUtilityContent();
     syncUtilityDockButtons();
-    if(focus) document.getElementById("mpPlayerName")?.focus();
+    if(focus) document.getElementById("groupInviteName")?.focus();
   }
 
   function isInteractingWithUtilityPanel(mode){
@@ -751,9 +789,11 @@ export function createCombatPanels({
     refreshSocialUtilityPanel(mode);
   }
 
-  window.addEventListener("voidsector:multiplayer-change", ()=>{
+  window.addEventListener("voidsector:multiplayer-change", event=>{
+    const reason = String(event.detail?.reason || "");
+    const forceGroupRefresh = reason.startsWith("group:");
     const panel = getUtilityPanel("group");
-    if(panel && !panel.classList.contains("hidden") && !isInteractingWithUtilityPanel("group")) refreshGroupUtilityPanel({show:true});
+    if(panel && !panel.classList.contains("hidden") && (forceGroupRefresh || !isInteractingWithUtilityPanel("group"))) refreshGroupUtilityPanel({show:true});
     for(const mode of ["friends", "firm"]){
       const socialPanel = getUtilityPanel(mode);
       if(socialPanel && !socialPanel.classList.contains("hidden") && !isInteractingWithUtilityPanel(mode)) refreshSocialUtilityPanel(mode);
@@ -1008,16 +1048,15 @@ export function createCombatPanels({
 
   function inviteGroupMember(name){
     const cleaned = String(name || "").trim().replace(/\s+/g, " ").slice(0, 24);
-    const found = multiplayer.players.find(player=>player.name.toLowerCase() === cleaned.toLowerCase() && player.id !== multiplayer.playerId);
-    if(found){
-      inviteMultiplayerPlayer(found.id);
-      return;
-    }
-    if(!multiplayer.connected) connectMultiplayer({name:cleaned || store.state?.player?.name});
-    else showToast("Choisis un joueur connecte a inviter.");
+    inviteMultiplayerPlayerByName(cleaned);
   }
 
-  void startCoopTestInstance;
+  function handleGroupAction(action, playerId){
+    if(action === "leave") leaveMultiplayerGroup();
+    else if(action === "kick") kickMultiplayerGroupMember(playerId);
+    else if(action === "promote") promoteMultiplayerGroupMember(playerId);
+    else if(action === "ping") pingMultiplayerGroupMember(playerId);
+  }
 
   function renderSpawnInteractionPanel(mode = spawnPanelMode){
     const panel = document.getElementById("spawnInteractionPanel");
@@ -1199,7 +1238,7 @@ export function createCombatPanels({
       utilityPanelRefreshT -= dt;
       if(utilityPanelRefreshT <= 0){
         const content = getUtilityContent("group");
-        if(content) content.innerHTML = renderGroupUtilityContent();
+        if(content) content.innerHTML = renderCompactGroupUtilityContent();
         utilityPanelRefreshT = .5;
       }
     }
@@ -1241,6 +1280,7 @@ export function createCombatPanels({
     renderSpawnInteractionPanel,
     openUtilityPanel,
     inviteGroupMember,
+    handleGroupAction,
     handleSocialAction,
     selectSocialTab,
     selectSocialContact,

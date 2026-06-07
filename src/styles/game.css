@@ -251,6 +251,10 @@
   width:278px;
   padding:8px;
 }
+.combat-utility-panel[data-utility-mode="group"]{
+  width:330px;
+  min-width:300px;
+}
 .combat-utility-panel[data-utility-mode="settings"]{
   left:306px;
   right:auto;
@@ -521,6 +525,41 @@
 .combat-chat-resize:before{width:21px;height:21px}
 .combat-chat-resize:after{width:12px;height:12px}
 .group-panel-form{display:grid;grid-template-columns:1fr auto;gap:8px}
+.group-invite-form{display:grid;grid-template-columns:minmax(0,1fr) 38px;gap:7px}
+.group-invite-form input{
+  min-width:0;
+  height:36px;
+  padding:0 10px;
+  border:1px solid rgba(56,189,248,.32);
+  background:rgba(2,10,19,.82);
+  color:#e8f8ff;
+  font:800 13px/1 var(--font);
+  outline:none;
+}
+.group-invite-form input:focus{border-color:rgba(125,211,252,.82);box-shadow:0 0 12px rgba(56,189,248,.14)}
+.group-invite-button,.group-icon-action{
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(56,189,248,.34);
+  background:rgba(7,24,42,.78);
+  color:#8ee7ff;
+  cursor:pointer;
+}
+.group-invite-button:hover,.group-icon-action:hover{border-color:#facc15;color:#fef08a;background:rgba(113,63,18,.34)}
+.group-invite-button svg,.group-icon-action svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.group-compact-list,.group-pending-list{display:grid;gap:6px;margin-top:8px}
+.group-pending-invite{display:flex;justify-content:space-between;gap:8px;padding:8px;border:1px solid rgba(56,189,248,.14);background:rgba(7,24,42,.38);opacity:.48}
+.group-pending-invite strong{color:#dff6ff;font-size:12px;text-transform:uppercase}
+.group-pending-invite span{color:#8fb9d6;font-size:10px;text-transform:uppercase}
+.group-compact-member{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;padding:8px;border:1px solid rgba(56,189,248,.20);background:rgba(7,24,42,.52)}
+.group-compact-member.local{border-color:rgba(250,204,21,.38)}
+.group-compact-name{display:flex;align-items:center;gap:5px;min-width:0}
+.group-compact-name strong{overflow:hidden;text-overflow:ellipsis;color:#ecfeff;font-size:12px;text-transform:uppercase;white-space:nowrap}
+.group-crown{color:#facc15;font-size:17px;filter:drop-shadow(0 0 5px rgba(250,204,21,.5))}
+.group-compact-actions{display:flex;gap:4px}
+.group-icon-action{width:27px;height:27px;font-size:20px;line-height:1}
+.group-icon-action[title*="Retirer"],.group-icon-action[title*="Quitter"]{color:#f87171}
+.group-compact-meters{grid-column:1/-1;display:grid;gap:4px}
 .group-panel-form input{
   min-width:0;
   height:38px;
@@ -569,6 +608,7 @@
   box-shadow:0 0 18px rgba(0,0,0,.30),inset 0 0 16px rgba(56,189,248,.04);
   opacity:.88;
 }
+.group-floating-hud{display:none!important}
 .group-floating-hud.hidden{display:none}
 .group-floating-hud:hover{opacity:.98}
 .group-floating-head{

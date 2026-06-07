@@ -6,7 +6,11 @@ function pushEvent(target, event, limit){
 export function installWorldSocketListeners({socket, multiplayer, replaceServerEnemies, emitChange, toast}){
   socket.on("group:update", group=>{
     multiplayer.group = group || null;
-    emitChange();
+    if(group?.members?.length){
+      const memberIds = new Set(group.members.map(member=>member.id));
+      multiplayer.outgoingGroupInvites = multiplayer.outgoingGroupInvites.filter(invite=>!memberIds.has(invite.playerId));
+    }
+    emitChange("group:update", group);
   });
   socket.on("coop:enemies", payload=>{
     multiplayer.coopInstanceId = payload?.instanceId || null;
@@ -47,8 +51,32 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     multiplayer.invites.push(invite);
     toast(`${invite.fromName || "Un joueur"} t'invite en groupe.`);
     emitChange("group:invite", invite);
+    setTimeout(()=>{
+      multiplayer.invites = multiplayer.invites.filter(item=>item.groupId !== invite.groupId);
+      emitChange("group:invite-expired", invite);
+    }, Math.max(0, Number(invite.expiresAt || Date.now() + 30000) - Date.now()));
   });
   socket.on("group:declined", payload=>{
     toast(`${payload?.playerName || "Le joueur"} a refuse l'invitation.`);
   });
+  socket.on("group:invite-sent", invite=>{
+    multiplayer.outgoingGroupInvites = multiplayer.outgoingGroupInvites.filter(item=>item.playerId !== invite?.playerId);
+    multiplayer.outgoingGroupInvites.push(invite);
+    emitChange("group:invite-sent", invite);
+    setTimeout(()=>{
+      multiplayer.outgoingGroupInvites = multiplayer.outgoingGroupInvites.filter(item=>item.playerId !== invite?.playerId);
+      emitChange("group:invite-expired", invite);
+    }, Math.max(0, Number(invite?.expiresAt || Date.now() + 30000) - Date.now()));
+  });
+  socket.on("group:invite-resolved", payload=>{
+    multiplayer.outgoingGroupInvites = multiplayer.outgoingGroupInvites.filter(item=>item.playerId !== payload?.playerId);
+    if(payload?.accepted === false) toast(`${payload?.playerName || "Le joueur"} a refuse l'invitation.`);
+    emitChange("group:invite-resolved", payload);
+  });
+  socket.on("group:kicked", payload=>{
+    multiplayer.group = null;
+    toast(`${payload?.byName || "Le chef"} t'a retire du groupe.`);
+    emitChange("group:kicked", payload);
+  });
+  socket.on("group:error", payload=>toast(payload?.message || "Action de groupe impossible."));
 }

@@ -41,6 +41,7 @@ export function installCombatInputHandlers({
   closeUtilityPanel,
   inviteGroupMember,
   handleSocialAction,
+  handleGroupAction,
   selectSocialTab,
   selectSocialContact,
   trackCombatQuest,
@@ -454,6 +455,11 @@ export function installCombatInputHandlers({
       const socialAction = e.target.closest("[data-social-action]");
       if(socialAction){
         handleSocialAction?.(socialAction.dataset.socialAction, socialAction);
+        return;
+      }
+      const groupAction = e.target.closest("[data-group-action]");
+      if(groupAction){
+        handleGroupAction?.(groupAction.dataset.groupAction, groupAction.dataset.playerId);
         return;
       }
       const questTabBtn = e.target.closest("[data-combat-quest-tab]");

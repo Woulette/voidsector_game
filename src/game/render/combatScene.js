@@ -29,6 +29,7 @@ export function createCombatSceneRenderer({
   getDronePermanentUpgrade,
   getPlayerTitle,
   getGroupRemotePlayers,
+  getGroupPingTarget,
   miniMap,
   defaultEngineProfile,
   engineProfiles
@@ -80,6 +81,7 @@ export function createCombatSceneRenderer({
 
   function drawMiniMap(){
     const {currentMap, player, enemies, moveTarget, gameMode} = getState();
+    const groupPlayers = getGroupRemotePlayers(currentMap?.id ?? currentMap?.name ?? null);
     drawMiniMapCanvas({
       ctx,
       canvas,
@@ -89,7 +91,8 @@ export function createCombatSceneRenderer({
       rect:miniMap.rect(),
       moveTarget,
       revealAllEnemies:gameMode === "portal",
-      groupPlayers:getGroupRemotePlayers(currentMap?.id ?? currentMap?.name ?? null)
+      groupPlayers,
+      groupPingTarget:getGroupPingTarget?.() || null
     });
   }
 

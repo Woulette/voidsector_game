@@ -63,6 +63,7 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
       id:`G-${String(groupSeq++).padStart(4, "0")}`,
       leaderId:socket.id,
       members:[socket.id],
+      invites:new Map(),
       createdAt:Date.now()
     };
     groups.set(group.id, group);
@@ -76,13 +77,72 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
   function acceptInvite(socket, groupId){
     const group = groups.get(groupId);
     const player = players.get(socket.id);
-    if(!group || !player) return;
+    const invite = group?.invites?.get(socket.id);
+    if(!group || !player || !invite || invite.expiresAt < Date.now()) return false;
+    group.invites.delete(socket.id);
     leaveCurrentGroup(socket);
     group.members.push(socket.id);
     player.groupId = group.id;
     socket.join(group.id);
+    io.to(group.leaderId).emit("group:invite-resolved", {playerId:socket.id, playerName:player.name, accepted:true});
     emitGroup(group.id);
     emitPlayers();
+    return true;
+  }
+
+  function invitePlayer(socket, target){
+    const inviter = players.get(socket.id);
+    if(!inviter || !target || target.id === socket.id) return {ok:false, reason:"Joueur invalide."};
+    if(target.groupId) return {ok:false, reason:"Ce joueur est deja dans un groupe."};
+    let group = inviter.groupId ? groups.get(inviter.groupId) : null;
+    if(!group) group = createGroup(socket);
+    if(!group || group.leaderId !== socket.id) return {ok:false, reason:"Seul le chef peut inviter un joueur."};
+    const expiresAt = Date.now() + 30000;
+    group.invites.set(target.id, {fromId:socket.id, expiresAt});
+    io.to(target.id).emit("group:invite", {
+      groupId:group.id,
+      fromId:socket.id,
+      fromName:inviter.name,
+      at:Date.now(),
+      expiresAt
+    });
+    socket.emit("group:invite-sent", {playerId:target.id, playerName:target.name, expiresAt});
+    return {ok:true};
+  }
+
+  function declineInvite(socket, groupId){
+    const group = groups.get(groupId);
+    const player = players.get(socket.id);
+    if(!group?.invites?.has(socket.id) || !player) return false;
+    group.invites.delete(socket.id);
+    io.to(group.leaderId).emit("group:invite-resolved", {playerId:socket.id, playerName:player.name, accepted:false});
+    return true;
+  }
+
+  function kickMember(socket, targetId){
+    const leader = players.get(socket.id);
+    const group = leader?.groupId ? groups.get(leader.groupId) : null;
+    if(!group || group.leaderId !== socket.id || targetId === socket.id || !group.members.includes(targetId)) return false;
+    const target = players.get(targetId);
+    group.members = group.members.filter(id=>id !== targetId);
+    if(target){
+      target.groupId = null;
+      io.sockets.sockets.get(targetId)?.leave(group.id);
+      io.to(targetId).emit("group:update", null);
+      io.to(targetId).emit("group:kicked", {byName:leader.name});
+    }
+    emitGroup(group.id);
+    emitPlayers();
+    return true;
+  }
+
+  function promoteLeader(socket, targetId){
+    const leader = players.get(socket.id);
+    const group = leader?.groupId ? groups.get(leader.groupId) : null;
+    if(!group || group.leaderId !== socket.id || targetId === socket.id || !group.members.includes(targetId)) return false;
+    group.leaderId = targetId;
+    emitGroup(group.id);
+    return true;
   }
 
   function createCoopInstance(socket){
@@ -124,9 +184,13 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
     acceptInvite,
     createCoopInstance,
     createGroup,
+    declineInvite,
     emitGroup,
     emitInstance,
     groups,
-    leaveCurrentGroup
+    invitePlayer,
+    kickMember,
+    leaveCurrentGroup,
+    promoteLeader
   };
 }

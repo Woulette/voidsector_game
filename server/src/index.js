@@ -275,9 +275,13 @@ const {
   acceptInvite,
   createCoopInstance,
   createGroup,
+  declineInvite,
   emitGroup,
   emitInstance,
   groups,
+  invitePlayer,
+  kickMember,
+  promoteLeader,
   leaveCurrentGroup
 } = createGroupManager({
   io,
@@ -468,8 +472,12 @@ io.on("connection", socket=>{
     acceptInvite,
     createCoopInstance,
     createGroup,
+    declineInvite,
     emitPlayers,
+    invitePlayer,
+    kickMember,
     leaveCurrentGroup,
+    promoteLeader,
     startPortalInstance
   });
   registerCombatHandlers(socket, {

@@ -83,6 +83,8 @@ export const multiplayer = {
   portalInstance:null,
   group:null,
   invites:[],
+  outgoingGroupInvites:[],
+  groupPing:null,
   social:{friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]},
   logout:{
     pending:false,
@@ -110,9 +112,13 @@ const {
 const {
   createMultiplayerGroup,
   inviteMultiplayerPlayer,
+  inviteMultiplayerPlayerByName,
   acceptMultiplayerInvite,
   declineMultiplayerInvite,
   leaveMultiplayerGroup,
+  kickMultiplayerGroupMember,
+  promoteMultiplayerGroupMember,
+  pingMultiplayerGroupMember,
   startCoopTestInstance,
   startServerPortal,
   getGroupRemotePlayers
@@ -276,6 +282,8 @@ export function disconnectMultiplayer(){
   multiplayer.connecting = false;
   multiplayer.group = null;
   multiplayer.invites = [];
+  multiplayer.outgoingGroupInvites = [];
+  multiplayer.groupPing = null;
   multiplayer.social = {friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]};
   multiplayer.remotePlayers.clear();
   multiplayer.remoteEffects = [];
@@ -366,9 +374,13 @@ export const {
 export {
   createMultiplayerGroup,
   inviteMultiplayerPlayer,
+  inviteMultiplayerPlayerByName,
   acceptMultiplayerInvite,
   declineMultiplayerInvite,
   leaveMultiplayerGroup,
+  kickMultiplayerGroupMember,
+  promoteMultiplayerGroupMember,
+  pingMultiplayerGroupMember,
   startCoopTestInstance,
   startServerPortal,
   getGroupRemotePlayers

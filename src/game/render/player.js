@@ -365,7 +365,7 @@ function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilot
   const nameY = labelY + 3;
   const iconSize = 29;
   const firmIconSize = 24;
-  const firmGap = 1;
+  const firmGap = -4;
   const nameGap = 6;
   const nameWidth = ctx.measureText(pilotName).width;
   const groupWidth = (firmImg ? firmIconSize + firmGap : 0) + (rankImg ? iconSize + nameGap : 0) + nameWidth;

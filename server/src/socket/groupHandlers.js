@@ -3,12 +3,16 @@ export function registerGroupHandlers(socket, context){
     acceptInvite,
     createCoopInstance,
     createGroup,
+    declineInvite,
     emitPlayers,
     guard,
     groups,
+    invitePlayer,
     io,
+    kickMember,
     leaveCurrentGroup,
     players,
+    promoteLeader,
     startPortalInstance
   } = context;
 
@@ -20,18 +24,15 @@ export function registerGroupHandlers(socket, context){
   socket.on("group:invite", payload=>{
     if(!guard("group:invite")) return;
     const targetId = String(payload?.targetId || "");
-    const target = players.get(targetId);
-    const inviter = players.get(socket.id);
-    if(!target || !inviter) return;
-    let group = inviter.groupId ? groups.get(inviter.groupId) : null;
-    if(!group) group = createGroup(socket);
-    if(!group) return;
-    io.to(targetId).emit("group:invite", {
-      groupId:group.id,
-      fromId:socket.id,
-      fromName:inviter.name,
-      at:Date.now()
-    });
+    const targetName = String(payload?.targetName || "").trim().toLowerCase();
+    const target = players.get(targetId) || [...players.values()].find(player=>
+      player.id !== socket.id
+      && player.connected !== false
+      && player.clientMode === "game"
+      && String(player.name || "").trim().toLowerCase() === targetName
+    );
+    const result = invitePlayer(socket, target);
+    if(!result?.ok) socket.emit("group:error", {message:result?.reason || "Invitation impossible."});
   });
 
   socket.on("group:accept", payload=>{
@@ -41,10 +42,7 @@ export function registerGroupHandlers(socket, context){
 
   socket.on("group:decline", payload=>{
     if(!guard("group:decline")) return;
-    const group = groups.get(String(payload?.groupId || ""));
-    if(!group) return;
-    const leader = players.get(group.leaderId);
-    if(leader) io.to(group.leaderId).emit("group:declined", {playerId:socket.id, playerName:players.get(socket.id)?.name || "Pilote"});
+    declineInvite(socket, String(payload?.groupId || ""));
   });
 
   socket.on("group:leave", ()=>{
@@ -52,6 +50,16 @@ export function registerGroupHandlers(socket, context){
     leaveCurrentGroup(socket);
     socket.emit("group:update", null);
     emitPlayers();
+  });
+
+  socket.on("group:kick", payload=>{
+    if(!guard("group:kick")) return;
+    kickMember(socket, String(payload?.targetId || ""));
+  });
+
+  socket.on("group:promote", payload=>{
+    if(!guard("group:promote")) return;
+    promoteLeader(socket, String(payload?.targetId || ""));
   });
 
   socket.on("coop:start-test", ()=>{

@@ -10,6 +10,13 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
     multiplayer.socket.emit("group:invite", {targetId});
   }
 
+  function inviteMultiplayerPlayerByName(targetName){
+    if(!multiplayer.connected) return toast("Connecte-toi au serveur multi d'abord.");
+    const name = String(targetName || "").trim();
+    if(!name) return toast("Entre le nom du joueur a inviter.");
+    multiplayer.socket.emit("group:invite", {targetName:name});
+  }
+
   function acceptMultiplayerInvite(groupId){
     if(!multiplayer.connected || !groupId) return;
     multiplayer.socket.emit("group:accept", {groupId});
@@ -32,6 +39,22 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
     multiplayer.coopInstanceId = null;
     multiplayer.coopSpawn = null;
     emitChange();
+  }
+
+  function kickMultiplayerGroupMember(targetId){
+    if(!multiplayer.connected || !targetId) return;
+    multiplayer.socket.emit("group:kick", {targetId});
+  }
+
+  function promoteMultiplayerGroupMember(targetId){
+    if(!multiplayer.connected || !targetId) return;
+    multiplayer.socket.emit("group:promote", {targetId});
+  }
+
+  function pingMultiplayerGroupMember(targetId){
+    if(!targetId) return;
+    multiplayer.groupPing = {targetId, expiresAt:performance.now() + 5000};
+    emitChange("group:ping", multiplayer.groupPing);
   }
 
   function startCoopTestInstance(){
@@ -67,9 +90,13 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
   return {
     createMultiplayerGroup,
     inviteMultiplayerPlayer,
+    inviteMultiplayerPlayerByName,
     acceptMultiplayerInvite,
     declineMultiplayerInvite,
     leaveMultiplayerGroup,
+    kickMultiplayerGroupMember,
+    promoteMultiplayerGroupMember,
+    pingMultiplayerGroupMember,
     startCoopTestInstance,
     startServerPortal,
     getGroupRemotePlayers

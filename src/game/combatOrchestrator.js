@@ -496,6 +496,7 @@ export function createCombatGame({renderAll, showToast}){
     getDronePermanentUpgrade,
     getPlayerTitle:()=>store.state.player.titleVisible === false ? "" : (COMBAT_PROFILE_TITLES[store.state.player.activeTitleId] || ""),
     getGroupRemotePlayers,
+    getGroupPingTarget:()=>multiplayer.groupPing,
     miniMap,
     defaultEngineProfile:DEFAULT_ENGINE_PROFILE,
     engineProfiles:SHIP_ENGINE_PROFILES
@@ -1019,6 +1020,7 @@ export function createCombatGame({renderAll, showToast}){
     closeUtilityPanel:panels.closeUtilityPanel,
     inviteGroupMember:panels.inviteGroupMember,
     handleSocialAction:panels.handleSocialAction,
+    handleGroupAction:panels.handleGroupAction,
     selectSocialTab:panels.selectSocialTab,
     selectSocialContact:panels.selectSocialContact,
     trackCombatQuest:panels.trackCombatQuest,
