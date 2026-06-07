@@ -252,8 +252,8 @@
   padding:8px;
 }
 .combat-utility-panel[data-utility-mode="group"]{
-  width:330px;
-  min-width:300px;
+  width:285px;
+  min-width:260px;
 }
 .combat-utility-panel[data-utility-mode="settings"]{
   left:306px;
