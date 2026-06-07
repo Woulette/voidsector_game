@@ -416,7 +416,7 @@ export function createCombatPanels({
     const safeMax = Math.max(1, Number(max || value || 1));
     const cleanValue = Math.max(0, Number(value || 0));
     const percent = clampPercent(cleanValue / safeMax * 100);
-    return `<div class="group-compact-meter ${className}" title="${escapeHtml(label)} : ${Math.round(cleanValue)} / ${Math.round(safeMax)}"><i style="width:${percent}%"></i></div>`;
+    return `<div class="group-compact-meter ${className}" data-meter-label="${escapeHtml(label)} : ${Math.round(cleanValue)} / ${Math.round(safeMax)}"><i style="width:${percent}%"></i></div>`;
   }
 
   function renderGroupMemberCard(member){
@@ -581,7 +581,7 @@ export function createCombatPanels({
       }).join("")
       : `<p class="group-panel-note">Aucun groupe actif.</p>`;
     const invitesHtml = multiplayer.invites.length
-      ? `<div class="group-panel-list">${multiplayer.invites.map(invite=>`<div class="group-panel-member"><strong>${escapeHtml(invite.fromName || "Pilote")}</strong><span>Invitation</span><button class="blue-button small" data-mp-action="accept" data-group-id="${escapeHtml(invite.groupId)}" type="button">ACCEPTER</button><button class="blue-button small secondary" data-mp-action="decline" data-group-id="${escapeHtml(invite.groupId)}" type="button">REFUSER</button></div>`).join("")}</div>`
+      ? `<div class="group-panel-list">${multiplayer.invites.map(invite=>`<div class="group-panel-member group-panel-invite"><strong>${escapeHtml(invite.fromName || "Pilote")}</strong><span>Invitation</span><button class="group-invite-response accept" data-mp-action="accept" data-group-id="${escapeHtml(invite.groupId)}" type="button" title="Accepter" aria-label="Accepter">&#10003;</button><button class="group-invite-response decline" data-mp-action="decline" data-group-id="${escapeHtml(invite.groupId)}" type="button" title="Refuser" aria-label="Refuser">&times;</button></div>`).join("")}</div>`
       : "";
     const playersHtml = onlinePlayers.length
       ? onlinePlayers.map(player=>`<div class="group-panel-member"><strong>${escapeHtml(player.name)}</strong><span>${player.groupId ? "En groupe" : "En ligne"}</span><button class="blue-button small" data-mp-action="invite" data-player-id="${escapeHtml(player.id)}" type="button">INVITER</button></div>`).join("")
@@ -629,7 +629,7 @@ export function createCombatPanels({
     const outgoing = (multiplayer.outgoingGroupInvites || []).filter(invite=>Number(invite.expiresAt || 0) > Date.now());
     const outgoingHtml = outgoing.map(invite=>`<div class="group-pending-invite"><strong>${escapeHtml(invite.playerName || "Pilote")}</strong><span>Invitation envoyee</span></div>`).join("");
     const invitesHtml = multiplayer.invites.length
-      ? `<div class="group-panel-list">${multiplayer.invites.map(invite=>`<div class="group-panel-member"><strong>${escapeHtml(invite.fromName || "Pilote")}</strong><span>Invitation</span><button class="blue-button small" data-mp-action="accept" data-group-id="${escapeHtml(invite.groupId)}" type="button">ACCEPTER</button><button class="blue-button small secondary" data-mp-action="decline" data-group-id="${escapeHtml(invite.groupId)}" type="button">REFUSER</button></div>`).join("")}</div>`
+      ? `<div class="group-panel-list">${multiplayer.invites.map(invite=>`<div class="group-panel-member group-panel-invite"><strong>${escapeHtml(invite.fromName || "Pilote")}</strong><span>Invitation</span><button class="group-invite-response accept" data-mp-action="accept" data-group-id="${escapeHtml(invite.groupId)}" type="button" title="Accepter" aria-label="Accepter">&#10003;</button><button class="group-invite-response decline" data-mp-action="decline" data-group-id="${escapeHtml(invite.groupId)}" type="button" title="Refuser" aria-label="Refuser">&times;</button></div>`).join("")}</div>`
       : "";
     return `
       <div class="group-invite-form">
