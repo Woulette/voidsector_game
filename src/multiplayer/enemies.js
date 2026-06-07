@@ -92,6 +92,7 @@ function normalizeServerEnemy(serverEnemy, existing = null){
     vx:Number(buffered?.vx ?? serverEnemy.vx ?? 0),
     vy:Number(buffered?.vy ?? serverEnemy.vy ?? 0),
     aggro:Boolean(serverEnemy.aggro),
+    idle:Boolean(serverEnemy.idle),
     hitT:Number.POSITIVE_INFINITY,
     attackCooldown:Number.POSITIVE_INFINITY,
     moving:Boolean(buffered?.moving || serverEnemy.moving || Math.hypot(Number(serverEnemy.vx || 0), Number(serverEnemy.vy || 0)) > 4),

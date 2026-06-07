@@ -24,6 +24,7 @@ export function publicEnemy(enemy){
     speed:enemy.speed || 0,
     moving:Boolean(enemy.moving),
     aggro:Boolean(enemy.lockedPlayerId),
+    idle:!enemy.lockedPlayerId && !enemy.moving && Math.hypot(Number(enemy.vx || 0), Number(enemy.vy || 0)) < 4,
     color:enemy.color,
     particle:enemy.particle,
     projectileSpeed:enemy.projectileSpeed || 600,

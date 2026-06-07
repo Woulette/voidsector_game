@@ -176,6 +176,13 @@ const QUEST_FIRMS = [
   {id:"verte", label:"Vert", mapPrefix:"VERTE"}
 ];
 
+const RICKY_QUEST_COORDINATES = {
+  astra:{x:430, y:-330},
+  cyan:{x:430, y:330},
+  jaune:{x:-430, y:330},
+  verte:{x:-430, y:-330}
+};
+
 function getQuestFirmDefinition(firmId){
   return QUEST_FIRMS.find(firm=>firm.id === firmId) || QUEST_FIRMS[0];
 }
@@ -217,6 +224,12 @@ function firmObjective(objective, firmId){
     else if(key === "id" && typeof value === "string") next[key] = firmText(value, firmId).toLowerCase();
     else if(typeof value === "string") next[key] = firmText(value, firmId);
     else next[key] = deepClone(value);
+  }
+  if(objective.id === "portal_coord" && objective.type === "visit_coordinates"){
+    const coordinates = RICKY_QUEST_COORDINATES[firmId] || RICKY_QUEST_COORDINATES.astra;
+    next.x = coordinates.x;
+    next.y = coordinates.y;
+    next.label = `Coord X ${coordinates.x} Y ${coordinates.y}`;
   }
   return next;
 }

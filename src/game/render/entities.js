@@ -427,7 +427,7 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
     const isPaused = Number(enemy.wanderPauseT || 0) > 0 && !enemy.aggro;
     const hasMovementState = typeof enemy.moving === "boolean" || Number.isFinite(enemy.vx) || Number.isFinite(enemy.vy);
     const isStopped = hasMovementState && (enemy.moving === false || Math.hypot(Number(enemy.vx || 0), Number(enemy.vy || 0)) < 4);
-    const isIdle = !enemy.aggro && (isPaused || isStopped);
+    const isIdle = !enemy.aggro && (Boolean(enemy.idle) || isPaused || isStopped);
     const idPhase = Number.isFinite(Number(enemy.id)) ? Number(enemy.id) : String(enemy.id || "").split("").reduce((sum, char)=>sum + char.charCodeAt(0), 0);
     const idlePhase = time / 420 + idPhase * 1.37;
     const idleY = isIdle ? Math.sin(idlePhase) * 5 : 0;

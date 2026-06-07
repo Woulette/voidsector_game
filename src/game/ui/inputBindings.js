@@ -133,7 +133,7 @@ export function installCombatInputHandlers({
       clearSelectedEnemy();
       return;
     }
-    if(e.key.toLowerCase() === "j"){
+    if(String(e.key || "").toLowerCase() === "j"){
       if(tryUseMapPortal()) e.preventDefault();
       return;
     }
