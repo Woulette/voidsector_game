@@ -357,7 +357,8 @@ export function createCombatChat({
     setOpen(true);
   });
   windowRef.addEventListener("voidsector:combat-log", event=>appendLog(event.detail || {}));
-  windowRef.addEventListener("voidsector:profile-applied", ()=>{
+  windowRef.addEventListener("voidsector:profile-applied", event=>{
+    if(event.detail?.uiChanges?.layoutChanged === false) return;
     layoutHydrated = false;
     hydrateCombatUiLayout(store);
     layoutHydrated = true;

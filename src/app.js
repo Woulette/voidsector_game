@@ -663,7 +663,9 @@ const serverEvents = createServerEventController({
   renderProfile,
   showToast,
   accountProfileScope,
-  switchLocalProfileScope
+  switchLocalProfileScope,
+  appMode,
+  isGameRunning:()=>Game.running
 });
 window.addEventListener("voidsector:multiplayer-change", serverEvents.handleChange);
 

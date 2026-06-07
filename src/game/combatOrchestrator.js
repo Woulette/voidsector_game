@@ -1151,10 +1151,12 @@ export function createCombatGame({renderAll, showToast}){
     actions.renderCombatQuickPanel();
     updateHud();
   });
-  window.addEventListener("voidsector:profile-applied", ()=>{
+  window.addEventListener("voidsector:profile-applied", event=>{
     if(!running) return;
-    actions.updateGameActionBar();
-    actions.renderCombatQuickPanel();
+    if(event.detail?.uiChanges?.actionBarChanged !== false){
+      actions.updateGameActionBar();
+      actions.renderCombatQuickPanel();
+    }
     updateHud();
   });
   document.addEventListener("visibilitychange", ()=>{

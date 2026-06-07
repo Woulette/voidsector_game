@@ -12,7 +12,9 @@ export function createServerEventController({
   renderProfile,
   showToast,
   accountProfileScope,
-  switchLocalProfileScope
+  switchLocalProfileScope,
+  appMode = "launcher",
+  isGameRunning = ()=>false
 }){
   function consume(events){
     return events?.length ? events.splice(0) : [];
@@ -176,6 +178,7 @@ export function createServerEventController({
 
   function handleChange(event){
     const reason = String(event.detail?.reason || "");
+    const combatOwnsQuestEvents = appMode === "game" && isGameRunning();
     if(applyPurchaseEvents(reason)) return;
     if(reason === "ship:active-equipped"){
       const serverEvent = multiplayer.shipEvents?.shift();
@@ -201,8 +204,8 @@ export function createServerEventController({
       else showToast("Equipement valide par le serveur.");
       return;
     }
-    if(reason === "quest:progress") return applyQuestProgress();
-    if(reason === "quest:fail-progress") return applyQuestFailureProgress();
+    if(reason === "quest:progress") return combatOwnsQuestEvents ? undefined : applyQuestProgress();
+    if(reason === "quest:fail-progress") return combatOwnsQuestEvents ? undefined : applyQuestFailureProgress();
     if(reason === "refinery:updated") return applyRefineryEvents();
     if(reason === "space-caster:result") return applySpaceCasterEvents();
     if(reason === "auth:success") switchLocalProfileScope(accountProfileScope(event.detail?.payload?.account || multiplayer.auth.account));

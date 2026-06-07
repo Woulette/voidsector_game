@@ -1161,10 +1161,14 @@ export function createCombatPanels({
     renderSpawnInteractionPanel(mode);
   }
 
-  window.addEventListener("voidsector:profile-applied", ()=>{
+  window.addEventListener("voidsector:profile-applied", event=>{
+    const uiChanges = event.detail?.uiChanges;
+    if(uiChanges && !uiChanges.layoutChanged && !uiChanges.panelsChanged) return;
     setTimeout(()=>{
-      hydrateCombatUiLayout(store);
-      restoreOpenUtilityPanels();
+      if(!uiChanges || uiChanges.layoutChanged){
+        hydrateCombatUiLayout(store);
+        restoreOpenUtilityPanels();
+      }
       restoreOpenSpawnPanel();
     }, 0);
   });

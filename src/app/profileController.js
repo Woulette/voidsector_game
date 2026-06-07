@@ -1,3 +1,5 @@
+import { captureProfileUiState, getProfileUiChanges, hasProfileUiChanges } from "./profileSyncChanges.js";
+
 export function createProfileController({
   store,
   game,
@@ -44,6 +46,7 @@ export function createProfileController({
 
   function applyServerProfile(profile){
     if(!profile || typeof profile !== "object") return;
+    const uiBefore = captureProfileUiState(store.state);
     const incomingVersion = Number(profile.updatedAt || 0);
     const localSelectedShip = store.state.selectedShip;
     const incomingOwnedShips = Array.isArray(profile.ownedShips) ? profile.ownedShips.map(String) : null;
@@ -97,15 +100,16 @@ export function createProfileController({
     if(Number.isFinite(Number(profile.refineryLastTick))) store.state.refineryLastTick = Number(profile.refineryLastTick);
     if(keepLocalSelectedShip) store.state.selectedShip = localSelectedShip;
     store.state.mmoProfileUpdatedAt = incomingVersion || Date.now();
+    const uiChanges = getProfileUiChanges(uiBefore, captureProfileUiState(store.state));
     saveState();
     if(appMode === "game" && game.running){
-      game.refreshActiveLoadout?.();
+      if(uiChanges.loadoutChanged) game.refreshActiveLoadout?.();
       game.updateHud?.();
     }else{
       renderAll();
     }
-    window.dispatchEvent(new CustomEvent("voidsector:profile-applied", {detail:{profile}}));
-    showToast("Profil MMO synchronise.");
+    window.dispatchEvent(new CustomEvent("voidsector:profile-applied", {detail:{profile, uiChanges}}));
+    if(appMode !== "game" && hasProfileUiChanges(uiChanges)) showToast("Profil MMO synchronise.");
   }
 
   function initializeScope(){
