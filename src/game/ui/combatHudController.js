@@ -44,10 +44,11 @@ export function createCombatHudController({
     const safeArea = getSafeArea();
     const gameMode = getGameMode();
     const currentMap = getCurrentMap();
+    const currentMapLabel = currentMap.displayName || currentMap.name;
     const portalWave = getPortalWave();
     const portalCompleted = getPortalCompleted();
     const safeLabel = safeArea ? ((player.safeZoneLock || 0) <= 0 ? ` · SAFE ${safeArea.type === "portal" ? "PORTAIL" : "SPAWN"}` : ` · SAFE DANS ${Math.ceil(player.safeZoneLock || 0)}S`) : "";
-    document.getElementById("gameZoneName").textContent = gameMode === "portal" ? `PORTAIL : ${getActivePortal()?.name || currentMap.name}${portalWave ? ` · VAGUE ${Math.min(portalWave, PORTAL_WAVE_TOTAL)}/${PORTAL_WAVE_TOTAL}` : " · PRÉPARATION"}` : `ZONE : ${currentMap.name}${safeLabel}`;
+    document.getElementById("gameZoneName").textContent = gameMode === "portal" ? `PORTAIL : ${getActivePortal()?.name || currentMapLabel}${portalWave ? ` · VAGUE ${Math.min(portalWave, PORTAL_WAVE_TOTAL)}/${PORTAL_WAVE_TOTAL}` : " · PRÉPARATION"}` : `ZONE : ${currentMapLabel}${safeLabel}`;
     const portalTimerHud = document.getElementById("portalTimerHud");
     if(portalTimerHud){
       const showPortalTimer = gameMode === "portal" && !portalCompleted && portalWave < PORTAL_WAVE_TOTAL;

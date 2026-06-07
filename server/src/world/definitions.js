@@ -1,4 +1,4 @@
-import { FIRMS, getFirmMapId, getFirmMapName } from "../../../src/data/firms.js";
+import { FIRMS, getFirmMapDisplayName, getFirmMapId, getFirmMapName } from "../../../src/data/firms.js";
 
 const ASTRA_WORLD_MAPS = {
   "0":{id:"0", name:"ASTRA-01", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:320, safeRect:{minX:-5000, minY:2500, maxX:-3500, maxY:3950}}, portals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:7, count:40, level:[1,3], enemyTypes:[["drone_pirate", .50], ["raider_astral", .50]]},
@@ -33,6 +33,7 @@ function buildFirmWorldMaps(){
       const map = clone(template);
       map.id = String(getFirmMapId(firm.id, num));
       map.name = getFirmMapName(firm.id, num);
+      map.displayName = getFirmMapDisplayName(firm.id, num);
       map.firmId = firm.id;
       map.seed = Number(template.seed || 0) + firmSeedOffset(firm.id);
       if(num === 1){
@@ -72,6 +73,7 @@ function buildFirmWorldMaps(){
   result["50"] = {
     id:"50",
     name:"CORE",
+    displayName:"Noyau",
     width:10000,
     height:8000,
     spawn:{x:0, y:0, r:420, safeRadius:420, safeRect:{minX:-520, minY:-520, maxX:520, maxY:520}},

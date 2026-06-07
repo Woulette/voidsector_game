@@ -98,8 +98,12 @@ export function createProfileController({
     if(keepLocalSelectedShip) store.state.selectedShip = localSelectedShip;
     store.state.mmoProfileUpdatedAt = incomingVersion || Date.now();
     saveState();
-    if(appMode === "game" && game.running) game.refreshActiveLoadout?.();
-    renderAll();
+    if(appMode === "game" && game.running){
+      game.refreshActiveLoadout?.();
+      game.updateHud?.();
+    }else{
+      renderAll();
+    }
     window.dispatchEvent(new CustomEvent("voidsector:profile-applied", {detail:{profile}}));
     showToast("Profil MMO synchronise.");
   }

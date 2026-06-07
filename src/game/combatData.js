@@ -1,3 +1,5 @@
+import { getMapDisplayName } from "../data/firms.js";
+
 export const MAPS = [
   {
     id:0,
@@ -1093,6 +1095,19 @@ function installFirmRickyPortals(){
 }
 
 installFirmRickyPortals();
+
+function applyMapDisplayNames(){
+  for(const map of MAPS){
+    map.displayName = getMapDisplayName(map);
+    for(const portal of Array.isArray(map.portals) ? map.portals : map.portal ? [map.portal] : []){
+      if(!portal?.label || !String(portal.label).startsWith("VERS ")) continue;
+      const target = MAPS.find(entry=>String(entry.id) === String(portal.targetMap));
+      if(target) portal.displayLabel = `VERS ${getMapDisplayName(target)}`;
+    }
+  }
+}
+
+applyMapDisplayNames();
 
 export function getMapPortals(map){
   if(!map) return [];

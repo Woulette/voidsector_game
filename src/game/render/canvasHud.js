@@ -68,7 +68,7 @@ export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget,
   ctx.fillRect(x, y, w, headerH);
   ctx.fillStyle = "#8ee7ff";
   ctx.font = "700 11px Rajdhani, Arial";
-  ctx.fillText(currentMap.name, x+9, y+15);
+  ctx.fillText(currentMap.displayName || currentMap.name, x+9, y+15);
   ctx.fillStyle = "#bfefff";
   ctx.font = "600 12px Rajdhani, Arial";
   ctx.fillText(formatCompactCoord(player), x + 88, y + 15);

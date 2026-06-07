@@ -1,8 +1,8 @@
 export const FIRMS = [
-  {id:"astra", label:"Astra", mapPrefix:"ASTRA", homeMapName:"ASTRA-01", baseMapId:0, color:"#38bdf8", spawn:{x:-4300, y:3300}},
-  {id:"cyan", label:"Cygnus", mapPrefix:"CYAN", homeMapName:"CYAN-01", baseMapId:20, color:"#22d3ee", spawn:{x:-4300, y:-3300}},
-  {id:"jaune", label:"Solarys", mapPrefix:"JAUNE", homeMapName:"JAUNE-01", baseMapId:30, color:"#facc15", spawn:{x:4300, y:-3300}},
-  {id:"verte", label:"Verdantis", mapPrefix:"VERTE", homeMapName:"VERTE-01", baseMapId:40, color:"#22c55e", spawn:{x:4300, y:3300}}
+  {id:"astra", label:"Astra", mapPrefix:"ASTRA", displayMapPrefix:"Helion", homeMapName:"ASTRA-01", baseMapId:0, color:"#38bdf8", spawn:{x:-4300, y:3300}},
+  {id:"cyan", label:"Cygnus", mapPrefix:"CYAN", displayMapPrefix:"Nereid", homeMapName:"CYAN-01", baseMapId:20, color:"#22d3ee", spawn:{x:-4300, y:-3300}},
+  {id:"jaune", label:"Solarys", mapPrefix:"JAUNE", displayMapPrefix:"Aureon", homeMapName:"JAUNE-01", baseMapId:30, color:"#facc15", spawn:{x:4300, y:-3300}},
+  {id:"verte", label:"Verdantis", mapPrefix:"VERTE", displayMapPrefix:"Sylva", homeMapName:"VERTE-01", baseMapId:40, color:"#22c55e", spawn:{x:4300, y:3300}}
 ];
 
 const FIRM_ALIASES = new Map();
@@ -36,6 +36,24 @@ export function getFirmMapId(value, num = 1){
 export function getFirmMapName(value, num = 1){
   const firm = getFirmDefinition(value);
   return `${firm.mapPrefix}-${String(Math.max(1, Math.floor(Number(num || 1)))).padStart(2, "0")}`;
+}
+
+export function getFirmMapDisplayName(value, num = 1){
+  const firm = getFirmDefinition(value);
+  return `${firm.displayMapPrefix}-${String(Math.max(1, Math.floor(Number(num || 1)))).padStart(2, "0")}`;
+}
+
+export function getMapDisplayName(mapOrName){
+  if(mapOrName && typeof mapOrName === "object"){
+    if(mapOrName.displayName) return String(mapOrName.displayName);
+    return getMapDisplayName(mapOrName.name);
+  }
+  const name = String(mapOrName || "");
+  const match = name.match(/^([A-Z]+)-(\d+)$/i);
+  if(!match) return name;
+  const firmId = getFirmIdFromMapName(name);
+  if(!firmId) return name;
+  return getFirmMapDisplayName(firmId, Number(match[2]));
 }
 
 export function getFirmHomeMapName(value){

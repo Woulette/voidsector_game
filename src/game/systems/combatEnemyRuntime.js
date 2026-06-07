@@ -9,6 +9,7 @@ export function createCombatEnemyRuntime({
   getState,
   setState,
   getMapState,
+  findRemotePlayerTargetById,
   damagePlayer,
   rollBetween,
   resolveBulletImpact,
@@ -22,6 +23,10 @@ export function createCombatEnemyRuntime({
   function getBulletTarget(bullet){
     const {player, enemies} = getState();
     if(bullet.owner === "enemy" || bullet.owner === "serverEnemy") return {x:player.x, y:player.y, entity:player};
+    if(String(bullet.targetId || "").startsWith("player:")){
+      const target = findRemotePlayerTargetById?.(String(bullet.targetId).slice("player:".length));
+      return target && target.hp > 0 ? {x:target.x, y:target.y, entity:target} : null;
+    }
     const enemy = enemies.find(e=>e.id === bullet.targetId && e.hp > 0);
     return enemy ? {x:enemy.x, y:enemy.y, entity:enemy} : null;
   }

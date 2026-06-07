@@ -51,7 +51,7 @@ export function createSocialManager({io, players, profileManager}){
       status,
       playerId:gameLive?.id || null,
       mapId:gameLive?.state?.mapId ?? null,
-      mapName:map?.name || (gameLive?.state?.mapId != null ? String(gameLive.state.mapId) : "Hors ligne"),
+      mapName:map?.displayName || map?.name || (gameLive?.state?.mapId != null ? String(gameLive.state.mapId) : "Hors ligne"),
       shipId:String(gameLive?.state?.shipId || profile?.activeShip || ""),
       shipName:ship?.name || String(gameLive?.state?.shipId || profile?.activeShip || "Inconnu"),
       level:Math.max(1, Number(profile?.player?.level || 1))

@@ -94,6 +94,8 @@ export function createCombatFrameUpdateSystem({
     state = getState();
     const rank = getCurrentRank();
     const activeShip = getActiveShip();
+    const droneLoadout = Array.isArray(state.store?.state?.droneLoadout) ? state.store.state.droneLoadout : [];
+    const droneUpgrades = droneLoadout.slice(0, 10).map((uid, index)=>Boolean(uid && state.store?.state?.dronePermanentUpgrades?.[index]));
     sendPlayerSnapshot({
       x:player.x,
       y:player.y,
@@ -109,6 +111,12 @@ export function createCombatFrameUpdateSystem({
       mapId:state.currentMap?.id ?? state.currentMap?.name ?? "unknown",
       shipId:activeShip.id || state.store.state.activeShip || "unknown",
       shipImg:activeShip.combatImg || activeShip.img || "",
+      level:Number(state.store?.state?.player?.level || 1),
+      speed:Number(player.speed || activeShip.stats?.vitesse || 300),
+      radius:Number(player.radius || 48),
+      droneCount:droneLoadout.filter(Boolean).length,
+      droneUpgrades,
+      activeDroneFormation:state.store?.state?.activeDroneFormation || "base",
       rankName:rank.name || "",
       rankAssetPath:getRankAssetPath(rank)
     });

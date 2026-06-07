@@ -78,6 +78,14 @@ function getFormationStats(profile){
   return droneFormations.find(formation=>formation.id === profile?.activeDroneFormation)?.effect || {};
 }
 
+function getPublicDroneState(profile){
+  const loadout = Array.isArray(profile?.droneLoadout) ? profile.droneLoadout : [];
+  const droneCount = loadout.filter(Boolean).length;
+  const upgrades = loadout.slice(0, 10).map((uid, index)=>Boolean(uid && profile?.dronePermanentUpgrades?.[index]));
+  const activeFormation = droneFormations.find(formation=>formation.id === profile?.activeDroneFormation)?.id || "base";
+  return {droneCount, droneUpgrades:upgrades, activeDroneFormation:activeFormation};
+}
+
 function getRepairBotHealRate(profile){
   const loadout = profile?.shipLoadouts?.[profile?.activeShip] || {};
   const extras = Array.isArray(loadout.extras) ? loadout.extras : [];
@@ -333,6 +341,7 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
 
   const derivedVx = previous && !mapChanged ? (point.x - finite(previous.x)) / elapsedSeconds : 0;
   const derivedVy = previous && !mapChanged ? (point.y - finite(previous.y)) / elapsedSeconds : 0;
+  const droneState = getPublicDroneState(profile);
 
   return {
     corrected,
@@ -349,6 +358,12 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
       mapId,
       shipId:ship.id,
       shipImg:String(payload?.shipImg || previous?.shipImg || ship.combatImg || ship.img || ""),
+      level:Math.max(1, Math.floor(finite(profile?.player?.level, previous?.level || 1))),
+      speed:Math.max(1, finite(ship?.stats?.vitesse, previous?.speed || 300)),
+      radius:Math.max(32, Math.min(96, finite(payload?.radius, previous?.radius || 48))),
+      droneCount:droneState.droneCount,
+      droneUpgrades:droneState.droneUpgrades,
+      activeDroneFormation:droneState.activeDroneFormation,
       rankName:String(payload?.rankName || previous?.rankName || "").slice(0, 48),
       rankAssetPath:String(payload?.rankAssetPath || previous?.rankAssetPath || "").slice(0, 180),
       updatedAt:now

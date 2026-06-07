@@ -71,6 +71,10 @@ export function createCombatInteractionSystem({
   function attackSelectedWithActiveLaser(){
     const {selectedEnemy} = getState();
     if(!selectedEnemy) return false;
+    if(selectedEnemy.isPlayerTarget && selectedEnemy.canAttack === false){
+      showToast(selectedEnemy.attackBlockedReason || "Cible joueur non attaquable.");
+      return false;
+    }
     const slot = actions.getLaserSlotForAttack?.() ?? lastTargetLaserSlot;
     if(slot === null || slot === undefined) return false;
     const ammo = getAmmo((store.state.actionSlots || [])[slot]);

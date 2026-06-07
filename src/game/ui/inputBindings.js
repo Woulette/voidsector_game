@@ -217,10 +217,8 @@ export function installCombatInputHandlers({
         const remotePlayer = findRemotePlayerAt?.(world);
         if(remotePlayer){
           fillSocialPlayerName?.(remotePlayer.name);
-          if(remotePlayer.hostile){
-            setSelectedEnemy(remotePlayer);
-            if(e.detail >= 2) attackSelectedWithActiveLaser?.();
-          }
+          setSelectedEnemy(remotePlayer);
+          if(e.detail >= 2) attackSelectedWithActiveLaser?.();
           mouseMoveHeld = false;
           setMouseMoveHeld?.(false);
           updateHud();

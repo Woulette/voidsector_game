@@ -136,6 +136,8 @@ export function resolveServerCombatFire({player, profile, enemy, payload} = {}){
   let consumed = 1;
   let cooldownMs = 1000;
   let range = 500;
+  let missileHits = 0;
+  let missileMisses = 0;
 
   if(weaponClass === "laser"){
     const lasers = [...getShipLaserItems(profile, player), ...getDroneLaserItems(profile)];
@@ -160,7 +162,14 @@ export function resolveServerCombatFire({player, profile, enemy, payload} = {}){
     range = Number(launcher.effect?.missileRange || ammo.range || 600);
     cooldownMs = Math.max(750, consumed * Number(launcher.effect?.missileReload || 3) * 1000);
     const multiplier = Number(launcher.effect?.missileDamageMultiplier || 1);
-    damage = Array.from({length:consumed}, ()=>rollBetween(ammo.damageMin, ammo.damageMax)).reduce((sum, value)=>sum + value, 0) * multiplier;
+    for(let index = 0; index < consumed; index += 1){
+      if(Math.random() <= hitChance){
+        missileHits += 1;
+        damage += rollBetween(ammo.damageMin, ammo.damageMax) * multiplier;
+      }else{
+        missileMisses += 1;
+      }
+    }
   }else{
     return {ok:false, reason:"Type d'arme invalide."};
   }
@@ -169,7 +178,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload} = {}){
   const cooldown = checkCooldown(player, weaponClass, cooldownMs);
   if(!cooldown.ok) return cooldown;
   if(!consumeAmmo(profile, ammo.id, consumed)) return {ok:false, reason:"Munitions insuffisantes."};
-  const hit = Math.random() <= hitChance;
+  const hit = weaponClass === "missile" ? missileHits > 0 : Math.random() <= hitChance;
   return {
     ok:true,
     hit,
@@ -177,6 +186,8 @@ export function resolveServerCombatFire({player, profile, enemy, payload} = {}){
     ammoId:ammo.id,
     consumed,
     weaponClass,
+    missileHits,
+    missileMisses,
     range
   };
 }

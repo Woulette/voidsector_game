@@ -54,6 +54,11 @@ export function createWeaponSystem(deps){
 
   function shootAt(enemy, ammo, slotIndex){
     if(!enemy || !ammo) return false;
+    if(enemy.isPlayerTarget && enemy.canAttack === false){
+      deps.showToast(enemy.attackBlockedReason || "Cible joueur non attaquable.");
+      return false;
+    }
+    const serverPlayerTarget = Boolean(enemy.isPlayerTarget);
     const player = deps.getPlayer();
     const dx = enemy.x - player.x;
     const dy = enemy.y - player.y;
@@ -69,13 +74,19 @@ export function createWeaponSystem(deps){
         return false;
       }
       if(dist > (launcher.effect?.rocketRange || ammo.range || 800)) return false;
-      if(!deps.consumeAmmo(ammo.id, 1)){
-        deps.showToast(`${ammo.name} épuisée.`);
+      if(serverPlayerTarget && deps.getAmmoCount(ammo.id) <= 0){
+        deps.showToast(`${ammo.name} epuisee.`);
         deps.refreshActionBar();
         deps.refreshQuickPanel();
         return false;
       }
-      deps.recordWeaponUse?.("rocket", 1);
+      if(!serverPlayerTarget && !deps.consumeAmmo(ammo.id, 1)){
+        deps.showToast(`${ammo.name} epuisee.`);
+        deps.refreshActionBar();
+        deps.refreshQuickPanel();
+        return false;
+      }
+      if(!serverPlayerTarget) deps.recordWeaponUse?.("rocket", 1);
       deps.markCombatActivity("outgoing");
       enemy.aggro = true;
       rocketSide *= -1;
@@ -85,7 +96,7 @@ export function createWeaponSystem(deps){
       const sideY = forwardX;
       const startX = player.x + forwardX * 42 + sideX * rocketSide * 28;
       const startY = player.y + forwardY * 42 + sideY * rocketSide * 28;
-      const rocketBoost = deps.consumeCombatBoostCharges?.("rocket", 1) || 0;
+      const rocketBoost = serverPlayerTarget ? 0 : deps.consumeCombatBoostCharges?.("rocket", 1) || 0;
       bullets.push(createProjectile({
         owner:"player",
         startX,
@@ -94,7 +105,7 @@ export function createWeaponSystem(deps){
         sprite:ammo.projectileImg || ammo.img || "assets/equipment/rocket_projectile.png",
         curveSide:rocketSide,
         curveStrength:42,
-        damage:(rollBetween(ammo.damageMin, ammo.damageMax) + getUpgradeLevel(ammo.id) * 80) * (launcher.effect?.rocketDamageMultiplier || 1) * getRocketDamageMultiplier() * (1 + rocketBoost),
+        damage:serverPlayerTarget ? 1 : (rollBetween(ammo.damageMin, ammo.damageMax) + getUpgradeLevel(ammo.id) * 80) * (launcher.effect?.rocketDamageMultiplier || 1) * getRocketDamageMultiplier() * (1 + rocketBoost),
         travelTime:Math.max(.22, Math.min(1.55, dist/(ammo.speed || 620) + .14)),
         radius:10,
         color:ammo.color,
@@ -106,7 +117,7 @@ export function createWeaponSystem(deps){
         hitChance:deps.playerHitChance
       }));
       particles.push({x:startX,y:startY,life:.24,max:.24,size:26,color:ammo.particle});
-      deps.saveState();
+      if(!serverPlayerTarget) deps.saveState();
       deps.refreshActionBar();
       deps.refreshQuickPanel();
       return true;
@@ -115,17 +126,24 @@ export function createWeaponSystem(deps){
     const volley = getLaserVolley();
     if(volley.count <= 0) return false;
     if(dist > volley.range) return false;
-    if(!deps.consumeAmmo(ammo.id, volley.count)){
+    if(serverPlayerTarget && deps.getAmmoCount(ammo.id) < volley.count){
       deps.showToast(`${ammo.name} insuffisante : il faut ${volley.count} munition(s) par tir.`);
       if(deps.getActiveLaserSlot() === slotIndex) deps.setActiveLaserSlot(null);
       deps.refreshActionBar();
       deps.refreshQuickPanel();
       return false;
     }
-    deps.recordWeaponUse?.("laser", volley.count);
+    if(!serverPlayerTarget && !deps.consumeAmmo(ammo.id, volley.count)){
+      deps.showToast(`${ammo.name} insuffisante : il faut ${volley.count} munition(s) par tir.`);
+      if(deps.getActiveLaserSlot() === slotIndex) deps.setActiveLaserSlot(null);
+      deps.refreshActionBar();
+      deps.refreshQuickPanel();
+      return false;
+    }
+    if(!serverPlayerTarget) deps.recordWeaponUse?.("laser", volley.count);
     deps.markCombatActivity("outgoing");
     enemy.aggro = true;
-    const damage = volley.rollDamage() * (ammo.multiplier || 1);
+    const damage = serverPlayerTarget ? 1 : volley.rollDamage() * (ammo.multiplier || 1);
     const startX = player.x + Math.cos(a)*45;
     const startY = player.y + Math.sin(a)*45;
     deps.addLaserBeam?.({
@@ -139,7 +157,7 @@ export function createWeaponSystem(deps){
     });
     deps.resolveLaserHit?.(enemy, damage, deps.playerHitChance, ammo);
     particles.push({x:startX,y:startY,life:.16,max:.16,size:14,color:player.blueLaserBeams && ammo.id !== "ammo_x4" ? "rgba(56,189,248,.65)" : ammo.id === "ammo_x4" ? "rgba(255,132,24,.65)" : "rgba(255,218,72,.62)"});
-    deps.saveState();
+    if(!serverPlayerTarget) deps.saveState();
     deps.refreshActionBar();
     deps.refreshQuickPanel();
     return true;
@@ -156,6 +174,7 @@ export function createWeaponSystem(deps){
   function fireManualMissile(ammo, count = 3){
     const enemy = deps.getSelectedEnemy();
     if(!enemy) return deps.showToast("Selectionne une cible avant de lancer les missiles.");
+    if(enemy.isPlayerTarget && enemy.canAttack === false) return deps.showToast(enemy.attackBlockedReason || "Cible joueur non attaquable.");
     const launcher = deps.getEquippedLauncher?.("missile");
     if(!launcher) return deps.showToast("Aucun lance-missile equipe.");
     if(!ammo || ammo.weaponClass !== "missile") return false;
@@ -165,13 +184,20 @@ export function createWeaponSystem(deps){
     const dist = Math.hypot(dx, dy) || 1;
     if(dist > (launcher.effect?.missileRange || ammo.range || 500)) return false;
     const needed = Math.max(1, Number(count || launcher.effect?.missileCapacity || 3));
-    if(!deps.consumeAmmo(ammo.id, needed)){
+    const serverPlayerTarget = Boolean(enemy.isPlayerTarget);
+    if(serverPlayerTarget && deps.getAmmoCount(ammo.id) < needed){
       deps.showToast(`${ammo.name} insuffisant : il faut ${needed} missile(s).`);
       deps.refreshActionBar();
       deps.refreshQuickPanel();
       return false;
     }
-    deps.recordWeaponUse?.("missile", needed);
+    if(!serverPlayerTarget && !deps.consumeAmmo(ammo.id, needed)){
+      deps.showToast(`${ammo.name} insuffisant : il faut ${needed} missile(s).`);
+      deps.refreshActionBar();
+      deps.refreshQuickPanel();
+      return false;
+    }
+    if(!serverPlayerTarget) deps.recordWeaponUse?.("missile", needed);
     deps.markCombatActivity("outgoing");
     enemy.aggro = true;
     const a = Math.atan2(dy, dx);
@@ -199,7 +225,7 @@ export function createWeaponSystem(deps){
         sprite:ammo.projectileImg || ammo.img || null,
         curveSide,
         curveStrength:46 + i * 8,
-        damage:rollBetween(minDamage, maxDamage) * damageMultiplier,
+        damage:serverPlayerTarget ? 1 : rollBetween(minDamage, maxDamage) * damageMultiplier,
         visualOnly:false,
         salvoId,
         salvoSize:needed,
@@ -214,7 +240,7 @@ export function createWeaponSystem(deps){
       }));
       particles.push({x:startX, y:startY, life:.24, max:.24, size:22, color:ammo.particle});
     }
-    deps.saveState();
+    if(!serverPlayerTarget) deps.saveState();
     deps.refreshActionBar();
     deps.refreshQuickPanel();
     return true;

@@ -186,7 +186,7 @@ export function createCombatWorldStateSystem({
     player.safeZoneLock = options.safeNow || isPointInSafeArea(player, currentMap) ? 0 : SAFE_ZONE_DELAY;
     panels.closeSpawnPanel();
     saveState();
-    showToast(`Entree dans ${currentMap.name}.`);
+    showToast(`Entree dans ${currentMap.displayName || currentMap.name}.`);
     updateHud();
   }
 

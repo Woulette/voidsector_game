@@ -34,6 +34,12 @@ function sampleBufferedState(samples, delayMs = 115){
       maxHp:to.maxHp,
       shield:to.shield,
       maxShield:to.maxShield,
+      level:to.level,
+      speed:to.speed,
+      radius:to.radius,
+      droneCount:to.droneCount,
+      droneUpgrades:to.droneUpgrades,
+      activeDroneFormation:to.activeDroneFormation,
       shipId:to.shipId,
       shipImg:to.shipImg,
       rankName:to.rankName,
@@ -125,6 +131,9 @@ function buildRemotePlayer(render, state){
     x:render.x,
     y:render.y,
     angle:render.angle,
+    vx:Number(state.vx || 0),
+    vy:Number(state.vy || 0),
+    speed:Number(state.speed || 0),
     hp:Number(state.hp || 0),
     maxHp:Number(state.maxHp || state.hp || 1),
     shield:Number(state.shield || 0),
@@ -133,6 +142,40 @@ function buildRemotePlayer(render, state){
     engineParticleT:0,
     repairBotActive:false
   };
+}
+
+function buildRemoteDrones(remote, state){
+  const count = Math.max(0, Math.min(10, Math.floor(Number(state?.droneCount || 0))));
+  return Array.from({length:count}, (_, index)=>`remote:${remote.id}:drone:${index}`);
+}
+
+function drawSelectedRemoteOverlay({ctx, camera, remote, state, selectedEnemy}){
+  if(!selectedEnemy?.isPlayerTarget || selectedEnemy.playerId !== remote.id) return;
+  const x = Number(state.x || 0) - camera.x;
+  const y = Number(state.y || 0) - camera.y;
+  const radius = Math.max(48, Number(state.radius || 48)) + 15;
+  const pulse = .5 + Math.sin(performance.now() / 120) * .5;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = `rgba(34,197,94,${.58 + pulse * .25})`;
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = "rgba(34,197,94,.82)";
+  ctx.shadowBlur = 12 + pulse * 8;
+  ctx.setLineDash([14, 9]);
+  ctx.lineDashOffset = -performance.now() / 55;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "rgba(134,239,172,.92)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius + 5, -Math.PI / 3, Math.PI / 3);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, radius + 5, Math.PI * .66, Math.PI * 1.33);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawRemoteLaserEffects({ctx, camera, currentMapId = null}){
@@ -178,7 +221,8 @@ export function drawRemotePlayers({
   currentMapId = null,
   ships = [],
   defaultProfile = null,
-  profiles = {}
+  profiles = {},
+  selectedEnemy = null
 }){
   const now = Date.now();
   drawRemoteLaserEffects({ctx, camera, currentMapId});
@@ -189,6 +233,7 @@ export function drawRemotePlayers({
     const render = getRemoteRenderState(remote, state);
     const sampledState = sampleBufferedState(remote.stateSamples) || state;
     const ship = buildRemoteShip(sampledState, ships);
+    getCachedImage(cache, "assets/drones/drone_test_sprite.webp");
     getCachedImage(cache, ship.combatImg || ship.img);
     getCachedImage(cache, sampledState.rankAssetPath);
 
@@ -199,18 +244,19 @@ export function drawRemotePlayers({
         cache,
         player:buildRemotePlayer(render, sampledState),
         ship,
-        drones:[],
+        drones:buildRemoteDrones(remote, sampledState),
         rank:{name:sampledState.rankName || ""},
         rankAssetPath:sampledState.rankAssetPath || "",
         pilotFirmAssetPath:getFirmBadgeAsset(remote.firmId || "astra"),
         pilotName:String(remote.name || "Pilote").slice(0, 24),
         pilotTitle:"",
         getItemFromInventoryUid:()=>null,
-        getDronePermanentUpgrade:()=>null,
-        droneFormation:null,
+        getDronePermanentUpgrade:index=>Boolean(sampledState.droneUpgrades?.[index]),
+        droneFormation:sampledState.activeDroneFormation || "base",
         defaultProfile,
         profiles
       });
+      drawSelectedRemoteOverlay({ctx, camera, remote, state:{...sampledState, x:render.x, y:render.y}, selectedEnemy});
     }else{
       const x = render.x - camera.x;
       const y = render.y - camera.y;
@@ -237,6 +283,7 @@ export function drawRemotePlayers({
         ctx.stroke();
       }
       ctx.restore();
+      drawSelectedRemoteOverlay({ctx, camera, remote, state:{...sampledState, x:render.x, y:render.y}, selectedEnemy});
     }
   }
 }

@@ -3,6 +3,7 @@ import http from "node:http";
 import { Server } from "socket.io";
 import { createSocketSessionManager } from "./auth/socketSession.js";
 import { resolveServerCombatFire } from "./combat/damage.js";
+import { getPlayerPvpBlockReason } from "./combat/playerPvp.js";
 import { config } from "./config.js";
 import { dbEnabled, initializeDatabase } from "./db/client.js";
 import { createGroupManager } from "./groups/groups.js";
@@ -12,6 +13,7 @@ import { normalizeFirmId } from "../../src/data/firms.js";
 import { createEquipmentLocationManager } from "./players/equipmentLocation.js";
 import { createPresenceManager } from "./players/presence.js";
 import { createProfileManager } from "./players/profiles.js";
+import { updateRankScore } from "./players/rankProgression.js";
 import { createPortalInstanceManager } from "./portals/instances.js";
 import { createKillQuestProgress } from "./quests/killProgress.js";
 import { createAccountActionLocks } from "./security/accountActionLocks.js";
@@ -406,9 +408,15 @@ function applyPlayerHit(socket, payload){
   const attackerProfile = profileManager.getProfileForPlayer(attacker);
   const targetProfile = profileManager.getProfileForPlayer(target);
   const attackerFirm = normalizeFirmId(attackerProfile?.player?.firmId || attacker.account?.firmId || "astra");
-  const targetFirm = normalizeFirmId(targetProfile?.player?.firmId || target.account?.firmId || "astra");
-  if(attackerFirm === targetFirm){
-    emitMiss("Tir refuse sur joueur allie.");
+  const attackerLevel = Math.max(1, Math.floor(Number(attackerProfile?.player?.level || attacker.state.level || 1)));
+  const targetLevel = Math.max(1, Math.floor(Number(targetProfile?.player?.level || target.state.level || 1)));
+  const pvpBlockReason = getPlayerPvpBlockReason({
+    sameGroup:Boolean(attacker.groupId && attacker.groupId === target.groupId),
+    attackerLevel,
+    targetLevel
+  });
+  if(pvpBlockReason){
+    emitMiss(pvpBlockReason);
     return;
   }
   const map = WORLD_MAPS[String(attacker.mapId)] || null;
@@ -474,6 +482,40 @@ function applyPlayerHit(socket, payload){
   if(hpBefore > 0 && hpAfter <= 0){
     const snapshot = firmWarManager.addPlayerKillPoints(attackerFirm);
     io.emit("firm:ranking", snapshot);
+    const reputation = Math.max(0, targetLevel * 1000);
+    const pvpReward = profileManager.updateProfileForPlayer({
+      player:attacker,
+      update:profile=>{
+        if(!profile.player || typeof profile.player !== "object") profile.player = {};
+        profile.player.reputation = Math.max(0, Number(profile.player.reputation || 0)) + reputation;
+        profile.player.totalPlayerKills = Math.max(0, Number(profile.player.totalPlayerKills || 0)) + 1;
+        updateRankScore(profile);
+        return {ok:true, changed:true};
+      }
+    });
+    if(pvpReward.ok){
+      emitProfileSyncForPlayer(attacker, pvpReward.profile);
+      const rewardEvent = {
+        rewardId:`pvp:${target.id}:${attacker.id}:${Date.now()}`,
+        enemyId:`player:${target.id}`,
+        enemyType:"Joueur",
+        enemyName:targetProfile?.player?.name || target.name || "Pilote",
+        enemyLevel:targetLevel,
+        mapId:String(attacker.mapId ?? ""),
+        share:1,
+        killerId:attacker.id,
+        credits:0,
+        xp:0,
+        premium:0,
+        reputation,
+        rankPoints:0,
+        rewardAppliedByServer:true,
+        at:Date.now()
+      };
+      for(const accountPlayer of accountSocketsForPlayer(attacker)){
+        if(accountPlayer.clientMode === "game") io.to(accountPlayer.id).emit("player:reward", rewardEvent);
+      }
+    }
   }
   emitPlayers();
 }

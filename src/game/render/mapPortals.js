@@ -114,6 +114,6 @@ export function drawMapPortals({ctx, currentMap, getMapPortals}){
       ctx.fillText(portal.label || "PORTAIL FERME", portal.x - 78, portal.y - safeR - 16);
       continue;
     }
-    ctx.fillText(`${portal.label} · APPUIE J`, portal.x - 92, portal.y - safeR - 16);
+    ctx.fillText(`${portal.displayLabel || portal.label} · APPUIE J`, portal.x - 92, portal.y - safeR - 16);
   }
 }

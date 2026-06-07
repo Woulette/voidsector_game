@@ -4,6 +4,7 @@ export function upsertRemotePlayer(multiplayer, player){
   const state = player.state || existing.state || null;
   const stateSamples = Array.isArray(existing.stateSamples) ? existing.stateSamples.slice(-7) : [];
   if(state) stateSamples.push({...state, receivedAt:performance.now()});
+  if(stateSamples.length > 8) stateSamples.splice(0, stateSamples.length - 8);
   multiplayer.remotePlayers.set(player.id, {...existing, ...player, state, stateSamples});
 }
 

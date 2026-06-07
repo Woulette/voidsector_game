@@ -145,7 +145,8 @@ export function createCombatSceneRenderer({
       currentMapId:currentMap?.id ?? currentMap?.name ?? null,
       ships:shipList,
       defaultProfile:defaultEngineProfile,
-      profiles:engineProfiles
+      profiles:engineProfiles,
+      selectedEnemy
     });
     drawParticles({ctx, camera, particles, repairLayer:true});
     drawDamageTexts();

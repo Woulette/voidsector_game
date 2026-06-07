@@ -34,6 +34,7 @@ export const PROTECTED_PLAYER_FIELDS = [
   "skillPoints",
   "reputation",
   "totalKills",
+  "totalPlayerKills",
   "monsterRankPoints",
   "rankScore"
 ];
@@ -56,6 +57,7 @@ export function normalizeProgressionPlayer(player = {}){
     totalXp:Math.max(0, Math.round(Number(player.totalXp || 0))),
     reputation:Math.max(0, Math.round(Number(player.reputation || 0))),
     totalKills:Math.max(0, Math.round(Number(player.totalKills || 0))),
+    totalPlayerKills:Math.max(0, Math.round(Number(player.totalPlayerKills || 0))),
     monsterRankPoints:Math.max(0, Number(player.monsterRankPoints || 0)),
     rankScore:Math.max(0, Number(player.rankScore || 0)),
     level,

@@ -1,6 +1,6 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
 import { renderSpawnPanelContent } from "./spawnPanel.js";
-import { FIRMS, getFirmDefinition, getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
+import { FIRMS, getFirmDefinition, getFirmIdFromMapName, getMapDisplayName, normalizeFirmId } from "../../data/firms.js";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import {
   multiplayer,
@@ -161,6 +161,8 @@ export function createCombatPanels({
   let selectedFirmPanelTab = "ranking";
   let socialRefreshT = 0;
   let firmTimerRefreshT = 0;
+  let pendingGroupInviteName = "";
+  let pendingSocialAddName = "";
 
   function canUseCurrentMapFirmServices(){
     const mapFirmId = getFirmIdFromMapName(getCurrentMap()?.name);
@@ -388,7 +390,7 @@ export function createCombatPanels({
   function getGroupMapLabel(state){
     const id = state?.mapId;
     const found = maps.find(map=>String(map.id) === String(id) || String(map.name) === String(id));
-    return found?.name || (id !== undefined && id !== null ? String(id) : "Hors combat");
+    return found?.displayName || found?.name || (id !== undefined && id !== null ? String(id) : "Hors combat");
   }
 
   function resolveGroupMemberState(member){
@@ -637,7 +639,7 @@ export function createCombatPanels({
       : "";
     return `
       <div class="group-invite-form">
-        <input id="groupInviteName" type="text" maxlength="24" placeholder="Nom du joueur">
+        <input id="groupInviteName" type="text" maxlength="24" value="${escapeHtml(pendingGroupInviteName)}" placeholder="Nom du joueur">
         <button class="group-invite-button" data-group-invite type="button" title="Inviter en groupe" aria-label="Inviter en groupe"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.6 2.6-5.3 5.8-5.3s5.2 1.7 5.9 5.3"></path><path d="M17 7v6M14 10h6"></path></svg></button>
       </div>
       ${invitesHtml}
@@ -749,7 +751,7 @@ export function createCombatPanels({
         : selectedSocialTab;
     return `
       <div class="social-add-form">
-        <input id="socialAddName" maxlength="24" placeholder="Nom du joueur">
+        <input id="socialAddName" maxlength="24" value="${escapeHtml(pendingSocialAddName)}" placeholder="Nom du joueur">
         <button class="blue-button small" data-social-action="add-friend" type="button">AJOUTER AMI</button>
       </div>
       <div class="social-tabs">
@@ -787,7 +789,7 @@ export function createCombatPanels({
         <img src="${firmBadgeAsset(firm.id)}" alt="${escapeHtml(firm.label || firm.id)}">
         <div>
           <strong>${rank === 1 ? `<span class="firm-crown">&#9819;</span>` : ""}${escapeHtml(firm.label || firm.id)}</strong>
-          <span>${escapeHtml(firm.homeMapName || getFirmDefinition(firm.id).homeMapName)}</span>
+          <span>${escapeHtml(getMapDisplayName(firm.homeMapName || getFirmDefinition(firm.id).homeMapName))}</span>
         </div>
         <b>${Number(firm.points || 0).toLocaleString("fr-FR")} points</b>
       </div>`;
@@ -821,7 +823,7 @@ export function createCombatPanels({
       <div class="firm-detail-card" style="--firm-color:${escapeHtml(selectedFirm.color || getFirmDefinition(selectedFirm.id).color)}">
         <div>
           <strong>${escapeHtml(selectedFirm.label || getFirmDefinition(selectedFirm.id).label)}</strong>
-          <span>Base ${escapeHtml(selectedFirm.homeMapName || getFirmDefinition(selectedFirm.id).homeMapName)}</span>
+          <span>Base ${escapeHtml(getMapDisplayName(selectedFirm.homeMapName || getFirmDefinition(selectedFirm.id).homeMapName))}</span>
         </div>
         <b>${Number(selectedFirm.points || 0).toLocaleString("fr-FR")} points</b>
       </div>
@@ -864,6 +866,7 @@ export function createCombatPanels({
   function handleSocialAction(action, element){
     if(action === "add-friend"){
       const name = String(document.getElementById("socialAddName")?.value || "").trim();
+      pendingSocialAddName = name.slice(0, 24);
       if(name) sendFriendRequest(name);
     }else if(action === "accept" || action === "decline"){
       respondFriendRequest(element.dataset.socialKey, action === "accept");
@@ -904,6 +907,8 @@ export function createCombatPanels({
   function fillSocialPlayerName(name){
     const clean = String(name || "").trim().slice(0, 24);
     if(!clean) return;
+    pendingGroupInviteName = clean;
+    pendingSocialAddName = clean;
     const groupInput = document.getElementById("groupInviteName");
     if(groupInput) groupInput.value = clean;
     const socialInput = document.getElementById("socialAddName");
@@ -1047,6 +1052,7 @@ export function createCombatPanels({
   function renderGameMapNode(sector, cell){
     const mapName = `${sector.name}-${String(cell.n).padStart(2, "0")}`;
     const existing = getMapByName(mapName);
+    const displayName = existing?.displayName || getMapDisplayName(mapName);
     const current = getCurrentMapName() === mapName;
     const classes = [
       "sector-map-node",
@@ -1057,14 +1063,14 @@ export function createCombatPanels({
     ].filter(Boolean).join(" ");
     return `<button class="${classes}" style="--grid-x:${cell.x};--grid-y:${cell.y}" type="button" disabled>
       <span>${cell.n}</span>
-      <small>${escapeHtml(mapName)}</small>
+      <small>${escapeHtml(displayName)}</small>
       ${renderGameMapPortals(existing, cell)}
     </button>`;
   }
 
   function renderGameMapUtilityContent(){
     const current = getCurrentMap?.();
-    const currentName = current?.name || "Hors secteur";
+    const currentName = current?.displayName || current?.name || "Hors secteur";
     const mapCount = GAME_MAP_SECTORS.reduce((sum, sector)=>sum + sector.cells.length, 0) + 1;
     const existingCount = GAME_MAP_SECTORS.reduce((sum, sector)=>sum + sector.cells.filter(cell=>getMapByName(`${sector.name}-${String(cell.n).padStart(2, "0")}`)).length, 0) + (getMapByName("CORE") ? 1 : 0);
     return `<div class="sector-map-card">
@@ -1194,6 +1200,7 @@ export function createCombatPanels({
 
   function inviteGroupMember(name){
     const cleaned = String(name || "").trim().replace(/\s+/g, " ").slice(0, 24);
+    pendingGroupInviteName = cleaned;
     inviteMultiplayerPlayerByName(cleaned);
   }
 

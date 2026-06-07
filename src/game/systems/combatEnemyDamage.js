@@ -8,6 +8,7 @@ export function createCombatEnemyDamageSystem({
     const incoming = Math.max(0, Number(amount || 0));
     enemy.recentHitTimer = 4;
     if(enemy?.isPlayerTarget){
+      if(enemy.canAttack === false) return false;
       sendServerPlayerHit?.(enemy.playerId, {
         ...context,
         clientAimX:Number(enemy.x || 0),

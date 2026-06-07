@@ -197,7 +197,9 @@ export function createCombatGame({renderAll, showToast}){
     }
   });
   const beams = createCombatBeamSystem({
-    getTargetById:id=>enemies.find(enemy=>enemy.id === id && enemy.hp > 0) || null
+    getTargetById:id=>String(id || "").startsWith("player:")
+      ? findRemotePlayerTargetById(String(id).slice("player:".length))
+      : enemies.find(enemy=>enemy.id === id && enemy.hp > 0) || null
   });
   let actions;
   const weapons = createWeaponSystem({
@@ -260,6 +262,7 @@ export function createCombatGame({renderAll, showToast}){
     getState:getCombatState,
     setState:setCombatState,
     getMapState,
+    findRemotePlayerTargetById,
     damagePlayer,
     rollBetween,
     resolveBulletImpact,
@@ -922,14 +925,29 @@ export function createCombatGame({renderAll, showToast}){
     if(!remote?.id || !state) return null;
     const playerFirmId = normalizeFirmId(store.state?.player?.firmId || "astra");
     const targetFirmId = normalizeFirmId(remote.firmId || state.firmId || "astra");
+    const level = Math.max(1, Math.floor(Number(state.level || remote.level || 1)));
+    const playerLevel = Math.max(1, Math.floor(Number(store.state?.player?.level || 1)));
+    const groupMembers = Array.isArray(multiplayer.group?.members) ? multiplayer.group.members : [];
+    const sameGroup = groupMembers.some(member=>member?.id === remote.id);
+    const canAttack = !sameGroup && playerLevel >= 10 && level >= 10;
+    const attackBlockedReason = sameGroup
+      ? "Impossible d'attaquer un membre du groupe."
+      : playerLevel < 10
+        ? "Tu dois atteindre le niveau 10 pour attaquer un joueur."
+        : level < 10
+          ? "Ce joueur est protege jusqu'au niveau 10."
+        : "";
     return {
       id:`player:${remote.id}`,
       playerId:remote.id,
       isPlayerTarget:true,
       hostile:targetFirmId !== playerFirmId,
+      sameGroup,
+      canAttack,
+      attackBlockedReason,
       type:String(remote.name || "Pilote"),
       name:String(remote.name || "Pilote"),
-      level:Number(state.level || remote.level || 1),
+      level,
       firmId:targetFirmId,
       x:Number(state.x || 0),
       y:Number(state.y || 0),
@@ -1149,6 +1167,7 @@ export function createCombatGame({renderAll, showToast}){
     requestLogout:logout.request,
     resumeWorldSession:session.resumeWorldSession,
     refreshActiveLoadout:session.refreshActiveLoadout,
+    updateHud,
     get running(){return running;}
   };
 }
