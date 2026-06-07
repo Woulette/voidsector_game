@@ -351,6 +351,7 @@
 }
 .social-detail-grid button:hover{border-color:rgba(250,204,21,.72);color:#fef08a;background:rgba(113,63,18,.34)}
 .firm-tabs{display:flex;gap:5px;flex-wrap:wrap}
+.firm-tabs-break{flex-basis:100%;height:0}
 .firm-tabs button{
   min-height:28px;
   padding:0 8px;

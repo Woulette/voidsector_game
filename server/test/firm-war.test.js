@@ -57,6 +57,40 @@ test("firm season stores monster points per same-map rewarded group member", asy
   }
 });
 
+test("firm monster points ignore enemies more than eight levels below the rewarded player", async ()=>{
+  const {io} = createIoRecorder();
+  const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-war-"));
+  const players = new Map([
+    ["a", {id:"a", name:"Alpha", connected:true, clientMode:"game", mapId:"0", profile:{player:{level:20, firmId:"astra"}}}]
+  ]);
+  try{
+    const firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1000});
+    await firmWarManager.load();
+    const manager = createWorldRewardManager({
+      io,
+      players,
+      groups:new Map(),
+      firmWarManager,
+      profileManager:{
+        getProfileForPlayer:player=>player.profile,
+        applyReward({player}){ return player.profile; }
+      },
+      emitProfileSync(){}
+    });
+
+    manager.emitWorldReward({
+      attackerId:"a",
+      mapId:"0",
+      enemy:{id:"e-low", kind:"drone_pirate", type:"Drone", level:10, reward:{credits:100, xp:100, premium:0}}
+    });
+
+    const astra = firmWarManager.snapshot().firms.find(firm=>firm.id === "astra");
+    assert.equal(astra.points, 0);
+  }finally{
+    await rm(dir, {recursive:true, force:true});
+  }
+});
+
 test("firm season closes with weekly reward multipliers", async ()=>{
   let now = 10_000;
   const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-war-"));

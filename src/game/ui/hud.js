@@ -16,6 +16,10 @@ function clampPercent(value, max){
   return Math.max(0, Math.min(100, (Number(value) || 0) / safeMax * 100));
 }
 
+const SAFE_ZONE_NOTICE_MS = 10000;
+let safeZoneNoticeKey = "";
+let safeZoneNoticeVisibleUntil = 0;
+
 export function updateCombatMeter({metric, value, max, label, mode}){
   const safeValue = Math.max(0, Math.round(Number(value) || 0));
   const safeMax = Math.max(0, Math.round(Number(max) || 0));
@@ -41,7 +45,19 @@ export function updateCombatMeter({metric, value, max, label, mode}){
 export function updateSafeZoneNotice({safeArea, isActive}){
   const notice = document.getElementById("safeZoneNotice");
   if(!notice) return;
-  notice.classList.toggle("hidden", !isActive);
+  if(!isActive){
+    safeZoneNoticeKey = "";
+    safeZoneNoticeVisibleUntil = 0;
+    notice.classList.toggle("hidden", true);
+    return;
+  }
+  const now = performance.now();
+  const key = `${safeArea?.type || "safe"}:${safeArea?.id || safeArea?.label || ""}`;
+  if(key !== safeZoneNoticeKey){
+    safeZoneNoticeKey = key;
+    safeZoneNoticeVisibleUntil = now + SAFE_ZONE_NOTICE_MS;
+  }
+  notice.classList.toggle("hidden", now > safeZoneNoticeVisibleUntil);
   if(isActive){
     notice.classList.remove("is-radiation");
     notice.querySelector("strong").textContent = "ZONE NON-AGRESSION";

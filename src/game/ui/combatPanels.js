@@ -834,6 +834,7 @@ export function createCombatPanels({
       <div class="firm-tabs">
         <button class="${selectedFirmPanelTab === "ranking" ? "active" : ""}" data-firm-panel-tab="ranking" type="button">CLASSEMENT</button>
         <button class="${selectedFirmPanelTab === "rewards" ? "active" : ""}" data-firm-panel-tab="rewards" type="button">RECOMPENSES</button>
+        <span class="firm-tabs-break"></span>
         ${FIRMS.map(firm=>`<button class="${selectedFirmPanelTab === firm.id ? "active" : ""}" data-firm-panel-tab="${firm.id}" type="button">${escapeHtml(firm.label)}</button>`).join("")}
       </div>
       ${firmPanel}

@@ -1,5 +1,11 @@
 import { calculateMonsterKillRankPoints } from "../../../src/data/ranks.js";
 
+function canAwardFirmMonsterPoint(playerLevel, enemyLevel){
+  const level = Math.max(1, Math.floor(Number(playerLevel || 1)));
+  const monsterLevel = Math.max(1, Math.floor(Number(enemyLevel || 1)));
+  return monsterLevel >= level - 8;
+}
+
 export function createWorldRewardManager({io, players, groups, profileManager, emitProfileSync, firmWarManager}){
   function getSameMapRewardRecipients(attacker, mapId){
     const attackerGroup = attacker.groupId ? groups.get(attacker.groupId) : null;
@@ -31,7 +37,7 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
       const premium = Math.max(0, Math.round(Number(reward.premium || 0) * share * multiplier));
       const rankPoints = calculateMonsterKillRankPoints(currentProfile?.player?.level || 1, enemy.level);
       const reputation = Math.max(0, Math.round(xp * 0.1));
-      firmPointRecipients.push(firmId);
+      if(canAwardFirmMonsterPoint(currentProfile?.player?.level || 1, enemy.level)) firmPointRecipients.push(firmId);
       io.to(player.id).emit("player:reward", {
         rewardId,
         enemyId:enemy.id,
