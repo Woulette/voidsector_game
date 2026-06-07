@@ -54,6 +54,21 @@ function sanitizeActionSlotsByShip(value){
   ]));
 }
 
+function sanitizeSocial(value){
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const list = field=>[...new Set((Array.isArray(source[field]) ? source[field] : [])
+    .map(entry=>String(entry || "").trim())
+    .filter(Boolean))]
+    .slice(0, 250);
+  return {
+    friends:list("friends"),
+    incoming:list("incoming"),
+    outgoing:list("outgoing"),
+    enemies:list("enemies"),
+    ignored:list("ignored")
+  };
+}
+
 export function sanitizeProfile(profile = {}){
   const inventoryItems = [];
   for(const entry of Array.isArray(profile.inventoryItems) ? profile.inventoryItems : []){
@@ -108,6 +123,7 @@ export function sanitizeProfile(profile = {}){
     rankKillStats:sanitizeObject(profile.rankKillStats),
     worldSession:sanitizeWorldSession(profile.worldSession),
     shipWorldSessions:sanitizeShipWorldSessions(profile.shipWorldSessions),
+    social:sanitizeSocial(profile.social),
     starterRepairGranted:Boolean(profile.starterRepairGranted)
   };
   sanitized.player.name = String(sanitized.player.name || "NOVA-37").trim().replace(/\s+/g, " ").slice(0, 24) || "NOVA-37";
@@ -154,7 +170,7 @@ export function preserveProtectedOwnership(incoming, existing){
     "portalPieces", "prestigeCount", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
     "refineryProductionDisabled", "refineryLastTick", "killStats", "rankKillStats",
-    "starterRepairGranted"
+    "social", "starterRepairGranted"
   ]){
     if(alwaysProtected.has(field) || hasProtectedOwnershipValue(existing, field)){
       incoming[field] = cloneProtectedValue(existing[field]);

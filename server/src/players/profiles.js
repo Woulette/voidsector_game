@@ -186,7 +186,39 @@ export function createProfileManager({cleanName, logger}){
     };
   }
 
-  const profileKeyForPlayer = player=>player.accountId ? accountProfileKey(player.accountId) : profileKey(player.name);
+  const profileKeyForPlayer = player=>player?.accountId ? accountProfileKey(player.accountId) : profileKey(player?.name || "Pilote");
+
+  function findProfileEntryByPilotName(name){
+    const target = cleanName(name).toLowerCase();
+    if(!target) return null;
+    for(const [key, profile] of profiles.entries()){
+      if(cleanName(profile?.player?.name || "").toLowerCase() === target) return {key, profile};
+    }
+    return null;
+  }
+
+  function getProfileEntry(key){
+    const profile = profiles.get(String(key || ""));
+    return profile ? {key:String(key), profile} : null;
+  }
+
+  function updateProfileByKey(key, update){
+    const cleanKey = String(key || "");
+    const existing = profiles.get(cleanKey);
+    if(!existing || typeof update !== "function") return null;
+    const draft = sanitizeProfile(existing);
+    const result = update(draft);
+    if(result === false) return null;
+    draft.updatedAt = Date.now();
+    const next = sanitizeProfile(draft);
+    profiles.set(cleanKey, next);
+    persist();
+    return next;
+  }
+
+  function listProfileEntries(){
+    return [...profiles.entries()].map(([key, profile])=>({key, profile}));
+  }
 
   function setupProfileForPlayer({player, name, firmId} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
@@ -277,6 +309,11 @@ export function createProfileManager({cleanName, logger}){
     getWorldSessionForPlayer,
     saveWorldSession,
     setupProfileForPlayer,
+    findProfileEntryByPilotName,
+    getProfileEntry,
+    updateProfileByKey,
+    listProfileEntries,
+    profileKeyForPlayer,
     profileKey,
     accountProfileKey
   };

@@ -34,6 +34,7 @@ export function createDefaultProfile(){
     questFailProgress:{},
     completedQuestClaims:{},
     shipWorldSessions:{},
+    social:{friends:[], incoming:[], outgoing:[], enemies:[], ignored:[]},
     starterRepairGranted:true
   });
 }

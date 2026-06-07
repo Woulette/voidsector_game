@@ -8,6 +8,8 @@ import { syncMultiplayerProfile as syncProfile } from "./profileSync.js";
 import { installPlayerSocketListeners } from "./playerSocketListeners.js";
 import { installProgressionSocketListeners } from "./progressionSocketListeners.js";
 import { createSocketCommands } from "./socketCommands.js";
+import { createSocialCommands } from "./socialCommands.js";
+import { installSocialSocketListeners } from "./socialSocketListeners.js";
 import {
   addRemoteEffect as addRemoteEffectState,
   replaceServerEnemies as replaceServerEnemiesState,
@@ -81,6 +83,7 @@ export const multiplayer = {
   portalInstance:null,
   group:null,
   invites:[],
+  social:{friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]},
   logout:{
     pending:false,
     completeAt:null,
@@ -116,6 +119,7 @@ const {
 } = createGroupCommands({multiplayer, toast, emitChange});
 
 const socketCommands = createSocketCommands({multiplayer});
+const socialCommands = createSocialCommands({multiplayer, toast});
 const upsertRemotePlayer = player=>upsertRemotePlayerState(multiplayer, player);
 const replaceServerEnemies = (payload, scope)=>replaceServerEnemiesState(multiplayer, payload, scope);
 const addRemoteEffect = effect=>addRemoteEffectState(multiplayer, effect);
@@ -255,6 +259,7 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     installEconomySocketListeners({socket, multiplayer, emitChange, toast});
     installProgressionSocketListeners({socket, multiplayer, emitChange, toast});
     installWorldSocketListeners({socket, multiplayer, replaceServerEnemies, emitChange, toast});
+    installSocialSocketListeners({socket, multiplayer, emitChange, toast});
   }catch(error){
     multiplayer.connected = false;
     multiplayer.connecting = false;
@@ -271,6 +276,7 @@ export function disconnectMultiplayer(){
   multiplayer.connecting = false;
   multiplayer.group = null;
   multiplayer.invites = [];
+  multiplayer.social = {friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]};
   multiplayer.remotePlayers.clear();
   multiplayer.remoteEffects = [];
   multiplayer.enemyAttackEvents = [];
@@ -314,6 +320,12 @@ export const requestServerLogout = socketCommands.requestServerLogout;
 export const setupServerProfile = socketCommands.setupServerProfile;
 export const resetServerFirmDebug = socketCommands.resetServerFirmDebug;
 export const sendChatMessage = socketCommands.sendChatMessage;
+export const requestSocialSync = socialCommands.requestSocialSync;
+export const sendFriendRequest = socialCommands.sendFriendRequest;
+export const respondFriendRequest = socialCommands.respondFriendRequest;
+export const setSocialCategory = socialCommands.setSocialCategory;
+export const removeSocialRelation = socialCommands.removeSocialRelation;
+export const sendPrivateMessage = socialCommands.sendPrivateMessage;
 export {sendPlayerSnapshot, sendServerEnemyHit, sendPlayerLaserEffect};
 
 export const syncMultiplayerProfile = state=>syncProfile(multiplayer, state);

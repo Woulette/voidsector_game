@@ -1,5 +1,6 @@
 import { multiplayer } from "./client.js";
 import { drawPlayerLayer } from "../game/render/player.js";
+import { getFirmBadgeAsset } from "../data/firms.js";
 
 function lerp(a, b, t){
   return a + (b - a) * t;
@@ -201,6 +202,7 @@ export function drawRemotePlayers({
         drones:[],
         rank:{name:sampledState.rankName || ""},
         rankAssetPath:sampledState.rankAssetPath || "",
+        pilotFirmAssetPath:getFirmBadgeAsset(remote.firmId || "astra"),
         pilotName:String(remote.name || "Pilote").slice(0, 24),
         pilotTitle:"",
         getItemFromInventoryUid:()=>null,

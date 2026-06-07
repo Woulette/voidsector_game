@@ -13,6 +13,7 @@ export function installPlayerSocketListeners({
 }){
   socket.on("profile:sync", profile=>{
     multiplayer.auth.profileReady = true;
+    socket.emit("social:sync");
     window.dispatchEvent(new CustomEvent("voidsector:profile-sync", {detail:{profile}}));
   });
   socket.on("profile:setup-complete", event=>{

@@ -1,0 +1,19 @@
+export function createSocialCommands({multiplayer, toast}){
+  function emit(event, payload = {}){
+    if(!multiplayer.connected || !multiplayer.socket){
+      toast("Connecte-toi au serveur pour utiliser les fonctions sociales.");
+      return false;
+    }
+    multiplayer.socket.emit(event, payload);
+    return true;
+  }
+
+  return {
+    requestSocialSync:()=>emit("social:sync"),
+    sendFriendRequest:name=>emit("social:friend-request", {name}),
+    respondFriendRequest:(key, accept)=>emit("social:friend-response", {key, accept}),
+    setSocialCategory:(name, category)=>emit("social:set-category", {name, category}),
+    removeSocialRelation:(key, category)=>emit("social:remove", {key, category}),
+    sendPrivateMessage:(key, text)=>emit("social:private-message", {key, text})
+  };
+}

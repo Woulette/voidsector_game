@@ -311,6 +311,8 @@
     </div>
     <div id="combatUtilityDock" class="combat-utility-dock frame" aria-label="Modules rapides">
       <button data-utility-panel="group" type="button" title="Groupe" aria-label="Groupe"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="9" r="2.6"></circle><path d="M3.5 19c.7-3.5 2.8-5.2 6.3-5.2s5.6 1.7 6.3 5.2"></path><path d="M13.8 14.1c2.8.2 4.7 1.8 5.4 4.9"></path></svg></button>
+      <button data-utility-panel="friends" type="button" title="Amis" aria-label="Amis"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.6 2.6-5.3 5.8-5.3s5.2 1.7 5.9 5.3"></path><path d="M17 7v6"></path><path d="M14 10h6"></path></svg></button>
+      <button data-utility-panel="firm" type="button" title="Firme" aria-label="Firme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"></circle><path d="M4 12h16"></path><path d="M12 4c2 2.2 3 4.9 3 8s-1 5.8-3 8c-2-2.2-3-4.9-3-8s1-5.8 3-8z"></path><path d="M18 6l2-2"></path></svg></button>
       <button data-utility-panel="refinery" type="button" title="Raffinage" aria-label="Raffinage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l-1 6 4 8-2 4H7l-2-4 4-8z"></path><path d="M9 9h6"></path><path d="M8 17h8"></path></svg></button>
       <button data-utility-panel="quests" type="button" title="Quetes" aria-label="Quetes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l2 2v16H5V5z"></path><path d="M8 8h8"></path><path d="M8 12h6"></path><path d="M8 16h5"></path></svg></button>
       <button data-utility-panel="map" type="button" title="Carte" aria-label="Carte"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5l5-2 8 2 5-2v13l-5 2-8-2-5 2z"></path><path d="M8 4.5v13"></path><path d="M16 6.5v13"></path><path d="M6 13l3-3 3 2 3-4 3 3"></path></svg></button>
@@ -335,6 +337,18 @@
         <strong>GROUPE</strong>
       </div>
       <div id="combatUtilityContentGroup" class="combat-utility-content"></div>
+    </div>
+    <div id="combatUtilityPanelFriends" class="combat-utility-panel frame hidden" data-utility-mode="friends">
+      <div class="combat-utility-panel-head">
+        <strong>AMIS</strong>
+      </div>
+      <div id="combatUtilityContentFriends" class="combat-utility-content"></div>
+    </div>
+    <div id="combatUtilityPanelFirm" class="combat-utility-panel frame hidden" data-utility-mode="firm">
+      <div class="combat-utility-panel-head">
+        <strong>FIRME</strong>
+      </div>
+      <div id="combatUtilityContentFirm" class="combat-utility-content"></div>
     </div>
     <div id="combatUtilityPanelQuests" class="combat-utility-panel frame hidden" data-utility-mode="quests">
       <div class="combat-utility-panel-head">

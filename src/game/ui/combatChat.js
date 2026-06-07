@@ -4,6 +4,7 @@ const CHAT_TABS = [
   {id:"global", label:"Global"},
   {id:"firm", label:"Firme", locked:true},
   {id:"guild", label:"Guilde", locked:true},
+  {id:"private", label:"Prive"},
   {id:"log", label:"Log"}
 ];
 
@@ -57,12 +58,14 @@ export function createCombatChat({
   saveState,
   multiplayer,
   sendChatMessage,
+  sendPrivateMessage,
   fmt,
   showToast,
   windowRef = window,
   documentRef = document
 }){
   let activeTab = "global";
+  let privateTarget = null;
   let layoutHydrated = false;
   hydrateCombatUiLayout(store);
   const panel = documentRef.getElementById("combatChatPanel");
@@ -163,6 +166,20 @@ export function createCombatChat({
     `).join("");
   }
 
+  function renderPrivateMessages(){
+    const messages = (multiplayer.chatMessages || [])
+      .filter(message=>String(message.channel || "") === "private")
+      .slice(-80);
+    if(!messages.length) return `<div class="combat-chat-empty">Aucun message prive.</div>`;
+    return messages.map(message=>`
+      <div class="combat-chat-row">
+        <time>${escapeHtml(timeLabel(message.at))}</time>
+        <strong>${escapeHtml(message.author?.name || "Pilote")}</strong>
+        <span>${escapeHtml(message.text || "")}</span>
+      </div>
+    `).join("");
+  }
+
   function renderLogMessages(){
     const rows = ensureChatLogs(store).slice(-MAX_LOG_ROWS);
     if(!rows.length) return `<div class="combat-chat-empty">Aucun gain enregistre.</div>`;
@@ -188,17 +205,20 @@ export function createCombatChat({
     renderTabs();
     if(messagesEl){
       if(activeTab === "global") messagesEl.innerHTML = renderGlobalMessages();
+      else if(activeTab === "private") messagesEl.innerHTML = renderPrivateMessages();
       else if(activeTab === "log") messagesEl.innerHTML = renderLogMessages();
       else messagesEl.innerHTML = renderLockedTab(activeTab === "firm" ? "firme" : "guilde");
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
     if(formEl){
-      const canSend = activeTab === "global";
+      const canSend = activeTab === "global" || (activeTab === "private" && privateTarget?.key);
       formEl.classList.toggle("hidden", activeTab === "log");
       formEl.classList.toggle("locked", !canSend && activeTab !== "log");
       if(inputEl){
         inputEl.disabled = !canSend;
-        inputEl.placeholder = canSend ? "Message global..." : "Canal a venir";
+        inputEl.placeholder = activeTab === "private"
+          ? (privateTarget?.name ? `Message prive a ${privateTarget.name}...` : "Choisis un ami depuis la fenetre Amis")
+          : canSend ? "Message global..." : "Canal a venir";
       }
     }
   }
@@ -299,6 +319,11 @@ export function createCombatChat({
     e.preventDefault();
     const text = String(inputEl?.value || "").trim();
     if(!text) return;
+    if(activeTab === "private"){
+      if(!privateTarget?.key || !sendPrivateMessage?.(privateTarget.key, text)) showToast?.("Choisis un ami depuis la fenetre Amis.");
+      else inputEl.value = "";
+      return;
+    }
     if(activeTab !== "global"){
       showToast?.("Ce canal n'est pas encore disponible.");
       return;
@@ -315,7 +340,7 @@ export function createCombatChat({
   });
   windowRef.addEventListener("voidsector:multiplayer-change", event=>{
     const reason = event.detail?.reason;
-    if(reason === "chat:message" || reason === "connection:disconnect") render();
+    if(reason === "chat:message" || reason === "social:private-message" || reason === "connection:disconnect") render();
     if(reason === "loot:picked"){
       const payload = event.detail?.payload || {};
       appendLog({
@@ -325,6 +350,11 @@ export function createCombatChat({
         at:payload.at || Date.now()
       });
     }
+  });
+  windowRef.addEventListener("voidsector:open-private-chat", event=>{
+    privateTarget = event.detail?.contact || null;
+    activeTab = "private";
+    setOpen(true);
   });
   windowRef.addEventListener("voidsector:combat-log", event=>appendLog(event.detail || {}));
   windowRef.addEventListener("voidsector:profile-applied", ()=>{

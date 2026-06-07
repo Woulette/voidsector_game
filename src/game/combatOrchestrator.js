@@ -121,7 +121,7 @@ import { installCombatInputHandlers } from "./ui/inputBindings.js";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js";
 import { createCombatPanels } from "./ui/combatPanels.js";
-import { acceptServerQuest, buyServerAmmo, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPlayerSnapshot, sendServerEnemyHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
+import { acceptServerQuest, buyServerAmmo, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
@@ -375,6 +375,7 @@ export function createCombatGame({renderAll, showToast}){
     saveState,
     multiplayer,
     sendChatMessage,
+    sendPrivateMessage,
     fmt,
     showToast
   });
@@ -399,6 +400,14 @@ export function createCombatGame({renderAll, showToast}){
     saveState,
     showToast,
     onLootChanged:()=>updateLootPopup()
+  });
+  window.addEventListener("voidsector:multiplayer-change", event=>{
+    if(event.detail?.reason !== "group:invite") return;
+    const invite = event.detail?.payload || {};
+    rewards.showLootNotice({
+      message:`${invite.fromName || "Un joueur"} vous invite en groupe`,
+      duration:15
+    });
   });
   cargo = createCombatCargoSystem({
     addPortalPiece,
@@ -1009,6 +1018,9 @@ export function createCombatGame({renderAll, showToast}){
     openUtilityPanel:panels.openUtilityPanel,
     closeUtilityPanel:panels.closeUtilityPanel,
     inviteGroupMember:panels.inviteGroupMember,
+    handleSocialAction:panels.handleSocialAction,
+    selectSocialTab:panels.selectSocialTab,
+    selectSocialContact:panels.selectSocialContact,
     trackCombatQuest:panels.trackCombatQuest,
     claimCombatQuest:panels.claimCombatQuest,
     setCombatQuestDetailTab:panels.setCombatQuestDetailTab,

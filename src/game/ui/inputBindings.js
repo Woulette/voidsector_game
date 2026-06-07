@@ -40,6 +40,9 @@ export function installCombatInputHandlers({
   openUtilityPanel,
   closeUtilityPanel,
   inviteGroupMember,
+  handleSocialAction,
+  selectSocialTab,
+  selectSocialContact,
   trackCombatQuest,
   claimCombatQuest,
   setCombatQuestDetailTab,
@@ -438,6 +441,21 @@ export function installCombatInputHandlers({
       windowRef.addEventListener("pointercancel", stopDrag);
     });
     utilityPanel.addEventListener("click", e=>{
+      const socialTab = e.target.closest("[data-social-tab]");
+      if(socialTab){
+        selectSocialTab?.(socialTab.dataset.socialTab);
+        return;
+      }
+      const socialSelect = e.target.closest("[data-social-select]");
+      if(socialSelect){
+        selectSocialContact?.(socialSelect.dataset.socialSelect, utilityPanel.dataset.utilityMode || "friends");
+        return;
+      }
+      const socialAction = e.target.closest("[data-social-action]");
+      if(socialAction){
+        handleSocialAction?.(socialAction.dataset.socialAction, socialAction);
+        return;
+      }
       const questTabBtn = e.target.closest("[data-combat-quest-tab]");
       if(questTabBtn){
         setCombatQuestDetailTab?.(questTabBtn.dataset.combatQuestTab);
@@ -459,6 +477,11 @@ export function installCombatInputHandlers({
       inviteGroupMember?.(input?.value || "");
     });
     utilityPanel.addEventListener("keydown", e=>{
+      if(e.key === "Enter" && e.target.closest("#socialAddName")){
+        e.preventDefault();
+        handleSocialAction?.("add-friend", e.target);
+        return;
+      }
       if(e.key !== "Enter" || !e.target.closest("#groupInviteName")) return;
       e.preventDefault();
       inviteGroupMember?.(e.target.value || "");

@@ -29,7 +29,8 @@ export function registerGroupHandlers(socket, context){
     io.to(targetId).emit("group:invite", {
       groupId:group.id,
       fromId:socket.id,
-      fromName:inviter.name
+      fromName:inviter.name,
+      at:Date.now()
     });
   });
 

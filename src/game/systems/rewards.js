@@ -39,7 +39,8 @@ export function createRewardSystem({
   }
 
   function pushLootNotice(loot){
-    lootNotices.unshift({id:`loot_${Date.now()}_${Math.random().toString(16).slice(2)}`, loot, remaining:LOOT_NOTICE_DURATION, duration:LOOT_NOTICE_DURATION});
+    const duration = Math.max(1, Number(loot?.duration || LOOT_NOTICE_DURATION));
+    lootNotices.unshift({id:`loot_${Date.now()}_${Math.random().toString(16).slice(2)}`, loot, remaining:duration, duration});
     lootNotices = lootNotices.slice(0, MAX_LOOT_NOTICES);
     notifyLootChanged();
   }

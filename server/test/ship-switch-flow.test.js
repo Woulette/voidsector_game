@@ -83,3 +83,27 @@ test("ship switch emits a profile containing the saved source and target ship se
   assert.equal(syncedProfile.shipWorldSessions.test_runner.maxHp, 20000);
   assert.equal(emitted.at(-1).payload.shipWorldSessions.velox.hp, 926);
 });
+
+test("ship switch is refused from an enemy firm base", ()=>{
+  const player = {
+    id:"game-socket",
+    accountId:"account-1",
+    account:{firmId:"astra"},
+    clientMode:"game",
+    connected:true,
+    state:{mapId:"20", x:-4300, y:-3300, hp:5000, maxHp:15000, shipId:"velox"}
+  };
+  const players = new Map([[player.id, player]]);
+  const store = createProfileStore();
+  store.profile.player = {firmId:"astra"};
+  const manager = createEquipmentLocationManager({
+    io:{sockets:{sockets:new Map()}},
+    players,
+    profileManager:store.manager,
+    setPlayerMap(){}
+  });
+
+  const location = manager.canChangeActiveShipAtFirmSpawn(player);
+  assert.equal(location.ok, false);
+  assert.match(location.reason, /ASTRA-01/);
+});

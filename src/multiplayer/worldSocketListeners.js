@@ -46,7 +46,7 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     multiplayer.invites = multiplayer.invites.filter(item=>item.groupId !== invite.groupId);
     multiplayer.invites.push(invite);
     toast(`${invite.fromName || "Un joueur"} t'invite en groupe.`);
-    emitChange();
+    emitChange("group:invite", invite);
   });
   socket.on("group:declined", payload=>{
     toast(`${payload?.playerName || "Le joueur"} a refuse l'invitation.`);

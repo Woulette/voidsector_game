@@ -25,6 +25,8 @@ import { registerGroupHandlers } from "./socket/groupHandlers.js";
 import { registerPlayerHandlers } from "./socket/playerHandlers.js";
 import { registerProgressionHandlers } from "./socket/progressionHandlers.js";
 import { registerQuestHandlers } from "./socket/questHandlers.js";
+import { registerSocialHandlers } from "./socket/socialHandlers.js";
+import { createSocialManager } from "./social/social.js";
 import { startServerTick } from "./tick/serverTick.js";
 import { createWorldAiManager } from "./world/ai.js";
 import { createEnemyAttackManager } from "./world/enemyAttacks.js";
@@ -90,10 +92,12 @@ await profileManager.load();
 logger.info(dbEnabled ? "PostgreSQL storage enabled." : "JSON storage enabled. Set DATABASE_URL to use PostgreSQL.");
 
 function publicPlayer(player){
+  const profile = profileManager.getProfileForPlayer(player);
   return {
     id:player.id,
     name:player.name,
     accountId:player.accountId || null,
+    firmId:profile?.player?.firmId || player.account?.firmId || "astra",
     groupId:player.groupId || null,
     state:player.state || null,
     connectedAt:player.connectedAt,
@@ -283,6 +287,8 @@ const {
   emitPlayers
 });
 
+const socialManager = createSocialManager({io, players, profileManager});
+
 const {
   attachOrResumeAccountSocket,
   publicAuthPayload,
@@ -440,6 +446,10 @@ io.on("connection", socket=>{
     io
   });
   registerProgressionHandlers(socket, socketContext);
+  registerSocialHandlers(socket, {
+    ...socketContext,
+    socialManager
+  });
   registerEconomyHandlers(socket, socketContext);
   registerEquipmentHandlers(socket, {
     ...socketContext,

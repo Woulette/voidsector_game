@@ -34,7 +34,7 @@ test("changing firm moves every live game socket to the new firm home map", ()=>
     account:{id:"account-1", firmId:"astra"},
     clientMode:"game",
     mapId:"0",
-    state:{mapId:"0", x:-4300, y:3300, hp:4000, maxHp:5000, shipId:"orion"}
+    state:{mapId:"33", x:1200, y:-900, hp:4000, maxHp:5000, shipId:"orion"}
   };
   const players = new Map([
     [launcherPlayer.id, launcherPlayer],

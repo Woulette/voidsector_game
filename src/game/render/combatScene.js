@@ -4,6 +4,7 @@ import { drawPlayerLayer } from "./player.js";
 import { drawPortalTransitionOverlay } from "./portalTransition.js";
 import { drawWorldLayer } from "./world.js";
 import { drawRemotePlayers } from "../../multiplayer/render.js";
+import { getFirmBadgeAsset } from "../../data/firms.js";
 
 export function createCombatSceneRenderer({
   ctx,
@@ -125,6 +126,7 @@ export function createCombatSceneRenderer({
       drones:getDroneLoadout(),
       rank,
       rankAssetPath:getRankAssetPath(rank),
+      pilotFirmAssetPath:getFirmBadgeAsset(store.state.player?.firmId),
       pilotName:store.state.player.name || "PILOTE",
       pilotTitle:getPlayerTitle(),
       getItemFromInventoryUid,

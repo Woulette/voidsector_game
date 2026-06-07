@@ -46,3 +46,7 @@ export function getFirmIdFromMapName(name){
   const prefix = String(name || "").split("-")[0]?.toLowerCase();
   return FIRM_ALIASES.get(prefix) || null;
 }
+
+export function getFirmBadgeAsset(value){
+  return `assets/firms/${normalizeFirmId(value)}.svg`;
+}

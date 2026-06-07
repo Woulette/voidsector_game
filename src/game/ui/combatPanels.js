@@ -2,11 +2,15 @@ import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./ques
 import { renderSpawnPanelContent } from "./spawnPanel.js";
 import { getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
-import { normalizeFirmId } from "../../data/firms.js";
 import {
   multiplayer,
   connectMultiplayer,
   inviteMultiplayerPlayer,
+  removeSocialRelation,
+  requestSocialSync,
+  respondFriendRequest,
+  sendFriendRequest,
+  setSocialCategory,
   startCoopTestInstance
 } from "../../multiplayer/client.js";
 
@@ -96,7 +100,7 @@ const GAME_MAP_BRIDGES = [
   {from:"VERTE-05", to:"CORE", label:"Acces noyau vert"}
 ];
 
-const UTILITY_PANEL_MODES = ["group", "quests", "settings", "map"];
+const UTILITY_PANEL_MODES = ["group", "friends", "firm", "quests", "settings", "map"];
 
 export function createCombatPanels({
   store,
@@ -148,6 +152,9 @@ export function createCombatPanels({
   let selectedShipRefineRecipeId = null;
   let groupHudRefreshT = 0;
   let groupHudDragReady = false;
+  let selectedSocialTab = "friends";
+  let selectedSocialKey = null;
+  let socialRefreshT = 0;
 
   function canUseCurrentMapFirmServices(){
     const mapFirmId = getFirmIdFromMapName(getCurrentMap()?.name);
@@ -198,6 +205,8 @@ export function createCombatPanels({
   function getUtilityPanel(mode){
     if(mode === "quests") return document.getElementById("combatUtilityPanelQuests");
     if(mode === "group") return document.getElementById("combatUtilityPanelGroup");
+    if(mode === "friends") return document.getElementById("combatUtilityPanelFriends");
+    if(mode === "firm") return document.getElementById("combatUtilityPanelFirm");
     if(mode === "settings") return document.getElementById("combatUtilityPanelSettings");
     if(mode === "map") return document.getElementById("combatUtilityPanelMap");
     return null;
@@ -206,6 +215,8 @@ export function createCombatPanels({
   function getUtilityContent(mode){
     if(mode === "quests") return document.getElementById("combatUtilityContentQuests");
     if(mode === "group") return document.getElementById("combatUtilityContentGroup");
+    if(mode === "friends") return document.getElementById("combatUtilityContentFriends");
+    if(mode === "firm") return document.getElementById("combatUtilityContentFirm");
     if(mode === "settings") return document.getElementById("combatUtilityContentSettings");
     if(mode === "map") return document.getElementById("combatUtilityContentMap");
     return null;
@@ -219,7 +230,25 @@ export function createCombatPanels({
       const refineryOpen = mode === "refinery" && spawnPanelMode === "refinery" && !document.getElementById("spawnInteractionPanel")?.classList.contains("hidden");
       btn.classList.toggle("active", utilityOpen || refineryOpen);
       if(mode === "quests") syncQuestDockBadge(btn);
+      if(mode === "group") syncDockBadge(btn, multiplayer.invites.length, "group");
+      if(mode === "friends") syncDockBadge(btn, multiplayer.social?.incoming?.length || 0, "friends");
     });
+  }
+
+  function syncDockBadge(btn, count, label){
+    let badge = btn.querySelector(".combat-utility-badge");
+    if(count <= 0){
+      badge?.remove();
+      if(btn.dataset.notify === label) btn.removeAttribute("data-notify");
+      return;
+    }
+    if(!badge){
+      badge = document.createElement("span");
+      badge.className = "combat-utility-badge";
+      btn.appendChild(badge);
+    }
+    badge.textContent = String(Math.min(99, count));
+    btn.dataset.notify = label;
   }
 
   function getClaimableQuestCount(){
@@ -586,9 +615,150 @@ export function createCombatPanels({
     return !!panel && !!active && panel.contains(active) && !!active.closest("input, textarea, select");
   }
 
+  function firmBadgeAsset(firmId){
+    return `assets/firms/${normalizeFirmId(firmId || "astra")}.svg`;
+  }
+
+  function socialStatusLabel(status){
+    return status === "online" ? "En ligne" : status === "away" ? "Absent / AFK" : "Hors ligne";
+  }
+
+  function findSocialContact(key){
+    const social = multiplayer.social || {};
+    return ["friends", "incoming", "outgoing", "enemies", "ignored", "firmMembers"]
+      .flatMap(field=>Array.isArray(social[field]) ? social[field] : [])
+      .find(contact=>contact.key === key) || null;
+  }
+
+  function renderSocialContact(contact, {pending = false, incoming = false, category = "friends"} = {}){
+    return `
+      <div class="social-contact ${pending ? "pending" : ""}">
+        <i class="social-status ${escapeHtml(contact.status || "offline")}" title="${escapeHtml(socialStatusLabel(contact.status))}"></i>
+        <img class="social-firm-icon" src="${firmBadgeAsset(contact.firmId)}" alt="${escapeHtml(contact.firmLabel || contact.firmId)}">
+        <div class="social-contact-main" data-social-select="${escapeHtml(contact.key)}">
+          <strong>${escapeHtml(contact.name)}</strong>
+          <span>${escapeHtml(contact.firmLabel || contact.firmId)} · ${escapeHtml(socialStatusLabel(contact.status))} · ${escapeHtml(contact.mapName || "Inconnue")}</span>
+        </div>
+        ${incoming
+          ? `<div class="social-actions"><button data-social-action="accept" data-social-key="${escapeHtml(contact.key)}" type="button">OK</button><button data-social-action="decline" data-social-key="${escapeHtml(contact.key)}" type="button">NON</button></div>`
+          : `<span class="social-contact-tag">${pending ? "Demande envoyee" : escapeHtml(category)}</span>`}
+      </div>`;
+  }
+
+  function renderSocialDetail(contact, category = "friends"){
+    if(!contact) return "";
+    const canInvite = contact.status !== "offline" && contact.playerId;
+    return `
+      <div class="social-detail">
+        <h4>${escapeHtml(contact.name)}</h4>
+        <p>Firme : <b>${escapeHtml(contact.firmLabel || contact.firmId)}</b></p>
+        <p>Carte : <b>${escapeHtml(contact.mapName || "Hors ligne")}</b></p>
+        <p>Vaisseau : <b>${escapeHtml(contact.shipName || "Inconnu")}</b></p>
+        <p>Statut : <b>${escapeHtml(socialStatusLabel(contact.status))}</b></p>
+        <div class="social-actions">
+          ${category !== "friends" && category !== "outgoing" ? `<button data-social-action="friend" data-social-name="${escapeHtml(contact.name)}" type="button">AJOUTER AMI</button>` : ""}
+          ${category === "friends" ? `<button data-social-action="private" data-social-key="${escapeHtml(contact.key)}" type="button">MESSAGE PRIVE</button>` : ""}
+          ${category === "friends" && canInvite ? `<button data-social-action="group" data-player-id="${escapeHtml(contact.playerId)}" type="button">INVITER GROUPE</button>` : ""}
+          ${category !== "enemies" ? `<button data-social-action="enemy" data-social-name="${escapeHtml(contact.name)}" type="button">ENNEMI</button>` : ""}
+          ${category !== "ignored" ? `<button data-social-action="ignore" data-social-name="${escapeHtml(contact.name)}" type="button">IGNORER</button>` : ""}
+          ${["friends","enemies","ignored","outgoing"].includes(category) ? `<button data-social-action="remove" data-social-key="${escapeHtml(contact.key)}" data-social-category="${escapeHtml(category)}" type="button">RETIRER</button>` : ""}
+        </div>
+      </div>`;
+  }
+
+  function renderFriendsUtilityContent(){
+    const social = multiplayer.social || {};
+    const incoming = Array.isArray(social.incoming) ? social.incoming : [];
+    const outgoing = Array.isArray(social.outgoing) ? social.outgoing : [];
+    const categories = {
+      friends:Array.isArray(social.friends) ? social.friends : [],
+      enemies:Array.isArray(social.enemies) ? social.enemies : [],
+      ignored:Array.isArray(social.ignored) ? social.ignored : []
+    };
+    const rows = selectedSocialTab === "friends"
+      ? [...incoming.map(contact=>renderSocialContact(contact, {incoming:true, category:"demande"})),
+        ...outgoing.map(contact=>renderSocialContact(contact, {pending:true, category:"outgoing"})),
+        ...categories.friends.map(contact=>renderSocialContact(contact, {category:"ami"}))]
+      : categories[selectedSocialTab].map(contact=>renderSocialContact(contact, {category:selectedSocialTab === "enemies" ? "ennemi" : "ignore"}));
+    const selected = findSocialContact(selectedSocialKey);
+    const selectedCategory = outgoing.some(contact=>contact.key === selectedSocialKey) ? "outgoing" : selectedSocialTab;
+    return `
+      <div class="social-add-form">
+        <input id="socialAddName" maxlength="24" placeholder="Nom du joueur">
+        <button class="blue-button small" data-social-action="add-friend" type="button">AJOUTER AMI</button>
+      </div>
+      <div class="social-tabs">
+        <button class="${selectedSocialTab === "friends" ? "active" : ""}" data-social-tab="friends" type="button">AMIS ${categories.friends.length}</button>
+        <button class="${selectedSocialTab === "enemies" ? "active" : ""}" data-social-tab="enemies" type="button">ENNEMIS ${categories.enemies.length}</button>
+        <button class="${selectedSocialTab === "ignored" ? "active" : ""}" data-social-tab="ignored" type="button">IGNORES ${categories.ignored.length}</button>
+      </div>
+      <div class="social-list">${rows.length ? rows.join("") : `<p class="social-empty">Aucun joueur dans cette liste.</p>`}</div>
+      ${renderSocialDetail(selected, selectedCategory)}
+    `;
+  }
+
+  function renderFirmUtilityContent(){
+    const members = Array.isArray(multiplayer.social?.firmMembers) ? multiplayer.social.firmMembers : [];
+    return `
+      <p class="group-panel-note">Pilotes de ta firme actuellement connus du serveur.</p>
+      <div class="social-list">${members.length ? members.map(contact=>renderSocialContact(contact, {category:"firme"})).join("") : `<p class="social-empty">Aucun autre membre connu.</p>`}</div>
+      ${renderSocialDetail(findSocialContact(selectedSocialKey), "firm")}
+    `;
+  }
+
+  function refreshSocialUtilityPanel(mode, {show = false} = {}){
+    const panel = getUtilityPanel(mode);
+    const content = getUtilityContent(mode);
+    if(!panel || !content) return;
+    if(show){
+      applyUtilityPanelLayout(mode, panel);
+      panel.classList.remove("hidden");
+      requestSocialSync();
+    }
+    content.innerHTML = mode === "firm" ? renderFirmUtilityContent() : renderFriendsUtilityContent();
+    syncUtilityDockButtons();
+  }
+
+  function handleSocialAction(action, element){
+    if(action === "add-friend"){
+      const name = String(document.getElementById("socialAddName")?.value || "").trim();
+      if(name) sendFriendRequest(name);
+    }else if(action === "accept" || action === "decline"){
+      respondFriendRequest(element.dataset.socialKey, action === "accept");
+    }else if(action === "friend"){
+      sendFriendRequest(element.dataset.socialName);
+    }else if(action === "enemy" || action === "ignore"){
+      setSocialCategory(element.dataset.socialName, action === "enemy" ? "enemies" : "ignored");
+    }else if(action === "remove"){
+      removeSocialRelation(element.dataset.socialKey, element.dataset.socialCategory);
+      selectedSocialKey = null;
+    }else if(action === "group"){
+      inviteMultiplayerPlayer(element.dataset.playerId);
+    }else if(action === "private"){
+      const contact = findSocialContact(element.dataset.socialKey);
+      if(contact) window.dispatchEvent(new CustomEvent("voidsector:open-private-chat", {detail:{contact}}));
+    }
+  }
+
+  function selectSocialTab(tab){
+    selectedSocialTab = ["friends", "enemies", "ignored"].includes(tab) ? tab : "friends";
+    selectedSocialKey = null;
+    refreshSocialUtilityPanel("friends");
+  }
+
+  function selectSocialContact(key, mode = "friends"){
+    selectedSocialKey = String(key || "");
+    refreshSocialUtilityPanel(mode);
+  }
+
   window.addEventListener("voidsector:multiplayer-change", ()=>{
     const panel = getUtilityPanel("group");
     if(panel && !panel.classList.contains("hidden") && !isEditingGroupUtilityPanel()) refreshGroupUtilityPanel({show:true});
+    for(const mode of ["friends", "firm"]){
+      const socialPanel = getUtilityPanel(mode);
+      if(socialPanel && !socialPanel.classList.contains("hidden")) refreshSocialUtilityPanel(mode);
+    }
+    syncUtilityDockButtons();
     refreshGroupFloatingHud();
   });
 
@@ -771,6 +941,11 @@ export function createCombatPanels({
       saveUtilityPanelOpenState(mode, true);
       return;
     }
+    if(mode === "friends" || mode === "firm"){
+      refreshSocialUtilityPanel(mode, {show:true});
+      saveUtilityPanelOpenState(mode, true);
+      return;
+    }
     refreshGroupUtilityPanel({show:true, focus:true});
     saveUtilityPanelOpenState(mode, true);
   }
@@ -782,6 +957,7 @@ export function createCombatPanels({
       if(mode === "quests") refreshQuestUtilityPanel({show:true});
       else if(mode === "settings") refreshSettingsUtilityPanel({show:true});
       else if(mode === "map") refreshMapUtilityPanel({show:true});
+      else if(mode === "friends" || mode === "firm") refreshSocialUtilityPanel(mode, {show:true});
       else refreshGroupUtilityPanel({show:true, focus:false});
     }
   }
@@ -1036,6 +1212,17 @@ export function createCombatPanels({
         utilityPanelRefreshT = .75;
       }
     }
+    const socialOpen = ["friends", "firm"].some(mode=>{
+      const panel = getUtilityPanel(mode);
+      return panel && !panel.classList.contains("hidden");
+    });
+    if(socialOpen){
+      socialRefreshT -= dt;
+      if(socialRefreshT <= 0){
+        requestSocialSync();
+        socialRefreshT = 5;
+      }
+    }
     groupHudRefreshT -= dt;
     if(groupHudRefreshT <= 0){
       refreshGroupFloatingHud();
@@ -1054,6 +1241,9 @@ export function createCombatPanels({
     renderSpawnInteractionPanel,
     openUtilityPanel,
     inviteGroupMember,
+    handleSocialAction,
+    selectSocialTab,
+    selectSocialContact,
     trackCombatQuest,
     claimCombatQuest,
     setCombatQuestDetailTab,

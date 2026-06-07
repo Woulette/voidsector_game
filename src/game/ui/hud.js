@@ -110,7 +110,7 @@ export function updateLootPopup({notices = []}){
   });
   notices.forEach(notice=>{
     const loot = notice.loot || {};
-    const opacity = Math.max(0, Math.min(1, Number(notice.remaining || 0) / Number(notice.duration || 5)));
+    const opacity = Math.max(0, Math.min(1, Number(notice.remaining || 0) < 2 ? Number(notice.remaining || 0) / 2 : 1));
     let line = Array.from(el.children).find(child=>child.dataset.lootId === String(notice.id));
     if(!line){
       const parts = [];
