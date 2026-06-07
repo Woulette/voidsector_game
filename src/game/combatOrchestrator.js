@@ -419,6 +419,7 @@ export function createCombatGame({renderAll, showToast}){
     particles:()=>particles
   });
   const worldState = createCombatWorldStateSystem({
+    store,
     mapList:MAPS,
     getState:getCombatState,
     setState:setCombatState,
@@ -473,6 +474,7 @@ export function createCombatGame({renderAll, showToast}){
     getState:getCombatState,
     getGraphicsQuality,
     getSpawnStations:()=>worldState.getSpawnStations(),
+    getSafeAreas:()=>worldState.getSafeAreas(),
     isSafeModeActive,
     isPlayerOutsideMap,
     getCanvasViewWidth,

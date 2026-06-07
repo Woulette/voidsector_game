@@ -3,10 +3,10 @@ import { droneFormations } from "../../../src/data/equipment.js";
 import { skills } from "../../../src/data/progression.js";
 import { getItemFromInventoryUid } from "../economy/equipment.js";
 import { WORLD_MAPS } from "../world/definitions.js";
-import { getWorldSafePortals, isPointInWorldSafeArea } from "../world/spawn.js";
+import { getWorldSafePortals, isPointInFriendlyWorldSafeArea, isPointInWorldSafeArea } from "../world/spawn.js";
 import { FIRMS, getFirmMapId } from "../../../src/data/firms.js";
 
-const MAP_EDGE_PADDING = 50;
+const MAP_OUTSIDE_LIMIT = 1800;
 const PORTAL_TRANSFER_PADDING = 180;
 const MOVEMENT_JITTER_ALLOWANCE = 90;
 function buildWorldMapTransitions(){
@@ -129,8 +129,8 @@ function getShieldCap(profile, previous){
 function clampPointToMap(point, map){
   if(!map) return {x:finite(point?.x), y:finite(point?.y)};
   return {
-    x:clamp(finite(point?.x), -map.width / 2 + MAP_EDGE_PADDING, map.width / 2 - MAP_EDGE_PADDING),
-    y:clamp(finite(point?.y), -map.height / 2 + MAP_EDGE_PADDING, map.height / 2 - MAP_EDGE_PADDING)
+    x:clamp(finite(point?.x), -map.width / 2 - MAP_OUTSIDE_LIMIT, map.width / 2 + MAP_OUTSIDE_LIMIT),
+    y:clamp(finite(point?.y), -map.height / 2 - MAP_OUTSIDE_LIMIT, map.height / 2 + MAP_OUTSIDE_LIMIT)
   };
 }
 
@@ -237,7 +237,7 @@ function validateVitals({player, previous, payload, profile, ship, elapsedSecond
   const previousHp = clamp(finite(previous.hp), 0, maxHp);
   const previousShield = clamp(finite(previous.shield), 0, maxShield);
   const safeRespawn = previousHp <= 0
-    && ((nextMap && isPointInWorldSafeArea(nextPoint, nextMap, PORTAL_TRANSFER_PADDING))
+    && ((nextMap && isPointInFriendlyWorldSafeArea(nextPoint, nextMap, profile?.player?.firmId || "astra", PORTAL_TRANSFER_PADDING))
       || String(previous.mapId || "").startsWith("portal-"));
   const requestedHp = finite(payload?.hp, previousHp);
   const repairHealRate = getRepairBotHealRate(profile);
@@ -264,10 +264,10 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
   const requestedMapId = String(payload?.mapId ?? previous?.mapId ?? player?.mapId ?? "0");
   const rawPoint = {x:finite(payload?.x, previous?.x), y:finite(payload?.y, previous?.y)};
   const trustedSession = getTrustedShipSession(profile, ship.id);
-  const expectedInitialMapId = String(trustedSession?.mapId ?? profile?.worldSession?.mapId ?? player?.mapId ?? getProfileHomeMapId(profile));
+  const expectedInitialMapId = String(trustedSession?.mapId ?? profile?.worldSession?.mapId ?? getProfileHomeMapId(profile));
   const requestedMapAllowed = instanceMapAllowed(player, requestedMapId, groups)
     || Boolean(WORLD_MAPS[requestedMapId]) && Boolean(previous || requestedMapId === expectedInitialMapId);
-  let mapId = requestedMapAllowed ? requestedMapId : String(previous?.mapId ?? player?.mapId ?? "0");
+  let mapId = requestedMapAllowed ? requestedMapId : String(previous?.mapId ?? expectedInitialMapId);
   let nextMap = WORLD_MAPS[mapId] || null;
   let point = nextMap ? clampPointToMap(rawPoint, nextMap) : rawPoint;
   let corrected = !requestedMapAllowed || point.x !== rawPoint.x || point.y !== rawPoint.y;

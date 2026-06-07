@@ -1068,11 +1068,20 @@ const RICKY_PORTAL_BY_FIRM = {
 };
 
 function installFirmRickyPortals(){
+  const rickyTemplate = {
+    npcImg:"assets/ships/npc/npc_saucer.png",
+    radius:82,
+    size:132,
+    marker:"!",
+    label:"RICKY",
+    ...(MAPS.find(entry=>entry.name === "ASTRA-02")?.questNpcs?.find(npc=>npc.id === "astra02_portal_mechanic") || {})
+  };
   for(const config of Object.values(RICKY_PORTAL_BY_FIRM)){
     const map = MAPS.find(entry=>entry.name === config.map);
     if(!map) continue;
     map.closedPortals = [{...config.portal, r:95, safeRadius:230}];
     map.questNpcs = [{
+      ...rickyTemplate,
       id:config.npcId,
       name:"Ricky",
       x:config.npc.x,

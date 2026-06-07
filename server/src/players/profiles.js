@@ -224,7 +224,7 @@ export function createProfileManager({cleanName, logger}){
     ensureStarterRepairDrone(profile);
     profiles.set(key, sanitizeProfile(profile));
     persist();
-    return {ok:true, profile:profiles.get(key), firm:getFirmDefinition(nextFirm)};
+    return {ok:true, profile:profiles.get(key), firm:getFirmDefinition(nextFirm), firmChanged:currentFirm !== nextFirm};
   }
 
   const {

@@ -1160,13 +1160,13 @@ function drawQuestNpcs({ctx, cache, currentMap}){
   }
 }
 
-function drawWorldMarkers({ctx, camera, currentMap, player, safeReady, stations, cache}){
+function drawWorldMarkers({ctx, camera, currentMap, player, safeReady, spawnProtected, stations, cache}){
   ctx.save();
   ctx.translate(-camera.x,-camera.y);
   const spawn = currentMap.spawn;
   const pulse = Math.sin(performance.now()/240)*8;
   if(spawn && spawn.kind !== "portal"){
-    if(!spawn.safeRect){
+    if(!spawn.safeRect && spawnProtected){
       const ring = spawn.safeRadius || spawn.r;
       const decor = spawn.decorRadius || ring + 90;
       const spawnGrad = ctx.createRadialGradient(spawn.x, spawn.y, 18, spawn.x, spawn.y, decor + 20);

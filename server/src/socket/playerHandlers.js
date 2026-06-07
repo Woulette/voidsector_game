@@ -3,6 +3,7 @@ import { validatePlayerState } from "../players/playerStateValidation.js";
 export function registerPlayerHandlers(socket, context){
   const {
     cleanName,
+    buildFirmSpawnSession,
     emitProfileSync,
     emitPlayers,
     groups,
@@ -110,6 +111,36 @@ export function registerPlayerHandlers(socket, context){
     if(!result.ok){
       socket.emit("profile:setup-error", {message:result.reason || "Configuration du profil impossible."});
       return;
+    }
+    if(result.firmChanged){
+      const accountPlayers = [...players.values()].filter(candidate=>candidate.accountId === player.accountId);
+      let syncedProfile = result.profile;
+      for(const accountPlayer of accountPlayers){
+        accountPlayer.account = accountPlayer.account ? {...accountPlayer.account, firmId:result.firm?.id} : accountPlayer.account;
+        accountPlayer.mapId = String(result.firm?.baseMapId ?? "0");
+        if(accountPlayer.clientMode !== "game") continue;
+        const spawnSession = {
+          ...buildFirmSpawnSession({
+            shipId:result.profile?.activeShip,
+            firmId:result.firm?.id,
+            state:accountPlayer.state
+          }),
+          source:"firm-change"
+        };
+        accountPlayer.state = {...spawnSession};
+        accountPlayer.mapId = spawnSession.mapId;
+        const accountSocket = context.io?.sockets?.sockets?.get(accountPlayer.id);
+        if(accountSocket){
+          setPlayerMap(accountSocket, spawnSession.mapId);
+          accountSocket.emit("player:resume", spawnSession);
+        }
+        syncedProfile = profileManager.saveWorldSession({
+          player:accountPlayer,
+          state:accountPlayer.state,
+          force:true
+        }) || syncedProfile;
+      }
+      result.profile = syncedProfile;
     }
     socket.emit("profile:setup-complete", {
       name:result.profile?.player?.name,

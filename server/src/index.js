@@ -31,7 +31,7 @@ import { createEnemyAttackManager } from "./world/enemyAttacks.js";
 import { createWorldLootManager } from "./world/loot.js";
 import { createWorldRewardManager } from "./world/rewards.js";
 import { createWorldStatusEffectManager } from "./world/statusEffects.js";
-import { isPointInWorldSafeArea, publicEnemy } from "./world/spawn.js";
+import { isPointInFriendlyWorldSafeArea, publicEnemy } from "./world/spawn.js";
 import { createWorldStateManager } from "./world/state.js";
 
 const PORT = config.port;
@@ -105,7 +105,12 @@ function publicPlayer(player){
 
 function isPlayerSafeOnMap(player, map){
   if(!player?.state) return false;
-  return isPointInWorldSafeArea({x:player.state.x, y:player.state.y}, map);
+  const profile = profileManager.getProfileForPlayer(player);
+  return isPointInFriendlyWorldSafeArea(
+    {x:player.state.x, y:player.state.y},
+    map,
+    profile?.player?.firmId || player?.account?.firmId || "astra"
+  );
 }
 
 const presence = createPresenceManager({
@@ -416,6 +421,7 @@ io.on("connection", socket=>{
   });
   registerPlayerHandlers(socket, {
     ...socketContext,
+    buildFirmSpawnSession,
     cleanName,
     emitPlayers,
     groups,

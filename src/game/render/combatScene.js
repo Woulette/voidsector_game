@@ -15,6 +15,7 @@ export function createCombatSceneRenderer({
   getState,
   getGraphicsQuality,
   getSpawnStations,
+  getSafeAreas,
   isSafeModeActive,
   isPlayerOutsideMap,
   getCanvasViewWidth,
@@ -33,7 +34,23 @@ export function createCombatSceneRenderer({
 }){
   function drawBackground(){
     const {currentMap, camera, nebulae, stars, dust, asteroids, player} = getState();
-    drawWorldLayer({ctx, canvas, cache, currentMap, camera, nebulae, stars, dust, asteroids, player, safeReady:isSafeModeActive(), stations:getSpawnStations(), graphicsQuality:getGraphicsQuality()});
+    const safeAreas = getSafeAreas();
+    drawWorldLayer({
+      ctx,
+      canvas,
+      cache,
+      currentMap,
+      camera,
+      nebulae,
+      stars,
+      dust,
+      asteroids,
+      player,
+      safeReady:isSafeModeActive(),
+      spawnProtected:safeAreas.some(area=>area.type === "spawn"),
+      stations:getSpawnStations(),
+      graphicsQuality:getGraphicsQuality()
+    });
   }
 
   function drawRadiationOverlay(){

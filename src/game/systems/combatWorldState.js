@@ -1,8 +1,10 @@
 import { getMapPortals, SAFE_ZONE_DELAY } from "../combatData.js";
+import { getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
 import { makeGroundMaterialPreview } from "./groundMaterials.js";
 import { buildMapState } from "./mapState.js";
 
 export function createCombatWorldStateSystem({
+  store,
   mapList,
   getState,
   setState,
@@ -17,6 +19,12 @@ export function createCombatWorldStateSystem({
 }){
   const mapStates = new Map();
 
+  function isFriendlyFirmMap(map = getState().currentMap){
+    const mapFirmId = getFirmIdFromMapName(map?.name);
+    if(!mapFirmId) return true;
+    return mapFirmId === normalizeFirmId(store?.state?.player?.firmId || "astra");
+  }
+
   function getMapState(map){
     const {enemySeq} = getState();
     if(!mapStates.has(map.id)){
@@ -29,6 +37,7 @@ export function createCombatWorldStateSystem({
 
   function getSafeAreas(map = getState().currentMap){
     if(getState().gameMode === "portal") return [];
+    if(!isFriendlyFirmMap(map)) return [];
     const zones = [];
     if(map?.spawn && map.spawn.kind !== "portal"){
       const rect = map.spawn.safeRect;
@@ -83,6 +92,7 @@ export function createCombatWorldStateSystem({
   function getSpawnStations(){
     const {gameMode, currentMap} = getState();
     if(gameMode !== "open" || !currentMap?.spawn || currentMap.spawn.kind === "portal") return [];
+    if(!isFriendlyFirmMap(currentMap)) return [];
     const spawn = currentMap.spawn;
     if(spawn.hub === false) return [];
     const sideX = spawn.x > 0 ? -1 : 1;

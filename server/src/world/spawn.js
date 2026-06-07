@@ -1,4 +1,5 @@
 import { WORLD_ENEMY_TYPES } from "./definitions.js";
+import { getFirmIdFromMapName, normalizeFirmId } from "../../../src/data/firms.js";
 
 export function publicEnemy(enemy){
   return {
@@ -87,6 +88,12 @@ export function isPointInWorldSafeArea(point, map, padding = 0){
     if(Math.hypot(x - Number(portal.x || 0), y - Number(portal.y || 0)) <= radius) return true;
   }
   return false;
+}
+
+export function isPointInFriendlyWorldSafeArea(point, map, firmId, padding = 0){
+  const territoryFirmId = map?.firmId || getFirmIdFromMapName(map?.name);
+  if(territoryFirmId && normalizeFirmId(territoryFirmId) !== normalizeFirmId(firmId)) return false;
+  return isPointInWorldSafeArea(point, map, padding);
 }
 
 export function findWorldSpawn(map, rnd){

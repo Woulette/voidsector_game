@@ -56,8 +56,13 @@ function buildFirmWorldMaps(){
         map.questNpcs = [{
           id:`${firm.mapPrefix.toLowerCase()}02_portal_mechanic`,
           name:"Ricky",
+          npcImg:"assets/ships/npc/npc_saucer.png",
           x:ricky.npc.x,
           y:ricky.npc.y,
+          radius:82,
+          size:132,
+          marker:"!",
+          label:"RICKY",
           interactionRadius:260
         }];
       }

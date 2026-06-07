@@ -1,5 +1,6 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
 import { renderSpawnPanelContent } from "./spawnPanel.js";
+import { getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import { normalizeFirmId } from "../../data/firms.js";
 import {
@@ -147,6 +148,12 @@ export function createCombatPanels({
   let selectedShipRefineRecipeId = null;
   let groupHudRefreshT = 0;
   let groupHudDragReady = false;
+
+  function canUseCurrentMapFirmServices(){
+    const mapFirmId = getFirmIdFromMapName(getCurrentMap()?.name);
+    if(!mapFirmId) return true;
+    return mapFirmId === normalizeFirmId(store.state?.player?.firmId || "astra");
+  }
 
   function reset(){
     groupMembers = [];
@@ -842,6 +849,14 @@ export function createCombatPanels({
     const content = document.getElementById("spawnPanelContent");
     if(!panel || !title || !content){
       spawnPanelMode = null;
+      return;
+    }
+    if(mode && !canUseCurrentMapFirmServices()){
+      spawnPanelMode = null;
+      panel.classList.add("hidden");
+      saveSpawnPanelOpenState(null, false);
+      syncUtilityDockButtons();
+      showToast("Les services de cette firme te sont interdits.");
       return;
     }
     const questListScrollTop = mode === "quests" ? content.querySelector(".quest-strip-list")?.scrollTop : null;

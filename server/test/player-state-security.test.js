@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { validatePlayerState } from "../src/players/playerStateValidation.js";
+import { WORLD_MAPS } from "../src/world/definitions.js";
+import { isPointInFriendlyWorldSafeArea } from "../src/world/spawn.js";
 
 function makePlayer(state = null){
   return {
@@ -189,4 +191,50 @@ test("initial combat vitals prefer the saved session for the active ship", ()=>{
   assert.equal(result.state.shipId, "velox");
   assert.equal(result.state.hp, 3000);
   assert.equal(result.state.maxHp, 15000);
+});
+
+test("a cyan profile starts on CYAN-01 even when the socket still points to ASTRA-01", ()=>{
+  const profile = createDefaultProfile();
+  profile.player.firmId = "cyan";
+  profile.player.firmSelected = true;
+  profile.worldSession = null;
+  profile.shipWorldSessions = {};
+
+  const result = validatePlayerState({
+    player:{id:"cyan-player", mapId:"0", state:null},
+    profile,
+    groups:new Map(),
+    now:1200,
+    payload:baseState({mapId:"20", x:-4300, y:-3300})
+  });
+
+  assert.equal(result.state.mapId, "20");
+  assert.equal(result.state.x, -4300);
+  assert.equal(result.state.y, -3300);
+});
+
+test("safe zones only protect players inside their own firm territory", ()=>{
+  const cyanSpawn = WORLD_MAPS["20"].spawn;
+  assert.equal(isPointInFriendlyWorldSafeArea(cyanSpawn, WORLD_MAPS["20"], "cyan"), true);
+  assert.equal(isPointInFriendlyWorldSafeArea(cyanSpawn, WORLD_MAPS["20"], "astra"), false);
+  assert.equal(isPointInFriendlyWorldSafeArea(WORLD_MAPS["21"].portals[0], WORLD_MAPS["21"], "astra"), false);
+});
+
+test("a saved ship session may remain outside the map while radiation counts down", ()=>{
+  const profile = createDefaultProfile();
+  profile.worldSession = {mapId:"0", x:5200, y:0, hp:3000, maxHp:5000, shield:0, maxShield:0, shipId:"orion", updatedAt:1000};
+  profile.shipWorldSessions = {
+    orion:{...profile.worldSession}
+  };
+
+  const result = validatePlayerState({
+    player:{id:"outside-player", mapId:"0", state:null},
+    profile,
+    groups:new Map(),
+    now:1200,
+    payload:baseState({x:5200, y:0})
+  });
+
+  assert.equal(result.state.x, 5200);
+  assert.equal(result.state.y, 0);
 });

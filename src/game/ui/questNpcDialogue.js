@@ -40,8 +40,11 @@ export function createQuestNpcDialogue({
   }
 
   function getDialogue(npc){
-    if(npc.id !== "astra02_portal_mechanic") return {lines:[`${npc.name || "PNJ"} n'a rien a te demander pour le moment.`], progress:false};
-    const quest = getActiveQuests().find(entry=>entry.id === "quest_lv5_call_for_help") || null;
+    if(!String(npc.id || "").endsWith("02_portal_mechanic")) return {lines:[`${npc.name || "PNJ"} n'a rien a te demander pour le moment.`], progress:false};
+    const quest = getActiveQuests().find(entry=>
+      (entry.id === "quest_lv5_call_for_help" || entry.sourceQuestId === "quest_lv5_call_for_help")
+      && entry.objectives?.some(objective=>objective.npcId === npc.id)
+    ) || null;
     if(!quest) return {lines:["Signal bloque. Passe par le relais de quetes avant de revenir."], progress:false};
     if(!isObjectiveDone(quest, "portal_coord")) return {lines:["Approche du portail ferme, je capte mal ton signal."], progress:false};
     if(!isObjectiveDone(quest, "talk_start")){
