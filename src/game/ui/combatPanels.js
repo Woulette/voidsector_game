@@ -609,10 +609,10 @@ export function createCombatPanels({
     if(focus) document.getElementById("mpPlayerName")?.focus();
   }
 
-  function isEditingGroupUtilityPanel(){
-    const panel = getUtilityPanel("group");
+  function isInteractingWithUtilityPanel(mode){
+    const panel = getUtilityPanel(mode);
     const active = document.activeElement;
-    return !!panel && !!active && panel.contains(active) && !!active.closest("input, textarea, select");
+    return !!panel && (panel.matches(":hover") || (!!active && panel.contains(active)));
   }
 
   function firmBadgeAsset(firmId){
@@ -753,10 +753,10 @@ export function createCombatPanels({
 
   window.addEventListener("voidsector:multiplayer-change", ()=>{
     const panel = getUtilityPanel("group");
-    if(panel && !panel.classList.contains("hidden") && !isEditingGroupUtilityPanel()) refreshGroupUtilityPanel({show:true});
+    if(panel && !panel.classList.contains("hidden") && !isInteractingWithUtilityPanel("group")) refreshGroupUtilityPanel({show:true});
     for(const mode of ["friends", "firm"]){
       const socialPanel = getUtilityPanel(mode);
-      if(socialPanel && !socialPanel.classList.contains("hidden")) refreshSocialUtilityPanel(mode);
+      if(socialPanel && !socialPanel.classList.contains("hidden") && !isInteractingWithUtilityPanel(mode)) refreshSocialUtilityPanel(mode);
     }
     syncUtilityDockButtons();
     refreshGroupFloatingHud();
@@ -1195,7 +1195,7 @@ export function createCombatPanels({
       }
     }
     const groupPanel = getUtilityPanel("group");
-    if(groupPanel && !groupPanel.classList.contains("hidden") && !groupPanel.contains(document.activeElement)){
+    if(groupPanel && !groupPanel.classList.contains("hidden") && !isInteractingWithUtilityPanel("group")){
       utilityPanelRefreshT -= dt;
       if(utilityPanelRefreshT <= 0){
         const content = getUtilityContent("group");

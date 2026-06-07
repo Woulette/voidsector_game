@@ -261,7 +261,15 @@
   right:auto;
   width:min(820px,calc(100vw - 340px));
 }
-.combat-utility-panel[data-utility-mode="friends"],
+.combat-utility-panel[data-utility-mode="friends"]{
+  left:306px;
+  right:auto;
+  width:360px;
+  min-width:330px;
+  min-height:350px;
+  max-height:calc(100vh - 88px);
+  overflow:auto;
+}
 .combat-utility-panel[data-utility-mode="firm"]{
   left:306px;
   right:auto;

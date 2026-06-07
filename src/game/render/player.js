@@ -364,18 +364,20 @@ function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilot
   const labelY = py + 94;
   const nameY = labelY + 3;
   const iconSize = 29;
-  const gap = 6;
+  const firmIconSize = 24;
+  const firmGap = 1;
+  const nameGap = 6;
   const nameWidth = ctx.measureText(pilotName).width;
-  const groupWidth = (firmImg ? iconSize + gap : 0) + (rankImg ? iconSize + gap : 0) + nameWidth;
+  const groupWidth = (firmImg ? firmIconSize + firmGap : 0) + (rankImg ? iconSize + nameGap : 0) + nameWidth;
   const startX = px - groupWidth / 2;
   let textX = startX;
   if(firmImg){
-    ctx.drawImage(firmImg, textX, labelY - iconSize / 2 - 1, iconSize, iconSize);
-    textX += iconSize + gap;
+    ctx.drawImage(firmImg, textX, labelY - firmIconSize / 2 - 1, firmIconSize, firmIconSize);
+    textX += firmIconSize + firmGap;
   }
   if(rankImg){
     ctx.drawImage(rankImg, textX, labelY - iconSize / 2 - 1, iconSize, iconSize);
-    textX += iconSize + gap;
+    textX += iconSize + nameGap;
   }
   ctx.textAlign = "left";
   ctx.fillStyle = "#e2e8f0";
