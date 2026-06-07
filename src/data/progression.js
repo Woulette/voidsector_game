@@ -397,7 +397,7 @@ const baseQuestCatalog = [
     giver:"Relais de Commandement",
     desc:"Détruis des Parasites astraux jusqu'à récupérer un échantillon contaminé. Si tu meurs avant de le rapporter au relais, l'échantillon est perdu.",
     unlock:{type:"complete_level_quests", level:4},
-    objective:{type:"quest_item_drop", target:"chasseur_spectral", label:"Échantillon contaminé", itemId:"contaminated_sample", itemName:"Échantillon contaminé", itemImg:"assets/quest_items/contaminated_sample.png", dropChance:.10, count:1, zone:"ASTRA-02"},
+    objective:{type:"quest_item_drop", target:"chasseur_spectral", label:"Échantillon contaminé", itemId:"contaminated_sample", itemName:"Échantillon contaminé", itemImg:"assets/quest_items/contaminated_sample.png", dropChance:.20, count:1, zone:"ASTRA-02"},
     failConditions:{deathResets:true},
     rewards:{credits:350000, premium:1000, xp:20000, materials:{}, ammo:{rocket_r2:100}}
   },

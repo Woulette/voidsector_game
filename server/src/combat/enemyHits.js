@@ -22,6 +22,7 @@ export function createEnemyHitHandler({
   emitInstance,
   emitPortalComplete,
   emitPrivatePortalPieceDrop,
+  emitPrivateQuestItemDrop,
   emitWorldEnemies,
   emitWorldReward,
   findWorldEnemyForPlayer,
@@ -95,6 +96,7 @@ export function createEnemyHitHandler({
       applyDamageToEnemy(worldEnemy, incoming);
       if(wasAlive && worldEnemy.hp <= 0){
         emitWorldReward({enemy:worldEnemy, mapId, attackerId:socket.id});
+        emitPrivateQuestItemDrop({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
         emitPrivatePortalPieceDrop({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
         progressServerQuestsForKill({enemy:worldEnemy, mapId, attackerId:socket.id});
       }

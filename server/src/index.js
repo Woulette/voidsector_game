@@ -257,6 +257,7 @@ const {updateWorldEnemy} = createWorldAiManager({
 
 const {
   cleanupExpiredLootDrops,
+  emitPrivateQuestItemDrop,
   emitPrivatePortalPieceDrop,
   pickupLoot,
   updateLootOwner
@@ -348,6 +349,7 @@ const {applyEnemyHit} = createEnemyHitHandler({
   emitInstance,
   emitPortalComplete,
   emitPrivatePortalPieceDrop,
+  emitPrivateQuestItemDrop,
   emitWorldEnemies,
   emitWorldReward,
   findWorldEnemyForPlayer,

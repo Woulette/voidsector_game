@@ -1,4 +1,5 @@
 import { GROUND_LOOT_TTL_MS, LOOT_OWNER_TIMEOUT_MS, PORTAL_DROP_RULES, WORLD_MAPS } from "./definitions.js";
+import { rollServerQuestItemDrop } from "../quests/questItemDrops.js";
 
 export function createWorldLootManager({io, players, profileManager, emitProfileSync}){
   const activeLootDrops = new Map();
@@ -57,6 +58,53 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
     });
   }
 
+  function emitPrivateQuestItemDrop({enemy, mapId, ownerId}){
+    const owner = players.get(ownerId);
+    if(!enemy || enemy.questItemDropRolled || !owner || String(owner.mapId) !== String(mapId)) return;
+    enemy.questItemDropRolled = true;
+    const mapName = WORLD_MAPS[String(mapId)]?.name || String(mapId);
+    const profile = profileManager.getProfileForPlayer?.(owner);
+    const drop = rollServerQuestItemDrop(profile, {
+      enemyKind:enemy.kind || enemy.type,
+      zoneName:mapName
+    });
+    if(!drop?.itemId) return;
+    const x = Number(enemy.x || 0) + (Math.random() - .5) * 70;
+    const y = Number(enemy.y || 0) + (Math.random() - .5) * 70;
+    const id = `loot_quest_${drop.itemId}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const expiresAt = Date.now() + GROUND_LOOT_TTL_MS;
+    activeLootDrops.set(id, {
+      id,
+      ownerId:owner.id,
+      kind:"questItem",
+      questId:drop.questId,
+      objectiveId:drop.objectiveId,
+      itemId:drop.itemId,
+      name:drop.itemName,
+      img:drop.itemImg,
+      mapId:String(mapId),
+      x,
+      y,
+      expiresAt
+    });
+    io.to(owner.id).emit("loot:drop", {
+      id,
+      kind:"questItem",
+      questId:drop.questId,
+      objectiveId:drop.objectiveId,
+      itemId:drop.itemId,
+      name:drop.itemName,
+      img:drop.itemImg,
+      label:"QUETE",
+      mapId,
+      x,
+      y,
+      expiresAt,
+      serverControlled:true,
+      at:Date.now()
+    });
+  }
+
   function pickupLoot(socket, payload){
     const player = players.get(socket.id);
     const id = String(payload?.id || "");
@@ -82,6 +130,44 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
     const distance = state ? Math.hypot(Number(state.x || 0) - Number(drop.x || 0), Number(state.y || 0) - Number(drop.y || 0)) : Infinity;
     if(distance > 220){
       socket.emit("loot:error", {message:"Trop loin du butin."});
+      return;
+    }
+    if(drop.kind === "questItem"){
+      const questResult = profileManager.applyQuestAction({
+        player,
+        action:{kind:"progress", type:"quest_item_drop", itemId:drop.itemId}
+      });
+      if(!questResult.ok){
+        socket.emit("loot:error", {message:questResult.reason || "Ramassage impossible."});
+        return;
+      }
+      activeLootDrops.delete(id);
+      socket.emit("loot:picked", {
+        id,
+        kind:drop.kind,
+        itemId:drop.itemId,
+        name:drop.name,
+        amount:drop.amount,
+        at:Date.now()
+      });
+      if(questResult.updates?.length){
+        socket.emit("quest:progress", {
+          updates:questResult.updates,
+          at:Date.now()
+        });
+      }
+      if(questResult.claimedQuests?.length){
+        for(const claim of questResult.claimedQuests){
+          socket.emit("quest:claimed", {
+            id:claim.quest?.id,
+            title:claim.quest?.title,
+            reward:claim.reward || {},
+            auto:true,
+            at:Date.now()
+          });
+        }
+      }
+      emitProfileSync?.(player, questResult.profile);
       return;
     }
     activeLootDrops.delete(id);
@@ -145,6 +231,7 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
 
   return {
     cleanupExpiredLootDrops,
+    emitPrivateQuestItemDrop,
     emitPrivatePortalPieceDrop,
     pickupLoot,
     updateLootOwner
