@@ -5,6 +5,7 @@ import { createSocketSessionManager } from "./auth/socketSession.js";
 import { config } from "./config.js";
 import { dbEnabled, initializeDatabase } from "./db/client.js";
 import { createGroupManager } from "./groups/groups.js";
+import { createFirmWarManager } from "./firms/firmWar.js";
 import { logger } from "./logger.js";
 import { createEquipmentLocationManager } from "./players/equipmentLocation.js";
 import { createPresenceManager } from "./players/presence.js";
@@ -21,6 +22,7 @@ import { registerCombatHandlers } from "./socket/combatHandlers.js";
 import { registerDisconnectHandlers } from "./socket/disconnectHandlers.js";
 import { registerEconomyHandlers } from "./socket/economyHandlers.js";
 import { registerEquipmentHandlers } from "./socket/equipmentHandlers.js";
+import { registerFirmHandlers } from "./socket/firmHandlers.js";
 import { registerGroupHandlers } from "./socket/groupHandlers.js";
 import { registerPlayerHandlers } from "./socket/playerHandlers.js";
 import { registerProgressionHandlers } from "./socket/progressionHandlers.js";
@@ -86,9 +88,11 @@ function cleanName(value){
 }
 
 const profileManager = createProfileManager({cleanName, logger});
+const firmWarManager = createFirmWarManager({logger});
 
 await initializeDatabase();
 await profileManager.load();
+await firmWarManager.load();
 logger.info(dbEnabled ? "PostgreSQL storage enabled." : "JSON storage enabled. Set DATABASE_URL to use PostgreSQL.");
 
 function publicPlayer(player){
@@ -316,7 +320,8 @@ const {emitWorldReward} = createWorldRewardManager({
   players,
   groups,
   profileManager,
-  emitProfileSync:emitProfileSyncForPlayer
+  emitProfileSync:emitProfileSyncForPlayer,
+  firmWarManager
 });
 
 const {progressServerQuestsForKill} = createKillQuestProgress({
@@ -456,6 +461,10 @@ io.on("connection", socket=>{
   registerSocialHandlers(socket, {
     ...socketContext,
     socialManager
+  });
+  registerFirmHandlers(socket, {
+    ...socketContext,
+    firmWarManager
   });
   registerEconomyHandlers(socket, socketContext);
   registerEquipmentHandlers(socket, {

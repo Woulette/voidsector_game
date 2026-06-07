@@ -1024,6 +1024,7 @@ export function createCombatGame({renderAll, showToast}){
     togglePerfPanelVisibility:panels.togglePerfPanelVisibility,
     selectSocialTab:panels.selectSocialTab,
     selectSocialContact:panels.selectSocialContact,
+    selectFirmPanelTab:panels.selectFirmPanelTab,
     trackCombatQuest:panels.trackCombatQuest,
     claimCombatQuest:panels.claimCombatQuest,
     setCombatQuestDetailTab:panels.setCombatQuestDetailTab,

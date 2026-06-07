@@ -86,6 +86,7 @@ export const multiplayer = {
   outgoingGroupInvites:[],
   groupPing:null,
   social:{friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]},
+  firmRanking:null,
   logout:{
     pending:false,
     completeAt:null,
@@ -285,6 +286,7 @@ export function disconnectMultiplayer(){
   multiplayer.outgoingGroupInvites = [];
   multiplayer.groupPing = null;
   multiplayer.social = {friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]};
+  multiplayer.firmRanking = null;
   multiplayer.remotePlayers.clear();
   multiplayer.remoteEffects = [];
   multiplayer.enemyAttackEvents = [];
@@ -329,6 +331,7 @@ export const setupServerProfile = socketCommands.setupServerProfile;
 export const resetServerFirmDebug = socketCommands.resetServerFirmDebug;
 export const sendChatMessage = socketCommands.sendChatMessage;
 export const requestSocialSync = socialCommands.requestSocialSync;
+export const requestFirmRankingSync = socialCommands.requestFirmRankingSync;
 export const sendFriendRequest = socialCommands.sendFriendRequest;
 export const respondFriendRequest = socialCommands.respondFriendRequest;
 export const setSocialCategory = socialCommands.setSocialCategory;

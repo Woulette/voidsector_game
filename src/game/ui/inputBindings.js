@@ -45,6 +45,7 @@ export function installCombatInputHandlers({
   togglePerfPanelVisibility,
   selectSocialTab,
   selectSocialContact,
+  selectFirmPanelTab,
   trackCombatQuest,
   claimCombatQuest,
   setCombatQuestDetailTab,
@@ -446,6 +447,11 @@ export function installCombatInputHandlers({
       const socialTab = e.target.closest("[data-social-tab]");
       if(socialTab){
         selectSocialTab?.(socialTab.dataset.socialTab);
+        return;
+      }
+      const firmPanelTab = e.target.closest("[data-firm-panel-tab]");
+      if(firmPanelTab){
+        selectFirmPanelTab?.(firmPanelTab.dataset.firmPanelTab);
         return;
       }
       const socialSelect = e.target.closest("[data-social-select]");

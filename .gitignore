@@ -11,4 +11,5 @@ Thumbs.db
 tmp/
 server/.env
 server/data/accounts.json
+server/data/firmWar.json
 server/data/sessions.json

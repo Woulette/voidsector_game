@@ -10,6 +10,7 @@ export function createSocialCommands({multiplayer, toast}){
 
   return {
     requestSocialSync:()=>emit("social:sync"),
+    requestFirmRankingSync:()=>emit("firm:sync"),
     sendFriendRequest:name=>emit("social:friend-request", {name}),
     respondFriendRequest:(key, accept)=>emit("social:friend-response", {key, accept}),
     setSocialCategory:(name, category)=>emit("social:set-category", {name, category}),

@@ -1,8 +1,8 @@
 export const FIRMS = [
   {id:"astra", label:"Astra", mapPrefix:"ASTRA", homeMapName:"ASTRA-01", baseMapId:0, color:"#38bdf8", spawn:{x:-4300, y:3300}},
-  {id:"cyan", label:"Cyan", mapPrefix:"CYAN", homeMapName:"CYAN-01", baseMapId:20, color:"#22d3ee", spawn:{x:-4300, y:-3300}},
-  {id:"jaune", label:"Jaune", mapPrefix:"JAUNE", homeMapName:"JAUNE-01", baseMapId:30, color:"#facc15", spawn:{x:4300, y:-3300}},
-  {id:"verte", label:"Vert", mapPrefix:"VERTE", homeMapName:"VERTE-01", baseMapId:40, color:"#22c55e", spawn:{x:4300, y:3300}}
+  {id:"cyan", label:"Cygnus", mapPrefix:"CYAN", homeMapName:"CYAN-01", baseMapId:20, color:"#22d3ee", spawn:{x:-4300, y:-3300}},
+  {id:"jaune", label:"Solarys", mapPrefix:"JAUNE", homeMapName:"JAUNE-01", baseMapId:30, color:"#facc15", spawn:{x:4300, y:-3300}},
+  {id:"verte", label:"Verdantis", mapPrefix:"VERTE", homeMapName:"VERTE-01", baseMapId:40, color:"#22c55e", spawn:{x:4300, y:3300}}
 ];
 
 const FIRM_ALIASES = new Map();
