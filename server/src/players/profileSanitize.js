@@ -1,4 +1,6 @@
 import { normalizeProgressionPlayer } from "./progression.js";
+import { getInventoryEntryQuantity, isStackableInventoryItem } from "../economy/inventoryStacks.js";
+import { cleanupDuplicateEquippedInventoryUids } from "../economy/equipment.js";
 
 export function sanitizeObject(value){
   if(!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -26,6 +28,13 @@ export function sanitizeWorldSession(value){
   };
 }
 
+function sanitizeShipWorldSessions(value){
+  if(!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .map(([shipId, session])=>[String(shipId), sanitizeWorldSession(session)])
+    .filter(([, session])=>Boolean(session)));
+}
+
 export function sanitizeActionSlots(value){
   if(!Array.isArray(value)){
     return ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
@@ -36,19 +45,36 @@ export function sanitizeActionSlots(value){
   });
 }
 
+function sanitizeActionSlotsByShip(value){
+  if(!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).map(([shipId, slots])=>[
+    String(shipId),
+    sanitizeActionSlots(slots)
+  ]));
+}
+
 export function sanitizeProfile(profile = {}){
-  return {
+  const inventoryItems = [];
+  for(const entry of Array.isArray(profile.inventoryItems) ? profile.inventoryItems : []){
+    if(!entry?.uid || !entry?.itemId) continue;
+    const itemId = String(entry.itemId);
+    if(isStackableInventoryItem(itemId)){
+      const existing = inventoryItems.find(item=>item.itemId === itemId);
+      if(existing) existing.quantity += getInventoryEntryQuantity(entry);
+      else inventoryItems.push({uid:String(entry.uid), itemId, quantity:getInventoryEntryQuantity(entry)});
+    }else inventoryItems.push({uid:String(entry.uid), itemId});
+  }
+  const sanitized = {
     updatedAt:Math.max(0, Number(profile.updatedAt || Date.now())),
     player:normalizeProgressionPlayer(sanitizeObject(profile.player)),
     activeShip:typeof profile.activeShip === "string" ? profile.activeShip : null,
     selectedShip:typeof profile.selectedShip === "string" ? profile.selectedShip : null,
     ownedShips:Array.isArray(profile.ownedShips) ? profile.ownedShips.map(String) : undefined,
-    inventoryItems:Array.isArray(profile.inventoryItems)
-      ? profile.inventoryItems.filter(entry=>entry?.uid && entry?.itemId).map(entry=>({uid:String(entry.uid), itemId:String(entry.itemId)}))
-      : undefined,
+    inventoryItems,
     nextInventoryUid:Math.max(1, Math.floor(Number(profile.nextInventoryUid || 1))),
     ammoInventory:sanitizeObject(profile.ammoInventory),
     actionSlots:sanitizeActionSlots(profile.actionSlots),
+    actionSlotsByShip:sanitizeActionSlotsByShip(profile.actionSlotsByShip),
     lastLaserAmmoId:typeof profile.lastLaserAmmoId === "string" ? profile.lastLaserAmmoId : null,
     shipLoadouts:sanitizeObject(profile.shipLoadouts),
     ownedDroneCount:Math.max(0, Math.floor(Number(profile.ownedDroneCount || 0))),
@@ -79,8 +105,12 @@ export function sanitizeProfile(profile = {}){
     completedQuestClaims:sanitizeObject(profile.completedQuestClaims),
     killStats:sanitizeObject(profile.killStats),
     rankKillStats:sanitizeObject(profile.rankKillStats),
-    worldSession:sanitizeWorldSession(profile.worldSession)
+    worldSession:sanitizeWorldSession(profile.worldSession),
+    shipWorldSessions:sanitizeShipWorldSessions(profile.shipWorldSessions),
+    starterRepairGranted:Boolean(profile.starterRepairGranted)
   };
+  cleanupDuplicateEquippedInventoryUids(sanitized);
+  return sanitized;
 }
 
 function hasProtectedOwnershipValue(profile, field){
@@ -107,18 +137,20 @@ export function preserveProtectedOwnership(incoming, existing){
     "unlockedPortals",
     "completedPortals",
     "portalPieces",
-    "prestigeCount"
+    "prestigeCount",
+    "starterRepairGranted"
   ]);
   for(const field of [
     "ownedShips", "activeShip", "selectedShip", "inventoryItems", "nextInventoryUid",
     "ammoInventory", "shipLoadouts", "ownedDroneCount", "droneLoadout",
     "dronePermanentUpgrades", "equipmentUpgrades", "ownedDroneFormations",
     "activeDroneFormation", "activeQuestIds", "activeQuestId", "questProgress",
-    "questFailProgress", "completedQuestClaims", "worldSession", "cargoHold",
+    "questFailProgress", "completedQuestClaims", "worldSession", "shipWorldSessions", "cargoHold",
     "shipCargo", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
     "portalPieces", "prestigeCount", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
-    "refineryProductionDisabled", "refineryLastTick", "killStats", "rankKillStats"
+    "refineryProductionDisabled", "refineryLastTick", "killStats", "rankKillStats",
+    "starterRepairGranted"
   ]){
     if(alwaysProtected.has(field) || hasProtectedOwnershipValue(existing, field)){
       incoming[field] = cloneProtectedValue(existing[field]);

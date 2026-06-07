@@ -115,6 +115,82 @@ export function createCombatActions({
     return store.state.ownedDroneFormations?.includes(formation.id) ? formation : null;
   }
 
+  function getActionSlotState(index){
+    const id = store.state.actionSlots?.[index] || null;
+    if(!id) return {id:null, kind:"empty", available:false, usable:false, reason:`Slot ${index + 1} vide.`};
+
+    const ammo = getAmmo(id);
+    if(ammo){
+      const count = getAmmoCount(ammo.id);
+      if(count <= 0) return {id, kind:"ammo", ammo, available:true, usable:false, reason:`${ammo.name} : stock vide.`};
+      if(ammo.weaponClass === "rocket" && !getEquippedLauncher?.("rocket")){
+        return {id, kind:"ammo", ammo, available:false, usable:false, reason:"Aucun lance-roquette equipe sur ce vaisseau."};
+      }
+      if(ammo.weaponClass === "missile" && !getEquippedLauncher?.("missile")){
+        return {id, kind:"ammo", ammo, available:false, usable:false, reason:"Aucun lance-missile equipe sur ce vaisseau."};
+      }
+      if(ammo.weaponClass === "laser" && getLaserVolley().count <= 0){
+        return {id, kind:"ammo", ammo, available:false, usable:false, reason:"Aucun laser equipe sur ce vaisseau."};
+      }
+      return {id, kind:"ammo", ammo, available:true, usable:true, reason:""};
+    }
+
+    const item = getItem(id);
+    if(item?.category === "extra"){
+      const equipped = getEquippedExtras(store.state.activeShip).some(extra=>extra.id === item.id);
+      if(!equipped){
+        return {id, kind:"extra", item, available:false, usable:false, reason:`${item.name} sauvegarde en slot, mais non equipe sur ce vaisseau.`};
+      }
+      if(item.effect?.repairBot){
+        const repairState = getRepairState();
+        const active = Boolean(getPlayer()?.repairBotActive);
+        return {
+          id,
+          kind:"extra",
+          item,
+          available:true,
+          usable:Boolean(repairState.ok || active),
+          reason:repairState.ok || active ? "" : repairState.reason
+        };
+      }
+      return {id, kind:"extra", item, available:true, usable:false, reason:`${item.name} est un extra passif.`};
+    }
+
+    if(item?.slotType === "missileLauncher"){
+      const equipped = getEquippedLauncher?.("missile")?.id === item.id;
+      if(!equipped){
+        return {id, kind:"missileLauncher", item, available:false, usable:false, reason:`${item.name} sauvegarde en slot, mais non equipe sur ce vaisseau.`};
+      }
+      const missileState = getMissileLauncherState();
+      if(!missileState.ammo) return {id, kind:"missileLauncher", item, available:true, usable:false, reason:"Selectionne un missile dans Munitions."};
+      if(!missileState.ready) return {id, kind:"missileLauncher", item, available:true, usable:false, reason:`Lance-missile en charge : ${missileState.loaded}/${missileState.capacity}.`};
+      return {id, kind:"missileLauncher", item, available:true, usable:true, reason:""};
+    }
+
+    if(item?.slotType === "rocketLauncher"){
+      const equipped = getEquippedLauncher?.("rocket")?.id === item.id;
+      if(!equipped){
+        return {id, kind:"rocketLauncher", item, available:false, usable:false, reason:`${item.name} sauvegarde en slot, mais non equipe sur ce vaisseau.`};
+      }
+      return {id, kind:"rocketLauncher", item, available:true, usable:false, reason:"Utilise une munition roquette en slot pour tirer avec ce lanceur."};
+    }
+
+    const formation = getDroneFormation?.(id);
+    if(formation){
+      const owned = store.state.ownedDroneFormations?.includes(formation.id);
+      return {
+        id,
+        kind:"formation",
+        formation,
+        available:Boolean(owned),
+        usable:Boolean(owned),
+        reason:owned ? "" : `${formation.name} sauvegardee en slot, mais non possedee.`
+      };
+    }
+
+    return {id, kind:"invalid", available:false, usable:false, reason:"Objet de slot invalide."};
+  }
+
   function getAmmoCooldown(ammoOrId){
     return readAmmoCooldown(ammoCooldowns, ammoOrId, getAmmo);
   }
@@ -198,8 +274,9 @@ export function createCombatActions({
 
   function renderGameActionBar(){
     const el = document.getElementById("gameActionBar");
+    if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
     const slots = Array.from({length:9}, (_,i)=>store.state.actionSlots?.[i] || null);
-    el.innerHTML = renderActionBarHtml({slots, slotKeybinds:store.state.slotKeybinds, getAmmo, getExtra:getCombatExtra, getCpu:getCombatCpu, getFormation:getCombatDroneFormation, getAmmoCount, missileState:getMissileLauncherState()});
+    el.innerHTML = renderActionBarHtml({slots, slotKeybinds:store.state.slotKeybinds, getAmmo, getExtra:getCombatExtra, getCpu:getCombatCpu, getFormation:getCombatDroneFormation, getAmmoCount, missileState:getMissileLauncherState(), getSlotState:getActionSlotState});
     updateGameActionBar();
   }
 
@@ -214,6 +291,7 @@ export function createCombatActions({
       getExtra:getCombatExtra,
       getCpu:getCombatCpu,
       getFormation:getCombatDroneFormation,
+      getSlotState:getActionSlotState,
       activeDroneFormation:store.state.activeDroneFormation,
       getRepairState,
       getAmmoCooldown,
@@ -247,10 +325,14 @@ export function createCombatActions({
   }
 
   function selectActionSlot(index){
-    const ammo = getCombatAmmo(index);
-    const extra = getCombatExtra(index);
-    const cpu = getCombatCpu(index);
-    const formation = getCombatDroneFormation(index);
+    const slotState = getActionSlotState(index);
+    const ammo = slotState.ammo || null;
+    const extra = slotState.kind === "extra" ? slotState.item : getCombatExtra(index);
+    const cpu = slotState.kind === "missileLauncher" ? slotState.item : getCombatCpu(index);
+    const formation = slotState.formation || getCombatDroneFormation(index);
+    if(!slotState.id) return showToast(slotState.reason || `Slot ${index+1} vide.`);
+    if(slotState.available === false) return showToast(slotState.reason || "Objet indisponible sur ce vaisseau.");
+    if(slotState.usable === false && slotState.reason) return showToast(slotState.reason);
     if(cpu){
       fireMissileLauncher();
       return;
@@ -321,6 +403,8 @@ export function createCombatActions({
   }
 
   function saveAndSyncActionSlots(){
+    if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
+    store.state.actionSlotsByShip[String(store.state.activeShip || "orion")] = Array.from({length:9}, (_,index)=>store.state.actionSlots?.[index] || null);
     saveState();
     syncProfile?.();
   }
@@ -393,18 +477,20 @@ export function createCombatActions({
     showToast(`${launcher.name} place en slot ${slotIndex+1}.`);
   }
 
-  function cleanCombatActionSlots(){
+  function cleanCombatActionSlots({persist = false} = {}){
     if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
-    const equippedExtraIds = new Set(getEquippedExtras(store.state.activeShip).map(item=>item.id));
-    store.state.actionSlots = Array.from({length:9}, (_,index)=>{
+    const cleanedSlots = Array.from({length:9}, (_,index)=>{
       const id = store.state.actionSlots[index] || null;
-      if(!id || getAmmo(id)) return id;
+      if(!id) return null;
+      if(getAmmo(id)) return id;
       const item = getItem(id);
-      if(item?.slotType === "missileLauncher" && getEquippedLauncher?.("missile")?.id === item.id) return id;
-      const formation = getDroneFormation?.(id);
-      if(formation && store.state.ownedDroneFormations?.includes(formation.id)) return id;
-      return item?.category === "extra" && equippedExtraIds.has(item.id) ? id : null;
+      if(item?.category === "extra" || ["missileLauncher", "rocketLauncher"].includes(item?.slotType)) return id;
+      if(getDroneFormation?.(id)) return id;
+      return null;
     });
+    const changed = cleanedSlots.some((id, index)=>id !== (store.state.actionSlots[index] || null));
+    store.state.actionSlots = cleanedSlots;
+    if(changed && persist) saveAndSyncActionSlots();
   }
 
   function moveActionSlot(fromIndex, toIndex){

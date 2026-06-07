@@ -52,40 +52,69 @@ export function createCombatSessionController({
     const x = Number(session.x);
     const y = Number(session.y);
     if(!Number.isFinite(x) || !Number.isFinite(y)) return false;
-    loadMap(mapId, x, y, {safeNow:true});
+    const stateBeforeCorrection = getState();
+    const isSameMapCorrection = String(session.source || "") === "state-correction"
+      && String(stateBeforeCorrection.currentMap?.id ?? "") === String(mapId);
+    if(isSameMapCorrection){
+      stateBeforeCorrection.player.x = x;
+      stateBeforeCorrection.player.y = y;
+      stateBeforeCorrection.player.vx = Number(session.vx || 0);
+      stateBeforeCorrection.player.vy = Number(session.vy || 0);
+    }else{
+      loadMap(mapId, x, y, {safeNow:true});
+    }
     const {player} = getState();
+    const sessionShipId = String(session.shipId || store.state.activeShip || player.shipId || "");
     player.angle = Number(session.angle || player.angle || 0);
     const shipChanged = String(session.source || "") === "ship-change";
-    const stats = shipChanged ? getShipCombatStats(store.state.activeShip) : null;
+    if(shipChanged && sessionShipId){
+      store.state.activeShip = sessionShipId;
+      store.state.selectedShip = sessionShipId;
+    }
+    const stats = shipChanged ? getShipCombatStats(sessionShipId || store.state.activeShip) : null;
     const maxHp = Math.max(1, Number(shipChanged ? stats?.vie : (session.maxHp || player.maxHp || 1)));
     const maxShield = Math.max(0, Number(shipChanged ? stats?.bouclier : (session.maxShield || player.maxShield || 0)));
+    player.shipId = sessionShipId;
     player.maxHp = maxHp;
-    player.hp = Math.max(1, Math.min(maxHp, Number(shipChanged ? maxHp : (session.hp || maxHp))));
+    player.hp = Math.max(isSameMapCorrection ? 0 : 1, Math.min(maxHp, Number(session.hp ?? maxHp)));
     player.maxShield = maxShield;
-    player.shield = Math.max(0, Math.min(maxShield, Number(shipChanged ? maxShield : (session.shield || 0))));
+    player.shield = Math.max(0, Math.min(maxShield, Number(session.shield ?? maxShield)));
     if(shipChanged && stats) applyCombatStatFields(player, stats);
-    player.isDead = false;
-    player.secondsSinceDamage = 999;
+    if(!isSameMapCorrection){
+      player.isDead = false;
+      player.secondsSinceDamage = 999;
+    }
     updateHud();
-    showToast("Position de jeu reprise depuis le serveur.");
+    if(String(session.source || "") !== "state-correction") showToast("Position de jeu reprise depuis le serveur.");
     return true;
   }
 
   function refreshActiveLoadout(){
     const {player} = getState();
     if(!getRunning() || !player) return false;
+    const activeShipId = String(store.state.activeShip || "");
+    const savedSession = store.state.shipWorldSessions?.[activeShipId]
+      || (String(store.state.worldSession?.shipId || "") === String(activeShipId) ? store.state.worldSession : null);
+    const sameShip = String(player.shipId || "") === activeShipId;
     const stats = getShipCombatStats(store.state.activeShip);
-    const previousHpRatio = player.maxHp > 0 ? player.hp / player.maxHp : 1;
-    const previousShieldRatio = player.maxShield > 0 ? player.shield / player.maxShield : 0;
     player.maxHp = Math.max(1, Number(stats.vie || player.maxHp || 1));
-    player.hp = Math.max(1, Math.min(player.maxHp, Math.round(player.maxHp * previousHpRatio)));
     player.maxShield = Math.max(0, Number(stats.bouclier || 0));
-    player.shield = Math.max(0, Math.min(player.maxShield, Math.round(player.maxShield * previousShieldRatio)));
+    if(sameShip){
+      player.hp = Math.max(0, Math.min(player.maxHp, Number(player.hp || 0)));
+      player.shield = Math.max(0, Math.min(player.maxShield, Number(player.shield || 0)));
+    }else{
+      player.hp = Math.max(0, Math.min(player.maxHp, Number(savedSession?.hp ?? player.maxHp)));
+      player.shield = Math.max(0, Math.min(player.maxShield, Number(savedSession?.shield ?? player.maxShield)));
+    }
+    player.shipId = activeShipId;
     applyCombatStatFields(player, stats, DEFAULT_COMBAT_EXTRA_BONUS);
     if(!player.extraBonus.repairBot){
       player.repairBotActive = false;
       player.repairBotTickTimer = 0;
     }
+    if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
+    if(!Array.isArray(store.state.actionSlotsByShip[activeShipId])) store.state.actionSlotsByShip[activeShipId] = Array(9).fill(null);
+    store.state.actionSlots = Array.from({length:9}, (_,index)=>store.state.actionSlotsByShip[activeShipId][index] || null);
     actions.cleanCombatActionSlots();
     actions.renderGameActionBar();
     actions.renderCombatQuickPanel();
@@ -108,7 +137,12 @@ export function createCombatSessionController({
     installDeathRespawnHandlers();
     const stats = getShipCombatStats(store.state.activeShip);
     if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
+    const activeShipId = String(store.state.activeShip || "");
+    if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
+    if(!Array.isArray(store.state.actionSlotsByShip[activeShipId])) store.state.actionSlotsByShip[activeShipId] = Array(9).fill(null);
+    store.state.actionSlots = Array.from({length:9}, (_,index)=>store.state.actionSlotsByShip[activeShipId][index] || null);
     const player = createCombatPlayer(stats, radarRange);
+    player.shipId = String(store.state.activeShip || "");
     const camera = {x:-getCanvasViewWidth()/2, y:-getCanvasViewHeight()/2, zoom:1};
     const mouse = {x:getCanvasViewWidth()/2, y:getCanvasViewHeight()/2};
     getState().missileSalvos.clear();
@@ -148,8 +182,8 @@ export function createCombatSessionController({
     deathRespawn.setPanelVisible(false);
     closeQuestNpcDialogue();
     clearPoison();
-    panels.closeUtilityPanel();
-    panels.closeSpawnPanel();
+    panels.closeUtilityPanel({persist:false});
+    panels.closeSpawnPanel({persist:false});
     const {gameMode, activePortal, portalCompleted, portalLives, player} = getState();
     if(gameMode === "portal" && activePortal && !portalCompleted && portalLives > 0){
       if(!store.state.portalRuns) store.state.portalRuns = {};

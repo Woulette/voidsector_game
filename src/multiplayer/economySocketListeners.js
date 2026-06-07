@@ -7,6 +7,7 @@ export function installEconomySocketListeners({socket, multiplayer, emitChange, 
   [
     ["shop:ammo-bought", "shopAmmoEvents"],
     ["shop:item-bought", "shopItemEvents"],
+    ["inventory:item-sold", "inventorySaleEvents"],
     ["shop:ship-bought", "shopShipEvents"],
     ["shop:drone-bought", "shopDroneEvents"],
     ["shop:drone-formation-bought", "shopDroneFormationEvents"]
@@ -19,6 +20,10 @@ export function installEconomySocketListeners({socket, multiplayer, emitChange, 
   socket.on("shop:error", payload=>{
     toast(payload?.message || "Achat serveur impossible.");
     emitChange("shop:error", payload);
+  });
+  socket.on("inventory:error", payload=>{
+    toast(payload?.message || "Action inventaire impossible.");
+    emitChange("inventory:error", payload);
   });
   socket.on("ship:active-equipped", event=>{
     pushEvent(multiplayer.shipEvents, event, 20);

@@ -54,48 +54,40 @@ export function createEnemyHitHandler({
       });
     };
     if(!player){
-      if(payload?.serverCalculated) emitCombatMiss(null, "Joueur serveur introuvable.");
+      emitCombatMiss(null, "Joueur serveur introuvable.");
       return;
-    }
-    let incoming = Math.max(0, Math.min(5000000, Number(payload?.amount || 0)));
-    let combatResult = null;
-    if(payload?.serverCalculated){
-      incoming = 0;
     }
     presence.markCombat(player, "attaque joueur");
 
     const worldEnemy = findWorldEnemyForPlayer(player, String(payload?.enemyId || ""));
     if(worldEnemy){
-      if(payload?.serverCalculated){
-        const result = profileManager.updateProfileForPlayer({
-          player,
-          update:profile=>resolveServerCombatFire({player, profile, enemy:worldEnemy, payload})
-        });
-        if(!result.ok){
-          emitCombatMiss(worldEnemy, result.reason || "Tir non valide.");
-          return;
-        }
-        combatResult = result;
-        incoming = result.damage || 0;
-        socket.emit("combat:hit", {
-          enemyId:worldEnemy.id,
-          weaponClass:result.weaponClass,
-          ammoId:result.ammoId,
-          consumed:result.consumed,
-          hit:result.hit,
-          damage:incoming,
-          mapId:String(player.mapId ?? ""),
-          x:Number(worldEnemy.x || 0),
-          y:Number(worldEnemy.y || 0),
-          radius:Number(worldEnemy.radius || 0),
-          at:Date.now()
-        });
-        emitProfileSync?.(player, result.profile);
-        if(incoming <= 0){
-          emitWorldEnemies(player.mapId);
-          return;
-        }
-      }else if(incoming <= 0) return;
+      const result = profileManager.updateProfileForPlayer({
+        player,
+        update:profile=>resolveServerCombatFire({player, profile, enemy:worldEnemy, payload})
+      });
+      if(!result.ok){
+        emitCombatMiss(worldEnemy, result.reason || "Tir non valide.");
+        return;
+      }
+      const incoming = result.damage || 0;
+      socket.emit("combat:hit", {
+        enemyId:worldEnemy.id,
+        weaponClass:result.weaponClass,
+        ammoId:result.ammoId,
+        consumed:result.consumed,
+        hit:result.hit,
+        damage:incoming,
+        mapId:String(player.mapId ?? ""),
+        x:Number(worldEnemy.x || 0),
+        y:Number(worldEnemy.y || 0),
+        radius:Number(worldEnemy.radius || 0),
+        at:Date.now()
+      });
+      emitProfileSync?.(player, result.profile);
+      if(incoming <= 0){
+        emitWorldEnemies(player.mapId);
+        return;
+      }
       const mapId = player.mapId;
       const wasAlive = worldEnemy.hp > 0;
       updateLootOwner(worldEnemy, socket.id);
@@ -117,44 +109,41 @@ export function createEnemyHitHandler({
     const group = player?.groupId ? groups.get(player.groupId) : null;
     const instance = group?.instance;
     if(!instance){
-      if(payload?.serverCalculated) emitCombatMiss(null, "Cible serveur introuvable.");
+      emitCombatMiss(null, "Cible serveur introuvable.");
       return;
     }
     const enemy = instance.enemies.find(entry=>entry.id === payload?.enemyId && entry.hp > 0);
     if(!enemy){
-      if(payload?.serverCalculated) emitCombatMiss(null, "Cible deja detruite ou introuvable.");
+      emitCombatMiss(null, "Cible deja detruite ou introuvable.");
       return;
     }
-    if(payload?.serverCalculated){
-      const result = profileManager.updateProfileForPlayer({
-        player,
-        update:profile=>resolveServerCombatFire({player, profile, enemy, payload})
-      });
-      if(!result.ok){
-        emitCombatMiss(enemy, result.reason || "Tir non valide.");
-        return;
-      }
-      combatResult = result;
-      incoming = result.damage || 0;
-      socket.emit("combat:hit", {
-        enemyId:enemy.id,
-        weaponClass:result.weaponClass,
-        ammoId:result.ammoId,
-        consumed:result.consumed,
-        hit:result.hit,
-        damage:incoming,
-        mapId:String(player.mapId ?? ""),
-        x:Number(enemy.x || 0),
-        y:Number(enemy.y || 0),
-        radius:Number(enemy.radius || 0),
-        at:Date.now()
-      });
-      emitProfileSync?.(player, result.profile);
-      if(incoming <= 0){
-        emitInstance(group);
-        return;
-      }
-    }else if(incoming <= 0) return;
+    const result = profileManager.updateProfileForPlayer({
+      player,
+      update:profile=>resolveServerCombatFire({player, profile, enemy, payload})
+    });
+    if(!result.ok){
+      emitCombatMiss(enemy, result.reason || "Tir non valide.");
+      return;
+    }
+    const incoming = result.damage || 0;
+    socket.emit("combat:hit", {
+      enemyId:enemy.id,
+      weaponClass:result.weaponClass,
+      ammoId:result.ammoId,
+      consumed:result.consumed,
+      hit:result.hit,
+      damage:incoming,
+      mapId:String(player.mapId ?? ""),
+      x:Number(enemy.x || 0),
+      y:Number(enemy.y || 0),
+      radius:Number(enemy.radius || 0),
+      at:Date.now()
+    });
+    emitProfileSync?.(player, result.profile);
+    if(incoming <= 0){
+      emitInstance(group);
+      return;
+    }
     const wasAlive = enemy.hp > 0;
     markEnemyAttackedByPlayer(enemy, socket.id);
     applyDamageToEnemy(enemy, incoming);

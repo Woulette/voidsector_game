@@ -17,26 +17,16 @@ export function registerCombatHandlers(socket, context){
     });
   }
 
-  socket.on("coop:enemy-hit", payload=>{
-    if(!guard("coop:enemy-hit")) return;
-    applyEnemyHit(socket, payload);
-  });
-
   socket.on("combat:fire", payload=>{
     if(!guard("combat:fire")){
       emitCombatMiss(payload);
       return;
     }
-    applyEnemyHit(socket, {...payload, serverCalculated:true});
+    applyEnemyHit(socket, payload);
   });
 
   socket.on("loot:pickup", payload=>{
     if(!guard("loot:pickup")) return;
     pickupLoot(socket, payload);
-  });
-
-  socket.on("enemy:hit", payload=>{
-    if(!guard("enemy:hit")) return;
-    applyEnemyHit(socket, payload);
   });
 }

@@ -62,10 +62,18 @@ export function createProfileController({
     if(Array.isArray(profile.inventoryItems)) store.state.inventoryItems = clone(profile.inventoryItems);
     if(Number.isFinite(Number(profile.nextInventoryUid))) store.state.nextInventoryUid = Math.max(1, Math.floor(Number(profile.nextInventoryUid)));
     if(profile.ammoInventory && typeof profile.ammoInventory === "object") store.state.ammoInventory = clone(profile.ammoInventory);
-    if(Array.isArray(profile.actionSlots)) store.state.actionSlots = Array.from({length:9}, (_,index)=>{
-      const itemId = profile.actionSlots[index];
-      return typeof itemId === "string" && itemId.length > 0 ? itemId : null;
-    });
+    const profileHasSlotsByShip = profile.actionSlotsByShip && typeof profile.actionSlotsByShip === "object";
+    if(profileHasSlotsByShip) store.state.actionSlotsByShip = clone(profile.actionSlotsByShip);
+    if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
+    if(Array.isArray(store.state.actionSlotsByShip?.[store.state.activeShip])){
+      store.state.actionSlots = Array.from({length:9}, (_,index)=>store.state.actionSlotsByShip[store.state.activeShip][index] || null);
+    }else if(profileHasSlotsByShip){
+      store.state.actionSlotsByShip[store.state.activeShip] = Array(9).fill(null);
+      store.state.actionSlots = [...store.state.actionSlotsByShip[store.state.activeShip]];
+    }else if(Array.isArray(profile.actionSlots)) store.state.actionSlots = Array.from({length:9}, (_,index)=>{
+        const itemId = profile.actionSlots[index];
+        return typeof itemId === "string" && itemId.length > 0 ? itemId : null;
+      });
     if(Object.hasOwn(profile, "lastLaserAmmoId")) store.state.lastLaserAmmoId = typeof profile.lastLaserAmmoId === "string" ? profile.lastLaserAmmoId : null;
     if(profile.shipLoadouts && typeof profile.shipLoadouts === "object") store.state.shipLoadouts = clone(profile.shipLoadouts);
     if(Array.isArray(profile.unlockedPortals)) store.state.unlockedPortals = [...new Set(profile.unlockedPortals.map(String))];
@@ -79,9 +87,9 @@ export function createProfileController({
     store.state.player.xpNext = getXpNextForLevel(store.state.player.level);
     store.state.player.xp = Math.min(Math.max(0, Number(store.state.player.xp || 0)), store.state.player.xpNext);
     store.state.xpCurveVersion = xpCurveVersion;
-    for(const key of ["cargoHold","shipCargo","skillRanks","skillLevels","completedPortals","portalPieces","refineryLevels","refineryModules","refineryUpgradeJobs","refineryProductionDisabled","questProgress","questFailProgress","completedQuestClaims","killStats","rankKillStats"]){
-      if(profile[key] && typeof profile[key] === "object") store.state[key] = clone(profile[key]);
-    }
+      for(const key of ["cargoHold","shipCargo","skillRanks","skillLevels","completedPortals","portalPieces","refineryLevels","refineryModules","refineryUpgradeJobs","refineryProductionDisabled","questProgress","questFailProgress","completedQuestClaims","killStats","rankKillStats","worldSession","shipWorldSessions"]){
+        if(profile[key] && typeof profile[key] === "object") store.state[key] = clone(profile[key]);
+      }
     if(Array.isArray(profile.activeQuestIds)) store.state.activeQuestIds = profile.activeQuestIds.map(String).slice(0, 5);
     if(Object.hasOwn(profile, "activeQuestId")) store.state.activeQuestId = typeof profile.activeQuestId === "string" ? profile.activeQuestId : (store.state.activeQuestIds?.[0] || null);
     store.state.refineryShipmentJob = profile.refineryShipmentJob ? clone(profile.refineryShipmentJob) : null;

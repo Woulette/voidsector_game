@@ -13,6 +13,7 @@ export function createEquipmentActions({
   applyServerDroneUpgrade,
   equipServerInventoryItem,
   unequipServerSlot,
+  unequipServerShip,
   saveState,
   renderAllPreserveInventoryScroll,
   showToast
@@ -148,5 +149,42 @@ export function createEquipmentActions({
     renderAllPreserveInventoryScroll();
   }
 
-  return {equipPart, autoEquipInventoryItem, unequipPart};
+  function countShipLoadoutItems(loadout){
+    return [
+      ...(Array.isArray(loadout?.lasers) ? loadout.lasers : []),
+      loadout?.missileLauncher,
+      loadout?.rocketLauncher,
+      ...(Array.isArray(loadout?.generators) ? loadout.generators : []),
+      ...(Array.isArray(loadout?.extras) ? loadout.extras : [])
+    ].filter(Boolean).length;
+  }
+
+  function unequipSelectedShipLoadout(){
+    const ship = getShip(store.state.selectedShip);
+    if(!ship) return false;
+    if(multiplayer.connected){
+      if(unequipServerShip?.({shipId:ship.id})){
+        showToast("Retrait complet envoye au serveur.");
+        return true;
+      }
+      return false;
+    }
+    const loadout = getLoadout(ship.id);
+    const count = countShipLoadoutItems(loadout);
+    if(!count){
+      showToast(`Aucun equipement a retirer sur ${ship.name}.`);
+      return false;
+    }
+    loadout.lasers = Array(ship.stats.maxLasers).fill(null);
+    loadout.missileLauncher = null;
+    loadout.rocketLauncher = null;
+    loadout.generators = Array(ship.stats.maxGenerators).fill(null);
+    loadout.extras = Array(ship.stats.maxExtras || 3).fill(null);
+    store.state.shipLoadouts[ship.id] = loadout;
+    showToast(`Tout l'equipement de ${ship.name} a ete retire.`);
+    renderAllPreserveInventoryScroll();
+    return true;
+  }
+
+  return {equipPart, autoEquipInventoryItem, unequipPart, unequipSelectedShipLoadout};
 }

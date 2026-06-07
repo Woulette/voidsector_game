@@ -4,6 +4,7 @@ const CLIENT_PROGRESS_TYPES = new Set([
   "space_caster_use",
   "quest_item_drop",
   "talk_npc",
+  "deliver_item",
   "visit_coordinates"
 ]);
 
@@ -38,7 +39,13 @@ export function registerQuestHandlers(socket, context){
       socket.emit("quest:error", {message:result.reason || "Recompense impossible."});
       return;
     }
-    socket.emit("quest:claimed", {id:result.quest?.id, title:result.quest?.title, at:Date.now()});
+    socket.emit("quest:claimed", {
+      id:result.quest?.id,
+      title:result.quest?.title,
+      reward:result.reward || result.claimedQuests?.[0]?.reward || {},
+      auto:false,
+      at:Date.now()
+    });
     emitProfileSync(player, result.profile);
   });
 

@@ -115,12 +115,13 @@ import { createRewardSystem } from "./systems/rewards.js";
 import { createWeaponSystem } from "./systems/weapons.js";
 import { updatePoisonStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
+import { createCombatChat } from "./ui/combatChat.js";
 import { createCombatLogoutController } from "./ui/combatLogoutController.js";
 import { installCombatInputHandlers } from "./ui/inputBindings.js";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js";
 import { createCombatPanels } from "./ui/combatPanels.js";
-import { acceptServerQuest, buyServerAmmo, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendPlayerSnapshot, sendServerEnemyHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
+import { acceptServerQuest, buyServerAmmo, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPlayerSnapshot, sendServerEnemyHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
@@ -368,6 +369,14 @@ export function createCombatGame({renderAll, showToast}){
     formatDuration,
     graphicsQualityPresets:GRAPHICS_QUALITY_PRESETS,
     getGraphicsQuality
+  });
+  const chat = createCombatChat({
+    store,
+    saveState,
+    multiplayer,
+    sendChatMessage,
+    fmt,
+    showToast
   });
   let cargo;
   const rewards = createRewardSystem({
@@ -658,8 +667,8 @@ export function createCombatGame({renderAll, showToast}){
     saveState,
     closeNpcDialogue:questNpcDialogue.close,
     clearPoison,
-    closeUtilityPanel:()=>panels.closeUtilityPanel(),
-    closeSpawnPanel:()=>panels.closeSpawnPanel(),
+    closeUtilityPanel:options=>panels.closeUtilityPanel(options),
+    closeSpawnPanel:options=>panels.closeSpawnPanel(options),
     showToast
   });
   const questProgress = createCombatQuestProgressSystem({

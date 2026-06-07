@@ -137,12 +137,12 @@ export function objectiveRequirementsMet(profile, quest, objective){
   });
 }
 
-export function progressQuestObjective(profile, quest, objective, index){
+export function progressQuestObjective(profile, quest, objective, index, increment = 1){
   const objectives = getQuestObjectives(quest);
   const target = Math.max(0, Number(objective.count || 0));
   const key = getQuestObjectiveKey(objective, index);
   const previous = getQuestObjectiveProgress(profile, quest.id, objective, index);
-  const next = Math.min(target, previous + 1);
+  const next = Math.min(target, previous + Math.max(1, Number(increment || 1)));
   if(objectives.length > 1){
     if(typeof profile.questProgress[quest.id] !== "object" || profile.questProgress[quest.id] === null) profile.questProgress[quest.id] = {};
     profile.questProgress[quest.id][key] = next;

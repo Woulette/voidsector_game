@@ -13,6 +13,9 @@ export function createSocketCommands({multiplayer}){
     requestServerLogout(){
       return emit(multiplayer, "session:logout-request");
     },
+    sendChatMessage({channel = "global", text = ""} = {}){
+      return emit(multiplayer, "chat:send", {channel, text});
+    },
     acceptServerQuest(id){
       return id ? emit(multiplayer, "quest:accept", {id}) : false;
     },
@@ -67,6 +70,9 @@ export function createSocketCommands({multiplayer}){
     buyServerItem(id){
       return emit(multiplayer, "shop:buy-item", {id});
     },
+    sellServerInventoryItem(inventoryUid){
+      return inventoryUid ? emit(multiplayer, "inventory:sell-item", {inventoryUid}) : false;
+    },
     buyServerShip(id){
       return emit(multiplayer, "shop:buy-ship", {id});
     },
@@ -84,6 +90,9 @@ export function createSocketCommands({multiplayer}){
     },
     unequipServerSlot({type, index = 0, shipId} = {}){
       return emit(multiplayer, "equipment:unequip-slot", {type, index, shipId});
+    },
+    unequipServerShip({shipId} = {}){
+      return shipId ? emit(multiplayer, "equipment:unequip-ship", {shipId}) : false;
     },
     unequipServerInventoryItem(inventoryUid){
       return emit(multiplayer, "equipment:unequip-inventory", {inventoryUid});

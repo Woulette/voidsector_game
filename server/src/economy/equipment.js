@@ -65,6 +65,55 @@ export function ensureDroneLoadout(profile){
   return profile.droneLoadout;
 }
 
+export function cleanupDuplicateEquippedInventoryUids(profile){
+  if(!profile || typeof profile !== "object") return false;
+  const inventoryUids = new Set((profile.inventoryItems || [])
+    .map(entry=>String(entry?.uid || ""))
+    .filter(Boolean));
+  const used = new Set();
+  let changed = false;
+
+  const keepOnce = value=>{
+    if(!value) return null;
+    const uid = String(value);
+    if(!inventoryUids.has(uid) || used.has(uid)){
+      changed = true;
+      return null;
+    }
+    used.add(uid);
+    return uid;
+  };
+
+  const shipLoadouts = profile.shipLoadouts && typeof profile.shipLoadouts === "object" ? profile.shipLoadouts : {};
+  const shipIds = Object.keys(shipLoadouts).sort((a, b)=>{
+    if(a === "orion") return -1;
+    if(b === "orion") return 1;
+    return 0;
+  });
+  for(const shipId of shipIds){
+    const loadout = shipLoadouts[shipId];
+    if(!loadout || typeof loadout !== "object") continue;
+    for(const part of ["lasers", "generators", "extras"]){
+      if(!Array.isArray(loadout[part])) continue;
+      const next = loadout[part].map(keepOnce);
+      if(next.some((uid, index)=>uid !== loadout[part][index])) changed = true;
+      loadout[part] = next;
+    }
+    for(const part of ["missileLauncher", "rocketLauncher"]){
+      const next = keepOnce(loadout[part]);
+      if(next !== (loadout[part] || null)) changed = true;
+      loadout[part] = next;
+    }
+  }
+
+  if(Array.isArray(profile.droneLoadout)){
+    const next = profile.droneLoadout.map(keepOnce);
+    if(next.some((uid, index)=>uid !== profile.droneLoadout[index])) changed = true;
+    profile.droneLoadout = next;
+  }
+  return changed;
+}
+
 export function findEquippedSlot(profile, uid){
   for(const [shipId, rawLoadout] of Object.entries(profile.shipLoadouts || {})){
     const loadout = rawLoadout || {};
@@ -176,6 +225,30 @@ export function unequipSlot(profile, {type, index = 0, shipId} = {}){
   else if(type === "extra" && targetIndex < loadout.extras.length) loadout.extras[targetIndex] = null;
   else return {ok:false, reason:"Slot invalide."};
   return {ok:true};
+}
+
+export function unequipShipLoadout(profile, {shipId} = {}){
+  const ship = getServerShip(shipId);
+  if(!ship) return {ok:false, reason:"Vaisseau inconnu."};
+  if(!Array.isArray(profile.ownedShips) || !profile.ownedShips.includes(ship.id)){
+    return {ok:false, reason:"Vaisseau non possede."};
+  }
+  const loadout = ensureProfileLoadout(profile, ship.id);
+  if(!loadout) return {ok:false, reason:"Loadout introuvable."};
+  const equippedCount = [
+    ...(Array.isArray(loadout.lasers) ? loadout.lasers : []),
+    loadout.missileLauncher,
+    loadout.rocketLauncher,
+    ...(Array.isArray(loadout.generators) ? loadout.generators : []),
+    ...(Array.isArray(loadout.extras) ? loadout.extras : [])
+  ].filter(Boolean).length;
+
+  loadout.lasers = Array(ship.stats.maxLasers).fill(null);
+  loadout.missileLauncher = null;
+  loadout.rocketLauncher = null;
+  loadout.generators = Array(ship.stats.maxGenerators).fill(null);
+  loadout.extras = Array(ship.stats.maxExtras || 3).fill(null);
+  return {ok:true, shipId:ship.id, count:equippedCount};
 }
 
 export function applyDronePermanentUpgrade(profile, {index = 0, inventoryUid} = {}){

@@ -58,6 +58,26 @@ Pas urgent avant les corrections en jeu, mais a garder en tete :
 
 Priorite suivante recommandee : corrections en jeu et securisation MMO, pas nouveau refactor structurel.
 
+## Securite MMO - Verrous par compte
+
+Fait :
+
+- `server/src/security/accountActionLocks.js`
+  - verrous anti double-clic et anti-spam par compte ;
+  - fallback invite par `clientId` quand le joueur n'est pas connecte ;
+  - logs serveur `Account action limited` pour les abus ;
+  - emission `account:action-limited` silencieuse cote gameplay.
+- `server/src/config.js`
+  - configuration des verrous par event sensible.
+- `server/src/index.js`
+  - branchement dans le `guard(eventName)` central, apres le rate-limit Socket.IO.
+
+Regle :
+
+- ne pas appliquer ces verrous a `player:state`, `player:laser` ou aux events de rendu combat rapides ;
+- garder les delais courts pour ne pas changer le gameplay normal ;
+- renforcer seulement les actions qui touchent aux donnees critiques : economie, equipement, quetes, progression, raffinerie, loot et portails.
+
 ## Extraction 1 - Socket handlers autoritaires
 
 Fait :
@@ -511,7 +531,7 @@ Resultat :
 Prochaine priorite essentielle :
 
 - ajouter les verrous anti-spam par compte sur les actions sensibles ;
-- finir les domaines encore trop clients : rang, vente / recyclage, controles admin minimum ;
+- finir les domaines encore trop clients : rang et controles admin minimum ;
 - aligner ou factoriser les formules raffinerie serveur si on veut eviter les divergences client / serveur.
 
 ## Extraction 11 - Raffinerie serveur
@@ -544,4 +564,33 @@ Resultat :
 Suite recommandee :
 
 - arreter le gros decoupage structurel ;
-- passer aux corrections en jeu et aux priorites MMO : anti-spam serveur, rang serveur, vente / recyclage serveur, admin minimum.
+- passer aux corrections en jeu et aux priorites MMO : anti-spam serveur, rang serveur et admin minimum.
+
+## Ajout MMO - Chat combat
+
+Le chat combat MMO est decoupe en modules dedies :
+
+- `server/src/socket/chatHandlers.js`
+  - reception `chat:send` ;
+  - validation du canal ;
+  - nettoyage du texte ;
+  - diffusion `chat:message` globale.
+- `src/multiplayer/chatSocketListeners.js`
+  - reception `chat:message` ;
+  - reception `chat:error` ;
+  - stockage temporaire dans `multiplayer.chatMessages`.
+- `src/game/ui/combatChat.js`
+  - fenetre chat redimensionnable ;
+  - onglets Global, Firme, Guilde et Log ;
+  - sauvegarde taille / position dans `uiLayout.combatChatPanel` ;
+  - journal personnel des rewards combat via `voidsector:combat-log`.
+
+Etat actuel :
+
+- canal Global MMO fonctionnel ;
+- canaux Firme et Guilde affiches mais bloques tant que la logique firmes / guildes n'existe pas ;
+- onglet Log alimente par les rewards serveur et le legacy solo.
+
+Regle :
+
+- ne pas mettre de logique chat dans `server/src/index.js`, `src/game/combatOrchestrator.js` ou `src/multiplayer/client.js` au-dela du branchement minimal.

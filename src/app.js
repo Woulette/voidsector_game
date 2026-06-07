@@ -49,7 +49,7 @@ import {
   XP_CURVE_VERSION
 } from "./core/store.js";
 import { createCombatGame } from "./game/combat.js?v=quest-claim-ui-1";
-import { applyServerDroneUpgrade, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, performServerPrestige, progressServerQuest, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
+import { applyServerDroneUpgrade, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, performServerPrestige, progressServerQuest, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
 import { initMultiplayer } from "./multiplayer/client.js";
 import { renderAll, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js";
 import { showToast } from "./ui/toast.js";
@@ -60,6 +60,8 @@ import { createShopActions } from "./app/shopActions.js";
 import { createEquipmentActions } from "./app/equipmentActions.js";
 import { createRefineryActions } from "./app/refineryActions.js";
 import { createProgressionActions } from "./app/progressionActions.js";
+import { createInventorySaleController } from "./app/inventorySaleController.js";
+import { createUnequipAllController } from "./app/unequipAllController.js";
 
 const Game = createCombatGame({renderAll, showToast});
 let inventoryClickTimer = null;
@@ -169,6 +171,15 @@ const {
   showToast
 });
 
+const inventorySaleController = createInventorySaleController({
+  multiplayer,
+  getInventoryItem,
+  getItem,
+  findEquippedSlot,
+  sellServerInventoryItem,
+  showToast
+});
+
 const progressionActions = createProgressionActions({
   multiplayer, store, ammoTypes, getPortal, getPortalPieces, isPortalUnlocked, canAfford, spend, addPortalPiece, addAmmo, unlockPortal, upgradeSkill,
   runServerSpaceCaster, progressServerQuest, recordQuestSpaceCasterUse, unlockServerPortal, upgradeServerSkill, saveAndSyncProfile, saveState, renderAll, showToast
@@ -212,7 +223,7 @@ window.voidsectorDev = {
   maxTest:applyDevProgressionBoost
 };
 
-const {equipPart, autoEquipInventoryItem, unequipPart} = createEquipmentActions({
+const {equipPart, autoEquipInventoryItem, unequipPart, unequipSelectedShipLoadout} = createEquipmentActions({
   multiplayer,
   store,
   getItemFromInventoryUid,
@@ -227,8 +238,17 @@ const {equipPart, autoEquipInventoryItem, unequipPart} = createEquipmentActions(
   applyServerDroneUpgrade,
   equipServerInventoryItem,
   unequipServerSlot,
+  unequipServerShip,
   saveState,
   renderAllPreserveInventoryScroll,
+  showToast
+});
+
+const unequipAllController = createUnequipAllController({
+  store,
+  getShip,
+  getLoadout,
+  unequipSelectedShipLoadout,
   showToast
 });
 
@@ -260,6 +280,9 @@ const refineryActions = createRefineryActions({
 });
 
 document.addEventListener("click", (e)=>{
+  if(inventorySaleController.handleClick(e)) return;
+  if(unequipAllController.handleClick(e)) return;
+
   const shipCard = e.target.closest("[data-ship-id]");
   if(shipCard){
     store.hangarTab = "vaisseau";

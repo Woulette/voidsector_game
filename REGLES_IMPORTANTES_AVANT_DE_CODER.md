@@ -59,6 +59,12 @@ Ces fichiers doivent rester courts et lisibles.
   - jobs simples : `server/src/economy/refineryJobs.js`
   - production : `server/src/economy/refineryProduction.js`
   - expeditions / craft soute : `server/src/economy/refineryShipments.js`
+- Securite serveur :
+  - verrous anti-spam par compte : `server/src/security/accountActionLocks.js`
+- Chat combat MMO :
+  - serveur Socket.IO : `server/src/socket/chatHandlers.js`
+  - listeners client : `src/multiplayer/chatSocketListeners.js`
+  - fenetre UI combat : `src/game/ui/combatChat.js`
 
 ## Quand creer un nouveau fichier
 
@@ -82,6 +88,8 @@ Ne pas creer un nouveau fichier si :
 - Le client peut garder du legacy/local tant que la migration n'est pas terminee, mais il ne doit pas devenir la source de verite MMO.
 - Si une feature touche le MMO, verifier le client ET le serveur.
 - Ne pas supprimer le mode local legacy sans demande explicite.
+- Une exigence technique de la roadmap ne doit pas devenir une nouvelle fonctionnalite visible sans demande explicite du createur.
+- Ne pas inventer de systeme de gameplay, d'economie ou d'interface pour remplir la roadmap. Demander ou reutiliser le fonctionnement deja defini.
 
 ## Regles de verification
 

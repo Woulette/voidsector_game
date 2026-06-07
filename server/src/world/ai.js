@@ -10,7 +10,7 @@ function getEnemyAiKind(kind){
   return String(kind || "drone_pirate").replace(/^boss_/, "");
 }
 
-export function createWorldAiManager({io, players, presence, profileManager, emitProfileSync, applyEnemyOnHitEffect, isPlayerSafeOnMap}){
+export function createWorldAiManager({players, presence, launchEnemyAttack, isPlayerSafeOnMap}){
   function canTargetPlayer(enemy, player, map, now){
     return canEnemyTargetPlayerInSafeZone({
       enemy,
@@ -35,58 +35,6 @@ export function createWorldAiManager({io, players, presence, profileManager, emi
       }
     }
     return best;
-  }
-
-  function emitEnemyAttack(enemy, map, target, amount){
-    presence.markCombat(target, "attaque ennemi");
-    const hpLost = presence.applyDamageToPlayerState(target, amount);
-    if(hpLost > 0){
-      const questResult = profileManager.applyQuestAction({
-        player:target,
-        action:{kind:"hp-loss", amount:hpLost}
-      });
-      emitProfileSync?.(target, questResult.profile);
-      if(questResult.updates?.length || questResult.failed?.length){
-        io.to(target.id).emit("quest:fail-progress", {
-          updates:questResult.updates || [],
-          failed:questResult.failed || [],
-          at:Date.now()
-        });
-      }
-    }
-    profileManager.saveWorldSession({player:target, state:target.state, force:Number(target.state?.hp || 0) <= 0});
-    enemy.attackAnimUntil = Date.now() + 320;
-    const fromX = enemy.x;
-    const fromY = enemy.y;
-    const toX = Number(target.state.x || 0);
-    const toY = Number(target.state.y || 0);
-    io.to(map.room || `map:${map.id}`).emit("enemy:attack", {
-      sourceId:enemy.id,
-      enemyId:enemy.id,
-      targetId:target.id,
-      mapId:map.id,
-      fromX,
-      fromY,
-      toX,
-      toY,
-      color:enemy.color || "rgba(248,113,113,.9)",
-      particle:enemy.particle || enemy.color || "rgba(248,113,113,.9)",
-      projectileSpeed:enemy.projectileSpeed || 600,
-      enemyKind:enemy.kind,
-      attackStyle:enemy.attackStyle || getEnemyAiKind(enemy.kind),
-      life:.22
-    });
-    io.to(target.id).emit("player:damage", {
-      enemyId:enemy.id,
-      mapId:map.id,
-      amount,
-      fromX,
-      fromY,
-      toX,
-      toY,
-      at:Date.now()
-    });
-    applyEnemyOnHitEffect?.(enemy, target);
   }
 
   function pickEnemyWanderTarget(enemy, map, now){
@@ -267,7 +215,14 @@ export function createWorldAiManager({io, players, presence, profileManager, emi
     if(canAttackTarget && presence.isActiveForWorld(attackTarget, now) && attackDistance <= Number(enemy.attackRange || 360) && now >= Number(enemy.nextAttackAt || 0)){
       const amount = Math.max(1, Math.round(Number(enemy.attackDamage || 25) * (0.85 + Math.random() * 0.3)));
       enemy.nextAttackAt = now + Number(enemy.attackCooldown || 1400);
-      emitEnemyAttack(enemy, map, attackTarget, amount);
+      launchEnemyAttack({
+        enemy,
+        map,
+        target:attackTarget,
+        amount,
+        now,
+        attackStyle:enemy.attackStyle || getEnemyAiKind(enemy.kind)
+      });
     }
   }
 

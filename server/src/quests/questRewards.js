@@ -1,6 +1,7 @@
 import { skills } from "../../../src/data/progression.js";
 import { applyProgressionReward } from "../players/progression.js";
 import { canClaimQuest, deepClone, getQuest, normalizeQuestFields, MAX_ACTIVE_QUESTS } from "./questState.js";
+import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
 
 function getQuestRewardMultipliers(profile){
   const result = {credits:1, premium:1};
@@ -27,38 +28,73 @@ function addMaterials(profile, materials = {}){
   }
 }
 
-function addQuestRewards(profile, quest){
+function buildQuestRewardSummary(profile, quest){
   const rewards = quest.rewards || {};
   const multipliers = getQuestRewardMultipliers(profile);
-  profile.player = applyProgressionReward(profile.player || {}, {
+  return {
     credits:Math.round(Number(rewards.credits || 0) * multipliers.credits),
     premium:Math.round(Number(rewards.premium || 0) * multipliers.premium),
-    xp:Number(rewards.xp || 0)
+    xp:Math.max(0, Math.round(Number(rewards.xp || 0))),
+    materials:deepClone(rewards.materials || {}),
+    shipCargoMaterialsForced:deepClone(rewards.shipCargoMaterialsForced || {}),
+    portalPieces:deepClone(rewards.portalPieces || {}),
+    ammo:deepClone(rewards.ammo || {}),
+    itemCounts:deepClone(rewards.itemCounts || {}),
+    items:Array.isArray(rewards.items) ? rewards.items.map(String) : []
+  };
+}
+
+function addQuestRewards(profile, quest){
+  const summary = buildQuestRewardSummary(profile, quest);
+  profile.player = applyProgressionReward(profile.player || {}, {
+    credits:summary.credits,
+    premium:summary.premium,
+    xp:summary.xp
   });
-  addMaterials(profile, rewards.materials || {});
-  addMaterials(profile, rewards.shipCargoMaterialsForced || {});
+  addMaterials(profile, summary.materials || {});
+  addMaterials(profile, summary.shipCargoMaterialsForced || {});
   if(!profile.portalPieces || typeof profile.portalPieces !== "object") profile.portalPieces = {};
-  for(const [portalId, amount] of Object.entries(rewards.portalPieces || {})){
+  for(const [portalId, amount] of Object.entries(summary.portalPieces || {})){
     profile.portalPieces[portalId] = Math.max(0, Number(profile.portalPieces[portalId] || 0)) + Math.max(0, Math.round(Number(amount || 0)));
   }
   if(!profile.ammoInventory || typeof profile.ammoInventory !== "object") profile.ammoInventory = {};
-  for(const [ammoId, amount] of Object.entries(rewards.ammo || {})){
+  for(const [ammoId, amount] of Object.entries(summary.ammo || {})){
     profile.ammoInventory[ammoId] = Math.max(0, Number(profile.ammoInventory[ammoId] || 0)) + Math.max(0, Math.round(Number(amount || 0)));
   }
   if(!Array.isArray(profile.inventoryItems)) profile.inventoryItems = [];
-  let nextUid = Math.max(1, Math.floor(Number(profile.nextInventoryUid || 1)));
-  for(const [itemId, amount] of Object.entries(rewards.itemCounts || {})){
+  for(const [itemId, amount] of Object.entries(summary.itemCounts || {})){
     const count = Math.max(0, Math.min(100, Math.round(Number(amount || 0))));
-    for(let i = 0; i < count; i += 1){
-      profile.inventoryItems.push({uid:`inv_${itemId}_${nextUid}`, itemId});
-      nextUid += 1;
-    }
+    addInventoryItemAmount(profile, itemId, count);
   }
-  for(const itemId of Array.isArray(rewards.items) ? rewards.items : []){
-    profile.inventoryItems.push({uid:`inv_${itemId}_${nextUid}`, itemId});
-    nextUid += 1;
+  for(const itemId of summary.items){
+    addInventoryItemAmount(profile, itemId, 1);
   }
-  profile.nextInventoryUid = nextUid;
+  return summary;
+}
+
+function completeServerQuest(profile, quest){
+  const reward = addQuestRewards(profile, quest);
+  profile.completedQuestClaims[quest.id] = true;
+  delete profile.questFailProgress[quest.id];
+  profile.activeQuestIds = profile.activeQuestIds.filter(questId=>questId !== quest.id).slice(0, MAX_ACTIVE_QUESTS);
+  if(profile.activeQuestId === quest.id) profile.activeQuestId = profile.activeQuestIds[0] || null;
+  return {quest:deepClone(quest), reward};
+}
+
+export function claimCompletedServerQuests(profile, questIds = null){
+  normalizeQuestFields(profile);
+  const candidates = Array.isArray(questIds) && questIds.length
+    ? [...new Set(questIds.map(String))]
+    : [...profile.activeQuestIds];
+  const claimed = [];
+  for(const id of candidates){
+    const quest = getQuest(id);
+    if(!quest || profile.completedQuestClaims?.[quest.id]) continue;
+    if(!profile.activeQuestIds.includes(quest.id)) continue;
+    if(!canClaimQuest(profile, quest)) continue;
+    claimed.push(completeServerQuest(profile, quest));
+  }
+  return {claimed};
 }
 
 export function claimServerQuest(profile, id){
@@ -68,10 +104,6 @@ export function claimServerQuest(profile, id){
   if(profile.completedQuestClaims?.[quest.id]) return {ok:false, reason:"Quete deja terminee."};
   if(!profile.activeQuestIds.includes(quest.id)) return {ok:false, reason:"Quete non active."};
   if(!canClaimQuest(profile, quest)) return {ok:false, reason:"Objectif non rempli."};
-  addQuestRewards(profile, quest);
-  profile.completedQuestClaims[quest.id] = true;
-  delete profile.questFailProgress[quest.id];
-  profile.activeQuestIds = profile.activeQuestIds.filter(questId=>questId !== quest.id).slice(0, MAX_ACTIVE_QUESTS);
-  if(profile.activeQuestId === quest.id) profile.activeQuestId = profile.activeQuestIds[0] || null;
-  return {ok:true, quest:deepClone(quest)};
+  const completed = completeServerQuest(profile, quest);
+  return {ok:true, quest:completed.quest, reward:completed.reward, claimedQuests:[completed]};
 }

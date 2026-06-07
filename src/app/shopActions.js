@@ -39,6 +39,9 @@ export function createShopActions({
   function buyItem(id){
     const item = getItem(id);
     if(!item) return;
+    if(item.category === "quest_item" && !multiplayer.connected){
+      return showToast("Connexion au serveur requise pour acheter un objet de quete.");
+    }
     if(multiplayer.connected && buyServerItem(id)) return showToast("Achat envoye au serveur.");
     if(!canAfford(item.priceType, item.price)) return showToast("Fonds insuffisants.");
     spend(item.priceType, item.price);

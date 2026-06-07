@@ -8,20 +8,17 @@ export function createCombatCommands({multiplayer}){
     multiplayer.socket.emit("player:state", payload);
   }
 
-  function sendServerEnemyHit(enemyId, amount, context = {}){
+  function sendServerEnemyHit(enemyId, context = {}){
     if(!multiplayer.connected || !multiplayer.socket || !enemyId) return;
-    const payload = {
+    multiplayer.socket.emit("combat:fire", {
       enemyId,
-      amount,
       weaponClass:context.weaponClass || "laser",
       ammoId:context.ammoId || "ammo_x1",
       count:context.count || 1,
-      serverCalculated:Boolean(context.serverCalculated),
       clientAimX:Number(context.clientAimX || 0),
       clientAimY:Number(context.clientAimY || 0),
       targetRadius:Number(context.targetRadius || 0)
-    };
-    multiplayer.socket.emit(payload.serverCalculated ? "combat:fire" : "enemy:hit", payload);
+    });
   }
 
   function sendPlayerLaserEffect(payload){

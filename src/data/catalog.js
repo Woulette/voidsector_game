@@ -60,6 +60,7 @@ export const defaultState = {
   questProgress:{},
   questFailProgress:{},
   completedQuestClaims:{},
+  starterRepairGranted:true,
   uiLayout:{
     combatUtilityPanel:null,
     combatUtilityPanels:{},

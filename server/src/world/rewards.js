@@ -23,6 +23,7 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
         rewardId,
         enemyId:enemy.id,
         enemyType:enemy.type,
+        enemyName:enemy.name || enemy.type || enemy.kind,
         enemyLevel:enemy.level,
         mapId,
         share,

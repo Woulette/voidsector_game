@@ -1,6 +1,6 @@
 import { WORLD_MAPS } from "../world/definitions.js";
 
-export function createKillQuestProgress({io, players, profileManager, emitProfileSync}){
+export function createKillQuestProgress({io, players, profileManager, emitProfileSync, emitQuestClaims}){
   function progressServerQuestsForKill({enemy, mapId, attackerId}){
     const attacker = players.get(attackerId);
     if(!attacker || !enemy) return;
@@ -15,6 +15,7 @@ export function createKillQuestProgress({io, players, profileManager, emitProfil
         updates:profileResult.updates,
         at:Date.now()
       });
+      if(profileResult.claimedQuests?.length) emitQuestClaims?.(attacker, profileResult.claimedQuests, {auto:true});
       emitProfileSync?.(attacker, profileResult.profile);
     }
   }

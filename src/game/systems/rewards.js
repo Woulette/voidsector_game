@@ -92,6 +92,18 @@ export function createRewardSystem({
     if(questCompleted) showToast("Quete terminee : retourne au relais pour reclamer la recompense.");
 
     pushLootNotice({credits, xp, reputation, rankPoints, premium, piece:questItemDrop ? `${questItemDrop.itemName} au sol` : pieceDrop ? `Piece ${pieceDrop.name} au sol` : null});
+    window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
+      kind:"reward",
+      enemyName:enemy.name || enemy.type || enemyTypes[enemy.kind]?.name || enemy.kind || "Monstre",
+      enemyType:enemy.kind || "",
+      enemyLevel:enemy.level || 0,
+      credits,
+      xp,
+      premium,
+      reputation,
+      rankPoints,
+      at:Date.now()
+    }}));
     spawnRewardParticles(enemy);
     saveState();
   }

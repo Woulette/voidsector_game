@@ -129,13 +129,41 @@ export function consumeAmmo(id, amount){
 function isValidActionSlotItem(id){
   if(getAmmo(id)) return true;
   const item = getItem(id);
-  return item?.category === "extra" || Boolean(getDroneFormation(id));
+  return item?.category === "extra" || ["missileLauncher", "rocketLauncher"].includes(item?.slotType) || Boolean(getDroneFormation(id));
+}
+
+function sanitizeActionSlotArray(value){
+  return Array.from({length:9}, (_,index)=>{
+    const id = Array.isArray(value) ? value[index] : null;
+    return id && isValidActionSlotItem(id) ? id : null;
+  });
+}
+
+export function getActionSlotsForShip(shipId = store.state.activeShip){
+  const cleanShipId = String(shipId || store.state.activeShip || "orion");
+  if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
+  if(!Array.isArray(store.state.actionSlotsByShip[cleanShipId])){
+    store.state.actionSlotsByShip[cleanShipId] = sanitizeActionSlotArray([]);
+  }
+  return store.state.actionSlotsByShip[cleanShipId];
+}
+
+export function persistActiveShipActionSlots(){
+  const shipId = String(store.state.activeShip || "orion");
+  getActionSlotsForShip(shipId);
+  store.state.actionSlotsByShip[shipId] = sanitizeActionSlotArray(store.state.actionSlots);
+}
+
+export function syncActiveShipActionSlots(shipId = store.state.activeShip){
+  store.state.actionSlots = [...getActionSlotsForShip(shipId)];
+  return store.state.actionSlots;
 }
 
 export function setActionSlot(index, itemId){
-  if(!store.state.actionSlots) store.state.actionSlots = Array(9).fill(null);
+  syncActiveShipActionSlots();
   if(index < 0 || index >= 9) return false;
   store.state.actionSlots[index] = itemId && isValidActionSlotItem(itemId) ? itemId : null;
+  persistActiveShipActionSlots();
   return true;
 }
 
@@ -176,15 +204,23 @@ export function cleanDroneLoadout(raw, inventoryItems = store.state?.inventoryIt
 export function addInventoryItem(itemId){
   const item = getItem(itemId) || getAmmo(itemId);
   if(!item) return null;
+  if(item.category === "quest_item"){
+    const existing = store.state.inventoryItems.find(entry=>entry.itemId === itemId);
+    if(existing){
+      existing.quantity = Math.max(1, Number(existing.quantity || 1)) + 1;
+      return existing;
+    }
+  }
   const uid = `inv_${itemId}_${store.state.nextInventoryUid || 1}`;
   store.state.nextInventoryUid = (store.state.nextInventoryUid || 1) + 1;
-  const entry = {uid, itemId};
+  const entry = {uid, itemId, ...(item.category === "quest_item" ? {quantity:1} : {})};
   store.state.inventoryItems.push(entry);
   return entry;
 }
 
 export function getInventoryCount(itemId){
-  return store.state.inventoryItems.filter(entry=>entry.itemId === itemId).length;
+  return store.state.inventoryItems.reduce((total, entry)=>
+    entry.itemId === itemId ? total + Math.max(1, Number(entry.quantity || 1)) : total, 0);
 }
 
 export function removeInventoryItems(itemId, amount){
@@ -194,8 +230,12 @@ export function removeInventoryItems(itemId, amount){
   let removed = 0;
   store.state.inventoryItems = store.state.inventoryItems.filter(entry=>{
     if(entry.itemId !== itemId || removed >= need) return true;
-    removed += 1;
-    return false;
+    const quantity = Math.max(1, Number(entry.quantity || 1));
+    const consumed = Math.min(quantity, need - removed);
+    removed += consumed;
+    if(consumed >= quantity) return false;
+    entry.quantity = quantity - consumed;
+    return true;
   });
   return removed === need;
 }

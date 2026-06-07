@@ -102,6 +102,14 @@
             <div>
               <h2 id="loadoutShipTitle">VELOX</h2>
             </div>
+            <button id="unequipAllShipBtn" class="unequip-all-button" type="button" data-unequip-all-open title="Tout desequiper" aria-label="Tout desequiper le vaisseau">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+                <path d="M10 12h9" />
+                <path d="m16 9 3 3-3 3" />
+                <path d="M10 20V4l5 2v12l-5 2z" />
+              </svg>
+            </button>
           </div>
           <div id="loadoutPanel" class="loadout-panel-body"></div>
         </section>
@@ -307,7 +315,20 @@
       <button data-utility-panel="quests" type="button" title="Quetes" aria-label="Quetes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l2 2v16H5V5z"></path><path d="M8 8h8"></path><path d="M8 12h6"></path><path d="M8 16h5"></path></svg></button>
       <button data-utility-panel="map" type="button" title="Carte" aria-label="Carte"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5l5-2 8 2 5-2v13l-5 2-8-2-5 2z"></path><path d="M8 4.5v13"></path><path d="M16 6.5v13"></path><path d="M6 13l3-3 3 2 3-4 3 3"></path></svg></button>
       <button data-utility-panel="settings" type="button" title="Reglages" aria-label="Reglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 4.4-2.6 7.4-7 9-4.4-1.6-7-4.6-7-9V7z"></path><path d="M9 12l2 2 4-5"></path></svg></button>
-      <button class="disabled" type="button" disabled title="Journal" aria-label="Journal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h11l1 2v14H6z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path><path d="M9 16h4"></path></svg></button>
+      <button data-chat-toggle type="button" title="Chat" aria-label="Chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H8l-4 4z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></svg></button>
+    </div>
+    <div id="combatChatPanel" class="combat-chat-panel frame hidden" aria-label="Chat">
+      <div class="combat-chat-head" data-chat-drag-handle>
+        <strong>Chat</strong>
+        <button data-chat-close type="button" aria-label="Fermer le chat">×</button>
+      </div>
+      <div id="combatChatTabs" class="combat-chat-tabs"></div>
+      <div id="combatChatMessages" class="combat-chat-messages" aria-live="polite"></div>
+      <form id="combatChatForm" class="combat-chat-form">
+        <input id="combatChatInput" type="text" maxlength="220" autocomplete="off" placeholder="Message global...">
+        <button type="submit" aria-label="Envoyer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-5 16-3-6z"></path><path d="M12 14l8-10"></path></svg></button>
+      </form>
+      <div class="combat-chat-resize" data-chat-resize aria-hidden="true"></div>
     </div>
     <div id="combatUtilityPanelGroup" class="combat-utility-panel frame hidden" data-utility-mode="group">
       <div class="combat-utility-panel-head">

@@ -66,8 +66,8 @@ export function createCombatLogoutController({
     document.getElementById("combatQuickPanel").classList.add("hidden");
     closeNpcDialogue();
     clearPoison();
-    closeUtilityPanel();
-    closeSpawnPanel();
+    closeUtilityPanel({persist:false});
+    closeSpawnPanel({persist:false});
     showToast("Session de jeu deconnectee.");
     setTimeout(()=>{
       window.close();

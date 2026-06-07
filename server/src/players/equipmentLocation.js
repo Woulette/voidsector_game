@@ -1,4 +1,5 @@
 import { WORLD_MAPS } from "../world/definitions.js";
+import { ships } from "../../../src/data/ships.js";
 
 export function createEquipmentLocationManager({io, players, profileManager, setPlayerMap}){
   function getPlayerFirmId(player, profile = null){
@@ -55,21 +56,27 @@ export function createEquipmentLocationManager({io, players, profileManager, set
     };
   }
 
-  function buildFirmSpawnSession({shipId, firmId, state = null} = {}){
+  function buildFirmSpawnSession({shipId, firmId, state = null, savedSession = null} = {}){
     const homeMap = getHomeMapForFirm(firmId);
     const spawn = homeMap?.spawn || WORLD_MAPS["0"].spawn;
+    const cleanShipId = String(shipId || state?.shipId || "unknown");
+    const ship = ships.find(entry=>entry.id === cleanShipId);
+    const baseMaxHp = Math.max(1, Number(ship?.stats?.vie || 1));
+    const restored = savedSession && String(savedSession.shipId || "") === cleanShipId ? savedSession : null;
+    const maxHp = Math.max(baseMaxHp, Number(restored?.maxHp || baseMaxHp));
+    const maxShield = Math.max(0, Number(restored?.maxShield || 0));
     return {
       source:"ship-change",
       mapId:String(homeMap?.id || "0"),
       x:Number(spawn.x || 0),
       y:Number(spawn.y || 0),
       angle:Number(state?.angle || 0),
-      hp:1,
-      maxHp:1,
-      shield:0,
-      maxShield:0,
-      shipId:String(shipId || state?.shipId || "unknown"),
-      shipImg:String(state?.shipImg || ""),
+      hp:Math.max(0, Math.min(maxHp, Number(restored?.hp ?? maxHp))),
+      maxHp,
+      shield:Math.max(0, Math.min(maxShield, Number(restored?.shield ?? maxShield))),
+      maxShield,
+      shipId:cleanShipId,
+      shipImg:String(restored?.shipImg || state?.shipImg || ship?.combatImg || ship?.img || ""),
       updatedAt:Date.now()
     };
   }
@@ -85,7 +92,8 @@ export function createEquipmentLocationManager({io, players, profileManager, set
     const spawnSession = buildFirmSpawnSession({
       shipId:activeShip,
       firmId:location?.firmId,
-      state:liveGamePlayer?.state || profileManager.getWorldSessionForPlayer(player)
+      state:liveGamePlayer?.state || profileManager.getWorldSessionForPlayer(player),
+      savedSession:liveGamePlayer?.state || profileManager.getShipWorldSessionForPlayer(player, activeShip)
     });
     let profile = result?.profile || null;
     if(liveGamePlayer?.state){

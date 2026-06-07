@@ -34,15 +34,15 @@ export function createCombatHitResolutionSystem({
   rewardEnemy,
   applyPlayerPoison
 }){
-  function pushDamageText({x, y, value, color, shadowColor}){
+  function pushDamageText({x, y, value, color, shadowColor, life = .82}){
     const {damageTexts} = getState();
     const isMiss = value === "MISS";
     damageTexts.push({
       x,
       y,
       value,
-      life:.82,
-      max:.82,
+        life,
+        max:life,
       vx:(Math.random() - .5) * (isMiss ? 18 : 34),
       vy:isMiss ? -30 : -48 - Math.random() * 18,
       wobble:Math.random() * Math.PI * 2,

@@ -1,9 +1,13 @@
+import { validatePlayerState } from "../players/playerStateValidation.js";
+
 export function registerPlayerHandlers(socket, context){
   const {
     cleanName,
     emitProfileSync,
     emitPlayers,
+    groups,
     guard,
+    logger,
     players,
     presence,
     profileManager,
@@ -66,8 +70,20 @@ export function registerPlayerHandlers(socket, context){
   socket.on("profile:save", payload=>{
     if(!guard("profile:save")) return;
     const player = players.get(socket.id);
-    const incoming = profileManager.saveFromPayload({player, payload});
+    const saveResult = profileManager.saveFromPayload({player, payload});
+    const incoming = saveResult?.profile || saveResult;
     if(incoming){
+      if(saveResult?.claimedQuests?.length){
+        for(const claim of saveResult.claimedQuests){
+          socket.emit("quest:claimed", {
+            id:claim.quest?.id,
+            title:claim.quest?.title,
+            reward:claim.reward || {},
+            auto:true,
+            at:Date.now()
+          });
+        }
+      }
       socket.emit("profile:saved", {updatedAt:incoming.updatedAt});
       emitProfileSync?.(player, incoming);
     }
@@ -80,26 +96,26 @@ export function registerPlayerHandlers(socket, context){
     player.connected = true;
     player.disconnecting = false;
     player.removeAt = 0;
-    const nextMapId = String(payload?.mapId ?? player.mapId ?? "0");
-    player.state = {
-      x:Number(payload?.x || 0),
-      y:Number(payload?.y || 0),
-      angle:Number(payload?.angle || 0),
-      hp:Number(payload?.hp || 0),
-      maxHp:Number(payload?.maxHp || payload?.hp || 0),
-      shield:Number(payload?.shield || 0),
-      maxShield:Number(payload?.maxShield || payload?.shield || 0),
-      vx:Number(payload?.vx || 0),
-      vy:Number(payload?.vy || 0),
-      enginePower:Number(payload?.enginePower || 0),
-      engineAngle:Number(payload?.engineAngle || 0),
-      mapId:nextMapId,
-      shipId:String(payload?.shipId || "unknown"),
-      shipImg:String(payload?.shipImg || ""),
-      rankName:String(payload?.rankName || ""),
-      rankAssetPath:String(payload?.rankAssetPath || ""),
-      updatedAt:Date.now()
-    };
+    if(player.shipSwitchLockUntil && Date.now() < Number(player.shipSwitchLockUntil || 0)){
+      return;
+    }
+    player.shipSwitchLockUntil = 0;
+    const validation = validatePlayerState({
+      player,
+      payload,
+      profile:profileManager.getProfileForPlayer(player),
+      groups
+    });
+    player.state = validation.state;
+    const nextMapId = validation.state.mapId;
+    if(validation.corrected){
+      logger?.warn?.("Player state corrected", {
+        playerId:player.id,
+        accountId:player.accountId || null,
+        reason:validation.reason
+      });
+      socket.emit("player:state-correction", {...validation.state, source:"state-correction"});
+    }
     profileManager.saveWorldSession({player, state:player.state});
     presence.syncMovementLogoutState(player);
     setPlayerMap(socket, nextMapId);

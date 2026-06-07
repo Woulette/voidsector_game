@@ -6,6 +6,7 @@ import { createProfileActions } from "./profileActions.js";
 import { createProfileMutations } from "./profileMutations.js";
 import { preserveProtectedOwnership, sanitizeProfile } from "./profileSanitize.js";
 import { createProfileWorldSession } from "./profileWorldSession.js";
+import { claimCompletedServerQuests } from "../quests/quests.js";
 
 export { sanitizeProfile } from "./profileSanitize.js";
 
@@ -51,6 +52,27 @@ export function createProfileManager({cleanName, logger}){
     return changed;
   }
 
+  function autoClaimCompletedQuests(profile, now = Date.now()){
+    if(!profile) return [];
+    const claimed = claimCompletedServerQuests(profile).claimed || [];
+    if(claimed.length) profile.updatedAt = now;
+    return claimed;
+  }
+
+  function emitQuestClaims(socket, claimedQuests = []){
+    if(!socket || !Array.isArray(claimedQuests) || !claimedQuests.length) return;
+    const at = Date.now();
+    for(const claim of claimedQuests){
+      socket.emit("quest:claimed", {
+        id:claim.quest?.id,
+        title:claim.quest?.title,
+        reward:claim.reward || {},
+        auto:true,
+        at
+      });
+    }
+  }
+
   function syncForSocket(socket, player){
     if(!player) return;
     const accountKey = player.accountId ? accountProfileKey(player.accountId) : null;
@@ -58,11 +80,13 @@ export function createProfileManager({cleanName, logger}){
     if(accountProfile){
       const starterChanged = ensureStarterRepairDrone(accountProfile);
       const refineryChanged = advanceRefineryState(accountProfile);
-      if(refineryChanged || starterChanged){
+      const claimedQuests = autoClaimCompletedQuests(accountProfile);
+      if(refineryChanged || starterChanged || claimedQuests.length){
         if(starterChanged) accountProfile.updatedAt = Date.now();
         profiles.set(accountKey, sanitizeProfile(accountProfile));
         persist();
       }
+      emitQuestClaims(socket, claimedQuests);
       socket.emit("profile:sync", accountProfile);
       return;
     }
@@ -72,8 +96,10 @@ export function createProfileManager({cleanName, logger}){
         updatedAt:Date.now()
       });
       next.updatedAt = Math.max(Number(next.updatedAt || 0), Date.now());
+      const claimedQuests = autoClaimCompletedQuests(next);
       profiles.set(accountKey, next);
       persist();
+      emitQuestClaims(socket, claimedQuests);
       socket.emit("profile:sync", next);
       return;
     }
@@ -81,11 +107,13 @@ export function createProfileManager({cleanName, logger}){
     if(!legacyProfile) return;
     const starterChanged = ensureStarterRepairDrone(legacyProfile);
     const refineryChanged = advanceRefineryState(legacyProfile);
-    if(refineryChanged || starterChanged){
+    const claimedQuests = autoClaimCompletedQuests(legacyProfile);
+    if(refineryChanged || starterChanged || claimedQuests.length){
       if(starterChanged) legacyProfile.updatedAt = Date.now();
       profiles.set(profileKey(player.name), sanitizeProfile(legacyProfile));
       persist();
     }
+    emitQuestClaims(socket, claimedQuests);
     socket.emit("profile:sync", legacyProfile);
   }
 
@@ -107,9 +135,10 @@ export function createProfileManager({cleanName, logger}){
       existingPlayer:existing.player
     });
     preserveProtectedOwnership(incoming, existing);
+    const claimedQuests = autoClaimCompletedQuests(incoming);
     profiles.set(key, incoming);
     persist();
-    return incoming;
+    return {profile:incoming, claimedQuests};
   }
 
   function getExistingProfile(player){
@@ -145,6 +174,7 @@ export function createProfileManager({cleanName, logger}){
     addShipPurchase,
     addDronePurchase,
     addDroneFormationPurchase,
+    sellInventoryItem,
     applyEquipmentAction,
     setActiveShipForPlayer,
     applyQuestAction,
@@ -154,6 +184,7 @@ export function createProfileManager({cleanName, logger}){
 
   const {
     getProfileForPlayer,
+    getShipWorldSessionForPlayer,
     getWorldSessionForPlayer,
     saveWorldSession
   } = createProfileWorldSession({profiles, persist, getExistingProfile});
@@ -170,12 +201,14 @@ export function createProfileManager({cleanName, logger}){
     addShipPurchase,
     addDronePurchase,
     addDroneFormationPurchase,
+    sellInventoryItem,
     applyEquipmentAction,
     setActiveShipForPlayer,
     applyQuestAction,
     applyEconomyAction,
     applyProgressionAction,
     getProfileForPlayer,
+    getShipWorldSessionForPlayer,
     getWorldSessionForPlayer,
     saveWorldSession,
     profileKey,

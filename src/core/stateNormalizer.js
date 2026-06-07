@@ -2,7 +2,7 @@ import { ammoTypes, defaultState, droneFormations, equipment, portals, rawMateri
 import { normalizeSlotKeybinds } from "./keybinds.js";
 import { getDroneCatalog, getItem, getQuest, getRawMaterial, getShip } from "./catalogStore.js";
 import { enforcePlayerCurrencyMinimums } from "./currencyStore.js";
-import { cleanDroneLoadout, ensureShipLoadout, getDroneLoadout, getInventoryItem, getItemFromInventoryUid, makeEmptyLoadout } from "./equipmentStore.js";
+import { cleanDroneLoadout, ensureShipLoadout, getDroneLoadout, getInventoryItem, getItemFromInventoryUid } from "./equipmentStore.js";
 import { normalizeGraphicsQuality } from "./graphicsStore.js";
 import { getRankScore } from "./rankStore.js";
 import { canShipRefineryMaterial, getDefaultRefineryLevel, REFINERY_MODULES } from "./refineryStore.js";
@@ -51,8 +51,32 @@ export function normalizeState(saved){
     ? saved.inventoryItems.filter(entry=>entry?.uid && equipment.some(i=>i.id===entry.itemId))
     : (Array.isArray(saved?.ownedItems) ? saved.ownedItems.filter(id=>equipment.some(i=>i.id===id)).map((itemId,index)=>({uid:`inv_${itemId}_${index+1}`, itemId})) : clone(base.inventoryItems));
   if(!merged.inventoryItems.some(entry=>entry.itemId === "laser_mk1")) merged.inventoryItems.unshift({uid:"inv_laser_mk1_1", itemId:"laser_mk1"});
-  if(!merged.inventoryItems.some(entry=>entry.itemId === "extra_repair_starter")) merged.inventoryItems.push({uid:"inv_repair_starter_2", itemId:"extra_repair_starter"});
+  const hasAnyRepairBot = merged.inventoryItems.some(entry=>{
+    const item = equipment.find(candidate=>candidate.id === entry.itemId);
+    return Boolean(item?.effect?.repairBot);
+  });
+  const hasSavedStarterRepairFlag = saved && Object.hasOwn(saved, "starterRepairGranted");
+  merged.starterRepairGranted = hasSavedStarterRepairFlag ? Boolean(saved.starterRepairGranted) : hasAnyRepairBot;
+  if(!merged.starterRepairGranted && !hasAnyRepairBot){
+    merged.inventoryItems.push({uid:"inv_repair_starter_2", itemId:"extra_repair_starter"});
+    merged.starterRepairGranted = true;
+  }else if(hasAnyRepairBot && !merged.starterRepairGranted){
+    merged.starterRepairGranted = true;
+  }
   merged.inventoryItems = dedupeInventoryUids(merged.inventoryItems);
+  const stackedQuestItems = new Map();
+  merged.inventoryItems = merged.inventoryItems.filter(entry=>{
+    const item = equipment.find(candidate=>candidate.id === entry.itemId);
+    if(item?.category !== "quest_item") return true;
+    const existing = stackedQuestItems.get(entry.itemId);
+    if(existing){
+      existing.quantity = Math.max(1, Number(existing.quantity || 1)) + Math.max(1, Number(entry.quantity || 1));
+      return false;
+    }
+    entry.quantity = Math.max(1, Number(entry.quantity || 1));
+    stackedQuestItems.set(entry.itemId, entry);
+    return true;
+  });
   merged.nextInventoryUid = Math.max(
     Number(saved?.nextInventoryUid || base.nextInventoryUid || 1),
     getNextInventoryUid(merged.inventoryItems)
@@ -111,8 +135,9 @@ export function normalizeState(saved){
   }
   merged.actionSlots = Array.from({length:9}, (_,i)=>{
     const value = Array.isArray(saved?.actionSlots) ? saved.actionSlots[i] : base.actionSlots[i];
-    return value && (ammoTypes.some(a=>a.id === value) || equipment.some(item=>item.id === value && (item.category === "extra" || item.slotType === "missileLauncher"))) ? value : null;
+    return value && (ammoTypes.some(a=>a.id === value) || equipment.some(item=>item.id === value && (item.category === "extra" || ["missileLauncher", "rocketLauncher"].includes(item.slotType)))) ? value : null;
   });
+  merged.actionSlotsByShip = {};
   {
     const lastLaserAmmo = ammoTypes.find(ammo=>ammo.id === saved?.lastLaserAmmoId && ammo.weaponClass === "laser")
       || ammoTypes.find(ammo=>ammo.id === base.lastLaserAmmoId && ammo.weaponClass === "laser");
@@ -284,6 +309,20 @@ export function normalizeState(saved){
   if(merged.activeShip !== null && (!ships.some(s=>s.id===merged.activeShip) || !merged.ownedShips.includes(merged.activeShip))) merged.activeShip = starterShipId;
   if(!ships.some(s=>s.id===merged.selectedShip) || !merged.ownedShips.includes(merged.selectedShip)) merged.selectedShip = merged.activeShip;
   if(!merged.selectedShip) merged.selectedShip = starterShipId;
+  const sanitizeSlots = value=>Array.from({length:9}, (_,index)=>{
+    const id = Array.isArray(value) ? value[index] : null;
+    return id && (ammoTypes.some(ammo=>ammo.id === id) || equipment.some(item=>item.id === id && (item.category === "extra" || ["missileLauncher", "rocketLauncher"].includes(item.slotType))) || droneFormations.some(formation=>formation.id === id)) ? id : null;
+  });
+  const hasSavedActionSlotsByShip = saved?.actionSlotsByShip && typeof saved.actionSlotsByShip === "object";
+  if(hasSavedActionSlotsByShip){
+    for(const shipId of merged.ownedShips){
+      if(Array.isArray(saved.actionSlotsByShip[shipId])) merged.actionSlotsByShip[shipId] = sanitizeSlots(saved.actionSlotsByShip[shipId]);
+    }
+  }
+  if(!merged.actionSlotsByShip[merged.activeShip]){
+    merged.actionSlotsByShip[merged.activeShip] = hasSavedActionSlotsByShip ? sanitizeSlots([]) : sanitizeSlots(merged.actionSlots);
+  }
+  merged.actionSlots = [...merged.actionSlotsByShip[merged.activeShip]];
   merged.shipLoadouts = saved?.shipLoadouts && typeof saved.shipLoadouts === "object" ? saved.shipLoadouts : clone(base.shipLoadouts);
   if(accidentalVeloxStarterOnly){
     merged.shipLoadouts[starterShipId] = merged.shipLoadouts.velox || merged.shipLoadouts[starterShipId] || clone(base.shipLoadouts[starterShipId]);
@@ -330,25 +369,21 @@ function getNextInventoryUid(items){
 
 function ensureStarterRepairDrone(){
   const starterUid = store.state.inventoryItems?.find(entry=>entry.itemId === "extra_repair_starter")?.uid;
-  if(!starterUid) return;
-  if(!store.state.shipLoadouts || typeof store.state.shipLoadouts !== "object") store.state.shipLoadouts = {};
-  const loadout = store.state.shipLoadouts.orion || makeEmptyLoadout("orion");
-  const extras = Array.isArray(loadout.extras) ? loadout.extras : [];
-  const hasRepairExtra = extras.some(uid=>{
-    const item = getItemFromInventoryUid(uid);
-    return item?.effect?.repairBot;
-  });
-  if(!hasRepairExtra && extras.length > 0) extras[0] = starterUid;
-  loadout.extras = extras;
-  store.state.shipLoadouts.orion = loadout;
-  if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
-  if(!store.state.actionSlots[0]) store.state.actionSlots[0] = "ammo_x1";
-  if(!store.state.actionSlots[8]) store.state.actionSlots[8] = "extra_repair_starter";
+  if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
+  if(!Array.isArray(store.state.actionSlotsByShip.orion)){
+    store.state.actionSlotsByShip.orion = ["ammo_x1", null, null, null, null, null, null, null, starterUid ? "extra_repair_starter" : null];
+  }
+  if(store.state.activeShip === "orion") store.state.actionSlots = [...store.state.actionSlotsByShip.orion];
 }
 
 function migrateLoadoutItemIds(){
   const used = new Set();
-  for(const shipId of Object.keys(store.state.shipLoadouts || {})){
+  const shipIds = Object.keys(store.state.shipLoadouts || {}).sort((a, b)=>{
+    if(a === "orion") return -1;
+    if(b === "orion") return 1;
+    return 0;
+  });
+  for(const shipId of shipIds){
     const raw = store.state.shipLoadouts[shipId] || {};
     for(const part of ["lasers", "generators", "extras"]){
       raw[part] = (raw[part] || []).map(value=>{
@@ -357,6 +392,7 @@ function migrateLoadoutItemIds(){
         const item = getItem(value);
         if(!item) return null;
         let entry = store.state.inventoryItems.find(candidate=>candidate.itemId === value && !used.has(candidate.uid));
+        if(!entry && value === "extra_repair_starter") return null;
         if(!entry) entry = addInventoryItem(value);
         used.add(entry.uid);
         return entry.uid;
@@ -369,6 +405,7 @@ function migrateLoadoutItemIds(){
       const item = getItem(value);
       if(!item){ raw[part] = null; continue; }
       let entry = store.state.inventoryItems.find(candidate=>candidate.itemId === value && !used.has(candidate.uid));
+      if(!entry && value === "extra_repair_starter"){ raw[part] = null; continue; }
       if(!entry) entry = addInventoryItem(value);
       used.add(entry.uid);
       raw[part] = entry.uid;

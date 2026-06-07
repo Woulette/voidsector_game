@@ -46,8 +46,26 @@ Deja en place :
 - anti-double gain initial : les ennemis monde marquent leurs rewards/drops comme deja traites, le ramassage supprime le drop avant mutation profil, les portails marquent l'instance comme rewardee et le client n'applique plus localement les munitions / completion quand `rewardAppliedByServer` est actif.
 - recompenses portail serveur renforcees : fin de portail ajoute credits / NOVA / XP, compteur `completedPortals` et munitions portail directement dans le profil serveur.
 - progression rang serveur initiale : les kills monde MMO ajoutent maintenant reputation, totalKills, points de monstres, bestiaire de grade et score de rang cote serveur.
+- verrous anti-spam par compte initiaux : les actions sensibles economie, equipement, quetes, progression, raffinerie, loot et portails ont une limite par compte en plus du rate-limit par socket.
+- chat MMO initial : canal Global serveur, fenetre combat redimensionnable et journal personnel des rewards / drops en combat.
+- vente d'equipement serveur : la vente se fait depuis l'inventaire du hangar, avec confirmation du prix avant mutation serveur ; prix de vente actuel : 35% du prix d'achat.
 
-Prochaine priorite : ajouter des verrous anti-spam par compte sur les actions sensibles, puis finir les derniers domaines encore trop clients : vente / recyclage et controles admin minimum.
+Prochaine priorite : tests automatises MMO et controles admin minimum.
+
+## Obligations gameplay MMO a integrer
+
+Ces points font maintenant partie du scope obligatoire avant une beta publique propre :
+
+- choix de firme au demarrage du personnage : ASTRA, CYAN, JAUNE ou VERTE ;
+- nom de pilote/personnage distinct du compte, affiche en jeu a la place du nom prototype `NOVA-37` ;
+- quetes adaptees par firme : un joueur vert doit recevoir les variantes de quetes sur les maps vertes, pas les objectifs ASTRA ;
+- les quetes d'une firme ne doivent pas etre accessibles aux autres firmes, sauf exception explicitement prevue ;
+- portails fermes / quetes de deblocage equivalents sur les maps 2 de chaque firme, avec positions propres a chaque quadrant ;
+- validation automatique des quetes terminees quand elles n'ont pas de prerequis special de retour PNJ ;
+- les quetes speciales gardent leur logique explicite, par exemple retourner voir le controleur de mission ;
+- les recompenses de quetes auto doivent apparaitre dans le popup de gain combat et dans le log du chat ;
+- succes et ornements visuels autour du pseudo font partie du contenu de retention, mais peuvent passer apres la beta technique ;
+- bugs visuels de soin drone : le drone de reparation doit regarder vers le vaisseau, et le rayon de soin doit viser le centre du vaisseau.
 
 ## Definition de "MMO 100%" pour VoidSector
 
@@ -167,7 +185,7 @@ serveur -> renvoie le nouveau profil valide
 Actions a rendre serveur :
 
 - achat magasin ;
-- vente / recyclage ;
+- vente d'equipement depuis l'inventaire du hangar ;
 - equiper / desequiper item ;
 - upgrade equipement ;
 - depense de NOVA ;

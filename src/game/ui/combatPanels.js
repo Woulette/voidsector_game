@@ -1,5 +1,6 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
 import { renderSpawnPanelContent } from "./spawnPanel.js";
+import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import {
   multiplayer,
   connectMultiplayer,
@@ -93,6 +94,8 @@ const GAME_MAP_BRIDGES = [
   {from:"VERTE-05", to:"CORE", label:"Acces noyau vert"}
 ];
 
+const UTILITY_PANEL_MODES = ["group", "quests", "settings", "map"];
+
 export function createCombatPanels({
   store,
   saveState,
@@ -128,6 +131,7 @@ export function createCombatPanels({
   graphicsQualityPresets = [],
   getGraphicsQuality
 }){
+  hydrateCombatUiLayout(store);
   let spawnPanelMode = null;
   let spawnPanelRefreshT = 0;
   let utilityPanelRefreshT = 0;
@@ -156,21 +160,30 @@ export function createCombatPanels({
     utilityPanelRefreshT = 0;
     groupHudRefreshT = 0;
     refreshGroupFloatingHud();
+    hydrateCombatUiLayout(store);
+    setTimeout(()=>{
+      restoreOpenUtilityPanels();
+      restoreOpenSpawnPanel();
+    }, 0);
   }
 
   function getSpawnPanelMode(){
     return spawnPanelMode;
   }
 
-  function closeSpawnPanel(){
+  function closeSpawnPanel(options = {}){
+    const persist = options?.persist !== false;
     spawnPanelMode = null;
     spawnPanelRefreshT = 0;
     document.getElementById("spawnInteractionPanel")?.classList.add("hidden");
+    if(persist) saveSpawnPanelOpenState(null, false);
     syncUtilityDockButtons();
   }
 
-  function closeUtilityPanel(){
+  function closeUtilityPanel(options = {}){
+    const persist = options?.persist === true;
     document.querySelectorAll(".combat-utility-panel").forEach(panel=>panel.classList.add("hidden"));
+    if(persist) saveUtilityPanelsOpenState([]);
     syncUtilityDockButtons();
   }
 
@@ -244,16 +257,52 @@ export function createCombatPanels({
     panel.style.bottom = "auto";
   }
 
-  function saveUtilityPanelLayout(mode, layout){
+  function ensureUtilityPanelLayout(mode){
     if(!store.state.uiLayout || typeof store.state.uiLayout !== "object") store.state.uiLayout = {};
     if(!store.state.uiLayout.combatUtilityPanels || typeof store.state.uiLayout.combatUtilityPanels !== "object") store.state.uiLayout.combatUtilityPanels = {};
-    store.state.uiLayout.combatUtilityPanels[mode] = layout;
+    if(!store.state.uiLayout.combatUtilityPanels[mode] || typeof store.state.uiLayout.combatUtilityPanels[mode] !== "object") store.state.uiLayout.combatUtilityPanels[mode] = {};
+    return store.state.uiLayout.combatUtilityPanels[mode];
+  }
+
+  function saveUtilityPanelsOpenState(openModes){
+    if(!store.state.uiLayout || typeof store.state.uiLayout !== "object") store.state.uiLayout = {};
+    if(!store.state.uiLayout.combatUtilityPanels || typeof store.state.uiLayout.combatUtilityPanels !== "object") store.state.uiLayout.combatUtilityPanels = {};
+    const openSet = new Set(openModes);
+    for(const mode of UTILITY_PANEL_MODES){
+      const previous = store.state.uiLayout.combatUtilityPanels[mode] || {};
+      store.state.uiLayout.combatUtilityPanels[mode] = {...previous, open:openSet.has(mode)};
+    }
+    persistCombatUiLayout(store);
+    saveState();
+  }
+
+  function saveUtilityPanelOpenState(mode, open){
+    const layout = ensureUtilityPanelLayout(mode);
+    layout.open = Boolean(open);
+    persistCombatUiLayout(store);
+    saveState();
+  }
+
+  function saveUtilityPanelLayout(mode, layout){
+    const previous = ensureUtilityPanelLayout(mode);
+    store.state.uiLayout.combatUtilityPanels[mode] = {...previous, ...layout, open:previous.open !== false};
+    persistCombatUiLayout(store);
     saveState();
   }
 
   function saveSpawnPanelLayout(layout){
     if(!store.state.uiLayout || typeof store.state.uiLayout !== "object") store.state.uiLayout = {};
-    store.state.uiLayout.spawnInteractionPanel = layout;
+    const previous = store.state.uiLayout.spawnInteractionPanel || {};
+    store.state.uiLayout.spawnInteractionPanel = {...previous, ...layout};
+    persistCombatUiLayout(store);
+    saveState();
+  }
+
+  function saveSpawnPanelOpenState(mode, open){
+    if(!store.state.uiLayout || typeof store.state.uiLayout !== "object") store.state.uiLayout = {};
+    const previous = store.state.uiLayout.spawnInteractionPanel || {};
+    store.state.uiLayout.spawnInteractionPanel = {...previous, mode:mode || previous.mode || null, open:Boolean(open)};
+    persistCombatUiLayout(store);
     saveState();
   }
 
@@ -689,29 +738,60 @@ export function createCombatPanels({
   }
 
   function openUtilityPanel(mode){
-    if(!["group", "quests", "settings", "map"].includes(mode)) return;
+    if(!UTILITY_PANEL_MODES.includes(mode)) return;
     const panel = getUtilityPanel(mode);
     const content = getUtilityContent(mode);
     if(!panel || !content) return;
     if(!panel.classList.contains("hidden")){
       panel.classList.add("hidden");
+      saveUtilityPanelOpenState(mode, false);
       syncUtilityDockButtons();
       return;
     }
     if(mode === "quests"){
       refreshQuestUtilityPanel({show:true});
+      saveUtilityPanelOpenState(mode, true);
       return;
     }
     if(mode === "settings"){
       refreshSettingsUtilityPanel({show:true});
+      saveUtilityPanelOpenState(mode, true);
       return;
     }
     if(mode === "map"){
       refreshMapUtilityPanel({show:true});
+      saveUtilityPanelOpenState(mode, true);
       return;
     }
     refreshGroupUtilityPanel({show:true, focus:true});
+    saveUtilityPanelOpenState(mode, true);
   }
+
+  function restoreOpenUtilityPanels(){
+    for(const mode of UTILITY_PANEL_MODES){
+      const layout = store.state?.uiLayout?.combatUtilityPanels?.[mode];
+      if(!layout?.open) continue;
+      if(mode === "quests") refreshQuestUtilityPanel({show:true});
+      else if(mode === "settings") refreshSettingsUtilityPanel({show:true});
+      else if(mode === "map") refreshMapUtilityPanel({show:true});
+      else refreshGroupUtilityPanel({show:true, focus:false});
+    }
+  }
+
+  function restoreOpenSpawnPanel(){
+    const layout = store.state?.uiLayout?.spawnInteractionPanel;
+    const mode = layout?.open ? String(layout.mode || "") : "";
+    if(!["refinery", "quests"].includes(mode)) return;
+    renderSpawnInteractionPanel(mode);
+  }
+
+  window.addEventListener("voidsector:profile-applied", ()=>{
+    setTimeout(()=>{
+      hydrateCombatUiLayout(store);
+      restoreOpenUtilityPanels();
+      restoreOpenSpawnPanel();
+    }, 0);
+  });
 
   function trackCombatQuest(questId){
     if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.includes(questId)){
@@ -770,11 +850,13 @@ export function createCombatPanels({
     panel.classList.toggle("quest-mode", mode === "quests");
     if(!mode){
       panel.classList.add("hidden");
+      saveSpawnPanelOpenState(null, false);
       syncUtilityDockButtons();
       return;
     }
     panel.classList.remove("hidden");
     applySpawnPanelLayout(panel);
+    saveSpawnPanelOpenState(mode, true);
     syncUtilityDockButtons();
     const inventoryUpgradeables = [...new Set((store.state.inventoryItems || []).map(entry=>entry.itemId))]
       .map(id=>getItem(id))

@@ -172,9 +172,10 @@ function renderInventoryCell(entry, shipId = null){
       data-inventory-uid="${entry.uid}"
       data-inventory-category="${entry.item.category}"
       title="${entry.item.name}${equipped ? ` · ${locationLabel(equipped)}` : " · disponible"}">
-    <img src="${entry.item.img}" alt="${entry.item.name}">
-    <span class="inventory-kind-label">${badge}</span>
-  </button>`;
+      <img src="${entry.item.img}" alt="${entry.item.name}">
+      <span class="inventory-kind-label">${badge}</span>
+      ${Number(entry.quantity || 1) > 1 ? `<b class="inventory-quantity">x${Number(entry.quantity)}</b>` : ""}
+    </button>`;
 }
 
 function equipmentInventoryBadge(item){
@@ -249,6 +250,9 @@ function renderSelectedInventoryDetail(){
     ? `${!equippedInActivePanel && compatibleWithActivePanel ? `<button class="blue-button small" data-inventory-equip="${selectedEntry.uid}">Déplacer ici</button>` : ""}
        <button class="blue-button secondary small" data-inventory-unequip="${selectedEntry.uid}">Retirer</button>`
     : `<button class="blue-button small" data-inventory-equip="${selectedEntry.uid}">Équiper</button>`;
+  const saleButton = selectedItem.shop !== false && Number(selectedItem.price || 0) > 0
+    ? `<button class="blue-button secondary small" data-inventory-sell="${selectedEntry.uid}">Vendre</button>`
+    : "";
   return `
     <div class="selected-item-art"><img src="${selectedItem.img}" alt="${selectedItem.name}"></div>
     <div class="selected-item-copy">
@@ -258,6 +262,7 @@ function renderSelectedInventoryDetail(){
       <small>${locationLabel(selectedEquipped)}</small>
       <div class="selected-item-actions">
         ${actionButtons}
+        ${saleButton}
       </div>
     </div>`;
 }
@@ -275,7 +280,13 @@ export function renderLoadout(){
       ${item ? `<img src="${item.img}" alt="${item.name}"><b>${equipmentSlotBadge(item)}</b>` : `<span>${label}${index+1}</span><i>+</i>`}
     </button>`;
   };
-  const inventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur"), ...getInventoryByCategory("module"), ...getInventoryByCategory("extra")];
+  const inventoryEntries = [
+    ...getInventoryByCategory("canon"),
+    ...getInventoryByCategory("generateur"),
+    ...getInventoryByCategory("module"),
+    ...getInventoryByCategory("extra"),
+    ...getInventoryByCategory("quest_item")
+  ].filter(entry=>!entry.equipped);
   const emptyCells = Array.from({length:Math.max(0, 48 - inventoryEntries.length)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
   const panel = document.getElementById("loadoutPanel");
   if(!panel) return;
@@ -321,6 +332,7 @@ export function renderDroneSection(){
   const droneDef = getDroneCatalog();
   const drones = getDroneLoadout();
   const inventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur"), ...getInventoryByCategory("drone_upgrade")]
+    .filter(entry=>!entry.equipped)
     .filter(entry=>isDroneCompatibleEquipment(entry.item) || isDronePermanentUpgradeItem(entry.item));
   const emptyCells = Array.from({length:Math.max(0, 40 - inventoryEntries.length)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
   const nextPrice = drones.length >= droneDef.maxOwned ? null : getDronePurchasePrice(drones.length);

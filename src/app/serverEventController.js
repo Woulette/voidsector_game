@@ -48,6 +48,16 @@ export function createServerEventController({
       }
       return true;
     }
+    if(reason === "inventory:item-sold"){
+      for(const event of consume(multiplayer.inventorySaleEvents)){
+        const itemName = event.item?.name || "Objet";
+        const currency = event.priceType === "premium" ? "NOVA" : "credits";
+        showToast(`${itemName} vendu : +${Number(event.amount || 0).toLocaleString("fr-FR")} ${currency}.`);
+      }
+      renderAll();
+      window.dispatchEvent(new CustomEvent("voidsector:inventory-updated", {detail:{reason, type:"item-sale"}}));
+      return true;
+    }
     if(reason === "shop:ship-bought"){
       for(const event of consume(multiplayer.shopShipEvents)){
         const ship = getShip(event.id);
@@ -170,9 +180,14 @@ export function createServerEventController({
     if(reason === "ship:active-equipped"){
       const serverEvent = multiplayer.shipEvents?.shift();
       if(serverEvent?.shipId){
-        store.state.activeShip = serverEvent.shipId;
-        store.state.selectedShip = serverEvent.shipId;
-        ensureShipLoadout(serverEvent.shipId);
+          store.state.activeShip = serverEvent.shipId;
+          store.state.selectedShip = serverEvent.shipId;
+          if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
+          if(!Array.isArray(store.state.actionSlotsByShip[serverEvent.shipId])){
+            store.state.actionSlotsByShip[serverEvent.shipId] = Array(9).fill(null);
+          }
+          store.state.actionSlots = Array.from({length:9}, (_,index)=>store.state.actionSlotsByShip[serverEvent.shipId][index] || null);
+          ensureShipLoadout(serverEvent.shipId);
         saveState();
         showToast(`Vaisseau equipe au spawn ${serverEvent.homeMap || "de firme"}.`);
         renderAll();

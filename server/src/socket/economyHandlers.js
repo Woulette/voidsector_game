@@ -8,8 +8,13 @@ function emitQuestProgress(socket, result){
   });
 }
 
+function emitQuestClaims(player, emitQuestClaimsForPlayer, result){
+  if(!result.claimedQuests?.length) return;
+  emitQuestClaimsForPlayer?.(player, result.claimedQuests, {auto:true});
+}
+
 export function registerEconomyHandlers(socket, context){
-  const {emitProfileSync, guard, players, profileManager} = context;
+  const {emitProfileSync, emitQuestClaims:emitQuestClaimsForPlayer, guard, players, profileManager} = context;
 
   socket.on("space-caster:run", payload=>{
     if(!guard("space-caster:run")) return;
@@ -31,6 +36,7 @@ export function registerEconomyHandlers(socket, context){
       at:Date.now()
     });
     emitQuestProgress(socket, result);
+    emitQuestClaims(player, emitQuestClaimsForPlayer, result);
     emitProfileSync(player, result.profile);
   });
 
@@ -56,6 +62,7 @@ export function registerEconomyHandlers(socket, context){
       at:Date.now()
     });
     emitQuestProgress(socket, result);
+    emitQuestClaims(player, emitQuestClaimsForPlayer, result);
     emitProfileSync(player, result.profile);
   });
 
@@ -340,6 +347,28 @@ export function registerEconomyHandlers(socket, context){
       owned:alreadyOwned,
       priceType:purchase.priceType,
       price:alreadyOwned ? 0 : purchase.totalPrice,
+      at:Date.now()
+    });
+    emitProfileSync(player, result.profile);
+  });
+
+  socket.on("inventory:sell-item", payload=>{
+    if(!guard("inventory:sell-item")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const result = profileManager.sellInventoryItem({
+      player,
+      inventoryUid:payload?.inventoryUid
+    });
+    if(!result.ok){
+      socket.emit("inventory:error", {message:result.reason || "Vente impossible."});
+      return;
+    }
+    socket.emit("inventory:item-sold", {
+      inventoryUid:result.inventoryUid,
+      item:result.item,
+      priceType:result.priceType,
+      amount:result.amount,
       at:Date.now()
     });
     emitProfileSync(player, result.profile);

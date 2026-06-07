@@ -160,6 +160,12 @@ export function createCombatCargoSystem({
     const capacity = getShipCargoCapacity(getActiveShipId());
     showToast(`Cargo recupere : ${labels.join(" - ")} (${fmt(used)} / ${fmt(capacity)}).`);
     rewards.showCargoLoot(labels);
+    window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
+      kind:"loot",
+      enemyName:"Ramassage",
+      label:`Cargo : ${labels.join(" - ")}`,
+      at:Date.now()
+    }}));
     pendingCargoBox = null;
     onCargoChanged?.();
     if(getSpawnPanelMode()) onSpawnPanelRefresh?.(getSpawnPanelMode());
@@ -200,6 +206,12 @@ export function createCombatCargoSystem({
       saveState();
       showToast(`+1 ${node.name}.`);
       rewards.showLootNotice({piece:`+1 ${node.name}`});
+      window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
+        kind:"loot",
+        enemyName:"Ramassage",
+        label:`+1 ${node.name}`,
+        at:Date.now()
+      }}));
       pendingGroundMaterial = null;
       onCargoChanged?.();
       return true;
@@ -217,6 +229,12 @@ export function createCombatCargoSystem({
       saveState();
       showToast(`${node.name} recupere.`);
       rewards.showLootNotice({piece:`${node.name} recupere`});
+      window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
+        kind:"loot",
+        enemyName:"Ramassage",
+        label:`${node.name} recupere`,
+        at:Date.now()
+      }}));
       pendingGroundMaterial = null;
       onCargoChanged?.();
       if(getSpawnPanelMode()) onSpawnPanelRefresh?.(getSpawnPanelMode());
@@ -233,6 +251,12 @@ export function createCombatCargoSystem({
     particles().push({x:node.x, y:node.y, life:.36, max:.36, size:24, color:node.glowCore || "rgba(125,211,252,.5)"});
     saveState();
     showToast(`+1 ${node.name} dans la soute.`);
+    window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
+      kind:"loot",
+      enemyName:"Ramassage",
+      label:`+1 ${node.name}`,
+      at:Date.now()
+    }}));
     pendingGroundMaterial = null;
     onCargoChanged?.();
     return true;

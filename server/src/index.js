@@ -11,10 +11,12 @@ import { createPresenceManager } from "./players/presence.js";
 import { createProfileManager } from "./players/profiles.js";
 import { createPortalInstanceManager } from "./portals/instances.js";
 import { createKillQuestProgress } from "./quests/killProgress.js";
+import { createAccountActionLocks } from "./security/accountActionLocks.js";
 import { pauseServerQuestTimers, resumeServerQuestTimers } from "./quests/questFailures.js";
 import { createSocketRateLimiter } from "./socket/rateLimit.js";
 import { createEnemyHitHandler } from "./combat/enemyHits.js";
 import { registerAuthHandlers } from "./socket/authHandlers.js";
+import { registerChatHandlers } from "./socket/chatHandlers.js";
 import { registerCombatHandlers } from "./socket/combatHandlers.js";
 import { registerDisconnectHandlers } from "./socket/disconnectHandlers.js";
 import { registerEconomyHandlers } from "./socket/economyHandlers.js";
@@ -25,6 +27,7 @@ import { registerProgressionHandlers } from "./socket/progressionHandlers.js";
 import { registerQuestHandlers } from "./socket/questHandlers.js";
 import { startServerTick } from "./tick/serverTick.js";
 import { createWorldAiManager } from "./world/ai.js";
+import { createEnemyAttackManager } from "./world/enemyAttacks.js";
 import { createWorldLootManager } from "./world/loot.js";
 import { createWorldRewardManager } from "./world/rewards.js";
 import { createWorldStatusEffectManager } from "./world/statusEffects.js";
@@ -65,6 +68,15 @@ const allowSocketEvent = createSocketRateLimiter({
 });
 
 const players = new Map();
+
+const allowAccountAction = createAccountActionLocks({
+  rules:config.accountActionLocks,
+  players,
+  logger,
+  onLimit:({socket, eventName, retryAfterMs})=>{
+    socket.emit("account:action-limited", {eventName, retryAfterMs, at:Date.now()});
+  }
+});
 
 
 function cleanName(value){
@@ -120,6 +132,9 @@ function progressProfileQuestAction(socket, action = {}){
       updates:result.updates,
       at:Date.now()
     });
+  }
+  if(result.claimedQuests?.length) emitQuestClaimsForPlayer(player, result.claimedQuests, {auto:true});
+  if(result.updates?.length || result.claimedQuests?.length){
     emitProfileSyncForPlayer(player, result.profile);
   }
   return result;
@@ -160,6 +175,24 @@ function emitProfileSyncForPlayer(player, profile){
   }
 }
 
+function emitQuestClaimsForPlayer(player, claimedQuests = [], extra = {}){
+  if(!player || !Array.isArray(claimedQuests) || !claimedQuests.length) return;
+  const at = Date.now();
+  for(const accountPlayer of accountSocketsForPlayer(player)){
+    const accountSocket = io.sockets.sockets.get(accountPlayer.id);
+    if(!accountSocket) continue;
+    for(const claim of claimedQuests){
+      accountSocket.emit("quest:claimed", {
+        id:claim.quest?.id,
+        title:claim.quest?.title,
+        reward:claim.reward || {},
+        ...extra,
+        at
+      });
+    }
+  }
+}
+
 function setQuestTimersConnected(player, connected, now = Date.now()){
   if(!player || player.clientMode !== "game") return null;
   if(!connected){
@@ -194,13 +227,22 @@ const {
   emitProfileSync:emitProfileSyncForPlayer
 });
 
-const {updateWorldEnemy} = createWorldAiManager({
+const {
+  launchEnemyAttack,
+  updatePendingEnemyAttacks
+} = createEnemyAttackManager({
   io,
   players,
   presence,
   profileManager,
   emitProfileSync:emitProfileSyncForPlayer,
-  applyEnemyOnHitEffect,
+  applyEnemyOnHitEffect
+});
+
+const {updateWorldEnemy} = createWorldAiManager({
+  players,
+  presence,
+  launchEnemyAttack,
   isPlayerSafeOnMap
 });
 
@@ -265,7 +307,8 @@ const {progressServerQuestsForKill} = createKillQuestProgress({
   io,
   players,
   profileManager,
-  emitProfileSync:emitProfileSyncForPlayer
+  emitProfileSync:emitProfileSyncForPlayer,
+  emitQuestClaims:emitQuestClaimsForPlayer
 });
 
 const {
@@ -338,6 +381,7 @@ startServerTick({
   players,
   playersOnMap,
   presence,
+  updatePendingEnemyAttacks,
   updateStatusEffects,
   updateQuestTimers,
   updateWorldEnemy
@@ -345,7 +389,8 @@ startServerTick({
 
 io.on("connection", socket=>{
   function guard(eventName){
-    return allowSocketEvent(socket, eventName);
+    if(!allowSocketEvent(socket, eventName)) return false;
+    return allowAccountAction(socket, eventName);
   }
 
   players.set(socket.id, presence.createPlayer(socket.id));
@@ -359,6 +404,7 @@ io.on("connection", socket=>{
     players,
     profileManager,
     emitProfileSync:emitProfileSyncForPlayer,
+    emitQuestClaims:emitQuestClaimsForPlayer,
     progressProfileQuestAction
   };
   registerAuthHandlers(socket, {
@@ -372,7 +418,9 @@ io.on("connection", socket=>{
     ...socketContext,
     cleanName,
     emitPlayers,
+    groups,
     io,
+    logger,
     presence,
     publicPlayer,
     resumeQuestTimers:player=>setQuestTimersConnected(player, true),
@@ -381,6 +429,10 @@ io.on("connection", socket=>{
     syncProfileForPlayer
   });
   registerQuestHandlers(socket, socketContext);
+  registerChatHandlers(socket, {
+    ...socketContext,
+    io
+  });
   registerProgressionHandlers(socket, socketContext);
   registerEconomyHandlers(socket, socketContext);
   registerEquipmentHandlers(socket, {

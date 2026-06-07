@@ -26,10 +26,9 @@ export function objectiveMatchesAction(profile, objective = {}, action = {}){
     if(Array.isArray(objective.zones) && objective.zones.length && !objective.zones.includes(action.zoneName)) return false;
     if(objective.zone && objective.zone !== action.zoneName) return false;
     if(action.type === "deliver_item"){
+      if(objective.itemId && objective.itemId !== action.itemId) return false;
       const count = Math.max(0, Number(objective.count || 0));
-      const owned = Array.isArray(profile.inventoryItems)
-        ? profile.inventoryItems.filter(item=>item?.itemId === objective.itemId).length
-        : 0;
+      const owned = getInventoryItemCount(profile, objective.itemId);
       return owned >= count;
     }
     return true;
@@ -45,3 +44,4 @@ export function objectiveMatchesAction(profile, objective = {}, action = {}){
   }
   return false;
 }
+import { getInventoryItemCount } from "../economy/inventoryStacks.js";

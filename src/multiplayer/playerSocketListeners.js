@@ -20,6 +20,10 @@ export function installPlayerSocketListeners({
     window.dispatchEvent(new CustomEvent("voidsector:player-resume", {detail:{session}}));
     emitChange("player:resume", session);
   });
+  socket.on("player:state-correction", session=>{
+    window.dispatchEvent(new CustomEvent("voidsector:player-resume", {detail:{session}}));
+    emitChange("player:state-correction", session);
+  });
   socket.on("players:list", players=>{
     multiplayer.players = Array.isArray(players) ? players : [];
     const liveIds = new Set(multiplayer.players

@@ -10,6 +10,7 @@ export function registerEquipmentHandlers(socket, context){
     canChangeEquipmentAtFirmSpawn,
     finishEquipmentChangeAtFirmSpawn,
     setPlayerMap,
+    emitQuestClaims,
     emitProfileSync
   } = context;
 
@@ -23,20 +24,26 @@ export function registerEquipmentHandlers(socket, context){
       return;
     }
     const liveGamePlayer = location.gamePlayerId ? players.get(location.gamePlayerId) : null;
+    if(liveGamePlayer?.state){
+      profileManager.saveWorldSession({player:liveGamePlayer, state:liveGamePlayer.state, force:true});
+    }
+    const targetShipId = String(payload?.shipId || "");
     const spawnSession = buildFirmSpawnSession({
-      shipId:String(payload?.shipId || ""),
+      shipId:targetShipId,
       firmId:location.firmId,
-      state:liveGamePlayer?.state || profileManager.getWorldSessionForPlayer(player)
+      state:liveGamePlayer?.state || profileManager.getWorldSessionForPlayer(player),
+      savedSession:profileManager.getShipWorldSessionForPlayer(player, targetShipId)
     });
     const result = profileManager.setActiveShipForPlayer({
       player,
-      shipId:String(payload?.shipId || ""),
+      shipId:targetShipId,
       worldSession:spawnSession
     });
     if(!result.ok){
       socket.emit("ship:equip-error", {message:result.reason || "Changement de vaisseau impossible."});
       return;
     }
+    let syncedProfile = result.profile || null;
     if(liveGamePlayer?.state){
       liveGamePlayer.state = {
         ...liveGamePlayer.state,
@@ -44,10 +51,11 @@ export function registerEquipmentHandlers(socket, context){
         shipId:result.shipId,
         updatedAt:Date.now()
       };
+      liveGamePlayer.shipSwitchLockUntil = Date.now() + 900;
       liveGamePlayer.mapId = spawnSession.mapId;
       const gameSocket = io.sockets.sockets.get(liveGamePlayer.id);
       if(gameSocket) setPlayerMap(gameSocket, spawnSession.mapId);
-      profileManager.saveWorldSession({player:liveGamePlayer, state:liveGamePlayer.state, force:true});
+      syncedProfile = profileManager.saveWorldSession({player:liveGamePlayer, state:liveGamePlayer.state, force:true}) || syncedProfile;
     }
     const event = {
       shipId:result.shipId,
@@ -58,6 +66,7 @@ export function registerEquipmentHandlers(socket, context){
       source:location.source,
       at:Date.now()
     };
+    if(result.claimedQuests?.length) emitQuestClaims?.(player, result.claimedQuests, {auto:true});
     for(const accountPlayer of accountSocketsForPlayer(player)){
       const accountSocket = io.sockets.sockets.get(accountPlayer.id);
       if(!accountSocket) continue;
@@ -65,7 +74,7 @@ export function registerEquipmentHandlers(socket, context){
       if(accountPlayer.clientMode === "game"){
         accountSocket.emit("player:resume", spawnSession);
       }
-      if(result.profile) accountSocket.emit("profile:sync", result.profile);
+      if(syncedProfile) accountSocket.emit("profile:sync", syncedProfile);
     }
   });
 
@@ -118,6 +127,29 @@ export function registerEquipmentHandlers(socket, context){
       return;
     }
     finishEquipmentChangeAtFirmSpawn(player, location, result, {action:"unequip-slot", at:Date.now()});
+  });
+
+  socket.on("equipment:unequip-ship", payload=>{
+    if(!guard("equipment:unequip-ship")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const location = canChangeEquipmentAtFirmSpawn(player);
+    if(!location.ok){
+      socket.emit("equipment:error", {message:location.reason || "Modification d'equipement impossible."});
+      return;
+    }
+    const result = profileManager.applyEquipmentAction({
+      player,
+      action:{
+        kind:"unequip-ship",
+        shipId:String(payload?.shipId || "")
+      }
+    });
+    if(!result.ok){
+      socket.emit("equipment:error", {message:result.reason || "Retrait impossible."});
+      return;
+    }
+    finishEquipmentChangeAtFirmSpawn(player, location, result, {action:"unequip-ship", shipId:result.shipId, count:result.count || 0, at:Date.now()});
   });
 
   socket.on("equipment:unequip-inventory", payload=>{

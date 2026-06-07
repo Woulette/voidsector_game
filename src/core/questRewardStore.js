@@ -1,7 +1,7 @@
 import * as cargoStore from "./cargoStore.js";
 import { skills } from "../data/catalog.js";
 import { addAmmo, addInventoryItem, addPortalPiece, addXP, getQuest, store } from "./store.js";
-import { canClaimQuest } from "./questProgressStore.js";
+import { MAX_ACTIVE_QUESTS, canClaimQuest } from "./questProgressStore.js";
 
 function getQuestRewardMultipliers(){
   const result = {credits:1, premium:1};

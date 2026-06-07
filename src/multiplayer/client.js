@@ -1,4 +1,5 @@
 import { createCombatCommands } from "./combatCommands.js";
+import { installChatSocketListeners } from "./chatSocketListeners.js";
 import { createMultiplayerAuthController } from "./authController.js";
 import { installMultiplayerDomHandlers as installDomHandlers } from "./domHandlers.js";
 import { installEconomySocketListeners } from "./economySocketListeners.js";
@@ -53,10 +54,12 @@ export const multiplayer = {
   playerDamageEvents:[],
   playerStatusEffectEvents:[],
   playerRewardEvents:[],
+  chatMessages:[],
   resumeEvents:[],
   lootDropEvents:[],
   shopAmmoEvents:[],
   shopItemEvents:[],
+  inventorySaleEvents:[],
   shopShipEvents:[],
   shipEvents:[],
   shopDroneEvents:[],
@@ -248,6 +251,7 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       emitChange("logout:complete", payload);
     });
     installPlayerSocketListeners({socket, multiplayer, upsertRemotePlayer, addRemoteEffect, emitChange, toast});
+    installChatSocketListeners({socket, multiplayer, emitChange, toast});
     installEconomySocketListeners({socket, multiplayer, emitChange, toast});
     installProgressionSocketListeners({socket, multiplayer, emitChange, toast});
     installWorldSocketListeners({socket, multiplayer, replaceServerEnemies, emitChange, toast});
@@ -273,10 +277,12 @@ export function disconnectMultiplayer(){
   multiplayer.playerDamageEvents = [];
   multiplayer.playerStatusEffectEvents = [];
   multiplayer.playerRewardEvents = [];
+  multiplayer.chatMessages = [];
   multiplayer.resumeEvents = [];
   multiplayer.lootDropEvents = [];
   multiplayer.shopAmmoEvents = [];
   multiplayer.shopItemEvents = [];
+  multiplayer.inventorySaleEvents = [];
   multiplayer.shopShipEvents = [];
   multiplayer.shopDroneEvents = [];
   multiplayer.shopDroneFormationEvents = [];
@@ -305,6 +311,7 @@ export const {
 } = auth;
 
 export const requestServerLogout = socketCommands.requestServerLogout;
+export const sendChatMessage = socketCommands.sendChatMessage;
 export {sendPlayerSnapshot, sendServerEnemyHit, sendPlayerLaserEffect};
 
 export const syncMultiplayerProfile = state=>syncProfile(multiplayer, state);
@@ -328,12 +335,14 @@ export const {
   refineServerShipCargo,
   buyServerAmmo,
   buyServerItem,
+  sellServerInventoryItem,
   buyServerShip,
   equipServerActiveShip,
   buyServerDrone,
   buyServerDroneFormation,
   equipServerInventoryItem,
   unequipServerSlot,
+  unequipServerShip,
   unequipServerInventoryItem,
   applyServerDroneUpgrade,
   upgradeServerEquipment,

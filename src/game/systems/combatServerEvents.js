@@ -24,6 +24,7 @@ export function createCombatServerEventSystem({
   portalStartingLives
 }){
   const processedRewardIds = new Set();
+  const processedQuestClaimIds = new Set();
 
   function getCurrentMapToken(map){
     return String(map?.id ?? map?.name ?? "");
@@ -168,13 +169,16 @@ export function createCombatServerEventSystem({
       const toY = Number(event.toY ?? player.y);
       const distance = Math.hypot(toX - fromX, toY - fromY) || 1;
       const speed = Math.max(120, Number(event.projectileSpeed || enemy?.projectileSpeed || 600));
+      const serverTravelTime = Number(event.travelTime);
       bullets.push(createProjectile({
         owner:"serverEnemy",
         startX:fromX,
         startY:fromY,
         targetId:"player",
         damage:0,
-        travelTime:Math.max(.11, Math.min(1.15, distance / speed + .06)),
+        travelTime:Number.isFinite(serverTravelTime)
+          ? Math.max(.11, Math.min(1.15, serverTravelTime))
+          : Math.max(.11, Math.min(1.15, distance / speed + .06)),
         radius:5,
         color:event.color || enemy?.color || "rgba(248,113,113,.95)",
         particle:event.particle || enemy?.particle || "rgba(252,165,165,.75)",
@@ -245,6 +249,19 @@ export function createCombatServerEventSystem({
         if(premium > 0) store.state.player.premium += premium;
         if(xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
       }
+      window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
+        kind:"reward",
+        enemyName:event.enemyName || event.enemyType || "Monstre",
+        enemyType:event.enemyType || "",
+        enemyLevel:event.enemyLevel || 0,
+        credits,
+        xp,
+        premium,
+        reputation,
+        rankPoints,
+        share:event.share || 1,
+        at:event.at || Date.now()
+      }}));
       rewards.showLootNotice?.({credits, xp, reputation, rankPoints, premium});
       const shareLabel = Number(event.share || 1) < 1 ? " (partage groupe 50%)" : "";
       showToast(`Butin serveur${shareLabel} : +${fmt(credits)} credits${premium ? `, +${fmt(premium)} NOVA` : ""}, +${fmt(xp)} XP, +${fmt(reputation)} reputation.`);
@@ -332,6 +349,23 @@ export function createCombatServerEventSystem({
     }
   }
 
+  function applyQuestClaimEvents(){
+    if(!multiplayer.questEvents?.length) return;
+    for(const event of multiplayer.questEvents){
+      if(event?.type !== "claimed") continue;
+      const reward = event.reward || {};
+      const claimId = `${event.id || "quest"}:${event.at || 0}:${event.receivedAt || 0}`;
+      if(processedQuestClaimIds.has(claimId)) continue;
+      processedQuestClaimIds.add(claimId);
+      rewards.showLootNotice?.({
+        message:event.title ? `Quete terminee : ${event.title}` : "Quete terminee",
+        credits:Math.max(0, Math.round(Number(reward.credits || 0))),
+        xp:Math.max(0, Math.round(Number(reward.xp || 0))),
+        premium:Math.max(0, Math.round(Number(reward.premium || 0)))
+      });
+    }
+  }
+
   function applyQuestFailureEvents(){
     if(!multiplayer.questFailureEvents?.length) return;
     let changed = false;
@@ -378,6 +412,7 @@ export function createCombatServerEventSystem({
     applyDamageEvents();
     applyCombatHitEvents();
     applyRewardEvents();
+    applyQuestClaimEvents();
     applyLootDropEvents();
     applyQuestProgressEvents();
     applyQuestFailureEvents();

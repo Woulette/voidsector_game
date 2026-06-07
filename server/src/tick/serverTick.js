@@ -9,6 +9,7 @@ export function startServerTick({
   players,
   playersOnMap,
   presence,
+  updatePendingEnemyAttacks,
   updateStatusEffects,
   updateQuestTimers,
   updateWorldEnemy
@@ -55,6 +56,7 @@ export function startServerTick({
       for(const group of groups.values()) if(group.instance) emitInstance(group);
     }
     cleanupExpiredLootDrops(now);
+    updatePendingEnemyAttacks?.(now);
     updateStatusEffects?.(now);
     if(questTimerT >= 1){
       questTimerT = 0;

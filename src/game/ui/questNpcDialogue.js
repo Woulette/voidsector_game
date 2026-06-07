@@ -54,7 +54,12 @@ export function createQuestNpcDialogue({
     if(!combatDone) return {lines:["Nettoie la zone d'abord ! 2 traqueurs abyssaux, 6 parasites, 8 Vorak et 15 orbes, puis reviens me voir."], progress:false};
     if(!isObjectiveDone(quest, "fluides")){
       const fluides = getInventoryCount("teleportation_fluid");
-      if(fluides >= 10) return {lines:["Ahah impressionant. Retourne a ta station reviens me voir une fois plus aguerris j'aurais encore besoin de toi"], progress:true};
+      if(fluides >= 10) return {
+        lines:["Ahah impressionant. Retourne a ta station reviens me voir une fois plus aguerris j'aurais encore besoin de toi"],
+        progress:true,
+        progressType:"deliver_item",
+        itemId:"teleportation_fluid"
+      };
       return {lines:[`Il me faut 10 fluides de teleportation. Tu en as ${fluides}/10. Regarde dans les extras du magasin.`], progress:false};
     }
     return {lines:["Le portail ne bougera pas sans pieces. On aura encore du boulot."], progress:false};
@@ -143,10 +148,12 @@ export function createQuestNpcDialogue({
     }
     const npc = dialogueState.npc;
     const shouldProgress = dialogueState.progress;
+    const progressType = dialogueState.progressType || "talk_npc";
+    const itemId = dialogueState.itemId || "";
     close();
     const currentMap = getCurrentMap();
     const progressed = shouldProgress && (multiplayer.connected
-      ? progressServerQuest({type:"talk_npc", npcId:npc.id, zoneName:currentMap.name})
+      ? progressServerQuest({type:progressType, itemId, npcId:npc.id, zoneName:currentMap.name})
       : recordQuestNpcTalk(npc.id, currentMap.name));
     if(progressed){
       saveState();
@@ -159,7 +166,14 @@ export function createQuestNpcDialogue({
 
   function interact(npc){
     const dialogue = getDialogue(npc);
-    dialogueState = {npc, lines:dialogue.lines, progress:dialogue.progress, index:0};
+    dialogueState = {
+      npc,
+      lines:dialogue.lines,
+      progress:dialogue.progress,
+      progressType:dialogue.progressType,
+      itemId:dialogue.itemId,
+      index:0
+    };
     stopPlayerMovement();
     render();
   }

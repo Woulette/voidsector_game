@@ -51,10 +51,16 @@ export function getQuestObjectiveProgress(id, objectiveKey){
   if(objectiveEntry?.objective?.type === "owned_combat_drone"){
     return Math.min(Math.max(0, Number(objectiveEntry.objective.count || 0)), Math.max(0, Number(store.state?.ownedDroneCount || 0)));
   }
-  if(objectiveEntry?.objective?.type === "equipped_ship"){
+    if(objectiveEntry?.objective?.type === "equipped_ship"){
     const requiredShip = objectiveEntry.objective.shipId;
     return requiredShip && store.state?.activeShip === requiredShip ? Math.max(0, Number(objectiveEntry.objective.count || 1)) : 0;
-  }
+    }
+    if(objectiveEntry?.objective?.type === "deliver_item"){
+      const stored = store.state?.questProgress?.[id];
+      return typeof stored === "object" && stored !== null
+        ? Math.max(0, Number(stored[objectiveKey] || 0))
+        : Math.max(0, Number(stored || 0));
+    }
   if(objectiveEntry?.objective?.type === "refinery_module_upgrade_start"){
     const objective = objectiveEntry.objective;
     const targetLevel = Math.max(0, Number(objective.targetLevel || 0));

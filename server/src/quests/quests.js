@@ -8,9 +8,10 @@ import {
   objectiveRequirementsMet,
   progressQuestObjective
 } from "./questState.js";
+import { consumeInventoryItemAmount } from "../economy/inventoryStacks.js";
 
 export { acceptServerQuest, trackServerQuest } from "./questState.js";
-export { claimServerQuest } from "./questRewards.js";
+export { claimCompletedServerQuests, claimServerQuest } from "./questRewards.js";
 
 export function progressServerQuestKill(profile, {kind, zoneName} = {}){
   normalizeQuestFields(profile);
@@ -55,7 +56,16 @@ export function progressServerQuestAction(profile, action = {}){
             && getQuestObjectiveProgress(profile, quest.id, entry.objective, entry.index) < target;
         });
       if(match){
-        updates.push(progressQuestObjective(profile, quest, match.objective, match.index));
+        if(match.objective.type === "deliver_item"){
+          const count = Math.max(0, Number(match.objective.count || 0));
+          const itemId = match.objective.itemId;
+          if(match.objective.consumeItems){
+            consumeInventoryItemAmount(profile, itemId, count);
+          }
+          updates.push(progressQuestObjective(profile, quest, match.objective, match.index, count));
+        }else{
+          updates.push(progressQuestObjective(profile, quest, match.objective, match.index));
+        }
         progressedThisStep = true;
         break;
       }

@@ -1,11 +1,12 @@
-import { applyDronePermanentUpgrade, applyEquipmentUpgrade, equipInventoryUid, unequipInventoryUid, unequipSlot } from "../economy/equipment.js";
+import { applyDronePermanentUpgrade, applyEquipmentUpgrade, equipInventoryUid, findEquippedSlot, getServerItem, unequipInventoryUid, unequipShipLoadout, unequipSlot } from "../economy/equipment.js";
 import { claimServerRefineryJob, completeServerRefineryShipment, completeServerRefineryUpgrades, refineServerShipCargoRecipe, rushServerRefineryShipment, rushServerRefineryUpgrade, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, toggleServerRefineryProduction } from "../economy/refinery.js";
 import { runServerSpaceCaster } from "../economy/spaceCaster.js";
-import { acceptServerQuest, claimServerQuest, progressServerQuestAction, progressServerQuestKill, trackServerQuest } from "../quests/quests.js";
+import { acceptServerQuest, claimCompletedServerQuests, claimServerQuest, progressServerQuestAction, progressServerQuestKill, trackServerQuest } from "../quests/quests.js";
 import { checkServerQuestTimers, recordServerQuestHpLoss } from "../quests/questFailures.js";
 import { spendCurrency } from "./progression.js";
 import { performServerPrestige, unlockServerPortal, upgradeServerSkill } from "./progressionActions.js";
 import { sanitizeProfile } from "./profileSanitize.js";
+import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
 
 export function createProfileActions({profiles, persist, getExistingProfile}){
   function spendAndUpdate({player, priceType, amount, update} = {}){
@@ -42,10 +43,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       priceType:purchase?.priceType,
       amount:purchase?.totalPrice,
       update:profile=>{
-        if(!Array.isArray(profile.inventoryItems)) profile.inventoryItems = [];
-        const nextUid = Math.max(1, Math.floor(Number(profile.nextInventoryUid || 1)));
-        profile.inventoryItems.push({uid:`inv_${purchase.id}_${nextUid}`, itemId:purchase.id});
-        profile.nextInventoryUid = nextUid + 1;
+        addInventoryItemAmount(profile, purchase.id, 1);
       }
     });
   }
@@ -90,6 +88,50 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       }
     });
   }
+
+  function getSaleValue(item){
+    if(!item || item.shop === false || item.category === "quest_item") return null;
+    const price = Math.max(0, Math.round(Number(item.price || 0)));
+    if(price <= 0) return null;
+    return {
+      priceType:item.priceType === "premium" ? "premium" : "credits",
+      amount:Math.max(1, Math.floor(price * 0.35))
+    };
+  }
+
+  function sellInventoryItem({player, inventoryUid} = {}){
+    if(!player) return {ok:false, reason:"Joueur introuvable."};
+    const uid = String(inventoryUid || "");
+    if(!uid) return {ok:false, reason:"Objet invalide."};
+    const {key, profile} = getExistingProfile(player);
+    const entryIndex = Array.isArray(profile.inventoryItems)
+      ? profile.inventoryItems.findIndex(entry=>entry?.uid === uid)
+      : -1;
+    if(entryIndex < 0) return {ok:false, reason:"Objet introuvable."};
+    if(findEquippedSlot(profile, uid)) return {ok:false, reason:"Des equipe l'objet avant de le vendre."};
+    const entry = profile.inventoryItems[entryIndex];
+    const item = getServerItem(entry.itemId);
+    const value = getSaleValue(item);
+    if(!value) return {ok:false, reason:"Objet non vendable."};
+    if(!profile.player || typeof profile.player !== "object") profile.player = {};
+    const currencyKey = value.priceType === "premium" ? "premium" : "credits";
+    profile.player[currencyKey] = Math.max(0, Number(profile.player[currencyKey] || 0)) + value.amount;
+    profile.inventoryItems.splice(entryIndex, 1);
+    const next = sanitizeProfile({
+      ...profile,
+      updatedAt:Date.now()
+    });
+    profiles.set(key, next);
+    persist();
+    return {
+      ok:true,
+      item:{id:item.id, name:item.name},
+      inventoryUid:uid,
+      priceType:value.priceType,
+      amount:value.amount,
+      profile:next
+    };
+  }
   
   function applyEquipmentAction({player, action} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
@@ -99,6 +141,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       result = equipInventoryUid(profile, action);
     }else if(action?.kind === "unequip-slot"){
       result = unequipSlot(profile, action);
+    }else if(action?.kind === "unequip-ship"){
+      result = unequipShipLoadout(profile, action);
     }else if(action?.kind === "unequip-inventory"){
       result = unequipInventoryUid(profile, String(action.inventoryUid || ""))
         ? {ok:true}
@@ -128,22 +172,30 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(!Array.isArray(profile.ownedShips) || !profile.ownedShips.map(String).includes(cleanShipId)){
       return {ok:false, reason:"Vaisseau non possede."};
     }
-    const next = sanitizeProfile({
+    const draft = sanitizeProfile({
       ...profile,
       activeShip:cleanShipId,
       selectedShip:cleanShipId,
       ...(worldSession ? {worldSession} : {}),
+      ...(worldSession ? {shipWorldSessions:{
+        ...(profile.shipWorldSessions || {}),
+        [String(worldSession.shipId || cleanShipId)]:worldSession
+      }} : {}),
       updatedAt:Date.now()
     });
+    const claimedQuests = claimCompletedServerQuests(draft).claimed || [];
+    if(claimedQuests.length) draft.updatedAt = Date.now();
+    const next = sanitizeProfile(draft);
     profiles.set(key, next);
     persist();
-    return {ok:true, shipId:cleanShipId, profile:next};
+    return {ok:true, shipId:cleanShipId, claimedQuests, profile:next};
   }
   
   function applyQuestAction({player, action} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
     let result = null;
+    let claimedQuests = [];
     if(action?.kind === "accept"){
       result = acceptServerQuest(profile, action.questId);
     }else if(action?.kind === "track"){
@@ -165,6 +217,14 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       result = {ok:false, reason:"Action quete invalide."};
     }
     if(!result.ok) return result;
+    if(action?.kind === "claim") claimedQuests = result.claimedQuests || [];
+    if(action?.kind === "kill" || action?.kind === "progress"){
+      const completedIds = [...new Set((result.updates || [])
+        .filter(update=>update?.completed)
+        .map(update=>String(update.questId || update.id || ""))
+        .filter(Boolean))];
+      if(completedIds.length) claimedQuests = claimCompletedServerQuests(profile, completedIds).claimed || [];
+    }
     if(action?.kind === "timer-check" && !result.changed) return result;
     const next = sanitizeProfile({
       ...profile,
@@ -172,7 +232,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     });
     profiles.set(key, next);
     persist();
-    return {...result, profile:next};
+    return {...result, claimedQuests, profile:next};
   }
   
   function applyEconomyAction({player, action} = {}){
@@ -182,6 +242,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     completeServerRefineryShipment(profile);
     let result = null;
     let questProgress = null;
+    let claimedQuests = [];
     if(action?.kind === "space-caster"){
       result = runServerSpaceCaster(profile, action);
       if(result.ok) questProgress = progressServerQuestAction(profile, {type:"space_caster_use", amount:result.count});
@@ -213,13 +274,18 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       result = {ok:false, reason:"Action economie invalide."};
     }
     if(!result.ok) return result;
+    const completedIds = [...new Set((questProgress?.updates || [])
+      .filter(update=>update?.completed)
+      .map(update=>String(update.questId || update.id || ""))
+      .filter(Boolean))];
+    if(completedIds.length) claimedQuests = claimCompletedServerQuests(profile, completedIds).claimed || [];
     const next = sanitizeProfile({
       ...profile,
       updatedAt:Date.now()
     });
     profiles.set(key, next);
     persist();
-    return {...result, questUpdates:questProgress?.updates || [], profile:next};
+    return {...result, questUpdates:questProgress?.updates || [], claimedQuests, profile:next};
   }
   
   function applyProgressionAction({player, action} = {}){
@@ -245,5 +311,5 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     return {...result, profile:next};
   }
   
-    return {addAmmoPurchase, addItemPurchase, addShipPurchase, addDronePurchase, addDroneFormationPurchase, applyEquipmentAction, setActiveShipForPlayer, applyQuestAction, applyEconomyAction, applyProgressionAction};
+  return {addAmmoPurchase, addItemPurchase, addShipPurchase, addDronePurchase, addDroneFormationPurchase, sellInventoryItem, applyEquipmentAction, setActiveShipForPlayer, applyQuestAction, applyEconomyAction, applyProgressionAction};
 }

@@ -7,6 +7,12 @@ export function createProfileWorldSession({profiles, persist, getExistingProfile
     return sanitizeWorldSession(profile.worldSession);
   }
 
+  function getShipWorldSessionForPlayer(player, shipId){
+    if(!player || !shipId) return null;
+    const {profile} = getExistingProfile(player);
+    return sanitizeWorldSession(profile.shipWorldSessions?.[String(shipId)]);
+  }
+
   function getProfileForPlayer(player){
     if(!player) return null;
     const {profile} = getExistingProfile(player);
@@ -26,8 +32,12 @@ export function createProfileWorldSession({profiles, persist, getExistingProfile
     if(!session) return null;
     const next = sanitizeProfile({
       ...profile,
-      updatedAt:Number(profile.updatedAt || 0) || now,
-      worldSession:session
+      updatedAt:now,
+      worldSession:session,
+      shipWorldSessions:{
+        ...(profile.shipWorldSessions || {}),
+        [session.shipId]:session
+      }
     });
     profiles.set(key, next);
     persist();
@@ -37,6 +47,7 @@ export function createProfileWorldSession({profiles, persist, getExistingProfile
   return {
     getProfileForPlayer,
     getWorldSessionForPlayer,
+    getShipWorldSessionForPlayer,
     saveWorldSession
   };
 }

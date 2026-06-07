@@ -3,6 +3,20 @@ function pushEvent(target, event, limit, extra = {}){
   if(target.length > limit) target.splice(0, target.length - limit);
 }
 
+function emitQuestRewardLog(event = {}){
+  const reward = event.reward || {};
+  if(!reward || typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
+    kind:"quest",
+    enemyName:`Quete : ${event.title || "terminee"}`,
+    label:event.auto ? "Recompense automatique" : "Recompense recue",
+    credits:Math.max(0, Math.round(Number(reward.credits || 0))),
+    premium:Math.max(0, Math.round(Number(reward.premium || 0))),
+    xp:Math.max(0, Math.round(Number(reward.xp || 0))),
+    at:event.at || Date.now()
+  }}));
+}
+
 export function installProgressionSocketListeners({socket, multiplayer, emitChange, toast}){
   socket.on("quest:progress", event=>{
     pushEvent(multiplayer.questProgressEvents, event, 80);
@@ -19,7 +33,8 @@ export function installProgressionSocketListeners({socket, multiplayer, emitChan
   });
   socket.on("quest:claimed", event=>{
     pushEvent(multiplayer.questEvents, event, 40, {type:"claimed"});
-    toast(event?.title ? `Recompense recue : ${event.title}` : "Recompense recue.");
+    emitQuestRewardLog(event);
+    toast(event?.title ? `${event.auto ? "Quete terminee" : "Recompense recue"} : ${event.title}` : "Recompense recue.");
     emitChange("quest:claimed", event);
   });
   socket.on("quest:tracked", event=>{

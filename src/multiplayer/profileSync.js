@@ -2,7 +2,7 @@ export function syncMultiplayerProfile(multiplayer, state){
   if(!multiplayer.connected || !multiplayer.socket || !state) return;
   if(multiplayer.auth.token && multiplayer.auth.account && !multiplayer.auth.profileReady) return;
   const profile = {
-    updatedAt:Number(state.mmoProfileUpdatedAt || Date.now()),
+    updatedAt:Date.now(),
     player:state.player,
     activeShip:state.activeShip,
     selectedShip:state.selectedShip,
@@ -11,6 +11,7 @@ export function syncMultiplayerProfile(multiplayer, state){
     nextInventoryUid:state.nextInventoryUid,
     ammoInventory:state.ammoInventory,
     actionSlots:state.actionSlots,
+    actionSlotsByShip:state.actionSlotsByShip,
     lastLaserAmmoId:state.lastLaserAmmoId,
     shipLoadouts:state.shipLoadouts,
     ownedDroneCount:state.ownedDroneCount,
@@ -40,7 +41,9 @@ export function syncMultiplayerProfile(multiplayer, state){
     questFailProgress:state.questFailProgress,
     completedQuestClaims:state.completedQuestClaims,
     killStats:state.killStats,
-    rankKillStats:state.rankKillStats
+    rankKillStats:state.rankKillStats,
+    worldSession:state.worldSession,
+    shipWorldSessions:state.shipWorldSessions
   };
   multiplayer.socket.emit("profile:save", {name:multiplayer.name, profile});
 }

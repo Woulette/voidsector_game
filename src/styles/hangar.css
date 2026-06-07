@@ -76,6 +76,9 @@
 }
 .action-slot.active{border-color:rgba(56,189,248,.85);box-shadow:0 0 16px rgba(56,189,248,.20),inset 0 0 16px rgba(56,189,248,.08)}
 .action-slot.empty{opacity:.48}
+.action-slot.unavailable{opacity:.44;filter:grayscale(.88) brightness(.66);border-color:rgba(148,163,184,.24);box-shadow:none}
+.action-slot.unavailable::after{content:"OFF";position:absolute;right:4px;top:21px;z-index:4;padding:1px 4px;border:1px solid rgba(148,163,184,.38);background:rgba(2,6,17,.78);color:#cbd5e1;font-size:8px;font-weight:900;letter-spacing:.6px}
+.action-slot.unavailable .slot-count{color:#94a3b8}
 .action-slot .key{position:absolute;top:3px;left:6px;color:#fbbf24;font-weight:900;font-size:16px;z-index:3}
 .action-slot img{position:absolute;z-index:1;inset:10px 7px 14px;width:60px;height:48px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(125,211,252,.34)) drop-shadow(0 2px 2px rgba(0,0,0,.78))}
 .action-slot.extra-slot img{inset:14px 12px 18px;width:50px;height:42px}
@@ -300,6 +303,19 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
 .loadout-panel-body{display:grid;gap:10px;position:relative;z-index:1}
 .loadout-ship-head{margin-bottom:8px}
 .loadout-ship-head h2{font-size:24px;text-transform:uppercase;letter-spacing:1px}
+.unequip-all-button{
+  width:42px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(56,189,248,.38);
+  background:linear-gradient(180deg,rgba(15,46,74,.82),rgba(3,13,26,.95));
+  color:#c8f3ff;
+  cursor:pointer;
+  clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+}
+.unequip-all-button:hover{border-color:rgba(250,204,21,.75);box-shadow:0 0 16px rgba(250,204,21,.18);color:#fde68a}
+.unequip-all-button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .loadout-summary{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px;background:linear-gradient(90deg,rgba(56,189,248,.08),rgba(86,255,79,.04));border:1px solid rgba(56,189,248,.18);clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px)}
 .loadout-summary h3{font-size:20px;text-transform:uppercase;letter-spacing:1px}
 .summary-stats{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
@@ -457,6 +473,19 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
   white-space:nowrap;
   z-index:2;
 }
+.inventory-cell .inventory-quantity{
+  position:absolute;
+  z-index:3;
+  right:3px;
+  bottom:2px;
+  padding:1px 3px;
+  border:1px solid rgba(134,239,172,.55);
+  background:rgba(2,10,19,.9);
+  color:#86efac;
+  font-size:10px;
+  line-height:1;
+  text-shadow:0 0 5px rgba(34,197,94,.8);
+}
 .equip-slot-tile i{font-style:normal;font-size:20px;color:#5f87a4}
 .equip-slot-tile em{
   position:absolute;
@@ -506,6 +535,28 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
 .selected-item-stat-lines b{color:#8ee7ff;font-size:10px;text-transform:uppercase;letter-spacing:.8px}
 .selected-item-stat-lines strong{color:#e8f8ff;font-size:14px;line-height:1}
 .selected-item-copy small{display:inline-block;margin-top:7px;color:#86efac;font-size:12px}
+.inventory-sale-modal{position:fixed;inset:0;z-index:260;display:grid;place-items:center;padding:18px;background:rgba(0,7,16,.76);backdrop-filter:blur(3px)}
+.inventory-sale-dialog{position:relative;width:min(460px,100%);padding:18px;display:grid;gap:14px;background:linear-gradient(180deg,rgba(7,24,42,.98),rgba(2,10,19,.99));border:1px solid rgba(56,189,248,.5)}
+.inventory-sale-close{position:absolute;top:10px;right:10px;width:28px;height:28px;border:1px solid rgba(56,189,248,.35);background:rgba(3,18,32,.9);color:#c8f3ff;font-weight:900;cursor:pointer}
+.inventory-sale-item{display:grid;grid-template-columns:88px 1fr;gap:14px;align-items:center;padding:12px;border:1px solid rgba(56,189,248,.18);background:rgba(3,15,28,.72)}
+.inventory-sale-item img{width:82px;height:72px;object-fit:contain;filter:drop-shadow(0 0 12px rgba(56,189,248,.3))}
+.inventory-sale-item h3{font-size:18px;text-transform:uppercase}
+.inventory-sale-item p,.inventory-sale-warning{color:var(--muted);font-size:12px}
+.inventory-sale-price{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px;border:1px solid rgba(56,189,248,.25);background:rgba(56,189,248,.06)}
+.inventory-sale-price span{color:#8ee7ff;text-transform:uppercase;font-size:11px;font-weight:900}
+.inventory-sale-price strong{color:#facc15;font-size:20px}
+.inventory-sale-warning{padding:10px;border:1px solid rgba(250,204,21,.35);color:#fde68a;background:rgba(92,61,8,.2)}
+.inventory-sale-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.unequip-all-modal{position:fixed;inset:0;z-index:265;display:grid;place-items:center;padding:18px;background:rgba(0,7,16,.76);backdrop-filter:blur(3px)}
+.unequip-all-dialog{position:relative;width:min(420px,100%);padding:18px;display:grid;gap:13px;background:linear-gradient(180deg,rgba(7,24,42,.98),rgba(2,10,19,.99));border:1px solid rgba(56,189,248,.5)}
+.unequip-all-close{position:absolute;top:10px;right:10px;width:28px;height:28px;border:1px solid rgba(56,189,248,.35);background:rgba(3,18,32,.9);color:#c8f3ff;font-weight:900;cursor:pointer}
+.unequip-all-dialog h3{font-size:19px;text-transform:uppercase;letter-spacing:1px;color:#e8f8ff;padding-right:28px}
+.unequip-all-dialog p{color:var(--muted);font-size:12px;line-height:1.45}
+.unequip-all-summary{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px;border:1px solid rgba(56,189,248,.25);background:rgba(56,189,248,.06)}
+.unequip-all-summary span{color:#8ee7ff;text-transform:uppercase;font-size:11px;font-weight:900}
+.unequip-all-summary strong{color:#facc15;font-size:22px}
+.unequip-all-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.blue-button.danger{border-color:rgba(239,68,68,.5);background:linear-gradient(180deg,rgba(127,29,29,.78),rgba(69,10,10,.88));color:#fecaca}
 
 @media (max-width:1250px){.loadout-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:760px){.loadout-summary{align-items:flex-start;flex-direction:column}.summary-stats{justify-content:flex-start}.loadout-grid,.ship-inventory-pool,.ship-equipment-layout{grid-template-columns:1fr;grid-template-areas:"equipped" "inventory" "detail"}.slot-preview{grid-template-columns:70px 1fr}.slot-preview img{width:68px;height:64px}.selected-item-panel{grid-template-columns:1fr}.rpg-inventory-grid{max-height:none}}
