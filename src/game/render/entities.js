@@ -425,10 +425,14 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
   const time = performance.now();
   for(const enemy of enemies){
     const isPaused = Number(enemy.wanderPauseT || 0) > 0 && !enemy.aggro;
+    const hasMovementState = typeof enemy.moving === "boolean" || Number.isFinite(enemy.vx) || Number.isFinite(enemy.vy);
+    const isStopped = hasMovementState && (enemy.moving === false || Math.hypot(Number(enemy.vx || 0), Number(enemy.vy || 0)) < 4);
+    const isIdle = !enemy.aggro && (isPaused || isStopped);
     const idPhase = Number.isFinite(Number(enemy.id)) ? Number(enemy.id) : String(enemy.id || "").split("").reduce((sum, char)=>sum + char.charCodeAt(0), 0);
     const idlePhase = time / 420 + idPhase * 1.37;
-    const idleY = isPaused ? Math.sin(idlePhase) * 4 : 0;
-    const idleX = isPaused ? Math.cos(idlePhase * .72) * 2 : 0;
+    const idleY = isIdle ? Math.sin(idlePhase) * 5 : 0;
+    const idleX = isIdle ? Math.cos(idlePhase * .72) * 3 : 0;
+    const idleAngle = isIdle ? Math.sin(idlePhase * .48) * .045 : 0;
     const attackPulse = Math.max(0, Math.min(1, Number(enemy.attackT || 0) / .32));
     const attackScale = 1 + attackPulse * .10;
     drawRotatedImage({
@@ -439,7 +443,7 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
       y:enemy.y + idleY,
       w:(enemy.width || 72) * attackScale,
       h:(enemy.height || 72) * attackScale,
-      angle:getEnemyRenderRotation(enemy.kind, enemy.angle)
+      angle:getEnemyRenderRotation(enemy.kind, enemy.angle) + idleAngle
     });
     const isSelected = selectedEnemy && selectedEnemy.id === enemy.id;
     if(isSelected || Number(enemy.recentHitTimer || 0) > 0){

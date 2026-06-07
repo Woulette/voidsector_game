@@ -22,6 +22,7 @@ export function publicEnemy(enemy){
     height:enemy.height,
     speed:enemy.speed || 0,
     moving:Boolean(enemy.moving),
+    aggro:Boolean(enemy.lockedPlayerId),
     color:enemy.color,
     particle:enemy.particle,
     projectileSpeed:enemy.projectileSpeed || 600,

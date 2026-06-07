@@ -348,7 +348,7 @@ function drawRepairDrone({ctx, camera, cache, player}){
     y:drone.y,
     w:42,
     h:42,
-    angle:Math.atan2(player.y - drone.y, player.x - drone.x) + Math.PI / 2,
+    angle:Math.atan2(player.y - drone.y, player.x - drone.x) + Math.PI / 2 + Math.PI,
     fallbackColor:"#22d3ee"
   });
 }

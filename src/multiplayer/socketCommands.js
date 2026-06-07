@@ -16,6 +16,9 @@ export function createSocketCommands({multiplayer}){
     setupServerProfile({name, firmId} = {}){
       return emit(multiplayer, "profile:setup", {name, firmId});
     },
+    resetServerFirmDebug(){
+      return emit(multiplayer, "profile:debug-reset-firm");
+    },
     sendChatMessage({channel = "global", text = ""} = {}){
       return emit(multiplayer, "chat:send", {channel, text});
     },

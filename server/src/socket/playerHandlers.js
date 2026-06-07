@@ -22,6 +22,12 @@ export function registerPlayerHandlers(socket, context){
     return String(value || "").trim().replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 80);
   }
 
+  function isLocalDebugSocket(){
+    if(String(process.env.NODE_ENV || "").toLowerCase() === "production") return false;
+    const address = String(socket.handshake?.address || socket.conn?.remoteAddress || "");
+    return address === "::1" || address === "127.0.0.1" || address.endsWith(":127.0.0.1");
+  }
+
   function takeoverGuestSocket(player, clientId){
     if(!player || player.accountId || !clientId) return player;
     const existing = [...players.values()].find(candidate=>
@@ -114,6 +120,35 @@ export function registerPlayerHandlers(socket, context){
     });
     emitProfileSync?.(player, result.profile);
     emitPlayers();
+  });
+
+  socket.on("profile:debug-reset-firm", ()=>{
+    if(!guard("profile:debug-reset-firm")) return;
+    const player = players.get(socket.id);
+    if(!isLocalDebugSocket()){
+      socket.emit("profile:setup-error", {message:"Commande debug firme refusee hors serveur local."});
+      return;
+    }
+    if(!player?.accountId){
+      socket.emit("profile:setup-error", {message:"Connecte un compte avant de reinitialiser la firme."});
+      return;
+    }
+    const result = profileManager.updateProfileForPlayer({
+      player,
+      update:profile=>{
+        profile.player = {...profile.player, firmSelected:false};
+        profile.worldSession = null;
+        profile.shipWorldSessions = {};
+        return {ok:true};
+      }
+    });
+    if(!result.ok){
+      socket.emit("profile:setup-error", {message:result.reason || "Reinitialisation firme impossible."});
+      return;
+    }
+    player.state = null;
+    socket.emit("profile:debug-firm-reset", {firmId:result.profile?.player?.firmId, at:Date.now()});
+    emitProfileSync?.(player, result.profile);
   });
 
   socket.on("player:state", payload=>{

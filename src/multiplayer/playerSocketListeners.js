@@ -23,6 +23,10 @@ export function installPlayerSocketListeners({
     toast(payload?.message || "Configuration du profil impossible.");
     emitChange("profile:setup-error", payload);
   });
+  socket.on("profile:debug-firm-reset", event=>{
+    toast("Choix de firme reinitialise pour les tests locaux.");
+    emitChange("profile:debug-firm-reset", event);
+  });
   socket.on("player:resume", session=>{
     pushEvent(multiplayer.resumeEvents, session, 10);
     window.dispatchEvent(new CustomEvent("voidsector:player-resume", {detail:{session}}));

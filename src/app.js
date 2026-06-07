@@ -49,7 +49,7 @@ import {
   XP_CURVE_VERSION
 } from "./core/store.js";
 import { createCombatGame } from "./game/combat.js?v=quest-claim-ui-1";
-import { applyServerDroneUpgrade, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, performServerPrestige, progressServerQuest, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
+import { applyServerDroneUpgrade, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, performServerPrestige, progressServerQuest, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
 import { initMultiplayer } from "./multiplayer/client.js";
 import { renderAll, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js";
 import { showToast } from "./ui/toast.js";
@@ -679,6 +679,13 @@ initMultiplayer({
   getDefaultName:()=>store.state?.player?.name || "NOVA-37",
   clientMode:appMode
 });
+window.voidResetFirm = ()=>{
+  if(!multiplayer.auth?.account) return "Connecte un compte avant d'utiliser cette commande.";
+  if(!multiplayer.connected) return "Serveur multijoueur deconnecte.";
+  if(!resetServerFirmDebug()) return "Impossible d'envoyer la commande au serveur.";
+  return "Reinitialisation du choix de firme envoyee. Attends la synchronisation du profil.";
+};
+window.voidResetFirme = window.voidResetFirm;
 setView("hangar");
 renderAll();
 if(appMode === "game"){

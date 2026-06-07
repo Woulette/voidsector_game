@@ -91,7 +91,7 @@ function normalizeServerEnemy(serverEnemy, existing = null){
     angle:smooth ? lerpAngle(previousAngle, serverAngle, .30) : serverAngle,
     vx:Number(buffered?.vx ?? serverEnemy.vx ?? 0),
     vy:Number(buffered?.vy ?? serverEnemy.vy ?? 0),
-    aggro:false,
+    aggro:Boolean(serverEnemy.aggro),
     hitT:Number.POSITIVE_INFINITY,
     attackCooldown:Number.POSITIVE_INFINITY,
     moving:Boolean(buffered?.moving || serverEnemy.moving || Math.hypot(Number(serverEnemy.vx || 0), Number(serverEnemy.vy || 0)) > 4),
