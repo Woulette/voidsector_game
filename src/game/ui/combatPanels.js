@@ -412,6 +412,13 @@ export function createCombatPanels({
     return `<div class="group-member-meter ${className}"><span>${label}</span><b>${Math.round(Number(value || 0))}/${Math.round(safeMax)}</b><i style="width:${percent}%"></i></div>`;
   }
 
+  function renderCompactGroupMeter(label, value, max, className){
+    const safeMax = Math.max(1, Number(max || value || 1));
+    const cleanValue = Math.max(0, Number(value || 0));
+    const percent = clampPercent(cleanValue / safeMax * 100);
+    return `<div class="group-compact-meter ${className}" title="${escapeHtml(label)} : ${Math.round(cleanValue)} / ${Math.round(safeMax)}"><i style="width:${percent}%"></i></div>`;
+  }
+
   function renderGroupMemberCard(member){
     const currentMap = getCurrentMap?.();
     const localPlayer = getPlayer?.();
@@ -603,7 +610,8 @@ export function createCombatPanels({
     const members = multiplayer.group?.members || [];
     const isLeader = multiplayer.group?.leaderId === multiplayer.playerId;
     const actionButton = (action, targetId, label, title)=>`<button class="group-icon-action" data-group-action="${action}" data-player-id="${escapeHtml(targetId)}" type="button" title="${title}" aria-label="${title}">${label}</button>`;
-    const membersHtml = members.map(member=>{
+    const visibleMembers = members.length <= 1 ? [] : members;
+    const membersHtml = visibleMembers.map(member=>{
       const state = resolveGroupMemberState(member);
       const isLocal = member.id === multiplayer.playerId;
       const memberIsLeader = member.id === multiplayer.group?.leaderId;
@@ -615,7 +623,7 @@ export function createCombatPanels({
             ${isLeader && !isLocal ? actionButton("promote", member.id, "&#9819;", "Donner le role de chef") : ""}
             ${isLocal ? actionButton("leave", member.id, "&times;", "Quitter le groupe") : isLeader ? actionButton("kick", member.id, "&times;", "Retirer du groupe") : ""}
           </div>
-          ${state ? `<div class="group-compact-meters">${renderGroupMemberMeter("PV", state.hp, state.maxHp, "hp")}${renderGroupMemberMeter("Bouclier", state.shield, state.maxShield, "shield")}</div>` : `<p class="group-panel-note">Signal indisponible.</p>`}
+          ${state ? `<div class="group-compact-meters">${renderCompactGroupMeter("PV", state.hp, state.maxHp, "hp")}${renderCompactGroupMeter("Bouclier", state.shield, state.maxShield, "shield")}</div>` : `<p class="group-panel-note">Signal indisponible.</p>`}
         </div>`;
     }).join("");
     const outgoing = (multiplayer.outgoingGroupInvites || []).filter(invite=>Number(invite.expiresAt || 0) > Date.now());
