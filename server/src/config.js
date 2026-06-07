@@ -55,6 +55,7 @@ export const config = {
     default:{limit:120, windowMs:1000},
     "player:state":{limit:30, windowMs:1000},
     "combat:fire":{limit:25, windowMs:1000},
+    "combat:fire-player":{limit:25, windowMs:1000},
     "chat:send":{limit:8, windowMs:10000},
     "group:invite":{limit:16, windowMs:10000},
     "group:kick":{limit:16, windowMs:10000},

@@ -24,11 +24,12 @@ test("combat socket only accepts server-calculated fire and loot pickup", ()=>{
   const socket = createSocket();
   registerCombatHandlers(socket, {
     applyEnemyHit(){},
+    applyPlayerHit(){},
     guard:()=>true,
     pickupLoot(){}
   });
 
-  assert.deepEqual([...socket.handlers.keys()].sort(), ["combat:fire", "loot:pickup"]);
+  assert.deepEqual([...socket.handlers.keys()].sort(), ["combat:fire", "combat:fire-player", "loot:pickup"]);
   assert.equal(socket.handlers.has("enemy:hit"), false);
   assert.equal(socket.handlers.has("coop:enemy-hit"), false);
 });
@@ -52,6 +53,27 @@ test("client combat command never sends a damage amount", ()=>{
   assert.equal(emitted[0].eventName, "combat:fire");
   assert.equal(Object.hasOwn(emitted[0].payload, "amount"), false);
   assert.equal(Object.hasOwn(emitted[0].payload, "serverCalculated"), false);
+});
+
+test("client pvp combat command never sends a damage amount", ()=>{
+  const emitted = [];
+  const commands = createCombatCommands({
+    multiplayer:{
+      connected:true,
+      socket:{emit:(eventName, payload)=>emitted.push({eventName, payload})}
+    }
+  });
+
+  commands.sendServerPlayerHit("player-2", {
+    weaponClass:"laser",
+    ammoId:"ammo_x1",
+    count:1
+  });
+
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].eventName, "combat:fire-player");
+  assert.equal(Object.hasOwn(emitted[0].payload, "amount"), false);
+  assert.equal(Object.hasOwn(emitted[0].payload, "damage"), false);
 });
 
 test("combat:fire ignores a forged client damage amount", ()=>{

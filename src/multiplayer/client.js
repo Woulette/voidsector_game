@@ -107,6 +107,7 @@ function toast(message){
 const {
   sendPlayerSnapshot,
   sendServerEnemyHit,
+  sendServerPlayerHit,
   sendPlayerLaserEffect
 } = createCombatCommands({multiplayer});
 
@@ -337,7 +338,7 @@ export const respondFriendRequest = socialCommands.respondFriendRequest;
 export const setSocialCategory = socialCommands.setSocialCategory;
 export const removeSocialRelation = socialCommands.removeSocialRelation;
 export const sendPrivateMessage = socialCommands.sendPrivateMessage;
-export {sendPlayerSnapshot, sendServerEnemyHit, sendPlayerLaserEffect};
+export {sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, sendPlayerLaserEffect};
 
 export const syncMultiplayerProfile = state=>syncProfile(multiplayer, state);
 

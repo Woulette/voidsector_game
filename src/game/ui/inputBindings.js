@@ -31,6 +31,7 @@ export function installCombatInputHandlers({
   findQuestNpcAt,
   interactQuestNpc,
   findEnemyAt,
+  findRemotePlayerAt,
   findCargoBoxAt,
   setCargoDestination,
   findGroundMaterialAt,
@@ -46,6 +47,7 @@ export function installCombatInputHandlers({
   selectSocialTab,
   selectSocialContact,
   selectFirmPanelTab,
+  fillSocialPlayerName,
   trackCombatQuest,
   claimCombatQuest,
   setCombatQuestDetailTab,
@@ -212,6 +214,18 @@ export function installCombatInputHandlers({
         mouseMoveHeld = false;
         setMouseMoveHeld?.(false);
       }else{
+        const remotePlayer = findRemotePlayerAt?.(world);
+        if(remotePlayer){
+          fillSocialPlayerName?.(remotePlayer.name);
+          if(remotePlayer.hostile){
+            setSelectedEnemy(remotePlayer);
+            if(e.detail >= 2) attackSelectedWithActiveLaser?.();
+          }
+          mouseMoveHeld = false;
+          setMouseMoveHeld?.(false);
+          updateHud();
+          return;
+        }
         mouseMoveHeld = true;
         setMouseMoveHeld?.(true);
         setMoveTarget(world);

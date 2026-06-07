@@ -2,11 +2,13 @@ import "dotenv/config";
 import http from "node:http";
 import { Server } from "socket.io";
 import { createSocketSessionManager } from "./auth/socketSession.js";
+import { resolveServerCombatFire } from "./combat/damage.js";
 import { config } from "./config.js";
 import { dbEnabled, initializeDatabase } from "./db/client.js";
 import { createGroupManager } from "./groups/groups.js";
 import { createFirmWarManager } from "./firms/firmWar.js";
 import { logger } from "./logger.js";
+import { normalizeFirmId } from "../../src/data/firms.js";
 import { createEquipmentLocationManager } from "./players/equipmentLocation.js";
 import { createPresenceManager } from "./players/presence.js";
 import { createProfileManager } from "./players/profiles.js";
@@ -35,6 +37,7 @@ import { createEnemyAttackManager } from "./world/enemyAttacks.js";
 import { createWorldLootManager } from "./world/loot.js";
 import { createWorldRewardManager } from "./world/rewards.js";
 import { createWorldStatusEffectManager } from "./world/statusEffects.js";
+import { WORLD_MAPS } from "./world/definitions.js";
 import { isPointInFriendlyWorldSafeArea, publicEnemy } from "./world/spawn.js";
 import { createWorldStateManager } from "./world/state.js";
 
@@ -369,6 +372,112 @@ const {applyEnemyHit} = createEnemyHitHandler({
   portalWaveTotal
 });
 
+function applyPlayerHit(socket, payload){
+  const attacker = players.get(socket.id);
+  const target = players.get(String(payload?.targetPlayerId || ""));
+  const emitMiss = (reason = "")=>{
+    socket.emit("combat:hit", {
+      enemyId:`player:${String(payload?.targetPlayerId || "")}`,
+      weaponClass:String(payload?.weaponClass || ""),
+      ammoId:String(payload?.ammoId || ""),
+      consumed:0,
+      hit:false,
+      damage:0,
+      mapId:String(attacker?.mapId ?? ""),
+      x:Number(target?.state?.x ?? payload?.clientAimX ?? 0),
+      y:Number(target?.state?.y ?? payload?.clientAimY ?? 0),
+      radius:Number(target?.state?.radius ?? payload?.targetRadius ?? 48),
+      reason,
+      at:Date.now()
+    });
+  };
+  if(!attacker?.state || !target?.state || target.connected === false){
+    emitMiss("Cible joueur introuvable.");
+    return;
+  }
+  if(attacker.id === target.id){
+    emitMiss("Auto-ciblage refuse.");
+    return;
+  }
+  if(String(attacker.mapId ?? "") !== String(target.mapId ?? "")){
+    emitMiss("Cible hors carte.");
+    return;
+  }
+  const attackerProfile = profileManager.getProfileForPlayer(attacker);
+  const targetProfile = profileManager.getProfileForPlayer(target);
+  const attackerFirm = normalizeFirmId(attackerProfile?.player?.firmId || attacker.account?.firmId || "astra");
+  const targetFirm = normalizeFirmId(targetProfile?.player?.firmId || target.account?.firmId || "astra");
+  if(attackerFirm === targetFirm){
+    emitMiss("Tir refuse sur joueur allie.");
+    return;
+  }
+  const map = WORLD_MAPS[String(attacker.mapId)] || null;
+  if(isPlayerSafeOnMap(attacker, map) || isPlayerSafeOnMap(target, map)){
+    emitMiss("Zone non-agression active.");
+    return;
+  }
+  if(Number(attacker.state.hp || 0) <= 0 || Number(target.state.hp || 0) <= 0){
+    emitMiss("Vaisseau deja detruit.");
+    return;
+  }
+
+  presence.markCombat(attacker, "attaque joueur");
+  presence.markCombat(target, "attaque joueur");
+  const virtualTarget = {
+    id:`player:${target.id}`,
+    x:Number(target.state.x || 0),
+    y:Number(target.state.y || 0),
+    radius:Number(target.state.radius || 48)
+  };
+  const result = profileManager.updateProfileForPlayer({
+    player:attacker,
+    update:profile=>resolveServerCombatFire({player:attacker, profile, enemy:virtualTarget, payload})
+  });
+  if(!result.ok){
+    emitMiss(result.reason || "Tir joueur non valide.");
+    return;
+  }
+  emitProfileSyncForPlayer(attacker, result.profile);
+  const incoming = Math.max(0, Math.round(Number(result.damage || 0)));
+  socket.emit("combat:hit", {
+    enemyId:`player:${target.id}`,
+    targetPlayerId:target.id,
+    weaponClass:result.weaponClass,
+    ammoId:result.ammoId,
+    consumed:result.consumed,
+    hit:result.hit,
+    damage:incoming,
+    mapId:String(attacker.mapId ?? ""),
+    x:Number(target.state.x || 0),
+    y:Number(target.state.y || 0),
+    radius:Number(target.state.radius || 48),
+    at:Date.now()
+  });
+  if(incoming <= 0) return;
+
+  const hpBefore = Math.max(0, Number(target.state.hp || 0));
+  presence.applyDamageToPlayerState(target, incoming);
+  const hpAfter = Math.max(0, Number(target.state.hp || 0));
+  profileManager.saveWorldSession({player:target, state:target.state, force:hpAfter <= 0});
+  io.to(target.id).emit("player:damage", {
+    enemyId:`player:${attacker.id}`,
+    sourcePlayerId:attacker.id,
+    sourceName:attackerProfile?.player?.name || attacker.name || "Pilote",
+    mapId:attacker.mapId,
+    amount:incoming,
+    fromX:Number(attacker.state.x || 0),
+    fromY:Number(attacker.state.y || 0),
+    toX:Number(target.state.x || 0),
+    toY:Number(target.state.y || 0),
+    at:Date.now()
+  });
+  if(hpBefore > 0 && hpAfter <= 0){
+    const snapshot = firmWarManager.addPlayerKillPoints(attackerFirm);
+    io.emit("firm:ranking", snapshot);
+  }
+  emitPlayers();
+}
+
 function updateQuestTimers(now){
   const processedProfiles = new Set();
   for(const player of players.values()){
@@ -495,6 +604,7 @@ io.on("connection", socket=>{
   registerCombatHandlers(socket, {
     ...socketContext,
     applyEnemyHit,
+    applyPlayerHit,
     pickupLoot
   });
   registerDisconnectHandlers(socket, {

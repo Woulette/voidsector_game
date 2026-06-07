@@ -8,6 +8,7 @@ export function createCombatInteractionSystem({
   cargo,
   getAmmo,
   getAmmoCount,
+  findRemotePlayerTargetById,
   showToast,
   updateHud
 }){
@@ -26,6 +27,17 @@ export function createCombatInteractionSystem({
   function validSelectedEnemy(){
     const {selectedEnemy, enemies} = getState();
     if(!selectedEnemy) return null;
+    if(selectedEnemy.isPlayerTarget){
+      const liveTarget = findRemotePlayerTargetById?.(selectedEnemy.playerId);
+      if(liveTarget) {
+        setState({selectedEnemy:liveTarget});
+        return liveTarget;
+      }
+      setState({selectedEnemy:null});
+      actions.setActiveLaserSlot(null);
+      actions.updateGameActionBar();
+      return null;
+    }
     const selectedId = getServerEnemyId(selectedEnemy);
     const live = enemies.find(enemy=>getServerEnemyId(enemy) === selectedId && enemy.hp > 0);
     if(!live){

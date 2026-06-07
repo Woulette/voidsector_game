@@ -81,6 +81,7 @@ import {
   SAFE_ZONE_DELAY,
   SHIP_ENGINE_PROFILES
 } from "./combatData.js";
+import { normalizeFirmId } from "../data/firms.js";
 import { preloadCombatAssets } from "./combatAssets.js";
 import { COMBAT_PROFILE_TITLES } from "./combatProfileTitles.js";
 import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js";
@@ -121,7 +122,7 @@ import { installCombatInputHandlers } from "./ui/inputBindings.js";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js";
 import { createCombatPanels } from "./ui/combatPanels.js";
-import { acceptServerQuest, buyServerAmmo, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
+import { acceptServerQuest, buyServerAmmo, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
@@ -242,7 +243,8 @@ export function createCombatGame({renderAll, showToast}){
   const enemyDamage = createCombatEnemyDamageSystem({
     isServerControlledEnemy,
     getServerEnemyId,
-    sendServerEnemyHit
+    sendServerEnemyHit,
+    sendServerPlayerHit
   });
   const hitResolution = createCombatHitResolutionSystem({
     getState:getCombatState,
@@ -449,6 +451,7 @@ export function createCombatGame({renderAll, showToast}){
     cargo,
     getAmmo,
     getAmmoCount,
+    findRemotePlayerTargetById,
     showToast,
     updateHud
   });
@@ -914,6 +917,58 @@ export function createCombatGame({renderAll, showToast}){
     return weapons.fireManualMissile(ammo, count);
   }
 
+  function buildRemotePlayerTarget(remote){
+    const state = remote?.state;
+    if(!remote?.id || !state) return null;
+    const playerFirmId = normalizeFirmId(store.state?.player?.firmId || "astra");
+    const targetFirmId = normalizeFirmId(remote.firmId || state.firmId || "astra");
+    return {
+      id:`player:${remote.id}`,
+      playerId:remote.id,
+      isPlayerTarget:true,
+      hostile:targetFirmId !== playerFirmId,
+      type:String(remote.name || "Pilote"),
+      name:String(remote.name || "Pilote"),
+      level:Number(state.level || remote.level || 1),
+      firmId:targetFirmId,
+      x:Number(state.x || 0),
+      y:Number(state.y || 0),
+      radius:Math.max(48, Number(state.radius || 48)),
+      hp:Number(state.hp || 0),
+      maxHp:Number(state.maxHp || 1),
+      shield:Number(state.shield || 0),
+      maxShield:Number(state.maxShield || 0),
+      shieldAbsorbRatio:Number(state.shieldAbsorbRatio ?? 0.8),
+      angle:Number(state.angle || 0),
+      recentHitTimer:0
+    };
+  }
+
+  function findRemotePlayerTargetById(playerId){
+    const remote = multiplayer.remotePlayers.get(playerId);
+    if(!remote?.state) return null;
+    const mapToken = String(currentMap?.id ?? currentMap?.name ?? "");
+    if(String(remote.state.mapId ?? "") !== mapToken) return null;
+    return buildRemotePlayerTarget(remote);
+  }
+
+  function findRemotePlayerAt(world){
+    const mapToken = String(currentMap?.id ?? currentMap?.name ?? "");
+    let best = null;
+    let bestDistance = Infinity;
+    for(const remote of multiplayer.remotePlayers.values()){
+      const state = remote?.state;
+      if(!state || String(state.mapId ?? "") !== mapToken) continue;
+      const distance = Math.hypot(Number(world.x || 0) - Number(state.x || 0), Number(world.y || 0) - Number(state.y || 0));
+      const radius = Math.max(48, Number(state.radius || 48));
+      if(distance <= radius + 34 && distance < bestDistance){
+        best = buildRemotePlayerTarget(remote);
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
+
   function damagePlayer(amount, options = {}){
     logout.cancel("degats recus");
     const hpLost = lifecycle.damage(amount, options);
@@ -1002,6 +1057,7 @@ export function createCombatGame({renderAll, showToast}){
     selectActionSlot:actions.selectActionSlot,
     getStationAt,
     findEnemyAt,
+    findRemotePlayerAt,
     findCargoBoxAt,
     setCargoDestination,
     findGroundMaterialAt,
@@ -1025,6 +1081,7 @@ export function createCombatGame({renderAll, showToast}){
     selectSocialTab:panels.selectSocialTab,
     selectSocialContact:panels.selectSocialContact,
     selectFirmPanelTab:panels.selectFirmPanelTab,
+    fillSocialPlayerName:panels.fillSocialPlayerName,
     trackCombatQuest:panels.trackCombatQuest,
     claimCombatQuest:panels.claimCombatQuest,
     setCombatQuestDetailTab:panels.setCombatQuestDetailTab,

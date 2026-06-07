@@ -1,5 +1,5 @@
 export function registerCombatHandlers(socket, context){
-  const {applyEnemyHit, guard, pickupLoot} = context;
+  const {applyEnemyHit, applyPlayerHit, guard, pickupLoot} = context;
 
   function emitCombatMiss(payload){
     socket.emit("combat:hit", {
@@ -23,6 +23,14 @@ export function registerCombatHandlers(socket, context){
       return;
     }
     applyEnemyHit(socket, payload);
+  });
+
+  socket.on("combat:fire-player", payload=>{
+    if(!guard("combat:fire-player")){
+      emitCombatMiss(payload);
+      return;
+    }
+    applyPlayerHit?.(socket, payload);
   });
 
   socket.on("loot:pickup", payload=>{

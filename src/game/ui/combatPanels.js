@@ -690,7 +690,7 @@ export function createCombatPanels({
           <span>${escapeHtml(contact.firmLabel || contact.firmId)} · ${escapeHtml(socialStatusLabel(contact.status))} · ${escapeHtml(contact.mapName || "Inconnue")}</span>
         </div>
         ${incoming
-          ? `<div class="social-actions"><button data-social-action="accept" data-social-key="${escapeHtml(contact.key)}" type="button">OK</button><button data-social-action="decline" data-social-key="${escapeHtml(contact.key)}" type="button">NON</button></div>`
+          ? `<div class="social-actions social-inline-actions"><button data-social-action="accept" data-social-key="${escapeHtml(contact.key)}" type="button" title="Accepter" aria-label="Accepter">&#10003;</button><button data-social-action="decline" data-social-key="${escapeHtml(contact.key)}" type="button" title="Refuser" aria-label="Refuser">&times;</button></div>`
           : `<span class="social-contact-tag">${pending ? "Demande envoyee" : escapeHtml(category)}</span>`}
       </div>`;
   }
@@ -698,8 +698,9 @@ export function createCombatPanels({
   function renderSocialDetail(contact, category = "friends"){
     if(!contact) return "";
     const canInvite = contact.status !== "offline" && contact.playerId;
-    const canAddFriend = category !== "friends" && category !== "outgoing";
+    const canAddFriend = category !== "friends" && category !== "outgoing" && category !== "incoming";
     const canPrivate = category === "friends";
+    const isIncoming = category === "incoming";
     const canEnemy = category !== "friends" && category !== "enemies";
     const canIgnore = category !== "ignored";
     const canRemove = ["friends","enemies","ignored","outgoing"].includes(category);
@@ -715,6 +716,7 @@ export function createCombatPanels({
           </div>
         </div>
         <div class="social-detail-grid">
+          ${isIncoming ? `<button data-social-action="accept" data-social-key="${escapeHtml(contact.key)}" type="button">ACCEPTER</button><button data-social-action="decline" data-social-key="${escapeHtml(contact.key)}" type="button">REFUSER</button>` : ""}
           ${canPrivate ? `<button data-social-action="private" data-social-key="${escapeHtml(contact.key)}" type="button">MESSAGE PRIVE</button>` : ""}
           ${category === "friends" && canInvite ? `<button data-social-action="group" data-player-id="${escapeHtml(contact.playerId)}" type="button">INVITER EN GROUPE</button>` : ""}
           ${canAddFriend ? `<button data-social-action="friend" data-social-name="${escapeHtml(contact.name)}" type="button">AJOUTER AMI</button>` : ""}
@@ -740,7 +742,11 @@ export function createCombatPanels({
         ...categories.friends.map(contact=>renderSocialContact(contact, {category:"ami"}))]
       : categories[selectedSocialTab].map(contact=>renderSocialContact(contact, {category:selectedSocialTab === "enemies" ? "ennemi" : "ignore"}));
     const selected = findSocialContact(selectedSocialKey);
-    const selectedCategory = outgoing.some(contact=>contact.key === selectedSocialKey) ? "outgoing" : selectedSocialTab;
+    const selectedCategory = incoming.some(contact=>contact.key === selectedSocialKey)
+      ? "incoming"
+      : outgoing.some(contact=>contact.key === selectedSocialKey)
+        ? "outgoing"
+        : selectedSocialTab;
     return `
       <div class="social-add-form">
         <input id="socialAddName" maxlength="24" placeholder="Nom du joueur">
@@ -893,6 +899,15 @@ export function createCombatPanels({
     selectedSocialKey = null;
     requestFirmRankingSync();
     refreshSocialUtilityPanel("firm");
+  }
+
+  function fillSocialPlayerName(name){
+    const clean = String(name || "").trim().slice(0, 24);
+    if(!clean) return;
+    const groupInput = document.getElementById("groupInviteName");
+    if(groupInput) groupInput.value = clean;
+    const socialInput = document.getElementById("socialAddName");
+    if(socialInput) socialInput.value = clean;
   }
 
   window.addEventListener("voidsector:multiplayer-change", event=>{
@@ -1429,6 +1444,7 @@ export function createCombatPanels({
     selectSocialTab,
     selectSocialContact,
     selectFirmPanelTab,
+    fillSocialPlayerName,
     trackCombatQuest,
     claimCombatQuest,
     setCombatQuestDetailTab,

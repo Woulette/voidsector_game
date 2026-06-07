@@ -1,11 +1,21 @@
 export function createCombatEnemyDamageSystem({
   isServerControlledEnemy,
   getServerEnemyId,
-  sendServerEnemyHit
+  sendServerEnemyHit,
+  sendServerPlayerHit
 }){
   function damage(enemy, amount, context = {}){
     const incoming = Math.max(0, Number(amount || 0));
     enemy.recentHitTimer = 4;
+    if(enemy?.isPlayerTarget){
+      sendServerPlayerHit?.(enemy.playerId, {
+        ...context,
+        clientAimX:Number(enemy.x || 0),
+        clientAimY:Number(enemy.y || 0),
+        targetRadius:Number(enemy.radius || 0)
+      });
+      return false;
+    }
     if(isServerControlledEnemy(enemy)){
       sendServerEnemyHit(getServerEnemyId(enemy), {
         ...context,

@@ -21,10 +21,23 @@ export function createCombatCommands({multiplayer}){
     });
   }
 
+  function sendServerPlayerHit(targetPlayerId, context = {}){
+    if(!multiplayer.connected || !multiplayer.socket || !targetPlayerId) return;
+    multiplayer.socket.emit("combat:fire-player", {
+      targetPlayerId,
+      weaponClass:context.weaponClass || "laser",
+      ammoId:context.ammoId || "ammo_x1",
+      count:context.count || 1,
+      clientAimX:Number(context.clientAimX || 0),
+      clientAimY:Number(context.clientAimY || 0),
+      targetRadius:Number(context.targetRadius || 0)
+    });
+  }
+
   function sendPlayerLaserEffect(payload){
     if(!multiplayer.connected || !multiplayer.socket) return;
     multiplayer.socket.emit("player:laser", payload);
   }
 
-  return {sendPlayerSnapshot, sendServerEnemyHit, sendPlayerLaserEffect};
+  return {sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, sendPlayerLaserEffect};
 }

@@ -122,6 +122,7 @@ export function syncServerControlledEnemies({enemies, multiplayerState, selected
 
   let nextSelectedEnemy = selectedEnemy;
   if(selectedEnemy){
+    if(selectedEnemy.isPlayerTarget) return {enemies:nextEnemies, selectedEnemy};
     const selectedId = getServerEnemyId(selectedEnemy);
     const live = nextEnemies.find(enemy=>getServerEnemyId(enemy) === selectedId && enemy.hp > 0) || null;
     if(live) nextSelectedEnemy = live;
