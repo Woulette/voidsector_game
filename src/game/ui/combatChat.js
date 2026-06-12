@@ -10,6 +10,10 @@ const CHAT_TABS = [
 
 const MAX_LOG_ROWS = 160;
 
+export function isCombatChatOpen(layout = {}){
+  return layout.open !== false;
+}
+
 function escapeHtml(value){
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -363,12 +367,12 @@ export function createCombatChat({
     hydrateCombatUiLayout(store);
     layoutHydrated = true;
     applyLayout();
-    if(getLayout().open) setOpen(true);
+    if(isCombatChatOpen(getLayout())) setOpen(true);
   });
   installDrag();
   installResize();
   applyLayout();
-  if(getLayout().open) setOpen(true);
+  if(isCombatChatOpen(getLayout())) setOpen(true);
 
   return {
     open:()=>setOpen(true),
