@@ -48,6 +48,12 @@ export async function initializeDatabase(){
     );
 
     CREATE INDEX IF NOT EXISTS player_profiles_account_id_idx ON player_profiles(account_id);
+
+    CREATE TABLE IF NOT EXISTS firm_war_state (
+      id TEXT PRIMARY KEY,
+      state_json JSONB NOT NULL,
+      updated_at BIGINT NOT NULL
+    );
   `);
   return true;
 }

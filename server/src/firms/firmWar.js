@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FIRMS, getFirmDefinition, normalizeFirmId } from "../../../src/data/firms.js";
+import { dbEnabled, query } from "../db/client.js";
 
 export const FIRM_SEASON_MS = 14 * 24 * 60 * 60 * 1000;
 export const FIRM_REWARD_MS = 7 * 24 * 60 * 60 * 1000;
@@ -51,13 +52,28 @@ function buildInitialState(now = Date.now()){
   };
 }
 
-export function createFirmWarManager({file = DEFAULT_FILE, logger = console, now = ()=>Date.now()} = {}){
+export function createFirmWarManager({
+  file = DEFAULT_FILE,
+  logger = console,
+  now = ()=>Date.now(),
+  database = dbEnabled ? {query} : null
+} = {}){
   let state = buildInitialState(now());
   let savePending = false;
   let loaded = false;
 
   async function persist(){
     try{
+      if(database){
+        await database.query(`
+          INSERT INTO firm_war_state (id, state_json, updated_at)
+          VALUES ('global', $1::jsonb, $2)
+          ON CONFLICT (id) DO UPDATE SET
+            state_json = EXCLUDED.state_json,
+            updated_at = EXCLUDED.updated_at
+        `, [JSON.stringify(state), Number(now())]);
+        return;
+      }
       await mkdir(dirname(file), {recursive:true});
       await writeFile(file, `${JSON.stringify(state, null, 2)}\n`, "utf8");
     }catch(error){
@@ -114,8 +130,21 @@ export function createFirmWarManager({file = DEFAULT_FILE, logger = console, now
     if(loaded) return state;
     loaded = true;
     try{
-      const raw = await readFile(file, "utf8");
-      const parsed = JSON.parse(raw);
+      let parsed;
+      if(database){
+        const result = await database.query("SELECT state_json FROM firm_war_state WHERE id = 'global'");
+        parsed = result.rows[0]?.state_json;
+        if(!parsed){
+          try{
+            parsed = JSON.parse(await readFile(file, "utf8"));
+          }catch(error){
+            if(error?.code !== "ENOENT") throw error;
+          }
+        }
+      }else{
+        parsed = JSON.parse(await readFile(file, "utf8"));
+      }
+      parsed ||= buildInitialState(now());
       state = {
         ...buildInitialState(now()),
         ...parsed,

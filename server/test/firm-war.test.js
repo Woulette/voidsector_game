@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -107,6 +107,36 @@ test("firm season closes with weekly reward multipliers", async ()=>{
     assert.equal(manager.getRewardMultiplier("cyan"), 0.15);
     assert.equal(astra.rewardEndsAt, now + FIRM_REWARD_MS);
     assert.equal(cyan.rewardRank, 2);
+  }finally{
+    await rm(dir, {recursive:true, force:true});
+  }
+});
+
+test("firm points persist in the database without touching the JSON fallback", async ()=>{
+  const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-war-db-"));
+  const file = join(dir, "firmWar.json");
+  let storedState = null;
+  const database = {
+    async query(text, params = []){
+      if(text.includes("SELECT state_json")){
+        return {rows:storedState ? [{state_json:storedState}] : []};
+      }
+      if(text.includes("INSERT INTO firm_war_state")){
+        storedState = JSON.parse(params[0]);
+        return {rows:[]};
+      }
+      throw new Error(`Unexpected query: ${text}`);
+    }
+  };
+
+  try{
+    const manager = createFirmWarManager({database, file, logger:{warn(){}}, now:()=>1000});
+    await manager.load();
+    manager.addFirmPoints("astra", 3);
+    await new Promise(resolve=>setTimeout(resolve, 100));
+
+    assert.equal(storedState.points.astra, 3);
+    await assert.rejects(access(file), {code:"ENOENT"});
   }finally{
     await rm(dir, {recursive:true, force:true});
   }
