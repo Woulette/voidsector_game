@@ -27,10 +27,10 @@ export function createCombatEnemyRuntime({
     if(bullet.targetId === "player") return {x:player.x, y:player.y, entity:player};
     if(String(bullet.targetId || "").startsWith("player:")){
       const target = findRemotePlayerTargetById?.(String(bullet.targetId).slice("player:".length));
-      return target && target.hp > 0 ? {x:target.x, y:target.y, entity:target} : null;
+      return target && target.hp > 0 ? {x:target.x, y:target.y, entity:target} : bullet.fixedTarget || null;
     }
     const enemy = enemies.find(e=>e.id === bullet.targetId && e.hp > 0);
-    return enemy ? {x:enemy.x, y:enemy.y, entity:enemy} : null;
+    return enemy ? {x:enemy.x, y:enemy.y, entity:enemy} : bullet.fixedTarget || null;
   }
 
   function scheduleRespawn(enemy){

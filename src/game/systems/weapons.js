@@ -66,6 +66,7 @@ export function createWeaponSystem(deps){
     const a = Math.atan2(dy, dx);
     const bullets = deps.getBullets();
     const particles = deps.getParticles();
+    const networkTargetId = deps.getNetworkTargetId?.(enemy) || enemy.id;
 
     if(ammo.weaponClass === "rocket"){
       const launcher = deps.getEquippedLauncher?.("rocket");
@@ -119,7 +120,7 @@ export function createWeaponSystem(deps){
       deps.sendPlayerWeaponEffect?.({
         kind:"rocket",
         ammoId:ammo.id,
-        targetId:enemy.id,
+        targetId:networkTargetId,
         starts:[{x:startX, y:startY, curveSide:rocketSide, curveStrength:42}],
         toX:enemy.x,
         toY:enemy.y,
@@ -167,7 +168,7 @@ export function createWeaponSystem(deps){
     deps.sendPlayerWeaponEffect?.({
       kind:"laser",
       ammoId:ammo.id,
-      targetId:enemy.id,
+      targetId:networkTargetId,
       starts:[{x:startX, y:startY}],
       fromX:startX,
       fromY:startY,
@@ -228,6 +229,7 @@ export function createWeaponSystem(deps){
     const sideY = forwardX;
     const bullets = deps.getBullets();
     const particles = deps.getParticles();
+    const networkTargetId = deps.getNetworkTargetId?.(enemy) || enemy.id;
     const minDamage = Number(ammo.damageMin ?? ammo.damage ?? 0);
     const maxDamage = Number(ammo.damageMax ?? ammo.damage ?? minDamage);
     const damageMultiplier = (launcher.effect?.missileDamageMultiplier || 1) * Number(player.extraBonus?.missileDamageMultiplier || 1);
@@ -266,7 +268,7 @@ export function createWeaponSystem(deps){
     deps.sendPlayerWeaponEffect?.({
       kind:"missile",
       ammoId:ammo.id,
-      targetId:enemy.id,
+      targetId:networkTargetId,
       starts,
       toX:enemy.x,
       toY:enemy.y,

@@ -126,7 +126,10 @@ export function createCombatFrameUpdateSystem({
       droneUpgrades,
       activeDroneFormation:state.store?.state?.activeDroneFormation || "base",
       rankName:rank.name || "",
-      rankAssetPath:getRankAssetPath(rank)
+      rankAssetPath:getRankAssetPath(rank),
+      lockedTargetId:state.selectedEnemy
+        ? (state.selectedEnemy.isPlayerTarget ? `player:${state.selectedEnemy.playerId}` : String(state.selectedEnemy.serverId || state.selectedEnemy.id || ""))
+        : ""
     });
     updateRadiation(dt);
     serverEvents.applyAll();

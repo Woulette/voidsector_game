@@ -244,7 +244,7 @@ export function registerPlayerHandlers(socket, context){
       fromY:Number(starts[0]?.y || payload?.fromY || 0),
       toX:Number(payload?.toX || 0),
       toY:Number(payload?.toY || 0),
-      blueLaser:Boolean(payload?.blueLaser),
+      blueLaser:payload?.blueLaser === true,
       travelTime:Math.max(.1, Math.min(2, Number(payload?.travelTime || .2))),
       mapId:String(player?.mapId ?? payload?.mapId ?? "0"),
       color:String(payload?.color || "rgba(56,189,248,.9)").slice(0, 48),

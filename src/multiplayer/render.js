@@ -178,6 +178,42 @@ function drawSelectedRemoteOverlay({ctx, camera, remote, state, selectedEnemy}){
   ctx.restore();
 }
 
+export function drawRemoteTargetLocks({ctx, camera, player, enemies = [], currentMapId = null}){
+  const now = Date.now();
+  for(const remote of multiplayer.remotePlayers.values()){
+    const state = remote?.state;
+    const targetId = String(state?.lockedTargetId || "");
+    if(!state || !targetId || now - Number(state.updatedAt || 0) > 10000) continue;
+    if(currentMapId !== null && String(state.mapId) !== String(currentMapId)) continue;
+    let target = null;
+    if(targetId === `player:${multiplayer.playerId}`) target = player;
+    else if(targetId.startsWith("player:")) target = multiplayer.remotePlayers.get(targetId.slice(7))?.state || null;
+    else target = enemies.find(enemy=>String(enemy.serverId || enemy.id || "") === targetId) || null;
+    if(!target) continue;
+    const x = Number(target.x || 0) - camera.x;
+    const y = Number(target.y || 0) - camera.y;
+    const radius = Math.max(42, Number(target.radius || 42)) + 10;
+    const pulse = .5 + Math.sin(performance.now() / 115) * .5;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.strokeStyle = `rgba(248,113,113,${.58 + pulse * .30})`;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "rgba(239,68,68,.9)";
+    ctx.shadowBlur = 10 + pulse * 8;
+    ctx.setLineDash([9, 7]);
+    ctx.lineDashOffset = performance.now() / 45;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(254,202,202,.95)";
+    ctx.font = "900 9px Rajdhani, Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(`LOCK ${String(remote.name || "JOUEUR").toUpperCase()}`, 0, -radius - 7);
+    ctx.restore();
+  }
+}
+
 export function drawRemotePlayers({
   ctx,
   camera,

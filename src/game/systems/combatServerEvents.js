@@ -266,7 +266,7 @@ export function createCombatServerEventSystem({
           visualOnly:true,
           ammoId:ammo?.id || event.ammoId || null
         });
-        bullet.fixedTarget = targetId ? null : {x:toX, y:toY, hp:1};
+        bullet.fixedTarget = {x:toX, y:toY, hp:1};
         bullets.push(bullet);
         particles.push({
           x:Number(start.x || 0),

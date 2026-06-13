@@ -230,6 +230,7 @@ export function createCombatGame({renderAll, showToast}){
     markCombatActivity,
     addLaserBeam:beam=>beams.add(beam),
     sendPlayerWeaponEffect:sendPlayerLaserEffect,
+    getNetworkTargetId:enemy=>enemy?.isPlayerTarget ? `player:${enemy.playerId}` : getServerEnemyId(enemy),
     resolveLaserHit,
     saveState,
     refreshActionBar:()=>actions.updateGameActionBar(),

@@ -34,7 +34,7 @@ export function addRemoteEffect(multiplayer, effect){
   if(!effect || effect.sourceId === multiplayer.playerId) return;
   multiplayer.remoteEffects.push({
     ...effect,
-    createdAt:performance.now(),
+    createdAt:Date.now(),
     life:Number(effect.life || 0.18),
     maxLife:Number(effect.life || 0.18)
   });
