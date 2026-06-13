@@ -21,11 +21,18 @@ export function createProfileController({
     const itemId = Array.isArray(slots) ? slots[index] : null;
     return typeof itemId === "string" && itemId.length > 0 ? itemId : null;
   });
-  const mergeActiveActionSlots = incomingSlots=>{
-    const incoming = normalizeActionSlots(incomingSlots);
-    const local = normalizeActionSlots(store.state.actionSlots);
-    if(appMode !== "game" || !game.running) return incoming;
-    return incoming.map((itemId, index)=>itemId || local[index] || null);
+  const isGameRunning = ()=>appMode === "game" && Boolean(game.running);
+  const normalizeActionSlotsByShip = slotsByShip=>Object.fromEntries(Object.entries(slotsByShip || {}).map(([shipId, slots])=>[
+    String(shipId),
+    normalizeActionSlots(slots)
+  ]));
+  const getLocalActiveActionSlots = (shipId, profileHasSlotsByShip)=>{
+    const slotsByShip = store.state.actionSlotsByShip;
+    if(slotsByShip && typeof slotsByShip === "object" && Array.isArray(slotsByShip[shipId])){
+      return normalizeActionSlots(slotsByShip[shipId]);
+    }
+    if(profileHasSlotsByShip) return normalizeActionSlots([]);
+    return normalizeActionSlots(store.state.actionSlots);
   };
 
   function accountProfileScope(account){
@@ -77,19 +84,23 @@ export function createProfileController({
     if(profile.ammoInventory && typeof profile.ammoInventory === "object") store.state.ammoInventory = clone(profile.ammoInventory);
     const profileHasSlotsByShip = profile.actionSlotsByShip && typeof profile.actionSlotsByShip === "object";
     if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
+    const activeShipId = String(store.state.activeShip || "orion");
     if(profileHasSlotsByShip){
-      const incomingSlotsByShip = clone(profile.actionSlotsByShip);
-      if(Array.isArray(incomingSlotsByShip?.[store.state.activeShip])){
-        incomingSlotsByShip[store.state.activeShip] = mergeActiveActionSlots(incomingSlotsByShip[store.state.activeShip]);
-      }
+      const incomingSlotsByShip = normalizeActionSlotsByShip(profile.actionSlotsByShip);
+      if(isGameRunning()) incomingSlotsByShip[activeShipId] = getLocalActiveActionSlots(activeShipId, true);
       store.state.actionSlotsByShip = {
         ...store.state.actionSlotsByShip,
         ...incomingSlotsByShip
       };
     }
-    if(Array.isArray(store.state.actionSlotsByShip?.[store.state.activeShip])){
-      store.state.actionSlots = normalizeActionSlots(store.state.actionSlotsByShip[store.state.activeShip]);
-    }else if(Array.isArray(profile.actionSlots)) store.state.actionSlots = mergeActiveActionSlots(profile.actionSlots);
+    if(Array.isArray(store.state.actionSlotsByShip?.[activeShipId])){
+      store.state.actionSlots = normalizeActionSlots(store.state.actionSlotsByShip[activeShipId]);
+    }else if(Array.isArray(profile.actionSlots)){
+      store.state.actionSlots = isGameRunning()
+        ? getLocalActiveActionSlots(activeShipId, false)
+        : normalizeActionSlots(profile.actionSlots);
+      if(isGameRunning()) store.state.actionSlotsByShip[activeShipId] = [...store.state.actionSlots];
+    }
     if(Object.hasOwn(profile, "lastLaserAmmoId")) store.state.lastLaserAmmoId = typeof profile.lastLaserAmmoId === "string" ? profile.lastLaserAmmoId : null;
     if(profile.shipLoadouts && typeof profile.shipLoadouts === "object") store.state.shipLoadouts = clone(profile.shipLoadouts);
     if(Array.isArray(profile.unlockedPortals)) store.state.unlockedPortals = [...new Set(profile.unlockedPortals.map(String))];

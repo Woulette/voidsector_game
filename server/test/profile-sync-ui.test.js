@@ -234,3 +234,120 @@ test("game profile sync preserves local active ship slots when server sends empt
     globalThis.CustomEvent = previousCustomEvent;
   }
 });
+
+test("game profile sync preserves local active ship slots when server sends stale non-empty slots", ()=>{
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousCustomEvent = globalThis.CustomEvent;
+  globalThis.localStorage = {getItem:()=>null, setItem(){}};
+  globalThis.CustomEvent = class {
+    constructor(type, options = {}){
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+  globalThis.window = {dispatchEvent(){}};
+  const veloxSlots = ["ammo_x2", "missile_m1", null, null, null, null, null, null, null];
+  const staleServerSlots = ["ammo_x6", "missile_m6", null, null, null, null, null, null, null];
+  const store = {
+    state:{
+      ...baseState(),
+      activeShip:"velox",
+      actionSlots:[...veloxSlots],
+      actionSlotsByShip:{velox:[...veloxSlots]},
+      ammoInventory:{ammo_x2:500, ammo_x6:500, missile_m1:30, missile_m6:30}
+    },
+    currentView:"game",
+    hangarTab:"vaisseau",
+    hangarDetailOpen:false
+  };
+  const controller = createProfileController({
+    store,
+    game:{running:true, refreshActiveLoadout(){}, updateHud(){}},
+    appMode:"game",
+    profileScopeStorageKey:"test-profile-scope",
+    getXpNextForLevel:()=>3000,
+    xpCurveVersion:1,
+    ensureShipLoadout(){},
+    setStateStorageScope(){},
+    loadState(){},
+    saveState(){},
+    syncMultiplayerProfile(){},
+    renderAll(){},
+    showToast(){}
+  });
+  try{
+    controller.applyServerProfile({
+      updatedAt:4,
+      activeShip:"velox",
+      ammoInventory:{ammo_x2:499, ammo_x6:500, missile_m1:30, missile_m6:30},
+      actionSlotsByShip:{velox:[...staleServerSlots]}
+    });
+    assert.deepEqual(store.state.actionSlots, veloxSlots);
+    assert.deepEqual(store.state.actionSlotsByShip.velox, veloxSlots);
+    assert.equal(store.state.ammoInventory.ammo_x2, 499);
+  }finally{
+    globalThis.window = previousWindow;
+    globalThis.localStorage = previousLocalStorage;
+    globalThis.CustomEvent = previousCustomEvent;
+  }
+});
+
+test("game profile sync keeps a new active ship action bar empty when no slots were saved for it", ()=>{
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousCustomEvent = globalThis.CustomEvent;
+  globalThis.localStorage = {getItem:()=>null, setItem(){}};
+  globalThis.CustomEvent = class {
+    constructor(type, options = {}){
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+  globalThis.window = {dispatchEvent(){}};
+  const emptySlots = [null, null, null, null, null, null, null, null, null];
+  const orionSlots = ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_red"];
+  const store = {
+    state:{
+      ...baseState(),
+      activeShip:"razorion",
+      actionSlots:[...orionSlots],
+      actionSlotsByShip:{orion:[...orionSlots]},
+      ownedShips:["orion", "razorion"]
+    },
+    currentView:"game",
+    hangarTab:"vaisseau",
+    hangarDetailOpen:false
+  };
+  const controller = createProfileController({
+    store,
+    game:{running:true, refreshActiveLoadout(){}, updateHud(){}},
+    appMode:"game",
+    profileScopeStorageKey:"test-profile-scope",
+    getXpNextForLevel:()=>3000,
+    xpCurveVersion:1,
+    ensureShipLoadout(){},
+    setStateStorageScope(){},
+    loadState(){},
+    saveState(){},
+    syncMultiplayerProfile(){},
+    renderAll(){},
+    showToast(){}
+  });
+  try{
+    controller.applyServerProfile({
+      updatedAt:5,
+      activeShip:"razorion",
+      ownedShips:["orion", "razorion"],
+      actionSlots:[...orionSlots],
+      actionSlotsByShip:{orion:[...orionSlots]}
+    });
+    assert.deepEqual(store.state.actionSlots, emptySlots);
+    assert.deepEqual(store.state.actionSlotsByShip.razorion, emptySlots);
+    assert.deepEqual(store.state.actionSlotsByShip.orion, orionSlots);
+  }finally{
+    globalThis.window = previousWindow;
+    globalThis.localStorage = previousLocalStorage;
+    globalThis.CustomEvent = previousCustomEvent;
+  }
+});
