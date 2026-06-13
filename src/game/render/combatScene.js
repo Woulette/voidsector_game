@@ -3,7 +3,7 @@ import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpact
 import { drawPlayerLayer } from "./player.js";
 import { drawPortalTransitionOverlay } from "./portalTransition.js";
 import { drawWorldLayer } from "./world.js";
-import { drawRemotePlayers, drawRemoteTargetLocks } from "../../multiplayer/render.js";
+import { drawRemotePlayers } from "../../multiplayer/render.js";
 import { getFirmBadgeAsset } from "../../data/firms.js";
 
 export function createCombatSceneRenderer({
@@ -149,13 +149,6 @@ export function createCombatSceneRenderer({
       selectedEnemy,
       player,
       enemies
-    });
-    drawRemoteTargetLocks({
-      ctx,
-      camera,
-      player,
-      enemies,
-      currentMapId:currentMap?.id ?? currentMap?.name ?? null
     });
     drawParticles({ctx, camera, particles, repairLayer:true});
     drawDamageTexts();
