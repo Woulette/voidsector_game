@@ -609,6 +609,49 @@ Checks a relancer apres modification de ce domaine :
 - `node --check server/test/combat-remote-targets.test.js`
 - `npm test` dans `server/`
 
+## Audit 13 - Gros fichiers jeu apres reprise
+
+Etat inspecte le 13 juin 2026 apres l'extraction des cibles joueurs distants :
+
+- `src/game/combatData.js` reste le plus gros fichier, mais c'est surtout un catalogue de maps, ennemis et profils. Ne pas le decouper sans besoin de domaine clair.
+- `src/game/ui/combatPanels.js` reste gros car il compose plusieurs panneaux combat. Les prochains decoupages utiles sont des sous-panneaux autonomes, pas des petits wrappers.
+- `src/game/render/world.js` est un gros renderer visuel. Le decouper seulement par couche de rendu claire si on touche aux fonds/parallax/spawn, car un mauvais decoupage peut casser le rendu sans gain gameplay.
+- `src/game/combatOrchestrator.js` reste un coordinateur. Continuer a extraire des domaines testables quand on touche a une feature combat/MMO, mais ne pas extraire la glue pure.
+- `src/game/systems/combatServerEvents.js` concentre encore plusieurs files d'evenements serveur. Candidat futur si on modifie rewards, projectiles ennemis, effets distants ou quetes.
+
+Regle appliquee : garder le decoupage conservateur. Un fichier gros n'est pas automatiquement un fichier mal decoupe si son contenu est du catalogue ou du rendu coherent.
+
+## Extraction 13 - Carte du panneau combat
+
+Le rendu de la carte territoriale du panneau combat n'est plus dans `src/game/ui/combatPanels.js`.
+
+- `src/game/ui/combatMapPanel.js`
+  - contient les secteurs visuels des firmes ;
+  - contient les liaisons affichees sur la carte ;
+  - rend le panneau carte combat a partir de `maps` et `getCurrentMap` ;
+  - garde l'echappement HTML des noms de maps pour eviter une injection dans le panneau.
+- `src/game/ui/combatPanels.js`
+  - conserve seulement la composition, l'ouverture et le refresh du panneau `map` ;
+  - appelle `renderCombatMapPanel({maps, getCurrentMap})`.
+- `server/test/combat-map-panel.test.js`
+  - verifie la map courante ;
+  - verifie le compteur de secteurs actifs ;
+  - verifie les points de portails ;
+  - verifie l'echappement des noms affiches.
+
+Resultat :
+
+- `src/game/ui/combatPanels.js` passe d'environ 1306 a environ 1163 lignes.
+- La carte devient testable sans canvas, DOM ni Socket.IO.
+
+Checks a relancer apres modification de ce domaine :
+
+- `node --check src/game/ui/combatMapPanel.js`
+- `node --check src/game/ui/combatPanels.js`
+- `node --check server/test/combat-map-panel.test.js`
+- `node --test server/test/combat-map-panel.test.js`
+- `npm test` dans `server/`
+
 ## Ajout MMO - Chat combat
 
 Le chat combat MMO est decoupe en modules dedies :
