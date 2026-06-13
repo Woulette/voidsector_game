@@ -8,6 +8,7 @@ import { config } from "./config.js";
 import { dbEnabled, initializeDatabase } from "./db/client.js";
 import { createGroupManager } from "./groups/groups.js";
 import { createFirmWarManager } from "./firms/firmWar.js";
+import { getFirmHitOwner, markFirmHitOwner } from "./firms/firmHitOwnership.js";
 import { logger } from "./logger.js";
 import { normalizeFirmId } from "../../src/data/firms.js";
 import { createEquipmentLocationManager } from "./players/equipmentLocation.js";
@@ -417,7 +418,6 @@ function applyPlayerHit(socket, payload){
   }
   const attackerProfile = profileManager.getProfileForPlayer(attacker);
   const targetProfile = profileManager.getProfileForPlayer(target);
-  const attackerFirm = normalizeFirmId(attackerProfile?.player?.firmId || attacker.account?.firmId || "astra");
   const attackerLevel = Math.max(1, Math.floor(Number(attackerProfile?.player?.level || attacker.state.level || 1)));
   const targetLevel = Math.max(1, Math.floor(Number(targetProfile?.player?.level || target.state.level || 1)));
   const pvpBlockReason = getPlayerPvpBlockReason({
@@ -475,6 +475,7 @@ function applyPlayerHit(socket, payload){
   if(incoming <= 0) return;
 
   const hpBefore = Math.max(0, Number(target.state.hp || 0));
+  markFirmHitOwner(target, attacker);
   presence.applyDamageToPlayerState(target, incoming);
   const hpAfter = Math.max(0, Number(target.state.hp || 0));
   profileManager.saveWorldSession({player:target, state:target.state, force:hpAfter <= 0});
@@ -491,11 +492,16 @@ function applyPlayerHit(socket, payload){
     at:Date.now()
   });
   if(hpBefore > 0 && hpAfter <= 0){
+    const firmAttacker = getFirmHitOwner(target, players) || attacker;
+    delete target.firmHitOwnerKey;
+    delete target.firmHitOwnerLastAt;
+    const firmAttackerProfile = profileManager.getProfileForPlayer(firmAttacker);
+    const firmAttackerFirm = normalizeFirmId(firmAttackerProfile?.player?.firmId || firmAttacker.account?.firmId || "astra");
     const firmKill = firmWarManager.recordPlayerKill({
       attacker:{
-        key:profileManager.profileKeyForPlayer(attacker),
-        name:attackerProfile?.player?.name || attacker.name || "Pilote",
-        firmId:attackerFirm
+        key:profileManager.profileKeyForPlayer(firmAttacker),
+        name:firmAttackerProfile?.player?.name || firmAttacker.name || "Pilote",
+        firmId:firmAttackerFirm
       },
       targetKey:profileManager.profileKeyForPlayer(target)
     });
@@ -514,10 +520,10 @@ function applyPlayerHit(socket, payload){
     if(pvpReward.ok){
       emitProfileSyncForPlayer(attacker, pvpReward.profile);
       const firmSnapshot = firmWarManager.snapshot({
-        playerKey:profileManager.profileKeyForPlayer(attacker),
-        profile:pvpReward.profile
+        playerKey:profileManager.profileKeyForPlayer(firmAttacker),
+        profile:firmAttackerProfile
       });
-      for(const accountPlayer of accountSocketsForPlayer(attacker)){
+      for(const accountPlayer of accountSocketsForPlayer(firmAttacker)){
         io.to(accountPlayer.id).emit("firm:snapshot", firmSnapshot);
       }
       const rewardEvent = {
@@ -534,7 +540,7 @@ function applyPlayerHit(socket, payload){
         premium:0,
         reputation,
         rankPoints:0,
-        firmPoints:firmKill.points,
+        firmPoints:firmAttacker.id === attacker.id ? firmKill.points : 0,
         rewardAppliedByServer:true,
         at:Date.now()
       };

@@ -1,5 +1,6 @@
 import { resolveServerCombatFire } from "./damage.js";
 import { markEnemyAttackedByPlayer } from "../world/aggro.js";
+import { getFirmHitOwner, markFirmHitOwner } from "../firms/firmHitOwnership.js";
 
 function applyDamageToEnemy(enemy, incoming){
   enemy.recentHitTimer = 4;
@@ -102,9 +103,15 @@ export function createEnemyHitHandler({
       const wasAlive = worldEnemy.hp > 0;
       updateLootOwner(worldEnemy, socket.id);
       markEnemyAttackedByPlayer(worldEnemy, socket.id);
+      markFirmHitOwner(worldEnemy, player);
       applyDamageToEnemy(worldEnemy, incoming);
       if(wasAlive && worldEnemy.hp <= 0){
-        emitWorldReward({enemy:worldEnemy, mapId, attackerId:socket.id});
+        emitWorldReward({
+          enemy:worldEnemy,
+          mapId,
+          attackerId:socket.id,
+          firmAttackerId:getFirmHitOwner(worldEnemy, players)?.id || socket.id
+        });
         emitPrivateQuestItemDrop({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
         emitPrivatePortalPieceDrop({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
         emitPrivateResourceDrops?.({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
@@ -159,6 +166,7 @@ export function createEnemyHitHandler({
     }
     const wasAlive = enemy.hp > 0;
     markEnemyAttackedByPlayer(enemy, socket.id);
+    markFirmHitOwner(enemy, player);
     applyDamageToEnemy(enemy, incoming);
     if(instance.type === "portal" && wasAlive && enemy.hp <= 0 && !instance.completed){
       const alive = instance.enemies.some(entry=>entry.hp > 0);

@@ -19,12 +19,12 @@ function createIoRecorder(){
   };
 }
 
-test("firm season stores monster points per same-map rewarded group member", async ()=>{
+test("firm season stores monster points only for the first-hit owner", async ()=>{
   const {events, io} = createIoRecorder();
   const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-war-"));
   const players = new Map([
     ["a", {id:"a", name:"Alpha", connected:true, clientMode:"game", groupId:"g1", mapId:"0", profile:{player:{level:10, firmId:"astra"}}}],
-    ["b", {id:"b", name:"Beta", connected:true, clientMode:"game", groupId:"g1", mapId:"0", profile:{player:{level:10, firmId:"astra"}}}],
+    ["b", {id:"b", name:"Beta", connected:true, clientMode:"game", groupId:"g1", mapId:"0", profile:{player:{level:10, firmId:"cyan"}}}],
     ["c", {id:"c", name:"Gamma", connected:true, clientMode:"game", groupId:"g1", mapId:"1", profile:{player:{level:10, firmId:"astra"}}}]
   ]);
   const groups = new Map([["g1", {id:"g1", members:["a", "b", "c"]}]]);
@@ -38,19 +38,25 @@ test("firm season stores monster points per same-map rewarded group member", asy
       firmWarManager,
       profileManager:{
         getProfileForPlayer:player=>player.profile,
+        profileKeyForPlayer:player=>`account:${player.id}`,
         applyReward({player}){ return player.profile; }
       },
       emitProfileSync(){}
     });
 
     manager.emitWorldReward({
-      attackerId:"a",
+      attackerId:"b",
+      firmAttackerId:"a",
       mapId:"0",
       enemy:{id:"e1", kind:"sentinel_orb", type:"Orbe", level:5, reward:{credits:100, xp:100, premium:0}}
     });
 
     const astra = firmWarManager.snapshot().firms.find(firm=>firm.id === "astra");
-    assert.equal(astra.points, 2);
+    const cyan = firmWarManager.snapshot().firms.find(firm=>firm.id === "cyan");
+    assert.equal(astra.points, 1);
+    assert.equal(cyan.points, 0);
+    assert.equal(firmWarManager.snapshot({playerKey:"account:a"}).personal.contribution, 1);
+    assert.equal(firmWarManager.snapshot({playerKey:"account:b"}).personal.contribution, 0);
     assert.equal(events.some(entry=>entry.event === "firm:ranking" && entry.id === "*"), true);
   }finally{
     await rm(dir, {recursive:true, force:true});

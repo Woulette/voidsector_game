@@ -16,7 +16,7 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
     return recipients.length ? recipients : [attacker];
   }
 
-  function emitWorldReward({enemy, mapId, attackerId}){
+  function emitWorldReward({enemy, mapId, attackerId, firmAttackerId = attackerId}){
     const attacker = players.get(attackerId);
     if(!attacker || !enemy || enemy.rewardGranted) return;
     enemy.rewardGranted = true;
@@ -26,8 +26,6 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
     const recipients = getSameMapRewardRecipients(attacker, mapId);
     const share = recipients.length > 1 ? 1 / recipients.length : 1;
     const reward = enemy.reward || {credits:0, xp:0, premium:0};
-    const firmKillRecipients = [];
-    const personalFirmSnapshots = [];
     for(const player of recipients){
       const currentProfile = profileManager.getProfileForPlayer?.(player);
       const firmId = currentProfile?.player?.firmId || player.account?.firmId || "astra";
@@ -38,14 +36,6 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
       const premium = Math.max(0, Math.round(Number(reward.premium || 0) * share * multiplier));
       const rankPoints = calculateMonsterKillRankPoints(currentProfile?.player?.level || 1, enemy.level);
       const reputation = Math.max(0, Math.round(xp * 0.1));
-      const playerKey = profileManager.profileKeyForPlayer?.(player) || "";
-      firmKillRecipients.push({
-        key:playerKey,
-        name:currentProfile?.player?.name || player.name || "Pilote",
-        firmId,
-        awardFirmPoint:canAwardFirmMonsterPoint(currentProfile?.player?.level || 1, enemy.level)
-      });
-      personalFirmSnapshots.push({player, playerKey, profile:currentProfile});
       io.to(player.id).emit("player:reward", {
         rewardId,
         enemyId:enemy.id,
@@ -77,16 +67,22 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
       });
       emitProfileSync?.(player, profile);
     }
-    if(firmWarManager && firmKillRecipients.length){
-      const snapshot = firmWarManager.addMonsterKillPoints(firmKillRecipients, {enemyKind:enemy.kind || enemy.type});
+    const firmPlayer = players.get(firmAttackerId);
+    if(firmWarManager && firmPlayer){
+      const firmProfile = profileManager.getProfileForPlayer?.(firmPlayer);
+      const playerKey = profileManager.profileKeyForPlayer?.(firmPlayer) || "";
+      const contributor = {
+        key:playerKey,
+        name:firmProfile?.player?.name || firmPlayer.name || "Pilote",
+        firmId:firmProfile?.player?.firmId || firmPlayer.account?.firmId || "astra",
+        awardFirmPoint:canAwardFirmMonsterPoint(firmProfile?.player?.level || 1, enemy.level)
+      };
+      const snapshot = firmWarManager.addMonsterKillPoints([contributor], {enemyKind:enemy.kind || enemy.type});
       io.emit?.("firm:ranking", snapshot);
-      for(const entry of personalFirmSnapshots){
-        if(!entry.playerKey) continue;
-        io.to(entry.player.id).emit("firm:snapshot", firmWarManager.snapshot({
-          playerKey:entry.playerKey,
-          profile:entry.profile
-        }));
-      }
+      if(playerKey) io.to(firmPlayer.id).emit("firm:snapshot", firmWarManager.snapshot({
+        playerKey,
+        profile:firmProfile
+      }));
     }
   }
 
