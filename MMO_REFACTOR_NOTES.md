@@ -587,6 +587,28 @@ Suite recommandee :
 - arreter le gros decoupage structurel ;
 - passer aux corrections en jeu et aux priorites MMO : anti-spam serveur, rang serveur et admin minimum.
 
+## Extraction 12 - Cibles joueurs distants combat
+
+Le ciblage client des joueurs distants n'est plus porte directement par `src/game/combatOrchestrator.js`.
+
+- `src/game/systems/combatRemoteTargets.js`
+  - construit la cible combat d'un joueur distant ;
+  - resout une cible par id joueur pour les beams / attaques ;
+  - resout la cible la plus proche au clic monde ;
+  - conserve les regles existantes : meme groupe, niveau PvP, firme hostile et filtre par map courante.
+
+Resultat :
+
+- `src/game/combatOrchestrator.js` compose maintenant un resolver injecte avec `store`, `multiplayer` et `currentMap`.
+- La logique de lock joueur distant devient testable sans charger le canvas ou Socket.IO.
+
+Checks a relancer apres modification de ce domaine :
+
+- `node --check src/game/systems/combatRemoteTargets.js`
+- `node --check src/game/combatOrchestrator.js`
+- `node --check server/test/combat-remote-targets.test.js`
+- `npm test` dans `server/`
+
 ## Ajout MMO - Chat combat
 
 Le chat combat MMO est decoupe en modules dedies :
