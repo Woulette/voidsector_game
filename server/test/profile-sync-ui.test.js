@@ -177,3 +177,60 @@ test("profile sync keeps active Velox action slots when the server profile does 
     globalThis.CustomEvent = previousCustomEvent;
   }
 });
+
+test("game profile sync preserves local active ship slots when server sends empty slots after ammo use", ()=>{
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousCustomEvent = globalThis.CustomEvent;
+  globalThis.localStorage = {getItem:()=>null, setItem(){}};
+  globalThis.CustomEvent = class {
+    constructor(type, options = {}){
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+  globalThis.window = {dispatchEvent(){}};
+  const veloxSlots = ["ammo_x2", "missile_m1", null, null, null, null, null, null, null];
+  const store = {
+    state:{
+      ...baseState(),
+      activeShip:"velox",
+      actionSlots:[...veloxSlots],
+      actionSlotsByShip:{velox:[...veloxSlots]},
+      ammoInventory:{ammo_x1:500, ammo_x2:500, missile_m1:30}
+    },
+    currentView:"game",
+    hangarTab:"vaisseau",
+    hangarDetailOpen:false
+  };
+  const controller = createProfileController({
+    store,
+    game:{running:true, refreshActiveLoadout(){}, updateHud(){}},
+    appMode:"game",
+    profileScopeStorageKey:"test-profile-scope",
+    getXpNextForLevel:()=>3000,
+    xpCurveVersion:1,
+    ensureShipLoadout(){},
+    setStateStorageScope(){},
+    loadState(){},
+    saveState(){},
+    syncMultiplayerProfile(){},
+    renderAll(){},
+    showToast(){}
+  });
+  try{
+    controller.applyServerProfile({
+      updatedAt:3,
+      activeShip:"velox",
+      ammoInventory:{ammo_x1:500, ammo_x2:499, missile_m1:30},
+      actionSlotsByShip:{velox:[null, null, null, null, null, null, null, null, null]}
+    });
+    assert.deepEqual(store.state.actionSlots, veloxSlots);
+    assert.deepEqual(store.state.actionSlotsByShip.velox, veloxSlots);
+    assert.equal(store.state.ammoInventory.ammo_x2, 499);
+  }finally{
+    globalThis.window = previousWindow;
+    globalThis.localStorage = previousLocalStorage;
+    globalThis.CustomEvent = previousCustomEvent;
+  }
+});

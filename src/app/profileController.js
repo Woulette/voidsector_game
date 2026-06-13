@@ -17,6 +17,16 @@ export function createProfileController({
 }){
   let activeProfileScope = localStorage.getItem(profileScopeStorageKey) || "guest";
   const clone = value=>JSON.parse(JSON.stringify(value || {}));
+  const normalizeActionSlots = slots=>Array.from({length:9}, (_,index)=>{
+    const itemId = Array.isArray(slots) ? slots[index] : null;
+    return typeof itemId === "string" && itemId.length > 0 ? itemId : null;
+  });
+  const mergeActiveActionSlots = incomingSlots=>{
+    const incoming = normalizeActionSlots(incomingSlots);
+    const local = normalizeActionSlots(store.state.actionSlots);
+    if(appMode !== "game" || !game.running) return incoming;
+    return incoming.map((itemId, index)=>itemId || local[index] || null);
+  };
 
   function accountProfileScope(account){
     return account?.id ? `account:${account.id}` : "guest";
@@ -68,17 +78,18 @@ export function createProfileController({
     const profileHasSlotsByShip = profile.actionSlotsByShip && typeof profile.actionSlotsByShip === "object";
     if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
     if(profileHasSlotsByShip){
+      const incomingSlotsByShip = clone(profile.actionSlotsByShip);
+      if(Array.isArray(incomingSlotsByShip?.[store.state.activeShip])){
+        incomingSlotsByShip[store.state.activeShip] = mergeActiveActionSlots(incomingSlotsByShip[store.state.activeShip]);
+      }
       store.state.actionSlotsByShip = {
         ...store.state.actionSlotsByShip,
-        ...clone(profile.actionSlotsByShip)
+        ...incomingSlotsByShip
       };
     }
     if(Array.isArray(store.state.actionSlotsByShip?.[store.state.activeShip])){
-      store.state.actionSlots = Array.from({length:9}, (_,index)=>store.state.actionSlotsByShip[store.state.activeShip][index] || null);
-    }else if(Array.isArray(profile.actionSlots)) store.state.actionSlots = Array.from({length:9}, (_,index)=>{
-        const itemId = profile.actionSlots[index];
-        return typeof itemId === "string" && itemId.length > 0 ? itemId : null;
-      });
+      store.state.actionSlots = normalizeActionSlots(store.state.actionSlotsByShip[store.state.activeShip]);
+    }else if(Array.isArray(profile.actionSlots)) store.state.actionSlots = mergeActiveActionSlots(profile.actionSlots);
     if(Object.hasOwn(profile, "lastLaserAmmoId")) store.state.lastLaserAmmoId = typeof profile.lastLaserAmmoId === "string" ? profile.lastLaserAmmoId : null;
     if(profile.shipLoadouts && typeof profile.shipLoadouts === "object") store.state.shipLoadouts = clone(profile.shipLoadouts);
     if(Array.isArray(profile.unlockedPortals)) store.state.unlockedPortals = [...new Set(profile.unlockedPortals.map(String))];
