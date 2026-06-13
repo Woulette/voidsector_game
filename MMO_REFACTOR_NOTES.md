@@ -715,6 +715,38 @@ Checks a relancer apres modification de ce domaine :
 - `node --test server/test/combat-quest-server-events.test.js`
 - `npm test` dans `server/`
 
+## Extraction 16 - Bindings de barre d'action combat
+
+Les interactions de la barre d'action combat ne sont plus melangees aux bindings souris/clavier monde dans `src/game/ui/inputBindings.js`.
+
+- `src/game/ui/combatActionBarInput.js`
+  - installe les listeners de clic, dragstart, dragend, dragover et drop de `#gameActionBar` ;
+  - gere le deplacement d'un slot vers un autre ;
+  - gere la suppression d'un slot quand il est tire hors de la barre au-dela de 72 px ;
+  - gere les drops d'extras, formations drones, munitions et CPU missile ;
+  - expose `setCombatAssetDragImage()` reutilise par le panneau rapide combat.
+- `src/game/ui/inputBindings.js`
+  - garde les interactions monde, minimap, panneaux utilitaires, panneau spawn et raccourcis clavier ;
+  - delegue la barre d'action a `installCombatActionBarInputHandlers()`.
+- `server/test/combat-action-bar-input.test.js`
+  - verrouille le seuil de suppression d'un slot ;
+  - verrouille la lecture des payloads de drop ;
+  - verifie l'assignation d'un extra dans un slot ;
+  - verifie la suppression d'un slot tire hors barre.
+
+Resultat :
+
+- `src/game/ui/inputBindings.js` passe d'environ 688 a environ 598 lignes.
+- Le code sensible des slots et munitions devient testable sans lancer le jeu.
+
+Checks a relancer apres modification de ce domaine :
+
+- `node --check src/game/ui/combatActionBarInput.js`
+- `node --check src/game/ui/inputBindings.js`
+- `node --check server/test/combat-action-bar-input.test.js`
+- `node --test server/test/combat-action-bar-input.test.js`
+- `npm test` dans `server/`
+
 ## Ajout MMO - Chat combat
 
 Le chat combat MMO est decoupe en modules dedies :

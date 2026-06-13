@@ -1,4 +1,5 @@
 import { slotIndexFromEvent } from "../../core/keybinds.js";
+import { installCombatActionBarInputHandlers, setCombatAssetDragImage } from "./combatActionBarInput.js";
 
 export function installCombatInputHandlers({
   windowRef = window,
@@ -84,46 +85,8 @@ export function installCombatInputHandlers({
   upgradeEquipment,
   showToast
 }){
-  const ACTION_SLOT_CLEAR_DISTANCE = 72;
-  let draggedActionSlotIndex = null;
-  let actionSlotDropHandled = false;
-  let actionSlotDragStart = null;
-  let actionSlotClearDistanceReached = false;
   let mouseMoveHeld = false;
   let miniMapDrag = null;
-
-  function updateActionSlotClearDistance(e){
-    if(!actionSlotDragStart) return;
-    const dx = Number(e.clientX || 0) - actionSlotDragStart.x;
-    const dy = Number(e.clientY || 0) - actionSlotDragStart.y;
-    if(Math.hypot(dx, dy) >= ACTION_SLOT_CLEAR_DISTANCE) actionSlotClearDistanceReached = true;
-  }
-
-  function setAssetDragImage(e, source){
-    if(!e.dataTransfer?.setDragImage || !source || !documentRef.body) return;
-    const visual = source.querySelector("img, .ammo-glyph") || source;
-    const ghost = visual.cloneNode(true);
-    ghost.removeAttribute?.("id");
-    Object.assign(ghost.style, {
-      position:"fixed",
-      left:"-120px",
-      top:"-120px",
-      width:"58px",
-      height:"58px",
-      objectFit:"contain",
-      pointerEvents:"none",
-      zIndex:"-1",
-      opacity:"0.96"
-    });
-    if(ghost.classList?.contains("ammo-glyph")){
-      ghost.style.display = "grid";
-      ghost.style.placeItems = "center";
-      ghost.style.borderRadius = "8px";
-    }
-    documentRef.body.appendChild(ghost);
-    e.dataTransfer.setDragImage(ghost, 29, 29);
-    windowRef.setTimeout(()=>ghost.remove(), 0);
-  }
 
   windowRef.addEventListener("resize", ()=>{ if(isRunning()) resize(); });
   windowRef.addEventListener("beforeunload", ()=>{ try{ saveState(); }catch(e){} });
@@ -270,75 +233,19 @@ export function installCombatInputHandlers({
     updateHud();
   });
 
-  const actionBar = documentRef.getElementById("gameActionBar");
-  actionBar.addEventListener("click", e=>{
-    if(!isRunning()) return;
-    const slot = e.target.closest("[data-action-index]");
-    if(slot) selectActionSlot(Number(slot.dataset.actionIndex));
-  });
-  actionBar.addEventListener("dragover", e=>{
-    if(e.target.closest("[data-action-index]")) e.preventDefault();
-  });
-  actionBar.addEventListener("dragstart", e=>{
-    if(!isRunning()) return;
-    const slot = e.target.closest("[data-action-index]");
-    if(!slot) return;
-    const index = Number(slot.dataset.actionIndex);
-    if(!getActionSlots()?.[index]) return e.preventDefault();
-    draggedActionSlotIndex = index;
-    actionSlotDropHandled = false;
-    actionSlotDragStart = {x:Number(e.clientX || 0), y:Number(e.clientY || 0)};
-    actionSlotClearDistanceReached = false;
-    e.dataTransfer.setData("application/x-voidsector-action-slot", String(index));
-    e.dataTransfer.effectAllowed = "move";
-    setAssetDragImage(e, slot);
-  });
-  actionBar.addEventListener("dragend", e=>{
-    if(!isRunning()) return;
-    updateActionSlotClearDistance(e);
-    if(draggedActionSlotIndex !== null && !actionSlotDropHandled && actionSlotClearDistanceReached) clearActionSlot(draggedActionSlotIndex);
-    draggedActionSlotIndex = null;
-    actionSlotDropHandled = false;
-    actionSlotDragStart = null;
-    actionSlotClearDistanceReached = false;
-  });
-  actionBar.addEventListener("drop", e=>{
-    if(!isRunning()) return;
-    const slot = e.target.closest("[data-action-index]");
-    if(!slot) return;
-    e.preventDefault();
-    const fromSlot = e.dataTransfer.getData("application/x-voidsector-action-slot");
-    if(fromSlot !== ""){
-      actionSlotDropHandled = true;
-      moveActionSlot(Number(fromSlot), Number(slot.dataset.actionIndex));
-      return;
-    }
-    const extraId = e.dataTransfer.getData("application/x-voidsector-extra");
-    const missileCpu = e.dataTransfer.getData("application/x-voidsector-missile-cpu");
-    const droneFormation = e.dataTransfer.getData("application/x-voidsector-drone-formation");
-    const ammoId = e.dataTransfer.getData("application/x-voidsector-ammo") || e.dataTransfer.getData("text/plain");
-    if(extraId) assignExtraToActionSlot(Number(slot.dataset.actionIndex), extraId);
-    else if(missileCpu) assignMissileLauncherToActionSlot(Number(slot.dataset.actionIndex));
-    else if(droneFormation) assignDroneFormationToActionSlot(Number(slot.dataset.actionIndex), droneFormation);
-    else assignAmmoToActionSlot(Number(slot.dataset.actionIndex), ammoId);
-  });
-
-  documentRef.addEventListener("dragover", e=>{
-    if(!isRunning()) return;
-    if(e.dataTransfer.types.includes("application/x-voidsector-action-slot")){
-      updateActionSlotClearDistance(e);
-      e.preventDefault();
-    }
-  });
-  documentRef.addEventListener("drop", e=>{
-    if(!isRunning()) return;
-    const fromSlot = e.dataTransfer.getData("application/x-voidsector-action-slot");
-    if(fromSlot === "") return;
-    if(e.target.closest("#gameActionBar [data-action-index]")) return;
-    e.preventDefault();
-    actionSlotDropHandled = true;
-    updateActionSlotClearDistance(e);
-    if(actionSlotClearDistanceReached) clearActionSlot(Number(fromSlot));
+  installCombatActionBarInputHandlers({
+    windowRef,
+    documentRef,
+    actionBar:documentRef.getElementById("gameActionBar"),
+    isRunning,
+    getActionSlots,
+    selectActionSlot,
+    moveActionSlot,
+    clearActionSlot,
+    assignExtraToActionSlot,
+    assignDroneFormationToActionSlot,
+    assignAmmoToActionSlot,
+    assignMissileLauncherToActionSlot
   });
 
   documentRef.getElementById("combatQuickMenuBtn").addEventListener("click", ()=>{
@@ -384,7 +291,7 @@ export function installCombatInputHandlers({
       e.dataTransfer.setData("application/x-voidsector-missile-cpu", "1");
       e.dataTransfer.setData("text/plain", "launcher_missile_mk1");
       e.dataTransfer.effectAllowed = "copy";
-      setAssetDragImage(e, missileCpu);
+      setCombatAssetDragImage({event:e, source:missileCpu, documentRef, windowRef});
       return;
     }
     const extra = e.target.closest("[data-combat-extra-slot]");
@@ -392,7 +299,7 @@ export function installCombatInputHandlers({
       e.dataTransfer.setData("application/x-voidsector-extra", extra.dataset.combatExtraSlot);
       e.dataTransfer.setData("text/plain", extra.dataset.combatExtraSlot);
       e.dataTransfer.effectAllowed = "copy";
-      setAssetDragImage(e, extra);
+      setCombatAssetDragImage({event:e, source:extra, documentRef, windowRef});
       return;
     }
     const formation = e.target.closest("[data-combat-drone-formation]");
@@ -400,7 +307,7 @@ export function installCombatInputHandlers({
       e.dataTransfer.setData("application/x-voidsector-drone-formation", formation.dataset.combatDroneFormation);
       e.dataTransfer.setData("text/plain", formation.dataset.combatDroneFormation);
       e.dataTransfer.effectAllowed = "copy";
-      setAssetDragImage(e, formation);
+      setCombatAssetDragImage({event:e, source:formation, documentRef, windowRef});
       return;
     }
     const ammo = e.target.closest("[data-combat-ammo-id]");
@@ -408,7 +315,7 @@ export function installCombatInputHandlers({
     e.dataTransfer.setData("application/x-voidsector-ammo", ammo.dataset.combatAmmoId);
     e.dataTransfer.setData("text/plain", ammo.dataset.combatAmmoId);
     e.dataTransfer.effectAllowed = "copy";
-    setAssetDragImage(e, ammo);
+    setCombatAssetDragImage({event:e, source:ammo, documentRef, windowRef});
   });
 
   documentRef.getElementById("combatUtilityDock")?.addEventListener("click", e=>{
