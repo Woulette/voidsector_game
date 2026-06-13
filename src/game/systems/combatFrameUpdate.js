@@ -101,7 +101,10 @@ export function createCombatFrameUpdateSystem({
     syncServerControlledEnemies();
     state = getState();
     const lockedEnemy = validSelectedEnemy();
-    if(lockedEnemy){
+    const attackTargetId = lockedEnemy && getActiveLaserSlot() !== null
+      ? (lockedEnemy.isPlayerTarget ? `player:${lockedEnemy.playerId}` : String(lockedEnemy.serverId || lockedEnemy.id || ""))
+      : "";
+    if(lockedEnemy && attackTargetId){
       player.angle = Math.atan2(lockedEnemy.y-player.y, lockedEnemy.x-player.x)+Math.PI/2;
     }
     const rank = getCurrentRank();
@@ -133,7 +136,8 @@ export function createCombatFrameUpdateSystem({
       rankAssetPath:getRankAssetPath(rank),
       lockedTargetId:state.selectedEnemy
         ? (state.selectedEnemy.isPlayerTarget ? `player:${state.selectedEnemy.playerId}` : String(state.selectedEnemy.serverId || state.selectedEnemy.id || ""))
-        : ""
+        : "",
+      attackTargetId
     });
     updateRadiation(dt);
     serverEvents.applyAll();

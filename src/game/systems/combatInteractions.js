@@ -109,7 +109,7 @@ export function createCombatInteractionSystem({
   }
 
   function selectEnemy(enemy){
-    setState({selectedEnemy:enemy, moveTarget:null});
+    setState({selectedEnemy:enemy});
     lastTargetLaserSlot = null;
   }
 

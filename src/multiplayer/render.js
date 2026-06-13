@@ -179,7 +179,7 @@ function drawSelectedRemoteOverlay({ctx, camera, remote, state, selectedEnemy}){
 }
 
 function findRemoteLockedTarget({remote, player, enemies = []}){
-  const targetId = String(remote?.state?.lockedTargetId || "");
+  const targetId = String(remote?.state?.attackTargetId || "");
   if(!targetId) return null;
   if(targetId === `player:${multiplayer.playerId}`) return player || null;
   if(targetId.startsWith("player:")) return multiplayer.remotePlayers.get(targetId.slice(7))?.state || null;
@@ -190,7 +190,7 @@ export function drawRemoteTargetLocks({ctx, camera, player, enemies = [], curren
   const now = Date.now();
   for(const remote of multiplayer.remotePlayers.values()){
     const state = remote?.state;
-    const targetId = String(state?.lockedTargetId || "");
+    const targetId = String(state?.attackTargetId || "");
     if(!state || !targetId || now - Number(state.updatedAt || 0) > 10000) continue;
     if(currentMapId !== null && String(state.mapId) !== String(currentMapId)) continue;
     let target = null;

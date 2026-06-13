@@ -367,6 +367,7 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
       rankName:String(payload?.rankName || previous?.rankName || "").slice(0, 48),
       rankAssetPath:String(payload?.rankAssetPath || previous?.rankAssetPath || "").slice(0, 180),
       lockedTargetId:String(payload?.lockedTargetId || "").slice(0, 100),
+      attackTargetId:String(payload?.attackTargetId || "").slice(0, 100),
       updatedAt:now
     }
   };
