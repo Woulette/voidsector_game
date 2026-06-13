@@ -178,6 +178,14 @@ function drawSelectedRemoteOverlay({ctx, camera, remote, state, selectedEnemy}){
   ctx.restore();
 }
 
+function findRemoteLockedTarget({remote, player, enemies = []}){
+  const targetId = String(remote?.state?.lockedTargetId || "");
+  if(!targetId) return null;
+  if(targetId === `player:${multiplayer.playerId}`) return player || null;
+  if(targetId.startsWith("player:")) return multiplayer.remotePlayers.get(targetId.slice(7))?.state || null;
+  return enemies.find(enemy=>String(enemy.serverId || enemy.id || "") === targetId) || null;
+}
+
 export function drawRemoteTargetLocks({ctx, camera, player, enemies = [], currentMapId = null}){
   const now = Date.now();
   for(const remote of multiplayer.remotePlayers.values()){
@@ -222,7 +230,9 @@ export function drawRemotePlayers({
   ships = [],
   defaultProfile = null,
   profiles = {},
-  selectedEnemy = null
+  selectedEnemy = null,
+  player = null,
+  enemies = []
 }){
   const now = Date.now();
   for(const remote of multiplayer.remotePlayers.values()){
@@ -231,6 +241,10 @@ export function drawRemotePlayers({
     if(currentMapId !== null && String(state.mapId) !== String(currentMapId)) continue;
     const render = getRemoteRenderState(remote, state);
     const sampledState = sampleBufferedState(remote.stateSamples) || state;
+    const lockedTarget = findRemoteLockedTarget({remote, player, enemies});
+    if(lockedTarget){
+      render.angle = Math.atan2(Number(lockedTarget.y || 0) - render.y, Number(lockedTarget.x || 0) - render.x) + Math.PI / 2;
+    }
     const ship = buildRemoteShip(sampledState, ships);
     getCachedImage(cache, "assets/drones/drone_test_sprite.webp");
     getCachedImage(cache, ship.combatImg || ship.img);

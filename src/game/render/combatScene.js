@@ -146,7 +146,9 @@ export function createCombatSceneRenderer({
       ships:shipList,
       defaultProfile:defaultEngineProfile,
       profiles:engineProfiles,
-      selectedEnemy
+      selectedEnemy,
+      player,
+      enemies
     });
     drawRemoteTargetLocks({
       ctx,

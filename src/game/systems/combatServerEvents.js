@@ -185,6 +185,7 @@ export function createCombatServerEventSystem({
         remaining.push(event);
         continue;
       }
+      if(event.targetId && String(event.targetId) !== String(multiplayer.playerId)) continue;
       const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId || event.sourceId));
       if(enemy){
         enemy.attackT = Math.max(Number(enemy.attackT || 0), Number(event.life || .22));

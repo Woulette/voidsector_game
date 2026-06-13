@@ -120,6 +120,8 @@ export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget,
   for(const remote of groupPlayers || []){
     const state = remote.state;
     if(!state) continue;
+    const mapToken = String(currentMap?.id ?? currentMap?.name ?? "");
+    if(mapToken && String(state.mapId ?? "") !== mapToken) continue;
     const gx = mapX(Number(state.x || 0));
     const gy = mapY(Number(state.y || 0));
     ctx.save();
