@@ -652,6 +652,37 @@ Checks a relancer apres modification de ce domaine :
 - `node --test server/test/combat-map-panel.test.js`
 - `npm test` dans `server/`
 
+## Extraction 14 - Effets d'armes joueurs distants
+
+Les animations d'armes recues des autres joueurs ne sont plus codees directement dans `src/game/systems/combatServerEvents.js`.
+
+- `src/game/systems/combatRemoteWeaponEvents.js`
+  - consomme `multiplayer.remoteEffects` ;
+  - filtre les effets par map courante ;
+  - rejoue les lasers distants via le systeme de beams ;
+  - cree les projectiles visuels des roquettes et missiles distants ;
+  - conserve l'ammo exacte, le sprite projectile, la couleur, la cible et les courbes de salve.
+- `src/game/systems/combatServerEvents.js`
+  - conserve son API publique historique ;
+  - delegue `applyRemoteWeaponEvents()` au processeur dedie.
+- `server/test/combat-remote-weapon-events.test.js`
+  - verrouille le rendu laser distant avec ammo/couleur/cible ;
+  - verrouille les missiles distants avec sprite `missile_m2`, cible joueur locale et courbes ;
+  - verifie que les effets d'une autre map sont conserves brievement au lieu d'etre perdus.
+
+Resultat :
+
+- `src/game/systems/combatServerEvents.js` passe d'environ 512 a environ 460 lignes.
+- La zone fragile des animations de ton pote est testable sans canvas ni Socket.IO.
+
+Checks a relancer apres modification de ce domaine :
+
+- `node --check src/game/systems/combatRemoteWeaponEvents.js`
+- `node --check src/game/systems/combatServerEvents.js`
+- `node --check server/test/combat-remote-weapon-events.test.js`
+- `node --test server/test/combat-remote-weapon-events.test.js`
+- `npm test` dans `server/`
+
 ## Ajout MMO - Chat combat
 
 Le chat combat MMO est decoupe en modules dedies :
