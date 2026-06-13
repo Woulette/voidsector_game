@@ -501,8 +501,8 @@ export function drawGroundMaterials({ctx, camera, cache, materials}){
   for(const node of materials || []){
     const img = cache[node.img];
     const sx = Math.round(node.x - camera.x);
-    const sy = Math.round(node.y - camera.y + Math.sin(time + node.phase) * 2);
-    const size = node.size || 42;
+    const sy = Math.round(node.y - camera.y + Math.sin(time + node.phase) * 3);
+    const size = node.renderSize || node.size || 42;
     ctx.save();
     ctx.translate(sx, sy);
     ctx.globalCompositeOperation = "lighter";
@@ -517,7 +517,12 @@ export function drawGroundMaterials({ctx, camera, cache, materials}){
     ctx.fill();
     ctx.globalCompositeOperation = "source-over";
     ctx.shadowBlur = 0;
-    if(img && img.complete) ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    if(img && img.complete){
+      ctx.save();
+      ctx.rotate(time * (node.suctionActive ? 1.55 : .42) + node.phase);
+      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }
     else{
       ctx.fillStyle = node.fallback || "rgba(125,211,252,.72)";
       ctx.beginPath();

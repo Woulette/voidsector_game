@@ -86,6 +86,67 @@ test("firm monster points ignore enemies more than eight levels below the reward
 
     const astra = firmWarManager.snapshot().firms.find(firm=>firm.id === "astra");
     assert.equal(astra.points, 0);
+
+    manager.emitWorldReward({
+      attackerId:"a",
+      mapId:"0",
+      enemy:{id:"e-threshold", kind:"drone_pirate", type:"Drone", level:12, reward:{credits:100, xp:100, premium:0}}
+    });
+
+    const astraAfterThreshold = firmWarManager.snapshot().firms.find(firm=>firm.id === "astra");
+    assert.equal(astraAfterThreshold.points, 1);
+
+    manager.emitWorldReward({
+      attackerId:"a",
+      mapId:"0",
+      enemy:{id:"e-higher", kind:"drone_pirate", type:"Drone", level:28, reward:{credits:100, xp:100, premium:0}}
+    });
+
+    const astraAfterHigher = firmWarManager.snapshot().firms.find(firm=>firm.id === "astra");
+    assert.equal(astraAfterHigher.points, 2);
+  }finally{
+    await rm(dir, {recursive:true, force:true});
+  }
+});
+
+test("low level monster kills still progress firm quests without direct firm point", async ()=>{
+  const now = new Date(2026, 5, 12, 7).getTime();
+  const {io} = createIoRecorder();
+  const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-war-low-quest-"));
+  const players = new Map([
+    ["a", {id:"a", name:"Alpha", connected:true, clientMode:"game", mapId:"0", profile:{player:{level:50, firmId:"astra"}}}]
+  ]);
+  try{
+    const firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>now});
+    await firmWarManager.load();
+    const manager = createWorldRewardManager({
+      io,
+      players,
+      groups:new Map(),
+      firmWarManager,
+      profileManager:{
+        getProfileForPlayer:player=>player.profile,
+        profileKeyForPlayer:()=>"account:a",
+        applyReward({player}){ return player.profile; }
+      },
+      emitProfileSync(){}
+    });
+
+    manager.emitWorldReward({
+      attackerId:"a",
+      mapId:"0",
+      enemy:{id:"e-low-orb", kind:"drone_pirate", type:"Orbe", level:1, reward:{credits:100, xp:100, premium:0}}
+    });
+
+    const snapshot = firmWarManager.snapshot({playerKey:"account:a", profile:players.get("a").profile});
+    const astra = snapshot.firms.find(firm=>firm.id === "astra");
+    const quest = snapshot.dailyQuests.find(entry=>entry.definitionId === "orbs");
+    const seasonalOrb = snapshot.seasonObjectives.find(entry=>entry.id === "season-solo-orbs-50");
+    assert.equal(astra.points, 0);
+    assert.equal(snapshot.personal.contribution, 0);
+    assert.equal(quest.firms.astra.progress, 1);
+    assert.equal(quest.player.contribution, 1);
+    assert.equal(seasonalOrb.progress, 1);
   }finally{
     await rm(dir, {recursive:true, force:true});
   }

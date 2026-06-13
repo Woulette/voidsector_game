@@ -18,8 +18,4 @@ export function installSocialSocketListeners({socket, multiplayer, emitChange, t
     toast(`Message prive : ${message?.author?.name || "Pilote"}`);
     emitChange("social:private-message", message);
   });
-  socket.on("firm:ranking", payload=>{
-    multiplayer.firmRanking = payload || null;
-    emitChange("firm:ranking", payload);
-  });
 }

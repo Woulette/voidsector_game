@@ -1,55 +1,54 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FIRMS, getFirmDefinition, normalizeFirmId } from "../../../src/data/firms.js";
+import { normalizeFirmId } from "../../../src/data/firms.js";
 import { dbEnabled, query } from "../db/client.js";
+import { addFirmPvpKill } from "./firmPvp.js";
+import { buildFirmSeasonObjectiveSnapshot, recordFirmSeasonObjectiveProgress } from "./firmObjectives.js";
+import {
+  acceptFirmDailyQuest,
+  buildFirmQuestSnapshot,
+  buildFirmSeasonalQuestSnapshot,
+  claimFirmQuestReward,
+  ensureFirmDailyQuests,
+  ensureFirmSeasonalQuests,
+  recordFirmQuestProgress
+} from "./firmQuests.js";
+import {
+  FIRM_COLLECTIVE_MIN_CONTRIBUTION,
+  FIRM_RANK_BONUSES,
+  FIRM_REWARD_MS,
+  FIRM_SEASON_MS,
+  FIRM_SHOP_CATALOG,
+  getFirmShopPrice,
+  getFirmIndividualReward
+} from "./firmRules.js";
+import {
+  addFirmContribution,
+  buildFirmPublicRanking,
+  buildIndividualPublicRanking,
+  closeFirmSeason,
+  sortIndividualRanking
+} from "./firmSeason.js";
+import { buildInitialFirmState, sanitizeFirmState } from "./firmState.js";
 
-export const FIRM_SEASON_MS = 14 * 24 * 60 * 60 * 1000;
-export const FIRM_REWARD_MS = 7 * 24 * 60 * 60 * 1000;
-export const FIRM_RANK_BONUSES = [0.25, 0.15, 0.10, 0.05];
+export { FIRM_COLLECTIVE_MIN_CONTRIBUTION, FIRM_RANK_BONUSES, FIRM_REWARD_MS, FIRM_SEASON_MS };
 
 const DEFAULT_FILE = fileURLToPath(new URL("../../data/firmWar.json", import.meta.url));
 
-function emptyPoints(){
-  return Object.fromEntries(FIRMS.map(firm=>[firm.id, 0]));
-}
-
-function sanitizePoints(points = {}){
-  const next = emptyPoints();
-  for(const firm of FIRMS) next[firm.id] = Math.max(0, Math.floor(Number(points[firm.id] || 0)));
-  return next;
-}
-
-function sortRanking(points){
-  return FIRMS
-    .map(firm=>({firm, points:Math.max(0, Math.floor(Number(points?.[firm.id] || 0)))}))
-    .sort((a, b)=>b.points - a.points || a.firm.label.localeCompare(b.firm.label, "fr"));
-}
-
-function sanitizeRewards(rewards = {}, now = Date.now()){
-  const next = {};
-  for(const firm of FIRMS){
-    const reward = rewards[firm.id] || {};
-    const endsAt = Number(reward.endsAt || 0);
-    if(endsAt > now){
-      next[firm.id] = {
-        rank:Math.max(1, Math.floor(Number(reward.rank || 4))),
-        multiplier:Math.max(0, Number(reward.multiplier || 0)),
-        endsAt
-      };
-    }
+function contributorFrom(value, fallbackFirmId = "astra"){
+  if(value && typeof value === "object"){
+    return {
+      key:String(value.key || ""),
+      name:String(value.name || "Pilote").trim().slice(0, 24) || "Pilote",
+      firmId:normalizeFirmId(value.firmId || fallbackFirmId)
+    };
   }
-  return next;
+  return {key:"", name:"Pilote", firmId:normalizeFirmId(value || fallbackFirmId)};
 }
 
-function buildInitialState(now = Date.now()){
-  return {
-    seasonStartedAt:now,
-    seasonEndsAt:now + FIRM_SEASON_MS,
-    points:emptyPoints(),
-    rewards:{},
-    lastClosedSeason:null
-  };
+function activeRewards(rewards = {}, now = Date.now()){
+  return Object.fromEntries(Object.entries(rewards || {}).filter(([, reward])=>Number(reward?.endsAt || 0) > now));
 }
 
 export function createFirmWarManager({
@@ -58,7 +57,7 @@ export function createFirmWarManager({
   now = ()=>Date.now(),
   database = dbEnabled ? {query} : null
 } = {}){
-  let state = buildInitialState(now());
+  let state = buildInitialFirmState(now());
   let savePending = false;
   let loaded = false;
 
@@ -90,39 +89,19 @@ export function createFirmWarManager({
     }, 50).unref?.();
   }
 
-  function closeSeason(currentTime = now()){
-    const ranking = sortRanking(state.points);
-    const rewards = {};
-    ranking.forEach((entry, index)=>{
-      rewards[entry.firm.id] = {
-        rank:index + 1,
-        multiplier:FIRM_RANK_BONUSES[index] || 0,
-        endsAt:currentTime + FIRM_REWARD_MS
-      };
-    });
-    state.lastClosedSeason = {
-      closedAt:currentTime,
-      ranking:ranking.map((entry, index)=>({
-        firmId:entry.firm.id,
-        rank:index + 1,
-        points:entry.points,
-        rewardMultiplier:rewards[entry.firm.id]?.multiplier || 0
-      }))
-    };
-    state.rewards = rewards;
-    state.seasonStartedAt = currentTime;
-    state.seasonEndsAt = currentTime + FIRM_SEASON_MS;
-    state.points = emptyPoints();
-  }
-
   function ensureSeason(currentTime = now()){
-    state.points = sanitizePoints(state.points);
-    state.rewards = sanitizeRewards(state.rewards, currentTime);
-    if(!Number.isFinite(Number(state.seasonStartedAt))) state.seasonStartedAt = currentTime;
-    if(!Number.isFinite(Number(state.seasonEndsAt)) || Number(state.seasonEndsAt) <= currentTime){
-      closeSeason(currentTime);
-      scheduleSave();
+    state = sanitizeFirmState(state, currentTime);
+    state.rewards = activeRewards(state.rewards, currentTime);
+    let changed = false;
+    if(Number(state.seasonEndsAt || 0) <= currentTime){
+      closeFirmSeason(state, currentTime);
+      changed = true;
     }
+    const beforeQuestCount = Object.keys(state.dailyQuests || {}).length + Object.keys(state.seasonalQuests || {}).length;
+    ensureFirmDailyQuests(state, currentTime);
+    ensureFirmSeasonalQuests(state, currentTime);
+    if(Object.keys(state.dailyQuests || {}).length + Object.keys(state.seasonalQuests || {}).length !== beforeQuestCount) changed = true;
+    if(changed) scheduleSave();
     return state;
   }
 
@@ -144,39 +123,41 @@ export function createFirmWarManager({
       }else{
         parsed = JSON.parse(await readFile(file, "utf8"));
       }
-      parsed ||= buildInitialState(now());
-      state = {
-        ...buildInitialState(now()),
-        ...parsed,
-        points:sanitizePoints(parsed.points),
-        rewards:sanitizeRewards(parsed.rewards, now())
-      };
+      state = sanitizeFirmState(parsed || buildInitialFirmState(now()), now());
     }catch(error){
       if(error?.code !== "ENOENT") logger?.warn?.("Firm war load failed", {error:error?.message || String(error)});
-      state = buildInitialState(now());
+      state = buildInitialFirmState(now());
     }
     ensureSeason(now());
     await persist();
     return state;
   }
 
-  function addFirmPoints(firmId, amount = 1){
+  function addFirmPoints(firmId, amount = 1, contributor = null){
     ensureSeason(now());
-    const id = normalizeFirmId(firmId);
+    const cleanContributor = contributorFrom(contributor || firmId, firmId);
     const value = Math.max(0, Math.floor(Number(amount || 0)));
     if(!value) return snapshot();
-    state.points[id] = Math.max(0, Math.floor(Number(state.points[id] || 0))) + value;
+    if(cleanContributor.key) addFirmContribution(state, cleanContributor, value);
+    else state.points[cleanContributor.firmId] = Math.max(0, Number(state.points[cleanContributor.firmId] || 0)) + value;
     scheduleSave();
     return snapshot();
   }
 
-  function addMonsterKillPoints(firmIds = []){
+  function addMonsterKillPoints(contributors = [], {enemyKind = ""} = {}){
     ensureSeason(now());
+    const values = Array.isArray(contributors) ? contributors : [contributors];
     let changed = false;
-    for(const firmId of Array.isArray(firmIds) ? firmIds : [firmIds]){
-      const id = normalizeFirmId(firmId);
-      state.points[id] = Math.max(0, Math.floor(Number(state.points[id] || 0))) + 1;
-      changed = true;
+    for(const value of values){
+      const contributor = contributorFrom(value);
+      const awardFirmPoint = value?.awardFirmPoint !== false;
+      if(awardFirmPoint){
+        addFirmContribution(state, contributor, 1);
+        changed = true;
+      }
+      const questUpdates = recordFirmQuestProgress(state, {contributor, type:"monster", target:enemyKind, amount:1, now:now()});
+      const objectiveUpdates = recordFirmSeasonObjectiveProgress(state, {contributor, type:"monster", target:enemyKind, amount:1, now:now()});
+      if(questUpdates.length || objectiveUpdates.length) changed = true;
     }
     if(changed) scheduleSave();
     return snapshot();
@@ -186,34 +167,108 @@ export function createFirmWarManager({
     return addFirmPoints(firmId, 100);
   }
 
+  function recordPlayerKill({attacker, targetKey} = {}){
+    ensureSeason(now());
+    const contributor = contributorFrom(attacker);
+    const result = addFirmPvpKill(state, {attacker:contributor, targetKey, now:now()});
+    recordFirmQuestProgress(state, {contributor, type:"pvp", target:"player", amount:1, now:now()});
+    recordFirmSeasonObjectiveProgress(state, {contributor, type:"pvp", target:"player", amount:1, now:now()});
+    scheduleSave();
+    return {...result, snapshot:snapshot()};
+  }
+
+  function recordPortalCompletion(contributors = []){
+    ensureSeason(now());
+    const values = Array.isArray(contributors) ? contributors : [contributors];
+    const updates = [];
+    const objectiveUpdates = [];
+    for(const value of values){
+      const contributor = contributorFrom(value);
+      updates.push(...recordFirmQuestProgress(state, {contributor, type:"portal", target:"portal", amount:1, now:now()}));
+      objectiveUpdates.push(...recordFirmSeasonObjectiveProgress(state, {contributor, type:"portal", target:"portal", amount:1, now:now()}));
+    }
+    if(updates.length || objectiveUpdates.length) scheduleSave();
+    return {updates, objectiveUpdates, snapshot:snapshot()};
+  }
+
+  function acceptDailyQuest({questId, contributor} = {}){
+    ensureSeason(now());
+    const result = acceptFirmDailyQuest(state, {questId, contributor:contributorFrom(contributor), now:now()});
+    if(result.ok) scheduleSave();
+    return result;
+  }
+
+  function claimQuestReward({questId, contributor} = {}){
+    ensureSeason(now());
+    const result = claimFirmQuestReward(state, {questId, contributor:contributorFrom(contributor), now:now()});
+    if(result.ok) scheduleSave();
+    return result;
+  }
+
   function getRewardMultiplier(firmId){
     ensureSeason(now());
     return Math.max(0, Number(state.rewards[normalizeFirmId(firmId)]?.multiplier || 0));
   }
 
-  function snapshot(){
+  function getPendingRewards(playerKey){
+    ensureSeason(now());
+    return JSON.parse(JSON.stringify(state.pendingRewards[String(playerKey || "")] || []));
+  }
+
+  function consumePendingRewards(playerKey){
+    ensureSeason(now());
+    const key = String(playerKey || "");
+    const entries = getPendingRewards(key);
+    if(entries.length){
+      delete state.pendingRewards[key];
+      scheduleSave();
+    }
+    return entries;
+  }
+
+  function snapshot({playerKey = "", profile = null, includeShop = false} = {}){
     const currentTime = now();
     ensureSeason(currentTime);
-    const rewardRanks = state.rewards || {};
+    const individualRanking = sortIndividualRanking(state.contributions);
+    const own = state.contributions[String(playerKey || "")] || null;
+    const ownRank = own ? individualRanking.findIndex(entry=>entry.key === own.key) + 1 : 0;
+    const ownReward = ownRank > 0 ? getFirmIndividualReward(ownRank, individualRanking.length) : null;
     return {
       generatedAt:currentTime,
       seasonStartedAt:state.seasonStartedAt,
       seasonEndsAt:state.seasonEndsAt,
-      rewardEndsAt:Math.max(0, ...Object.values(rewardRanks).map(reward=>Number(reward.endsAt || 0))),
-      firms:sortRanking(state.points).map((entry, index)=>{
-        const reward = rewardRanks[entry.firm.id] || {};
+      rewardEndsAt:Math.max(0, ...Object.values(state.rewards || {}).map(reward=>Number(reward.endsAt || 0))),
+      collectiveMinimumContribution:FIRM_COLLECTIVE_MIN_CONTRIBUTION,
+      firms:buildFirmPublicRanking(state, currentTime),
+      individualRanking:buildIndividualPublicRanking(state),
+      dailyQuests:buildFirmQuestSnapshot(state, playerKey, profile?.player?.firmId || own?.firmId || "astra", currentTime),
+      seasonalQuests:buildFirmSeasonalQuestSnapshot(state, playerKey, profile?.player?.firmId || own?.firmId || "astra", currentTime),
+      seasonObjectives:buildFirmSeasonObjectiveSnapshot(state, playerKey, profile?.player?.firmId || own?.firmId || "astra"),
+      personal:{
+        key:String(playerKey || ""),
+        firmId:normalizeFirmId(profile?.player?.firmId || own?.firmId || "astra"),
+        contribution:Math.max(0, Number(own?.points || 0)),
+        rank:ownRank || null,
+        rewardLabel:ownReward?.label || "Non classe",
+        expectedReward:ownReward?.reward || null,
+        collectiveEligible:Math.max(0, Number(own?.points || 0)) >= FIRM_COLLECTIVE_MIN_CONTRIBUTION,
+        pendingRewards:getPendingRewards(playerKey),
+        ...(includeShop ? {
+          firmatons:Math.max(0, Number(profile?.firmatons || 0)),
+          boxes:JSON.parse(JSON.stringify(profile?.firmBoxes || {})),
+          rewardHistory:JSON.parse(JSON.stringify(profile?.firmRewardHistory || [])).slice(-20).reverse(),
+          reputation:Math.max(0, Number(profile?.player?.reputation || 0))
+        } : {})
+      },
+      ...(includeShop ? {shop:FIRM_SHOP_CATALOG.map(item=>{
+        const reputation = Math.max(0, Number(profile?.player?.reputation || 0));
         return {
-          id:entry.firm.id,
-          label:getFirmDefinition(entry.firm.id).label,
-          color:entry.firm.color,
-          homeMapName:entry.firm.homeMapName,
-          rank:index + 1,
-          points:entry.points,
-          rewardRank:reward.rank || null,
-          rewardMultiplier:Number(reward.multiplier || 0),
-          rewardEndsAt:Number(reward.endsAt || 0)
+          ...item,
+          basePrice:item.price,
+          price:getFirmShopPrice(item, reputation),
+          locked:reputation < item.reputationRequired
         };
-      }),
+      })} : {}),
       lastClosedSeason:state.lastClosedSeason
     };
   }
@@ -222,8 +277,14 @@ export function createFirmWarManager({
     addFirmPoints,
     addMonsterKillPoints,
     addPlayerKillPoints,
+    acceptDailyQuest,
+    claimQuestReward,
+    consumePendingRewards,
+    getPendingRewards,
     getRewardMultiplier,
     load,
+    recordPlayerKill,
+    recordPortalCompletion,
     snapshot
   };
 }

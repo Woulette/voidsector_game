@@ -49,9 +49,9 @@ import {
   XP_CURVE_VERSION
 } from "./core/store.js";
 import { createCombatGame } from "./game/combat.js?v=quest-claim-ui-1";
-import { applyServerDroneUpgrade, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, performServerPrestige, progressServerQuest, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
+import { applyServerDroneUpgrade, buyFirmShopItem, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimFirmQuest, claimFirmRewards, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
 import { initMultiplayer } from "./multiplayer/client.js";
-import { renderAll, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js";
+import { renderAll, renderFirm, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js";
 import { showToast } from "./ui/toast.js";
 import { DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeSlotKeybinds } from "./core/keybinds.js";
 import { createProfileController } from "./app/profileController.js";
@@ -425,8 +425,61 @@ document.addEventListener("click", (e)=>{
 
   if(refineryActions.handleClick(e)) return;
 
+  const firmMainTab = e.target.closest("[data-firm-main-tab]");
+  if(firmMainTab){
+    store.firmTab = firmMainTab.dataset.firmMainTab || "overview";
+    if(store.firmTab === "shop") requestFirmSync({includeShop:true});
+    renderFirm();
+    return;
+  }
+
+  const firmRankingFilter = e.target.closest("[data-firm-ranking-filter]");
+  if(firmRankingFilter){
+    store.firmRankingFilter = firmRankingFilter.dataset.firmRankingFilter || "global";
+    renderFirm();
+    return;
+  }
+
+  const firmQuestTab = e.target.closest("[data-firm-quest-tab]");
+  if(firmQuestTab){
+    const tab = firmQuestTab.dataset.firmQuestTab;
+    store.firmQuestTab = ["daily", "weekly", "seasonal"].includes(tab) ? tab : "daily";
+    renderFirm();
+    return;
+  }
+
+  const firmShopBuy = e.target.closest("[data-firm-shop-buy]");
+  if(firmShopBuy){ buyFirmShopItem(firmShopBuy.dataset.firmShopBuy); return; }
+
+  const firmBoxClose = e.target.closest("[data-firm-box-opening-close]");
+  if(firmBoxClose){
+    store.firmBoxOpening = null;
+    renderFirm();
+    return;
+  }
+
+  const firmShopFilter = e.target.closest("[data-firm-shop-filter]");
+  if(firmShopFilter){
+    store.firmShopFilter = firmShopFilter.dataset.firmShopFilter || "global";
+    renderFirm();
+    return;
+  }
+
+  const firmBoxOpen = e.target.closest("[data-firm-box-open]");
+  if(firmBoxOpen){ openFirmBox(firmBoxOpen.dataset.firmBoxOpen); return; }
+
+  const firmRewardClaim = e.target.closest("[data-firm-reward-claim]");
+  if(firmRewardClaim){ claimFirmRewards(); return; }
+
+  const firmQuestClaim = e.target.closest("[data-firm-quest-claim]");
+  if(firmQuestClaim){ claimFirmQuest(firmQuestClaim.dataset.firmQuestClaim); return; }
+
   const nav = e.target.closest("[data-view]");
-  if(nav){ setView(nav.dataset.view); return; }
+  if(nav){
+    setView(nav.dataset.view);
+    if(nav.dataset.view === "firm") requestFirmSync({includeShop:true});
+    return;
+  }
 
   const portalUnlockPieces = e.target.closest("[data-unlock-portal-pieces]");
   if(portalUnlockPieces){ unlockPortalWithPieces(portalUnlockPieces.dataset.unlockPortalPieces); return; }
@@ -668,6 +721,12 @@ const serverEvents = createServerEventController({
   isGameRunning:()=>Game.running
 });
 window.addEventListener("voidsector:multiplayer-change", serverEvents.handleChange);
+window.addEventListener("voidsector:multiplayer-change", event=>{
+  if(event.detail?.reason === "firm:updated" && event.detail?.payload?.action === "box-open"){
+    store.firmBoxOpening = {...event.detail.payload, revealId:`box_${Date.now()}`};
+  }
+  if(store.currentView === "firm" && String(event.detail?.reason || "").startsWith("firm:")) renderFirm();
+});
 
 profileController.initializeScope();
 if(sessionStorage.getItem("voidsector-reset-requested") === "1"){

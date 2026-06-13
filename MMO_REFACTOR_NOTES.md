@@ -58,6 +58,27 @@ Pas urgent avant les corrections en jeu, mais a garder en tete :
 
 Priorite suivante recommandee : corrections en jeu et securisation MMO, pas nouveau refactor structurel.
 
+## Systeme de firme - reprise rapide
+
+Etat au 12 juin 2026 :
+
+- page FIRME principale et panneau Firme en jeu branches ;
+- quetes quotidiennes collectives auto-actives a 06h/12h/18h avec verrouillage des prochaines rotations ;
+- quetes hebdomadaires collectives separees ;
+- objectifs saisonniers personnels ajoutes dans l'onglet `SAISONNIERES` :
+  - progression solo ;
+  - points ajoutes au joueur et a sa firme a la completion ;
+  - recompense placee dans les gains en attente ;
+- anti-farm niveau separe des quetes : un monstre trop bas niveau ne donne pas le point direct, mais continue de faire progresser les quetes/objectifs ;
+- UI quetes : le compteur est libelle `Participation quete` pour ne pas le confondre avec la contribution saisonniere reelle ;
+- Orbes de firme : utiliser le `kind` serveur `drone_pirate`; `sentinel_orb` reste seulement un alias de compatibilite pour anciens snapshots/tests ;
+- fin de portail : chaque portail termine appelle la progression de quete portail pour les membres concernes ;
+- barre de progression par firme restauree sous chaque quete collective ;
+- texte de timer actif affiche sous forme `Ferme ...` ;
+- image Vorak Rusher tournee de 180 degres dans les objectifs ;
+- icone Firmaton ajoutee puis renforcee avec un grand `F` noir : `assets/icons/firmaton.svg` ;
+- verifications recentes : `node --check`, `node --test` serveur 72/72, `git diff --check`.
+
 ## Securite MMO - Verrous par compte
 
 Fait :
@@ -594,3 +615,74 @@ Etat actuel :
 Regle :
 
 - ne pas mettre de logique chat dans `server/src/index.js`, `src/game/combatOrchestrator.js` ou `src/multiplayer/client.js` au-dela du branchement minimal.
+
+## Ajout MMO - Systeme de firme
+
+La refonte firme ajoute un domaine serveur autoritaire dedie :
+
+- `server/src/firms/firmRules.js`
+  - constantes de saison, seuil collectif, paliers reputation, boutique, recompenses, quetes et boites.
+- `server/src/firms/firmState.js`
+  - etat global persistant, migration et sanitization.
+- `server/src/firms/firmSeason.js`
+  - points, contributions, classements, cloture de saison et recompenses en attente.
+- `server/src/firms/firmQuests.js`
+  - quetes quotidiennes 06h/12h/18h en heure locale serveur ;
+  - snapshots avec quetes ouvertes et prochaines quetes verrouillees ;
+  - quetes hebdomadaires auto-actives, progression collective et classements de contribution sans gain personnel de contribution ;
+  - reclamation de prime de quete terminee, une seule fois par joueur.
+- `server/src/firms/firmEconomy.js`
+  - firmatons, achats boutique, ouverture de boites et application des recompenses.
+- `server/src/firms/firmPvp.js`
+  - anti-farm PvP quotidien.
+- `server/src/firms/firmWar.js`
+  - facade compatible avec les appels existants.
+- `server/src/socket/firmHandlers.js`
+  - sync, achat, ouverture, reclamation de recompense et reclamation de prime de quete.
+
+Client :
+
+- `src/ui/renderFirm.js` rend la page principale FIRME ;
+- `src/styles/firm.css` contient le style de la page FIRME ;
+- `src/game/ui/combatFirmPanel.js` rend le panneau firme condense en combat ;
+- `src/multiplayer/firmCommands.js` et `src/multiplayer/firmSocketListeners.js` isolent les commandes et events Socket.IO du domaine.
+
+Regles importantes :
+
+- les firmatons ne doivent etre visibles que dans la page principale FIRME ;
+- le bouton `CLASSEMENT` existant reste hors perimetre ;
+- les broadcasts globaux doivent utiliser `firm:ranking`, pas `firm:snapshot`, pour ne pas ecraser le snapshot personnel d'un joueur ;
+- `firmatons`, `firmBoxes` et `firmRewardHistory` sont proteges contre les sauvegardes client ;
+- les nouvelles actions sensibles sont rate-limitees dans `server/src/config.js`.
+- les primes de quete donnent 5 firmatons mais ne donnent aucun point individuel.
+- la participation affichee sur une quete mesure uniquement les actions du joueur sur cette quete ; elle n'ajoute pas de contribution individuelle ;
+- la colonne gauche des quetes ne cumule plus des objectifs de tailles differentes et liste les sessions du jour sans celles du lendemain ;
+- les montants de Firmatons sont affiches avec l'icone apres le nombre dans la page FIRME.
+- la boutique FIRME est structuree en zones de rarete filtrables ; chaque rarete contient 3 paliers de reputation et 9 offres catalogue.
+- les offres de munitions laser de la boutique utilisent les noms et assets du catalogue d'equipement, pas des libelles temporaires.
+- les coffres de firme utilisent des assets SVG dedies par rarete dans `assets/firm/chests/`.
+- une planche de preview locale existe dans `assets/firm/chests/preview.html` pour comparer les 5 coffres de rarete et les 3 concepts alternatifs.
+- `firm:box-open` renvoie maintenant la rarete du coffre ouvert et declenche cote client une animation centrale : rotation du coffre, ouverture du couvercle, puis revelation de la recompense avec son asset et sa quantite.
+
+## Ajout MMO - Progression des monstres et drops de ressources
+
+- Les plages de niveaux sont autoritaires cote serveur :
+  - cartes 1 a 5 : `1-4`, `5-9`, `10-14`, `15-19`, `20-24` ;
+  - noyau central : `25-34` ;
+  - les regles de drop couvrent deja les futures zones trou noir `35-50`.
+- Chaque espece conserve un niveau de base. Chaque niveau supplementaire applique :
+  - `+5 %` vie, bouclier et degats ;
+  - `+10 %` XP, credits, NOVA et donc reputation issue de l'XP.
+- `server/src/world/resourceDrops.js` contient les taux par rarete et tire les ressources cote serveur.
+- `server/src/world/loot.js` cree des drops prives, valide la distance et ajoute la ressource au profil lors du ramassage.
+- Les objets au sol utilisent un asset leger, un halo de rarete, une rotation et une oscillation verticale.
+- A l'arrivee sur une ressource, le client joue une aspiration de `0,7 s`, bloque le mouvement puis demande la validation finale du ramassage au serveur.
+- La boutique commune contient un coffre et les huit nouvelles ressources de craft.
+- Chaque achat de ressource commune ajoute exactement une unite au profil.
+
+Checks effectues :
+
+- `npm test` dans `server/` : 81 tests OK ;
+- `node --check` sur les fichiers JS modifies : OK ;
+- `git diff --check` : OK ;
+- verification visuelle navigateur non effectuee dans la session, car le navigateur integre etait indisponible.

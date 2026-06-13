@@ -1,9 +1,11 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
 import { renderSpawnPanelContent } from "./spawnPanel.js";
-import { FIRMS, getFirmDefinition, getFirmIdFromMapName, getMapDisplayName, normalizeFirmId } from "../../data/firms.js";
+import { renderCombatFirmPanel } from "./combatFirmPanel.js";
+import { FIRMS, getFirmIdFromMapName, getMapDisplayName, normalizeFirmId } from "../../data/firms.js";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import {
   multiplayer,
+  claimFirmRewards,
   inviteMultiplayerPlayer,
   inviteMultiplayerPlayerByName,
   kickMultiplayerGroupMember,
@@ -158,7 +160,7 @@ export function createCombatPanels({
   let groupHudDragReady = false;
   let selectedSocialTab = "friends";
   let selectedSocialKey = null;
-  let selectedFirmPanelTab = "ranking";
+  let selectedFirmPanelTab = "overview";
   let socialRefreshT = 0;
   let firmTimerRefreshT = 0;
   let pendingGroupInviteName = "";
@@ -764,89 +766,11 @@ export function createCombatPanels({
     `;
   }
 
-  function formatFirmDuration(ms){
-    const totalSeconds = Math.max(0, Math.floor(Number(ms || 0) / 1000));
-    if(!totalSeconds) return "";
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    if(days > 0) return `${days}j ${hours}h ${minutes}m`;
-    if(hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
-  }
-
-  function firmMedal(rank){
-    if(rank > 3) return `<span class="firm-rank-empty">4</span>`;
-    const cls = rank === 1 ? "gold" : rank === 2 ? "silver" : "bronze";
-    return `<span class="firm-rank-medal ${cls}"><svg viewBox="0 0 42 42" aria-hidden="true"><circle cx="21" cy="21" r="17"></circle><path d="M14 5l7 9 7-9"></path></svg><b>${rank}</b></span>`;
-  }
-
-  function renderFirmRankingRow(firm){
-    const rank = Math.max(1, Math.floor(Number(firm.rank || 4)));
-    return `
-      <div class="firm-ranking-row ${rank === 1 ? "leader" : ""}" style="--firm-color:${escapeHtml(firm.color || getFirmDefinition(firm.id).color)}">
-        ${firmMedal(rank)}
-        <img src="${firmBadgeAsset(firm.id)}" alt="${escapeHtml(firm.label || firm.id)}">
-        <div>
-          <strong>${rank === 1 ? `<span class="firm-crown">&#9819;</span>` : ""}${escapeHtml(firm.label || firm.id)}</strong>
-          <span>${escapeHtml(getMapDisplayName(firm.homeMapName || getFirmDefinition(firm.id).homeMapName))}</span>
-        </div>
-        <b>${Number(firm.points || 0).toLocaleString("fr-FR")} points</b>
-      </div>`;
-  }
-
   function renderFirmUtilityContent(){
-    const ranking = multiplayer.firmRanking || null;
-    const firms = Array.isArray(ranking?.firms) && ranking.firms.length
-      ? ranking.firms
-      : FIRMS.map((firm, index)=>({id:firm.id, label:firm.label, color:firm.color, homeMapName:firm.homeMapName, rank:index + 1, points:0, rewardMultiplier:0, rewardEndsAt:0}));
-    const selectedFirmId = FIRMS.some(firm=>firm.id === selectedFirmPanelTab) ? selectedFirmPanelTab : null;
-    const selectedFirm = selectedFirmId ? firms.find(firm=>firm.id === selectedFirmId) || {id:selectedFirmId, ...getFirmDefinition(selectedFirmId)} : null;
-    const seasonLeft = formatFirmDuration(Number(ranking?.seasonEndsAt || 0) - Date.now());
-    const rewardLeft = formatFirmDuration(Number(ranking?.rewardEndsAt || 0) - Date.now());
-    const members = Array.isArray(multiplayer.social?.firmMembers) ? multiplayer.social.firmMembers : [];
-    const rankingRows = firms
-      .slice()
-      .sort((a, b)=>Number(a.rank || 99) - Number(b.rank || 99))
-      .map(firm=>renderFirmRankingRow(firm))
-      .join("");
-    const rewardsRows = firms
-      .slice()
-      .sort((a, b)=>Number(a.rewardRank || a.rank || 99) - Number(b.rewardRank || b.rank || 99))
-      .map(firm=>`
-        <div class="firm-reward-row" style="--firm-color:${escapeHtml(firm.color || getFirmDefinition(firm.id).color)}">
-          <strong>${escapeHtml(firm.label || firm.id)}</strong>
-          <span>Bonus ${(Number(firm.rewardMultiplier || 0) * 100).toFixed(0)}% XP / credits / nova</span>
-        </div>`)
-      .join("");
-    const firmPanel = selectedFirm ? `
-      <div class="firm-detail-card" style="--firm-color:${escapeHtml(selectedFirm.color || getFirmDefinition(selectedFirm.id).color)}">
-        <div>
-          <strong>${escapeHtml(selectedFirm.label || getFirmDefinition(selectedFirm.id).label)}</strong>
-          <span>Base ${escapeHtml(getMapDisplayName(selectedFirm.homeMapName || getFirmDefinition(selectedFirm.id).homeMapName))}</span>
-        </div>
-        <b>${Number(selectedFirm.points || 0).toLocaleString("fr-FR")} points</b>
-      </div>
-      ${selectedFirm.id === normalizeFirmId(store.state?.player?.firmId || "astra")
-        ? `<div class="social-list">${members.length ? members.map(contact=>renderSocialContact(contact, {category:"firme"})).join("") : `<p class="social-empty">Aucun autre membre connu.</p>`}</div>`
-        : `<p class="group-panel-note">Liste detaillee reservee a ta propre firme. Le classement reste visible pour toutes les firmes.</p>`}
-      ${renderSocialDetail(findSocialContact(selectedSocialKey), "firm")}
-    ` : selectedFirmPanelTab === "rewards" ? `
-      <div class="firm-timer-card"><span>Bonus de saison</span><strong>${rewardLeft || "Aucun bonus actif"}</strong></div>
-      <div class="firm-reward-list">${rewardsRows}</div>
-    ` : `
-      <div class="firm-timer-card"><span>Saison en cours</span><strong>${seasonLeft || "Synchronisation..."}</strong></div>
-      <div class="firm-ranking-list">${rankingRows}</div>
-    `;
-    return `
-      <div class="firm-tabs">
-        <button class="${selectedFirmPanelTab === "ranking" ? "active" : ""}" data-firm-panel-tab="ranking" type="button">CLASSEMENT</button>
-        <button class="${selectedFirmPanelTab === "rewards" ? "active" : ""}" data-firm-panel-tab="rewards" type="button">RECOMPENSES</button>
-        <span class="firm-tabs-break"></span>
-        ${FIRMS.map(firm=>`<button class="${selectedFirmPanelTab === firm.id ? "active" : ""}" data-firm-panel-tab="${firm.id}" type="button">${escapeHtml(firm.label)}</button>`).join("")}
-      </div>
-      ${firmPanel}
-    `;
+    return renderCombatFirmPanel({
+      snapshot:multiplayer.firmSnapshot || multiplayer.firmRanking,
+      selectedTab:selectedFirmPanelTab
+    });
   }
 
   function refreshSocialUtilityPanel(mode, {show = false} = {}){
@@ -882,6 +806,8 @@ export function createCombatPanels({
     }else if(action === "private"){
       const contact = findSocialContact(element.dataset.socialKey);
       if(contact) window.dispatchEvent(new CustomEvent("voidsector:open-private-chat", {detail:{contact}}));
+    }else if(action === "firm-reward-claim"){
+      claimFirmRewards();
     }
   }
 
@@ -898,7 +824,7 @@ export function createCombatPanels({
   }
 
   function selectFirmPanelTab(tab){
-    selectedFirmPanelTab = ["ranking", "rewards", ...FIRMS.map(firm=>firm.id)].includes(tab) ? tab : "ranking";
+    selectedFirmPanelTab = ["overview", "firms", "players", "quests", "rewards"].includes(tab) ? tab : "overview";
     selectedSocialKey = null;
     requestFirmRankingSync();
     refreshSocialUtilityPanel("firm");

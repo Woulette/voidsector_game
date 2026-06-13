@@ -118,12 +118,19 @@ export const skills = [
   }
 ];
 
+import { COMMON_CRAFT_RESOURCES, ELITE_CRAFT_RESOURCES, MYTHIC_CRAFT_RESOURCES, RARE_CRAFT_RESOURCES, VERY_RARE_CRAFT_RESOURCES } from "./resources.js";
+
 export const rawMaterialCatalog = [
   {id:"cuivre_orbital", name:"Cuivre", short:"CUI", kind:"raw", tier:1, img:"assets/materials/cuivre_orbital.svg", desc:"Métal conducteur extrait des débris orbitaux.", maxLevel:20},
   {id:"zinc_spatial", name:"Zinc", short:"ZNC", kind:"raw", tier:1, img:"assets/materials/zinc_spatial.svg", desc:"Minerai léger utilisé pour stabiliser les alliages.", maxLevel:20},
   {id:"nickel_brut", name:"Nickel", short:"NIC", kind:"raw", tier:1, img:"assets/materials/nickel_brut.svg", desc:"Minerai dense récupéré sur les coques ennemies.", maxLevel:20},
   {id:"titane_fissure", name:"Titane", short:"TIT", kind:"raw", tier:1, img:"assets/materials/titane_fissure.svg", desc:"Titane instable destiné aux plaques de protection.", maxLevel:20},
   {id:"silice_conductrice", name:"Silice", short:"SIL", kind:"raw", tier:1, img:"assets/materials/silice_conductrice.svg", desc:"Cristal industriel employé dans les circuits de raffinerie.", maxLevel:20},
+  ...COMMON_CRAFT_RESOURCES,
+  ...RARE_CRAFT_RESOURCES,
+  ...VERY_RARE_CRAFT_RESOURCES,
+  ...ELITE_CRAFT_RESOURCES,
+  ...MYTHIC_CRAFT_RESOURCES,
   {id:"alliage_cuivre_zinc", name:"Alliage", short:"ACZ", kind:"refined", tier:2, img:"assets/materials/alliage_cuivre_zinc.svg", desc:"Alliage de base pour les systèmes conducteurs.", maxLevel:20},
   {id:"plaque_nickel_titane", name:"Plaque", short:"PNT", kind:"refined", tier:2, img:"assets/materials/plaque_nickel_titane.svg", desc:"Plaque renforcée pour les structures et blindages.", maxLevel:20},
   {id:"conducteur_renforce", name:"Conducteur", short:"CDR", kind:"advanced", tier:3, img:"assets/materials/conducteur_renforce.svg", desc:"Composant avancé pour les armes et circuits de puissance.", maxLevel:20},
@@ -462,6 +469,7 @@ export const questCatalog = buildFirmQuestCatalog(baseQuestCatalog);
 export const pageText = {
   hangar:{title:"HANGAR", subtitle:"Configure ton vaisseau, tes drones et tes extras."},
   shop:{title:"MAGASIN", subtitle:"Progression par niveau : vaisseaux, lasers, roquettes, générateurs et drones."},
+  firm:{title:"FIRME", subtitle:"Saison, contribution, quetes collectives, boutique et recompenses de firme."},
   portals:{title:"PORTAILS DIMENSIONNELS", subtitle:"Déverrouille les portails avec des pièces, puis affronte 30 vagues."},
   refinery:{title:"RAFFINERIE", subtitle:"Transforme tes matériaux bruts en ressources avancées pour améliorer ton équipement."},
   settings:{title:"PARAMÈTRES", subtitle:"Personnalise tes touches de slots."},

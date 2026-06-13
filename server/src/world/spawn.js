@@ -1,5 +1,6 @@
 import { WORLD_ENEMY_TYPES } from "./definitions.js";
 import { getFirmIdFromMapName, normalizeFirmId } from "../../../src/data/firms.js";
+import { scaleMonsterReward, scaleMonsterStat } from "./enemyProgression.js";
 
 export function publicEnemy(enemy){
   return {
@@ -111,9 +112,32 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
   const kind = forcedKind || pickWeighted(map.enemyTypes, rnd);
   const base = WORLD_ENEMY_TYPES[kind] || WORLD_ENEMY_TYPES.drone_pirate;
   const level = randomLevel(map, rnd);
+  const baseLevel = Math.max(1, Math.floor(Number(base.baseLevel || 1)));
+  const statSource = WORLD_ENEMY_TYPES[base.statSourceKind] || base;
+  const statSourceBaseLevel = Math.max(1, Math.floor(Number(statSource.baseLevel || 1)));
+  const statMultiplier = Math.max(0, Number(base.statMultiplier || 1));
   const {x, y} = findWorldSpawn(map, rnd);
-  const hp = base.hp(level);
-  const shield = base.shield(level);
+  const hp = Math.round(scaleMonsterStat(statSource.hp(statSourceBaseLevel), statSourceBaseLevel, level) * statMultiplier);
+  const shieldGrowthPerLevel = Number(base.shieldGrowthPerLevel);
+  const shield = Number.isFinite(shieldGrowthPerLevel)
+    ? Math.round(base.shield(baseLevel) * (1 + Math.max(0, level - baseLevel) * shieldGrowthPerLevel))
+    : scaleMonsterStat(base.shield(baseLevel), baseLevel, level);
+  const attackDamage = Math.round(scaleMonsterStat(statSource.attackDamage(statSourceBaseLevel), statSourceBaseLevel, level) * statMultiplier);
+  const attackDamageMin = statSource.attackDamageMin === undefined
+    ? undefined
+    : Math.round(scaleMonsterStat(statSource.attackDamageMin, statSourceBaseLevel, level) * statMultiplier);
+  const attackDamageMax = statSource.attackDamageMax === undefined
+    ? undefined
+    : Math.round(scaleMonsterStat(statSource.attackDamageMax, statSourceBaseLevel, level) * statMultiplier);
+  const onHitEffect = base.onHitEffect
+    ? {...base.onHitEffect, damage:scaleMonsterStat(base.onHitEffect.damage, baseLevel, level)}
+    : null;
+  const rewardSource = WORLD_ENEMY_TYPES[base.rewardSourceKind] || base;
+  const rewardSourceBaseLevel = Math.max(1, Math.floor(Number(rewardSource.baseLevel || 1)));
+  const rewardMultiplier = Math.max(0, Number(base.rewardMultiplier || 1));
+  const reward = Object.fromEntries(Object.entries(
+    scaleMonsterReward(rewardSource.reward(rewardSourceBaseLevel), rewardSourceBaseLevel, level)
+  ).map(([key, value])=>[key, Math.round(Number(value || 0) * rewardMultiplier)]));
   return {
     id:`W-${map.id}-E${index}`,
     serverControlled:true,
@@ -121,6 +145,7 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
     kind:base.kind,
     type:base.type,
     img:base.img,
+    baseLevel,
     level,
     x,
     y,
@@ -136,14 +161,14 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
     height:base.height,
     speed:base.speed(level),
     attackRange:base.attackRange,
-    attackDamage:base.attackDamage(level),
-    attackDamageMin:base.attackDamageMin,
-    attackDamageMax:base.attackDamageMax,
+    attackDamage,
+    attackDamageMin,
+    attackDamageMax,
     attackCooldown:base.attackCooldown,
     projectileSpeed:base.projectileSpeed || 600,
     particle:base.particle || base.color,
-    onHitEffect:base.onHitEffect || null,
-    reward:base.reward(level),
+    onHitEffect,
+    reward,
     nextAttackAt:0,
     color:base.color,
     shieldAbsorbRatio:base.shieldAbsorbRatio,

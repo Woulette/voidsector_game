@@ -68,7 +68,7 @@ function isValidEnemySpawnPosition(map, x, y, player = null){
 export function createMapEnemy({map, id, rnd = Math.random, player = null, kind = null}){
   const {x, y} = findEnemySpawnPosition(map, rnd, player);
   const enemyType = kind ? getEnemyTypeById(kind) : chooseEnemyType(map, rnd);
-  const level = randomIntegerRange(rnd, enemyType.levelRange, map.enemyLevel);
+  const level = randomIntegerRange(rnd, map.enemyLevel, enemyType.levelRange);
   const maxHp = enemyType.maxHp(level);
   const maxShield = enemyType.maxShield?.(level) || 0;
   return {

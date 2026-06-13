@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <title>VoidSector - Coffres de firme</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Arial, sans-serif;
+        background: #020913;
+        color: #dff7ff;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px;
+        background:
+          radial-gradient(circle at top, rgba(0, 195, 255, 0.18), transparent 360px),
+          linear-gradient(135deg, #020913, #061523);
+      }
+
+      h1 {
+        margin: 0 0 24px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        border: 1px solid rgba(62, 199, 255, 0.35);
+        background: rgba(4, 20, 35, 0.84);
+        padding: 18px;
+        box-shadow: inset 0 0 24px rgba(0, 195, 255, 0.08);
+      }
+
+      img {
+        display: block;
+        width: 160px;
+        height: 160px;
+        object-fit: contain;
+        margin: 0 auto 16px;
+      }
+
+      h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      p {
+        margin: 0;
+        color: #9fcbe0;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Coffres de firme</h1>
+    <main class="grid">
+      <article class="card">
+        <img src="chest_common.svg" alt="Coffre commun">
+        <h2>Commun</h2>
+        <p>Coffre standard bleu, utilise dans la boutique et l'inventaire.</p>
+      </article>
+      <article class="card">
+        <img src="chest_rare.svg" alt="Coffre rare">
+        <h2>Rare</h2>
+        <p>Variante cyan/bleu plus lumineuse.</p>
+      </article>
+      <article class="card">
+        <img src="chest_veryRare.svg" alt="Coffre tres rare">
+        <h2>Tres rare</h2>
+        <p>Variante violette avec contraste plus marque.</p>
+      </article>
+      <article class="card">
+        <img src="chest_elite.svg" alt="Coffre elite">
+        <h2>Elite</h2>
+        <p>Variante orange, plus agressive.</p>
+      </article>
+      <article class="card">
+        <img src="chest_mythic.svg" alt="Coffre mythique">
+        <h2>Mythique</h2>
+        <p>Variante or pour les recompenses les plus hautes.</p>
+      </article>
+      <article class="card">
+        <img src="concept_vault.svg" alt="Concept coffre bunker">
+        <h2>Concept bunker</h2>
+        <p>Option plus massive, type coffre-fort spatial.</p>
+      </article>
+      <article class="card">
+        <img src="concept_relic.svg" alt="Concept relique">
+        <h2>Concept relique</h2>
+        <p>Option plus mystique et premium.</p>
+      </article>
+      <article class="card">
+        <img src="concept_crate.svg" alt="Concept caisse">
+        <h2>Concept caisse</h2>
+        <p>Option plus industrielle, proche container de cargo.</p>
+      </article>
+    </main>
+  </body>
+</html>

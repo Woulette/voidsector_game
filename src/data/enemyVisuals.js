@@ -6,8 +6,13 @@ const HALF_TURN_ASSET_KINDS = new Set([
 
 const FULL_ROTATION_KINDS = new Set([
   "drone_pirate",
+  "raider_astral",
   "chasseur_spectral",
   "cuirasse_ambre"
+]);
+
+const FIXED_ROTATION_KINDS = new Set([
+  "boss_raider_astral"
 ]);
 
 export function getEnemyBaseKind(kind){
@@ -15,10 +20,12 @@ export function getEnemyBaseKind(kind){
 }
 
 export function getEnemyAssetRotation(kind){
+  if(FIXED_ROTATION_KINDS.has(String(kind || ""))) return Math.PI;
   return HALF_TURN_ASSET_KINDS.has(getEnemyBaseKind(kind)) ? Math.PI : 0;
 }
 
 export function canEnemyRotateFully(kind){
+  if(FIXED_ROTATION_KINDS.has(String(kind || ""))) return false;
   return FULL_ROTATION_KINDS.has(getEnemyBaseKind(kind));
 }
 

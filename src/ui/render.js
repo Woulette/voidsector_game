@@ -52,6 +52,7 @@ import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderSha
 import { renderShop } from "./renderShop.js";
 import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js";
 import { renderRefinery } from "./renderRefinery.js";
+import { renderFirm } from "./renderFirm.js";
 import { multiplayer } from "../multiplayer/client.js";
 
 function escapeHtml(value){
@@ -689,6 +690,7 @@ function renderFirmSetupGate(){
 export { renderShop } from "./renderShop.js";
 export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js";
 export { renderRefinery } from "./renderRefinery.js";
+export { renderFirm } from "./renderFirm.js";
 
 export function renderAll(){
   if(store.currentView !== "hangar") store.hangarDetailOpen = false;
@@ -707,6 +709,7 @@ export function renderAll(){
   renderPortals();
   renderSkills();
   renderRefinery();
+  renderFirm();
   renderFirmSetupGate();
   saveState();
 }

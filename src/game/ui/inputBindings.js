@@ -5,6 +5,7 @@ export function installCombatInputHandlers({
   documentRef = document,
   canvas,
   isRunning,
+  isMovementLocked,
   resize,
   saveState,
   getMouse,
@@ -134,6 +135,10 @@ export function installCombatInputHandlers({
       return;
     }
     if(String(e.key || "").toLowerCase() === "j"){
+      if(isMovementLocked?.()){
+        e.preventDefault();
+        return;
+      }
       if(tryUseMapPortal()) e.preventDefault();
       return;
     }
@@ -158,7 +163,7 @@ export function installCombatInputHandlers({
         setMiniMapPosition?.(mouse.x - miniMapDrag.offsetX, mouse.y - miniMapDrag.offsetY, false);
         return;
       }
-      if(mouseMoveHeld) setMoveTarget(worldFromScreen(mouse.x, mouse.y));
+      if(mouseMoveHeld && !isMovementLocked?.()) setMoveTarget(worldFromScreen(mouse.x, mouse.y));
     }
   });
   canvas.addEventListener("mousedown", e=>{
@@ -168,6 +173,12 @@ export function installCombatInputHandlers({
     mouse.x = e.clientX - r.left;
     mouse.y = e.clientY - r.top;
     const world = worldFromScreen(mouse.x, mouse.y);
+    if(e.button === 0 && isMovementLocked?.()){
+      e.preventDefault();
+      mouseMoveHeld = false;
+      setMouseMoveHeld?.(false);
+      return;
+    }
     if(e.button === 0){
       const miniMapHit = miniMapHitTest?.(mouse.x, mouse.y);
       if(miniMapHit && miniMapHit.type !== "none"){

@@ -1,5 +1,6 @@
 import { GROUND_LOOT_TTL_MS, LOOT_OWNER_TIMEOUT_MS, PORTAL_DROP_RULES, WORLD_MAPS } from "./definitions.js";
 import { rollServerQuestItemDrop } from "../quests/questItemDrops.js";
+import { rollResourceDrops } from "./resourceDrops.js";
 
 export function createWorldLootManager({io, players, profileManager, emitProfileSync}){
   const activeLootDrops = new Map();
@@ -103,6 +104,49 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
       serverControlled:true,
       at:Date.now()
     });
+  }
+
+  function emitPrivateResourceDrops({enemy, mapId, ownerId}){
+    const owner = players.get(ownerId);
+    if(!enemy || enemy.resourceDropRolled || !owner || String(owner.mapId) !== String(mapId)) return;
+    enemy.resourceDropRolled = true;
+    const drops = rollResourceDrops(enemy.level);
+    for(const drop of drops){
+      const x = Number(enemy.x || 0) + (Math.random() - .5) * 90;
+      const y = Number(enemy.y || 0) + (Math.random() - .5) * 90;
+      const id = `loot_material_${drop.materialId}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const expiresAt = Date.now() + GROUND_LOOT_TTL_MS;
+      activeLootDrops.set(id, {
+        id,
+        ownerId:owner.id,
+        kind:"material",
+        rarity:drop.rarity,
+        materialId:drop.materialId,
+        name:drop.name,
+        img:drop.img,
+        amount:drop.amount,
+        mapId:String(mapId),
+        x,
+        y,
+        expiresAt
+      });
+      io.to(owner.id).emit("loot:drop", {
+        id,
+        kind:"material",
+        rarity:drop.rarity,
+        materialId:drop.materialId,
+        name:drop.name,
+        img:drop.img,
+        amount:drop.amount,
+        label:"RESSOURCE",
+        mapId,
+        x,
+        y,
+        expiresAt,
+        serverControlled:true,
+        at:Date.now()
+      });
+    }
   }
 
   function pickupLoot(socket, payload){
@@ -233,6 +277,7 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
     cleanupExpiredLootDrops,
     emitPrivateQuestItemDrop,
     emitPrivatePortalPieceDrop,
+    emitPrivateResourceDrops,
     pickupLoot,
     updateLootOwner
   };

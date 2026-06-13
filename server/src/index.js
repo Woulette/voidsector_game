@@ -268,6 +268,7 @@ const {
   cleanupExpiredLootDrops,
   emitPrivateQuestItemDrop,
   emitPrivatePortalPieceDrop,
+  emitPrivateResourceDrops,
   pickupLoot,
   updateLootOwner
 } = createWorldLootManager({
@@ -349,6 +350,7 @@ const {
   groups,
   profileManager,
   emitProfileSync:emitProfileSyncForPlayer,
+  firmWarManager,
   createGroup,
   emitInstance,
   portalWaveTotal:config.portalWaveTotal
@@ -360,6 +362,7 @@ const {applyEnemyHit} = createEnemyHitHandler({
   emitPortalComplete,
   emitPrivatePortalPieceDrop,
   emitPrivateQuestItemDrop,
+  emitPrivateResourceDrops,
   emitWorldEnemies,
   emitWorldReward,
   findWorldEnemyForPlayer,
@@ -480,8 +483,15 @@ function applyPlayerHit(socket, payload){
     at:Date.now()
   });
   if(hpBefore > 0 && hpAfter <= 0){
-    const snapshot = firmWarManager.addPlayerKillPoints(attackerFirm);
-    io.emit("firm:ranking", snapshot);
+    const firmKill = firmWarManager.recordPlayerKill({
+      attacker:{
+        key:profileManager.profileKeyForPlayer(attacker),
+        name:attackerProfile?.player?.name || attacker.name || "Pilote",
+        firmId:attackerFirm
+      },
+      targetKey:profileManager.profileKeyForPlayer(target)
+    });
+    io.emit("firm:ranking", firmKill.snapshot);
     const reputation = Math.max(0, targetLevel * 1000);
     const pvpReward = profileManager.updateProfileForPlayer({
       player:attacker,
@@ -495,6 +505,13 @@ function applyPlayerHit(socket, payload){
     });
     if(pvpReward.ok){
       emitProfileSyncForPlayer(attacker, pvpReward.profile);
+      const firmSnapshot = firmWarManager.snapshot({
+        playerKey:profileManager.profileKeyForPlayer(attacker),
+        profile:pvpReward.profile
+      });
+      for(const accountPlayer of accountSocketsForPlayer(attacker)){
+        io.to(accountPlayer.id).emit("firm:snapshot", firmSnapshot);
+      }
       const rewardEvent = {
         rewardId:`pvp:${target.id}:${attacker.id}:${Date.now()}`,
         enemyId:`player:${target.id}`,
@@ -509,6 +526,7 @@ function applyPlayerHit(socket, payload){
         premium:0,
         reputation,
         rankPoints:0,
+        firmPoints:firmKill.points,
         rewardAppliedByServer:true,
         at:Date.now()
       };

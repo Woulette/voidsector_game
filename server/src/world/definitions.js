@@ -1,12 +1,12 @@
 import { FIRMS, getFirmMapDisplayName, getFirmMapId, getFirmMapName } from "../../../src/data/firms.js";
 
 const ASTRA_WORLD_MAPS = {
-  "0":{id:"0", name:"ASTRA-01", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:320, safeRect:{minX:-5000, minY:2500, maxX:-3500, maxY:3950}}, portals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:7, count:40, level:[1,3], enemyTypes:[["drone_pirate", .50], ["raider_astral", .50]]},
-  "1":{id:"1", name:"ASTRA-02", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], closedPortals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:19, count:40, level:[3,7], enemyTypes:[["drone_pirate", 1], ["raider_astral", 1], ["chasseur_spectral", 1]]},
-  "2":{id:"2", name:"ASTRA-03", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], seed:31, count:50, level:[6,10], enemyTypes:[["chasseur_spectral", .56], ["cuirasse_nebulaire", .44]], fixedEnemyCounts:{cristal_du_neant:8}},
-  "3":{id:"3", name:"ASTRA-04", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], seed:43, count:50, level:[8,12], enemyTypes:[["chasseur_spectral", .56], ["cuirasse_nebulaire", .44]], fixedEnemyCounts:{cuirasse_ambre:6}},
-  "4":{id:"4", name:"ASTRA-05", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:320}, portals:[{x:4300, y:-3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}, {x:0, y:-3300, r:95, safeRadius:230}], seed:59, count:30, level:[18,24], enemyTypes:[["boss_drone_pirate", .16], ["boss_raider_astral", .18], ["boss_chasseur_spectral", .20], ["boss_cuirasse_nebulaire", .20], ["boss_cristal_du_neant", .16], ["boss_cuirasse_ambre", .10]]},
-  "20":{id:"20", name:"CYAN-01", width:10000, height:8000, spawn:{x:-4300, y:-3300, r:320, safeRadius:320}, portals:[{x:4300, y:3300, r:95, safeRadius:230}], seed:207, count:20, level:[1,3], enemyTypes:[["drone_pirate", .70], ["raider_astral", .30]]}
+  "0":{id:"0", name:"ASTRA-01", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:320, safeRect:{minX:-5000, minY:2500, maxX:-3500, maxY:3950}}, portals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:7, count:40, level:[1,4], enemyTypes:[["drone_pirate", .50], ["raider_astral", .50]]},
+  "1":{id:"1", name:"ASTRA-02", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], closedPortals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:19, count:40, level:[5,9], enemyTypes:[["drone_pirate", 1], ["raider_astral", 1], ["chasseur_spectral", 1]], fixedEnemyCounts:{boss_drone_pirate:4, boss_raider_astral:4}},
+  "2":{id:"2", name:"ASTRA-03", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], seed:31, count:50, level:[10,14], enemyTypes:[["raider_astral", 1], ["chasseur_spectral", 1], ["cuirasse_nebulaire", 1]], fixedEnemyCounts:{cristal_du_neant:4, boss_raider_astral:4}},
+  "3":{id:"3", name:"ASTRA-04", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], seed:43, count:50, level:[15,19], enemyTypes:[["chasseur_spectral", .56], ["cuirasse_nebulaire", .44]], fixedEnemyCounts:{cuirasse_ambre:6}},
+  "4":{id:"4", name:"ASTRA-05", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:320}, portals:[{x:4300, y:-3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}, {x:0, y:-3300, r:95, safeRadius:230}], seed:59, count:30, level:[20,24], enemyTypes:[["boss_raider_astral", .18], ["boss_chasseur_spectral", .20], ["boss_cuirasse_nebulaire", .20], ["boss_cristal_du_neant", .16], ["boss_cuirasse_ambre", .10]]},
+  "20":{id:"20", name:"CYAN-01", width:10000, height:8000, spawn:{x:-4300, y:-3300, r:320, safeRadius:320}, portals:[{x:4300, y:3300, r:95, safeRadius:230}], seed:207, count:20, level:[1,4], enemyTypes:[["drone_pirate", .70], ["raider_astral", .30]]}
 };
 
 const RICKY_PORTAL_BY_FIRM = {
@@ -85,7 +85,7 @@ function buildFirmWorldMaps(){
     ],
     seed:509,
     count:48,
-    level:[24,30],
+    level:[25,34],
     enemyTypes:[["boss_chasseur_spectral", .35], ["boss_cuirasse_nebulaire", .35], ["boss_cristal_du_neant", .30]]
   };
   return result;
@@ -96,10 +96,11 @@ export const WORLD_ENEMY_TYPES = {
   drone_pirate:{
     kind:"drone_pirate",
     type:"Orbe sentinelle",
-    img:"assets/enemies/enemy_cyan_orb.png",
+    baseLevel:1,
+    img:"assets/enemies/generated/orbe_vorak_lowlevel_01/low_orbe_01.png",
     radius:26,
-    width:74,
-    height:74,
+    width:92,
+    height:92,
     hp:level=>800,
     shield:()=>0,
     speed:()=>190,
@@ -107,7 +108,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:level=>34 + level * 4,
     attackCooldown:1250,
     projectileSpeed:680,
-    reward:level=>({credits:900 + level * 120, xp:220 + level * 45, premium:1}),
+    reward:()=>({credits:1020, xp:800, premium:1}),
     color:"rgba(248,113,113,.95)",
     particle:"rgba(252,165,165,.72)",
     shieldAbsorbRatio:.8
@@ -115,10 +116,11 @@ export const WORLD_ENEMY_TYPES = {
   raider_astral:{
     kind:"raider_astral",
     type:"Vorak rusher",
-    img:"assets/enemies/enemy_red_rusher.png",
+    baseLevel:1,
+    img:"assets/enemies/generated/orbe_vorak_lowlevel_01/low_vorak_03.png",
     radius:36,
-    width:88,
-    height:88,
+    width:120,
+    height:120,
     hp:level=>1450 + level * 170,
     shield:()=>0,
     speed:()=>220,
@@ -136,6 +138,7 @@ export const WORLD_ENEMY_TYPES = {
   chasseur_spectral:{
     kind:"chasseur_spectral",
     type:"Parasite astral",
+    baseLevel:5,
     img:"assets/enemies/enemy_green_parasite.png",
     radius:34,
     width:86,
@@ -158,12 +161,13 @@ export const WORLD_ENEMY_TYPES = {
   cuirasse_nebulaire:{
     kind:"cuirasse_nebulaire",
     type:"Traqueur abyssal",
+    baseLevel:10,
     img:"assets/enemies/enemy_blue_spider.png",
     radius:46,
     width:106,
     height:106,
     hp:()=>8000,
-    shield:()=>2000,
+    shield:()=>1600,
     speed:()=>150,
     attackRange:300,
     attackDamageMin:250,
@@ -179,6 +183,7 @@ export const WORLD_ENEMY_TYPES = {
   cuirasse_ambre:{
     kind:"cuirasse_ambre",
     type:"Cuirasse ambre",
+    baseLevel:15,
     img:"assets/enemies/generated/astra4_ember_cuirass.png",
     radius:62,
     width:148,
@@ -200,6 +205,7 @@ export const WORLD_ENEMY_TYPES = {
   cristal_du_neant:{
     kind:"cristal_du_neant",
     type:"Cristal du neant",
+    baseLevel:15,
     img:"assets/enemies/enemy_purple_crystal.png",
     radius:48,
     width:112,
@@ -221,18 +227,23 @@ export const WORLD_ENEMY_TYPES = {
   boss_drone_pirate:{
     kind:"boss_drone_pirate",
     type:"Boss Orbe sentinelle",
-    img:"assets/enemies/enemy_cyan_orb.png",
+    baseLevel:1,
+    statSourceKind:"drone_pirate",
+    statMultiplier:2,
+    rewardSourceKind:"drone_pirate",
+    rewardMultiplier:2,
+    img:"assets/enemies/generated/orbe_vorak_lowlevel_01/low_orbe_05.png",
     radius:32,
-    width:88,
-    height:88,
-    hp:()=>800 * 4,
-    shield:()=>0,
+    width:120,
+    height:120,
+    hp:()=>800 * 2,
+    shield:()=>1600,
     speed:()=>190,
     attackRange:300,
-    attackDamage:level=>(34 + level * 4) * 4,
+    attackDamage:level=>(34 + level * 4) * 2,
     attackCooldown:1250,
     projectileSpeed:680,
-    reward:()=>({credits:1200 * 4, xp:350 * 4, premium:2 * 4}),
+    reward:()=>({credits:1020 * 2, xp:800 * 2, premium:1 * 2}),
     color:"rgba(248,113,113,.95)",
     particle:"rgba(252,165,165,.72)",
     shieldAbsorbRatio:.8
@@ -240,20 +251,26 @@ export const WORLD_ENEMY_TYPES = {
   boss_raider_astral:{
     kind:"boss_raider_astral",
     type:"Boss Vorak rusher",
+    baseLevel:1,
+    statSourceKind:"raider_astral",
+    statMultiplier:2,
+    rewardSourceKind:"raider_astral",
+    rewardMultiplier:2,
     img:"assets/enemies/enemy_red_rusher.png",
     radius:42,
     width:104,
     height:104,
-    hp:level=>(1450 + level * 170) * 4,
-    shield:()=>0,
+    hp:level=>(1450 + level * 170) * 2,
+    shield:()=>2000,
+    shieldGrowthPerLevel:.10,
     speed:()=>220,
     attackRange:250,
-    attackDamageMin:90 * 4,
-    attackDamageMax:140 * 4,
-    attackDamage:()=>115 * 4,
+    attackDamageMin:90 * 2,
+    attackDamageMax:140 * 2,
+    attackDamage:()=>115 * 2,
     attackCooldown:1350,
     projectileSpeed:640,
-    reward:()=>({credits:1500 * 4, xp:500 * 4, premium:3 * 4}),
+    reward:level=>({credits:(1200 + level * 180) * 2, xp:(360 + level * 70) * 2, premium:2 * 2}),
     color:"rgba(251,146,60,.95)",
     particle:"rgba(253,186,116,.72)",
     shieldAbsorbRatio:.8
@@ -261,6 +278,7 @@ export const WORLD_ENEMY_TYPES = {
   boss_chasseur_spectral:{
     kind:"boss_chasseur_spectral",
     type:"Boss Parasite astral",
+    baseLevel:5,
     img:"assets/enemies/enemy_green_parasite.png",
     radius:42,
     width:104,
@@ -283,6 +301,7 @@ export const WORLD_ENEMY_TYPES = {
   boss_cuirasse_nebulaire:{
     kind:"boss_cuirasse_nebulaire",
     type:"Boss Traqueur abyssal",
+    baseLevel:10,
     img:"assets/enemies/enemy_blue_spider.png",
     radius:54,
     width:126,
@@ -304,6 +323,7 @@ export const WORLD_ENEMY_TYPES = {
   boss_cuirasse_ambre:{
     kind:"boss_cuirasse_ambre",
     type:"Boss Cuirasse ambre",
+    baseLevel:15,
     img:"assets/enemies/generated/astra4_ember_cuirass.png",
     radius:70,
     width:164,
@@ -325,6 +345,7 @@ export const WORLD_ENEMY_TYPES = {
   boss_cristal_du_neant:{
     kind:"boss_cristal_du_neant",
     type:"Boss Cristal du neant",
+    baseLevel:15,
     img:"assets/enemies/enemy_purple_crystal.png",
     radius:56,
     width:128,

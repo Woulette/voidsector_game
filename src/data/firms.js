@@ -1,5 +1,5 @@
 export const FIRMS = [
-  {id:"astra", label:"Astra", mapPrefix:"ASTRA", displayMapPrefix:"Helion", homeMapName:"ASTRA-01", baseMapId:0, color:"#38bdf8", spawn:{x:-4300, y:3300}},
+  {id:"astra", label:"Astra", mapPrefix:"ASTRA", displayMapPrefix:"Helion", homeMapName:"ASTRA-01", baseMapId:0, color:"#ef4444", spawn:{x:-4300, y:3300}},
   {id:"cyan", label:"Cygnus", mapPrefix:"CYAN", displayMapPrefix:"Nereid", homeMapName:"CYAN-01", baseMapId:20, color:"#22d3ee", spawn:{x:-4300, y:-3300}},
   {id:"jaune", label:"Solarys", mapPrefix:"JAUNE", displayMapPrefix:"Aureon", homeMapName:"JAUNE-01", baseMapId:30, color:"#facc15", spawn:{x:4300, y:-3300}},
   {id:"verte", label:"Verdantis", mapPrefix:"VERTE", displayMapPrefix:"Sylva", homeMapName:"VERTE-01", baseMapId:40, color:"#22c55e", spawn:{x:4300, y:3300}}

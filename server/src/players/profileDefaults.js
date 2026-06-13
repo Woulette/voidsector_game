@@ -35,6 +35,9 @@ export function createDefaultProfile(){
     completedQuestClaims:{},
     shipWorldSessions:{},
     social:{friends:[], incoming:[], outgoing:[], enemies:[], ignored:[]},
+    firmatons:0,
+    firmBoxes:{common:0, rare:0, veryRare:0, elite:0, mythic:0},
+    firmRewardHistory:[],
     starterRepairGranted:true
   });
 }

@@ -739,7 +739,9 @@ export function createCombatGame({renderAll, showToast}){
     showToast
   });
   function preload(){
-    preloadCombatAssets({cache, ships, equipment:[...equipment, ...getAllRawMaterials(), ...portals, {img:"assets/materials/cargo_box.svg"}, {img:"assets/quest_items/contaminated_sample.png"}, {img:"assets/quest_items/teleportation_fluid.png"}], ammoTypes, enemyTypes:ENEMY_TYPES, maps:MAPS, ranks:RANK_TABLE, getRankAssetPath});
+    const rawMaterials = getAllRawMaterials();
+    const materialDropAssets = rawMaterials.filter(material=>material.dropImg).map(material=>({img:material.dropImg}));
+    preloadCombatAssets({cache, ships, equipment:[...equipment, ...rawMaterials, ...materialDropAssets, ...portals, {img:"assets/materials/cargo_box.svg"}, {img:"assets/quest_items/contaminated_sample.png"}, {img:"assets/quest_items/teleportation_fluid.png"}], ammoTypes, enemyTypes:ENEMY_TYPES, maps:MAPS, ranks:RANK_TABLE, getRankAssetPath});
   }
   function resetPerfMetrics(){
     perf.reset();
@@ -1052,6 +1054,7 @@ export function createCombatGame({renderAll, showToast}){
   installCombatInputHandlers({
     canvas,
     isRunning:()=>running,
+    isMovementLocked:()=>cargo.isMovementLocked?.(),
     resize,
     saveState,
     getMouse:()=>mouse,

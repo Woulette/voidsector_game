@@ -297,6 +297,13 @@ export function normalizeState(saved){
   if(saved?.uiLayout && typeof saved.uiLayout === "object"){
     merged.uiLayout = {...merged.uiLayout, ...saved.uiLayout};
   }
+  merged.firmatons = Math.max(0, Math.floor(Number(saved?.firmatons ?? base.firmatons ?? 0)));
+  const savedFirmBoxes = saved?.firmBoxes && typeof saved.firmBoxes === "object" ? saved.firmBoxes : {};
+  merged.firmBoxes = Object.fromEntries(["common", "rare", "veryRare", "elite", "mythic"].map(rarity=>[
+    rarity,
+    Math.max(0, Math.floor(Number(savedFirmBoxes[rarity] ?? base.firmBoxes?.[rarity] ?? 0)))
+  ]));
+  merged.firmRewardHistory = Array.isArray(saved?.firmRewardHistory) ? saved.firmRewardHistory.slice(-60) : [];
   merged.ownedDroneCount = Math.max(0, Math.min(getDroneCatalog().maxOwned || 8, Number(saved?.ownedDroneCount ?? base.ownedDroneCount ?? 0)));
   merged.droneLoadout = cleanDroneLoadout(saved?.droneLoadout || base.droneLoadout || [], merged.inventoryItems);
   while(merged.droneLoadout.length < merged.ownedDroneCount) merged.droneLoadout.push(null);

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <title>VoidSector - Prototype ressource commune</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #020913;
+        color: #dff7ff;
+        font-family: Arial, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px;
+        background:
+          radial-gradient(circle at top, rgba(0, 184, 255, 0.16), transparent 420px),
+          #020913;
+      }
+
+      h1, h2 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      p {
+        color: #9fcbe0;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+        margin-top: 24px;
+      }
+
+      .card {
+        display: grid;
+        place-items: center;
+        min-height: 320px;
+        padding: 18px;
+        border: 1px solid rgba(62, 199, 255, 0.35);
+        background:
+          linear-gradient(rgba(7, 27, 44, 0.78), rgba(3, 14, 25, 0.92)),
+          repeating-linear-gradient(0deg, transparent 0 31px, rgba(61, 198, 255, 0.04) 32px),
+          repeating-linear-gradient(90deg, transparent 0 31px, rgba(61, 198, 255, 0.04) 32px);
+      }
+
+      .card img {
+        max-width: 100%;
+        object-fit: contain;
+      }
+
+      .master img {
+        width: 256px;
+        height: 256px;
+      }
+
+      .shop img {
+        width: 128px;
+        height: 128px;
+      }
+
+      .drop img {
+        width: 64px;
+        height: 64px;
+      }
+
+      .meta {
+        align-self: end;
+        width: 100%;
+        padding-top: 14px;
+        border-top: 1px solid rgba(62, 199, 255, 0.18);
+      }
+
+      .meta strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .meta span {
+        color: #8fd8f5;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Prototype - Cables de cuivre</h1>
+    <p>Comparaison du master et des tailles reellement affichees dans le jeu.</p>
+    <main class="grid">
+      <article class="card master">
+        <img src="copper_cables_512.png" alt="Cables de cuivre, master">
+        <div class="meta">
+          <strong>Master PNG 512</strong>
+          <span>251,9 Ko - ne pas charger en jeu</span>
+        </div>
+      </article>
+      <article class="card shop">
+        <img src="copper_cables_256.webp" alt="Cables de cuivre, boutique">
+        <div class="meta">
+          <strong>Affichage boutique 128 px</strong>
+          <span>WebP 256 source - 16,9 Ko</span>
+        </div>
+      </article>
+      <article class="card drop">
+        <img src="copper_cables_128.webp" alt="Cables de cuivre, drop">
+        <div class="meta">
+          <strong>Affichage drop 64 px</strong>
+          <span>WebP 128 source - 5,8 Ko</span>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>

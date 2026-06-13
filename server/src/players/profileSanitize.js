@@ -69,6 +69,25 @@ function sanitizeSocial(value){
   };
 }
 
+function sanitizeFirmBoxes(value){
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return Object.fromEntries(["common", "rare", "veryRare", "elite", "mythic"].map(rarity=>[
+    rarity,
+    Math.max(0, Math.floor(Number(source[rarity] || 0)))
+  ]));
+}
+
+function sanitizeFirmRewardHistory(value){
+  return (Array.isArray(value) ? value : []).slice(-60).map(entry=>({
+    id:String(entry?.id || ""),
+    source:String(entry?.source || "firm"),
+    label:String(entry?.label || "Recompense de firme"),
+    rarity:entry?.rarity ? String(entry.rarity) : undefined,
+    reward:sanitizeObject(entry?.reward),
+    createdAt:Math.max(0, Number(entry?.createdAt || Date.now()))
+  }));
+}
+
 export function sanitizeProfile(profile = {}){
   const inventoryItems = [];
   for(const entry of Array.isArray(profile.inventoryItems) ? profile.inventoryItems : []){
@@ -124,6 +143,9 @@ export function sanitizeProfile(profile = {}){
     worldSession:sanitizeWorldSession(profile.worldSession),
     shipWorldSessions:sanitizeShipWorldSessions(profile.shipWorldSessions),
     social:sanitizeSocial(profile.social),
+    firmatons:Math.max(0, Math.floor(Number(profile.firmatons || 0))),
+    firmBoxes:sanitizeFirmBoxes(profile.firmBoxes),
+    firmRewardHistory:sanitizeFirmRewardHistory(profile.firmRewardHistory),
     starterRepairGranted:Boolean(profile.starterRepairGranted)
   };
   sanitized.player.name = String(sanitized.player.name || "NOVA-37").trim().replace(/\s+/g, " ").slice(0, 24) || "NOVA-37";
@@ -158,6 +180,9 @@ export function preserveProtectedOwnership(incoming, existing){
     "completedPortals",
     "portalPieces",
     "prestigeCount",
+    "firmatons",
+    "firmBoxes",
+    "firmRewardHistory",
     "starterRepairGranted"
   ]);
   for(const field of [
@@ -170,7 +195,7 @@ export function preserveProtectedOwnership(incoming, existing){
     "portalPieces", "prestigeCount", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
     "refineryProductionDisabled", "refineryLastTick", "killStats", "rankKillStats",
-    "social", "starterRepairGranted"
+    "social", "firmatons", "firmBoxes", "firmRewardHistory", "starterRepairGranted"
   ]){
     if(alwaysProtected.has(field) || hasProtectedOwnershipValue(existing, field)){
       incoming[field] = cloneProtectedValue(existing[field]);

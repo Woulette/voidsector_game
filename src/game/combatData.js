@@ -10,7 +10,7 @@ export const MAPS = [
     spawn:{x:-4300,y:3300,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430, safeRect:{minX:-5000, minY:2500, maxX:-3500, maxY:3950}},
     portal:{x:4300,y:-3300,r:95,safeRadius:230,targetMap:1,targetX:-4300,targetY:3300,label:"VERS ASTRA-02"},
     enemyCount:40,
-    enemyLevel:[1,3],
+    enemyLevel:[1,4],
     enemySeed:7,
     closeStarCount:4280,
     parallaxScene:{
@@ -76,7 +76,7 @@ export const MAPS = [
     spawn:{x:-2250,y:1450,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430},
     portal:null,
     enemyCount:20,
-    enemyLevel:[1,3],
+    enemyLevel:[1,4],
     enemySeed:207,
     closeStarCount:80,
     parallaxScene:{
@@ -121,7 +121,7 @@ export const MAPS = [
       {id:"astra02_portal_mechanic", name:"Ricky", npcImg:"assets/ships/npc/npc_saucer.png", x:4470, y:-3180, radius:82, size:132, marker:"!", label:"RICKY"}
     ],
     enemyCount:40,
-    enemyLevel:[3,7],
+    enemyLevel:[5,9],
     enemySeed:19,
     closeStarCount:2240,
     parallaxScene:{
@@ -184,7 +184,11 @@ export const MAPS = [
       {id:"drone_pirate", weight:1},
       {id:"raider_astral", weight:1},
       {id:"chasseur_spectral", weight:1}
-    ]
+    ],
+    fixedEnemyCounts:{
+      boss_drone_pirate:4,
+      boss_raider_astral:4
+    }
   },
   {
     id:2,
@@ -197,7 +201,7 @@ export const MAPS = [
       {x:4300,y:-3300,r:95,safeRadius:230,targetMap:4,targetX:-4300,targetY:-3300,label:"VERS ASTRA-05"}
     ],
     enemyCount:50,
-    enemyLevel:[6,10],
+    enemyLevel:[10,14],
     enemySeed:31,
     closeStarCount:2240,
     parallaxScene:{
@@ -242,11 +246,13 @@ export const MAPS = [
       ]
     },
     enemyTypes:[
-      {id:"chasseur_spectral", weight:.56},
-      {id:"cuirasse_nebulaire", weight:.44}
+      {id:"raider_astral", weight:1},
+      {id:"chasseur_spectral", weight:1},
+      {id:"cuirasse_nebulaire", weight:1}
     ],
     fixedEnemyCounts:{
-      cristal_du_neant:8
+      cristal_du_neant:4,
+      boss_raider_astral:4
     }
   },
   {
@@ -260,7 +266,7 @@ export const MAPS = [
       {x:4300,y:-3300,r:95,safeRadius:230,targetMap:4,targetX:-4300,targetY:3300,label:"VERS ASTRA-05"}
     ],
     enemyCount:50,
-    enemyLevel:[8,12],
+    enemyLevel:[15,19],
     enemySeed:43,
     closeStarCount:2240,
     parallaxScene:{
@@ -324,7 +330,7 @@ export const MAPS = [
       {x:-4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:4300,targetY:-3300,label:"VERS ASTRA-04"}
     ],
     enemyCount:30,
-    enemyLevel:[18,24],
+    enemyLevel:[20,24],
     enemySeed:59,
     closeStarCount:1840,
     parallaxScene:{
@@ -372,7 +378,6 @@ export const MAPS = [
       ]
     },
     enemyTypes:[
-      {id:"boss_drone_pirate", weight:.16},
       {id:"boss_raider_astral", weight:.18},
       {id:"boss_chasseur_spectral", weight:.20},
       {id:"boss_cuirasse_nebulaire", weight:.20},
@@ -1007,7 +1012,7 @@ function buildCoreMap(){
   core.spawn = {x:0,y:0,r:360,label:"NOYAU CENTRAL",safeRadius:520,decorRadius:600};
   core.enemySeed = 900;
   core.enemyCount = 55;
-  core.enemyLevel = [20,28];
+  core.enemyLevel = [25,34];
   core.parallaxScene = themeObject(core.parallaxScene || {}, "CYAN");
   core.parallaxScene.background = ["#04010b", "#11051f", "#020104"];
   core.parallaxScene.images = [];
@@ -1131,13 +1136,13 @@ function multiplyLoot(loot, multiplier = BOSS_STAT_MULTIPLIER){
 export const ENEMY_TYPES = {
   drone_pirate:{
     name:"Orbe sentinelle",
-    img:"assets/enemies/enemy_cyan_orb.png",
+    img:"assets/enemies/generated/orbe_vorak_lowlevel_01/low_orbe_01.png",
     levelRange:[1,4],
     maxHp:()=>800,
     speed:()=>190,
     radius:26,
-    width:74,
-    height:74,
+    width:92,
+    height:92,
     attackRange:300,
     shieldAbsorbRatio:.8,
     attackDamage:(level)=>34 + level*4,
@@ -1154,13 +1159,13 @@ export const ENEMY_TYPES = {
   },
   raider_astral:{
     name:"Vorak rusher",
-    img:"assets/enemies/enemy_red_rusher.png",
-    levelRange:[4,7],
+    img:"assets/enemies/generated/orbe_vorak_lowlevel_01/low_vorak_03.png",
+    levelRange:[1,4],
     maxHp:(level)=>1450 + level*170,
     speed:()=>220,
     radius:36,
-    width:88,
-    height:88,
+    width:120,
+    height:120,
     attackRange:250,
     shieldAbsorbRatio:.8,
     attackDamageMin:90,
@@ -1232,7 +1237,7 @@ export const ENEMY_TYPES = {
     loot:{
       credits:7000,
       xp:3000,
-      premium:8,
+      premium:12,
       materials:{
         cuivre_orbital:30,
         zinc_spatial:30,
@@ -1264,7 +1269,7 @@ export const ENEMY_TYPES = {
     loot:{
       credits:100000,
       xp:20000,
-      premium:30,
+      premium:48,
       materials:{
         cuivre_orbital:120,
         zinc_spatial:120,
@@ -1298,7 +1303,7 @@ export const ENEMY_TYPES = {
     loot:{
       credits:60000,
       xp:12000,
-      premium:20,
+      premium:32,
       materials:{
         cuivre_orbital:80,
         zinc_spatial:80,
@@ -1312,16 +1317,17 @@ export const ENEMY_TYPES = {
   },
   boss_drone_pirate:{
     name:"Boss Orbe sentinelle",
-    img:"assets/enemies/enemy_cyan_orb.png",
-    levelRange:[18,24],
-    maxHp:()=>800 * BOSS_STAT_MULTIPLIER,
+    img:"assets/enemies/generated/orbe_vorak_lowlevel_01/low_orbe_05.png",
+    levelRange:[1,4],
+    maxHp:()=>800 * 2,
+    maxShield:()=>1600,
     speed:()=>190,
     radius:32,
-    width:88,
-    height:88,
+    width:120,
+    height:120,
     attackRange:300,
     shieldAbsorbRatio:.8,
-    attackDamage:(level)=>(34 + level*4) * BOSS_STAT_MULTIPLIER,
+    attackDamage:(level)=>(34 + level*4) * 2,
     attackCooldown:1.25,
     projectileSpeed:680,
     color:"rgba(248,113,113,.95)",
@@ -1331,22 +1337,23 @@ export const ENEMY_TYPES = {
       xp:350,
       premium:2,
       materials:{nickel_brut:10, titane_fissure:10, silice_conductrice:10}
-    })
+    }, 2)
   },
   boss_raider_astral:{
     name:"Boss Vorak rusher",
     img:"assets/enemies/enemy_red_rusher.png",
-    levelRange:[18,24],
-    maxHp:(level)=>(1450 + level*170) * BOSS_STAT_MULTIPLIER,
+    levelRange:[1,4],
+    maxHp:(level)=>(1450 + level*170) * 2,
+    maxShield:(level)=>2000 + Math.max(0, level - 1) * 200,
     speed:()=>220,
     radius:42,
     width:104,
     height:104,
     attackRange:250,
     shieldAbsorbRatio:.8,
-    attackDamageMin:90 * BOSS_STAT_MULTIPLIER,
-    attackDamageMax:140 * BOSS_STAT_MULTIPLIER,
-    attackDamage:()=>115 * BOSS_STAT_MULTIPLIER,
+    attackDamageMin:90 * 2,
+    attackDamageMax:140 * 2,
+    attackDamage:()=>115 * 2,
     attackCooldown:1.35,
     projectileSpeed:640,
     color:"rgba(251,146,60,.95)",
@@ -1356,7 +1363,7 @@ export const ENEMY_TYPES = {
       xp:500,
       premium:3,
       materials:{cuivre_orbital:10, zinc_spatial:10, nickel_brut:10}
-    })
+    }, 2)
   },
   boss_chasseur_spectral:{
     name:"Boss Parasite astral",

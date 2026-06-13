@@ -2,7 +2,7 @@ import { applyProgressionReward } from "../players/progression.js";
 import { applyServerReputationFromXp, updateRankScore } from "../players/rankProgression.js";
 import { PORTAL_CONFIGS, WORLD_ENEMY_TYPES } from "../world/definitions.js";
 
-export function createPortalInstanceManager({io, players, groups, profileManager, emitProfileSync, createGroup, emitInstance, portalWaveTotal}){
+export function createPortalInstanceManager({io, players, groups, profileManager, emitProfileSync, createGroup, emitInstance, firmWarManager, portalWaveTotal}){
   let instanceSeq = 1;
 
   function createPortalEnemy(kind, wave, index, x, y, boss = false){
@@ -94,9 +94,18 @@ export function createPortalInstanceManager({io, players, groups, profileManager
     instance.completed = true;
     const portal = PORTAL_CONFIGS[instance.portal?.id] || PORTAL_CONFIGS.blue;
     const now = Date.now();
+    const firmContributors = [];
+    const personalFirmSnapshots = [];
     for(const memberId of group.members || []){
       const player = players.get(memberId);
       if(!player) continue;
+      const currentProfile = profileManager.getProfileForPlayer?.(player);
+      const playerKey = profileManager.profileKeyForPlayer?.(player) || "";
+      firmContributors.push({
+        key:playerKey,
+        name:currentProfile?.player?.name || player.name || "Pilote",
+        firmId:currentProfile?.player?.firmId || player.account?.firmId || "astra"
+      });
       const result = profileManager.updateProfileForPlayer({
         player,
         update:profile=>{
@@ -123,6 +132,18 @@ export function createPortalInstanceManager({io, players, groups, profileManager
         at:now
       });
       emitProfileSync?.(player, result.profile);
+      personalFirmSnapshots.push({player, playerKey, profile:result.profile || currentProfile});
+    }
+    if(firmWarManager && firmContributors.length){
+      const result = firmWarManager.recordPortalCompletion(firmContributors);
+      io.emit?.("firm:ranking", result.snapshot);
+      for(const entry of personalFirmSnapshots){
+        if(!entry.playerKey) continue;
+        io.to(entry.player.id).emit("firm:snapshot", firmWarManager.snapshot({
+          playerKey:entry.playerKey,
+          profile:entry.profile
+        }));
+      }
     }
     emitInstance(group);
   }

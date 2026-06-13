@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <title>VoidSector - Ressources communes</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #020913;
+        color: #e5f8ff;
+        font-family: Arial, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px;
+        background:
+          radial-gradient(circle at top, rgba(0, 181, 255, 0.15), transparent 480px),
+          #020913;
+      }
+
+      h1, h2 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .intro {
+        max-width: 900px;
+        color: #9fcbe0;
+        line-height: 1.5;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+        gap: 18px;
+        margin-top: 28px;
+      }
+
+      .card {
+        border: 1px solid rgba(62, 199, 255, 0.34);
+        background:
+          linear-gradient(rgba(7, 27, 44, 0.78), rgba(3, 14, 25, 0.94)),
+          repeating-linear-gradient(0deg, transparent 0 31px, rgba(61, 198, 255, 0.04) 32px),
+          repeating-linear-gradient(90deg, transparent 0 31px, rgba(61, 198, 255, 0.04) 32px);
+        box-shadow: inset 0 0 28px rgba(0, 184, 255, 0.06);
+      }
+
+      .visual {
+        display: grid;
+        place-items: center;
+        min-height: 220px;
+        padding: 16px;
+      }
+
+      .visual img {
+        width: 180px;
+        height: 180px;
+        object-fit: contain;
+      }
+
+      .details {
+        padding: 16px;
+        border-top: 1px solid rgba(62, 199, 255, 0.2);
+      }
+
+      .details h2 {
+        font-size: 16px;
+      }
+
+      .details p {
+        min-height: 42px;
+        margin: 10px 0 14px;
+        color: #9fcbe0;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .sizes {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+        color: #8fd8f5;
+        font-size: 11px;
+        text-transform: uppercase;
+      }
+
+      .drop {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .drop img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ressources communes</h1>
+    <p class="intro">
+      Huit composants simples pour fabriquer les vaisseaux bas niveau, lasers M-2,
+      generateurs A-1, munitions et petites roquettes. Les grandes images utilisent
+      les WebP boutique 256 ; les petites utilisent les WebP drop 128.
+    </p>
+    <main class="grid">
+      <article class="card">
+        <div class="visual"><img src="copper_cables.webp" alt="Cables de cuivre"></div>
+        <div class="details">
+          <h2>Cables de cuivre</h2>
+          <p>Alimentation electrique des lasers, generateurs et systemes de vaisseau.</p>
+          <div class="sizes"><span>Boutique 16,4 Ko</span><span class="drop"><img src="copper_cables_drop.webp" alt="">Drop 5,6 Ko</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="visual"><img src="steel_plates.webp" alt="Plaques d'acier"></div>
+        <div class="details">
+          <h2>Plaques d'acier</h2>
+          <p>Coques legeres, blindages simples, roquettes et enveloppes de munitions.</p>
+          <div class="sizes"><span>Boutique 14,3 Ko</span><span class="drop"><img src="steel_plates_drop.webp" alt="">Drop 5,2 Ko</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="visual"><img src="insulating_polymer.webp" alt="Polymere isolant"></div>
+        <div class="details">
+          <h2>Polymere isolant</h2>
+          <p>Isolation des cables, circuits, generateurs et compartiments techniques.</p>
+          <div class="sizes"><span>Boutique 11,5 Ko</span><span class="drop"><img src="insulating_polymer_drop.webp" alt="">Drop 4,2 Ko</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="visual"><img src="printed_circuits.webp" alt="Circuits imprimes"></div>
+        <div class="details">
+          <h2>Circuits imprimes</h2>
+          <p>Controle des lasers, generateurs, roquettes guidees et vaisseaux.</p>
+          <div class="sizes"><span>Boutique 16,7 Ko</span><span class="drop"><img src="printed_circuits_drop.webp" alt="">Drop 5,5 Ko</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="visual"><img src="ceramic_capacitors.webp" alt="Condensateurs ceramiques"></div>
+        <div class="details">
+          <h2>Condensateurs ceramiques</h2>
+          <p>Accumulation et regulation d'energie pour les equipements bas niveau.</p>
+          <div class="sizes"><span>Boutique 12,2 Ko</span><span class="drop"><img src="ceramic_capacitors_drop.webp" alt="">Drop 4,4 Ko</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="visual"><img src="optical_lenses.webp" alt="Lentilles optiques"></div>
+        <div class="details">
+          <h2>Lentilles optiques</h2>
+          <p>Focalisation des lasers M-2, capteurs et systemes de ciblage.</p>
+          <div class="sizes"><span>Boutique 13,7 Ko</span><span class="drop"><img src="optical_lenses_drop.webp" alt="">Drop 5,1 Ko</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="visual"><img src="propellant_powder.webp" alt="Poudre propulsive"></div>
+        <div class="details">
+          <h2>Poudre propulsive</h2>
+          <p>Charge de base pour les munitions, missiles et petites roquettes.</p>
+          <div class="sizes"><span>Boutique 11,8 Ko</span><span class="drop"><img src="propellant_powder_drop.webp" alt="">Drop 4,3 Ko</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="visual"><img src="pressurized_tanks.webp" alt="Reservoirs pressurises"></div>
+        <div class="details">
+          <h2>Reservoirs pressurises</h2>
+          <p>Refroidissement, propulsion auxiliaire et alimentation des equipements.</p>
+          <div class="sizes"><span>Boutique 13,6 Ko</span><span class="drop"><img src="pressurized_tanks_drop.webp" alt="">Drop 4,9 Ko</span></div>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>

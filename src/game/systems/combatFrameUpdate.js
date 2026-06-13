@@ -86,10 +86,18 @@ export function createCombatFrameUpdateSystem({
       setState({bullets:getState().bullets.filter(bullet=>bullet.owner !== "enemy")});
       for(const enemy of getState().enemies) enemy.aggro = false;
     }
-    if(mouseMoveHeld && mouse) setState({moveTarget:worldFromScreen(mouse.x, mouse.y)});
-    state = getState();
-    const movedTarget = updatePlayerMovement({player, moveTarget:state.moveTarget, dt, map:state.currentMap, clampToMap:state.gameMode !== "open"});
-    setState({moveTarget:movedTarget});
+    const movementLocked = cargo.isMovementLocked?.();
+    if(movementLocked){
+      player.vx = 0;
+      player.vy = 0;
+      player.enginePower = 0;
+      setState({moveTarget:null, mouseMoveHeld:false});
+    }else{
+      if(mouseMoveHeld && mouse) setState({moveTarget:worldFromScreen(mouse.x, mouse.y)});
+      state = getState();
+      const movedTarget = updatePlayerMovement({player, moveTarget:state.moveTarget, dt, map:state.currentMap, clampToMap:state.gameMode !== "open"});
+      setState({moveTarget:movedTarget});
+    }
     syncServerControlledEnemies();
     state = getState();
     const rank = getCurrentRank();

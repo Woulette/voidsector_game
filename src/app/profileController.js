@@ -90,9 +90,11 @@ export function createProfileController({
     store.state.player.xpNext = getXpNextForLevel(store.state.player.level);
     store.state.player.xp = Math.min(Math.max(0, Number(store.state.player.xp || 0)), store.state.player.xpNext);
     store.state.xpCurveVersion = xpCurveVersion;
-      for(const key of ["cargoHold","shipCargo","skillRanks","skillLevels","completedPortals","portalPieces","refineryLevels","refineryModules","refineryUpgradeJobs","refineryProductionDisabled","questProgress","questFailProgress","completedQuestClaims","killStats","rankKillStats","worldSession","shipWorldSessions"]){
+      for(const key of ["cargoHold","shipCargo","skillRanks","skillLevels","completedPortals","portalPieces","refineryLevels","refineryModules","refineryUpgradeJobs","refineryProductionDisabled","questProgress","questFailProgress","completedQuestClaims","killStats","rankKillStats","worldSession","shipWorldSessions","firmBoxes"]){
         if(profile[key] && typeof profile[key] === "object") store.state[key] = clone(profile[key]);
       }
+    if(Number.isFinite(Number(profile.firmatons))) store.state.firmatons = Math.max(0, Math.floor(Number(profile.firmatons)));
+    if(Array.isArray(profile.firmRewardHistory)) store.state.firmRewardHistory = clone(profile.firmRewardHistory).slice(-60);
     if(Array.isArray(profile.activeQuestIds)) store.state.activeQuestIds = profile.activeQuestIds.map(String).slice(0, 5);
     if(Object.hasOwn(profile, "activeQuestId")) store.state.activeQuestId = typeof profile.activeQuestId === "string" ? profile.activeQuestId : (store.state.activeQuestIds?.[0] || null);
     store.state.refineryShipmentJob = profile.refineryShipmentJob ? clone(profile.refineryShipmentJob) : null;

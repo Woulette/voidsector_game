@@ -23,6 +23,7 @@ export function createEnemyHitHandler({
   emitPortalComplete,
   emitPrivatePortalPieceDrop,
   emitPrivateQuestItemDrop,
+  emitPrivateResourceDrops,
   emitWorldEnemies,
   emitWorldReward,
   findWorldEnemyForPlayer,
@@ -98,6 +99,7 @@ export function createEnemyHitHandler({
         emitWorldReward({enemy:worldEnemy, mapId, attackerId:socket.id});
         emitPrivateQuestItemDrop({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
         emitPrivatePortalPieceDrop({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
+        emitPrivateResourceDrops?.({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
         progressServerQuestsForKill({enemy:worldEnemy, mapId, attackerId:socket.id});
       }
       emitWorldEnemies(mapId);

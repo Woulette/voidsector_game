@@ -3,6 +3,8 @@ import { installChatSocketListeners } from "./chatSocketListeners.js";
 import { createMultiplayerAuthController } from "./authController.js";
 import { installMultiplayerDomHandlers as installDomHandlers } from "./domHandlers.js";
 import { installEconomySocketListeners } from "./economySocketListeners.js";
+import { createFirmCommands } from "./firmCommands.js";
+import { installFirmSocketListeners } from "./firmSocketListeners.js";
 import { createGroupCommands } from "./groupCommands.js";
 import { syncMultiplayerProfile as syncProfile } from "./profileSync.js";
 import { installPlayerSocketListeners } from "./playerSocketListeners.js";
@@ -87,6 +89,8 @@ export const multiplayer = {
   groupPing:null,
   social:{friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]},
   firmRanking:null,
+  firmSnapshot:null,
+  firmEvents:[],
   logout:{
     pending:false,
     completeAt:null,
@@ -128,6 +132,7 @@ const {
 
 const socketCommands = createSocketCommands({multiplayer});
 const socialCommands = createSocialCommands({multiplayer, toast});
+const firmCommands = createFirmCommands({multiplayer, toast});
 const upsertRemotePlayer = player=>upsertRemotePlayerState(multiplayer, player);
 const replaceServerEnemies = (payload, scope)=>replaceServerEnemiesState(multiplayer, payload, scope);
 const addRemoteEffect = effect=>addRemoteEffectState(multiplayer, effect);
@@ -268,6 +273,7 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     installProgressionSocketListeners({socket, multiplayer, emitChange, toast});
     installWorldSocketListeners({socket, multiplayer, replaceServerEnemies, emitChange, toast});
     installSocialSocketListeners({socket, multiplayer, emitChange, toast});
+    installFirmSocketListeners({socket, multiplayer, emitChange, toast});
   }catch(error){
     multiplayer.connected = false;
     multiplayer.connecting = false;
@@ -288,6 +294,8 @@ export function disconnectMultiplayer(){
   multiplayer.groupPing = null;
   multiplayer.social = {friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]};
   multiplayer.firmRanking = null;
+  multiplayer.firmSnapshot = null;
+  multiplayer.firmEvents = [];
   multiplayer.remotePlayers.clear();
   multiplayer.remoteEffects = [];
   multiplayer.enemyAttackEvents = [];
@@ -338,6 +346,12 @@ export const respondFriendRequest = socialCommands.respondFriendRequest;
 export const setSocialCategory = socialCommands.setSocialCategory;
 export const removeSocialRelation = socialCommands.removeSocialRelation;
 export const sendPrivateMessage = socialCommands.sendPrivateMessage;
+export const requestFirmSync = firmCommands.requestFirmSync;
+export const buyFirmShopItem = firmCommands.buyFirmShopItem;
+export const openFirmBox = firmCommands.openFirmBox;
+export const claimFirmRewards = firmCommands.claimFirmRewards;
+export const claimFirmQuest = firmCommands.claimFirmQuest;
+export const acceptFirmQuest = firmCommands.acceptFirmQuest;
 export {sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, sendPlayerLaserEffect};
 
 export const syncMultiplayerProfile = state=>syncProfile(multiplayer, state);
