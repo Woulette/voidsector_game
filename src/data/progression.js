@@ -139,6 +139,9 @@ export const rawMaterialCatalog = [
   {id:"noyau_astra", name:"Noyau", short:"AST", kind:"final", tier:5, img:"assets/materials/noyau_astra.svg", desc:"Matériau final destiné aux grosses améliorations de vaisseau.", maxLevel:20}
 ];
 
+export const refineryMaterialCatalog = rawMaterialCatalog.filter(material=>!material.rarity);
+export const craftResourceCatalog = rawMaterialCatalog.filter(material=>Boolean(material.rarity));
+
 export const refineryRecipes = [
   {id:"refine_cuivre_zinc", name:"Fusion cuivre-zinc", outputId:"alliage_cuivre_zinc", outputAmount:1, durationMs:60_000, costs:{cuivre_orbital:10, zinc_spatial:10}, desc:"Fusionne cuivre orbital et zinc spatial en alliage conducteur."},
   {id:"refine_nickel_titane", name:"Forge plaque", outputId:"plaque_nickel_titane", outputAmount:1, durationMs:75_000, costs:{titane_fissure:10, silice_conductrice:10}, desc:"Compresse titane et silice en plaque renforcée."},

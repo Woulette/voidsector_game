@@ -1,4 +1,4 @@
-import { rawMaterialCatalog, refineryRecipes } from "../../../src/data/catalog.js";
+import { refineryMaterialCatalog, refineryRecipes } from "../../../src/data/catalog.js";
 import {
   REFINERY_MAX_LEVEL,
   REFINERY_MODULES,
@@ -52,7 +52,7 @@ export function tickServerRefineryProduction(profile, now = Date.now()){
     return false;
   }
   let changed = false;
-  for(const material of rawMaterialCatalog){
+  for(const material of refineryMaterialCatalog){
     const rate = getRefineryProductionRate(profile, material.id);
     if(rate <= 0) continue;
     const perTick = rate * REFINERY_PRODUCTION_TICK_MS / 3600000;

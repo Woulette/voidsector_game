@@ -1,4 +1,4 @@
-import { rawMaterialCatalog } from "../data/catalog.js";
+import { rawMaterialCatalog, refineryMaterialCatalog } from "../data/catalog.js";
 import { getMaterialStorageCap } from "./refineryStore.js";
 import { getRawMaterial, getShipCombatStats, store } from "./store.js";
 export function getMaterialCount(id){
@@ -6,11 +6,12 @@ export function getMaterialCount(id){
 }
 
 export function addMaterial(id, amount=1){
-  if(!getRawMaterial(id)) return 0;
+  const material = getRawMaterial(id);
+  if(!material) return 0;
   if(!store.state.cargoHold) store.state.cargoHold = {};
   const current = getMaterialCount(id);
-  const cap = getMaterialStorageCap(id);
-  store.state.cargoHold[id] = Math.min(cap, current + Math.max(0, Number(amount || 0)));
+  const next = current + Math.max(0, Number(amount || 0));
+  store.state.cargoHold[id] = material.rarity ? next : Math.min(getMaterialStorageCap(id), next);
   return store.state.cargoHold[id];
 }
 
@@ -22,7 +23,7 @@ export function consumeMaterial(id, amount=1){
 }
 
 export function consumeShipCargoMaterial(id, amount=1, shipId = store.state.activeShip){
-  if(!getRawMaterial(id)) return false;
+  if(!refineryMaterialCatalog.some(material=>material.id === id)) return false;
   const need = Math.max(0, Number(amount || 0));
   const cargo = getShipCargo(shipId);
   if(Math.max(0, Number(cargo[id] || 0)) < need) return false;
@@ -35,7 +36,7 @@ export function getCargoUsed(){
 }
 
 function makeEmptyMaterialCargo(){
-  return rawMaterialCatalog.reduce((cargo, material)=>{
+  return refineryMaterialCatalog.reduce((cargo, material)=>{
     cargo[material.id] = 0;
     return cargo;
   }, {});
@@ -46,7 +47,7 @@ export function getShipCargo(shipId = store.state.activeShip){
   if(!store.state.shipCargo[shipId] || typeof store.state.shipCargo[shipId] !== "object"){
     store.state.shipCargo[shipId] = makeEmptyMaterialCargo();
   }
-  for(const material of rawMaterialCatalog){
+  for(const material of refineryMaterialCatalog){
     store.state.shipCargo[shipId][material.id] = Math.max(0, Number(store.state.shipCargo[shipId][material.id] || 0));
   }
   return store.state.shipCargo[shipId];
@@ -54,7 +55,7 @@ export function getShipCargo(shipId = store.state.activeShip){
 
 export function getShipCargoUsed(shipId = store.state.activeShip){
   const cargo = getShipCargo(shipId);
-  return rawMaterialCatalog.reduce((sum, material)=>sum + Math.max(0, Number(cargo[material.id] || 0)), 0);
+  return refineryMaterialCatalog.reduce((sum, material)=>sum + Math.max(0, Number(cargo[material.id] || 0)), 0);
 }
 
 export function getShipCargoCapacity(shipId = store.state.activeShip){
@@ -62,7 +63,7 @@ export function getShipCargoCapacity(shipId = store.state.activeShip){
 }
 
 export function addShipCargoMaterial(id, amount=1, shipId = store.state.activeShip){
-  if(!getRawMaterial(id)) return {added:0, remaining:Math.max(0, Number(amount || 0)), used:getShipCargoUsed(shipId), capacity:getShipCargoCapacity(shipId)};
+  if(!refineryMaterialCatalog.some(material=>material.id === id)) return {added:0, remaining:Math.max(0, Number(amount || 0)), used:getShipCargoUsed(shipId), capacity:getShipCargoCapacity(shipId)};
   const requested = Math.max(0, Math.ceil(Number(amount || 0)));
   const capacity = getShipCargoCapacity(shipId);
   const used = getShipCargoUsed(shipId);
@@ -76,7 +77,7 @@ export function addShipCargoMaterial(id, amount=1, shipId = store.state.activeSh
 }
 
 export function addShipCargoMaterialForced(id, amount=1, shipId = store.state.activeShip){
-  if(!getRawMaterial(id)) return {added:0, used:getShipCargoUsed(shipId), capacity:getShipCargoCapacity(shipId)};
+  if(!refineryMaterialCatalog.some(material=>material.id === id)) return {added:0, used:getShipCargoUsed(shipId), capacity:getShipCargoCapacity(shipId)};
   const added = Math.max(0, Math.ceil(Number(amount || 0)));
   if(added > 0){
     const cargo = getShipCargo(shipId);

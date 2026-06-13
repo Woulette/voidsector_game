@@ -1,4 +1,4 @@
-import { ammoTypes, droneCatalog, equipment, pageText, portals, ships, skills } from "../data/catalog.js";
+import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js";
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
 import { fmt } from "../core/utils.js";
 import { DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js";
@@ -25,6 +25,7 @@ import {
   getLeaderboardRows,
   getItem,
   getItemFromInventoryUid,
+  getMaterialCount,
   getLoadout,
   getNextRank,
   getPortalPieces,
@@ -64,6 +65,14 @@ function escapeHtml(value){
     "'":"&#39;"
   }[char]));
 }
+
+const RESOURCE_RARITY_META = {
+  common:{label:"Commune", short:"COM"},
+  rare:{label:"Rare", short:"RAR"},
+  veryRare:{label:"Tres rare", short:"T-R"},
+  elite:{label:"Elite", short:"ELI"},
+  mythic:{label:"Mythique", short:"MYT"}
+};
 
 function maxShipStat(key, fallback = 1){
   return Math.max(fallback, ...ships.map(ship=>Number(ship.stats?.[key] || 0)));
@@ -180,6 +189,30 @@ function renderInventoryCell(entry, shipId = null){
     </button>`;
 }
 
+function getInventoryResourceEntries(){
+  const order = {common:1, rare:2, veryRare:3, elite:4, mythic:5};
+  return rawMaterialCatalog
+    .filter(material=>material.rarity)
+    .map(material=>({material, quantity:getMaterialCount(material.id)}))
+    .filter(entry=>entry.quantity > 0)
+    .sort((a, b)=>(order[a.material.rarity] || 99) - (order[b.material.rarity] || 99) || a.material.name.localeCompare(b.material.name));
+}
+
+function renderInventoryResourceCell(entry){
+  const {material, quantity} = entry;
+  const rarity = RESOURCE_RARITY_META[material.rarity] || {label:material.rarity || "Ressource", short:"RES"};
+  const selected = store.selectedInventoryResourceId === material.id;
+  return `<button class="inventory-cell resource-cell rarity-${escapeHtml(material.rarity)} ${selected ? "selected" : ""}"
+      type="button"
+      draggable="false"
+      data-inventory-resource-id="${escapeHtml(material.id)}"
+      title="${escapeHtml(material.name)} - ${escapeHtml(rarity.label)} - x${fmt(quantity)}">
+      <img src="${escapeHtml(material.img)}" alt="${escapeHtml(material.name)}">
+      <span class="inventory-kind-label">${escapeHtml(rarity.short)}</span>
+      <b class="inventory-quantity">x${fmt(quantity)}</b>
+    </button>`;
+}
+
 function equipmentInventoryBadge(item){
   if(item.category === "canon"){
     const mk = String(item.id || "").match(/mk(\d+)/i)?.[1];
@@ -235,6 +268,29 @@ function selectedItemStatsHtml(item){
 }
 
 function renderSelectedInventoryDetail(){
+  const selectedResource = store.selectedInventoryResourceId
+    ? rawMaterialCatalog.find(material=>material.id === store.selectedInventoryResourceId && material.rarity)
+    : null;
+  if(selectedResource){
+    const quantity = getMaterialCount(selectedResource.id);
+    if(quantity > 0){
+      const rarity = RESOURCE_RARITY_META[selectedResource.rarity] || {label:selectedResource.rarity || "Ressource", short:"RES"};
+      return `
+    <div class="selected-item-art resource-art rarity-${escapeHtml(selectedResource.rarity)}"><img src="${escapeHtml(selectedResource.img)}" alt="${escapeHtml(selectedResource.name)}"></div>
+    <div class="selected-item-copy">
+      <span class="tiny">RESSOURCE ${escapeHtml(rarity.label)}</span>
+      <h3>${escapeHtml(selectedResource.name)}</h3>
+      <div class="selected-item-stat-lines">
+        <span><b>Rarete</b><strong>${escapeHtml(rarity.label)}</strong></span>
+        <span><b>Stack</b><strong>x${fmt(quantity)}</strong></span>
+        <span><b>Usage</b><strong>Fabrication</strong></span>
+      </div>
+      <p>${escapeHtml(selectedResource.desc || "Ressource de fabrication stockee dans l'inventaire.")}</p>
+      <small>Ressource stackable - hors raffinerie</small>
+    </div>`;
+    }
+    store.selectedInventoryResourceId = null;
+  }
   const selectedEntry = getInventoryItem(store.selectedInventoryUid);
   const selectedItem = selectedEntry ? getItem(selectedEntry.itemId) : null;
   const selectedEquipped = selectedEntry ? findEquippedSlot(selectedEntry.uid) : null;
@@ -289,7 +345,9 @@ export function renderLoadout(){
     ...getInventoryByCategory("extra"),
     ...getInventoryByCategory("quest_item")
   ].filter(entry=>!entry.equipped);
-  const emptyCells = Array.from({length:Math.max(0, 48 - inventoryEntries.length)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
+  const resourceEntries = getInventoryResourceEntries();
+  const inventoryCount = inventoryEntries.length + resourceEntries.length;
+  const emptyCells = Array.from({length:Math.max(0, 48 - inventoryCount)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
   const panel = document.getElementById("loadoutPanel");
   if(!panel) return;
   panel.innerHTML = `
@@ -307,8 +365,8 @@ export function renderLoadout(){
         <div class="compact-slot-grid extra-slots">${loadout.extras.map((id,i)=>renderSlot("extra", i, id)).join("")}</div>
       </section>
       <section class="rpg-inventory-panel">
-        <div class="compact-section-head"><h3>Inventaire</h3><span>${inventoryEntries.length} objets</span></div>
-        <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, ship.id)).join("")}${emptyCells}</div>
+        <div class="compact-section-head"><h3>Inventaire</h3><span>${inventoryCount} objets</span></div>
+        <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, ship.id)).join("")}${resourceEntries.map(renderInventoryResourceCell).join("")}${emptyCells}</div>
       </section>
       <section class="selected-item-panel">${renderSelectedInventoryDetail()}</section>
     </div>`;
@@ -336,7 +394,9 @@ export function renderDroneSection(){
   const inventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur"), ...getInventoryByCategory("drone_upgrade")]
     .filter(entry=>!entry.equipped)
     .filter(entry=>isDroneCompatibleEquipment(entry.item) || isDronePermanentUpgradeItem(entry.item));
-  const emptyCells = Array.from({length:Math.max(0, 40 - inventoryEntries.length)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
+  const resourceEntries = getInventoryResourceEntries();
+  const inventoryCount = inventoryEntries.length + resourceEntries.length;
+  const emptyCells = Array.from({length:Math.max(0, 40 - inventoryCount)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
   const nextPrice = drones.length >= droneDef.maxOwned ? null : getDronePurchasePrice(drones.length);
   section.innerHTML = `
     <div class="drone-layout">
@@ -361,8 +421,8 @@ export function renderDroneSection(){
             <div class="drone-bay-grid">${drones.length ? drones.map((uid,i)=>renderDroneSlot(uid, i)).join("") : `<div class="empty-msg">Aucun drone acheté pour le moment.</div>`}</div>
           </section>
           <section class="rpg-inventory-panel">
-            <div class="compact-section-head"><h3>Inventaire</h3><span>${inventoryEntries.length} objets</span></div>
-            <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, null)).join("")}${emptyCells}</div>
+            <div class="compact-section-head"><h3>Inventaire</h3><span>${inventoryCount} objets</span></div>
+            <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, null)).join("")}${resourceEntries.map(renderInventoryResourceCell).join("")}${emptyCells}</div>
           </section>
           <section class="selected-item-panel">${renderSelectedInventoryDetail()}</section>
         </div>

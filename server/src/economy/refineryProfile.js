@@ -1,8 +1,8 @@
-import { rawMaterialCatalog, ships } from "../../../src/data/catalog.js";
+import { refineryMaterialCatalog, ships } from "../../../src/data/catalog.js";
 import { REFINERY_MODULES } from "./refineryRules.js";
 
 export function getRawMaterial(id){
-  return rawMaterialCatalog.find(material=>material.id === id) || null;
+  return refineryMaterialCatalog.find(material=>material.id === id) || null;
 }
 
 export function getMaterialCount(profile, id){
@@ -39,7 +39,7 @@ export function getShipCargo(profile, shipId = profile.activeShip){
   if(!ship) return null;
   if(!profile.shipCargo || typeof profile.shipCargo !== "object") profile.shipCargo = {};
   if(!profile.shipCargo[ship.id] || typeof profile.shipCargo[ship.id] !== "object") profile.shipCargo[ship.id] = {};
-  for(const material of rawMaterialCatalog){
+  for(const material of refineryMaterialCatalog){
     profile.shipCargo[ship.id][material.id] = Math.max(0, Number(profile.shipCargo[ship.id][material.id] || 0));
   }
   return profile.shipCargo[ship.id];
@@ -48,7 +48,7 @@ export function getShipCargo(profile, shipId = profile.activeShip){
 export function getShipCargoUsed(profile, shipId = profile.activeShip){
   const cargo = getShipCargo(profile, shipId);
   if(!cargo) return 0;
-  return rawMaterialCatalog.reduce((sum, material)=>sum + Math.max(0, Number(cargo[material.id] || 0)), 0);
+  return refineryMaterialCatalog.reduce((sum, material)=>sum + Math.max(0, Number(cargo[material.id] || 0)), 0);
 }
 
 export function getShipCargoCapacity(shipId){

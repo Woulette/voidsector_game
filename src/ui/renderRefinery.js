@@ -1,6 +1,6 @@
 import { fmt } from "../core/utils.js";
 import {
-  getAllRawMaterials,
+  getAllRefineryMaterials,
   getMaterialCount,
   getMaterialStorageCap,
   getMaterialStorageCapAt,
@@ -26,7 +26,7 @@ import {
 export function renderRefinery(){
   const panel = document.getElementById("refineryPanel");
   if(!panel) return;
-  const materials = getAllRawMaterials();
+  const materials = getAllRefineryMaterials();
   const nodePositions = {
     cuivre_orbital:[13, 8],
     zinc_spatial:[9, 24],
@@ -363,6 +363,5 @@ export function renderRefinery(){
       ${refineryTab === "shipment" ? shipmentPanel : refineryTab === "stats" ? statsPanel : forgeHtml}
     </div>`;
 }
-
 
 

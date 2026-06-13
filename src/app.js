@@ -540,11 +540,20 @@ document.addEventListener("click", (e)=>{
   if(inventoryCard){
     const uid = inventoryCard.dataset.inventoryUid;
     store.selectedInventoryUid = uid;
+    store.selectedInventoryResourceId = null;
     clearTimeout(inventoryClickTimer);
     if(e.detail > 1) return;
     inventoryClickTimer = setTimeout(()=>{
       renderAllPreserveInventoryScroll();
     }, 180);
+    return;
+  }
+
+  const inventoryResourceCard = e.target.closest("[data-inventory-resource-id]");
+  if(inventoryResourceCard){
+    store.selectedInventoryUid = null;
+    store.selectedInventoryResourceId = inventoryResourceCard.dataset.inventoryResourceId;
+    renderAllPreserveInventoryScroll();
     return;
   }
 
@@ -589,6 +598,7 @@ document.addEventListener("dblclick", (e)=>{
   if(!inventoryCard) return;
   clearTimeout(inventoryClickTimer);
   store.selectedInventoryUid = inventoryCard.dataset.inventoryUid;
+  store.selectedInventoryResourceId = null;
   autoEquipInventoryItem(inventoryCard.dataset.inventoryUid);
   store.selectedInventoryUid = null;
 });
@@ -633,6 +643,7 @@ document.addEventListener("drop", (e)=>{
   const uid = e.dataTransfer.getData("text/plain");
   equipPart(slot.dataset.dropPart, Number(slot.dataset.dropIndex), uid);
   store.selectedInventoryUid = null;
+  store.selectedInventoryResourceId = null;
 });
 
 document.getElementById("selectedShipAction").addEventListener("click", equipSelectedShip);

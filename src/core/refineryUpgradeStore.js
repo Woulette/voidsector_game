@@ -1,7 +1,7 @@
 import { refineryRecipes } from "../data/catalog.js";
 import { consumeMaterial, getMaterialCount } from "./cargoStore.js";
 import { getRefineryMaterialLevel, getRefineryModuleLevel } from "./refineryStateStore.js";
-import { enforcePlayerCurrencyMinimums, getRawMaterial, store } from "./store.js";
+import { enforcePlayerCurrencyMinimums, getRawMaterial, getRefineryMaterial, store } from "./store.js";
 import {
   REFINERY_MAX_LEVEL,
   REFINERY_MODULES,
@@ -106,7 +106,7 @@ function hasActiveRefineryUpgrade(type, id){
 export function startRefineryMaterialUpgrade(id, now = Date.now()){
   if(hasActiveRefineryUpgrade("material", id)) return {ok:false, reason:"Amelioration deja en cours."};
   const data = getRefineryUpgradeData(id);
-  const material = getRawMaterial(id);
+  const material = getRefineryMaterial(id);
   if(!data || !material) return {ok:false, reason:"Module introuvable ou niveau maximum."};
   if(store.state.player.credits < data.credits) return {ok:false, reason:"Credits insuffisants."};
   for(const [materialId, amount] of Object.entries(data.materials || {})){
@@ -182,7 +182,7 @@ export function completeRefineryUpgradeJobs(now = Date.now()){
 }
 
 export function getRefineryUpgradeData(id){
-  const material = getRawMaterial(id);
+  const material = getRefineryMaterial(id);
   if(!material) return null;
   const level = getRefineryMaterialLevel(id);
   const maxLevel = Number(material.maxLevel || 20);
@@ -226,7 +226,7 @@ export function getRefineryUpgradeData(id){
 
 export function upgradeRefineryMaterial(id){
   const data = getRefineryUpgradeData(id);
-  const material = getRawMaterial(id);
+  const material = getRefineryMaterial(id);
   if(!data || !material) return {ok:false, reason:"Module introuvable ou niveau maximum."};
   if(store.state.player.credits < data.credits) return {ok:false, reason:"Credits insuffisants."};
   for(const [materialId, amount] of Object.entries(data.materials || {})){

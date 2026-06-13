@@ -1,4 +1,4 @@
-import { rawMaterialCatalog, refineryRecipes } from "../data/catalog.js";
+import { refineryMaterialCatalog, refineryRecipes } from "../data/catalog.js";
 import { addMaterial, addShipCargoMaterial, consumeMaterial, consumeShipCargoMaterial, getMaterialCount, getShipCargo, getShipCargoCapacity, getShipCargoUsed } from "./cargoStore.js";
 import { enforcePlayerCurrencyMinimums, getRawMaterial, getShip, store } from "./store.js";
 import {
@@ -26,11 +26,11 @@ export function getRefineryTransportCapacity(){
 }
 
 export function canShipRefineryMaterial(id){
-  return Boolean(getRawMaterial(id)) && !REFINERY_SHIPMENT_BLOCKED.has(id);
+  return refineryMaterialCatalog.some(material=>material.id === id) && !REFINERY_SHIPMENT_BLOCKED.has(id);
 }
 
 export function getShippableRefineryMaterials(){
-  return rawMaterialCatalog.filter(material=>canShipRefineryMaterial(material.id));
+  return refineryMaterialCatalog.filter(material=>canShipRefineryMaterial(material.id));
 }
 
 export function getRefineryShipmentJob(){

@@ -513,6 +513,17 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
   padding:2px 8px 2px 2px;
 }
 .inventory-cell{display:grid;place-items:center;cursor:grab}
+.inventory-cell.resource-cell{cursor:pointer}
+.inventory-cell.resource-cell.rarity-common{border-color:rgba(148,163,184,.42)}
+.inventory-cell.resource-cell.rarity-rare{border-color:rgba(59,130,246,.58)}
+.inventory-cell.resource-cell.rarity-veryRare{border-color:rgba(168,85,247,.62)}
+.inventory-cell.resource-cell.rarity-elite{border-color:rgba(245,158,11,.64)}
+.inventory-cell.resource-cell.rarity-mythic{border-color:rgba(236,72,153,.72)}
+.inventory-cell.resource-cell.rarity-common .inventory-kind-label{color:#cbd5e1}
+.inventory-cell.resource-cell.rarity-rare .inventory-kind-label{color:#93c5fd}
+.inventory-cell.resource-cell.rarity-veryRare .inventory-kind-label{color:#d8b4fe}
+.inventory-cell.resource-cell.rarity-elite .inventory-kind-label{color:#fcd34d}
+.inventory-cell.resource-cell.rarity-mythic .inventory-kind-label{color:#f9a8d4}
 .inventory-cell.selected{border-color:rgba(250,204,21,.95);box-shadow:0 0 14px rgba(250,204,21,.24)}
 .inventory-cell.equipped-here{border-color:rgba(86,255,79,.55)}
 .inventory-cell.equipped-elsewhere{opacity:.72;cursor:grab;filter:saturate(.75)}
@@ -527,6 +538,11 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
   align-items:center;
 }
 .selected-item-art{width:82px;height:82px;border:1px solid rgba(56,189,248,.22);display:grid;place-items:center;background:rgba(56,189,248,.04)}
+.selected-item-art.resource-art{background:radial-gradient(circle,rgba(56,189,248,.12),rgba(2,10,19,.78))}
+.selected-item-art.resource-art.rarity-mythic{border-color:rgba(236,72,153,.55)}
+.selected-item-art.resource-art.rarity-elite{border-color:rgba(245,158,11,.52)}
+.selected-item-art.resource-art.rarity-veryRare{border-color:rgba(168,85,247,.52)}
+.selected-item-art.resource-art.rarity-rare{border-color:rgba(59,130,246,.50)}
 .selected-item-art img{width:72px;height:72px;object-fit:contain;filter:drop-shadow(0 0 12px rgba(56,189,248,.35))}
 .selected-item-copy h3{font-size:18px;text-transform:uppercase;letter-spacing:.8px;margin:2px 0 5px}
 .selected-item-copy p{color:var(--muted);font-size:12px;line-height:1.4}

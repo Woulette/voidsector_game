@@ -1,4 +1,4 @@
-import { rawMaterialCatalog, refineryRecipes } from "../data/catalog.js";
+import { refineryMaterialCatalog, refineryRecipes } from "../data/catalog.js";
 import { addMaterial, getMaterialCount } from "./cargoStore.js";
 import { enforcePlayerCurrencyMinimums, getRawMaterial, store } from "./store.js";
 import { completeRefineryShipment } from "./refineryShipmentStore.js";
@@ -19,7 +19,7 @@ export { completeRefineryUpgradeJobs, getRefineryModuleUpgradeData, getRefineryR
 export { canShipRefineryMaterial, completeRefineryShipment, getRefineryShipmentData, getRefineryShipmentJob, getRefineryShipmentProgress, getRefineryShipmentRushCost, getRefineryTransportCapacity, getRefineryTransportCapacityAt, getShipRefineryRecipeData, getShippableRefineryMaterials, refineShipCargoRecipe, rushRefineryShipment, startRefineryShipment } from "./refineryShipmentStore.js";
 
 export function getRefineryProductionRateAt(id, levelOverride){
-  const material = getRawMaterial(id);
+  const material = refineryMaterialCatalog.find(entry=>entry.id === id) || null;
   const level = Number(levelOverride ?? getRefineryMaterialLevel(id));
   if(!material || level <= 0 || material.nonProductible) return 0;
   if(material.kind !== "raw" && !refineryRecipes.find(item=>item.outputId === id)) return 0;
@@ -52,7 +52,7 @@ export function tickRefineryProduction(now=Date.now()){
   const ticks = Math.floor(elapsedMs / REFINERY_PRODUCTION_TICK_MS);
   if(ticks <= 0) return changed;
   store.state.refineryLastTick = previous + ticks * REFINERY_PRODUCTION_TICK_MS;
-  for(const material of rawMaterialCatalog){
+  for(const material of refineryMaterialCatalog){
     const level = getRefineryMaterialLevel(material.id);
     if(level <= 0 || material.nonProductible || !isRefineryProductionEnabled(material.id)) continue;
     const rate = getRefineryProductionRate(material.id);

@@ -1,4 +1,4 @@
-import { ammoTypes, droneCatalog, droneFormations, equipment, portals, questCatalog, rawMaterialCatalog, refineryRecipes, ships } from "../data/catalog.js";
+import { ammoTypes, droneCatalog, droneFormations, equipment, portals, questCatalog, rawMaterialCatalog, refineryMaterialCatalog, refineryRecipes, ships } from "../data/catalog.js";
 import { store } from "./store.js";
 
 export function getShip(id){ return ships.find(ship=>ship.id === id) || ships[0]; }
@@ -18,5 +18,7 @@ export function getQuest(id){ return questCatalog.find(quest=>quest.id === id) |
 export function getAllQuests(){ return questCatalog.slice(); }
 export function getRawMaterial(id){ return rawMaterialCatalog.find(item=>item.id === id) || null; }
 export function getAllRawMaterials(){ return rawMaterialCatalog.slice(); }
+export function getRefineryMaterial(id){ return refineryMaterialCatalog.find(item=>item.id === id) || null; }
+export function getAllRefineryMaterials(){ return refineryMaterialCatalog.slice(); }
 export function getRefineryRecipe(id){ return refineryRecipes.find(recipe=>recipe.id === id) || null; }
 export function getRefineryRecipes(){ return refineryRecipes.slice(); }

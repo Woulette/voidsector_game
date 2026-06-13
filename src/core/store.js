@@ -1,5 +1,5 @@
 import { normalizeState } from "./stateNormalizer.js";
-export { getActiveDroneFormation, getAllRawMaterials, getAllQuests, getAmmo, getDroneCatalog, getDroneFormation, getDroneFormationBonus, getItem, getPortal, getQuest, getRawMaterial, getRefineryRecipe, getRefineryRecipes, getShip, isGenerator, isWeapon } from "./catalogStore.js";
+export { getActiveDroneFormation, getAllRawMaterials, getAllRefineryMaterials, getAllQuests, getAmmo, getDroneCatalog, getDroneFormation, getDroneFormationBonus, getItem, getPortal, getQuest, getRawMaterial, getRefineryMaterial, getRefineryRecipe, getRefineryRecipes, getShip, isGenerator, isWeapon } from "./catalogStore.js";
 import { enforcePlayerCurrencyMinimums } from "./currencyStore.js";
 export { canAfford, enforcePlayerCurrencyMinimums, priceLabel, spend } from "./currencyStore.js";
 export { getSpentSkillPoints, getXpNextForLevel, syncSkillPoints, XP_CURVE_VERSION } from "./xpStore.js";
@@ -141,7 +141,8 @@ export const store = {
   selectedRefineryUpgrade:null,
   selectedRefineryTab:"forge",
   selectedRefineryShipmentMaterial:null,
-  selectedRefineryShipmentAmount:30
+  selectedRefineryShipmentAmount:30,
+  selectedInventoryResourceId:null
 };
 
 const DEFAULT_STATE_STORAGE_KEY = "voidsector-prototype-state";
