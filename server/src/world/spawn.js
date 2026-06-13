@@ -176,6 +176,8 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
     vx:0,
     vy:0,
     moving:false,
+    damageThreat:{},
+    threatRecalcAt:0,
     wanderT:0,
     wanderX:x,
     wanderY:y,

@@ -100,6 +100,10 @@ export function createCombatFrameUpdateSystem({
     }
     syncServerControlledEnemies();
     state = getState();
+    const lockedEnemy = validSelectedEnemy();
+    if(lockedEnemy){
+      player.angle = Math.atan2(lockedEnemy.y-player.y, lockedEnemy.x-player.x)+Math.PI/2;
+    }
     const rank = getCurrentRank();
     const activeShip = getActiveShip();
     const droneLoadout = Array.isArray(state.store?.state?.droneLoadout) ? state.store.state.droneLoadout : [];
@@ -161,8 +165,6 @@ export function createCombatFrameUpdateSystem({
       }
     }
 
-    const enemy = validSelectedEnemy();
-    if(enemy && getActiveLaserSlot() !== null) player.angle = Math.atan2(enemy.y-player.y, enemy.x-player.x)+Math.PI/2;
     emitPlayerEngineParticles({
       dt,
       player,

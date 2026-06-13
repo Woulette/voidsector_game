@@ -102,7 +102,7 @@ export function createEnemyHitHandler({
       const mapId = player.mapId;
       const wasAlive = worldEnemy.hp > 0;
       updateLootOwner(worldEnemy, socket.id);
-      markEnemyAttackedByPlayer(worldEnemy, socket.id);
+      markEnemyAttackedByPlayer(worldEnemy, socket.id, incoming);
       markFirmHitOwner(worldEnemy, player);
       applyDamageToEnemy(worldEnemy, incoming);
       if(wasAlive && worldEnemy.hp <= 0){
@@ -165,7 +165,7 @@ export function createEnemyHitHandler({
       return;
     }
     const wasAlive = enemy.hp > 0;
-    markEnemyAttackedByPlayer(enemy, socket.id);
+    markEnemyAttackedByPlayer(enemy, socket.id, incoming);
     markFirmHitOwner(enemy, player);
     applyDamageToEnemy(enemy, incoming);
     if(instance.type === "portal" && wasAlive && enemy.hp <= 0 && !instance.completed){

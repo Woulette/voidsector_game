@@ -1,5 +1,5 @@
 import { WORLD_AI_REPATH_MS, WORLD_ENEMY_AGGRO_MULTIPLIER, WORLD_ENEMY_TARGET_MEMORY_MS } from "./constants.js";
-import { canEnemyTargetPlayerInSafeZone } from "./aggro.js";
+import { canEnemyTargetPlayerInSafeZone, ENEMY_THREAT_RECALC_MS, pickEnemyThreatTarget } from "./aggro.js";
 import { seededRandom } from "./spawn.js";
 
 function clamp(value, min, max){
@@ -62,8 +62,20 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
     let target = null;
 
     const canAcquireByProximity = !requiresPlayerAttack(enemy);
+    const activePlayerIds = new Set(mapPlayers
+      .filter(player=>canTargetPlayer(enemy, player, map, now))
+      .map(player=>player.id));
 
-    if(canAcquireByProximity && spottedTarget && spottedTarget.distance <= aggroDistance){
+    if(enemy.lockedPlayerId && now >= Number(enemy.threatRecalcAt || 0)){
+      enemy.lockedPlayerId = pickEnemyThreatTarget(enemy, activePlayerIds) || enemy.lockedPlayerId;
+      enemy.threatRecalcAt = now + ENEMY_THREAT_RECALC_MS;
+    }
+    if(!enemy.lockedPlayerId){
+      enemy.lockedPlayerId = pickEnemyThreatTarget(enemy, activePlayerIds);
+      if(enemy.lockedPlayerId) enemy.threatRecalcAt = now + ENEMY_THREAT_RECALC_MS;
+    }
+
+    if(!enemy.lockedPlayerId && canAcquireByProximity && spottedTarget && spottedTarget.distance <= aggroDistance){
       target = spottedTarget;
       enemy.lockedPlayerId = target.player.id;
       enemy.lockedPlayerLastSeenAt = now;
