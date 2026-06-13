@@ -15,8 +15,19 @@ const FIXED_ROTATION_KINDS = new Set([
   "boss_raider_astral"
 ]);
 
+const COMPACT_QUEST_ASSET_KINDS = new Set([
+  "drone_pirate",
+  "sentinel_orb",
+  "raider_astral",
+  "shared_rusher"
+]);
+
 export function getEnemyBaseKind(kind){
   return String(kind || "").replace(/^boss_/, "");
+}
+
+export function hasCompactQuestAsset(kind){
+  return COMPACT_QUEST_ASSET_KINDS.has(getEnemyBaseKind(kind));
 }
 
 export function getEnemyAssetRotation(kind){

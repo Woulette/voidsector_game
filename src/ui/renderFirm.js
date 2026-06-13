@@ -3,6 +3,7 @@ import { ammoTypes, rawMaterialCatalog } from "../data/catalog.js";
 import { fmt } from "../core/utils.js";
 import { multiplayer } from "../multiplayer/client.js";
 import { store } from "../core/store.js";
+import { hasCompactQuestAsset } from "../data/enemyVisuals.js";
 
 const FIRM_TABS = [
   {id:"overview", label:"Vue d'ensemble"},
@@ -177,7 +178,7 @@ function questObjectiveImages(quest){
 
 function objectiveImageClass(quest, src){
   const target = String(quest?.target || "");
-  return "";
+  return hasCompactQuestAsset(target) || /(?:low_orbe|low_vorak|enemy_red_rusher)/.test(String(src || "")) ? "quest-enemy-art-large" : "";
 }
 
 function lockSvg(){

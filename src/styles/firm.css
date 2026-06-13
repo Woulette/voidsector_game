@@ -114,6 +114,7 @@
 .firm-quest-objectives{position:relative;display:grid;place-items:center;align-content:center;gap:5px;border:1px solid rgba(56,189,248,.2);background:radial-gradient(circle,rgba(56,189,248,.16),rgba(2,10,19,.72));overflow:hidden}
 .firm-quest-objectives.multi{grid-template-columns:repeat(2,minmax(0,1fr));padding:7px}
 .firm-quest-objectives img{max-width:74px;max-height:74px;object-fit:contain;filter:drop-shadow(0 0 12px rgba(56,189,248,.34))}
+.firm-quest-objectives img.quest-enemy-art-large,.firm-season-objective-visual img.quest-enemy-art-large{scale:1.7}
 .firm-quest-objectives.multi img{max-width:38px;max-height:38px}
 .firm-quest-objectives img.rotate-180,.firm-season-objective-visual img.rotate-180{transform:rotate(180deg)}
 .firm-quest-lock-overlay{position:absolute;inset:0;z-index:2;display:grid;place-items:center;align-content:center;gap:4px;background:rgba(2,10,19,.78);color:#dff6ff;text-align:center;text-transform:uppercase;letter-spacing:.5px}

@@ -453,6 +453,7 @@
 .quest-target-icons{display:flex;align-items:center;justify-content:flex-start;gap:7px;max-width:100%;flex-wrap:wrap}
 .quest-target-icon{position:relative;width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(56,189,248,.22);background:rgba(2,10,19,.44)}
 .quest-target-icon img{width:36px;height:36px;object-fit:contain}
+.quest-target-icon img.quest-enemy-art-large{scale:1.7}
 .quest-target-icon b{position:absolute;right:2px;top:0;color:#fff;font-size:14px;font-weight:900;line-height:1;text-shadow:0 1px 2px #000,0 0 5px rgba(0,0,0,.85)}
 .quest-objective-meta{
   display:grid;

@@ -1,6 +1,6 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, equipment, portals } from "../../data/catalog.js";
-import { getEnemyAssetRotationStyle } from "../../data/enemyVisuals.js";
+import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 
 function questProgressState(quest, getQuestProgress){
   const progress = getQuestProgress(quest.id);
@@ -107,7 +107,7 @@ function renderObjectiveIcon(objective = {}, targetType = null){
   }
   const img = objective.type === "visit_coordinates" || objective.type === "visit_map" ? "assets/icons/coordinate_marker.svg" : targetType?.img || "assets/enemies/drone_pirate.png";
   const rotationStyle = getEnemyAssetRotationStyle(objective.target);
-  return `<span class="combat-quest-objective-icon"><img src="${img}" alt=""${rotationStyle ? ` style="${rotationStyle}"` : ""}></span>`;
+  return `<span class="combat-quest-objective-icon"><img class="${hasCompactQuestAsset(objective.target) ? "quest-enemy-art-large" : ""}" src="${img}" alt=""${rotationStyle ? ` style="${rotationStyle}"` : ""}></span>`;
 }
 
 function renderObjectiveTab({quest, enemyTypes, getQuestProgress, getQuestObjectiveProgress, questFailProgress = {}}){

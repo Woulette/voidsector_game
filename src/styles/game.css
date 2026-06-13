@@ -949,6 +949,7 @@
 .combat-quest-focus-head strong{font-size:13px;color:#f8fafc;text-transform:uppercase;line-height:1.05;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .combat-quest-focus-head .combat-quest-objective-icon{width:44px;height:38px}
 .combat-quest-focus-head .combat-quest-objective-icon img{width:44px;height:38px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(56,189,248,.22))}
+.combat-quest-focus-head .combat-quest-objective-icon img.quest-enemy-art-large{scale:1.7}
 .combat-quest-focus-head .combat-quest-objective-icon.material-pair{display:grid;grid-template-columns:1fr 1fr;gap:2px;align-items:center}
 .combat-quest-focus-head .combat-quest-objective-icon.material-pair img{width:22px;height:30px}
 .combat-quest-detail-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;min-width:0}
@@ -976,6 +977,7 @@
 .combat-quest-objective-row.locked b{color:#6b7f90}
 .combat-quest-objective-icon{display:grid;place-items:center;width:30px;height:28px}
 .combat-quest-objective-icon img{width:30px;height:28px;object-fit:contain}
+.combat-quest-objective-icon img.quest-enemy-art-large{scale:1.7}
 .combat-quest-objective-icon.material-pair{grid-template-columns:1fr 1fr;gap:1px}
 .combat-quest-objective-icon.material-pair img{width:15px;height:22px}
 .combat-quest-objective-row div{display:grid;gap:1px;min-width:0;text-transform:uppercase}
