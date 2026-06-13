@@ -178,42 +178,6 @@ function drawSelectedRemoteOverlay({ctx, camera, remote, state, selectedEnemy}){
   ctx.restore();
 }
 
-function drawRemoteLaserEffects({ctx, camera, currentMapId = null}){
-  const now = performance.now();
-  multiplayer.remoteEffects = multiplayer.remoteEffects.filter(effect=>{
-    const elapsed = (now - Number(effect.createdAt || now)) / 1000;
-    return elapsed < Number(effect.maxLife || effect.life || .18);
-  });
-  for(const effect of multiplayer.remoteEffects){
-    if(currentMapId !== null && effect.mapId !== undefined && String(effect.mapId) !== String(currentMapId)) continue;
-    const elapsed = (now - Number(effect.createdAt || now)) / 1000;
-    const maxLife = Number(effect.maxLife || effect.life || .18);
-    const alpha = Math.max(0, 1 - elapsed / Math.max(.001, maxLife));
-    const fromX = Number(effect.fromX || 0) - camera.x;
-    const fromY = Number(effect.fromY || 0) - camera.y;
-    const toX = Number(effect.toX || 0) - camera.x;
-    const toY = Number(effect.toY || 0) - camera.y;
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.lineCap = "round";
-    ctx.strokeStyle = colorWithAlpha(effect.color, alpha);
-    ctx.lineWidth = 7 * alpha;
-    ctx.shadowColor = effect.color || "rgba(56,189,248,.9)";
-    ctx.shadowBlur = 18;
-    ctx.beginPath();
-    ctx.moveTo(fromX, fromY);
-    ctx.lineTo(toX, toY);
-    ctx.stroke();
-    ctx.strokeStyle = `rgba(248,250,252,${alpha})`;
-    ctx.lineWidth = 2.2 * alpha;
-    ctx.beginPath();
-    ctx.moveTo(fromX, fromY);
-    ctx.lineTo(toX, toY);
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
 export function drawRemotePlayers({
   ctx,
   camera,
@@ -225,7 +189,6 @@ export function drawRemotePlayers({
   selectedEnemy = null
 }){
   const now = Date.now();
-  drawRemoteLaserEffects({ctx, camera, currentMapId});
   for(const remote of multiplayer.remotePlayers.values()){
     const state = remote.state;
     if(!state || now - Number(state.updatedAt || 0) > 10000) continue;

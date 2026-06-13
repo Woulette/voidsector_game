@@ -77,6 +77,34 @@ test("client pvp combat command never sends a damage amount", ()=>{
   assert.equal(Object.hasOwn(emitted[0].payload, "damage"), false);
 });
 
+test("client remote weapon effect keeps exact ammo and missile salvo geometry", ()=>{
+  const emitted = [];
+  const commands = createCombatCommands({
+    multiplayer:{
+      connected:true,
+      socket:{emit:(eventName, payload)=>emitted.push({eventName, payload})}
+    }
+  });
+  const starts = [
+    {x:10, y:20, curveSide:1, curveStrength:46},
+    {x:10, y:50, curveSide:-1, curveStrength:54}
+  ];
+  commands.sendPlayerLaserEffect({
+    kind:"missile",
+    ammoId:"missile_m2",
+    targetId:"enemy-1",
+    starts,
+    toX:500,
+    toY:600,
+    travelTime:.8
+  });
+
+  assert.equal(emitted[0].eventName, "player:laser");
+  assert.equal(emitted[0].payload.ammoId, "missile_m2");
+  assert.deepEqual(emitted[0].payload.starts, starts);
+  assert.equal(Object.hasOwn(emitted[0].payload, "damage"), false);
+});
+
 test("combat:fire ignores a forged client damage amount", ()=>{
   const profile = createDefaultProfile();
   profile.activeShip = "orion";

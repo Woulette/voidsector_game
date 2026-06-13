@@ -116,6 +116,15 @@ export function createWeaponSystem(deps){
         serverFireCount:1,
         hitChance:deps.playerHitChance
       }));
+      deps.sendPlayerWeaponEffect?.({
+        kind:"rocket",
+        ammoId:ammo.id,
+        targetId:enemy.id,
+        starts:[{x:startX, y:startY, curveSide:rocketSide, curveStrength:42}],
+        toX:enemy.x,
+        toY:enemy.y,
+        travelTime:Math.max(.22, Math.min(1.55, dist/(ammo.speed || 620) + .14))
+      });
       particles.push({x:startX,y:startY,life:.24,max:.24,size:26,color:ammo.particle});
       if(!serverPlayerTarget) deps.saveState();
       deps.refreshActionBar();
@@ -154,6 +163,18 @@ export function createWeaponSystem(deps){
       toY:enemy.y,
       targetId:enemy.id,
       blueLaser:Boolean(player.blueLaserBeams && ammo.id !== "ammo_x4")
+    });
+    deps.sendPlayerWeaponEffect?.({
+      kind:"laser",
+      ammoId:ammo.id,
+      targetId:enemy.id,
+      starts:[{x:startX, y:startY}],
+      fromX:startX,
+      fromY:startY,
+      toX:enemy.x,
+      toY:enemy.y,
+      blueLaser:Boolean(player.blueLaserBeams && ammo.id !== "ammo_x4"),
+      life:.20
     });
     deps.resolveLaserHit?.(enemy, damage, deps.playerHitChance, ammo);
     particles.push({x:startX,y:startY,life:.16,max:.16,size:14,color:player.blueLaserBeams && ammo.id !== "ammo_x4" ? "rgba(56,189,248,.65)" : ammo.id === "ammo_x4" ? "rgba(255,132,24,.65)" : "rgba(255,218,72,.62)"});
@@ -212,11 +233,13 @@ export function createWeaponSystem(deps){
     const damageMultiplier = (launcher.effect?.missileDamageMultiplier || 1) * Number(player.extraBonus?.missileDamageMultiplier || 1);
     const travelTime = Math.max(.28, Math.min(1.65, dist / (ammo.speed || 520) + .18));
     const salvoId = `missile-${missileSalvoSeq++}`;
+    const starts = [];
     for(let i = 0; i < needed; i++){
       const spread = (i - (needed - 1) / 2) * 30;
       const curveSide = i % 2 === 0 ? 1 : -1;
       const startX = player.x + forwardX * 44 + sideX * spread;
       const startY = player.y + forwardY * 44 + sideY * spread;
+      starts.push({x:startX, y:startY, curveSide, curveStrength:46 + i * 8});
       bullets.push(createProjectile({
         owner:"player",
         startX,
@@ -240,6 +263,15 @@ export function createWeaponSystem(deps){
       }));
       particles.push({x:startX, y:startY, life:.24, max:.24, size:22, color:ammo.particle});
     }
+    deps.sendPlayerWeaponEffect?.({
+      kind:"missile",
+      ammoId:ammo.id,
+      targetId:enemy.id,
+      starts,
+      toX:enemy.x,
+      toY:enemy.y,
+      travelTime
+    });
     if(!serverPlayerTarget) deps.saveState();
     deps.refreshActionBar();
     deps.refreshQuickPanel();

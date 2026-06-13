@@ -220,14 +220,33 @@ export function registerPlayerHandlers(socket, context){
 
   socket.on("player:laser", payload=>{
     if(!guard("player:laser")) return;
-    presence.markCombat(players.get(socket.id), "tir joueur");
+    const player = players.get(socket.id);
+    presence.markCombat(player, "tir joueur");
+    const kind = ["laser", "rocket", "missile"].includes(payload?.kind) ? payload.kind : "laser";
+    const starts = (Array.isArray(payload?.starts) ? payload.starts : [{
+      x:payload?.fromX,
+      y:payload?.fromY,
+      curveSide:payload?.curveSide,
+      curveStrength:payload?.curveStrength
+    }]).slice(0, 12).map(start=>({
+      x:Number(start?.x || 0),
+      y:Number(start?.y || 0),
+      curveSide:Math.max(-1, Math.min(1, Number(start?.curveSide || 0))),
+      curveStrength:Math.max(0, Math.min(160, Number(start?.curveStrength || 0)))
+    }));
     socket.broadcast.emit("player:laser", {
       sourceId:socket.id,
-      fromX:Number(payload?.fromX || 0),
-      fromY:Number(payload?.fromY || 0),
+      kind,
+      ammoId:String(payload?.ammoId || "ammo_x1").slice(0, 40),
+      targetId:String(payload?.targetId || "").slice(0, 100),
+      starts,
+      fromX:Number(starts[0]?.x || payload?.fromX || 0),
+      fromY:Number(starts[0]?.y || payload?.fromY || 0),
       toX:Number(payload?.toX || 0),
       toY:Number(payload?.toY || 0),
-      mapId:String(payload?.mapId ?? players.get(socket.id)?.mapId ?? "0"),
+      blueLaser:Boolean(payload?.blueLaser),
+      travelTime:Math.max(.1, Math.min(2, Number(payload?.travelTime || .2))),
+      mapId:String(player?.mapId ?? payload?.mapId ?? "0"),
       color:String(payload?.color || "rgba(56,189,248,.9)").slice(0, 48),
       life:Math.max(0.05, Math.min(0.35, Number(payload?.life || 0.16))),
       createdAt:Date.now()

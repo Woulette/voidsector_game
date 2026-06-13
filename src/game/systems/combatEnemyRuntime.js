@@ -22,7 +22,9 @@ export function createCombatEnemyRuntime({
 
   function getBulletTarget(bullet){
     const {player, enemies} = getState();
+    if(bullet.fixedTarget) return {x:bullet.fixedTarget.x, y:bullet.fixedTarget.y, entity:bullet.fixedTarget};
     if(bullet.owner === "enemy" || bullet.owner === "serverEnemy") return {x:player.x, y:player.y, entity:player};
+    if(bullet.targetId === "player") return {x:player.x, y:player.y, entity:player};
     if(String(bullet.targetId || "").startsWith("player:")){
       const target = findRemotePlayerTargetById?.(String(bullet.targetId).slice("player:".length));
       return target && target.hp > 0 ? {x:target.x, y:target.y, entity:target} : null;

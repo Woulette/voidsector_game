@@ -122,7 +122,7 @@ import { installCombatInputHandlers } from "./ui/inputBindings.js";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js";
 import { createCombatPanels } from "./ui/combatPanels.js";
-import { acceptServerQuest, buyServerAmmo, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
+import { acceptServerQuest, buyServerAmmo, claimServerQuest, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
@@ -229,6 +229,7 @@ export function createCombatGame({renderAll, showToast}){
     consumeAmmo,
     markCombatActivity,
     addLaserBeam:beam=>beams.add(beam),
+    sendPlayerWeaponEffect:sendPlayerLaserEffect,
     resolveLaserHit,
     saveState,
     refreshActionBar:()=>actions.updateGameActionBar(),
