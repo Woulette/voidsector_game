@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveServerCombatFire } from "../src/combat/damage.js";
+import { emitCombatHitToAudience } from "../src/combat/enemyHits.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { registerCombatHandlers } from "../src/socket/combatHandlers.js";
 import { createCombatCommands } from "../../src/multiplayer/combatCommands.js";
@@ -122,4 +123,23 @@ test("combat:fire rejects an out-of-range target without consuming ammo", ()=>{
   assert.equal(result.ok, false);
   assert.match(result.reason, /portee/i);
   assert.equal(profile.ammoInventory.ammo_x1, ammoBefore);
+});
+
+test("server combat hit is broadcast to players in the same map room", ()=>{
+  const roomEvents = [];
+  const socketEvents = [];
+  emitCombatHitToAudience({
+    io:{to:room=>({emit:(eventName, payload)=>roomEvents.push({room, eventName, payload})})},
+    socket:{emit:(eventName, payload)=>socketEvents.push({eventName, payload})},
+    player:{mapRoom:"map:0"},
+    group:null,
+    payload:{enemyId:"enemy-1", damage:42}
+  });
+
+  assert.deepEqual(roomEvents, [{
+    room:"map:0",
+    eventName:"combat:hit",
+    payload:{enemyId:"enemy-1", damage:42}
+  }]);
+  assert.equal(socketEvents.length, 0);
 });

@@ -66,13 +66,15 @@ export function createProfileController({
     if(Number.isFinite(Number(profile.nextInventoryUid))) store.state.nextInventoryUid = Math.max(1, Math.floor(Number(profile.nextInventoryUid)));
     if(profile.ammoInventory && typeof profile.ammoInventory === "object") store.state.ammoInventory = clone(profile.ammoInventory);
     const profileHasSlotsByShip = profile.actionSlotsByShip && typeof profile.actionSlotsByShip === "object";
-    if(profileHasSlotsByShip) store.state.actionSlotsByShip = clone(profile.actionSlotsByShip);
     if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
+    if(profileHasSlotsByShip){
+      store.state.actionSlotsByShip = {
+        ...store.state.actionSlotsByShip,
+        ...clone(profile.actionSlotsByShip)
+      };
+    }
     if(Array.isArray(store.state.actionSlotsByShip?.[store.state.activeShip])){
       store.state.actionSlots = Array.from({length:9}, (_,index)=>store.state.actionSlotsByShip[store.state.activeShip][index] || null);
-    }else if(profileHasSlotsByShip){
-      store.state.actionSlotsByShip[store.state.activeShip] = Array(9).fill(null);
-      store.state.actionSlots = [...store.state.actionSlotsByShip[store.state.activeShip]];
     }else if(Array.isArray(profile.actionSlots)) store.state.actionSlots = Array.from({length:9}, (_,index)=>{
         const itemId = profile.actionSlots[index];
         return typeof itemId === "string" && itemId.length > 0 ? itemId : null;

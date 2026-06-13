@@ -13,6 +13,7 @@ export function registerPlayerHandlers(socket, context){
     presence,
     profileManager,
     publicPlayer,
+    replaceGroupMemberId,
     resumeQuestTimers,
     setPlayerMap,
     syncPlayerStatusEffects,
@@ -55,6 +56,8 @@ export function registerPlayerHandlers(socket, context){
     if(existing.mapRoom) existingSocket?.leave(existing.mapRoom);
     players.delete(existing.id);
     players.set(player.id, nextPlayer);
+    if(nextPlayer.groupId) socket.join(nextPlayer.groupId);
+    replaceGroupMemberId?.(existing.id, player.id);
     existingSocket?.disconnect(true);
     if(nextPlayer.mapId) setPlayerMap(socket, nextPlayer.mapId);
     return nextPlayer;

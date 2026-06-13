@@ -117,3 +117,63 @@ test("game profile controller applies repeated kill rewards without refreshing l
     globalThis.CustomEvent = previousCustomEvent;
   }
 });
+
+test("profile sync keeps active Velox action slots when the server profile does not contain them", ()=>{
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousCustomEvent = globalThis.CustomEvent;
+  globalThis.localStorage = {getItem:()=>null, setItem(){}};
+  globalThis.CustomEvent = class {
+    constructor(type, options = {}){
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+  globalThis.window = {dispatchEvent(){}};
+  const veloxSlots = ["ammo_x2", null, null, null, null, null, null, null, null];
+  const store = {
+    state:{
+      ...baseState(),
+      activeShip:"velox",
+      actionSlots:[...veloxSlots],
+      actionSlotsByShip:{
+        orion:["ammo_x1", null, null, null, null, null, null, null, null],
+        velox:[...veloxSlots]
+      }
+    },
+    currentView:"game",
+    hangarTab:"vaisseau",
+    hangarDetailOpen:false
+  };
+  const controller = createProfileController({
+    store,
+    game:{running:true, refreshActiveLoadout(){}, updateHud(){}},
+    appMode:"game",
+    profileScopeStorageKey:"test-profile-scope",
+    getXpNextForLevel:()=>3000,
+    xpCurveVersion:1,
+    ensureShipLoadout(){},
+    setStateStorageScope(){},
+    loadState(){},
+    saveState(){},
+    syncMultiplayerProfile(){},
+    renderAll(){},
+    showToast(){}
+  });
+  try{
+    controller.applyServerProfile({
+      updatedAt:2,
+      activeShip:"velox",
+      ammoInventory:{ammo_x1:500, ammo_x2:499},
+      actionSlotsByShip:{
+        orion:["ammo_x1", null, null, null, null, null, null, null, null]
+      }
+    });
+    assert.deepEqual(store.state.actionSlots, veloxSlots);
+    assert.deepEqual(store.state.actionSlotsByShip.velox, veloxSlots);
+  }finally{
+    globalThis.window = previousWindow;
+    globalThis.localStorage = previousLocalStorage;
+    globalThis.CustomEvent = previousCustomEvent;
+  }
+});

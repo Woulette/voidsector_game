@@ -138,13 +138,12 @@ export function createPresenceManager({io, players, emitPlayers, config, onPlaye
     }
   }
 
-  function handleDisconnect(socket, {leaveCurrentGroup} = {}){
-    if(typeof leaveCurrentGroup === "function") leaveCurrentGroup(socket);
+  function handleDisconnect(socket){
     const player = players.get(socket.id);
     if(!player) return;
     if(player.mapRoom) socket.leave(player.mapRoom);
     player.logoutPending = null;
-    if(player.gracefulLogout || !isRecentlyInCombat(player)){
+    if(player.gracefulLogout || player.clientMode !== "game" || !player.state){
       players.delete(socket.id);
       emitPlayers();
       return;

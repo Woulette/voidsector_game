@@ -17,6 +17,12 @@ function applyDamageToEnemy(enemy, incoming){
   enemy.shield = Math.max(0, enemy.shield);
 }
 
+export function emitCombatHitToAudience({io, socket, player, group, payload}){
+  const room = group?.id || player?.mapRoom;
+  if(room && io?.to) io.to(room).emit("combat:hit", payload);
+  else socket.emit("combat:hit", payload);
+}
+
 export function createEnemyHitHandler({
   buildServerPortalWave,
   emitInstance,
@@ -28,6 +34,7 @@ export function createEnemyHitHandler({
   emitWorldReward,
   findWorldEnemyForPlayer,
   groups,
+  io,
   players,
   presence,
   profileManager,
@@ -72,8 +79,9 @@ export function createEnemyHitHandler({
         return;
       }
       const incoming = result.damage || 0;
-      socket.emit("combat:hit", {
+      emitCombatHitToAudience({io, socket, player, group:null, payload:{
         enemyId:worldEnemy.id,
+        attackerId:socket.id,
         weaponClass:result.weaponClass,
         ammoId:result.ammoId,
         consumed:result.consumed,
@@ -84,7 +92,7 @@ export function createEnemyHitHandler({
         y:Number(worldEnemy.y || 0),
         radius:Number(worldEnemy.radius || 0),
         at:Date.now()
-      });
+      }});
       emitProfileSync?.(player, result.profile);
       if(incoming <= 0){
         emitWorldEnemies(player.mapId);
@@ -130,8 +138,9 @@ export function createEnemyHitHandler({
       return;
     }
     const incoming = result.damage || 0;
-    socket.emit("combat:hit", {
+    emitCombatHitToAudience({io, socket, player, group, payload:{
       enemyId:enemy.id,
+      attackerId:socket.id,
       weaponClass:result.weaponClass,
       ammoId:result.ammoId,
       consumed:result.consumed,
@@ -142,7 +151,7 @@ export function createEnemyHitHandler({
       y:Number(enemy.y || 0),
       radius:Number(enemy.radius || 0),
       at:Date.now()
-    });
+    }});
     emitProfileSync?.(player, result.profile);
     if(incoming <= 0){
       emitInstance(group);

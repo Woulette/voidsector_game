@@ -1,4 +1,4 @@
-export function createSocketSessionManager({io, players, groups, profileManager, cleanName, emitPlayers, emitGroup, resumeQuestTimers, setPlayerMap, syncPlayerStatusEffects}){
+export function createSocketSessionManager({io, players, profileManager, cleanName, emitPlayers, replaceGroupMemberId, resumeQuestTimers, setPlayerMap, syncPlayerStatusEffects}){
   function publicAuthPayload({account, session = null}){
     return {
       account,
@@ -15,23 +15,6 @@ export function createSocketSessionManager({io, players, groups, profileManager,
     player.name = cleanName(account.username || player.name);
     player.sessionExpiresAt = session?.expiresAt || player.sessionExpiresAt || null;
     emitPlayers();
-  }
-
-  function replaceGroupMemberId(oldId, nextId){
-    for(const group of groups.values()){
-      let changed = false;
-      group.members = group.members.map(memberId=>{
-        if(memberId !== oldId) return memberId;
-        changed = true;
-        return nextId;
-      });
-      group.members = [...new Set(group.members)];
-      if(group.leaderId === oldId){
-        group.leaderId = nextId;
-        changed = true;
-      }
-      if(changed) emitGroup(group.id);
-    }
   }
 
   function buildResumeSessionFromState(state, source = "live"){
@@ -81,6 +64,7 @@ export function createSocketSessionManager({io, players, groups, profileManager,
       if(existing.mapRoom) existingSocket?.leave(existing.mapRoom);
       players.delete(existing.id);
       players.set(socket.id, nextPlayer);
+      if(nextPlayer.groupId) socket.join(nextPlayer.groupId);
       replaceGroupMemberId(existing.id, socket.id);
       existingSocket?.disconnect(true);
       if(nextPlayer.mapId) setPlayerMap(socket, nextPlayer.mapId);

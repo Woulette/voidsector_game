@@ -36,23 +36,44 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
     emitInstance(group);
   }
 
-  function leaveCurrentGroup(socket){
-    const player = players.get(socket.id);
+  function removePlayerFromGroup(playerId){
+    const player = players.get(playerId);
     if(!player?.groupId) return;
     const group = groups.get(player.groupId);
     if(!group){
       player.groupId = null;
       return;
     }
-    group.members = group.members.filter(id=>id !== socket.id);
+    group.members = group.members.filter(id=>id !== playerId);
     player.groupId = null;
-    socket.leave(group.id);
+    io.sockets.sockets.get(playerId)?.leave(group.id);
     if(group.members.length === 0){
       groups.delete(group.id);
       return;
     }
-    if(group.leaderId === socket.id) group.leaderId = group.members[0];
+    if(group.leaderId === playerId) group.leaderId = group.members[0];
     emitGroup(group.id);
+  }
+
+  function replaceGroupMemberId(oldId, nextId){
+    for(const group of groups.values()){
+      let changed = false;
+      group.members = group.members.map(memberId=>{
+        if(memberId !== oldId) return memberId;
+        changed = true;
+        return nextId;
+      });
+      group.members = [...new Set(group.members)];
+      if(group.leaderId === oldId){
+        group.leaderId = nextId;
+        changed = true;
+      }
+      if(changed) emitGroup(group.id);
+    }
+  }
+
+  function leaveCurrentGroup(socket){
+    removePlayerFromGroup(socket.id);
   }
 
   function createGroup(socket){
@@ -191,6 +212,8 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
     invitePlayer,
     kickMember,
     leaveCurrentGroup,
+    removePlayerFromGroup,
+    replaceGroupMemberId,
     promoteLeader
   };
 }

@@ -126,12 +126,16 @@ function isPlayerSafeOnMap(player, map){
   );
 }
 
+let removeDisconnectedPlayerFromGroup = ()=>{};
 const presence = createPresenceManager({
   io,
   players,
   emitPlayers,
   config,
-  onPlayerRemove:player=>profileManager.saveWorldSession({player, state:player.state, force:true})
+  onPlayerRemove:player=>{
+    profileManager.saveWorldSession({player, state:player.state, force:true});
+    removeDisconnectedPlayerFromGroup(player.id);
+  }
 });
 
 function progressProfileQuestAction(socket, action = {}){
@@ -293,7 +297,9 @@ const {
   invitePlayer,
   kickMember,
   promoteLeader,
-  leaveCurrentGroup
+  leaveCurrentGroup,
+  removePlayerFromGroup,
+  replaceGroupMemberId
 } = createGroupManager({
   io,
   players,
@@ -301,6 +307,7 @@ const {
   publicEnemy,
   emitPlayers
 });
+removeDisconnectedPlayerFromGroup = removePlayerFromGroup;
 
 const socialManager = createSocialManager({io, players, profileManager});
 
@@ -311,11 +318,10 @@ const {
 } = createSocketSessionManager({
   io,
   players,
-  groups,
   profileManager,
   cleanName,
   emitPlayers,
-  emitGroup,
+  replaceGroupMemberId,
   resumeQuestTimers:player=>setQuestTimersConnected(player, true),
   setPlayerMap,
   syncPlayerStatusEffects
@@ -367,6 +373,7 @@ const {applyEnemyHit} = createEnemyHitHandler({
   emitWorldReward,
   findWorldEnemyForPlayer,
   groups,
+  io,
   players,
   presence,
   profileManager,
@@ -450,8 +457,9 @@ function applyPlayerHit(socket, payload){
   }
   emitProfileSyncForPlayer(attacker, result.profile);
   const incoming = Math.max(0, Math.round(Number(result.damage || 0)));
-  socket.emit("combat:hit", {
+  io.to(attacker.mapRoom || `map:${String(attacker.mapId ?? "")}`).emit("combat:hit", {
     enemyId:`player:${target.id}`,
+    attackerId:attacker.id,
     targetPlayerId:target.id,
     weaponClass:result.weaponClass,
     ammoId:result.ammoId,
@@ -616,6 +624,7 @@ io.on("connection", socket=>{
     logger,
     presence,
     publicPlayer,
+    replaceGroupMemberId,
     resumeQuestTimers:player=>setQuestTimersConnected(player, true),
     syncPlayerStatusEffects,
     setPlayerMap,

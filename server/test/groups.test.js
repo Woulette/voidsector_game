@@ -48,3 +48,19 @@ test("group invitation must exist before accept and supports promote and kick", 
   assert.equal(manager.kickMember(betaSocket, "a"), true);
   assert.equal(players.get("a").groupId, null);
 });
+
+test("group membership moves to a reconnecting socket id", ()=>{
+  const {manager, players, sockets} = createHarness();
+  const alphaSocket = sockets.get("a");
+  const betaSocket = sockets.get("b");
+  assert.equal(manager.invitePlayer(alphaSocket, players.get("b")).ok, true);
+  const groupId = players.get("a").groupId;
+  assert.equal(manager.acceptInvite(betaSocket, groupId), true);
+
+  players.set("next-a", {...players.get("a"), id:"next-a"});
+  players.delete("a");
+  manager.replaceGroupMemberId("a", "next-a");
+
+  assert.deepEqual(manager.groups.get(groupId).members.sort(), ["b", "next-a"]);
+  assert.equal(manager.groups.get(groupId).leaderId, "next-a");
+});
