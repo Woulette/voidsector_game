@@ -617,7 +617,7 @@ Etat inspecte le 13 juin 2026 apres l'extraction des cibles joueurs distants :
 - `src/game/ui/combatPanels.js` reste gros car il compose plusieurs panneaux combat. Les prochains decoupages utiles sont des sous-panneaux autonomes, pas des petits wrappers.
 - `src/game/render/world.js` est un gros renderer visuel. Le decouper seulement par couche de rendu claire si on touche aux fonds/parallax/spawn, car un mauvais decoupage peut casser le rendu sans gain gameplay.
 - `src/game/combatOrchestrator.js` reste un coordinateur. Continuer a extraire des domaines testables quand on touche a une feature combat/MMO, mais ne pas extraire la glue pure.
-- `src/game/systems/combatServerEvents.js` concentre encore plusieurs files d'evenements serveur. Candidat futur si on modifie rewards, projectiles ennemis, effets distants ou quetes.
+- `src/game/systems/combatServerEvents.js` a maintenant des sous-domaines extraits pour effets d'armes distants et quetes serveur. Il reste candidat futur seulement si on touche aux portails, degats joueur, rewards, loot ou projectiles ennemis.
 
 Regle appliquee : garder le decoupage conservateur. Un fichier gros n'est pas automatiquement un fichier mal decoupe si son contenu est du catalogue ou du rendu coherent.
 
@@ -681,6 +681,38 @@ Checks a relancer apres modification de ce domaine :
 - `node --check src/game/systems/combatServerEvents.js`
 - `node --check server/test/combat-remote-weapon-events.test.js`
 - `node --test server/test/combat-remote-weapon-events.test.js`
+- `npm test` dans `server/`
+
+## Extraction 15 - Evenements de quetes serveur en combat
+
+Les evenements de quetes recus pendant le combat ne sont plus traites directement dans `src/game/systems/combatServerEvents.js`.
+
+- `src/game/systems/combatQuestServerEvents.js`
+  - traite la progression de quete serveur ;
+  - traite les recompenses de quetes claim ;
+  - traite les echecs de quetes temps / perte de vie ;
+  - construit les libelles compacts de recompenses de quete ;
+  - accepte des dependances injectees pour etre teste sans lancer le jeu.
+- `src/game/systems/combatServerEvents.js`
+  - garde les methodes publiques `applyQuestProgressEvents()` et `applyQuestFailureEvents()` ;
+  - delegue aussi le claim de quete dans `applyAll()`.
+- `server/test/combat-quest-server-events.test.js`
+  - verifie la progression locale depuis un event serveur ;
+  - verifie le reset et retrait d'une quete echouee ;
+  - verifie le dedoublonnage d'un claim ;
+  - verifie les libelles de recompenses items / munitions / portails / materiaux.
+
+Resultat :
+
+- `src/game/systems/combatServerEvents.js` passe d'environ 460 a environ 355 lignes.
+- La logique de quetes combat est relisible et testable sans canvas ni Socket.IO.
+
+Checks a relancer apres modification de ce domaine :
+
+- `node --check src/game/systems/combatQuestServerEvents.js`
+- `node --check src/game/systems/combatServerEvents.js`
+- `node --check server/test/combat-quest-server-events.test.js`
+- `node --test server/test/combat-quest-server-events.test.js`
 - `npm test` dans `server/`
 
 ## Ajout MMO - Chat combat
