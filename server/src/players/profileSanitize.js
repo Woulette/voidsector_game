@@ -3,6 +3,9 @@ import { getInventoryEntryQuantity, isStackableInventoryItem } from "../economy/
 import { cleanupDuplicateEquippedInventoryUids } from "../economy/equipment.js";
 import { normalizeFirmId } from "../../../src/data/firms.js";
 
+const EMPTY_ACTION_SLOTS = Array(9).fill(null);
+const STARTER_ACTION_SLOTS = ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
+
 export function sanitizeObject(value){
   if(!value || typeof value !== "object" || Array.isArray(value)) return {};
   return JSON.parse(JSON.stringify(value));
@@ -36,9 +39,9 @@ function sanitizeShipWorldSessions(value){
     .filter(([, session])=>Boolean(session)));
 }
 
-export function sanitizeActionSlots(value){
+export function sanitizeActionSlots(value, fallback = STARTER_ACTION_SLOTS){
   if(!Array.isArray(value)){
-    return ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
+    return [...fallback];
   }
   return Array.from({length:9}, (_,index)=>{
     const itemId = value[index];
@@ -50,7 +53,7 @@ function sanitizeActionSlotsByShip(value){
   if(!value || typeof value !== "object" || Array.isArray(value)) return {};
   return Object.fromEntries(Object.entries(value).map(([shipId, slots])=>[
     String(shipId),
-    sanitizeActionSlots(slots)
+    sanitizeActionSlots(slots, EMPTY_ACTION_SLOTS)
   ]));
 }
 

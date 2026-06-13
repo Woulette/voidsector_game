@@ -63,6 +63,21 @@ test("duplicate equipped starter uid from old profiles is kept only once", ()=>{
   assert.equal(countStarterRepair(profile), 1);
 });
 
+test("invalid per-ship action bars sanitize to empty slots instead of starter slots", ()=>{
+  const profile = sanitizeProfile({
+    starterRepairGranted:true,
+    actionSlots:["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"],
+    actionSlotsByShip:{
+      orion:["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"],
+      razorion:null
+    },
+    inventoryItems:[{uid:"inv_repair_starter_2", itemId:"extra_repair_starter"}]
+  });
+
+  assert.deepEqual(profile.actionSlotsByShip.razorion, [null, null, null, null, null, null, null, null, null]);
+  assert.deepEqual(profile.actionSlotsByShip.orion, ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"]);
+});
+
 test("unequip ship loadout clears every ship slot without deleting inventory items", ()=>{
   const profile = createDefaultProfile();
   profile.ownedShips.push("velox");
