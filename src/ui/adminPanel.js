@@ -692,6 +692,7 @@ export function handleAdminPanelClick(event, {showToast, renderAll} = {}){
     adminUi.selectedInventory = null;
     resetActionDraft();
     resetInventoryDeleteDraft();
+    resetGrantDraft();
     setPending(true);
     multiplayer.admin.inspect = null;
     const sent = inspectAdminPlayer({
@@ -723,12 +724,14 @@ export function handleAdminPanelClick(event, {showToast, renderAll} = {}){
     adminUi.action = null;
     resetActionDraft();
     resetInventoryDeleteDraft();
+    resetGrantDraft();
     renderAll?.();
     return true;
   }
   if(event.target.closest("[data-admin-prepare-inventory-remove]")){
     if(adminUi.action !== "inventory-remove") resetInventoryDeleteDraft();
     resetActionDraft();
+    resetGrantDraft();
     adminUi.action = "inventory-remove";
     renderAll?.();
     return true;
@@ -760,12 +763,60 @@ export function handleAdminPanelClick(event, {showToast, renderAll} = {}){
     renderAll?.();
     return true;
   }
+  const grantPick = event.target.closest("[data-admin-grant-pick]");
+  if(grantPick){
+    adminUi.grantId = grantPick.dataset.adminGrantPick || "";
+    renderAll?.();
+    return true;
+  }
+  if(event.target.closest("[data-admin-confirm-grant]")){
+    const target = selectedTarget();
+    const selected = ensureGrantSelection();
+    const reason = document.getElementById("adminGrantReason")?.value ?? adminUi.grantReason;
+    const type = document.getElementById("adminGrantType")?.value || adminUi.grantType || "item";
+    const amount = type === "ship" || type === "formation"
+      ? 1
+      : Number(document.getElementById("adminGrantAmount")?.value || adminUi.grantAmount || 1);
+    const destination = document.getElementById("adminGrantDestination")?.value || adminUi.grantDestination || "cargoHold";
+    const shipId = document.getElementById("adminGrantShipId")?.value || adminUi.grantShipId || "";
+    adminUi.grantReason = reason || "";
+    adminUi.grantAmount = String(amount || 1);
+    if(!selected?.id){
+      showToast?.("Selectionne un objet a donner.");
+      return true;
+    }
+    if(reason.trim().length < 4){
+      showToast?.("Raison admin obligatoire.");
+      return true;
+    }
+    setPending(true);
+    const sent = grantAdminPlayer({
+      targetId:target?.targetId,
+      accountId:target?.accountId,
+      profileKey:target?.profileKey,
+      type,
+      id:selected.id,
+      amount,
+      destination,
+      shipId,
+      reason
+    });
+    if(!sent) setPending(false);
+    adminUi.action = null;
+    resetGrantDraft();
+    renderAll?.();
+    return true;
+  }
   const prepare = event.target.closest("[data-admin-prepare-action]");
   if(prepare){
     const action = prepare.dataset.adminPrepareAction || "";
     if(ADMIN_ACTIONS.has(action)){
-      if(adminUi.action !== action) resetActionDraft();
+      if(adminUi.action !== action){
+        resetActionDraft();
+        if(action === "grant") resetGrantDraft();
+      }
       resetInventoryDeleteDraft();
+      if(action !== "grant") resetGrantDraft();
       adminUi.action = action;
       renderAll?.();
       return true;
@@ -775,6 +826,7 @@ export function handleAdminPanelClick(event, {showToast, renderAll} = {}){
     adminUi.action = null;
     resetActionDraft();
     resetInventoryDeleteDraft();
+    resetGrantDraft();
     renderAll?.();
     return true;
   }
@@ -847,10 +899,26 @@ export function handleAdminPanelInput(event, {renderAll} = {}){
     adminUi.adjustAmount = adjustAmount.value || "";
     return true;
   }
+  const grantQuery = event.target.closest("#adminGrantQuery");
+  if(grantQuery){
+    adminUi.grantQuery = grantQuery.value || "";
+    renderAll?.();
+    return true;
+  }
+  const grantAmount = event.target.closest("#adminGrantAmount");
+  if(grantAmount){
+    adminUi.grantAmount = grantAmount.value || "";
+    return true;
+  }
+  const grantReason = event.target.closest("#adminGrantReason");
+  if(grantReason){
+    adminUi.grantReason = grantReason.value || "";
+    return true;
+  }
   return false;
 }
 
-export function handleAdminPanelChange(event){
+export function handleAdminPanelChange(event, {renderAll} = {}){
   const duration = event.target.closest("#adminActionDuration");
   if(duration){
     adminUi.actionDuration = duration.value || "10";
@@ -866,13 +934,35 @@ export function handleAdminPanelChange(event){
     adminUi.adjustMode = adjustMode.value || "add";
     return true;
   }
+  const grantType = event.target.closest("#adminGrantType");
+  if(grantType){
+    adminUi.grantType = grantType.value || "item";
+    adminUi.grantId = "";
+    adminUi.grantQuery = "";
+    adminUi.grantAmount = "1";
+    adminUi.grantDestination = "cargoHold";
+    adminUi.grantShipId = "";
+    renderAll?.();
+    return true;
+  }
+  const grantDestination = event.target.closest("#adminGrantDestination");
+  if(grantDestination){
+    adminUi.grantDestination = grantDestination.value || "cargoHold";
+    renderAll?.();
+    return true;
+  }
+  const grantShipId = event.target.closest("#adminGrantShipId");
+  if(grantShipId){
+    adminUi.grantShipId = grantShipId.value || "";
+    return true;
+  }
   return false;
 }
 
 export function handleAdminPanelServerChange(reason){
   if(!String(reason || "").startsWith("admin:")) return false;
-  if(["admin:kicked", "admin:moderated", "admin:adjusted", "admin:inventory-removed", "admin:instance-reset"].includes(reason)) requestSnapshot();
-  if(reason === "admin:inventory-removed" && adminUi.selected){
+  if(["admin:kicked", "admin:moderated", "admin:adjusted", "admin:granted", "admin:inventory-removed", "admin:instance-reset"].includes(reason)) requestSnapshot();
+  if(["admin:granted", "admin:inventory-removed"].includes(reason) && adminUi.selected){
     inspectAdminPlayer({
       targetId:adminUi.selected.targetId,
       accountId:adminUi.selected.accountId,
