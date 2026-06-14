@@ -19,6 +19,9 @@ export function createSocketCommands({multiplayer}){
     startPortgunTeleport(mapId){
       return mapId !== undefined && mapId !== null ? emit(multiplayer, "portgun:teleport", {mapId}) : false;
     },
+    activateRickyPortalLever(leverId){
+      return leverId ? emit(multiplayer, "portal:ricky-lever", {leverId}) : false;
+    },
     requestLeaderboardSync(){
       return emit(multiplayer, "leaderboard:sync");
     },

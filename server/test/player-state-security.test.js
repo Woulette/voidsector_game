@@ -392,6 +392,42 @@ test("a Ricky member that joined through the portal may enter the instance", ()=
   });
 
   assert.equal(result.state.mapId, "portal-ricky");
+  assert.equal(result.state.x, 0);
+  assert.equal(result.state.y, 3400);
+});
+
+test("Ricky central chamber collision stays closed until the four-lever breach opens", ()=>{
+  const previous = baseState({mapId:"portal-ricky", x:0, y:1450, updatedAt:1000});
+  const player = makePlayer(previous);
+  player.groupId = "group-1";
+  const instance = {
+    type:"portal",
+    portal:{id:"ricky"},
+    joinedMemberIds:[player.id],
+    abandonedMemberIds:[],
+    objective:{breachOpen:false}
+  };
+  const groups = new Map([["group-1", {instance}]]);
+  const blocked = validatePlayerState({
+    player,
+    profile:createDefaultProfile(),
+    groups,
+    now:3000,
+    payload:{...previous, y:1050, updatedAt:3000}
+  });
+
+  assert.equal(blocked.corrected, true);
+  assert.ok(blocked.state.y > 1300);
+
+  instance.objective.breachOpen=true;
+  const open = validatePlayerState({
+    player,
+    profile:createDefaultProfile(),
+    groups,
+    now:3000,
+    payload:{...previous, y:1050, updatedAt:3000}
+  });
+  assert.equal(open.state.y, 1050);
 });
 
 test("separate Ricky groups use isolated instance rooms and cannot share player state", ()=>{

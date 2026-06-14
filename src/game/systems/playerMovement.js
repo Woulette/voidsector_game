@@ -10,10 +10,11 @@ export function clampPlayerToMap({player, map, padding = 65}){
   player.y = Math.max(-halfH + padding, Math.min(halfH - padding, player.y));
 }
 
-export function updatePlayerMovement({player, moveTarget, dt, map, clampToMap = true}){
+export function updatePlayerMovement({player, moveTarget, dt, map, clampToMap = true, resolvePosition = null}){
   let movedX = 0;
   let movedY = 0;
   let nextMoveTarget = moveTarget;
+  const previous = {x:player.x, y:player.y};
 
   if(nextMoveTarget){
     const dx = nextMoveTarget.x - player.x;
@@ -31,6 +32,13 @@ export function updatePlayerMovement({player, moveTarget, dt, map, clampToMap = 
     }
   }
 
+  if(resolvePosition){
+    const resolved = resolvePosition(previous, {x:player.x, y:player.y});
+    player.x = Number(resolved?.x ?? player.x);
+    player.y = Number(resolved?.y ?? player.y);
+    movedX = player.x - previous.x;
+    movedY = player.y - previous.y;
+  }
   const movedDist = Math.hypot(movedX, movedY);
   player.vx = dt > 0 ? movedX / dt : 0;
   player.vy = dt > 0 ? movedY / dt : 0;

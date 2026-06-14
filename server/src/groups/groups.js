@@ -12,7 +12,7 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
     return {
       id:group.id,
       leaderId:group.leaderId,
-      members:group.members.map(id=>publicPlayer(players.get(id))).filter(Boolean)
+      members:group.members.map(id=>players.get(id)).filter(Boolean).map(publicPlayer)
     };
   }
 
@@ -26,7 +26,8 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
       completed:Boolean(group.instance.completed),
       enemies:group.instance.enemies.filter(enemy=>enemy.hp > 0).map(publicEnemy),
       ally:publicInstanceAlly(group.instance),
-      beacons:publicInstanceBeacons(group.instance)
+      beacons:publicInstanceBeacons(group.instance),
+      objective:publicInstanceObjective(group.instance)
     };
     if(group.instance.type === "portal" && Array.isArray(group.instance.joinedMemberIds)){
       for(const memberId of group.instance.joinedMemberIds){
@@ -76,6 +77,36 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
         heal:beacon.heal,
         expiresAt:beacon.expiresAt
       }));
+  }
+
+  function publicInstanceObjective(instance){
+    const objective = instance?.objective;
+    if(!objective) return null;
+    return {
+      stage:objective.stage || "levers",
+      breachOpen:Boolean(objective.breachOpen),
+      cinematicPlayed:Boolean(objective.cinematicPlayed),
+      bossSpawned:Boolean(objective.bossSpawned),
+      cageSpawned:Boolean(objective.cageSpawned),
+      completedAt:Number(objective.completedAt || 0),
+      exitAt:Number(objective.exitAt || 0),
+      levers:(objective.levers || []).map(lever=>({
+        id:lever.id,
+        label:lever.label,
+        x:lever.x,
+        y:lever.y,
+        approached:Boolean(lever.approached),
+        active:Boolean(lever.active),
+        activatedAt:Number(lever.activatedAt || 0),
+        activation:lever.activation ? {
+          playerId:lever.activation.playerId,
+          playerName:lever.activation.playerName,
+          progress:Math.max(0, Math.min(1, Number(lever.activation.progress || 0))),
+          blocked:Boolean(lever.activation.blocked),
+          resetReason:lever.activation.resetReason || ""
+        } : null
+      }))
+    };
   }
 
   function emitGroup(groupId){

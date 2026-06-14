@@ -418,9 +418,11 @@ const {progressServerQuestsForKill} = createKillQuestProgress({
 });
 
 const {
+  activateRickyLever,
   activateRickyHealBeacon,
   buildServerPortalWave,
   emitPortalComplete,
+  handlePortalEnemyDeath,
   portalWaveTotal,
   startPortalInstance,
   updateRickyCompanions
@@ -434,6 +436,7 @@ const {
   firmWarManager,
   createGroup,
   emitInstance,
+  setPlayerMap,
   portalWaveTotal:config.portalWaveTotal
 });
 
@@ -441,6 +444,7 @@ const {applyEnemyHit, applyEnemyHitForPlayer} = createEnemyHitHandler({
   buildServerPortalWave,
   emitInstance,
   emitPortalComplete,
+  handlePortalEnemyDeath,
   emitPrivatePortalAnchorKeyDrop,
   emitPrivatePortalPieceDrop,
   emitPrivateQuestItemDrop,
@@ -775,6 +779,7 @@ io.on("connection", socket=>{
     leaveCurrentGroup,
     promoteLeader,
     startPortalInstance,
+    activateRickyLever,
     activateRickyHealBeacon
   });
   registerCombatHandlers(socket, {

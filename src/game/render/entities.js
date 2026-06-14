@@ -435,16 +435,18 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
     const idleAngle = isIdle ? Math.sin(idlePhase * .48) * .045 : 0;
     const attackPulse = Math.max(0, Math.min(1, Number(enemy.attackT || 0) / .32));
     const attackScale = 1 + attackPulse * .10;
-    drawRotatedImage({
-      ctx,
-      camera,
-      img:cache[enemy.img] || cache["assets/ships/intercepteur.png"],
-      x:enemy.x + idleX,
-      y:enemy.y + idleY,
-      w:(enemy.width || 72) * attackScale,
-      h:(enemy.height || 72) * attackScale,
-      angle:getEnemyRenderRotation(enemy.kind, enemy.angle) + idleAngle
-    });
+    if(enemy.renderMode !== "deadly_cage"){
+      drawRotatedImage({
+        ctx,
+        camera,
+        img:cache[enemy.img] || cache["assets/ships/intercepteur.png"],
+        x:enemy.x + idleX,
+        y:enemy.y + idleY,
+        w:(enemy.width || 72) * attackScale,
+        h:(enemy.height || 72) * attackScale,
+        angle:getEnemyRenderRotation(enemy.kind, enemy.angle) + idleAngle
+      });
+    }
     const isSelected = selectedEnemy && selectedEnemy.id === enemy.id;
     if(isSelected || Number(enemy.recentHitTimer || 0) > 0){
       drawEnemyStatusBars({

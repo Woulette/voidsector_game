@@ -414,7 +414,7 @@ export const COOP_ENEMY_TYPES = {
 };
 
 export const PORTAL_CONFIGS = {
-  ricky:{id:"ricky", name:"Portail de Ricky", reward:{credits:0, xp:0, premium:0, ammoX4:0, ammoX6:0}},
+  ricky:{id:"ricky", name:"Portail de Ricky", reward:{credits:2000000, xp:400000, premium:5000, ammoX4:0, ammoX6:0}},
   blue:{id:"blue", name:"Portail Bleu", reward:{credits:3000000, xp:400000, premium:20000, ammoX4:20000, ammoX6:0}},
   violet:{id:"violet", name:"Portail Violet", reward:{credits:0, xp:0, premium:35000, ammoX4:35000, ammoX6:0}},
   red:{id:"red", name:"Portail Rouge", reward:{credits:0, xp:0, premium:50000, ammoX4:50000, ammoX6:0}},

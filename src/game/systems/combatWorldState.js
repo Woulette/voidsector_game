@@ -173,6 +173,8 @@ export function createCombatWorldStateSystem({
       portalWave:0,
       portalDelay:0,
       portalCompleted:false,
+      portalObjective:null,
+      portalCinematic:null,
       currentMap,
       enemies:mapState.enemies,
       asteroids:mapState.asteroids,

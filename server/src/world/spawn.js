@@ -30,7 +30,9 @@ export function publicEnemy(enemy){
     particle:enemy.particle,
     projectileSpeed:enemy.projectileSpeed || 600,
     attackT:Math.max(0, Number(enemy.attackAnimUntil || 0) - Date.now()) / 1000,
-    recentHitTimer:enemy.recentHitTimer || 0
+    recentHitTimer:enemy.recentHitTimer || 0,
+    renderMode:enemy.renderMode || "",
+    static:Boolean(enemy.static)
   };
 }
 

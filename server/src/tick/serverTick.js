@@ -1,4 +1,5 @@
 import { WORLD_MAPS } from "../world/definitions.js";
+import { RICKY_PORTAL_MAP } from "../../../src/data/rickyPortal.js";
 
 export function startServerTick({
   cleanupExpiredLootDrops,
@@ -49,8 +50,15 @@ export function startServerTick({
       const instance = group.instance;
       if(!instance?.enemies?.length || instance.completed) continue;
       const instanceRoom = `instance:${instance.id}`;
+      const isRickyPortal = instance.type === "portal" && instance.portal?.id === "ricky";
       const map = instance.type === "portal"
-        ? {id:`portal-${instance.portal?.id || "blue"}`, room:instanceRoom, width:5200, height:3600, spawn:{x:0, y:0, r:240}}
+        ? {
+            id:`portal-${instance.portal?.id || "blue"}`,
+            room:instanceRoom,
+            width:isRickyPortal ? RICKY_PORTAL_MAP.width : 5200,
+            height:isRickyPortal ? RICKY_PORTAL_MAP.height : 3600,
+            spawn:isRickyPortal ? {...RICKY_PORTAL_MAP.spawn, r:240} : {x:0, y:0, r:240}
+          }
         : {id:"coop-test", room:instanceRoom, width:5200, height:3600, spawn:{x:instance.spawn?.x || 0, y:instance.spawn?.y || 0, r:260}};
       const joinedMemberIds = instance.type === "portal" && Array.isArray(instance.joinedMemberIds)
         ? new Set(instance.joinedMemberIds.map(String))
@@ -72,7 +80,10 @@ export function startServerTick({
         });
       }
       if(!instancePlayers.length) continue;
-      for(const enemy of instance.enemies) updateWorldEnemy(enemy, map, instancePlayers, dt, now);
+      for(const enemy of instance.enemies){
+        if(enemy.static) continue;
+        updateWorldEnemy(enemy, map, instancePlayers, dt, now);
+      }
     }
     updateRickyCompanions?.(dt, now);
     if(instanceEmitT >= 0.10){

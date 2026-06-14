@@ -5,6 +5,13 @@ import { consumeInventoryItemAmount, getInventoryItemCount } from "../economy/in
 import { PORTAL_CONFIGS, WORLD_ENEMY_TYPES } from "../world/definitions.js";
 import { ENEMY_THREAT_RECALC_MS, markEnemyAttackedByPlayer } from "../world/aggro.js";
 import { portals } from "../../../src/data/catalog.js";
+import { getFirmMapId, normalizeFirmId } from "../../../src/data/firms.js";
+import {
+  findRickyPortalLever,
+  RICKY_PORTAL_LEVERS,
+  RICKY_PORTAL_MAP,
+  RICKY_PORTAL_RETURN_POINTS
+} from "../../../src/data/rickyPortal.js";
 
 const RICKY_PORTAL_ID = "ricky";
 const RICKY_PORTAL_KEY_ITEM_ID = "portal_anchor_key";
@@ -17,6 +24,11 @@ const RICKY_HEAL_BEACON_DURATION_MS = 18000;
 const RICKY_HEAL_BEACON_INTERVAL_MS = 2000;
 const RICKY_HEAL_BEACON_RADIUS = 250;
 const RICKY_HEAL_BEACON_AMOUNT = 3000;
+const RICKY_LEVER_APPROACH_MIN = 5;
+const RICKY_LEVER_APPROACH_MAX = 10;
+const RICKY_LEVER_ACTIVATE_MIN = 5;
+const RICKY_LEVER_ACTIVATE_MAX = 10;
+const RICKY_LEVER_MOVE_TOLERANCE = 20;
 const RICKY_PORTAL_QUEST_SUFFIX_BY_FIRM = {
   astra:"",
   cyan:"_cyan",
@@ -67,7 +79,7 @@ function healShipState(state, amount){
   return Math.max(0, state.hp - before);
 }
 
-export function createPortalInstanceManager({io, players, groups, profileManager, emitProfileSync, emitQuestClaims, createGroup, emitInstance, firmWarManager, portalWaveTotal}){
+export function createPortalInstanceManager({io, players, groups, profileManager, emitProfileSync, emitQuestClaims, createGroup, emitInstance, firmWarManager, setPlayerMap, portalWaveTotal}){
   let instanceSeq = 1;
 
   function createPortalEnemy(kind, wave, index, x, y, boss = false){
@@ -124,6 +136,108 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       const y = -1040 - (i % 4) * 96;
       return createPortalEnemy(kinds[i % kinds.length], wave, i + 1, x, y, false);
     });
+  }
+
+  function createRickyObjective(){
+    return {
+      stage:"levers",
+      breachOpen:false,
+      cinematicPlayed:false,
+      bossSpawned:false,
+      cageSpawned:false,
+      completedAt:0,
+      exitAt:0,
+      levers:RICKY_PORTAL_LEVERS.map(lever=>({
+        ...lever,
+        approached:false,
+        active:false,
+        activatedAt:0,
+        activation:null
+      }))
+    };
+  }
+
+  function createRickyBoss(){
+    const boss = createPortalEnemy("chasseur_spectral", 12, 1, RICKY_PORTAL_MAP.boss.x, RICKY_PORTAL_MAP.boss.y, true);
+    boss.id=`RICKY-BOSS-${Date.now().toString(36)}`;
+    boss.type="Gardien de la breche";
+    boss.rickyBoss=true;
+    boss.rewardGranted=false;
+    return boss;
+  }
+
+  function createDeadlyCage(){
+    return {
+      id:`RICKY-CAGE-${Date.now().toString(36)}`,
+      serverControlled:true,
+      static:true,
+      renderMode:"deadly_cage",
+      rickyCage:true,
+      noReward:true,
+      kind:"deadly_cage",
+      type:"Cage de Deadly",
+      img:"",
+      level:10,
+      x:RICKY_PORTAL_MAP.cage.x,
+      y:RICKY_PORTAL_MAP.cage.y,
+      homeX:RICKY_PORTAL_MAP.cage.x,
+      homeY:RICKY_PORTAL_MAP.cage.y,
+      angle:0,
+      hp:RICKY_PORTAL_MAP.cage.hp,
+      maxHp:RICKY_PORTAL_MAP.cage.hp,
+      shield:0,
+      maxShield:0,
+      radius:RICKY_PORTAL_MAP.cage.radius,
+      width:300,
+      height:300,
+      speed:0,
+      attackRange:0,
+      attackDamage:0,
+      attackCooldown:999,
+      projectileSpeed:0,
+      particle:"rgba(250,204,21,.85)",
+      reward:{credits:0, xp:0, premium:0},
+      color:"rgba(250,204,21,.95)",
+      shieldAbsorbRatio:0,
+      vx:0,
+      vy:0,
+      moving:false,
+      recentHitTimer:0
+    };
+  }
+
+  function spawnRickyLeverEnemies(group, lever, phase){
+    const instance = group?.instance;
+    if(!isRickyPortalInstance(instance) || !lever) return [];
+    const min = phase === "activate" ? RICKY_LEVER_ACTIVATE_MIN : RICKY_LEVER_APPROACH_MIN;
+    const max = phase === "activate" ? RICKY_LEVER_ACTIVATE_MAX : RICKY_LEVER_APPROACH_MAX;
+    const count = randomBetween(min, max);
+    const targets = getRickyPortalPlayers(group, {requireMap:true, aliveOnly:true});
+    const kinds = ["drone_pirate", "raider_astral", "chasseur_spectral"];
+    const spawned = Array.from({length:count}, (_, index)=>{
+      const angle = index / Math.max(1, count) * Math.PI * 2 + Math.random() * .35;
+      const distance = 300 + Math.random() * 260;
+      const enemy = createPortalEnemy(
+        kinds[(index + (phase === "activate" ? 1 : 0)) % kinds.length],
+        9,
+        index + 1,
+        lever.x + Math.cos(angle) * distance,
+        lever.y + Math.sin(angle) * distance,
+        false
+      );
+      enemy.id=`RICKY-${lever.id}-${phase}-${Date.now().toString(36)}-${index}`;
+      enemy.rickyLeverId=lever.id;
+      enemy.rickyLeverPhase=phase;
+      const target = targets[index % Math.max(1, targets.length)] || null;
+      if(target){
+        enemy.lockedPlayerId=target.id;
+        enemy.lockedPlayerLastSeenAt=Date.now();
+        enemy.threatRecalcAt=Date.now() + ENEMY_THREAT_RECALC_MS;
+      }
+      return enemy;
+    });
+    instance.enemies.push(...spawned);
+    return spawned;
   }
 
   function createRickyAlly(spawn = {x:0, y:0}, now = Date.now()){
@@ -231,7 +345,8 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       instanceId:instance.id,
       portal:instance.portal,
       spawn:instance.spawn,
-      wave:instance.wave
+      wave:instance.wave,
+      objective:instance.objective || null
     });
   }
 
@@ -333,12 +448,17 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       id:`P-${String(instanceSeq++).padStart(4, "0")}`,
       type:"portal",
       portal:{id:portal.id, name:portal.name, totalWaves:portalWaveTotal},
-      spawn:{mapId:`portal-${portal.id}`, x:0, y:0},
-      wave:1,
+      spawn:{mapId:`portal-${portal.id}`, ...(isRickyPortal ? RICKY_PORTAL_MAP.spawn : {x:0, y:0})},
+      wave:isRickyPortal ? 0 : 1,
       completed:false,
       playerLives:Object.fromEntries(group.members.map(memberId=>[memberId, 3])),
       abandonedMemberIds:[],
-      enemies:buildServerPortalWave(1)
+      enemies:isRickyPortal ? [] : buildServerPortalWave(1),
+      ...(isRickyPortal ? {
+        ally:createRickyAlly(RICKY_PORTAL_MAP.spawn),
+        beacons:[],
+        objective:createRickyObjective()
+      } : {})
     };
     io.to(group.id).emit("portal:started", {
       instanceId:group.instance.id,
@@ -400,14 +520,18 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       id:`P-${String(instanceSeq++).padStart(4, "0")}`,
       type:"portal",
       portal:{id:portal.id, name:portal.name, totalWaves:portalWaveTotal},
-      spawn:{mapId:`portal-${portal.id}`, x:0, y:0},
-      wave:1,
+      spawn:{mapId:`portal-${portal.id}`, ...(isRickyPortal ? RICKY_PORTAL_MAP.spawn : {x:0, y:0})},
+      wave:isRickyPortal ? 0 : 1,
       completed:false,
       playerLives:Object.fromEntries(joinedMemberIds.map(memberId=>[memberId, 3])),
       joinedMemberIds,
       abandonedMemberIds:[],
-      enemies:buildServerPortalWave(1),
-      ...(isRickyPortal ? {ally:createRickyAlly({x:0, y:0}), beacons:[]} : {})
+      enemies:isRickyPortal ? [] : buildServerPortalWave(1),
+      ...(isRickyPortal ? {
+        ally:createRickyAlly(RICKY_PORTAL_MAP.spawn),
+        beacons:[],
+        objective:createRickyObjective()
+      } : {})
     };
     if(isRickyPortal) emitPortalStart(socket, group);
     else io.to(group.id).emit("portal:started", {
@@ -443,6 +567,11 @@ export function createPortalInstanceManager({io, players, groups, profileManager
     instance.completed = true;
     const portal = PORTAL_CONFIGS[instance.portal?.id] || PORTAL_CONFIGS.blue;
     const now = Date.now();
+    if(isRickyPortalInstance(instance) && instance.objective){
+      instance.objective.stage="complete";
+      instance.objective.completedAt=now;
+      instance.objective.exitAt=now + RICKY_PORTAL_MAP.exitDelaySeconds * 1000;
+    }
     const firmContributors = [];
     const personalFirmSnapshots = [];
     const completionMemberIds = isRickyPortalInstance(instance) ? getJoinedMemberIds(instance) : group.members || [];
@@ -612,7 +741,20 @@ export function createPortalInstanceManager({io, players, groups, profileManager
   function handlePortalEnemyDeath(group, enemy, killerId = RICKY_ALLY_ID){
     const instance = group?.instance;
     if(!instance || instance.completed || Number(enemy?.hp || 0) > 0) return;
-    awardRickyPortalEnemyReward(group, enemy, killerId);
+    if(isRickyPortalInstance(instance)){
+      if(!enemy.noReward) awardRickyPortalEnemyReward(group, enemy, killerId);
+      if(enemy.rickyCage){
+        emitPortalComplete(group);
+        return;
+      }
+      if(enemy.rickyBoss && instance.objective && !instance.objective.cageSpawned){
+        instance.objective.stage="cage";
+        instance.objective.cageSpawned=true;
+        instance.enemies.push(createDeadlyCage());
+        emitInstance(group);
+      }
+      return;
+    }
     const alive = instance.enemies.some(entry=>entry.hp > 0);
     if(alive) return;
     if(instance.wave >= portalWaveTotal) emitPortalComplete(group);
@@ -683,6 +825,169 @@ export function createPortalInstanceManager({io, players, groups, profileManager
     }
   }
 
+  function hasAliveLeverEnemies(instance, leverId, phase = ""){
+    return (instance?.enemies || []).some(enemy=>
+      Number(enemy.hp || 0) > 0
+      && enemy.rickyLeverId === leverId
+      && (!phase || enemy.rickyLeverPhase === phase)
+    );
+  }
+
+  function openRickyBreach(group, now){
+    const instance = group?.instance;
+    const objective = instance?.objective;
+    if(!isRickyPortalInstance(instance) || !objective || objective.breachOpen) return;
+    objective.breachOpen=true;
+    objective.stage="boss";
+    objective.cinematicPlayed=true;
+    if(!objective.bossSpawned){
+      objective.bossSpawned=true;
+      instance.enemies.push(createRickyBoss());
+    }
+    io.to(`instance:${instance.id}`).emit("portal:ricky-cinematic", {
+      target:{x:RICKY_PORTAL_MAP.cage.x, y:RICKY_PORTAL_MAP.cage.y},
+      message:"A l'aiiiideeee !!",
+      durationMs:5600,
+      at:now
+    });
+    emitInstance(group);
+  }
+
+  function updateRickyLeverObjectives(group, now){
+    const instance = group?.instance;
+    const objective = instance?.objective;
+    if(!isRickyPortalInstance(instance) || !objective || instance.completed) return;
+    const activePlayers = getRickyPortalPlayers(group, {requireMap:true, aliveOnly:true});
+    for(const lever of objective.levers || []){
+      if(!lever.approached && activePlayers.some(player=>
+        Math.hypot(Number(player.state?.x || 0) - lever.x, Number(player.state?.y || 0) - lever.y) <= RICKY_PORTAL_MAP.approachRadius
+      )){
+        lever.approached=true;
+        spawnRickyLeverEnemies(group, lever, "approach");
+      }
+      if(lever.active || !lever.activation) continue;
+      const activator = activePlayers.find(player=>player.id === lever.activation.playerId);
+      if(!activator){
+        lever.activation=null;
+        continue;
+      }
+      const state = activator.state;
+      const distance = Math.hypot(Number(state.x || 0) - lever.x, Number(state.y || 0) - lever.y);
+      if(distance > RICKY_PORTAL_MAP.interactionRadius){
+        lever.activation.startedAt=0;
+        lever.activation.progress=0;
+        continue;
+      }
+      if(hasAliveLeverEnemies(instance, lever.id, "approach")){
+        lever.activation.startedAt=0;
+        lever.activation.progress=0;
+        lever.activation.blocked=true;
+        continue;
+      }
+      lever.activation.blocked=false;
+      const currentVitals = Math.max(0, Number(state.hp || 0)) + Math.max(0, Number(state.shield || 0));
+      if(!lever.activation.startedAt){
+        lever.activation.startedAt=now;
+        lever.activation.startX=Number(state.x || 0);
+        lever.activation.startY=Number(state.y || 0);
+        lever.activation.lastVitals=currentVitals;
+        lever.activation.progress=0;
+        continue;
+      }
+      const moved = Math.hypot(
+        Number(state.x || 0) - Number(lever.activation.startX || 0),
+        Number(state.y || 0) - Number(lever.activation.startY || 0)
+      ) > RICKY_LEVER_MOVE_TOLERANCE;
+      const damaged = currentVitals + .5 < Number(lever.activation.lastVitals ?? currentVitals);
+      lever.activation.lastVitals=currentVitals;
+      if(moved || damaged){
+        lever.activation.startedAt=now;
+        lever.activation.startX=Number(state.x || 0);
+        lever.activation.startY=Number(state.y || 0);
+        lever.activation.progress=0;
+        lever.activation.resetReason=damaged ? "damage" : "movement";
+        continue;
+      }
+      const durationMs = RICKY_PORTAL_MAP.channelSeconds * 1000;
+      lever.activation.progress=Math.max(0, Math.min(1, (now - lever.activation.startedAt) / durationMs));
+      if(lever.activation.progress < 1) continue;
+      lever.active=true;
+      lever.activatedAt=now;
+      lever.activation=null;
+      spawnRickyLeverEnemies(group, lever, "activate");
+    }
+    if((objective.levers || []).length && objective.levers.every(lever=>lever.active)) openRickyBreach(group, now);
+  }
+
+  function activateRickyLever(socket, leverId){
+    const player = players.get(socket.id);
+    const group = player?.groupId ? groups.get(player.groupId) : null;
+    const instance = group?.instance;
+    const leverDefinition = findRickyPortalLever(leverId);
+    const lever = instance?.objective?.levers?.find(entry=>entry.id === leverDefinition?.id);
+    if(!player || !isRickyPortalInstance(instance) || instance.completed || !lever){
+      socket.emit("portal:error", {message:"Levier indisponible."});
+      return false;
+    }
+    if(!getJoinedMemberIds(instance).includes(player.id)
+      || String(player.state?.mapId || player.mapId || "") !== getInstanceMapId(instance)){
+      socket.emit("portal:error", {message:"Tu dois etre dans le portail de Ricky."});
+      return false;
+    }
+    if(lever.active){
+      socket.emit("portal:error", {message:"Ce levier est deja active."});
+      return false;
+    }
+    lever.activation={
+      playerId:player.id,
+      playerName:player.name || "Pilote",
+      startedAt:0,
+      progress:0,
+      blocked:hasAliveLeverEnemies(instance, lever.id, "approach")
+    };
+    socket.emit("portal:ricky-lever", {ok:true, leverId:lever.id, at:Date.now()});
+    emitInstance(group);
+    return true;
+  }
+
+  function returnCompletedRickyPlayers(group, now){
+    const instance = group?.instance;
+    const objective = instance?.objective;
+    if(!isRickyPortalInstance(instance) || !instance.completed || !objective?.exitAt || now < objective.exitAt) return;
+    if(!Array.isArray(objective.returnedMemberIds)) objective.returnedMemberIds=[];
+    for(const player of getRickyPortalPlayers(group, {requireMap:true, aliveOnly:false})){
+      if(objective.returnedMemberIds.includes(player.id)) continue;
+      const profile = profileManager.getProfileForPlayer?.(player);
+      const firmId = normalizeFirmId(profile?.player?.firmId || player.account?.firmId || "astra");
+      const mapId = String(getFirmMapId(firmId, 2));
+      const point = RICKY_PORTAL_RETURN_POINTS[firmId] || RICKY_PORTAL_RETURN_POINTS.astra;
+      player.state={
+        ...player.state,
+        mapId,
+        x:point.x,
+        y:point.y,
+        vx:0,
+        vy:0,
+        enginePower:0,
+        moveTarget:null,
+        attackTargetId:"",
+        attackAmmoId:"",
+        attackWeaponClass:"",
+        updatedAt:now
+      };
+      player.mapId=mapId;
+      const memberSocket = io.sockets?.sockets?.get?.(player.id);
+      if(memberSocket) setPlayerMap?.(memberSocket, mapId);
+      profileManager.saveWorldSession?.({player, state:player.state, force:true});
+      io.to(player.id).emit("player:respawned", {
+        session:{...player.state, source:"ricky-portal-complete"},
+        message:"Ricky referme la breche derriere vous.",
+        at:now
+      });
+      objective.returnedMemberIds.push(player.id);
+    }
+  }
+
   function updateRickyCompanion(group, dt, now){
     const instance = group?.instance;
     if(!isRickyPortalInstance(instance) || instance.completed) return;
@@ -735,7 +1040,11 @@ export function createPortalInstanceManager({io, players, groups, profileManager
   }
 
   function updateRickyCompanions(dt, now = Date.now()){
-    for(const group of groups.values()) updateRickyCompanion(group, dt, now);
+    for(const group of groups.values()){
+      updateRickyLeverObjectives(group, now);
+      updateRickyCompanion(group, dt, now);
+      returnCompletedRickyPlayers(group, now);
+    }
   }
 
   function activateRickyHealBeacon(socket){
@@ -785,7 +1094,9 @@ export function createPortalInstanceManager({io, players, groups, profileManager
   return {
     buildServerPortalWave,
     emitPortalComplete,
+    handlePortalEnemyDeath,
     portalWaveTotal,
+    activateRickyLever,
     activateRickyHealBeacon,
     updateRickyCompanions,
     startPortalInstance:startRickyAwarePortalInstance

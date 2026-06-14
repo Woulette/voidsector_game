@@ -28,6 +28,7 @@ export function createEnemyHitHandler({
   buildServerPortalWave,
   emitInstance,
   emitPortalComplete,
+  handlePortalEnemyDeath,
   emitPrivatePortalAnchorKeyDrop,
   emitPrivatePortalPieceDrop,
   emitPrivateQuestItemDrop,
@@ -193,12 +194,15 @@ export function createEnemyHitHandler({
     markFirmHitOwner(enemy, player);
     applyDamageToEnemy(enemy, incoming);
     if(instance.type === "portal" && wasAlive && enemy.hp <= 0 && !instance.completed){
-      const alive = instance.enemies.some(entry=>entry.hp > 0);
-      if(!alive){
-        if(instance.wave >= portalWaveTotal) emitPortalComplete(group);
-        else{
-          instance.wave += 1;
-          instance.enemies = buildServerPortalWave(instance.wave);
+      if(handlePortalEnemyDeath) handlePortalEnemyDeath(group, enemy, attackerId);
+      else{
+        const alive = instance.enemies.some(entry=>entry.hp > 0);
+        if(!alive){
+          if(instance.wave >= portalWaveTotal) emitPortalComplete(group);
+          else{
+            instance.wave += 1;
+            instance.enemies = buildServerPortalWave(instance.wave);
+          }
         }
       }
     }

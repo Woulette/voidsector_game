@@ -41,6 +41,8 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
     multiplayer.portalInstance = null;
     multiplayer.portalAlly = null;
     multiplayer.portalBeacons = [];
+    multiplayer.portalObjective = null;
+    multiplayer.rickyCinematicEvents = [];
     emitChange();
   }
 

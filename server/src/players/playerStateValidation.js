@@ -6,6 +6,7 @@ import { WORLD_MAPS } from "../world/definitions.js";
 import { getWorldSafePortals, isPointInWorldSafeArea } from "../world/spawn.js";
 import { FIRMS, getFirmMapId } from "../../../src/data/firms.js";
 import { getServerCombatTimedBoostPercent } from "../economy/combatBoosts.js";
+import { resolveRickyPortalPoint, RICKY_PORTAL_MAP } from "../../../src/data/rickyPortal.js";
 
 const MAP_OUTSIDE_LIMIT = 1800;
 const PORTAL_TRANSFER_PADDING = 180;
@@ -423,6 +424,11 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
     corrected = true;
     reason = "transition de map invalide";
   }
+  if(mapChanged && mapId === "portal-ricky"){
+    point={...RICKY_PORTAL_MAP.spawn};
+    corrected=true;
+    reason ||= "point d'entree du portail";
+  }
 
   const elapsedSeconds = previous
     ? clamp((now - finite(previous.updatedAt, now - 50)) / 1000, 0.05, 2)
@@ -438,6 +444,24 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
       };
       corrected = true;
       reason = "vitesse impossible";
+    }
+  }
+
+  if(mapId === "portal-ricky" && previous && String(previous.mapId ?? player?.mapId ?? "") === "portal-ricky"){
+    const group = player?.groupId ? groups?.get(player.groupId) : null;
+    const instance = group?.instance;
+    if(instance?.type === "portal" && instance.portal?.id === "ricky"){
+      const resolved = resolveRickyPortalPoint(
+        previous || point,
+        point,
+        Boolean(instance.objective?.breachOpen),
+        finite(payload?.radius, previous?.radius || 48)
+      );
+      if(resolved.x !== point.x || resolved.y !== point.y){
+        point=resolved;
+        corrected=true;
+        reason ||= "collision portail";
+      }
     }
   }
 

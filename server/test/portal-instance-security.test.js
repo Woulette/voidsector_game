@@ -3,6 +3,7 @@ import test from "node:test";
 import { addInventoryItemAmount, getInventoryItemCount } from "../src/economy/inventoryStacks.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { createPortalInstanceManager } from "../src/portals/instances.js";
+import { RICKY_PORTAL_MAP } from "../../src/data/rickyPortal.js";
 
 function createFixture(){
   const events = [];
@@ -230,7 +231,16 @@ test("Ricky joins the portal with support stats, prioritizes the player for aggr
   fixture.player.connected = true;
   fixture.player.clientMode = "game";
   fixture.player.mapId = "portal-ricky";
-  fixture.player.state = {...fixture.player.state, mapId:"portal-ricky", hp:1000, maxHp:1000, shield:0, maxShield:0};
+  fixture.player.state = {
+    ...fixture.player.state,
+    mapId:"portal-ricky",
+    x:RICKY_PORTAL_MAP.spawn.x,
+    y:RICKY_PORTAL_MAP.spawn.y,
+    hp:1000,
+    maxHp:1000,
+    shield:0,
+    maxShield:0
+  };
 
   assert.equal(instance.ally.hp, 50000);
   assert.equal(instance.ally.maxHp, 50000);
@@ -264,4 +274,69 @@ test("Ricky joins the portal with support stats, prioritizes the player for aggr
   fixture.player.state.mapId = "0";
   assert.equal(fixture.manager.activateRickyHealBeacon(fixture.socket), false);
   assert.equal(instance.beacons.length, 1);
+});
+
+test("Ricky portal opens after four lever channels, then rewards the cage destruction and returns to firm map two", ()=>{
+  const fixture = createFixture();
+  const profile = createDefaultProfile();
+  profile.player.level = 10;
+  profile.completedQuestClaims.quest_lv10_maintenance_impossible = true;
+  addInventoryItemAmount(profile, "portal_anchor_key", 1);
+  fixture.setProfile(profile);
+
+  fixture.manager.startPortalInstance(fixture.socket, "ricky");
+  const group = fixture.groups.get("group-1");
+  const instance = group.instance;
+  fixture.player.connected = true;
+  fixture.player.clientMode = "game";
+  fixture.player.mapId = "portal-ricky";
+  fixture.player.state = {
+    ...fixture.player.state,
+    mapId:"portal-ricky",
+    hp:100000,
+    maxHp:100000,
+    shield:100000,
+    maxShield:100000
+  };
+
+  let now = Date.now() + 1000;
+  for(const lever of instance.objective.levers){
+    fixture.player.state.x = lever.x;
+    fixture.player.state.y = lever.y;
+    fixture.manager.updateRickyCompanions(.05, now);
+    for(const enemy of instance.enemies){
+      if(enemy.rickyLeverId === lever.id && enemy.rickyLeverPhase === "approach") enemy.hp=0;
+    }
+    assert.equal(fixture.manager.activateRickyLever(fixture.socket, lever.id), true);
+    fixture.manager.updateRickyCompanions(.05, now + 100);
+    fixture.manager.updateRickyCompanions(.05, now + 10200);
+    assert.equal(lever.active, true);
+    now += 20000;
+  }
+
+  assert.equal(instance.objective.breachOpen, true);
+  assert.equal(instance.objective.stage, "boss");
+  assert.equal(fixture.events.some(entry=>entry.event === "portal:ricky-cinematic"), true);
+
+  const boss = instance.enemies.find(enemy=>enemy.rickyBoss);
+  assert.ok(boss);
+  boss.hp=0;
+  fixture.manager.handlePortalEnemyDeath(group, boss, fixture.player.id);
+  const cage = instance.enemies.find(enemy=>enemy.rickyCage);
+  assert.equal(cage.maxHp, 30000);
+
+  cage.hp=0;
+  fixture.manager.handlePortalEnemyDeath(group, cage, fixture.player.id);
+  assert.equal(instance.completed, true);
+  assert.equal(instance.objective.stage, "complete");
+  const rewarded = fixture.getProfile();
+  assert.equal(rewarded.player.credits, profile.player.credits + 2000000);
+  assert.equal(rewarded.player.premium, profile.player.premium + 5000);
+  assert.equal(rewarded.player.xp, profile.player.xp + 400000);
+
+  fixture.manager.updateRickyCompanions(.05, instance.objective.exitAt + 1);
+  assert.equal(fixture.player.mapId, "1");
+  assert.equal(fixture.player.state.x, 4300);
+  assert.equal(fixture.player.state.y, -3300);
+  assert.equal(fixture.events.some(entry=>entry.event === "player:respawned"), true);
 });

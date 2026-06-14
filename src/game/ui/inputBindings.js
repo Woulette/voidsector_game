@@ -34,6 +34,8 @@ export function installCombatInputHandlers({
   findQuestNpcAt,
   interactQuestNpc,
   findEnemyAt,
+  findPortalObjectiveAt,
+  interactPortalObjective,
   findRemotePlayerAt,
   findCargoBoxAt,
   setCargoDestination,
@@ -79,6 +81,7 @@ export function installCombatInputHandlers({
   shiftCombatPanelTabs,
   buyCombatAmmo,
   activateRepairBot,
+  useRickySupportSkill,
   acceptQuest,
   claimQuest,
   startRefineryJob,
@@ -186,6 +189,13 @@ export function installCombatInputHandlers({
         updateHud();
         return;
       }
+      const portalObjective = findPortalObjectiveAt?.(world);
+      if(portalObjective && interactPortalObjective?.(portalObjective)){
+        mouseMoveHeld = false;
+        setMouseMoveHeld?.(false);
+        updateHud();
+        return;
+      }
       const enemy = findEnemyAt(world);
       if(enemy){
         setSelectedEnemy(enemy);
@@ -257,6 +267,10 @@ export function installCombatInputHandlers({
     if(!isRunning()) return;
     documentRef.getElementById("combatQuickPanel").classList.toggle("hidden");
     renderCombatQuickPanel();
+  });
+  documentRef.getElementById("rickySupportSkill")?.addEventListener("click", ()=>{
+    if(!isRunning()) return;
+    useRickySupportSkill?.();
   });
   documentRef.getElementById("combatQuickPanel").addEventListener("click", e=>{
     const tabShift = e.target.closest("[data-combat-tab-shift]");

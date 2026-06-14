@@ -171,6 +171,8 @@ export function createCombatPortalRunSystem({
       portalDelay:.35,
       portalCompleted:false,
       portalLives,
+      portalObjective:null,
+      portalCinematic:null,
       currentMap,
       enemies:[],
       asteroids:environment.asteroids,

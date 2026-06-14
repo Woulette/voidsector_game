@@ -60,6 +60,9 @@ export function drawMiniMap({
   rect,
   moveTarget,
   revealAllEnemies = false,
+  collisionWalls = [],
+  objectiveMarkers = [],
+  beacons = [],
   groupPlayers = [],
   groupPingTarget = null,
   getMapPortals = getDefaultMapPortals
@@ -100,6 +103,49 @@ export function drawMiniMap({
   ctx.strokeStyle = "rgba(56,189,248,.16)";
   for(let i=1;i<5;i++){ ctx.beginPath(); ctx.moveTo(x+i*w/5,y+headerH); ctx.lineTo(x+i*w/5,y+h); ctx.stroke(); }
   for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(x,y+headerH+i*(h-headerH)/4); ctx.lineTo(x+w,y+headerH+i*(h-headerH)/4); ctx.stroke(); }
+
+  for(const wall of collisionWalls || []){
+    const left = mapX(wall.minX);
+    const top = mapY(wall.minY);
+    const width = Math.max(1, mapX(wall.maxX) - left);
+    const height = Math.max(1, mapY(wall.maxY) - top);
+    ctx.fillStyle = "rgba(14,165,233,.28)";
+    ctx.strokeStyle = "rgba(56,189,248,.92)";
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(left, top, width, height);
+    ctx.strokeRect(left, top, width, height);
+  }
+  for(const marker of objectiveMarkers || []){
+    const mx = mapX(marker.x);
+    const my = mapY(marker.y);
+    ctx.save();
+    ctx.fillStyle = marker.active ? "rgba(125,211,252,.98)" : "rgba(37,99,235,.98)";
+    ctx.strokeStyle = "#bae6fd";
+    ctx.shadowColor = "rgba(56,189,248,.92)";
+    ctx.shadowBlur = 7;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(mx, my, marker.active ? 5 : 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+  for(const beacon of beacons || []){
+    const bx = mapX(beacon.x);
+    const by = mapY(beacon.y);
+    const radius = Math.max(4, Number(beacon.radius || 250) * Math.min(sx, (h - headerH) / currentMap.height));
+    ctx.save();
+    ctx.strokeStyle = "rgba(56,189,248,.95)";
+    ctx.fillStyle = "rgba(14,165,233,.22)";
+    ctx.shadowColor = "rgba(56,189,248,.82)";
+    ctx.shadowBlur = 6;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(bx, by, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
 
   if(currentMap.spawn && currentMap.spawn.kind !== "portal"){
     ctx.fillStyle = "rgba(86,255,79,.55)";

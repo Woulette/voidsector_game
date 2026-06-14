@@ -85,6 +85,7 @@ export const multiplayer = {
   portalCompleteEvents:[],
   portgunEvents:[],
   rickyHealEvents:[],
+  rickyCinematicEvents:[],
   npcDamageEvents:[],
   playerHealEvents:[],
   serverEnemies:new Map(),
@@ -94,6 +95,7 @@ export const multiplayer = {
   portalInstance:null,
   portalAlly:null,
   portalBeacons:[],
+  portalObjective:null,
   group:null,
   invites:[],
   outgoingGroupInvites:[],
@@ -433,6 +435,7 @@ export function disconnectMultiplayer(){
   multiplayer.portalCompleteEvents = [];
   multiplayer.portgunEvents = [];
   multiplayer.rickyHealEvents = [];
+  multiplayer.rickyCinematicEvents = [];
   multiplayer.npcDamageEvents = [];
   multiplayer.playerHealEvents = [];
   multiplayer.serverEnemies.clear();
@@ -442,6 +445,7 @@ export function disconnectMultiplayer(){
   multiplayer.portalInstance = null;
   multiplayer.portalAlly = null;
   multiplayer.portalBeacons = [];
+  multiplayer.portalObjective = null;
   emitChange("connection:disconnect");
 }
 
@@ -454,6 +458,7 @@ export const {
 export const requestServerLogout = socketCommands.requestServerLogout;
 export const requestPlayerRespawn = socketCommands.requestPlayerRespawn;
 export const startPortgunTeleport = socketCommands.startPortgunTeleport;
+export const activateRickyPortalLever = socketCommands.activateRickyPortalLever;
 export const setupServerProfile = socketCommands.setupServerProfile;
 export const resetServerFirmDebug = socketCommands.resetServerFirmDebug;
 export const sendChatMessage = socketCommands.sendChatMessage;

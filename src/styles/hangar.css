@@ -60,6 +60,14 @@
 
 /* BARRE D'ACTION EN JEU */
 .action-bar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:4;display:grid;grid-template-columns:repeat(9,74px);gap:7px;padding:10px;background:rgba(3,12,24,.88)}
+.ricky-support-skill{position:absolute;left:calc(50% - 365px);bottom:108px;z-index:5;width:82px;height:78px;border:1px solid rgba(56,189,248,.72);background:radial-gradient(circle at 50% 46%,rgba(14,165,233,.35),rgba(3,13,25,.96) 68%);color:#dff6ff;clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px);box-shadow:0 0 18px rgba(14,165,233,.26),inset 0 0 16px rgba(56,189,248,.12);cursor:pointer;overflow:hidden}
+.ricky-support-skill.hidden{display:none}
+.ricky-support-skill:hover,.ricky-support-skill.ready{border-color:#7dd3fc;box-shadow:0 0 24px rgba(14,165,233,.42),inset 0 0 18px rgba(56,189,248,.18)}
+.ricky-support-skill.blocked{opacity:.55;cursor:not-allowed;filter:grayscale(.38)}
+.ricky-support-skill img{position:absolute;left:20px;top:19px;width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(56,189,248,.72))}
+.ricky-support-skill-key{position:absolute;left:6px;top:4px;color:#7dd3fc;font-size:9px;font-weight:900;letter-spacing:.8px}
+.ricky-support-skill-name{position:absolute;left:4px;right:4px;bottom:4px;font-size:9px;font-weight:900;letter-spacing:.6px;text-align:center}
+.ricky-support-skill-cooldown{position:absolute;inset:0;display:grid;place-items:center;background:rgba(2,6,23,.62);color:#e0f2fe;font-size:22px;font-weight:900;text-shadow:0 0 8px #0284c7}
 .action-slot{position:relative;height:72px;border:1px solid rgba(56,189,248,.28);background:rgba(3,13,25,.88);overflow:hidden;clip-path:polygon(9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px),0 9px)}
 .action-slot:not(.empty){
   background:
@@ -86,9 +94,6 @@
 .action-slot.formation-slot img{inset:8px 5px 17px;width:64px;height:45px}
 .action-slot.extra-slot.ready{border-color:rgba(56,189,248,.42)}
 .action-slot.cpu-slot.ready{border-color:rgba(250,204,21,.86);box-shadow:0 0 18px rgba(250,204,21,.18),inset 0 0 18px rgba(56,189,248,.10)}
-.action-slot.ricky-heal-slot{border-color:rgba(74,222,128,.62);box-shadow:0 0 16px rgba(34,197,94,.18),inset 0 0 14px rgba(34,197,94,.08)}
-.action-slot.ricky-heal-slot.ready,.action-slot.ricky-heal-slot.active{border-color:rgba(134,239,172,.92);box-shadow:0 0 18px rgba(34,197,94,.26),inset 0 0 16px rgba(34,197,94,.10)}
-.action-slot.ricky-heal-slot .cooldown{background:rgba(22,163,74,.28)}
 .action-slot.extra-slot.blocked{border-color:rgba(250,204,21,.45)}
 .action-slot .slot-name{position:absolute;left:4px;right:4px;bottom:3px;font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#b7d9ec;z-index:3}
 .action-slot .cooldown{position:absolute;left:0;right:0;bottom:0;height:100%;background:rgba(14,165,233,.22);transform-origin:bottom;z-index:2;pointer-events:none}
@@ -289,12 +294,14 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
   .portals-view .portals-panel{width:100%}
   .shop-grid-full{grid-template-columns:repeat(3,minmax(0,1fr))}
   .action-bar{grid-template-columns:repeat(9,58px)}
+  .ricky-support-skill{left:calc(50% - 292px);bottom:96px}
   .action-slot{height:60px}.action-slot img{width:48px;height:38px}
 }
 @media (max-width:760px){
   .shop-grid-full,.portal-grid-full,.skill-grid-full,.slot-config-grid,.inventory-list-full{grid-template-columns:1fr}
   .shop-head{display:block}.shop-filters{justify-content:flex-start;margin-top:10px}
   .action-bar{left:8px;right:8px;bottom:8px;transform:none;grid-template-columns:repeat(9,1fr);gap:4px;padding:6px}
+  .ricky-support-skill{left:8px;bottom:70px;width:62px;height:58px}.ricky-support-skill img{left:15px;top:13px;width:32px;height:32px}.ricky-support-skill-key{font-size:7px}.ricky-support-skill-name{font-size:8px}
   .action-slot{height:50px}.action-slot img{inset:9px 2px 14px;width:100%;height:30px}.action-slot .slot-name{font-size:8px}.game-help{display:none}
   .combat-menu-button{left:auto;right:10px;bottom:70px;width:46px;height:46px}
   .combat-quick-panel{bottom:122px;width:calc(100vw - 16px)}

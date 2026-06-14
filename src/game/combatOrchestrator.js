@@ -125,7 +125,7 @@ import { installCombatInputHandlers } from "./ui/inputBindings.js";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js";
 import { createCombatPanels } from "./ui/combatPanels.js";
-import { acceptServerQuest, buyServerAmmo, buyServerDroneFormation, claimServerQuest, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
+import { acceptServerQuest, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
@@ -146,7 +146,7 @@ export function createCombatGame({renderAll, showToast}){
   let currentMap = MAPS[0];
   let teleportLock = 0;
   let player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy;
-  let gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons;
+  let gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic;
   let portalTransition = null;
   const missileSalvos = new Map();
   let radiationWarned = false;
@@ -155,7 +155,7 @@ export function createCombatGame({renderAll, showToast}){
   let deathState = null;
   const combatMetricModes = {hp:"bar", shield:"bar", xp:"bar"};
   function getCombatState(){
-    return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalTransition, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
+    return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portalTransition, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
   }
   function setCombatState(patch){
     if(Object.hasOwn(patch, "player")) player = patch.player;
@@ -180,6 +180,8 @@ export function createCombatGame({renderAll, showToast}){
     if(Object.hasOwn(patch, "portalLives")) portalLives = patch.portalLives;
     if(Object.hasOwn(patch, "portalAlly")) portalAlly = patch.portalAlly;
     if(Object.hasOwn(patch, "portalBeacons")) portalBeacons = patch.portalBeacons;
+    if(Object.hasOwn(patch, "portalObjective")) portalObjective = patch.portalObjective;
+    if(Object.hasOwn(patch, "portalCinematic")) portalCinematic = patch.portalCinematic;
     if(Object.hasOwn(patch, "portalTransition")) portalTransition = patch.portalTransition;
     if(Object.hasOwn(patch, "teleportLock")) teleportLock = patch.teleportLock;
     if(Object.hasOwn(patch, "radiationWarned")) radiationWarned = patch.radiationWarned;
@@ -937,6 +939,21 @@ export function createCombatGame({renderAll, showToast}){
     return interactions.findGroundMaterialAt(world);
   }
 
+  function findPortalObjectiveAt(world){
+    if(gameMode !== "portal" || activePortal?.id !== "ricky") return null;
+    return (portalObjective?.levers || []).find(lever=>
+      !lever.active && Math.hypot(Number(lever.x || 0) - world.x, Number(lever.y || 0) - world.y) <= 125
+    ) || null;
+  }
+
+  function interactPortalObjective(lever){
+    if(!lever?.id) return false;
+    moveTarget = {x:Number(lever.x || 0), y:Number(lever.y || 0)};
+    activateRickyPortalLever(lever.id);
+    showToast("Approche du levier et reste immobile pendant 10 secondes.");
+    return true;
+  }
+
   function setCargoDestination(box){
     return interactions.setCargoDestination(box);
   }
@@ -1080,7 +1097,7 @@ export function createCombatGame({renderAll, showToast}){
   installCombatInputHandlers({
     canvas,
     isRunning:()=>running,
-    isMovementLocked:()=>cargo.isMovementLocked?.(),
+    isMovementLocked:()=>cargo.isMovementLocked?.() || Boolean(portalCinematic),
     resize,
     saveState,
     getMouse:()=>mouse,
@@ -1105,6 +1122,8 @@ export function createCombatGame({renderAll, showToast}){
     getStationAt,
     progressMissionControl,
     findEnemyAt,
+    findPortalObjectiveAt,
+    interactPortalObjective,
     findRemotePlayerAt,
     findCargoBoxAt,
     setCargoDestination,
@@ -1158,6 +1177,7 @@ export function createCombatGame({renderAll, showToast}){
     shiftCombatPanelTabs:actions.shiftCombatPanelTabs,
     buyCombatAmmo:actions.buyCombatAmmo,
     activateRepairBot,
+    useRickySupportSkill:actions.useRickySupportSkill,
     acceptQuest:acceptQuestAction,
     claimQuest:claimQuestAction,
     startRefineryJob,

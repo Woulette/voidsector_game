@@ -1,4 +1,5 @@
 import { PORTAL_WAVE_TOTAL } from "../combatData.js";
+import { resolveRickyPortalPoint } from "../../data/rickyPortal.js";
 
 export function createCombatFrameUpdateSystem({
   multiplayer,
@@ -86,7 +87,7 @@ export function createCombatFrameUpdateSystem({
       setState({bullets:getState().bullets.filter(bullet=>bullet.owner !== "enemy")});
       for(const enemy of getState().enemies) enemy.aggro = false;
     }
-    const movementLocked = cargo.isMovementLocked?.();
+    const movementLocked = cargo.isMovementLocked?.() || Boolean(state.portalCinematic);
     if(movementLocked){
       player.vx = 0;
       player.vy = 0;
@@ -95,7 +96,17 @@ export function createCombatFrameUpdateSystem({
     }else{
       if(mouseMoveHeld && mouse) setState({moveTarget:worldFromScreen(mouse.x, mouse.y)});
       state = getState();
-      const movedTarget = updatePlayerMovement({player, moveTarget:state.moveTarget, dt, map:state.currentMap, clampToMap:state.gameMode !== "open"});
+      const isRickyPortal = state.gameMode === "portal" && state.activePortal?.id === "ricky";
+      const movedTarget = updatePlayerMovement({
+        player,
+        moveTarget:state.moveTarget,
+        dt,
+        map:state.currentMap,
+        clampToMap:state.gameMode !== "open",
+        resolvePosition:isRickyPortal
+          ? (previous, requested)=>resolveRickyPortalPoint(previous, requested, Boolean(state.portalObjective?.breachOpen), player.radius || 48)
+          : null
+      });
       setState({moveTarget:movedTarget});
     }
     syncServerControlledEnemies();
@@ -154,7 +165,8 @@ export function createCombatFrameUpdateSystem({
         portalWave:Math.max(state.portalWave || 0, Number(multiplayer.portalInstance.wave || 0)),
         portalCompleted:multiplayer.portalInstance.completed ? true : state.portalCompleted,
         portalAlly:multiplayer.portalAlly || null,
-        portalBeacons:Array.isArray(multiplayer.portalBeacons) ? multiplayer.portalBeacons : []
+        portalBeacons:Array.isArray(multiplayer.portalBeacons) ? multiplayer.portalBeacons : [],
+        portalObjective:multiplayer.portalObjective || multiplayer.portalInstance.objective || null
       });
     }
     if(player.isDead){
@@ -197,7 +209,18 @@ export function createCombatFrameUpdateSystem({
     if(player.maxShield > 0) player.shield = Math.min(player.maxShield, player.shield + (player.regen || 0)*dt);
     const targetZoom = isPlayerOutsideMap() ? 0.78 : 1;
     camera.zoom = (camera.zoom || 1) + (targetZoom - (camera.zoom || 1)) * Math.min(1, dt * 4.5);
-    updateCamera({camera, player, canvas:getCanvas(), follow:1});
+    const cinematic = getState().portalCinematic;
+    if(cinematic){
+      const elapsed = performance.now() - Number(cinematic.startedAt || 0);
+      const duration = Math.max(1000, Number(cinematic.durationMs || 5600));
+      const focus = elapsed < duration * .72
+        ? cinematic.target
+        : player;
+      updateCamera({camera, player:{x:Number(focus?.x || 0), y:Number(focus?.y || 0)}, canvas:getCanvas(), follow:.08});
+      if(elapsed >= duration) setState({portalCinematic:null});
+    }else{
+      updateCamera({camera, player, canvas:getCanvas(), follow:1});
+    }
     state = getState();
     const hudT = state.hudT - dt;
     setState({hudT});

@@ -129,21 +129,6 @@ export function createCombatActions({
   }
 
   function getActionSlotState(index){
-    const rickySupport = index === 0 ? getRickySupportState?.() : null;
-    if(rickySupport?.available){
-      const cooldown = Math.max(0, Number(rickySupport.cooldown || 0));
-      const cooldownTotal = Math.max(1, Number(rickySupport.cooldownTotal || 60));
-      return {
-        id:"ricky_heal_beacon",
-        kind:"rickyHeal",
-        name:"Balise de soin Ricky",
-        available:true,
-        usable:cooldown <= 0,
-        cooldown,
-        cooldownTotal,
-        reason:cooldown > 0 ? `Balise de soin Ricky en recharge : ${Math.ceil(cooldown)}s.` : ""
-      };
-    }
     const id = store.state.actionSlots?.[index] || null;
     if(!id) return {id:null, kind:"empty", available:false, usable:false, reason:`Slot ${index + 1} vide.`};
 
@@ -321,6 +306,23 @@ export function createCombatActions({
     updateGameActionBar();
   }
 
+  function updateRickySupportSkill(){
+    const button = document.getElementById("rickySupportSkill");
+    if(!button) return;
+    const support = getRickySupportState?.() || {};
+    const available = Boolean(support.available);
+    const cooldown = Math.max(0, Number(support.cooldown || 0));
+    button.classList.toggle("hidden", !available);
+    button.classList.toggle("ready", available && cooldown <= 0);
+    button.classList.toggle("blocked", available && cooldown > 0);
+    button.disabled = !available || cooldown > 0;
+    button.title = cooldown > 0
+      ? `Balise de soin de Ricky en recharge : ${Math.ceil(cooldown)}s`
+      : "Déployer la balise de soin de Ricky";
+    const cooldownLabel = button.querySelector(".ricky-support-skill-cooldown");
+    if(cooldownLabel) cooldownLabel.textContent = cooldown > 0 ? String(Math.ceil(cooldown)) : "";
+  }
+
   function updateGameActionBar(){
     const player = getPlayer();
     updateActionBarDom({
@@ -339,6 +341,7 @@ export function createCombatActions({
       getEffectiveAmmoCooldown,
       getAmmoCount
     });
+    updateRickySupportSkill();
   }
 
   function renderCombatQuickPanel(){
@@ -387,13 +390,6 @@ export function createCombatActions({
     if(!slotState.id) return showToast(slotState.reason || `Slot ${index+1} vide.`);
     if(slotState.available === false) return showToast(slotState.reason || "Objet indisponible sur ce vaisseau.");
     if(slotState.usable === false && slotState.reason) return showToast(slotState.reason);
-    if(slotState.kind === "rickyHeal"){
-      if(activateRickyHealBeacon?.()){
-        showToast("Balise de soin Ricky demandee.");
-        updateGameActionBar();
-      }
-      return;
-    }
     if(cpu){
       fireMissileLauncher();
       return;
@@ -429,6 +425,19 @@ export function createCombatActions({
     activeLaserSlot = index;
     showToast(`Laser actif : slot ${index+1} - ${describeAmmo(ammo)}.`);
     updateGameActionBar();
+  }
+
+  function useRickySupportSkill(){
+    const support = getRickySupportState?.() || {};
+    if(!support.available) return false;
+    if(Number(support.cooldown || 0) > 0){
+      showToast(`Balise Ricky en recharge : ${Math.ceil(Number(support.cooldown || 0))}s.`);
+      return false;
+    }
+    if(!activateRickyHealBeacon?.()) return false;
+    showToast("Balise de soin Ricky demandee.");
+    updateRickySupportSkill();
+    return true;
   }
 
   function buyCombatAmmo(id, multiplier = 1){
@@ -685,6 +694,7 @@ export function createCombatActions({
     tickAmmoCooldowns,
     renderGameActionBar,
     updateGameActionBar,
+    useRickySupportSkill,
     renderCombatQuickPanel,
     selectActionSlot,
     buyCombatAmmo,

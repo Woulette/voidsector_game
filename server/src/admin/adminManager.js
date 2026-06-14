@@ -299,7 +299,9 @@ function moderationFields(account){
 }
 
 function clampGrantAmount(amount, max = MAX_GRANT_AMOUNT){
-  return Math.max(1, Math.min(max, Math.floor(Number(amount || 1))));
+  const parsed = Math.floor(Number(amount));
+  if(!Number.isFinite(parsed)) return 1;
+  return Math.max(1, Math.min(max, parsed));
 }
 
 function ensureCargoHold(profile){

@@ -14,6 +14,7 @@ export function registerGroupHandlers(socket, context){
     players,
     promoteLeader,
     startPortalInstance,
+    activateRickyLever,
     activateRickyHealBeacon
   } = context;
 
@@ -76,5 +77,10 @@ export function registerGroupHandlers(socket, context){
   socket.on("portal:ricky-heal", ()=>{
     if(!guard("portal:ricky-heal")) return;
     activateRickyHealBeacon?.(socket);
+  });
+
+  socket.on("portal:ricky-lever", payload=>{
+    if(!guard("portal:ricky-lever")) return;
+    activateRickyLever?.(socket, payload?.leverId);
   });
 }

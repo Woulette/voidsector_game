@@ -1,7 +1,28 @@
 import { ENEMY_TYPES, PORTAL_WAVE_TOTAL } from "../combatData.js";
+import { RICKY_PORTAL_MAP } from "../../data/rickyPortal.js";
 import { makeAsteroids, makeDust, makeStars, seededRandom } from "./mapState.js";
 
 export function createPortalMap(portal){
+  if(portal?.id === "ricky"){
+    return {
+      id:"portal-ricky",
+      name:"BRECHE DE RICKY",
+      width:RICKY_PORTAL_MAP.width,
+      height:RICKY_PORTAL_MAP.height,
+      spawn:{...RICKY_PORTAL_MAP.spawn, r:240, kind:"portal", label:"POINT D'INSERTION"},
+      portal:null,
+      rickyPortal:true,
+      parallaxScene:{
+        enabled:true,
+        hideGrid:false,
+        background:["#02040b", "#090d1b", "#03050d"],
+        nebulae:[
+          {x:-1900, y:-900, r:1500, p:.08, color:"rgba(34,211,238,.12)", mid:"rgba(37,99,235,.05)", edge:"rgba(0,0,0,0)"},
+          {x:2100, y:400, r:1700, p:.06, color:"rgba(236,72,153,.10)", mid:"rgba(88,28,135,.05)", edge:"rgba(0,0,0,0)"}
+        ]
+      }
+    };
+  }
   return {
     id:`portal-${portal.id}`,
     name:portal.name.toUpperCase(),
@@ -73,10 +94,14 @@ export function buildPortalEnvironment(portalId, map){
   const rnd = seededRandom(8000 + portalId.length * 37);
   const asteroidMap = {width:map.width, height:map.height, spawn:map.spawn, portal:{x:9999,y:9999,r:0}};
   return {
-    asteroids:makeAsteroids(asteroidMap, rnd).slice(0, 24),
+    asteroids:makeAsteroids(asteroidMap, rnd).slice(0, portalId === "ricky" ? 42 : 24),
     stars:makeStars(rnd),
     dust:makeDust(rnd),
-    nebulae:[
+    nebulae:portalId === "ricky" ? [
+      {x:-2100,y:-900,r:1500,c:"rgba(34,211,238,.10)",p:.16},
+      {x:2200,y:500,r:1700,c:"rgba(236,72,153,.08)",p:.13},
+      {x:0,y:2600,r:1200,c:"rgba(250,204,21,.05)",p:.10}
+    ] : [
       {x:-920,y:-520,r:1120,c:"rgba(168,85,247,.13)",p:.20},
       {x:1120,y:-700,r:960,c:"rgba(56,189,248,.10)",p:.18},
       {x:0,y:1180,r:760,c:"rgba(251,146,60,.08)",p:.12}

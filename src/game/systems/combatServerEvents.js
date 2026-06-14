@@ -71,6 +71,8 @@ export function createCombatServerEventSystem({
       portalLives:portalStartingLives,
       portalAlly:null,
       portalBeacons:[],
+      portalObjective:event?.objective || null,
+      portalCinematic:null,
       currentMap,
       enemies:[],
       asteroids:environment.asteroids,
@@ -114,7 +116,7 @@ export function createCombatServerEventSystem({
       }
       const xp = Math.max(0, Math.round(Number(reward.xp || 0)));
       if(!rewardAppliedByServer && xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
-      spawnPortalExit();
+      if(portal.id !== "ricky") spawnPortalExit();
       rewards.showLootNotice({
         message:"Portail serveur termine",
         credits:reward.credits || 0,
@@ -125,10 +127,29 @@ export function createCombatServerEventSystem({
           ...(reward.ammoX6 ? [`+${fmt(reward.ammoX6)} munitions x6`] : [])
         ]
       });
-      showToast(`${portal.name} termine cote serveur.`);
+      showToast(portal.id === "ricky"
+        ? `${portal.name} termine. Retour automatique dans 15 secondes.`
+        : `${portal.name} termine cote serveur.`);
       saveState();
       updateHud();
     }
+  }
+
+  function applyRickyCinematicEvents(){
+    if(!multiplayer.rickyCinematicEvents?.length) return;
+    const event = multiplayer.rickyCinematicEvents.pop();
+    multiplayer.rickyCinematicEvents = [];
+    setState({
+      portalCinematic:{
+        target:event?.target || {x:0, y:-520},
+        message:event?.message || "A l'aiiiideeee !!",
+        durationMs:Number(event?.durationMs || 5600),
+        startedAt:performance.now()
+      },
+      moveTarget:null,
+      mouseMoveHeld:false
+    });
+    showToast("La breche centrale est ouverte.");
   }
 
   function applyDamageEvents(){
@@ -533,12 +554,14 @@ export function createCombatServerEventSystem({
     applyLootDropEvents();
     applyQuestProgressEvents();
     applyQuestFailureEvents();
+    applyRickyCinematicEvents();
     applyPortalEvents();
   }
 
   return {
     loadPortalArena,
     applyPortalEvents,
+    applyRickyCinematicEvents,
     applyDamageEvents,
     applyLifecycleEvents,
     applyRemoteWeaponEvents,

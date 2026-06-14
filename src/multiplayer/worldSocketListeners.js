@@ -23,10 +23,12 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
       instanceId:payload?.instanceId || null,
       portal:payload.portal,
       wave:Number(payload.wave || 0),
-      completed:Boolean(payload.completed)
+      completed:Boolean(payload.completed),
+      objective:payload?.objective || null
     } : null;
     multiplayer.portalAlly = payload?.portal ? normalizePortalAlly(payload?.ally) : null;
     multiplayer.portalBeacons = payload?.portal ? Array.isArray(payload?.beacons) ? payload.beacons : [] : [];
+    multiplayer.portalObjective = payload?.portal ? payload?.objective || null : null;
     replaceServerEnemies(payload, "coop");
     emitChange();
   });
@@ -35,10 +37,13 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
       instanceId:event?.instanceId || null,
       portal:event?.portal || null,
       wave:Number(event?.wave || 0),
-      completed:false
+      completed:false,
+      objective:event?.objective || null
     };
     multiplayer.portalAlly = null;
     multiplayer.portalBeacons = [];
+    multiplayer.portalObjective = event?.objective || null;
+    multiplayer.rickyCinematicEvents = [];
     pushEvent(multiplayer.portalStartEvents, event, 10);
     emitChange();
   });
@@ -56,6 +61,10 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     }
     pushEvent(multiplayer.rickyHealEvents, event, 10);
     emitChange("portal:ricky-heal", event);
+  });
+  socket.on("portal:ricky-cinematic", event=>{
+    pushEvent(multiplayer.rickyCinematicEvents, event, 5);
+    emitChange("portal:ricky-cinematic", event);
   });
   socket.on("npc:damage", event=>{
     pushEvent(multiplayer.npcDamageEvents, event, 30);
