@@ -98,7 +98,7 @@ export function createQuestServerEventProcessor({
         xp:Math.max(0, Math.round(Number(reward.xp || 0))),
         premium:Math.max(0, Math.round(Number(reward.premium || 0))),
         items:compactQuestRewardLabels(reward),
-        duration:10
+        duration:15
       });
     }
   }

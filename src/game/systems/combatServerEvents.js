@@ -117,15 +117,26 @@ export function createCombatServerEventSystem({
       const xp = Math.max(0, Math.round(Number(reward.xp || 0)));
       if(!rewardAppliedByServer && xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
       if(portal.id !== "ricky") spawnPortalExit();
+      const ammoRewards = [
+        ...(reward.ammoX4 ? [`+${fmt(reward.ammoX4)} munitions x4`] : []),
+        ...(reward.ammoX6 ? [`+${fmt(reward.ammoX6)} munitions x6`] : [])
+      ];
+      window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
+        kind:"portal",
+        enemyName:`Portail : ${portal.name}`,
+        label:["Recompense de portail", ...ammoRewards].join(" - "),
+        credits:Math.max(0, Math.round(Number(reward.credits || 0))),
+        xp,
+        premium:Math.max(0, Math.round(Number(reward.premium || 0))),
+        at:event.at || Date.now()
+      }}));
       rewards.showLootNotice({
         message:"Portail serveur termine",
         credits:reward.credits || 0,
         xp,
         premium:reward.premium || 0,
-        ammo:[
-          ...(reward.ammoX4 ? [`+${fmt(reward.ammoX4)} munitions x4`] : []),
-          ...(reward.ammoX6 ? [`+${fmt(reward.ammoX6)} munitions x6`] : [])
-        ]
+        ammo:ammoRewards,
+        duration:15
       });
       showToast(portal.id === "ricky"
         ? `${portal.name} termine. Retour automatique dans 15 secondes.`

@@ -100,6 +100,7 @@ test("quest claim events emit one compact reward notice per claim id", ()=>{
   assert.equal(fixture.lootNotices.length, 1);
   assert.equal(fixture.lootNotices[0].questTitle, "Quete : Test Quest");
   assert.deepEqual(fixture.lootNotices[0].items, ["+100 M-1"]);
+  assert.equal(fixture.lootNotices[0].duration, 15);
 });
 
 test("quest reward labels use each reward catalogue", ()=>{
