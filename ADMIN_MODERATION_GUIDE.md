@@ -326,6 +326,68 @@ Notes importantes :
 - Les champs non listes sont refuses.
 - Sans raison lisible, la commande est refusee.
 
+## admin:grant-player
+
+Role requis : `admin`.
+
+Permet d'ajouter un contenu serveur dans le profil d'un joueur. La raison est obligatoire, l'action est auditee, puis le serveur renvoie `profile:sync` aux sockets connectees du compte cible.
+
+Types acceptes :
+
+- `item` : equipement, extra, objet de quete stockable dans `inventoryItems`.
+- `ammo` : munitions stockees dans `ammoInventory`.
+- `resource` : ressources du hangar `cargoHold` ou de la soute vaisseau `shipCargo`.
+- `ship` : vaisseau dans `ownedShips`.
+- `drone` : drone de combat dans `ownedDroneCount`.
+- `formation` : formation drone dans `ownedDroneFormations`.
+- `portalPiece` : pieces de portail dans `portalPieces`.
+- `firmBox` : coffres de firme dans `firmBoxes`.
+
+Ajouter deux lasers :
+
+```js
+socket.emit("admin:grant-player", {
+  profileKey: "account:account-id",
+  type: "item",
+  id: "laser_mk2",
+  amount: 2,
+  reason: "Compensation support"
+});
+```
+
+Ajouter une ressource dans le hangar :
+
+```js
+socket.emit("admin:grant-player", {
+  accountId: "account-id",
+  type: "resource",
+  id: "cuivre_orbital",
+  amount: 500,
+  destination: "cargoHold",
+  reason: "Correction recompense"
+});
+```
+
+Ajouter une ressource dans la soute d'un vaisseau :
+
+```js
+socket.emit("admin:grant-player", {
+  profileKey: "account:account-id",
+  type: "resource",
+  id: "noyau_astra",
+  amount: 10,
+  destination: "shipCargo",
+  shipId: "orion",
+  reason: "Correction quete"
+});
+```
+
+Notes importantes :
+
+- `ship` et `formation` sont idempotents : si le joueur possede deja l'entree, le serveur ne cree pas de doublon.
+- Les equipements non stackables sont limites par le serveur pour eviter les dons massifs accidentels.
+- Le panel admin utilise cette route, il ne modifie jamais l'inventaire localement.
+
 ## admin:moderate-account
 
 Role requis :
@@ -434,6 +496,8 @@ Toutes les actions sensibles sont journalisees :
 
 - `admin:kick`
 - `admin:adjust-player`
+- `admin:grant-player`
+- `admin:inventory-remove`
 - `admin:ban`
 - `admin:unban`
 - `admin:mute`
@@ -467,6 +531,8 @@ admin:sync
 admin:inspect-player
 admin:kick
 admin:adjust-player
+admin:grant-player
+admin:inventory-remove
 admin:moderate-account
 admin:reset-instance
 ```
