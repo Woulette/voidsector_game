@@ -1,1 +1,1 @@
-import "./src/app.js?v=admin-panel-scroll-1";
+import "./src/app.js?v=ricky-portal-2";

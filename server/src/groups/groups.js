@@ -180,8 +180,19 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
         delete group.instance.playerLives[oldId];
         changed = true;
       }
+      if(Array.isArray(group.instance?.joinedMemberIds)){
+        const nextJoinedMemberIds = group.instance.joinedMemberIds.map(memberId=>memberId === oldId ? nextId : memberId);
+        if(nextJoinedMemberIds.some((memberId, index)=>memberId !== group.instance.joinedMemberIds[index])){
+          group.instance.joinedMemberIds = [...new Set(nextJoinedMemberIds)];
+          changed = true;
+        }
+      }
       if(Array.isArray(group.instance?.abandonedMemberIds)){
-        group.instance.abandonedMemberIds = group.instance.abandonedMemberIds.map(memberId=>memberId === oldId ? nextId : memberId);
+        const nextAbandonedMemberIds = group.instance.abandonedMemberIds.map(memberId=>memberId === oldId ? nextId : memberId);
+        if(nextAbandonedMemberIds.some((memberId, index)=>memberId !== group.instance.abandonedMemberIds[index])){
+          group.instance.abandonedMemberIds = [...new Set(nextAbandonedMemberIds)];
+          changed = true;
+        }
       }
       if(changed) emitGroup(group.id);
     }
