@@ -51,7 +51,7 @@ export function queueFirmPendingReward(state, playerKey, entry){
   const queued = {
     id:String(entry.id || `firm-reward-${Date.now()}`),
     source:String(entry.source || "firm"),
-    label:String(entry.label || "Recompense de firme"),
+    label:String(entry.label || "Récompense de firme"),
     reward:JSON.parse(JSON.stringify(entry.reward || {})),
     createdAt:Math.max(0, Number(entry.createdAt || Date.now()))
   };
@@ -86,7 +86,7 @@ export function closeFirmSeason(state, currentTime = Date.now()){
       queueFirmPendingReward(state, player.key, {
         id:`season-collective-${state.seasonStartedAt}-${player.key}`,
         source:"season-collective",
-        label:`Recompense collective - ${getFirmDefinition(player.firmId).label} Top ${firmRank}`,
+        label:`Récompense collective - ${getFirmDefinition(player.firmId).label} Top ${firmRank}`,
         reward:getFirmCollectiveReward(firmRank),
         createdAt:currentTime
       });

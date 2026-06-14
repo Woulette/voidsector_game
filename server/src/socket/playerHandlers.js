@@ -1,4 +1,15 @@
 import { validatePlayerState } from "../players/playerStateValidation.js";
+import { buildGlobalLeaderboardSnapshotFromManager } from "../players/leaderboard.js";
+import { consumeInventoryItemAmount } from "../economy/inventoryStacks.js";
+import {
+  PORTGUN_FLUID_ITEM_ID,
+  getRandomPortgunDestination,
+  hasPortgunTeleportMoved,
+  validatePortgunTeleport
+} from "../players/portgunTeleport.js";
+
+const LEADERBOARD_BROADCAST_INTERVAL_MS = 15 * 60 * 1000;
+let lastLeaderboardBroadcastAt = 0;
 
 export function registerPlayerHandlers(socket, context){
   const {
@@ -8,14 +19,17 @@ export function registerPlayerHandlers(socket, context){
     emitPlayers,
     groups,
     guard,
+    io,
     logger,
     players,
     presence,
     profileManager,
     publicPlayer,
     replaceGroupMemberId,
+    respawnPlayer,
     resumeQuestTimers,
     setPlayerMap,
+    syncPlayerLifecycle,
     syncPlayerStatusEffects,
     syncProfileForPlayer
   } = context;
@@ -28,6 +42,105 @@ export function registerPlayerHandlers(socket, context){
     if(String(process.env.NODE_ENV || "").toLowerCase() === "production") return false;
     const address = String(socket.handshake?.address || socket.conn?.remoteAddress || "");
     return address === "::1" || address === "127.0.0.1" || address.endsWith(":127.0.0.1");
+  }
+
+  function getCurrentProfileKey(){
+    const player = players.get(socket.id);
+    return profileManager.profileKeyForPlayer?.(player) || "";
+  }
+
+  function emitLeaderboard(target = socket, currentKey = getCurrentProfileKey()){
+    target?.emit?.("leaderboard:ranking", buildGlobalLeaderboardSnapshotFromManager(profileManager, {currentKey}));
+  }
+
+  function broadcastLeaderboard(){
+    const now = Date.now();
+    if(lastLeaderboardBroadcastAt && now - lastLeaderboardBroadcastAt < LEADERBOARD_BROADCAST_INTERVAL_MS) return;
+    lastLeaderboardBroadcastAt = now;
+    io?.emit?.("leaderboard:ranking", buildGlobalLeaderboardSnapshotFromManager(profileManager));
+  }
+
+  function emitPortgunError(message, extra = {}){
+    socket.emit("portgun:error", {message, ...extra, at:Date.now()});
+  }
+
+  function cancelPendingPortgun(player, reason = "cancelled", message = "Teleportation annulee."){
+    if(!player?.pendingPortgunTeleport) return false;
+    player.pendingPortgunTeleport = null;
+    const targetSocket = io?.sockets?.sockets?.get(player.id);
+    targetSocket?.emit?.("portgun:cancelled", {reason, message, at:Date.now()});
+    return true;
+  }
+
+  function completePendingPortgun(playerId, teleportId){
+    const player = players.get(playerId);
+    if(!player?.pendingPortgunTeleport || player.pendingPortgunTeleport.id !== teleportId) return;
+    const pending = player.pendingPortgunTeleport;
+    const targetSocket = io?.sockets?.sockets?.get(player.id);
+    if(!targetSocket){
+      player.pendingPortgunTeleport = null;
+      return;
+    }
+    if(!player.state || Number(player.state.hp ?? 1) <= 0 || player.state.isDead){
+      cancelPendingPortgun(player, "dead", "Teleportation annulee : vaisseau detruit.");
+      return;
+    }
+    if(hasPortgunTeleportMoved(pending, player.state)){
+      cancelPendingPortgun(player, "moved", "Teleportation annulee : ton vaisseau a bouge.");
+      return;
+    }
+
+    let validation = null;
+    const profileResult = profileManager.updateProfileForPlayer({
+      player,
+      update:profile=>{
+        validation = validatePortgunTeleport({
+          player,
+          profile,
+          targetMapId:pending.targetMapId,
+          now:Date.now(),
+          allowPending:true
+        });
+        if(!validation.ok) return validation;
+        if(!consumeInventoryItemAmount(profile, PORTGUN_FLUID_ITEM_ID, 1)){
+          return {ok:false, reason:"Il faut 1 fluide de teleportation."};
+        }
+        return {ok:true};
+      }
+    });
+    if(!profileResult.ok || !validation?.ok){
+      cancelPendingPortgun(player, "invalid", profileResult.reason || validation?.reason || "Teleportation refusee.");
+      return;
+    }
+
+    const destination = getRandomPortgunDestination(validation.map);
+    const now = Date.now();
+    player.pendingPortgunTeleport = null;
+    player.state = {
+      ...player.state,
+      mapId:String(validation.map.id),
+      x:destination.x,
+      y:destination.y,
+      vx:0,
+      vy:0,
+      enginePower:0,
+      moveTarget:null,
+      updatedAt:now,
+      source:"portgun"
+    };
+    player.mapId = String(validation.map.id);
+    setPlayerMap(targetSocket, player.state.mapId);
+    const savedProfile = profileManager.saveWorldSession({player, state:player.state, force:true}) || profileResult.profile;
+    emitProfileSync?.(player, savedProfile);
+    targetSocket.emit("portgun:complete", {
+      targetMapId:String(validation.map.id),
+      targetMapName:validation.map.displayName || validation.map.name,
+      consumedItemId:PORTGUN_FLUID_ITEM_ID,
+      session:{...player.state},
+      message:`Teleportation vers ${validation.map.displayName || validation.map.name} effectuee.`,
+      at:now
+    });
+    emitPlayers();
   }
 
   function takeoverGuestSocket(player, clientId){
@@ -72,9 +185,19 @@ export function registerPlayerHandlers(socket, context){
     if(!player.accountId) player.name = cleanName(payload?.name);
     player = takeoverGuestSocket(player, player.clientId);
     if(player.clientMode === "game") resumeQuestTimers?.(player);
-    syncProfileForPlayer(socket);
-    if(player.clientMode === "game") syncPlayerStatusEffects?.(player);
+    const waitingForAuthProfile = Boolean(payload?.hasAuthToken && !player.accountId);
+    if(!waitingForAuthProfile) syncProfileForPlayer(socket);
+    if(player.clientMode === "game" && !waitingForAuthProfile){
+      syncPlayerStatusEffects?.(player);
+      syncPlayerLifecycle?.(player);
+    }
+    emitLeaderboard();
     emitPlayers();
+  });
+
+  socket.on("leaderboard:sync", ()=>{
+    if(!guard("leaderboard:sync")) return;
+    emitLeaderboard();
   });
 
   socket.on("profile:save", payload=>{
@@ -96,6 +219,7 @@ export function registerPlayerHandlers(socket, context){
       }
       socket.emit("profile:saved", {updatedAt:incoming.updatedAt});
       emitProfileSync?.(player, incoming);
+      broadcastLeaderboard();
     }
   });
 
@@ -153,6 +277,7 @@ export function registerPlayerHandlers(socket, context){
       at:Date.now()
     });
     emitProfileSync?.(player, result.profile);
+    broadcastLeaderboard();
     emitPlayers();
   });
 
@@ -183,6 +308,7 @@ export function registerPlayerHandlers(socket, context){
     player.state = null;
     socket.emit("profile:debug-firm-reset", {firmId:result.profile?.player?.firmId, at:Date.now()});
     emitProfileSync?.(player, result.profile);
+    broadcastLeaderboard();
   });
 
   socket.on("player:state", payload=>{
@@ -196,13 +322,42 @@ export function registerPlayerHandlers(socket, context){
       return;
     }
     player.shipSwitchLockUntil = 0;
+    const now = Date.now();
+    const previousState = player.state || null;
+    const backgroundSnapshot = payload?.pageHidden === true && previousState;
+    const validationPayload = backgroundSnapshot
+      ? {
+          ...payload,
+          x:previousState.x,
+          y:previousState.y,
+          hp:previousState.hp,
+          maxHp:previousState.maxHp,
+          shield:previousState.shield,
+          maxShield:previousState.maxShield,
+          mapId:previousState.mapId,
+          moveTarget:previousState.moveTarget || payload?.moveTarget || null,
+          attackTargetId:previousState.attackTargetId || payload?.attackTargetId || "",
+          attackAmmoId:previousState.attackAmmoId || payload?.attackAmmoId || "",
+          attackWeaponClass:previousState.attackWeaponClass || payload?.attackWeaponClass || "",
+          repairBotActive:payload?.repairBotActive ?? previousState.repairBotActive ?? false
+        }
+      : payload;
+    if(backgroundSnapshot){
+      if(!Number.isFinite(Number(player.lastClientStateAt))) player.lastClientStateAt = Number(previousState.updatedAt || now);
+    }else{
+      player.lastClientStateAt = now;
+    }
     const validation = validatePlayerState({
       player,
-      payload,
+      payload:validationPayload,
       profile:profileManager.getProfileForPlayer(player),
-      groups
+      groups,
+      now
     });
     player.state = validation.state;
+    if(player.pendingPortgunTeleport && hasPortgunTeleportMoved(player.pendingPortgunTeleport, player.state)){
+      cancelPendingPortgun(player, "moved", "Teleportation annulee : ton vaisseau a bouge.");
+    }
     const nextMapId = validation.state.mapId;
     if(validation.corrected){
       logger?.warn?.("Player state corrected", {
@@ -215,7 +370,48 @@ export function registerPlayerHandlers(socket, context){
     profileManager.saveWorldSession({player, state:player.state});
     presence.syncMovementLogoutState(player);
     setPlayerMap(socket, nextMapId);
-    socket.broadcast.emit("player:state", publicPlayer(player));
+    const visibilityRooms = [...new Set([player.mapRoom, player.groupId].filter(Boolean))];
+    if(visibilityRooms.length) socket.to(visibilityRooms).emit("player:state", publicPlayer(player));
+  });
+
+  socket.on("portgun:teleport", payload=>{
+    if(!guard("portgun:teleport")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const now = Date.now();
+    const profile = profileManager.getProfileForPlayer(player);
+    const validation = validatePortgunTeleport({
+      player,
+      profile,
+      targetMapId:payload?.mapId,
+      now
+    });
+    if(!validation.ok){
+      emitPortgunError(validation.reason || "Teleportation impossible.", {
+        requirement:validation.requirement,
+        level:validation.level
+      });
+      return;
+    }
+    const teleportId = `portgun_${now}_${Math.random().toString(36).slice(2, 8)}`;
+    player.pendingPortgunTeleport = {
+      id:teleportId,
+      targetMapId:String(validation.map.id),
+      startMapId:String(player.state.mapId || player.mapId || "0"),
+      startX:Number(player.state.x || 0),
+      startY:Number(player.state.y || 0),
+      startedAt:now,
+      completeAt:now + validation.durationMs
+    };
+    socket.emit("portgun:started", {
+      id:teleportId,
+      targetMapId:String(validation.map.id),
+      targetMapName:validation.map.displayName || validation.map.name,
+      durationMs:validation.durationMs,
+      completeAt:player.pendingPortgunTeleport.completeAt,
+      at:now
+    });
+    setTimeout(()=>completePendingPortgun(socket.id, teleportId), validation.durationMs);
   });
 
   socket.on("player:laser", payload=>{
@@ -234,7 +430,7 @@ export function registerPlayerHandlers(socket, context){
       curveSide:Math.max(-1, Math.min(1, Number(start?.curveSide || 0))),
       curveStrength:Math.max(0, Math.min(160, Number(start?.curveStrength || 0)))
     }));
-    socket.broadcast.emit("player:laser", {
+    socket.to(player?.mapRoom || `map:${String(player?.mapId ?? "0")}`).emit("player:laser", {
       sourceId:socket.id,
       kind,
       ammoId:String(payload?.ammoId || "ammo_x1").slice(0, 40),
@@ -256,5 +452,10 @@ export function registerPlayerHandlers(socket, context){
   socket.on("session:logout-request", ()=>{
     if(!guard("session:logout-request")) return;
     presence.startLogout(socket);
+  });
+
+  socket.on("player:respawn", payload=>{
+    if(!guard("player:respawn")) return;
+    respawnPlayer?.(socket, payload?.choice);
   });
 }

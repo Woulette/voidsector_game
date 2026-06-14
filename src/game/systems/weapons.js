@@ -4,6 +4,10 @@ export function createWeaponSystem(deps){
   let rocketSide = -1;
   let missileSalvoSeq = 1;
 
+  function isServerTarget(enemy){
+    return Boolean(enemy?.isPlayerTarget || deps.isServerControlledEnemy?.(enemy));
+  }
+
   function getRocketDamageMultiplier(){
     const player = deps.getPlayer();
     return (1 + Number(player.extraBonus?.rocketDamageBonus || 0)) * Number(player.extraBonus?.rocketDamageMultiplier || 1);
@@ -43,10 +47,10 @@ export function createWeaponSystem(deps){
       speed:lasers.reduce((max, item)=>Math.max(max, item.weapon.speed || 0), 0) || 900,
       rollDamage(){
         const laserBoost = lasers.length > 0 ? (deps.consumeCombatBoostCharges?.("laser", lasers.length) || 0) : 0;
-        const droneBoost = droneLasers.length > 0 ? (deps.consumeCombatBoostCharges?.("drone", droneLasers.length) || 0) : 0;
+        const droneBoost = droneLasers.length > 0 ? (deps.getCombatTimedBoostPercent?.("drone") || 0) : 0;
         const shipRaw = rollLaserPoolDamage(shipLasers, bonus);
         const droneRaw = rollLaserPoolDamage(droneLasers, bonus);
-        const raw = shipRaw * (1 + laserBoost) + droneRaw * (1 + laserBoost + droneBoost);
+        const raw = shipRaw * (1 + laserBoost) + droneRaw * (1 + laserBoost) * (1 + droneBoost);
         return raw * multiplier;
       }
     };
@@ -58,7 +62,7 @@ export function createWeaponSystem(deps){
       deps.showToast(enemy.attackBlockedReason || "Cible joueur non attaquable.");
       return false;
     }
-    const serverPlayerTarget = Boolean(enemy.isPlayerTarget);
+    const serverPlayerTarget = isServerTarget(enemy);
     const player = deps.getPlayer();
     const dx = enemy.x - player.x;
     const dy = enemy.y - player.y;
@@ -206,7 +210,7 @@ export function createWeaponSystem(deps){
     const dist = Math.hypot(dx, dy) || 1;
     if(dist > (launcher.effect?.missileRange || ammo.range || 500)) return false;
     const needed = Math.max(1, Number(count || launcher.effect?.missileCapacity || 3));
-    const serverPlayerTarget = Boolean(enemy.isPlayerTarget);
+    const serverPlayerTarget = isServerTarget(enemy);
     if(serverPlayerTarget && deps.getAmmoCount(ammo.id) < needed){
       deps.showToast(`${ammo.name} insuffisant : il faut ${needed} missile(s).`);
       deps.refreshActionBar();

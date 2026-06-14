@@ -3,6 +3,10 @@ function pushEvent(target, event, limit){
   if(target.length > limit) target.splice(0, target.length - limit);
 }
 
+function normalizePortalAlly(ally){
+  return ally ? {...ally, receivedAt:performance.now()} : null;
+}
+
 export function installWorldSocketListeners({socket, multiplayer, replaceServerEnemies, emitChange, toast}){
   socket.on("group:update", group=>{
     multiplayer.group = group || null;
@@ -21,6 +25,8 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
       wave:Number(payload.wave || 0),
       completed:Boolean(payload.completed)
     } : null;
+    multiplayer.portalAlly = payload?.portal ? normalizePortalAlly(payload?.ally) : null;
+    multiplayer.portalBeacons = payload?.portal ? Array.isArray(payload?.beacons) ? payload.beacons : [] : [];
     replaceServerEnemies(payload, "coop");
     emitChange();
   });
@@ -31,6 +37,8 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
       wave:Number(event?.wave || 0),
       completed:false
     };
+    multiplayer.portalAlly = null;
+    multiplayer.portalBeacons = [];
     pushEvent(multiplayer.portalStartEvents, event, 10);
     emitChange();
   });
@@ -38,6 +46,24 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     pushEvent(multiplayer.portalCompleteEvents, event, 10);
     if(multiplayer.portalInstance) multiplayer.portalInstance.completed = true;
     emitChange();
+  });
+  socket.on("portal:ricky-heal", event=>{
+    if(event?.beacon){
+      multiplayer.portalBeacons = [
+        ...(Array.isArray(multiplayer.portalBeacons) ? multiplayer.portalBeacons.filter(beacon=>beacon.id !== event.beacon.id) : []),
+        event.beacon
+      ];
+    }
+    pushEvent(multiplayer.rickyHealEvents, event, 10);
+    emitChange("portal:ricky-heal", event);
+  });
+  socket.on("npc:damage", event=>{
+    pushEvent(multiplayer.npcDamageEvents, event, 30);
+    emitChange("npc:damage", event);
+  });
+  socket.on("player:healed", event=>{
+    pushEvent(multiplayer.playerHealEvents, event, 30);
+    emitChange("player:healed", event);
   });
   socket.on("world:enemies", payload=>{
     if(multiplayer.coopInstanceId) return;

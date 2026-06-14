@@ -30,6 +30,7 @@ export function installCombatInputHandlers({
   attackSelectedWithActiveLaser,
   selectActionSlot,
   getStationAt,
+  progressMissionControl,
   findQuestNpcAt,
   interactQuestNpc,
   findEnemyAt,
@@ -41,6 +42,7 @@ export function installCombatInputHandlers({
   setSelectedEnemy,
   renderSpawnInteractionPanel,
   openUtilityPanel,
+  selectPortgunMapTarget,
   closeUtilityPanel,
   inviteGroupMember,
   handleSocialAction,
@@ -72,6 +74,7 @@ export function installCombatInputHandlers({
   fireMissileLauncher,
   assignMissileLauncherToActionSlot,
   renderCombatQuickPanel,
+  useCombatExtra,
   setCombatPanelTab,
   shiftCombatPanelTabs,
   buyCombatAmmo,
@@ -163,7 +166,9 @@ export function installCombatInputHandlers({
       }
       const station = getStationAt(world);
       if(station){
+        const progressed = progressMissionControl?.(station);
         renderSpawnInteractionPanel(station.id);
+        if(progressed) updateHud();
         return;
       }
       const questNpc = findQuestNpcAt?.(world);
@@ -272,7 +277,7 @@ export function installCombatInputHandlers({
       return;
     }
     const extraUse = e.target.closest("[data-combat-extra-use]");
-    if(extraUse){ activateRepairBot(true); renderCombatQuickPanel(); updateHud(); return; }
+    if(extraUse){ useCombatExtra?.(extraUse.dataset.combatExtraUse); renderCombatQuickPanel(); updateHud(); return; }
     const extraSlot = e.target.closest("[data-combat-extra-slot]");
     if(extraSlot){
       const first = getActionSlots().findIndex(id=>!id);
@@ -402,6 +407,11 @@ export function installCombatInputHandlers({
       const perfToggle = e.target.closest("[data-toggle-perf-panel]");
       if(perfToggle){
         togglePerfPanelVisibility?.();
+        return;
+      }
+      const portgunTarget = e.target.closest("[data-portgun-target-map]");
+      if(portgunTarget){
+        selectPortgunMapTarget?.(portgunTarget.dataset.portgunTargetMap);
         return;
       }
       const questTabBtn = e.target.closest("[data-combat-quest-tab]");
@@ -599,6 +609,7 @@ export function installCombatInputHandlers({
     if(amount <= 0) return;
     const result = depositCombatBoostMaterial?.(slot.dataset.boostDropTarget, materialId, amount);
     if(!result?.ok) showToast(result?.reason || "Boost impossible.");
+    else if(result.serverPending) showToast("Depot de perfectionnement envoye au serveur.");
     else{
       saveState();
       showToast(`${result.materialName} charge : +${result.added} ${result.field === "charges" ? "tir(s)" : "seconde(s)"} pour ${slot.dataset.boostDropTarget}.`);

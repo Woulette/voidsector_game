@@ -19,7 +19,7 @@ function applyDamageToEnemy(enemy, incoming){
 }
 
 export function emitCombatHitToAudience({io, socket, player, group, payload}){
-  const room = group?.id || player?.mapRoom;
+  const room = player?.mapRoom || group?.id;
   if(room && io?.to) io.to(room).emit("combat:hit", payload);
   else socket.emit("combat:hit", payload);
 }
@@ -28,6 +28,7 @@ export function createEnemyHitHandler({
   buildServerPortalWave,
   emitInstance,
   emitPortalComplete,
+  emitPrivatePortalAnchorKeyDrop,
   emitPrivatePortalPieceDrop,
   emitPrivateQuestItemDrop,
   emitPrivateResourceDrops,
@@ -45,27 +46,50 @@ export function createEnemyHitHandler({
   updateLootOwner,
   portalWaveTotal
 }){
-  function applyEnemyHit(socket, payload){
-    const player = players.get(socket.id);
+  function emitCombatMissPayload({socket = null, player = null, payload = {}, enemy = null, reason = "", silent = false} = {}){
+    if(silent) return {ok:false, reason};
+    const emitter = socket || (player?.id ? io.to(player.id) : null);
+    emitter?.emit("combat:hit", {
+      enemyId:String(payload?.enemyId || enemy?.id || ""),
+      weaponClass:String(payload?.weaponClass || ""),
+      ammoId:String(payload?.ammoId || ""),
+      consumed:0,
+      hit:false,
+      damage:0,
+      mapId:String(player?.mapId ?? ""),
+      x:Number(enemy?.x ?? payload?.clientAimX ?? 0),
+      y:Number(enemy?.y ?? payload?.clientAimY ?? 0),
+      radius:Number(enemy?.radius ?? payload?.targetRadius ?? 0),
+      reason,
+      at:Date.now()
+    });
+    return {ok:false, reason};
+  }
+
+  function getAudienceSocket(socket, player){
+    return socket || {
+      id:player?.id,
+      emit(eventName, payload){
+        if(player?.id) io.to(player.id).emit(eventName, payload);
+      }
+    };
+  }
+
+  function applyEnemyHitForPlayer(player, payload, options = {}){
+    const socket = options.socket || null;
+    const attackerId = player?.id || socket?.id || "";
     const emitCombatMiss = (enemy = null, reason = "")=>{
-      socket.emit("combat:hit", {
-        enemyId:String(payload?.enemyId || enemy?.id || ""),
-        weaponClass:String(payload?.weaponClass || ""),
-        ammoId:String(payload?.ammoId || ""),
-        consumed:0,
-        hit:false,
-        damage:0,
-        mapId:String(player?.mapId ?? ""),
-        x:Number(enemy?.x ?? payload?.clientAimX ?? 0),
-        y:Number(enemy?.y ?? payload?.clientAimY ?? 0),
-        radius:Number(enemy?.radius ?? payload?.targetRadius ?? 0),
+      return emitCombatMissPayload({
+        socket,
+        player,
+        payload,
+        enemy,
         reason,
-        at:Date.now()
+        silent:options.silentMiss === true
       });
     };
     if(!player){
-      emitCombatMiss(null, "Joueur serveur introuvable.");
-      return;
+      return emitCombatMiss(null, "Joueur serveur introuvable.");
     }
     presence.markCombat(player, "attaque joueur");
 
@@ -76,13 +100,12 @@ export function createEnemyHitHandler({
         update:profile=>resolveServerCombatFire({player, profile, enemy:worldEnemy, payload})
       });
       if(!result.ok){
-        emitCombatMiss(worldEnemy, result.reason || "Tir non valide.");
-        return;
+        return emitCombatMiss(worldEnemy, result.reason || "Tir non valide.");
       }
       const incoming = result.damage || 0;
-      emitCombatHitToAudience({io, socket, player, group:null, payload:{
+      emitCombatHitToAudience({io, socket:getAudienceSocket(socket, player), player, group:null, payload:{
         enemyId:worldEnemy.id,
-        attackerId:socket.id,
+        attackerId,
         weaponClass:result.weaponClass,
         ammoId:result.ammoId,
         consumed:result.consumed,
@@ -97,57 +120,58 @@ export function createEnemyHitHandler({
       emitProfileSync?.(player, result.profile);
       if(incoming <= 0){
         emitWorldEnemies(player.mapId);
-        return;
+        return {ok:true, hit:false, enemy:worldEnemy, result};
       }
       const mapId = player.mapId;
       const wasAlive = worldEnemy.hp > 0;
-      updateLootOwner(worldEnemy, socket.id);
-      markEnemyAttackedByPlayer(worldEnemy, socket.id, incoming);
+      updateLootOwner(worldEnemy, attackerId);
+      markEnemyAttackedByPlayer(worldEnemy, attackerId, incoming);
       markFirmHitOwner(worldEnemy, player);
       applyDamageToEnemy(worldEnemy, incoming);
       if(wasAlive && worldEnemy.hp <= 0){
         emitWorldReward({
           enemy:worldEnemy,
           mapId,
-          attackerId:socket.id,
-          firmAttackerId:getFirmHitOwner(worldEnemy, players)?.id || socket.id
+          attackerId,
+          firmAttackerId:getFirmHitOwner(worldEnemy, players)?.id || attackerId
         });
-        emitPrivateQuestItemDrop({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
-        emitPrivatePortalPieceDrop({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
-        emitPrivateResourceDrops?.({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || socket.id});
-        progressServerQuestsForKill({enemy:worldEnemy, mapId, attackerId:socket.id});
+        emitPrivateQuestItemDrop({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || attackerId});
+        emitPrivatePortalPieceDrop({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || attackerId});
+        emitPrivatePortalAnchorKeyDrop?.({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || attackerId});
+        emitPrivateResourceDrops?.({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || attackerId});
+        progressServerQuestsForKill({enemy:worldEnemy, mapId, attackerId});
       }
       emitWorldEnemies(mapId);
       if(worldEnemy.hp <= 0 && !worldEnemy.respawning){
         worldEnemy.respawning = true;
         setTimeout(()=>respawnWorldEnemy(mapId, worldEnemy.id), 8000);
       }
-      return;
+      return {ok:true, hit:true, enemy:worldEnemy, result};
     }
 
     const group = player?.groupId ? groups.get(player.groupId) : null;
     const instance = group?.instance;
-    if(!instance){
-      emitCombatMiss(null, "Cible serveur introuvable.");
-      return;
+    const instanceMapId = instance?.type === "portal" ? `portal-${instance.portal?.id}` : "coop-test";
+    if(!instance
+      || instance.abandonedMemberIds?.includes(player.id)
+      || String(player.state?.mapId || player.mapId || "") !== instanceMapId){
+      return emitCombatMiss(null, "Cible serveur introuvable.");
     }
     const enemy = instance.enemies.find(entry=>entry.id === payload?.enemyId && entry.hp > 0);
     if(!enemy){
-      emitCombatMiss(null, "Cible deja detruite ou introuvable.");
-      return;
+      return emitCombatMiss(null, "Cible deja detruite ou introuvable.");
     }
     const result = profileManager.updateProfileForPlayer({
       player,
       update:profile=>resolveServerCombatFire({player, profile, enemy, payload})
     });
     if(!result.ok){
-      emitCombatMiss(enemy, result.reason || "Tir non valide.");
-      return;
+      return emitCombatMiss(enemy, result.reason || "Tir non valide.");
     }
     const incoming = result.damage || 0;
-    emitCombatHitToAudience({io, socket, player, group, payload:{
+    emitCombatHitToAudience({io, socket:getAudienceSocket(socket, player), player, group, payload:{
       enemyId:enemy.id,
-      attackerId:socket.id,
+      attackerId,
       weaponClass:result.weaponClass,
       ammoId:result.ammoId,
       consumed:result.consumed,
@@ -162,10 +186,10 @@ export function createEnemyHitHandler({
     emitProfileSync?.(player, result.profile);
     if(incoming <= 0){
       emitInstance(group);
-      return;
+      return {ok:true, hit:false, enemy, result};
     }
     const wasAlive = enemy.hp > 0;
-    markEnemyAttackedByPlayer(enemy, socket.id, incoming);
+    markEnemyAttackedByPlayer(enemy, attackerId, incoming);
     markFirmHitOwner(enemy, player);
     applyDamageToEnemy(enemy, incoming);
     if(instance.type === "portal" && wasAlive && enemy.hp <= 0 && !instance.completed){
@@ -179,7 +203,12 @@ export function createEnemyHitHandler({
       }
     }
     emitInstance(group);
+    return {ok:true, hit:true, enemy, result};
   }
 
-  return {applyEnemyHit};
+  function applyEnemyHit(socket, payload){
+    return applyEnemyHitForPlayer(players.get(socket.id), payload, {socket});
+  }
+
+  return {applyEnemyHit, applyEnemyHitForPlayer};
 }

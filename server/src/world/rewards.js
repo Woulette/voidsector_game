@@ -1,4 +1,5 @@
 import { calculateMonsterKillRankPoints } from "../../../src/data/ranks.js";
+import { enrichFirmSnapshot } from "../firms/firmSnapshots.js";
 
 function canAwardFirmMonsterPoint(playerLevel, enemyLevel){
   const level = Math.max(1, Math.floor(Number(playerLevel || 1)));
@@ -60,6 +61,7 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
           credits,
           xp,
           premium,
+          enemyName:enemy.name || enemy.type || enemy.kind,
           enemyKind:enemy.kind || enemy.type,
           enemyType:enemy.type,
           enemyLevel:enemy.level
@@ -77,12 +79,15 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
         firmId:firmProfile?.player?.firmId || firmPlayer.account?.firmId || "astra",
         awardFirmPoint:canAwardFirmMonsterPoint(firmProfile?.player?.level || 1, enemy.level)
       };
-      const snapshot = firmWarManager.addMonsterKillPoints([contributor], {enemyKind:enemy.kind || enemy.type});
+      const snapshot = enrichFirmSnapshot(
+        profileManager,
+        firmWarManager.addMonsterKillPoints([contributor], {enemyKind:enemy.kind || enemy.type})
+      );
       io.emit?.("firm:ranking", snapshot);
-      if(playerKey) io.to(firmPlayer.id).emit("firm:snapshot", firmWarManager.snapshot({
+      if(playerKey) io.to(firmPlayer.id).emit("firm:snapshot", enrichFirmSnapshot(profileManager, firmWarManager.snapshot({
         playerKey,
         profile:firmProfile
-      }));
+      })));
     }
   }
 

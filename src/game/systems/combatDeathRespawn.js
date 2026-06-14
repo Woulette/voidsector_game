@@ -14,7 +14,9 @@ export function createCombatDeathRespawnSystem({
   setTeleportLock,
   showToast,
   updateHud,
-  portalStartingLives
+  portalStartingLives,
+  multiplayer = null,
+  requestServerRespawn = null
 }){
   function getHomeMap(){
     const homeMapName = getFirmHomeMapName(store.state.player?.firmId || "astra");
@@ -132,6 +134,7 @@ export function createCombatDeathRespawnSystem({
   }
 
   function handlePlayerDeath(){
+    if(multiplayer?.authoritativeSession) return;
     const state = getState();
     const {player, gameMode, activePortal, currentMap} = state;
     if(!player || player.isDead) return;
@@ -174,6 +177,10 @@ export function createCombatDeathRespawnSystem({
   function chooseRespawn(choice){
     const {deathState, player} = getState();
     if(!deathState || !player?.isDead) return;
+    if(multiplayer?.authoritativeSession && deathState.serverAuthoritative){
+      requestServerRespawn?.(choice);
+      return;
+    }
     if(deathState.gameMode === "portal"){
       if(choice === "portal-resume") finishPortalRespawn();
       else failPortalRun();
@@ -197,10 +204,61 @@ export function createCombatDeathRespawnSystem({
     saveState();
   }
 
+  function applyServerDeath(event = {}){
+    const state = getState();
+    const {player} = state;
+    if(!player) return false;
+    player.isDead = true;
+    player.hp = 0;
+    player.vx = 0;
+    player.vy = 0;
+    player.enginePower = 0;
+    clearPoison();
+    setState({
+      portalLives:Number.isFinite(Number(event.portalLives)) ? Math.max(0, Number(event.portalLives)) : state.portalLives,
+      deathState:{...event, serverAuthoritative:true},
+      moveTarget:null,
+      mouseMoveHeld:false,
+      selectedEnemy:null,
+      bullets:state.bullets.filter(bullet=>bullet.owner !== "enemy")
+    });
+    setPanelVisible(Array.isArray(event.choices) && event.choices.length > 0);
+    showToast(event.reason === "radiation" ? "Vaisseau detruit par la zone irradiee." : "Vaisseau detruit.");
+    updateHud();
+    return true;
+  }
+
+  function applyServerRespawn(event = {}){
+    const session = event.session;
+    const {player, currentMap, gameMode} = getState();
+    if(!player || !session) return false;
+    const rawMapId = session.mapId ?? currentMap?.id;
+    const mapId = Number.isFinite(Number(rawMapId)) ? Number(rawMapId) : rawMapId;
+    const samePortal = gameMode === "portal" && String(currentMap?.id ?? "") === String(rawMapId);
+    if(samePortal){
+      resetCombatPosition({x:Number(session.x || 0), y:Number(session.y || 0), hpRatio:.5});
+    }else{
+      loadMap(mapId, Number(session.x || 0), Number(session.y || 0), {safeNow:true});
+    }
+    const next = getState().player;
+    next.maxHp = Math.max(1, Number(session.maxHp || next.maxHp || 1));
+    next.hp = Math.max(1, Math.min(next.maxHp, Number(session.hp || next.hp || 1)));
+    next.maxShield = Math.max(0, Number(session.maxShield || next.maxShield || 0));
+    next.shield = Math.max(0, Math.min(next.maxShield, Number(session.shield ?? next.shield ?? 0)));
+    next.isDead = false;
+    setState({deathState:null});
+    setPanelVisible(false);
+    showToast(event.message || "Respawn valide par le serveur.");
+    updateHud();
+    return true;
+  }
+
   return {
     setPanelVisible,
     handlePlayerDeath,
     chooseRespawn,
-    failPortalRun
+    failPortalRun,
+    applyServerDeath,
+    applyServerRespawn
   };
 }

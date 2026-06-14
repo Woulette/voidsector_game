@@ -27,8 +27,17 @@ export async function initializeDatabase(){
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'player',
       created_at BIGINT NOT NULL,
-      last_login_at BIGINT
+      last_login_at BIGINT,
+      banned_until BIGINT NOT NULL DEFAULT 0,
+      ban_reason TEXT NOT NULL DEFAULT '',
+      muted_until BIGINT NOT NULL DEFAULT 0,
+      mute_reason TEXT NOT NULL DEFAULT ''
     );
+
+    ALTER TABLE accounts ADD COLUMN IF NOT EXISTS banned_until BIGINT NOT NULL DEFAULT 0;
+    ALTER TABLE accounts ADD COLUMN IF NOT EXISTS ban_reason TEXT NOT NULL DEFAULT '';
+    ALTER TABLE accounts ADD COLUMN IF NOT EXISTS muted_until BIGINT NOT NULL DEFAULT 0;
+    ALTER TABLE accounts ADD COLUMN IF NOT EXISTS mute_reason TEXT NOT NULL DEFAULT '';
 
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -54,6 +63,24 @@ export async function initializeDatabase(){
       state_json JSONB NOT NULL,
       updated_at BIGINT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS admin_audit_log (
+      id TEXT PRIMARY KEY,
+      created_at BIGINT NOT NULL,
+      action TEXT NOT NULL,
+      reason TEXT,
+      actor_account_id TEXT,
+      actor_player_id TEXT,
+      actor_name TEXT,
+      actor_role TEXT,
+      target_key TEXT,
+      target_player_id TEXT,
+      target_name TEXT,
+      payload_json JSONB NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS admin_audit_log_created_at_idx ON admin_audit_log(created_at DESC);
+    CREATE INDEX IF NOT EXISTS admin_audit_log_target_key_idx ON admin_audit_log(target_key);
   `);
   return true;
 }

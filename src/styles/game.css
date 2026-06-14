@@ -889,11 +889,16 @@
   font:900 18px/1 var(--font);
   text-transform:uppercase;
   box-shadow:0 0 18px rgba(56,189,248,.16),inset 0 0 16px rgba(56,189,248,.05);
+  appearance:none;
+  padding:0;
 }
 .sector-map-node span,.sector-core-node span{font-size:27px;line-height:1;text-shadow:0 0 12px currentColor}
 .sector-map-node small,.sector-core-node small{font-size:8px;letter-spacing:.45px;color:#c7f4ff;opacity:.86}
 .sector-map-node.current{background:linear-gradient(180deg,rgba(250,204,21,.22),rgba(2,10,19,.94));box-shadow:0 0 24px rgba(250,204,21,.34),inset 0 0 18px rgba(250,204,21,.10)}
 .sector-map-node.future{opacity:.38;filter:grayscale(.55);border-style:dashed}
+.sector-map-node.portgun-select:not(:disabled),.sector-core-node.portgun-select:not(:disabled){cursor:pointer;box-shadow:0 0 24px rgba(74,222,128,.34),inset 0 0 18px rgba(74,222,128,.10)}
+.sector-map-node.portgun-select:not(:disabled):hover,.sector-core-node.portgun-select:not(:disabled):hover{filter:brightness(1.24)}
+.sector-map-node.portgun-select.locked,.sector-core-node.portgun-select.locked{opacity:.46;filter:grayscale(.45)}
 .sector-map-node.astra{color:#fb7185}
 .sector-map-node.cyan{color:#38bdf8}
 .sector-map-node.auric{color:#facc15}

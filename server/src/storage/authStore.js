@@ -37,7 +37,11 @@ function accountFromRow(row){
     passwordHash:row.password_hash,
     role:row.role,
     createdAt:Number(row.created_at || 0),
-    lastLoginAt:row.last_login_at === null ? null : Number(row.last_login_at || 0)
+    lastLoginAt:row.last_login_at === null ? null : Number(row.last_login_at || 0),
+    bannedUntil:Number(row.banned_until || 0),
+    banReason:row.ban_reason || "",
+    mutedUntil:Number(row.muted_until || 0),
+    muteReason:row.mute_reason || ""
   };
 }
 
@@ -91,15 +95,22 @@ export async function findAccountByUsername(username){
 export async function saveAccount(account){
   if(dbEnabled){
     await query(`
-      INSERT INTO accounts (id, email, username, username_key, password_hash, role, created_at, last_login_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO accounts (
+        id, email, username, username_key, password_hash, role, created_at, last_login_at,
+        banned_until, ban_reason, muted_until, mute_reason
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         username = EXCLUDED.username,
         username_key = EXCLUDED.username_key,
         password_hash = EXCLUDED.password_hash,
         role = EXCLUDED.role,
-        last_login_at = EXCLUDED.last_login_at
+        last_login_at = EXCLUDED.last_login_at,
+        banned_until = EXCLUDED.banned_until,
+        ban_reason = EXCLUDED.ban_reason,
+        muted_until = EXCLUDED.muted_until,
+        mute_reason = EXCLUDED.mute_reason
     `, [
       account.id,
       account.email,
@@ -108,12 +119,27 @@ export async function saveAccount(account){
       account.passwordHash,
       account.role || "player",
       Number(account.createdAt || Date.now()),
-      account.lastLoginAt ?? null
+      account.lastLoginAt ?? null,
+      Number(account.bannedUntil || 0),
+      String(account.banReason || "").slice(0, 240),
+      Number(account.mutedUntil || 0),
+      String(account.muteReason || "").slice(0, 240)
     ]);
     return account;
   }
   accounts[account.id] = account;
   writeJson(ACCOUNTS_URL, accounts);
+  return account;
+}
+
+export async function updateAccountModeration(accountId, patch = {}){
+  const account = await findAccountById(accountId);
+  if(!account) return null;
+  if(Object.hasOwn(patch, "bannedUntil")) account.bannedUntil = Math.max(0, Number(patch.bannedUntil || 0));
+  if(Object.hasOwn(patch, "banReason")) account.banReason = String(patch.banReason || "").slice(0, 240);
+  if(Object.hasOwn(patch, "mutedUntil")) account.mutedUntil = Math.max(0, Number(patch.mutedUntil || 0));
+  if(Object.hasOwn(patch, "muteReason")) account.muteReason = String(patch.muteReason || "").slice(0, 240);
+  await saveAccount(account);
   return account;
 }
 

@@ -31,7 +31,7 @@ function sanitizePendingReward(entry = {}){
   return {
     id:String(entry.id || `firm-reward-${Date.now()}`),
     source:String(entry.source || "firm"),
-    label:String(entry.label || "Recompense de firme"),
+    label:String(entry.label || "Récompense de firme"),
     reward:entry.reward && typeof entry.reward === "object" && !Array.isArray(entry.reward)
       ? JSON.parse(JSON.stringify(entry.reward))
       : {},

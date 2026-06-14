@@ -1,4 +1,4 @@
-import { getMapPortals } from "../combatData.js";
+import { getClosedMapPortals as getDefaultClosedMapPortals, getMapPortals as getDefaultMapPortals } from "../combatData.js";
 import { drawMapPortals } from "./mapPortals.js";
 import { ships } from "../../data/catalog.js";
 
@@ -1160,7 +1160,18 @@ function drawQuestNpcs({ctx, cache, currentMap}){
   }
 }
 
-function drawWorldMarkers({ctx, camera, currentMap, player, safeReady, spawnProtected, stations, cache}){
+function drawWorldMarkers({
+  ctx,
+  camera,
+  currentMap,
+  player,
+  safeReady,
+  spawnProtected,
+  stations,
+  cache,
+  getMapPortals = getDefaultMapPortals,
+  getClosedMapPortals = getDefaultClosedMapPortals
+}){
   ctx.save();
   ctx.translate(-camera.x,-camera.y);
   const spawn = currentMap.spawn;
@@ -1202,10 +1213,11 @@ function drawWorldMarkers({ctx, camera, currentMap, player, safeReady, spawnProt
   }
 
   drawMapPortals({ctx, currentMap, getMapPortals});
-  if(Array.isArray(currentMap.closedPortals) && currentMap.closedPortals.length){
+  const closedPortals = getClosedMapPortals(currentMap);
+  if(closedPortals.length){
     drawMapPortals({
       ctx,
-      currentMap:{...currentMap, portal:null, portals:currentMap.closedPortals},
+      currentMap:{...currentMap, portal:null, portals:closedPortals},
       getMapPortals:map=>map.portals || []
     });
   }

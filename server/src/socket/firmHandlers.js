@@ -1,4 +1,5 @@
 import { applyFirmPendingRewards, applyFirmQuestClaimReward, buyFirmShopItem, openFirmBox } from "../firms/firmEconomy.js";
+import { enrichFirmSnapshot } from "../firms/firmSnapshots.js";
 
 export function registerFirmHandlers(socket, context){
   const {emitProfileSync, firmWarManager, guard, players, profileManager} = context;
@@ -13,9 +14,9 @@ export function registerFirmHandlers(socket, context){
 
   function emitSnapshot({includeShop = false} = {}){
     const current = getPlayerContext();
-    const snapshot = current
+    const snapshot = enrichFirmSnapshot(profileManager, current
       ? firmWarManager.snapshot({...current, includeShop})
-      : firmWarManager.snapshot();
+      : firmWarManager.snapshot());
     socket.emit("firm:snapshot", snapshot);
     socket.emit("firm:ranking", snapshot);
   }

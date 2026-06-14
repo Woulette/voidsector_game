@@ -31,6 +31,7 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
     let best = null;
     let bestDistance = Infinity;
     for(const player of candidates){
+      if(player?.npcTarget) continue;
       if(!canTargetPlayer(enemy, player, map, now)) continue;
       const dx = Number(player.state.x || 0) - enemy.x;
       const dy = Number(player.state.y || 0) - enemy.y;
@@ -227,7 +228,9 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
       enemy.moving = false;
     }
 
-    const attackTarget = decision.targetPlayerId ? players.get(decision.targetPlayerId) : null;
+    const attackTarget = decision.targetPlayerId
+      ? players.get(decision.targetPlayerId) || mapPlayers.find(player=>player.id === decision.targetPlayerId) || null
+      : null;
     const canAttackTarget = canTargetPlayer(enemy, attackTarget, map, now);
     const attackDistance = attackTarget?.state
       ? Math.hypot(Number(attackTarget.state.x || 0) - enemy.x, Number(attackTarget.state.y || 0) - enemy.y)

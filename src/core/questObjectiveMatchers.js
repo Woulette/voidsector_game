@@ -32,6 +32,20 @@ export function objectiveMatchesSpaceCasterUse(objective = {}){
   return objective.type === "space_caster_use";
 }
 
+export function objectiveMatchesPortalComplete(objective = {}, portalId){
+  if(objective.type !== "portal_complete") return false;
+  if(objective.portalId && objective.portalId !== portalId) return false;
+  return true;
+}
+
+export function objectiveMatchesMissionControl(objective = {}, stationId, mapName){
+  if(objective.type !== "mission_control") return false;
+  if(objective.stationId && objective.stationId !== stationId) return false;
+  if(Array.isArray(objective.zones) && objective.zones.length && !objective.zones.includes(mapName)) return false;
+  if(objective.zone && objective.zone !== mapName) return false;
+  return true;
+}
+
 export function objectiveMatchesCoordinateVisit(objective = {}, point = {}, mapName){
   if(objective.type !== "visit_coordinates") return false;
   if(Array.isArray(objective.zones) && objective.zones.length && !objective.zones.includes(mapName)) return false;

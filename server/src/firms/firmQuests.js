@@ -232,7 +232,7 @@ export function acceptFirmDailyQuest(state, {questId, contributor, now = Date.no
   ensureFirmSeasonalQuests(state, now);
   const cleanQuestId = String(questId || "");
   const quest = state.dailyQuests?.[cleanQuestId] || state.seasonalQuests?.[cleanQuestId];
-  if(!quest || now < Number(quest.startedAt || 0) || now >= Number(quest.endsAt || 0)) return {ok:false, reason:"Quete de firme indisponible."};
+  if(!quest || now < Number(quest.startedAt || 0) || now >= Number(quest.endsAt || 0)) return {ok:false, reason:"Quête de firme indisponible."};
   const firmId = normalizeFirmId(contributor?.firmId || "astra");
   const progress = quest.firms?.[firmId];
   const key = String(contributor?.key || "");
@@ -246,15 +246,15 @@ export function claimFirmQuestReward(state, {questId, contributor, now = Date.no
   const cleanQuestId = String(questId || "");
   const quest = state.dailyQuests?.[cleanQuestId] || state.seasonalQuests?.[cleanQuestId];
   if(!quest || now < Number(quest.startedAt || 0) || now >= Number(quest.endsAt || 0)){
-    return {ok:false, reason:"Quete de firme indisponible."};
+    return {ok:false, reason:"Quête de firme indisponible."};
   }
   ensureQuestFirms(quest);
   const firmId = normalizeFirmId(contributor?.firmId || "astra");
   const progress = quest.firms?.[firmId];
   const key = String(contributor?.key || "");
   if(!progress || !key) return {ok:false, reason:"Profil de firme introuvable."};
-  if(!progress.completedAt) return {ok:false, reason:"Cette quete de firme n'est pas terminee."};
-  if(progress.claimed?.[key]) return {ok:false, reason:"Recompense de quete deja recuperee."};
+  if(!progress.completedAt) return {ok:false, reason:"Cette quête de firme n'est pas terminée."};
+  if(progress.claimed?.[key]) return {ok:false, reason:"Récompense de quête déjà récupérée."};
   const reward = {firmatons:Math.max(0, Math.floor(Number(quest.claimFirmatons ?? DEFAULT_CLAIM_FIRMATONS)))};
   progress.claimed[key] = {
     key,
@@ -317,7 +317,7 @@ function buildQuestSnapshot(quests, playerKey, playerFirmId, now){
           rewardLabel:`Top ${player.rank}`,
           firmatons:0,
           expectedReward:null
-        } : {rank:null, contribution:0, rewardLabel:"Non classe", firmatons:0, expectedReward:null},
+        } : {rank:null, contribution:0, rewardLabel:"Non classé", firmatons:0, expectedReward:null},
         accepted:true,
         leaders:contributors.slice(0, 10).map(entry=>({name:entry.name, rank:entry.rank, contribution:entry.amount}))
       };

@@ -13,6 +13,36 @@ export function createSocketCommands({multiplayer}){
     requestServerLogout(){
       return emit(multiplayer, "session:logout-request");
     },
+    requestPlayerRespawn(choice){
+      return choice ? emit(multiplayer, "player:respawn", {choice}) : false;
+    },
+    startPortgunTeleport(mapId){
+      return mapId !== undefined && mapId !== null ? emit(multiplayer, "portgun:teleport", {mapId}) : false;
+    },
+    requestLeaderboardSync(){
+      return emit(multiplayer, "leaderboard:sync");
+    },
+    requestAdminSync({profileLimit = 0, auditLimit = 50} = {}){
+      return emit(multiplayer, "admin:sync", {profileLimit, auditLimit});
+    },
+    inspectAdminPlayer(payload = {}){
+      return emit(multiplayer, "admin:inspect-player", payload);
+    },
+    kickAdminPlayer(payload = {}){
+      return emit(multiplayer, "admin:kick", payload);
+    },
+    adjustAdminPlayer(payload = {}){
+      return emit(multiplayer, "admin:adjust-player", payload);
+    },
+    removeAdminInventoryItem(payload = {}){
+      return emit(multiplayer, "admin:inventory-remove", payload);
+    },
+    moderateAdminAccount(payload = {}){
+      return emit(multiplayer, "admin:moderate-account", payload);
+    },
+    resetAdminInstance(payload = {}){
+      return emit(multiplayer, "admin:reset-instance", payload);
+    },
     setupServerProfile({name, firmId} = {}){
       return emit(multiplayer, "profile:setup", {name, firmId});
     },
@@ -69,6 +99,9 @@ export function createSocketCommands({multiplayer}){
     },
     refineServerShipCargo({recipeId, amount = 1, shipId} = {}){
       return recipeId ? emit(multiplayer, "refinery:ship-cargo-refine", {recipeId, amount, shipId}) : false;
+    },
+    depositServerCombatBoostMaterial({target, materialId, amount = 1, shipId} = {}){
+      return target && materialId ? emit(multiplayer, "refinery:combat-boost-deposit", {target, materialId, amount, shipId}) : false;
     },
     buyServerAmmo(id, multiplier = 1){
       return emit(multiplayer, "shop:buy-ammo", {id, multiplier});

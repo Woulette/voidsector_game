@@ -25,8 +25,25 @@ function publicAccount(account){
     username:account.username,
     role:account.role || "player",
     createdAt:account.createdAt,
-    lastLoginAt:account.lastLoginAt || null
+    lastLoginAt:account.lastLoginAt || null,
+    bannedUntil:Math.max(0, Number(account.bannedUntil || 0)),
+    banReason:String(account.banReason || ""),
+    mutedUntil:Math.max(0, Number(account.mutedUntil || 0)),
+    muteReason:String(account.muteReason || "")
   };
+}
+
+export function isAccountBanned(account, at = Date.now()){
+  return Math.max(0, Number(account?.bannedUntil || 0)) > at;
+}
+
+export function isAccountMuted(account, at = Date.now()){
+  return Math.max(0, Number(account?.mutedUntil || 0)) > at;
+}
+
+function moderationDateText(timestamp){
+  if(!timestamp) return "";
+  return new Date(timestamp).toLocaleString("fr-FR");
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")){
@@ -62,7 +79,11 @@ export async function registerAccount({email, username, password} = {}){
     passwordHash:hashPassword(rawPassword),
     role:"player",
     createdAt:now,
-    lastLoginAt:now
+    lastLoginAt:now,
+    bannedUntil:0,
+    banReason:"",
+    mutedUntil:0,
+    muteReason:""
   };
   await saveAccount(account);
   return publicAccount(account);
@@ -74,6 +95,9 @@ export async function loginAccount({login, password} = {}){
     ? await findAccountByEmail(cleanLogin)
     : await findAccountByUsername(cleanLogin);
   if(!account || !verifyPassword(password, account.passwordHash)) throw new Error("Identifiants invalides.");
+  if(isAccountBanned(account)){
+    throw new Error(`Compte banni jusqu'au ${moderationDateText(account.bannedUntil)}.`);
+  }
   account.lastLoginAt = Date.now();
   await saveAccount(account);
   return publicAccount(account);

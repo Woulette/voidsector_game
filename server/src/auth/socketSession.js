@@ -1,4 +1,6 @@
-export function createSocketSessionManager({io, players, profileManager, cleanName, emitPlayers, replaceGroupMemberId, resumeQuestTimers, setPlayerMap, syncPlayerStatusEffects}){
+import { publicAccount } from "./accounts.js";
+
+export function createSocketSessionManager({io, players, profileManager, cleanName, emitPlayers, replaceGroupMemberId, resumeQuestTimers, setPlayerMap, syncPlayerLifecycle, syncPlayerStatusEffects}){
   function publicAuthPayload({account, session = null}){
     return {
       account,
@@ -14,6 +16,7 @@ export function createSocketSessionManager({io, players, profileManager, cleanNa
     player.account = account;
     player.name = cleanName(account.username || player.name);
     player.sessionExpiresAt = session?.expiresAt || player.sessionExpiresAt || null;
+    socket.emit("account:role", {account:publicAccount(account), at:Date.now()});
     emitPlayers();
   }
 
@@ -64,6 +67,7 @@ export function createSocketSessionManager({io, players, profileManager, cleanNa
       if(existing.mapRoom) existingSocket?.leave(existing.mapRoom);
       players.delete(existing.id);
       players.set(socket.id, nextPlayer);
+      socket.emit("account:role", {account:publicAccount(account), at:Date.now()});
       if(nextPlayer.groupId) socket.join(nextPlayer.groupId);
       replaceGroupMemberId(existing.id, socket.id);
       existingSocket?.disconnect(true);
@@ -92,6 +96,7 @@ export function createSocketSessionManager({io, players, profileManager, cleanNa
     }
     if(isGameClient) resumeQuestTimers?.(player);
     if(isGameClient) syncPlayerStatusEffects?.(player);
+    if(isGameClient) syncPlayerLifecycle?.(player);
     return resumeSession;
   }
 

@@ -1,5 +1,7 @@
 import { COOP_ENEMY_TYPES } from "../world/definitions.js";
 
+export const MAX_GROUP_MEMBERS = 4;
+
 export function createGroupManager({io, players, publicPlayer, publicEnemy, emitPlayers}){
   const groups = new Map();
   let groupSeq = 1;
@@ -16,14 +18,64 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
 
   function emitInstance(group){
     if(!group?.instance) return;
-    io.to(group.id).emit("coop:enemies", {
+    const payload = {
       instanceId:group.instance.id,
       spawn:group.instance.spawn,
       portal:group.instance.portal || null,
       wave:group.instance.wave || 0,
       completed:Boolean(group.instance.completed),
-      enemies:group.instance.enemies.filter(enemy=>enemy.hp > 0).map(publicEnemy)
-    });
+      enemies:group.instance.enemies.filter(enemy=>enemy.hp > 0).map(publicEnemy),
+      ally:publicInstanceAlly(group.instance),
+      beacons:publicInstanceBeacons(group.instance)
+    };
+    if(group.instance.type === "portal" && Array.isArray(group.instance.joinedMemberIds)){
+      for(const memberId of group.instance.joinedMemberIds){
+        if(group.instance.abandonedMemberIds?.includes(memberId)) continue;
+        io.to(memberId).emit("coop:enemies", payload);
+      }
+      return;
+    }
+    io.to(group.id).emit("coop:enemies", payload);
+  }
+
+  function publicInstanceAlly(instance){
+    const ally = instance?.ally;
+    if(!ally || ally.alive === false) return null;
+    return {
+      id:ally.id,
+      name:ally.name,
+      img:ally.img,
+      x:ally.x,
+      y:ally.y,
+      vx:ally.vx || 0,
+      vy:ally.vy || 0,
+      angle:ally.angle || 0,
+      hp:ally.hp,
+      maxHp:ally.maxHp,
+      shield:ally.shield,
+      maxShield:ally.maxShield,
+      radius:ally.radius,
+      width:ally.width,
+      height:ally.height,
+      attackRange:ally.attackRange,
+      healCooldown:Math.max(0, (Number(ally.healCooldownUntil || 0) - Date.now()) / 1000),
+      healCooldownTotal:Math.max(1, Number(ally.healCooldownMs || 60000) / 1000),
+      alive:true
+    };
+  }
+
+  function publicInstanceBeacons(instance){
+    const now = Date.now();
+    return (Array.isArray(instance?.beacons) ? instance.beacons : [])
+      .filter(beacon=>Number(beacon.expiresAt || 0) > now)
+      .map(beacon=>({
+        id:beacon.id,
+        x:beacon.x,
+        y:beacon.y,
+        radius:beacon.radius,
+        heal:beacon.heal,
+        expiresAt:beacon.expiresAt
+      }));
   }
 
   function emitGroup(groupId){
@@ -34,6 +86,30 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
       io.to(memberId).emit("group:update", payload);
     }
     emitInstance(group);
+  }
+
+  function resetGroupInstance(groupId, reason = ""){
+    const group = groups.get(String(groupId || ""));
+    if(!group?.instance) return false;
+    const previousInstanceId = group.instance.id || null;
+    group.instance = null;
+    io.to(group.id).emit("coop:enemies", {
+      instanceId:null,
+      previousInstanceId,
+      spawn:null,
+      portal:null,
+      wave:0,
+      completed:false,
+      enemies:[]
+    });
+    io.to(group.id).emit("group:instance-reset", {
+      groupId:group.id,
+      previousInstanceId,
+      reason:String(reason || ""),
+      at:Date.now()
+    });
+    emitGroup(group.id);
+    return true;
   }
 
   function removePlayerFromGroup(playerId){
@@ -68,6 +144,14 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
         group.leaderId = nextId;
         changed = true;
       }
+      if(group.instance?.playerLives && Object.hasOwn(group.instance.playerLives, oldId)){
+        group.instance.playerLives[nextId] = group.instance.playerLives[oldId];
+        delete group.instance.playerLives[oldId];
+        changed = true;
+      }
+      if(Array.isArray(group.instance?.abandonedMemberIds)){
+        group.instance.abandonedMemberIds = group.instance.abandonedMemberIds.map(memberId=>memberId === oldId ? nextId : memberId);
+      }
       if(changed) emitGroup(group.id);
     }
   }
@@ -100,6 +184,12 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
     const player = players.get(socket.id);
     const invite = group?.invites?.get(socket.id);
     if(!group || !player || !invite || invite.expiresAt < Date.now()) return false;
+    if(group.members.length >= MAX_GROUP_MEMBERS){
+      group.invites.delete(socket.id);
+      socket.emit("group:error", {message:`Groupe complet (${MAX_GROUP_MEMBERS} joueurs maximum).`});
+      io.to(group.leaderId).emit("group:invite-resolved", {playerId:socket.id, playerName:player.name, accepted:false});
+      return false;
+    }
     group.invites.delete(socket.id);
     leaveCurrentGroup(socket);
     group.members.push(socket.id);
@@ -118,6 +208,7 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
     let group = inviter.groupId ? groups.get(inviter.groupId) : null;
     if(!group) group = createGroup(socket);
     if(!group || group.leaderId !== socket.id) return {ok:false, reason:"Seul le chef peut inviter un joueur."};
+    if(group.members.length >= MAX_GROUP_MEMBERS) return {ok:false, reason:`Groupe complet (${MAX_GROUP_MEMBERS} joueurs maximum).`};
     const expiresAt = Date.now() + 30000;
     group.invites.set(target.id, {fromId:socket.id, expiresAt});
     io.to(target.id).emit("group:invite", {
@@ -214,6 +305,7 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
     leaveCurrentGroup,
     removePlayerFromGroup,
     replaceGroupMemberId,
+    resetGroupInstance,
     promoteLeader
   };
 }

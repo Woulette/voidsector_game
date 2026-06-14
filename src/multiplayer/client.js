@@ -24,6 +24,7 @@ const SERVER_STORAGE_KEY = "voidsector-multiplayer-server";
 const NAME_STORAGE_KEY = "voidsector-multiplayer-name";
 const AUTH_TOKEN_STORAGE_KEY = "voidsector-auth-token";
 const CLIENT_ID_STORAGE_KEY = "voidsector-client-id";
+const LEADERBOARD_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 
 function getClientId(){
   let id = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
@@ -38,6 +39,7 @@ export const multiplayer = {
   socket:null,
   connected:false,
   connecting:false,
+  authoritativeSession:false,
   playerId:null,
   auth:{
     account:null,
@@ -56,6 +58,9 @@ export const multiplayer = {
   remoteEffects:[],
   enemyAttackEvents:[],
   playerDamageEvents:[],
+  playerDeathEvents:[],
+  playerRespawnEvents:[],
+  playerRadiationEvents:[],
   playerStatusEffectEvents:[],
   playerRewardEvents:[],
   chatMessages:[],
@@ -78,16 +83,33 @@ export const multiplayer = {
   spaceCasterEvents:[],
   portalStartEvents:[],
   portalCompleteEvents:[],
+  portgunEvents:[],
+  rickyHealEvents:[],
+  npcDamageEvents:[],
+  playerHealEvents:[],
   serverEnemies:new Map(),
   serverEnemyScope:null,
   coopInstanceId:null,
   coopSpawn:null,
   portalInstance:null,
+  portalAlly:null,
+  portalBeacons:[],
   group:null,
   invites:[],
   outgoingGroupInvites:[],
   groupPing:null,
   social:{friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]},
+  socialSync:{lastProfileSyncRequestedAt:0},
+  leaderboardRanking:null,
+  leaderboardSync:{lastRequestedAt:0, lastReceivedAt:0},
+  admin:{
+    snapshot:null,
+    inspect:null,
+    pending:false,
+    error:"",
+    lastSyncAt:0,
+    lastAction:null
+  },
   firmRanking:null,
   firmSnapshot:null,
   firmEvents:[],
@@ -145,6 +167,21 @@ const auth = createMultiplayerAuthController({
   toast
 });
 
+export function requestLeaderboardSync({force = false} = {}){
+  if(!multiplayer.connected || !multiplayer.socket) return false;
+  const now = Date.now();
+  const lastRequestedAt = Number(multiplayer.leaderboardSync?.lastRequestedAt || 0);
+  if(!force && lastRequestedAt && now - lastRequestedAt < LEADERBOARD_SYNC_INTERVAL_MS) return false;
+  const sent = socketCommands.requestLeaderboardSync();
+  if(sent){
+    multiplayer.leaderboardSync = {
+      ...(multiplayer.leaderboardSync || {}),
+      lastRequestedAt:now
+    };
+  }
+  return sent;
+}
+
 function loadSocketIo(serverUrl = multiplayer.serverUrl){
   if(window.io) return Promise.resolve(window.io);
   return new Promise((resolve, reject)=>{
@@ -200,8 +237,14 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     socket.on("connect", ()=>{
       multiplayer.connected = true;
       multiplayer.connecting = false;
+      multiplayer.authoritativeSession = true;
       multiplayer.playerId = socket.id;
-      socket.emit("player:hello", {name:multiplayer.name, clientMode:multiplayer.clientMode, clientId:multiplayer.clientId});
+      socket.emit("player:hello", {
+        name:multiplayer.name,
+        clientMode:multiplayer.clientMode,
+        clientId:multiplayer.clientId,
+        hasAuthToken:Boolean(multiplayer.auth.token)
+      });
       if(multiplayer.auth.token) socket.emit("auth:session", {token:multiplayer.auth.token});
       auth.sendPendingAction();
       toast("Connecte au serveur multi.");
@@ -224,6 +267,16 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     });
     socket.on("auth:success", payload=>{
       auth.setSuccess(payload);
+    });
+    socket.on("account:role", payload=>{
+      const account = payload?.account || null;
+      if(account?.id){
+        multiplayer.auth.account = {
+          ...(multiplayer.auth.account || {}),
+          ...account
+        };
+        emitChange("auth:role", payload);
+      }
     });
     socket.on("auth:error", payload=>{
       if(multiplayer.auth.token && String(payload?.message || "").toLowerCase().includes("session")){
@@ -267,7 +320,51 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       multiplayer.logout = {pending:false, completeAt:null, reason:""};
       emitChange("logout:complete", payload);
     });
-    installPlayerSocketListeners({socket, multiplayer, upsertRemotePlayer, addRemoteEffect, emitChange, toast});
+    socket.on("admin:snapshot", payload=>{
+      multiplayer.admin.snapshot = payload?.snapshot || null;
+      multiplayer.admin.pending = false;
+      multiplayer.admin.error = "";
+      multiplayer.admin.lastSyncAt = Date.now();
+      emitChange("admin:snapshot", payload);
+    });
+    socket.on("admin:player", payload=>{
+      multiplayer.admin.inspect = payload || null;
+      multiplayer.admin.pending = false;
+      multiplayer.admin.error = "";
+      emitChange("admin:player", payload);
+    });
+    socket.on("admin:kicked", payload=>{
+      multiplayer.admin.lastAction = {type:"kick", payload, at:Date.now()};
+      toast("Kick admin applique.");
+      emitChange("admin:kicked", payload);
+    });
+    socket.on("admin:adjusted", payload=>{
+      multiplayer.admin.lastAction = {type:"adjust", payload, at:Date.now()};
+      toast("Correction admin appliquee.");
+      emitChange("admin:adjusted", payload);
+    });
+    socket.on("admin:inventory-removed", payload=>{
+      multiplayer.admin.lastAction = {type:"inventory-remove", payload, at:Date.now()};
+      toast("Objet supprime du profil.");
+      emitChange("admin:inventory-removed", payload);
+    });
+    socket.on("admin:moderated", payload=>{
+      multiplayer.admin.lastAction = {type:"moderation", payload, at:Date.now()};
+      toast("Moderation appliquee.");
+      emitChange("admin:moderated", payload);
+    });
+    socket.on("admin:instance-reset", payload=>{
+      multiplayer.admin.lastAction = {type:"reset-instance", payload, at:Date.now()};
+      toast("Instance reinitialisee.");
+      emitChange("admin:instance-reset", payload);
+    });
+    socket.on("admin:error", payload=>{
+      multiplayer.admin.pending = false;
+      multiplayer.admin.error = payload?.message || "Action admin refusee.";
+      toast(multiplayer.admin.error);
+      emitChange("admin:error", payload);
+    });
+    installPlayerSocketListeners({socket, multiplayer, requestLeaderboardSync, upsertRemotePlayer, addRemoteEffect, emitChange, toast});
     installChatSocketListeners({socket, multiplayer, emitChange, toast});
     installEconomySocketListeners({socket, multiplayer, emitChange, toast});
     installProgressionSocketListeners({socket, multiplayer, emitChange, toast});
@@ -288,11 +385,16 @@ export function disconnectMultiplayer(){
   multiplayer.socket = null;
   multiplayer.connected = false;
   multiplayer.connecting = false;
+  multiplayer.authoritativeSession = false;
   multiplayer.group = null;
   multiplayer.invites = [];
   multiplayer.outgoingGroupInvites = [];
   multiplayer.groupPing = null;
   multiplayer.social = {friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]};
+  multiplayer.socialSync = {lastProfileSyncRequestedAt:0};
+  multiplayer.leaderboardRanking = null;
+  multiplayer.leaderboardSync = {lastRequestedAt:0, lastReceivedAt:0};
+  multiplayer.admin = {snapshot:null, inspect:null, pending:false, error:"", lastSyncAt:0, lastAction:null};
   multiplayer.firmRanking = null;
   multiplayer.firmSnapshot = null;
   multiplayer.firmEvents = [];
@@ -300,6 +402,9 @@ export function disconnectMultiplayer(){
   multiplayer.remoteEffects = [];
   multiplayer.enemyAttackEvents = [];
   multiplayer.playerDamageEvents = [];
+  multiplayer.playerDeathEvents = [];
+  multiplayer.playerRespawnEvents = [];
+  multiplayer.playerRadiationEvents = [];
   multiplayer.playerStatusEffectEvents = [];
   multiplayer.playerRewardEvents = [];
   multiplayer.chatMessages = [];
@@ -321,11 +426,17 @@ export function disconnectMultiplayer(){
   multiplayer.spaceCasterEvents = [];
   multiplayer.portalStartEvents = [];
   multiplayer.portalCompleteEvents = [];
+  multiplayer.portgunEvents = [];
+  multiplayer.rickyHealEvents = [];
+  multiplayer.npcDamageEvents = [];
+  multiplayer.playerHealEvents = [];
   multiplayer.serverEnemies.clear();
   multiplayer.serverEnemyScope = null;
   multiplayer.coopInstanceId = null;
   multiplayer.coopSpawn = null;
   multiplayer.portalInstance = null;
+  multiplayer.portalAlly = null;
+  multiplayer.portalBeacons = [];
   emitChange("connection:disconnect");
 }
 
@@ -336,6 +447,8 @@ export const {
 } = auth;
 
 export const requestServerLogout = socketCommands.requestServerLogout;
+export const requestPlayerRespawn = socketCommands.requestPlayerRespawn;
+export const startPortgunTeleport = socketCommands.startPortgunTeleport;
 export const setupServerProfile = socketCommands.setupServerProfile;
 export const resetServerFirmDebug = socketCommands.resetServerFirmDebug;
 export const sendChatMessage = socketCommands.sendChatMessage;
@@ -373,6 +486,7 @@ export const {
   startServerRefineryShipment,
   rushServerRefineryShipment,
   refineServerShipCargo,
+  depositServerCombatBoostMaterial,
   buyServerAmmo,
   buyServerItem,
   sellServerInventoryItem,
@@ -387,6 +501,16 @@ export const {
   applyServerDroneUpgrade,
   upgradeServerEquipment,
   requestServerLootPickup
+} = socketCommands;
+
+export const {
+  requestAdminSync,
+  inspectAdminPlayer,
+  kickAdminPlayer,
+  adjustAdminPlayer,
+  removeAdminInventoryItem,
+  moderateAdminAccount,
+  resetAdminInstance
 } = socketCommands;
 
 export {

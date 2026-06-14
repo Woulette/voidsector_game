@@ -1,3 +1,5 @@
+import { isAccountMuted } from "../auth/accounts.js";
+
 const CHAT_CHANNELS = new Set(["global", "firm", "guild"]);
 const ACTIVE_CHANNELS = new Set(["global"]);
 const MAX_CHAT_LENGTH = 220;
@@ -30,6 +32,15 @@ export function registerChatHandlers(socket, context){
     const player = players.get(socket.id);
     if(!player){
       socket.emit("chat:error", {message:"Connexion joueur introuvable.", at:Date.now()});
+      return;
+    }
+    if(isAccountMuted(player.account)){
+      socket.emit("chat:error", {
+        message:"Compte mute temporairement.",
+        mutedUntil:Math.max(0, Number(player.account?.mutedUntil || 0)),
+        reason:String(player.account?.muteReason || ""),
+        at:Date.now()
+      });
       return;
     }
     const channel = String(payload?.channel || "global").toLowerCase();

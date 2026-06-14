@@ -222,6 +222,38 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
+  socket.on("refinery:combat-boost-deposit", payload=>{
+    if(!guard("refinery:combat-boost-deposit")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const result = profileManager.applyEconomyAction({
+      player,
+      action:{
+        kind:"combat-boost-deposit",
+        target:payload?.target,
+        materialId:payload?.materialId,
+        amount:payload?.amount,
+        shipId:payload?.shipId
+      }
+    });
+    if(!result.ok){
+      socket.emit("refinery:error", {message:result.reason || "Perfectionnement impossible."});
+      return;
+    }
+    socket.emit("refinery:updated", {
+      action:"combat-boost-deposit",
+      target:result.target,
+      materialId:result.materialId,
+      materialName:result.materialName,
+      amount:result.amount,
+      added:result.added,
+      field:result.field,
+      percent:result.percent,
+      at:Date.now()
+    });
+    emitProfileSync(player, result.profile);
+  });
+
   socket.on("shop:buy-ammo", payload=>{
     if(!guard("shop:buy-ammo")) return;
     const player = players.get(socket.id);
@@ -335,8 +367,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("shop:error", {message:"Formation inconnue."});
       return;
     }
-    const alreadyOwned = Boolean(payload?.owned);
-    const result = profileManager.addDroneFormationPurchase({player, purchase, owned:alreadyOwned});
+    const result = profileManager.addDroneFormationPurchase({player, purchase, owned:Boolean(payload?.owned)});
     if(!result.ok){
       socket.emit("shop:error", {message:result.reason || "Achat impossible."});
       return;
@@ -344,9 +375,9 @@ export function registerEconomyHandlers(socket, context){
     socket.emit("shop:drone-formation-bought", {
       id:purchase.id,
       name:purchase.name,
-      owned:alreadyOwned,
+      owned:Boolean(result.owned),
       priceType:purchase.priceType,
-      price:alreadyOwned ? 0 : purchase.totalPrice,
+      price:result.owned ? 0 : purchase.totalPrice,
       at:Date.now()
     });
     emitProfileSync(player, result.profile);

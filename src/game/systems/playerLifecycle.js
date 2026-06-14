@@ -73,7 +73,7 @@ export function createPlayerLifecycle({
         });
       }
     }
-    if(player.hp <= 0) onDeath?.();
+    if(player.hp <= 0 && options.suppressDeath !== true) onDeath?.();
     return hpLost;
   }
 

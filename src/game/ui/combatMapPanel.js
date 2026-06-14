@@ -91,6 +91,17 @@ function getCurrentMapName(getCurrentMap){
   return String(getCurrentMap?.()?.name || "").toUpperCase();
 }
 
+export function getPortgunMapLevelRequirement(map){
+  const name = String(map?.name || "").toUpperCase();
+  if(name === "CORE") return 0;
+  const match = name.match(/-(\d+)$/);
+  const num = match ? Number(match[1]) : 0;
+  if(num === 3) return 5;
+  if(num === 4) return 10;
+  if(num === 5) return 15;
+  return 0;
+}
+
 function getDisplayMapPortals(map){
   if(!map) return [];
   if(Array.isArray(map.portals)) return map.portals;
@@ -120,38 +131,72 @@ function renderGameMapPortals(map, cell){
   return `<i class="sector-map-portals" aria-hidden="true">${[...directions].map(direction=>`<b class="portal-dot ${direction}"></b>`).join("")}</i>`;
 }
 
-function renderGameMapNode({maps, getCurrentMap, sector, cell}){
+function renderGameMapNode({maps, getCurrentMap, sector, cell, mode, playerLevel}){
   const mapName = `${sector.name}-${String(cell.n).padStart(2, "0")}`;
   const existing = getMapByName(maps, mapName);
   const displayName = existing?.displayName || getMapDisplayName(mapName);
   const current = getCurrentMapName(getCurrentMap) === mapName;
+  const portgunMode = mode === "portgun";
+  const requirement = getPortgunMapLevelRequirement(existing || {name:mapName});
+  const level = Math.max(1, Math.floor(Number(playerLevel || 1)));
+  const unlocked = !existing || level >= requirement;
+  const selectable = Boolean(portgunMode && existing && unlocked);
+  const status = portgunMode && existing
+    ? current ? "Position actuelle" : unlocked ? "Destination" : `LV ${requirement}`
+    : displayName;
   const classes = [
     "sector-map-node",
     sector.theme,
     existing ? "available" : "future",
     current ? "current" : "",
-    cell.bridge ? "bridge" : ""
+    cell.bridge ? "bridge" : "",
+    portgunMode ? "portgun-select" : "",
+    portgunMode && existing && !unlocked ? "locked" : ""
   ].filter(Boolean).join(" ");
-  return `<button class="${classes}" style="--grid-x:${cell.x};--grid-y:${cell.y}" type="button" disabled>
+  const targetAttr = selectable ? ` data-portgun-target-map="${escapeHtml(existing.id)}"` : "";
+  return `<button class="${classes}" style="--grid-x:${cell.x};--grid-y:${cell.y}" type="button"${targetAttr} ${selectable ? "" : "disabled"}>
     <span>${cell.n}</span>
-    <small>${escapeHtml(displayName)}</small>
+    <small>${escapeHtml(status)}</small>
     ${renderGameMapPortals(existing, cell)}
   </button>`;
 }
 
-export function renderCombatMapPanel({maps = [], getCurrentMap} = {}){
+function renderCoreNode({maps, getCurrentMap, mode, playerLevel}){
+  const existing = getMapByName(maps, "CORE");
+  const current = getCurrentMapName(getCurrentMap) === "CORE";
+  const portgunMode = mode === "portgun";
+  const requirement = getPortgunMapLevelRequirement(existing || {name:"CORE"});
+  const level = Math.max(1, Math.floor(Number(playerLevel || 1)));
+  const unlocked = !existing || level >= requirement;
+  const selectable = Boolean(portgunMode && existing && unlocked);
+  const classes = [
+    "sector-core-node",
+    existing ? "available" : "future",
+    current ? "current" : "",
+    portgunMode ? "portgun-select" : "",
+    portgunMode && existing && !unlocked ? "locked" : ""
+  ].filter(Boolean).join(" ");
+  const targetAttr = selectable ? ` data-portgun-target-map="${escapeHtml(existing.id)}"` : "";
+  const label = portgunMode && existing
+    ? current ? "Position actuelle" : "Destination"
+    : "Carte speciale";
+  return `<button class="${classes}" style="--grid-x:5.15;--grid-y:4.1" type="button"${targetAttr} ${selectable ? "" : "disabled"}><span>CORE</span><small>${escapeHtml(label)}</small>${renderGameMapPortals(existing)}</button>`;
+}
+
+export function renderCombatMapPanel({maps = [], getCurrentMap, mode = "view", playerLevel = 1} = {}){
   const current = getCurrentMap?.();
   const currentName = current?.displayName || current?.name || "Hors secteur";
   const mapCount = GAME_MAP_SECTORS.reduce((sum, sector)=>sum + sector.cells.length, 0) + 1;
   const existingCount = GAME_MAP_SECTORS.reduce((sum, sector)=>sum + sector.cells.filter(cell=>getMapByName(maps, `${sector.name}-${String(cell.n).padStart(2, "0")}`)).length, 0) + (getMapByName(maps, "CORE") ? 1 : 0);
+  const portgunMode = mode === "portgun";
   return `<div class="sector-map-card">
     <div class="combat-map-head">
-      <div><span>Reseau territorial</span><strong>${escapeHtml(currentName)}</strong></div>
-      <small>${existingCount}/${mapCount} secteurs actifs</small>
+      <div><span>${portgunMode ? "Selection Portgun" : "Reseau territorial"}</span><strong>${escapeHtml(currentName)}</strong></div>
+      <small>${portgunMode ? "1 fluide sera consomme a l'arrivee" : `${existingCount}/${mapCount} secteurs actifs`}</small>
     </div>
     <div class="sector-map-board" aria-label="Carte des firmes">
-      <div class="sector-core-node" style="--grid-x:5.15;--grid-y:4.1"><span>CORE</span><small>Carte speciale</small>${renderGameMapPortals(getMapByName(maps, "CORE"))}</div>
-      ${GAME_MAP_SECTORS.map(sector=>sector.cells.map(cell=>renderGameMapNode({maps, getCurrentMap, sector, cell})).join("")).join("")}
+      ${renderCoreNode({maps, getCurrentMap, mode, playerLevel})}
+      ${GAME_MAP_SECTORS.map(sector=>sector.cells.map(cell=>renderGameMapNode({maps, getCurrentMap, sector, cell, mode, playerLevel})).join("")).join("")}
     </div>
     <div class="sector-map-legend">
       <span class="astra">ASTRA</span>

@@ -39,13 +39,20 @@ export function createQuestNpcDialogue({
     return state.target > 0 && state.progress >= state.target;
   }
 
-  function getDialogue(npc){
-    if(!String(npc.id || "").endsWith("02_portal_mechanic")) return {lines:[`${npc.name || "PNJ"} n'a rien a te demander pour le moment.`], progress:false};
-    const quest = getActiveQuests().find(entry=>
-      (entry.id === "quest_lv5_call_for_help" || entry.sourceQuestId === "quest_lv5_call_for_help")
+  function questSourceId(quest){
+    return String(quest?.sourceQuestId || quest?.id || "");
+  }
+
+  function getRickyQuest(sourceQuestId, npc){
+    return getActiveQuests().find(entry=>
+      questSourceId(entry) === sourceQuestId
       && entry.objectives?.some(objective=>objective.npcId === npc.id)
     ) || null;
-    if(!quest) return {lines:["Signal bloque. Passe par le relais de quetes avant de revenir."], progress:false};
+  }
+
+  function getLevelFiveDialogue(npc){
+    const quest = getRickyQuest("quest_lv5_call_for_help", npc);
+    if(!quest) return null;
     if(!isObjectiveDone(quest, "portal_coord")) return {lines:["Approche du portail ferme, je capte mal ton signal."], progress:false};
     if(!isObjectiveDone(quest, "talk_start")){
       return {lines:["Mon petit fils !!", "J'ai merder mon petit fils et coince a l'interieur avec mon pistou portgun.", "Arh c'est pas le moment ! ont se fait attaquer."], progress:true};
@@ -66,6 +73,58 @@ export function createQuestNpcDialogue({
       return {lines:[`Il me faut 10 fluides de teleportation. Tu en as ${fluides}/10. Regarde dans les extras du magasin.`], progress:false};
     }
     return {lines:["Le portail ne bougera pas sans pieces. On aura encore du boulot."], progress:false};
+  }
+
+  function getLevelTenDialogue(npc){
+    const quest = getRickyQuest("quest_lv10_maintenance_impossible", npc);
+    if(!quest) return null;
+    if(!isObjectiveDone(quest, "talk_start")){
+      return {
+        lines:[
+          "Ah, te voila. Le pilote qui m'a ramene des fluides sans demander a quoi ca servait. J'adore ce genre d'obeissance.",
+          "Petit detail : les fluides ne servent pas a ouvrir le portail. Ils serviront a sortir en cas d'urgence. Nuance importante si tu tiens a ne pas finir recycle en lumiere bleue.",
+          "Le portail, lui, est casse pour une raison beaucoup plus stupide : il lui manque des pieces de stabilisation.",
+          "Et comme l'univers adore me faire perdre du temps, ces pieces sont dans la zone 4. Zone a risque eleve, monstres agressifs, taux de survie discutable... bref, un endroit parfait pour toi.",
+          "Va la-bas, demonte ce qui bouge, recupere 5 pieces de stabilisation et ramene-les-moi."
+        ],
+        progress:true
+      };
+    }
+    if(!isObjectiveDone(quest, "stabilisateurs")){
+      const state = getObjectiveState(quest, "stabilisateurs");
+      return {
+        lines:[
+          `Il me faut 5 pieces de stabilisation. Pas 4, pas "presque 5", 5. Tu en as ${state.progress}/${state.target}.`,
+          "Les fluides, je les garde pour la sortie d'urgence. Les pieces, elles, servent a empecher le portail de transformer ton vaisseau en confettis quantiques."
+        ],
+        progress:false
+      };
+    }
+    if(!isObjectiveDone(quest, "talk_return")){
+      return {
+        lines:[
+          "Oh, tu les as.",
+          "Je vais noter quelque part que t'es capable de suivre une instruction simple sous pression. C'est rare.",
+          "Donne-moi ca. Avec ces pieces, je peux enfin remettre l'armature du portail dans un etat moins insultant pour la science.",
+          "Le temps que je termine de reparer ce portail, je te conseille vivement d'aller te preparer.",
+          "Retourne au controleur de mission. Ils adorent cocher des cases pendant que moi je fais le vrai boulot."
+        ],
+        progress:true
+      };
+    }
+    if(!isObjectiveDone(quest, "mission_control")){
+      return {lines:["Je repare. Toi, tu retournes au controleur de mission. C'est le gros relais de quetes, au cas ou le concept de \"retourner\" serait trop abstrait."], progress:false};
+    }
+    return {lines:["Le portail est en cours de stabilisation. Reviens quand tu seras equipe pour autre chose qu'une promenade de sante."], progress:false};
+  }
+
+  function getDialogue(npc){
+    if(!String(npc.id || "").endsWith("02_portal_mechanic")) return {lines:[`${npc.name || "PNJ"} n'a rien a te demander pour le moment.`], progress:false};
+    const levelTenDialogue = getLevelTenDialogue(npc);
+    if(levelTenDialogue) return levelTenDialogue;
+    const levelFiveDialogue = getLevelFiveDialogue(npc);
+    if(levelFiveDialogue) return levelFiveDialogue;
+    return {lines:["Signal bloque. Passe par le relais de quetes avant de revenir."], progress:false};
   }
 
   function getPanel(){

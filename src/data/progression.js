@@ -154,7 +154,6 @@ export const refineryRecipes = [
 const generatedCombatQuests = [
   ["quest_lv3_combat_drone_companion", "normal", 3, "Un drone de compagnie", "Possède au moins 1 drone de combat. Si tu en possèdes déjà un, retourne simplement au relais.", "owned_combat_drone", 1, "Hangar", 23000, 3500, {}, 200],
   ["quest_astra01_raider_easy_02", "daily", 3, "Prime de patrouille", "Détruis 12 Vorak rushers dans ASTRA-01.", "raider_astral", 12, "ASTRA-01", 26000, 1300, {nickel_brut:16, titane_fissure:8}],
-  ["quest_astra03_spectral_normal_01", "normal", 9, "Essaim spectral", "Détruis 18 Parasites astraux dans ASTRA-03.", "chasseur_spectral", 18, "ASTRA-03", 74000, 4300, {silice_conductrice:34, catalyseur_quantique:2}],
   ["quest_astra03_spectral_hard_01", "weekly", 10, "Purge ASTRA-03", "Détruis 35 Parasites astraux dans ASTRA-03.", "chasseur_spectral", 35, "ASTRA-03", 150000, 9200, {silice_conductrice:70, catalyseur_quantique:5}],
   ["quest_astra04_spectral_hard_01", "normal", 12, "Ombres d'ASTRA-04", "Détruis 22 Parasites astraux dans ASTRA-04.", "chasseur_spectral", 22, "ASTRA-04", 115000, 7200, {silice_conductrice:50, catalyseur_quantique:4}],
   ["quest_astra04_spectral_hard_02", "weekly", 14, "Front spectral lourd", "Détruis 45 Parasites astraux dans ASTRA-04.", "chasseur_spectral", 45, "ASTRA-04", 240000, 16000, {silice_conductrice:110, catalyseur_quantique:8}],
@@ -261,6 +260,9 @@ function firmQuest(quest, firmId){
   next.giver = firmText(next.giver, firmId);
   if(next.objective) next.objective = firmObjective(next.objective, firmId);
   if(Array.isArray(next.objectives)) next.objectives = next.objectives.map(objective=>firmObjective(objective, firmId));
+  if(next.unlock?.type === "complete_quest" && next.unlock.questId){
+    next.unlock.questId = firmQuestId(next.unlock.questId, firmId);
+  }
   return next;
 }
 
@@ -453,6 +455,130 @@ const baseQuestCatalog = [
     desc:"Va dans les portails et lance le Space Caster x100 une fois.",
     objective:{type:"space_caster_use", label:"Space Caster", count:100, zone:"Portails"},
     rewards:{credits:150000, premium:300, xp:30000, materials:{}}
+  },
+  {
+    id:"quest_lv8_un_deja_vu",
+    category:"normal",
+    requiredLevel:8,
+    title:"Un Déjà vu",
+    giver:"Relais de Commandement",
+    desc:"Détruis 4 Boss Vorak rushers et 4 Boss Orbes sentinelles sans perdre plus de 2 000 points de vie. Si la limite est dépassée, la quête est annulée et doit être reprise.",
+    objectives:[
+      {id:"boss_vorak", type:"kill", target:"boss_raider_astral", label:"Boss Vorak rusher", count:4},
+      {id:"boss_orbes", type:"kill", target:"boss_drone_pirate", label:"Boss Orbe sentinelle", count:4}
+    ],
+    failConditions:{hpLossLimit:2000},
+    rewards:{credits:150000, premium:300, xp:30000, materials:{}}
+  },
+  {
+    id:"quest_lv8_pendant_effort_pas_reconfort",
+    category:"normal",
+    requiredLevel:8,
+    title:"Pendant l'effort, pas de réconfort",
+    giver:"Relais de Commandement",
+    desc:"Détruis 8 Parasites astraux et 6 Traqueurs abyssaux.",
+    objectives:[
+      {id:"parasites", type:"kill", target:"chasseur_spectral", label:"Parasite astral", count:8},
+      {id:"traqueurs", type:"kill", target:"cuirasse_nebulaire", label:"Traqueur abyssal", count:6}
+    ],
+    rewards:{credits:150000, premium:300, xp:30000, materials:{}}
+  },
+  {
+    id:"quest_lv8_je_l_avais_predit",
+    category:"normal",
+    requiredLevel:8,
+    title:"Je l'avais prédit !",
+    rare:true,
+    giver:"Relais de Commandement",
+    desc:"Détruis 4 Cristaux du néant, 5 Parasites astraux et 5 Traqueurs abyssaux en moins de 10 minutes. Si le temps est dépassé, la quête est annulée et doit être reprise.",
+    unlock:{type:"complete_level_quests", level:8},
+    objectives:[
+      {id:"cristaux", type:"kill", target:"cristal_du_neant", label:"Cristal du néant", count:4},
+      {id:"parasites", type:"kill", target:"chasseur_spectral", label:"Parasite astral", count:5},
+      {id:"traqueurs", type:"kill", target:"cuirasse_nebulaire", label:"Traqueur abyssal", count:5}
+    ],
+    failConditions:{timeLimit:600},
+    rewards:{credits:1000000, premium:1200, xp:100000, materials:{}, ammo:{ammo_x3:3000}}
+  },
+  {
+    id:"quest_lv9_ca_sent_le_poisson_pouris",
+    category:"normal",
+    requiredLevel:9,
+    title:"Ça sent le poisson pouris",
+    giver:"Relais de Commandement",
+    desc:"Équipe au moins 8 lasers sur ton vaisseau actif. Tout vaisseau équipé de 8 lasers ou plus valide la quête.",
+    objective:{type:"equipped_ship_lasers", label:"Lasers équipés sur le vaisseau", count:8, zone:"Hangar"},
+    rewards:{credits:250000, premium:350, xp:45000, materials:{}}
+  },
+  {
+    id:"quest_lv9_moucheron",
+    category:"normal",
+    requiredLevel:9,
+    title:"Moucheron",
+    giver:"Relais de Commandement",
+    desc:"Détruis 40 Orbes sentinelles.",
+    objective:{type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:40},
+    rewards:{credits:250000, premium:350, xp:45000, materials:{}}
+  },
+  {
+    id:"quest_lv9_ruee_vorak",
+    category:"normal",
+    requiredLevel:9,
+    title:"Ruée de Vorak",
+    giver:"Relais de Commandement",
+    desc:"Détruis 30 Vorak rushers.",
+    objective:{type:"kill", target:"raider_astral", label:"Vorak rusher", count:30},
+    rewards:{credits:250000, premium:350, xp:45000, materials:{}}
+  },
+  {
+    id:"quest_lv9_chasse_abyssale",
+    category:"normal",
+    requiredLevel:9,
+    title:"Chasse abyssale",
+    giver:"Relais de Commandement",
+    desc:"Détruis 20 Traqueurs abyssaux.",
+    objective:{type:"kill", target:"cuirasse_nebulaire", label:"Traqueur abyssal", count:20},
+    rewards:{credits:250000, premium:350, xp:45000, materials:{}}
+  },
+  {
+    id:"quest_lv9_reflets_du_neant",
+    category:"normal",
+    requiredLevel:9,
+    title:"Reflets du néant",
+    rare:true,
+    giver:"Relais de Commandement",
+    desc:"Détruis 10 Cristaux du néant sans mourir. Si tu meurs, la quête est annulée et doit être reprise.",
+    unlock:{type:"complete_level_quests", level:9},
+    objective:{type:"kill", target:"cristal_du_neant", label:"Cristal du néant", count:10},
+    failConditions:{deathResets:true},
+    rewards:{credits:1200000, premium:1400, xp:125000, materials:{}, portalPieces:{blue:2}, ammo:{rocket_r2:150}}
+  },
+  {
+    id:"quest_lv10_maintenance_impossible",
+    category:"normal",
+    requiredLevel:10,
+    title:"Maintenance impossible",
+    giver:"Relais de Commandement",
+    desc:"Retourne voir Ricky pres du portail ferme. Il lui faut 5 pieces de stabilisation recuperees en zone 4 de ta firme pour reparer l'armature du portail.",
+    objectives:[
+      {id:"talk_start", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Retourner voir Ricky", zone:"ASTRA-02", count:1},
+      {id:"stabilisateurs", type:"quest_item_drop", itemId:"stabilisateur_dimensionnel", itemName:"Piece de stabilisation", itemImg:"assets/quest_items/stabilizer_part.png", label:"Pieces de stabilisation", dropChance:.15, count:5, zone:"ASTRA-04", requiresObjective:"talk_start"},
+      {id:"talk_return", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Rapporter les pieces a Ricky", zone:"ASTRA-02", count:1, requiresObjective:"stabilisateurs"},
+      {id:"mission_control", type:"mission_control", stationId:"quests", label:"Retourner au controleur de mission", zone:"ASTRA-01", count:1, requiresObjective:"talk_return"}
+    ],
+    rewards:{credits:500000, premium:400, xp:75000, materials:{}, itemCounts:{portal_anchor_key:1}}
+  },
+  {
+    id:"quest_lv10_sauvons_deadly",
+    category:"normal",
+    requiredLevel:10,
+    title:"Sauvons Deadly",
+    red:true,
+    giver:"Relais de Commandement",
+    desc:"Entre dans le portail de Ricky et termine l'instance pour lancer le sauvetage de Deadly.",
+    unlock:{type:"complete_quest", questId:"quest_lv10_maintenance_impossible"},
+    objective:{type:"portal_complete", portalId:"ricky", label:"Terminer le portail de Ricky", count:1},
+    rewards:{credits:5000000, premium:15000, xp:3000000, materials:{}, portalPieces:{blue:10}, items:["laser_mk3", "pistou_portgun"]}
   },
   {
     id:"quest_weekly_assault",

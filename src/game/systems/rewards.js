@@ -17,7 +17,8 @@ export function createRewardSystem({
   getParticles,
   saveState,
   showToast,
-  onLootChanged
+  onLootChanged,
+  isMultiplayerConnected = ()=>false
 }){
   const LOOT_NOTICE_DURATION = 3;
   const MAX_LOOT_NOTICES = 5;
@@ -72,6 +73,7 @@ export function createRewardSystem({
   }
 
   function rewardEnemy(enemy){
+    if(isMultiplayerConnected()) return false;
     if(getSelectedEnemy()?.id === enemy.id) clearSelectedEnemy();
     const rankPoints = registerKill(enemy.kind, enemy.level);
     const currentMap = getCurrentMap();
@@ -107,6 +109,7 @@ export function createRewardSystem({
     }}));
     spawnRewardParticles(enemy);
     saveState();
+    return true;
   }
 
   function showCargoLoot(materialLabels){

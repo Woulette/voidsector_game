@@ -3,7 +3,7 @@ import { MAX_ACTIVE_QUESTS, acceptQuest, canClaimQuest, canProgressQuest, getAct
 export { acceptQuest, canClaimQuest, getActiveQuest, getActiveQuests, getQuestObjectiveKey, getQuestObjectiveProgress, getQuestObjectives, getQuestProgress, getQuestTargetTotal, isQuestUnlocked } from "./questProgressStore.js";
 export { recordQuestDeath, recordQuestHpLoss, recordQuestTimeElapsed, removeActiveQuest, resetQuestRun } from "./questFailureStore.js";
 export { claimQuest } from "./questRewardStore.js";
-import { objectiveMatchesCoordinateVisit, objectiveMatchesKill, objectiveMatchesMapVisit, objectiveMatchesNpcTalk, objectiveMatchesQuestItemDrop, objectiveMatchesRefineryMaterialUpgradeStart, objectiveMatchesRefineryModuleUpgradeStart, objectiveMatchesSpaceCasterUse } from "./questObjectiveMatchers.js";
+import { objectiveMatchesCoordinateVisit, objectiveMatchesKill, objectiveMatchesMapVisit, objectiveMatchesMissionControl, objectiveMatchesNpcTalk, objectiveMatchesPortalComplete, objectiveMatchesQuestItemDrop, objectiveMatchesRefineryMaterialUpgradeStart, objectiveMatchesRefineryModuleUpgradeStart, objectiveMatchesSpaceCasterUse } from "./questObjectiveMatchers.js";
 
 export function recordQuestKill(kind, zoneName){
   if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.length) return false;
@@ -95,6 +95,24 @@ export function recordQuestMapVisit(mapName){
   return matching ? progressQuestObjective(matching.quest, matching.match.objective, matching.match.index) : false;
 }
 
+export function recordQuestMissionControl(stationId, mapName){
+  if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.length) return false;
+  const activeIds = store.state.activeQuestIds.filter(id=>getQuest(id) && !store.state.completedQuestClaims?.[id]).slice(0, MAX_ACTIVE_QUESTS);
+  const trackedQuest = getQuest(store.state.activeQuestId);
+  const trackedMatch = findMatchingObjective(trackedQuest, objective=>objectiveMatchesMissionControl(objective, stationId, mapName));
+  if(trackedQuest && activeIds.includes(trackedQuest.id) && canProgressQuest(trackedQuest) && trackedMatch){
+    progressQuestObjective(trackedQuest, trackedMatch.objective, trackedMatch.index);
+    return true;
+  }
+  const matching = activeIds
+    .map(id=>getQuest(id))
+    .map(quest=>({quest, match:findMatchingObjective(quest, objective=>objectiveMatchesMissionControl(objective, stationId, mapName))}))
+    .find(entry=>entry.quest && canProgressQuest(entry.quest) && entry.match);
+  if(!matching) return false;
+  progressQuestObjective(matching.quest, matching.match.objective, matching.match.index);
+  return true;
+}
+
 export function recordQuestSpaceCasterUse(amount = 1){
   const increment = Math.max(1, Math.floor(Number(amount || 1)));
   if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.length) return false;
@@ -107,6 +125,16 @@ export function recordQuestSpaceCasterUse(amount = 1){
   let completed = false;
   for(let i = 0; i < increment; i++) completed = progressQuestObjective(matching.quest, matching.match.objective, matching.match.index) || completed;
   return completed;
+}
+
+export function recordQuestPortalComplete(portalId){
+  if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.length) return false;
+  const activeIds = store.state.activeQuestIds.filter(id=>getQuest(id) && !store.state.completedQuestClaims?.[id]).slice(0, MAX_ACTIVE_QUESTS);
+  const matching = activeIds
+    .map(id=>getQuest(id))
+    .map(quest=>({quest, match:findMatchingObjective(quest, objective=>objectiveMatchesPortalComplete(objective, portalId))}))
+    .find(entry=>entry.quest && canProgressQuest(entry.quest) && entry.match);
+  return matching ? progressQuestObjective(matching.quest, matching.match.objective, matching.match.index) : false;
 }
 
 export function recordQuestCoordinateVisit(point, mapName){
@@ -138,4 +166,3 @@ export function recordQuestNpcTalk(npcId, mapName){
   progressQuestObjective(matching.quest, matching.match.objective, matching.match.index);
   return true;
 }
-

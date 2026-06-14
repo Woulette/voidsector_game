@@ -17,7 +17,8 @@ export function createCombatPortalRunSystem({
   showToast,
   updateHud,
   portalWaveDelay,
-  portalStartingLives
+  portalStartingLives,
+  isMultiplayerConnected = ()=>false
 }){
   function getPortalBatchEnd(startWave){
     if(startWave >= 27) return PORTAL_WAVE_TOTAL;
@@ -79,6 +80,7 @@ export function createCombatPortalRunSystem({
   }
 
   function spawnWave(wave){
+    if(isMultiplayerConnected()) return false;
     const {missileSalvos, enemySeq} = getState();
     const batchEnd = getPortalBatchEnd(wave);
     let nextEnemySeq = enemySeq;
@@ -106,6 +108,7 @@ export function createCombatPortalRunSystem({
   }
 
   function completeRun(){
+    if(isMultiplayerConnected()) return false;
     const {portalCompleted, activePortal} = getState();
     if(portalCompleted || !activePortal) return;
     setState({portalCompleted:true});
@@ -142,6 +145,7 @@ export function createCombatPortalRunSystem({
   }
 
   function loadArena(portalId){
+    if(isMultiplayerConnected()) return false;
     const portal = portals.find(p=>p.id === portalId) || portals[0];
     const savedRun = store.state.portalRuns?.[portal.id];
     const currentMap = createPortalMap(portal);

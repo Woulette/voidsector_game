@@ -101,9 +101,11 @@ export function createCombatFrameUpdateSystem({
     syncServerControlledEnemies();
     state = getState();
     const lockedEnemy = validSelectedEnemy();
-    const attackTargetId = lockedEnemy && getActiveLaserSlot() !== null
+    const activeLaserSlot = getActiveLaserSlot();
+    const attackTargetId = lockedEnemy && activeLaserSlot !== null
       ? (lockedEnemy.isPlayerTarget ? `player:${lockedEnemy.playerId}` : String(lockedEnemy.serverId || lockedEnemy.id || ""))
       : "";
+    const attackAmmo = attackTargetId ? actions.getCombatAmmo(activeLaserSlot) : null;
     if(lockedEnemy && attackTargetId){
       player.angle = Math.atan2(lockedEnemy.y-player.y, lockedEnemy.x-player.x)+Math.PI/2;
     }
@@ -134,10 +136,15 @@ export function createCombatFrameUpdateSystem({
       activeDroneFormation:state.store?.state?.activeDroneFormation || "base",
       rankName:rank.name || "",
       rankAssetPath:getRankAssetPath(rank),
+      moveTarget:state.moveTarget ? {x:Number(state.moveTarget.x || 0), y:Number(state.moveTarget.y || 0)} : null,
       lockedTargetId:state.selectedEnemy
         ? (state.selectedEnemy.isPlayerTarget ? `player:${state.selectedEnemy.playerId}` : String(state.selectedEnemy.serverId || state.selectedEnemy.id || ""))
         : "",
-      attackTargetId
+      attackTargetId,
+      attackAmmoId:attackAmmo?.id || "",
+      attackWeaponClass:attackAmmo?.weaponClass || "",
+      repairBotActive:Boolean(player.repairBotActive),
+      pageHidden:document.hidden === true
     });
     updateRadiation(dt);
     serverEvents.applyAll();
@@ -145,7 +152,9 @@ export function createCombatFrameUpdateSystem({
     if(state.gameMode === "portal" && multiplayer.portalInstance?.portal){
       setState({
         portalWave:Math.max(state.portalWave || 0, Number(multiplayer.portalInstance.wave || 0)),
-        portalCompleted:multiplayer.portalInstance.completed ? true : state.portalCompleted
+        portalCompleted:multiplayer.portalInstance.completed ? true : state.portalCompleted,
+        portalAlly:multiplayer.portalAlly || null,
+        portalBeacons:Array.isArray(multiplayer.portalBeacons) ? multiplayer.portalBeacons : []
       });
     }
     if(player.isDead){

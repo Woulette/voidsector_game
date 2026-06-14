@@ -42,9 +42,11 @@ function formatQuestObjective(quest){
   }
   if(objective.type === "owned_combat_drone") return quest.desc || "Possede au moins un drone de combat.";
   if(objective.type === "equipped_ship") return quest.desc || "Equipe le vaisseau demande.";
+  if(objective.type === "equipped_ship_lasers") return quest.desc || "Equipe au moins le nombre de lasers demande sur ton vaisseau.";
   if(objective.type === "quest_item_drop") return quest.desc || "Recupere l'objet demande.";
   if(objective.type === "deliver_item") return quest.desc || "Rapporte les objets demandes.";
   if(objective.type === "space_caster_use") return quest.desc || "Lance le Space Caster.";
+  if(firstObjective.type === "portal_complete") return quest.desc || "Termine le portail demande.";
   if(firstObjective.type === "talk_npc") return quest.desc || "Parle au PNJ indique.";
   if(objective.type === "refinery_module_upgrade_start") return quest.desc || "Ameliore le module de stockage dans la raffinerie.";
   if(firstObjective.type === "refinery_material_upgrade_start") return quest.desc || "Lance les ameliorations demandees dans la raffinerie.";
@@ -60,10 +62,12 @@ function formatQuestZone(quest = {}){
     if(objective.type === "refinery_material_upgrade_start") continue;
     if(objective.type === "owned_combat_drone") continue;
     if(objective.type === "equipped_ship") continue;
+    if(objective.type === "equipped_ship_lasers") continue;
     if(objective.type === "visit_coordinates") continue;
     if(objective.type === "talk_npc") continue;
     if(objective.type === "deliver_item") continue;
     if(objective.type === "space_caster_use") continue;
+    if(objective.type === "portal_complete") continue;
     if(Array.isArray(objective.zones)) zones.push(...objective.zones);
     else if(objective.zone) zones.push(objective.zone);
   }
@@ -74,9 +78,11 @@ function formatQuestZone(quest = {}){
   if(objective.type === "refinery_material_upgrade_start") return "Raffinerie";
   if(objective.type === "owned_combat_drone") return "Hangar";
   if(objective.type === "equipped_ship") return "Hangar";
+  if(objective.type === "equipped_ship_lasers") return "Hangar";
   if(objective.type === "talk_npc") return objective.zone || "PNJ";
   if(objective.type === "deliver_item") return objective.zone || "PNJ";
   if(objective.type === "space_caster_use") return objective.zone || "Portails";
+  if(objective.type === "portal_complete") return objective.zone || "Portails";
   return objective.zone || "Toutes zones";
 }
 
@@ -150,6 +156,9 @@ function renderQuestTargetIcons(quest, enemyTypes = {}){
   if(quest.objective?.type === "equipped_ship"){
     return `<div class="quest-target-icons"><span class="quest-target-icon"><img src="assets/ships/Velox.png" alt="Velox"><b>x${Number(quest.objective.count || 1)}</b></span></div>`;
   }
+  if(quest.objective?.type === "equipped_ship_lasers"){
+    return `<div class="quest-target-icons"><span class="quest-target-icon"><img src="assets/equipment/laser_mk1_mk1_slot_v2.png" alt="Lasers équipés"><b>${Number(quest.objective.count || 1)}+</b></span></div>`;
+  }
   if(quest.objective?.type === "quest_item_drop"){
     return `<div class="quest-target-icons"><span class="quest-target-icon"><img src="${quest.objective.itemImg || "assets/quest_items/contaminated_sample.png"}" alt="${quest.objective.itemName || "Objet de quete"}"><b>${Math.round(Number(quest.objective.dropChance || 0) * 100)}%</b></span></div>`;
   }
@@ -159,8 +168,14 @@ function renderQuestTargetIcons(quest, enemyTypes = {}){
   if(quest.objective?.type === "space_caster_use"){
     return `<div class="quest-target-icons"><span class="quest-target-icon"><img src="assets/portals/portail_bleu.svg" alt="Space Caster"><b>x${Number(quest.objective.count || 1)}</b></span></div>`;
   }
+  if(quest.objective?.type === "portal_complete"){
+    return `<div class="quest-target-icons"><span class="quest-target-icon"><img src="assets/portals/portail_bleu.svg" alt="Portail"><b>x${Number(quest.objective.count || 1)}</b></span></div>`;
+  }
   if(quest.objective?.type === "talk_npc"){
     return `<div class="quest-target-icons"><span class="quest-target-icon"><img src="${quest.objective.npcImg || "assets/ships/npc/npc_saucer.png"}" alt="PNJ"><b>PNJ</b></span></div>`;
+  }
+  if(quest.objective?.type === "mission_control"){
+    return `<div class="quest-target-icons"><span class="quest-target-icon"><img src="assets/spawn/spawn_quest_relay.png" alt="Controleur de mission"><b>CTRL</b></span></div>`;
   }
   const objectives = Array.isArray(quest.objectives) ? quest.objectives : [quest.objective];
   const materialObjectives = objectives.filter(objective=>objective?.type === "refinery_material_upgrade_start");
@@ -187,13 +202,19 @@ function renderQuestTargetIcons(quest, enemyTypes = {}){
   const npcIcons = objectives.filter(objective=>objective?.type === "talk_npc").map(objective=>
     `<span class="quest-target-icon"><img src="${objective.npcImg || "assets/ships/npc/npc_saucer.png"}" alt="PNJ"><b>PNJ</b></span>`
   );
+  const missionControlIcons = objectives.filter(objective=>objective?.type === "mission_control").map(()=>
+    `<span class="quest-target-icon"><img src="assets/spawn/spawn_quest_relay.png" alt="Controleur de mission"><b>CTRL</b></span>`
+  );
   const deliverIcons = objectives.filter(objective=>objective?.type === "deliver_item").map(objective=>
     `<span class="quest-target-icon"><img src="${objective.itemImg || "assets/quest_items/teleportation_fluid.png"}" alt="${objective.itemName || "Objet de quete"}"><b>x${Number(objective.count || 1)}</b></span>`
   );
   const casterIcons = objectives.filter(objective=>objective?.type === "space_caster_use").map(objective=>
     `<span class="quest-target-icon"><img src="assets/portals/portail_bleu.svg" alt="Space Caster"><b>x${Number(objective.count || 1)}</b></span>`
   );
-  const allIcons = [...icons, ...coordinateIcons, ...npcIcons, ...deliverIcons, ...casterIcons].join("");
+  const portalIcons = objectives.filter(objective=>objective?.type === "portal_complete").map(objective=>
+    `<span class="quest-target-icon"><img src="assets/portals/portail_bleu.svg" alt="Portail"><b>x${Number(objective.count || 1)}</b></span>`
+  );
+  const allIcons = [...icons, ...coordinateIcons, ...npcIcons, ...missionControlIcons, ...deliverIcons, ...casterIcons, ...portalIcons].join("");
   return allIcons ? `<div class="quest-target-icons">${allIcons}</div>` : "";
 }
 
@@ -205,6 +226,9 @@ function isQuestPrerequisiteUnlocked(quest, quests = [], completedQuestClaims = 
     return quests
       .filter(entry=>entry.id !== quest.id && !entry.rare && Number(entry.requiredLevel || 1) === level && (entry.category || "normal") === category)
       .every(entry=>completedQuestClaims?.[entry.id]);
+  }
+  if(quest.unlock.type === "complete_quest"){
+    return Boolean(completedQuestClaims?.[quest.unlock.questId]);
   }
   return true;
 }

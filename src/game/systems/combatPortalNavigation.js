@@ -9,6 +9,7 @@ export function createCombatPortalNavigationSystem({
   getMapState,
   getHomeMapForPlayer,
   loadMap,
+  startServerPortal,
   showToast
 }){
   function tryUseMapPortal(){
@@ -27,6 +28,21 @@ export function createCombatPortalNavigationSystem({
     const portal = findMapPortalAt({map:currentMap, point:player, getMapPortals});
     if(!portal) return false;
     if(teleportLock > 0) return true;
+    if(portal.dungeonPortal && portal.portalId){
+      const started = startServerPortal?.(portal.portalId);
+      if(started !== false){
+        player.vx = 0;
+        player.vy = 0;
+        setState({
+          teleportLock:2,
+          moveTarget:null,
+          selectedEnemy:null
+        });
+        actions.setActiveLaserSlot(null);
+        actions.updateGameActionBar();
+      }
+      return true;
+    }
     const targetMap = mapList.find(map=>map.id === portal.targetMap);
     if(targetMap) getMapState(targetMap);
     player.vx = 0;

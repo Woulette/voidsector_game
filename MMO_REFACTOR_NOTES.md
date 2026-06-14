@@ -99,6 +99,70 @@ Regle :
 - garder les delais courts pour ne pas changer le gameplay normal ;
 - renforcer seulement les actions qui touchent aux donnees critiques : economie, equipement, quetes, progression, raffinerie, loot et portails.
 
+## Securite MMO - Autorite mort, respawn et chemins client
+
+Fait :
+
+- `server/src/players/playerLifecycle.js`
+  - radiation hors map geree cote serveur ;
+  - mort joueur serveur avec `player:death` ;
+  - respawn serveur avec cout NOVA, position, PV et bouclier imposes ;
+  - vies de portail et abandon force apres epuisement.
+- `server/src/players/playerStateValidation.js`
+  - snapshots refuses quand le joueur est mort ;
+  - joueur a 0 PV bloque a 0 PV avant meme l'emission de `deathState` ;
+  - sortie d'un portail actif refusee tant que l'instance n'est pas terminee ;
+  - ancienne session de portail sans instance live replacee sur la map de firme.
+- `server/src/portals/instances.js`
+  - demarrage refuse si joueur mort ;
+  - demarrage refuse si le portail n'est pas deverrouille ou si le niveau requis manque ;
+  - double instance active refusee.
+- `src/multiplayer/profileSync.js`
+  - `profile:save` n'envoie plus que les preferences UI/action bar.
+- `src/game/systems/*`
+  - rewards locaux, vagues portail locales, radiation persistante locale et consommation locale de munitions contre cible serveur sont bloques en session MMO autoritaire.
+
+Checks effectues :
+
+- `node --test server/test/player-state-security.test.js`
+- `node --test server/test/portal-instance-security.test.js`
+- `node --test server/test/client-mmo-authority.test.js`
+- `node --test server/test/player-lifecycle-authority.test.js`
+- `npm test` dans `server/` : 168 tests OK
+
+## Exploitation MMO - Admin et audit initial
+
+Fait :
+
+- `server/src/admin/adminManager.js`
+  - verification de role `moderator`, `admin`, `owner` ;
+  - snapshot joueurs connectes, groupes, instances et profils recents ;
+  - inspection d'un joueur/profil ;
+  - kick moderation ;
+  - ajustement credits, NOVA et XP reserve aux admins avec raison obligatoire.
+- `server/src/admin/adminAudit.js`
+  - audit persistant JSON en fallback ;
+  - audit PostgreSQL via table `admin_audit_log` quand `DATABASE_URL` est configure.
+- `server/src/socket/adminHandlers.js`
+  - events Socket.IO : `admin:sync`, `admin:inspect-player`, `admin:kick`, `admin:adjust-player`.
+- `server/src/index.js`
+  - branchement du manager admin ;
+  - `/health` enrichi avec storage actif, uptime et compteurs joueurs.
+
+Regles :
+
+- aucun event admin ne doit modifier un profil sans role suffisant ;
+- toute correction de credits/NOVA/XP doit avoir une raison et une entree d'audit ;
+- les roles se gerent pour l'instant cote stockage compte (`role` dans `accounts`) ;
+- il reste a construire une UI admin, ban/unban, mute, reset instance et logs economie/combat plus detailles.
+
+Checks effectues :
+
+- `node --check server/src/admin/adminManager.js`
+- `node --check server/src/admin/adminAudit.js`
+- `node --check server/src/socket/adminHandlers.js`
+- `node --test server/test/admin-tools.test.js`
+
 ## Extraction 1 - Socket handlers autoritaires
 
 Fait :

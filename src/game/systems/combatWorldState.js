@@ -1,4 +1,4 @@
-import { getMapPortals, SAFE_ZONE_DELAY } from "../combatData.js";
+import { getClosedMapPortals, getMapPortals, SAFE_ZONE_DELAY } from "../combatData.js";
 import { getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
 import { makeGroundMaterialPreview } from "./groundMaterials.js";
 import { buildMapState } from "./mapState.js";
@@ -15,7 +15,8 @@ export function createCombatWorldStateSystem({
   saveState,
   showToast,
   updateHud,
-  clampPlayerToMap
+  clampPlayerToMap,
+  isMultiplayerConnected = ()=>false
 }){
   const mapStates = new Map();
 
@@ -38,6 +39,8 @@ export function createCombatWorldStateSystem({
   function getSafeAreas(map = getState().currentMap){
     if(getState().gameMode === "portal") return [];
     if(!isFriendlyFirmMap(map)) return [];
+    const completedQuestClaims = store?.state?.completedQuestClaims || {};
+    const questProgress = store?.state?.questProgress || {};
     const zones = [];
     if(map?.spawn && map.spawn.kind !== "portal"){
       const rect = map.spawn.safeRect;
@@ -45,17 +48,20 @@ export function createCombatWorldStateSystem({
         ? {id:"spawn", label:map.spawn.label || "Zone de spawn", type:"spawn", shape:"rect", minX:rect.minX, minY:rect.minY, maxX:rect.maxX, maxY:rect.maxY}
         : {id:"spawn", label:map.spawn.label || "Zone de spawn", x:map.spawn.x, y:map.spawn.y, r:map.spawn.safeRadius || map.spawn.r || 260, type:"spawn", shape:"circle"});
     }
-    getMapPortals(map).forEach((portal, index)=>{
+    getMapPortals(map, {completedQuestClaims, questProgress}).forEach((portal, index)=>{
       zones.push({id:`portal-${index}`, label:portal.label || "Zone portail", x:portal.x, y:portal.y, r:(portal.safeRadius || Math.max(330, (portal.r || 90) * 3.5)) * 1.95, type:"portal"});
     });
-    (map?.closedPortals || []).forEach((portal, index)=>{
+    getClosedMapPortals(map, {completedQuestClaims, questProgress}).forEach((portal, index)=>{
       zones.push({id:`closed-portal-${index}`, label:portal.label || "Zone portail", x:portal.x, y:portal.y, r:(portal.safeRadius || Math.max(330, (portal.r || 90) * 3.5)) * 1.95, type:"portal"});
     });
     return zones;
   }
 
   function getNearestPortal(point = getState().player, map = getState().currentMap){
-    const portals = getMapPortals(map);
+    const portals = getMapPortals(map, {
+      completedQuestClaims:store?.state?.completedQuestClaims || {},
+      questProgress:store?.state?.questProgress || {}
+    });
     if(!point || !portals.length) return null;
     return portals.reduce((nearest, portal)=>{
       const distance = Math.hypot(point.x - portal.x, point.y - portal.y);
@@ -199,6 +205,7 @@ export function createCombatWorldStateSystem({
   }
 
   function updateRadiation(dt, handlePlayerDeath){
+    if(isMultiplayerConnected()) return;
     const {gameMode, player, radiationWarned} = getState();
     if(gameMode !== "open" || !isPlayerOutsideMap()){
       player.radiationTimer = 30;

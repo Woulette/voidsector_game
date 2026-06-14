@@ -1,17 +1,21 @@
-import { loadProfileEntries, persistProfileEntries } from "../storage/profileStore.js";
+import { loadProfileEntries as defaultLoadProfileEntries, persistProfileEntries as defaultPersistProfileEntries } from "../storage/profileStore.js";
 import { completeServerRefineryShipment, completeServerRefineryUpgrades, tickServerRefineryProduction } from "../economy/refinery.js";
-import { preserveProtectedProgression } from "./progression.js";
 import { createDefaultProfile, ensureStarterRepairDrone } from "./profileDefaults.js";
 import { createProfileActions } from "./profileActions.js";
 import { createProfileMutations } from "./profileMutations.js";
-import { preserveProtectedOwnership, sanitizeProfile } from "./profileSanitize.js";
+import { sanitizeProfile } from "./profileSanitize.js";
 import { createProfileWorldSession } from "./profileWorldSession.js";
 import { claimCompletedServerQuests } from "../quests/quests.js";
 import { getFirmDefinition, getFirmMapId, normalizeFirmId } from "../../../src/data/firms.js";
 
 export { sanitizeProfile } from "./profileSanitize.js";
 
-export function createProfileManager({cleanName, logger}){
+export function createProfileManager({
+  cleanName,
+  logger,
+  loadProfileEntries = defaultLoadProfileEntries,
+  persistProfileEntries = defaultPersistProfileEntries
+}){
   const profiles = new Map();
 
   function profileKey(name){
@@ -145,7 +149,11 @@ export function createProfileManager({cleanName, logger}){
 
   function saveFromPayload({player, payload} = {}){
     if(!player) return null;
-    const key = player.accountId ? accountProfileKey(player.accountId) : profileKey(payload?.name || player.name);
+    if(!player.accountId){
+      logger?.warn?.("Rejected unauthenticated profile save", {playerId:player.id || null});
+      return null;
+    }
+    const key = accountProfileKey(player.accountId);
     const incoming = sanitizeProfile(payload?.profile || {});
     const existing = profiles.get(key);
     const refineryChanged = existing ? advanceRefineryState(existing) : false;
@@ -156,15 +164,19 @@ export function createProfileManager({cleanName, logger}){
       }
       return null;
     }
-    if(existing?.player) incoming.player = preserveProtectedProgression({
-      incomingPlayer:incoming.player,
-      existingPlayer:existing.player
+    const base = existing ? sanitizeProfile(existing) : createDefaultProfile();
+    const next = sanitizeProfile({
+      ...base,
+      actionSlots:incoming.actionSlots,
+      actionSlotsByShip:incoming.actionSlotsByShip,
+      lastLaserAmmoId:incoming.lastLaserAmmoId,
+      updatedAt:Date.now()
     });
-    preserveProtectedOwnership(incoming, existing);
-    const claimedQuests = autoClaimCompletedQuests(incoming);
-    profiles.set(key, incoming);
+    ensureProfileIdentity(next, player);
+    const claimedQuests = autoClaimCompletedQuests(next);
+    profiles.set(key, next);
     persist();
-    return {profile:incoming, claimedQuests};
+    return {profile:next, claimedQuests};
   }
 
   function getExistingProfile(player){

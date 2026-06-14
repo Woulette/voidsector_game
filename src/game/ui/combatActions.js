@@ -14,6 +14,7 @@ export function createCombatActions({
   getEquippedLauncher,
   multiplayer,
   buyServerAmmo,
+  buyServerDroneFormation,
   canAfford,
   spend,
   addAmmo,
@@ -29,7 +30,10 @@ export function createCombatActions({
   getRepairBotDelay,
   getLaserVolley,
   fireManualRocket,
-  fireManualMissile
+  fireManualMissile,
+  openPortgunMap,
+  getRickySupportState,
+  activateRickyHealBeacon
 }){
   let activeLaserSlot = null;
   let selectedRocketAmmoId = null;
@@ -39,6 +43,7 @@ export function createCombatActions({
   let selectedMissileAmmoId = null;
   let missileLoaded = 0;
   let missileReload = 0;
+  let lastRenderedCombatPanelTab = null;
 
   function reset(){
     activeLaserSlot = null;
@@ -49,6 +54,7 @@ export function createCombatActions({
     selectedMissileAmmoId = null;
     missileLoaded = 0;
     missileReload = 0;
+    lastRenderedCombatPanelTab = null;
   }
 
   function getActiveLaserSlot(){
@@ -102,6 +108,13 @@ export function createCombatActions({
     return getEquippedExtras(store.state.activeShip).some(extra=>extra.id === item.id) ? item : null;
   }
 
+  function getInventoryItemCount(itemId){
+    return (store.state.inventoryItems || []).reduce((total, entry)=>{
+      if(entry?.itemId !== itemId) return total;
+      return total + Math.max(1, Math.floor(Number(entry.quantity || 1)));
+    }, 0);
+  }
+
   function getCombatCpu(index){
     const item = getItem(store.state.actionSlots?.[index]);
     if(item?.slotType !== "missileLauncher") return null;
@@ -116,6 +129,21 @@ export function createCombatActions({
   }
 
   function getActionSlotState(index){
+    const rickySupport = index === 0 ? getRickySupportState?.() : null;
+    if(rickySupport?.available){
+      const cooldown = Math.max(0, Number(rickySupport.cooldown || 0));
+      const cooldownTotal = Math.max(1, Number(rickySupport.cooldownTotal || 60));
+      return {
+        id:"ricky_heal_beacon",
+        kind:"rickyHeal",
+        name:"Balise de soin Ricky",
+        available:true,
+        usable:cooldown <= 0,
+        cooldown,
+        cooldownTotal,
+        reason:cooldown > 0 ? `Balise de soin Ricky en recharge : ${Math.ceil(cooldown)}s.` : ""
+      };
+    }
     const id = store.state.actionSlots?.[index] || null;
     if(!id) return {id:null, kind:"empty", available:false, usable:false, reason:`Slot ${index + 1} vide.`};
 
@@ -151,6 +179,19 @@ export function createCombatActions({
           available:true,
           usable:Boolean(repairState.ok || active),
           reason:repairState.ok || active ? "" : repairState.reason
+        };
+      }
+      if(item.effect?.portgun){
+        const fluidId = item.effect.teleportFluidItemId || "teleportation_fluid";
+        const fluidCount = getInventoryItemCount(fluidId);
+        const connected = Boolean(multiplayer?.connected && multiplayer?.socket);
+        return {
+          id,
+          kind:"extra",
+          item,
+          available:true,
+          usable:connected && fluidCount > 0,
+          reason:!connected ? "Connexion serveur requise pour le Portgun." : fluidCount > 0 ? "" : "Il faut 1 fluide de teleportation."
         };
       }
       return {id, kind:"extra", item, available:true, usable:false, reason:`${item.name} est un extra passif.`};
@@ -305,6 +346,9 @@ export function createCombatActions({
     const quickPanel = document.getElementById("combatQuickPanel");
     const content = document.getElementById("combatPanelContent");
     if(!quickPanel || !content) return;
+    const previousGrid = lastRenderedCombatPanelTab === combatPanelTab ? content.querySelector(".combat-panel-grid") : null;
+    const previousScrollTop = previousGrid ? previousGrid.scrollTop : null;
+    const previousScrollLeft = previousGrid ? previousGrid.scrollLeft : null;
     updateQuickPanelTabs(quickPanel, combatPanelTab, combatPanelTabOffset);
     content.innerHTML = renderQuickPanelContent({
       tab:combatPanelTab,
@@ -322,6 +366,16 @@ export function createCombatActions({
       laserVolleyCount:getLaserVolley().count || 1,
       missileState:getMissileLauncherState()
     });
+    lastRenderedCombatPanelTab = combatPanelTab;
+    if(previousScrollTop !== null){
+      const nextGrid = content.querySelector(".combat-panel-grid");
+      if(nextGrid){
+        const maxTop = Math.max(0, nextGrid.scrollHeight - nextGrid.clientHeight);
+        const maxLeft = Math.max(0, nextGrid.scrollWidth - nextGrid.clientWidth);
+        nextGrid.scrollTop = Math.min(previousScrollTop, maxTop);
+        nextGrid.scrollLeft = Math.min(previousScrollLeft, maxLeft);
+      }
+    }
   }
 
   function selectActionSlot(index){
@@ -333,29 +387,24 @@ export function createCombatActions({
     if(!slotState.id) return showToast(slotState.reason || `Slot ${index+1} vide.`);
     if(slotState.available === false) return showToast(slotState.reason || "Objet indisponible sur ce vaisseau.");
     if(slotState.usable === false && slotState.reason) return showToast(slotState.reason);
+    if(slotState.kind === "rickyHeal"){
+      if(activateRickyHealBeacon?.()){
+        showToast("Balise de soin Ricky demandee.");
+        updateGameActionBar();
+      }
+      return;
+    }
     if(cpu){
       fireMissileLauncher();
       return;
     }
     if(formation){
-      store.state.activeDroneFormation = formation.id;
-      saveState();
-      refreshPlayerStats?.();
-      renderCombatQuickPanel();
-      updateHud();
-      updateGameActionBar();
-      showToast(`${formation.name} activee.`);
+      activateDroneFormation(formation);
       return;
     }
     if(extra){
-      if(extra.effect.repairBot){
-        activateRepairBot(true);
-        renderCombatQuickPanel();
-        updateHud();
-        updateGameActionBar();
-        return;
-      }
-      return showToast(`${extra.name} est un extra passif.`);
+      useCombatExtra(extra.id);
+      return;
     }
     if(!ammo) return showToast(`Slot ${index+1} vide.`);
     if(getAmmoCount(ammo.id) <= 0) return showToast(`${ammo.name} : stock vide.`);
@@ -528,7 +577,7 @@ export function createCombatActions({
     if(!getEquippedExtras(store.state.activeShip).some(extra=>extra.id === item.id)){
       return showToast(`${item.name} doit etre equipe dans les extras du vaisseau.`);
     }
-    if(!item.effect.repairBot){
+    if(!item.effect.repairBot && !item.effect.portgun){
       return showToast(`${item.name} est un extra passif.`);
     }
     setActionSlot(index, item.id);
@@ -537,6 +586,37 @@ export function createCombatActions({
     renderGameActionBar();
     renderCombatQuickPanel();
     showToast(`${item.name} place en slot ${index+1}.`);
+  }
+
+  function useCombatExtra(itemId){
+    const item = getItem(itemId);
+    if(!item || item.category !== "extra") return false;
+    if(!getEquippedExtras(store.state.activeShip).some(extra=>extra.id === item.id)){
+      showToast(`${item.name} doit etre equipe dans les extras du vaisseau.`);
+      return false;
+    }
+    if(item.effect?.repairBot){
+      activateRepairBot(true);
+      renderCombatQuickPanel();
+      updateHud();
+      updateGameActionBar();
+      return true;
+    }
+    if(item.effect?.portgun){
+      const fluidId = item.effect.teleportFluidItemId || "teleportation_fluid";
+      if(getInventoryItemCount(fluidId) <= 0){
+        showToast("Il faut 1 fluide de teleportation.");
+        return false;
+      }
+      if(!multiplayer?.connected || !multiplayer?.socket){
+        showToast("Connexion serveur requise pour le Portgun.");
+        return false;
+      }
+      openPortgunMap?.();
+      return true;
+    }
+    showToast(`${item.name} est un extra passif.`);
+    return false;
   }
 
   function assignDroneFormationToActionSlot(index, formationId){
@@ -551,6 +631,30 @@ export function createCombatActions({
     renderGameActionBar();
     renderCombatQuickPanel();
     showToast(`${formation.name} placee en slot ${index+1}.`);
+  }
+
+  function activateDroneFormation(formation){
+    if(!formation) return false;
+    if(!store.state.ownedDroneFormations?.includes(formation.id)){
+      showToast(`${formation.name} doit etre achetee avant utilisation.`);
+      return false;
+    }
+    if(multiplayer?.connected){
+      if(buyServerDroneFormation?.({id:formation.id, owned:true})){
+        showToast(`${formation.name} : activation envoyee au serveur.`);
+        return true;
+      }
+      showToast("Connexion serveur requise pour activer cette formation.");
+      return false;
+    }
+    store.state.activeDroneFormation = formation.id;
+    saveState();
+    refreshPlayerStats?.();
+    renderCombatQuickPanel();
+    updateHud();
+    updateGameActionBar();
+    showToast(`${formation.name} activee.`);
+    return true;
   }
 
   function refreshOpenQuickPanel(dt, refreshState){
@@ -592,6 +696,7 @@ export function createCombatActions({
     cleanCombatActionSlots,
     moveActionSlot,
     clearActionSlot,
+    useCombatExtra,
     assignExtraToActionSlot,
     assignDroneFormationToActionSlot,
     setCombatPanelTab:value=>{ combatPanelTab = value; },

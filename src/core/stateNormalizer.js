@@ -277,7 +277,8 @@ export function normalizeState(saved){
         materialId,
         percent:Math.max(0, Number(entry.percent || 0)),
         charges:Math.max(0, Number(entry.charges || 0)),
-        seconds:Math.max(0, Number(entry.seconds || 0))
+        seconds:Math.max(0, Number(entry.seconds || 0)),
+        expiresAt:Math.max(0, Number(entry.expiresAt || 0))
       };
     }
   }

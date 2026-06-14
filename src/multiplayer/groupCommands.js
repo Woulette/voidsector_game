@@ -38,6 +38,9 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
     multiplayer.serverEnemyScope = null;
     multiplayer.coopInstanceId = null;
     multiplayer.coopSpawn = null;
+    multiplayer.portalInstance = null;
+    multiplayer.portalAlly = null;
+    multiplayer.portalBeacons = [];
     emitChange();
   }
 
@@ -65,7 +68,6 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
 
   function startServerPortal(portalId){
     if(!multiplayer.connected) return toast("Connecte-toi au serveur multi d'abord.");
-    if(!multiplayer.group) return toast("Cree ou rejoins un groupe d'abord.");
     multiplayer.socket.emit("portal:start", {portalId});
   }
 

@@ -62,6 +62,12 @@ export function getQuestObjectiveProgress(id, objectiveKey){
     const requiredShip = objectiveEntry.objective.shipId;
     return requiredShip && store.state?.activeShip === requiredShip ? Math.max(0, Number(objectiveEntry.objective.count || 1)) : 0;
     }
+    if(objectiveEntry?.objective?.type === "equipped_ship_lasers"){
+      const target = Math.max(0, Number(objectiveEntry.objective.count || 0));
+      const lasers = store.state?.shipLoadouts?.[store.state?.activeShip]?.lasers;
+      const equipped = Array.isArray(lasers) ? lasers.filter(Boolean).length : 0;
+      return Math.min(target, equipped);
+    }
     if(objectiveEntry?.objective?.type === "deliver_item"){
       const stored = store.state?.questProgress?.[id];
       return typeof stored === "object" && stored !== null
@@ -108,6 +114,9 @@ export function isQuestUnlocked(quest){
     return questCatalog
       .filter(entry=>entry.id !== quest.id && questMatchesPlayerFirm(entry) && !entry.rare && Number(entry.requiredLevel || 1) === level && (entry.category || "normal") === (quest.category || "normal"))
       .every(entry=>completed[entry.id]);
+  }
+  if(quest.unlock.type === "complete_quest"){
+    return Boolean(store.state.completedQuestClaims?.[quest.unlock.questId]);
   }
   return true;
 }

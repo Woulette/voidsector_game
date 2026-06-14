@@ -1,6 +1,8 @@
 import "dotenv/config";
 import http from "node:http";
 import { Server } from "socket.io";
+import { createAdminAuditStore } from "./admin/adminAudit.js";
+import { createAdminManager } from "./admin/adminManager.js";
 import { createSocketSessionManager } from "./auth/socketSession.js";
 import { resolveServerCombatFire } from "./combat/damage.js";
 import { getPlayerPvpBlockReason } from "./combat/playerPvp.js";
@@ -8,10 +10,13 @@ import { config } from "./config.js";
 import { dbEnabled, initializeDatabase } from "./db/client.js";
 import { createGroupManager } from "./groups/groups.js";
 import { createFirmWarManager } from "./firms/firmWar.js";
+import { enrichFirmSnapshot } from "./firms/firmSnapshots.js";
 import { getFirmHitOwner, markFirmHitOwner } from "./firms/firmHitOwnership.js";
 import { logger } from "./logger.js";
 import { normalizeFirmId } from "../../src/data/firms.js";
 import { createEquipmentLocationManager } from "./players/equipmentLocation.js";
+import { createPlayerLifecycleManager } from "./players/playerLifecycle.js";
+import { canSharePlayerState } from "./players/visibility.js";
 import { createPresenceManager } from "./players/presence.js";
 import { createProfileManager } from "./players/profiles.js";
 import { updateRankScore } from "./players/rankProgression.js";
@@ -21,6 +26,8 @@ import { createAccountActionLocks } from "./security/accountActionLocks.js";
 import { pauseServerQuestTimers, resumeServerQuestTimers } from "./quests/questFailures.js";
 import { createSocketRateLimiter } from "./socket/rateLimit.js";
 import { createEnemyHitHandler } from "./combat/enemyHits.js";
+import { updateAccountModeration } from "./storage/authStore.js";
+import { registerAdminHandlers } from "./socket/adminHandlers.js";
 import { registerAuthHandlers } from "./socket/authHandlers.js";
 import { registerChatHandlers } from "./socket/chatHandlers.js";
 import { registerCombatHandlers } from "./socket/combatHandlers.js";
@@ -38,6 +45,7 @@ import { startServerTick } from "./tick/serverTick.js";
 import { createWorldAiManager } from "./world/ai.js";
 import { createEnemyAttackManager } from "./world/enemyAttacks.js";
 import { createWorldLootManager } from "./world/loot.js";
+import { createPlayerActivityManager } from "./world/playerActivity.js";
 import { createWorldRewardManager } from "./world/rewards.js";
 import { createWorldStatusEffectManager } from "./world/statusEffects.js";
 import { WORLD_MAPS } from "./world/definitions.js";
@@ -49,7 +57,25 @@ const PORT = config.port;
 const httpServer = http.createServer((req, res)=>{
   if(req.url === "/health"){
     res.writeHead(200, {"content-type":"application/json"});
-    res.end(JSON.stringify({ok:true, service:"voidsector-realtime"}));
+    const onlinePlayers = [...players.values()].filter(player=>player.connected !== false);
+    const onlineAccounts = new Set(onlinePlayers.map(player=>
+      String(player.accountId || player.account?.id || player.clientId || player.id || "")
+    ).filter(Boolean));
+    const gameAccounts = new Set(onlinePlayers.filter(player=>player.clientMode === "game").map(player=>
+      String(player.accountId || player.account?.id || player.clientId || player.id || "")
+    ).filter(Boolean));
+    res.end(JSON.stringify({
+      ok:true,
+      service:"voidsector-realtime",
+      storage:dbEnabled ? "postgres" : "json",
+      uptimeSeconds:Math.round(process.uptime()),
+      players:{
+        sockets:players.size,
+        online:onlineAccounts.size,
+        game:gameAccounts.size
+      },
+      at:Date.now()
+    }));
     return;
   }
   res.writeHead(200, {"content-type":"text/plain; charset=utf-8"});
@@ -93,23 +119,31 @@ function cleanName(value){
   return String(value || "Pilote").trim().replace(/\s+/g, " ").slice(0, 24) || "Pilote";
 }
 
+function publicAccountRole(role){
+  const clean = String(role || "player").toLowerCase();
+  return ["moderator", "admin", "owner"].includes(clean) ? clean : "player";
+}
+
 const profileManager = createProfileManager({cleanName, logger});
 const firmWarManager = createFirmWarManager({logger});
+const adminAuditStore = createAdminAuditStore({logger});
 
 await initializeDatabase();
 await profileManager.load();
 await firmWarManager.load();
 logger.info(dbEnabled ? "PostgreSQL storage enabled." : "JSON storage enabled. Set DATABASE_URL to use PostgreSQL.");
 
-function publicPlayer(player){
+function publicPlayer(player, options = {}){
   const profile = profileManager.getProfileForPlayer(player);
+  const includeState = options?.includeState !== false;
   return {
     id:player.id,
     name:player.name,
     accountId:player.accountId || null,
+    role:publicAccountRole(player.account?.role),
     firmId:profile?.player?.firmId || player.account?.firmId || "astra",
     groupId:player.groupId || null,
-    state:player.state || null,
+    state:includeState ? player.state || null : null,
     connectedAt:player.connectedAt,
     connected:Boolean(player.connected !== false),
     disconnecting:Boolean(player.disconnecting),
@@ -128,6 +162,7 @@ function isPlayerSafeOnMap(player, map){
 }
 
 let removeDisconnectedPlayerFromGroup = ()=>{};
+let playerGroups = new Map();
 const presence = createPresenceManager({
   io,
   players,
@@ -174,7 +209,8 @@ const {
   io,
   players,
   presence,
-  progressProfileQuestAction
+  progressProfileQuestAction,
+  getGroups:()=>playerGroups
 });
 
 const {
@@ -271,6 +307,7 @@ const {updateWorldEnemy} = createWorldAiManager({
 
 const {
   cleanupExpiredLootDrops,
+  emitPrivatePortalAnchorKeyDrop,
   emitPrivateQuestItemDrop,
   emitPrivatePortalPieceDrop,
   emitPrivateResourceDrops,
@@ -280,11 +317,17 @@ const {
   io,
   players,
   profileManager,
-  emitProfileSync:emitProfileSyncForPlayer
+  emitProfileSync:emitProfileSyncForPlayer,
+  getGroups:()=>playerGroups
 });
 
 function emitPlayers(){
-  io.emit("players:list", [...players.values()].map(publicPlayer));
+  const candidates = [...players.values()];
+  for(const recipient of candidates){
+    io.to(recipient.id).emit("players:list", candidates.map(candidate=>
+      publicPlayer(candidate, {includeState:canSharePlayerState(recipient, candidate)})
+    ));
+  }
 }
 
 const {
@@ -300,7 +343,8 @@ const {
   promoteLeader,
   leaveCurrentGroup,
   removePlayerFromGroup,
-  replaceGroupMemberId
+  replaceGroupMemberId,
+  resetGroupInstance
 } = createGroupManager({
   io,
   players,
@@ -308,9 +352,35 @@ const {
   publicEnemy,
   emitPlayers
 });
+playerGroups = groups;
 removeDisconnectedPlayerFromGroup = removePlayerFromGroup;
 
+const {
+  respawnPlayer,
+  syncPlayerLifecycle,
+  updatePlayerLifecycles
+} = createPlayerLifecycleManager({
+  io,
+  players,
+  groups,
+  profileManager,
+  emitProfileSync:emitProfileSyncForPlayer,
+  presence,
+  setPlayerMap,
+  logger
+});
+
 const socialManager = createSocialManager({io, players, profileManager});
+const adminManager = createAdminManager({
+  io,
+  players,
+  groups,
+  profileManager,
+  auditStore:adminAuditStore,
+  resetGroupInstance,
+  updateAccountModeration,
+  logger
+});
 
 const {
   attachOrResumeAccountSocket,
@@ -325,6 +395,7 @@ const {
   replaceGroupMemberId,
   resumeQuestTimers:player=>setQuestTimersConnected(player, true),
   setPlayerMap,
+  syncPlayerLifecycle,
   syncPlayerStatusEffects
 });
 
@@ -347,26 +418,30 @@ const {progressServerQuestsForKill} = createKillQuestProgress({
 });
 
 const {
+  activateRickyHealBeacon,
   buildServerPortalWave,
   emitPortalComplete,
   portalWaveTotal,
-  startPortalInstance
+  startPortalInstance,
+  updateRickyCompanions
 } = createPortalInstanceManager({
   io,
   players,
   groups,
   profileManager,
   emitProfileSync:emitProfileSyncForPlayer,
+  emitQuestClaims:emitQuestClaimsForPlayer,
   firmWarManager,
   createGroup,
   emitInstance,
   portalWaveTotal:config.portalWaveTotal
 });
 
-const {applyEnemyHit} = createEnemyHitHandler({
+const {applyEnemyHit, applyEnemyHitForPlayer} = createEnemyHitHandler({
   buildServerPortalWave,
   emitInstance,
   emitPortalComplete,
+  emitPrivatePortalAnchorKeyDrop,
   emitPrivatePortalPieceDrop,
   emitPrivateQuestItemDrop,
   emitPrivateResourceDrops,
@@ -383,6 +458,14 @@ const {applyEnemyHit} = createEnemyHitHandler({
   respawnWorldEnemy,
   updateLootOwner,
   portalWaveTotal
+});
+
+const {updatePlayerActivity} = createPlayerActivityManager({
+  io,
+  players,
+  profileManager,
+  publicPlayer,
+  applyEnemyHitForPlayer
 });
 
 function applyPlayerHit(socket, payload){
@@ -414,6 +497,10 @@ function applyPlayerHit(socket, payload){
   }
   if(String(attacker.mapId ?? "") !== String(target.mapId ?? "")){
     emitMiss("Cible hors carte.");
+    return;
+  }
+  if(attacker.mapRoom && target.mapRoom && attacker.mapRoom !== target.mapRoom){
+    emitMiss("Cible hors instance.");
     return;
   }
   const attackerProfile = profileManager.getProfileForPlayer(attacker);
@@ -485,6 +572,10 @@ function applyPlayerHit(socket, payload){
     sourceName:attackerProfile?.player?.name || attacker.name || "Pilote",
     mapId:attacker.mapId,
     amount:incoming,
+    hp:Number(target.state.hp || 0),
+    maxHp:Number(target.state.maxHp || 0),
+    shield:Number(target.state.shield || 0),
+    maxShield:Number(target.state.maxShield || 0),
     fromX:Number(attacker.state.x || 0),
     fromY:Number(attacker.state.y || 0),
     toX:Number(target.state.x || 0),
@@ -505,7 +596,7 @@ function applyPlayerHit(socket, payload){
       },
       targetKey:profileManager.profileKeyForPlayer(target)
     });
-    io.emit("firm:ranking", firmKill.snapshot);
+    io.emit("firm:ranking", enrichFirmSnapshot(profileManager, firmKill.snapshot));
     const reputation = Math.max(0, targetLevel * 1000);
     const pvpReward = profileManager.updateProfileForPlayer({
       player:attacker,
@@ -519,10 +610,10 @@ function applyPlayerHit(socket, payload){
     });
     if(pvpReward.ok){
       emitProfileSyncForPlayer(attacker, pvpReward.profile);
-      const firmSnapshot = firmWarManager.snapshot({
+      const firmSnapshot = enrichFirmSnapshot(profileManager, firmWarManager.snapshot({
         playerKey:profileManager.profileKeyForPlayer(firmAttacker),
         profile:firmAttackerProfile
-      });
+      }));
       for(const accountPlayer of accountSocketsForPlayer(firmAttacker)){
         io.to(accountPlayer.id).emit("firm:snapshot", firmSnapshot);
       }
@@ -587,9 +678,12 @@ startServerTick({
   players,
   playersOnMap,
   presence,
+  updatePlayerActivity,
   updatePendingEnemyAttacks,
+  updatePlayerLifecycles,
   updateStatusEffects,
   updateQuestTimers,
+  updateRickyCompanions,
   updateWorldEnemy
 });
 
@@ -613,6 +707,10 @@ io.on("connection", socket=>{
     emitQuestClaims:emitQuestClaimsForPlayer,
     progressProfileQuestAction
   };
+  registerAdminHandlers(socket, {
+    ...socketContext,
+    adminManager
+  });
   registerAuthHandlers(socket, {
     ...socketContext,
     attachOrResumeAccountSocket,
@@ -631,7 +729,9 @@ io.on("connection", socket=>{
     presence,
     publicPlayer,
     replaceGroupMemberId,
+    respawnPlayer,
     resumeQuestTimers:player=>setQuestTimersConnected(player, true),
+    syncPlayerLifecycle,
     syncPlayerStatusEffects,
     setPlayerMap,
     syncProfileForPlayer
@@ -674,7 +774,8 @@ io.on("connection", socket=>{
     kickMember,
     leaveCurrentGroup,
     promoteLeader,
-    startPortalInstance
+    startPortalInstance,
+    activateRickyHealBeacon
   });
   registerCombatHandlers(socket, {
     ...socketContext,

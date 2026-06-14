@@ -49,9 +49,9 @@ import {
   XP_CURVE_VERSION
 } from "./core/store.js";
 import { createCombatGame } from "./game/combat.js?v=quest-claim-ui-1";
-import { applyServerDroneUpgrade, buyFirmShopItem, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimFirmQuest, claimFirmRewards, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
+import { applyServerDroneUpgrade, buyFirmShopItem, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimFirmQuest, claimFirmRewards, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
 import { initMultiplayer } from "./multiplayer/client.js";
-import { renderAll, renderFirm, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js";
+import { renderAll, renderFirm, renderLeaderboard, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js";
 import { showToast } from "./ui/toast.js";
 import { DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeSlotKeybinds } from "./core/keybinds.js";
 import { createProfileController } from "./app/profileController.js";
@@ -62,6 +62,7 @@ import { createRefineryActions } from "./app/refineryActions.js";
 import { createProgressionActions } from "./app/progressionActions.js";
 import { createInventorySaleController } from "./app/inventorySaleController.js";
 import { createUnequipAllController } from "./app/unequipAllController.js";
+import { handleAdminPanelChange, handleAdminPanelClick, handleAdminPanelInput, handleAdminPanelServerChange } from "./ui/adminPanel.js";
 
 const Game = createCombatGame({renderAll, showToast});
 let inventoryClickTimer = null;
@@ -70,32 +71,84 @@ let pendingServerResume = null;
 const urlParams = new URLSearchParams(window.location.search);
 const appMode = urlParams.get("mode") === "game" ? "game" : "launcher";
 const PROFILE_SCOPE_STORAGE_KEY = "voidsector-active-profile-scope";
+const SCROLL_PRESERVE_SELECTORS = [
+  ".rpg-inventory-grid",
+  ".equipment-pool-grid",
+  ".shop-grid-panel",
+  ".leaderboard-table-wrap",
+  ".leaderboard-full-table-wrap",
+  ".leaderboard-full-window",
+  ".rank-details-window",
+  ".pilot-profile-window",
+  ".firm-player-ranking-list",
+  ".firm-main-ranking-list",
+  ".firm-shop-stage-list",
+  ".firm-quest-wide-list",
+  ".portal-caster-results",
+  ".combat-panel-grid",
+  "#combatPanelContent",
+  ".combat-firm-content",
+  ".quest-strip-list",
+  ".quest-detail-wrap",
+  ".quest-info-grid",
+  ".group-floating-content",
+  ".sky-stats-table-wrap",
+  ".refinery-stock-list",
+  ".refinery-recipe-grid",
+  ".refinery-stock-grid",
+  ".admin-player-list",
+  ".admin-detail-scroll",
+  ".admin-inventory-grid",
+  ".admin-inventory-selected"
+];
 
-function getInventoryScrollSnapshot(){
-  const grid = document.querySelector(".rpg-inventory-grid");
+function getScrollSnapshot(){
   return {
-    gridTop: grid ? grid.scrollTop : null,
-    windowX: window.scrollX,
-    windowY: window.scrollY
+    windowX:window.scrollX,
+    windowY:window.scrollY,
+    entries:SCROLL_PRESERVE_SELECTORS.flatMap(selector=>
+      Array.from(document.querySelectorAll(selector)).map((element, index)=>({
+        selector,
+        index,
+        top:element.scrollTop,
+        left:element.scrollLeft
+      }))
+    )
   };
 }
 
-function restoreInventoryScroll(snapshot){
-  requestAnimationFrame(()=>{
-    const grid = document.querySelector(".rpg-inventory-grid");
-    if(grid && snapshot.gridTop !== null){
-      const maxTop = Math.max(0, grid.scrollHeight - grid.clientHeight);
-      grid.scrollTop = Math.min(snapshot.gridTop, maxTop);
+function restoreScrollSnapshot(snapshot){
+  const restore = ()=>{
+    for(const entry of snapshot.entries || []){
+      const element = document.querySelectorAll(entry.selector)[entry.index];
+      if(!element) continue;
+      const maxTop = Math.max(0, element.scrollHeight - element.clientHeight);
+      const maxLeft = Math.max(0, element.scrollWidth - element.clientWidth);
+      element.scrollTop = Math.min(entry.top, maxTop);
+      element.scrollLeft = Math.min(entry.left, maxLeft);
     }
     window.scrollTo(snapshot.windowX, snapshot.windowY);
+  };
+  requestAnimationFrame(()=>{
+    restore();
+    requestAnimationFrame(restore);
   });
 }
 
-function renderAllPreserveInventoryScroll(){
-  const snapshot = getInventoryScrollSnapshot();
-  renderAll();
-  restoreInventoryScroll(snapshot);
+function preserveScroll(callback){
+  const snapshot = getScrollSnapshot();
+  try{
+    return callback?.();
+  }finally{
+    restoreScrollSnapshot(snapshot);
+  }
 }
+
+function renderAllPreserveScroll(){
+  return preserveScroll(()=>renderAll());
+}
+
+const renderAllPreserveInventoryScroll = renderAllPreserveScroll;
 
 const profileController = createProfileController({
   store,
@@ -110,6 +163,8 @@ const profileController = createProfileController({
   saveState,
   syncMultiplayerProfile,
   renderAll,
+  renderTop,
+  preserveScroll,
   showToast
 });
 const saveAndSyncProfile = profileController.saveAndSync;
@@ -280,6 +335,8 @@ const refineryActions = createRefineryActions({
 });
 
 document.addEventListener("click", (e)=>{
+  if(handleAdminPanelClick(e, {showToast, renderAll:renderAllPreserveScroll})) return;
+
   const firmChoice = e.target.closest("[data-firm-choice]");
   if(firmChoice){
     store.pendingFirmId = firmChoice.dataset.firmChoice || "astra";
@@ -474,10 +531,21 @@ document.addEventListener("click", (e)=>{
   const firmQuestClaim = e.target.closest("[data-firm-quest-claim]");
   if(firmQuestClaim){ claimFirmQuest(firmQuestClaim.dataset.firmQuestClaim); return; }
 
+  const inventoryFilter = e.target.closest("[data-inventory-filter]");
+  if(inventoryFilter){
+    const filter = inventoryFilter.dataset.inventoryFilter || "all";
+    store.inventoryFilter = ["all", "equipment", "resources"].includes(filter) ? filter : "all";
+    store.selectedInventoryUid = null;
+    store.selectedInventoryResourceId = null;
+    renderAllPreserveInventoryScroll();
+    return;
+  }
+
   const nav = e.target.closest("[data-view]");
   if(nav){
     setView(nav.dataset.view);
     if(nav.dataset.view === "firm") requestFirmSync({includeShop:true});
+    if(nav.dataset.view === "leaderboard") requestLeaderboardSync();
     return;
   }
 
@@ -604,12 +672,16 @@ document.addEventListener("dblclick", (e)=>{
 });
 
 document.addEventListener("input", e=>{
+  if(handleAdminPanelInput(e, {renderAll:renderAllPreserveScroll})) return;
+
   const amountInput = e.target.closest("#refineryPanel [data-refinery-shipment-amount]");
   if(!amountInput) return;
   store.selectedRefineryShipmentAmount = Math.max(1, Math.ceil(Number(amountInput.value || 1)));
 });
 
 document.addEventListener("change", e=>{
+  if(handleAdminPanelChange(e, {renderAll:renderAllPreserveScroll})) return;
+
   const materialSelect = e.target.closest("#refineryPanel [data-refinery-shipment-material]");
   if(materialSelect){
     store.selectedRefineryShipmentMaterial = materialSelect.value;
@@ -702,7 +774,15 @@ window.addEventListener("beforeunload", ()=>{
 });
 
 window.addEventListener("voidsector:profile-sync", event=>{
+  const beforeFirmSelected = store.state?.player?.firmSelected;
+  const beforeFirmId = store.state?.player?.firmId;
   applyServerProfile(event.detail?.profile);
+  const player = event.detail?.profile?.player || null;
+  const firmSetupChanged = player && (
+    (Object.hasOwn(player, "firmSelected") && beforeFirmSelected !== store.state?.player?.firmSelected)
+    || (Object.hasOwn(player, "firmId") && beforeFirmId !== store.state?.player?.firmId)
+  );
+  if(appMode === "game" && firmSetupChanged) renderAllPreserveScroll();
 });
 
 window.addEventListener("voidsector:player-resume", event=>{
@@ -722,7 +802,7 @@ const serverEvents = createServerEventController({
   getDroneFormation,
   ensureShipLoadout,
   saveState,
-  renderAll,
+  renderAll:renderAllPreserveScroll,
   renderTop,
   renderProfile,
   showToast,
@@ -733,10 +813,15 @@ const serverEvents = createServerEventController({
 });
 window.addEventListener("voidsector:multiplayer-change", serverEvents.handleChange);
 window.addEventListener("voidsector:multiplayer-change", event=>{
-  if(event.detail?.reason === "firm:updated" && event.detail?.payload?.action === "box-open"){
+  const reason = String(event.detail?.reason || "");
+  if(handleAdminPanelServerChange(reason) || reason === "auth:success" || reason === "auth:role" || reason === "auth:logout") renderAllPreserveScroll();
+  if(reason === "firm:updated" && event.detail?.payload?.action === "box-open"){
     store.firmBoxOpening = {...event.detail.payload, revealId:`box_${Date.now()}`};
   }
-  if(store.currentView === "firm" && String(event.detail?.reason || "").startsWith("firm:")) renderFirm();
+  if(store.currentView === "firm" && reason.startsWith("firm:")) renderFirm();
+  if(store.currentView === "leaderboard" && reason === "leaderboard:ranking"){
+    preserveScroll(()=>renderLeaderboard());
+  }
 });
 
 profileController.initializeScope();

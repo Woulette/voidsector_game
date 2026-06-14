@@ -55,6 +55,7 @@ import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgress
 import { renderRefinery } from "./renderRefinery.js";
 import { renderFirm } from "./renderFirm.js";
 import { multiplayer } from "../multiplayer/client.js";
+import { renderAdminPanel } from "./adminPanel.js";
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g, char=>({
@@ -73,6 +74,45 @@ const RESOURCE_RARITY_META = {
   elite:{label:"Elite", short:"ELI"},
   mythic:{label:"Mythique", short:"MYT"}
 };
+
+const INVENTORY_FILTERS = [
+  {id:"all", label:"TOUT"},
+  {id:"equipment", label:"EQUIPEMENT"},
+  {id:"resources", label:"RESSOURCES"}
+];
+const RESOURCE_ITEM_IDS = new Set(["teleportation_fluid", "portal_anchor_key"]);
+
+function currentInventoryFilter(){
+  return INVENTORY_FILTERS.some(filter=>filter.id === store.inventoryFilter) ? store.inventoryFilter : "all";
+}
+
+function isInventoryResourceEntry(entry){
+  return RESOURCE_ITEM_IDS.has(entry?.item?.id || entry?.itemId || "");
+}
+
+function filterInventoryContent(inventoryEntries = [], resourceEntries = []){
+  const filter = currentInventoryFilter();
+  if(filter === "equipment"){
+    return {
+      inventoryEntries:inventoryEntries.filter(entry=>!isInventoryResourceEntry(entry)),
+      resourceEntries:[]
+    };
+  }
+  if(filter === "resources"){
+    return {
+      inventoryEntries:inventoryEntries.filter(isInventoryResourceEntry),
+      resourceEntries
+    };
+  }
+  return {inventoryEntries, resourceEntries};
+}
+
+function renderInventoryFilterTabs(){
+  const active = currentInventoryFilter();
+  return `<div class="inventory-filter-tabs">
+    ${INVENTORY_FILTERS.map(filter=>`<button class="${active === filter.id ? "active" : ""}" type="button" data-inventory-filter="${filter.id}">${filter.label}</button>`).join("")}
+  </div>`;
+}
 
 function maxShipStat(key, fallback = 1){
   return Math.max(fallback, ...ships.map(ship=>Number(ship.stats?.[key] || 0)));
@@ -177,9 +217,10 @@ function renderInventoryCell(entry, shipId = null){
   const isHere = shipId ? equipped?.location === "ship" && equipped?.shipId === shipId : equipped?.location === "drone";
   const isElsewhere = equipped && !isHere;
   const selected = store.selectedInventoryUid === entry.uid;
-  const badge = equipmentInventoryBadge(entry.item);
-  return `<button class="inventory-cell ${selected ? "selected" : ""} ${isHere ? "equipped-here" : ""} ${isElsewhere ? "equipped-elsewhere" : ""}"
-      draggable="true"
+  const resourceLike = isInventoryResourceEntry(entry);
+  const badge = resourceLike ? "RES" : equipmentInventoryBadge(entry.item);
+  return `<button class="inventory-cell ${resourceLike ? "inventory-resource-item" : ""} ${selected ? "selected" : ""} ${isHere ? "equipped-here" : ""} ${isElsewhere ? "equipped-elsewhere" : ""}"
+      draggable="${resourceLike ? "false" : "true"}"
       data-inventory-uid="${entry.uid}"
       data-inventory-category="${entry.item.category}"
       title="${entry.item.name}${equipped ? ` · ${locationLabel(equipped)}` : " · disponible"}">
@@ -294,6 +335,21 @@ function renderSelectedInventoryDetail(){
   const selectedEntry = getInventoryItem(store.selectedInventoryUid);
   const selectedItem = selectedEntry ? getItem(selectedEntry.itemId) : null;
   const selectedEquipped = selectedEntry ? findEquippedSlot(selectedEntry.uid) : null;
+  if(selectedEntry && selectedItem && isInventoryResourceEntry({...selectedEntry, item:selectedItem})){
+    return `
+    <div class="selected-item-art resource-art"><img src="${escapeHtml(selectedItem.img)}" alt="${escapeHtml(selectedItem.name)}"></div>
+    <div class="selected-item-copy">
+      <span class="tiny">RESSOURCE</span>
+      <h3>${escapeHtml(selectedItem.name)}</h3>
+      <div class="selected-item-stat-lines">
+        <span><b>Stack</b><strong>x${fmt(Number(selectedEntry.quantity || 1))}</strong></span>
+        <span><b>Usage</b><strong>Quete</strong></span>
+        <span><b>Equipement</b><strong>Non</strong></span>
+      </div>
+      <p>${escapeHtml(selectedItem.stats?.extra || "Ressource stockee dans l'inventaire.")}</p>
+      <small>Ressource speciale - non montable sur le vaisseau</small>
+    </div>`;
+  }
   if(!selectedItem){
     store.selectedInventoryUid = null;
     return `<div class="selected-item-copy"><span class="tiny">Aucun objet sélectionné</span><h3>Sélectionne un équipement</h3><p>Clique sur un laser ou un générateur dans l'inventaire pour afficher ses détails. Double-clique pour l'équiper dans le premier slot libre du panneau actif.</p></div>`;
@@ -338,14 +394,15 @@ export function renderLoadout(){
       ${item ? `<img src="${item.img}" alt="${item.name}"><b>${equipmentSlotBadge(item)}</b>` : `<span>${label}${index+1}</span><i>+</i>`}
     </button>`;
   };
-  const inventoryEntries = [
+  const allInventoryEntries = [
     ...getInventoryByCategory("canon"),
     ...getInventoryByCategory("generateur"),
     ...getInventoryByCategory("module"),
     ...getInventoryByCategory("extra"),
     ...getInventoryByCategory("quest_item")
   ].filter(entry=>!entry.equipped);
-  const resourceEntries = getInventoryResourceEntries();
+  const allResourceEntries = getInventoryResourceEntries();
+  const {inventoryEntries, resourceEntries} = filterInventoryContent(allInventoryEntries, allResourceEntries);
   const inventoryCount = inventoryEntries.length + resourceEntries.length;
   const emptyCells = Array.from({length:Math.max(0, 48 - inventoryCount)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
   const panel = document.getElementById("loadoutPanel");
@@ -366,6 +423,7 @@ export function renderLoadout(){
       </section>
       <section class="rpg-inventory-panel">
         <div class="compact-section-head"><h3>Inventaire</h3><span>${inventoryCount} objets</span></div>
+        ${renderInventoryFilterTabs()}
         <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, ship.id)).join("")}${resourceEntries.map(renderInventoryResourceCell).join("")}${emptyCells}</div>
       </section>
       <section class="selected-item-panel">${renderSelectedInventoryDetail()}</section>
@@ -391,10 +449,11 @@ export function renderDroneSection(){
   if(!section) return;
   const droneDef = getDroneCatalog();
   const drones = getDroneLoadout();
-  const inventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur"), ...getInventoryByCategory("drone_upgrade")]
+  const allInventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur"), ...getInventoryByCategory("drone_upgrade"), ...getInventoryByCategory("quest_item")]
     .filter(entry=>!entry.equipped)
-    .filter(entry=>isDroneCompatibleEquipment(entry.item) || isDronePermanentUpgradeItem(entry.item));
-  const resourceEntries = getInventoryResourceEntries();
+    .filter(entry=>isInventoryResourceEntry(entry) || isDroneCompatibleEquipment(entry.item) || isDronePermanentUpgradeItem(entry.item));
+  const allResourceEntries = getInventoryResourceEntries();
+  const {inventoryEntries, resourceEntries} = filterInventoryContent(allInventoryEntries, allResourceEntries);
   const inventoryCount = inventoryEntries.length + resourceEntries.length;
   const emptyCells = Array.from({length:Math.max(0, 40 - inventoryCount)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
   const nextPrice = drones.length >= droneDef.maxOwned ? null : getDronePurchasePrice(drones.length);
@@ -422,6 +481,7 @@ export function renderDroneSection(){
           </section>
           <section class="rpg-inventory-panel">
             <div class="compact-section-head"><h3>Inventaire</h3><span>${inventoryCount} objets</span></div>
+            ${renderInventoryFilterTabs()}
             <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, null)).join("")}${resourceEntries.map(renderInventoryResourceCell).join("")}${emptyCells}</div>
           </section>
           <section class="selected-item-panel">${renderSelectedInventoryDetail()}</section>
@@ -770,6 +830,7 @@ export function renderAll(){
   renderSkills();
   renderRefinery();
   renderFirm();
+  renderAdminPanel();
   renderFirmSetupGate();
   saveState();
 }

@@ -40,7 +40,7 @@ export function drawDamageTexts({ctx, camera, damageTexts}){
   ctx.restore();
 }
 
-function getMapPortals(map){
+function getDefaultMapPortals(map){
   if(!map) return [];
   if(Array.isArray(map.portals)) return map.portals;
   return map.portal ? [map.portal] : [];
@@ -52,7 +52,18 @@ function formatCompactCoord({x, y}){
   return `X ${shortX}  Y ${shortY}`;
 }
 
-export function drawMiniMap({ctx, currentMap, player, enemies, rect, moveTarget, revealAllEnemies = false, groupPlayers = [], groupPingTarget = null}){
+export function drawMiniMap({
+  ctx,
+  currentMap,
+  player,
+  enemies,
+  rect,
+  moveTarget,
+  revealAllEnemies = false,
+  groupPlayers = [],
+  groupPingTarget = null,
+  getMapPortals = getDefaultMapPortals
+}){
   const {x, y, w, h} = rect;
   const headerH = 22;
   const sx = w/currentMap.width, sy = h/currentMap.height;

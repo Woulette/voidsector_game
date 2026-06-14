@@ -14,6 +14,11 @@ export function registerEquipmentHandlers(socket, context){
     emitProfileSync
   } = context;
 
+  function finishEquipmentAction(player, location, result, event){
+    if(result.claimedQuests?.length) emitQuestClaims?.(player, result.claimedQuests, {auto:true});
+    finishEquipmentChangeAtFirmSpawn(player, location, result, event);
+  }
+
   socket.on("ship:equip-active", payload=>{
     if(!guard("ship:equip-active")) return;
     const player = players.get(socket.id);
@@ -101,7 +106,7 @@ export function registerEquipmentHandlers(socket, context){
       socket.emit("equipment:error", {message:result.reason || "Equipement impossible."});
       return;
     }
-    finishEquipmentChangeAtFirmSpawn(player, location, result, {action:"equip", target:result.target || null, item:result.item || null, at:Date.now()});
+    finishEquipmentAction(player, location, result, {action:"equip", target:result.target || null, item:result.item || null, at:Date.now()});
   });
 
   socket.on("equipment:unequip-slot", payload=>{
@@ -126,7 +131,7 @@ export function registerEquipmentHandlers(socket, context){
       socket.emit("equipment:error", {message:result.reason || "Retrait impossible."});
       return;
     }
-    finishEquipmentChangeAtFirmSpawn(player, location, result, {action:"unequip-slot", at:Date.now()});
+    finishEquipmentAction(player, location, result, {action:"unequip-slot", at:Date.now()});
   });
 
   socket.on("equipment:unequip-ship", payload=>{
@@ -149,7 +154,7 @@ export function registerEquipmentHandlers(socket, context){
       socket.emit("equipment:error", {message:result.reason || "Retrait impossible."});
       return;
     }
-    finishEquipmentChangeAtFirmSpawn(player, location, result, {action:"unequip-ship", shipId:result.shipId, count:result.count || 0, at:Date.now()});
+    finishEquipmentAction(player, location, result, {action:"unequip-ship", shipId:result.shipId, count:result.count || 0, at:Date.now()});
   });
 
   socket.on("equipment:unequip-inventory", payload=>{
@@ -172,7 +177,7 @@ export function registerEquipmentHandlers(socket, context){
       socket.emit("equipment:error", {message:result.reason || "Retrait impossible."});
       return;
     }
-    finishEquipmentChangeAtFirmSpawn(player, location, result, {action:"unequip-inventory", at:Date.now()});
+    finishEquipmentAction(player, location, result, {action:"unequip-inventory", at:Date.now()});
   });
 
   socket.on("equipment:drone-upgrade", payload=>{
@@ -196,7 +201,7 @@ export function registerEquipmentHandlers(socket, context){
       socket.emit("equipment:error", {message:result.reason || "Amelioration impossible."});
       return;
     }
-    finishEquipmentChangeAtFirmSpawn(player, location, result, {action:"drone-upgrade", target:result.target || null, item:result.item || null, at:Date.now()});
+    finishEquipmentAction(player, location, result, {action:"drone-upgrade", target:result.target || null, item:result.item || null, at:Date.now()});
   });
 
   socket.on("equipment:upgrade", payload=>{

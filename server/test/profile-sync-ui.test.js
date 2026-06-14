@@ -43,6 +43,10 @@ test("repeated monster reward profile syncs do not rebuild combat UI", ()=>{
 
 test("profile sync refreshes only the UI affected by its data", ()=>{
   const before = baseState();
+  const firmChanged = structuredClone(before);
+  firmChanged.player.firmSelected = true;
+  assert.equal(changes(before, firmChanged).panelsChanged, true);
+
   const ammoChanged = structuredClone(before);
   ammoChanged.ammoInventory.ammo_x1 = 499;
   assert.equal(changes(before, ammoChanged).actionBarChanged, true);
@@ -111,6 +115,113 @@ test("game profile controller applies repeated kill rewards without refreshing l
     assert.equal(hudUpdates, 25);
     assert.equal(dispatched.length, 25);
     assert.equal(dispatched.every(event=>event.detail?.uiChanges?.actionBarChanged === false), true);
+  }finally{
+    globalThis.window = previousWindow;
+    globalThis.localStorage = previousLocalStorage;
+    globalThis.CustomEvent = previousCustomEvent;
+  }
+});
+
+test("launcher profile sync without UI changes refreshes top bar only", ()=>{
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousCustomEvent = globalThis.CustomEvent;
+  globalThis.localStorage = {getItem:()=>null, setItem(){}};
+  globalThis.CustomEvent = class {
+    constructor(type, options = {}){
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+  globalThis.window = {dispatchEvent(){}};
+  const store = {state:baseState(), currentView:"leaderboard", hangarTab:"vaisseau", hangarDetailOpen:false};
+  let renders = 0;
+  let topRenders = 0;
+  let preservedRenders = 0;
+  let toasts = 0;
+  const controller = createProfileController({
+    store,
+    game:{running:false},
+    appMode:"launcher",
+    profileScopeStorageKey:"test-profile-scope",
+    getXpNextForLevel:()=>3000,
+    xpCurveVersion:1,
+    ensureShipLoadout(){},
+    setStateStorageScope(){},
+    loadState(){},
+    saveState(){},
+    syncMultiplayerProfile(){},
+    renderAll(){ renders += 1; },
+    renderTop(){ topRenders += 1; },
+    preserveScroll(callback){
+      preservedRenders += 1;
+      return callback();
+    },
+    showToast(){ toasts += 1; }
+  });
+  try{
+    controller.applyServerProfile({
+      updatedAt:10,
+      player:{...store.state.player, xp:250, credits:1800, totalKills:12},
+      killStats:{drone_pirate:12}
+    });
+    assert.equal(renders, 0);
+    assert.equal(topRenders, 1);
+    assert.equal(preservedRenders, 0);
+    assert.equal(toasts, 0);
+  }finally{
+    globalThis.window = previousWindow;
+    globalThis.localStorage = previousLocalStorage;
+    globalThis.CustomEvent = previousCustomEvent;
+  }
+});
+
+test("launcher profile sync with UI changes preserves scroll around full render", ()=>{
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousCustomEvent = globalThis.CustomEvent;
+  globalThis.localStorage = {getItem:()=>null, setItem(){}};
+  globalThis.CustomEvent = class {
+    constructor(type, options = {}){
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+  globalThis.window = {dispatchEvent(){}};
+  const store = {state:baseState(), currentView:"leaderboard", hangarTab:"vaisseau", hangarDetailOpen:false};
+  let renders = 0;
+  let topRenders = 0;
+  let preservedRenders = 0;
+  let toasts = 0;
+  const controller = createProfileController({
+    store,
+    game:{running:false},
+    appMode:"launcher",
+    profileScopeStorageKey:"test-profile-scope",
+    getXpNextForLevel:()=>3000,
+    xpCurveVersion:1,
+    ensureShipLoadout(){},
+    setStateStorageScope(){},
+    loadState(){},
+    saveState(){},
+    syncMultiplayerProfile(){},
+    renderAll(){ renders += 1; },
+    renderTop(){ topRenders += 1; },
+    preserveScroll(callback){
+      preservedRenders += 1;
+      return callback();
+    },
+    showToast(){ toasts += 1; }
+  });
+  try{
+    controller.applyServerProfile({
+      updatedAt:11,
+      shipLoadouts:{orion:{lasers:[]}}
+    });
+    assert.equal(renders, 1);
+    assert.equal(topRenders, 0);
+    assert.equal(preservedRenders, 1);
+    assert.equal(toasts, 1);
   }finally{
     globalThis.window = previousWindow;
     globalThis.localStorage = previousLocalStorage;

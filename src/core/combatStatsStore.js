@@ -99,21 +99,25 @@ export function getShipCombatStats(shipId = store.state.activeShip){
     const base = Number(item.stats?.[key] || 0);
     return base + (base ? getEquipmentUpgradeLevel(item.id) * upgradeValue : 0);
   };
-  const boostedGeneratorValue = (items, key, upgradeValue, extraBoost = 0)=>{
-    return items.reduce((sum, item)=>sum + statFromGenerator(item, key, upgradeValue) * (1 + generatorBoost + extraBoost), 0);
+  const generatorValue = (items, key, upgradeValue, multiplier = 1)=>{
+    return items.reduce((sum, item)=>sum + statFromGenerator(item, key, upgradeValue) * multiplier, 0);
   };
-  const shieldFromGenerators = boostedGeneratorValue(shipGenerators, "bouclier", 30)
-    + boostedGeneratorValue(droneGenerators, "bouclier", 30, droneBoost);
-  const regen = boostedGeneratorValue(shipGenerators, "regen", 1)
-    + boostedGeneratorValue(droneGenerators, "regen", 1, droneBoost);
-  const generatorSpeed = boostedGeneratorValue(shipGenerators, "vitesse", 2)
-    + boostedGeneratorValue(droneGenerators, "vitesse", 2, droneBoost);
+  const droneMultiplier = 1 + droneBoost;
+  const generatorMultiplier = 1 + generatorBoost;
+  const shieldFromGenerators = generatorValue(shipGenerators, "bouclier", 30)
+    + generatorValue(droneGenerators, "bouclier", 30, droneMultiplier);
+  const regen = generatorValue(shipGenerators, "regen", 1)
+    + generatorValue(droneGenerators, "regen", 1, droneMultiplier);
+  const generatorSpeed = generatorValue(shipGenerators, "vitesse", 2)
+    + generatorValue(droneGenerators, "vitesse", 2, droneMultiplier);
   const vitesse = (ship.stats.vitesse + (skill.vitesse || 0) + generatorSpeed)
     * Number(formationBonus.speedMultiplier || 1)
-    * Number(skill.speedMultiplier || 1);
+    * Number(skill.speedMultiplier || 1)
+    * generatorMultiplier;
   const bouclier = (shieldFromGenerators > 0 ? shieldFromGenerators + (skill.shieldBonus || 0) : 0)
     * Number(formationBonus.shieldMultiplier || 1)
-    * Number(skill.shieldMultiplier || 1);
+    * Number(skill.shieldMultiplier || 1)
+    * generatorMultiplier;
   const extraBonus = getExtraBonus(shipId);
   extraBonus.rocketDamageMultiplier = Number(formationBonus.rocketDamageMultiplier || 1) * Number(skill.rocketDamageMultiplier || 1);
   extraBonus.missileDamageMultiplier = Number(formationBonus.missileDamageMultiplier || 1) * Number(skill.missileDamageMultiplier || 1);
@@ -127,7 +131,7 @@ export function getShipCombatStats(shipId = store.state.activeShip){
     maxExtras:ship.stats.maxExtras || 3,
     droneCount: getDroneLoadout().length,
     bouclier,
-    regen: (regen + (skill.regen || 0)) * Number(formationBonus.regenMultiplier || 1) * Number(skill.regenMultiplier || 1),
+    regen: (regen + (skill.regen || 0)) * Number(formationBonus.regenMultiplier || 1) * Number(skill.regenMultiplier || 1) * generatorMultiplier,
     weaponDamage: skill.weaponDamage || 0,
     weaponDamageMultiplier: Number(skill.weaponDamageMultiplier || 1) * Number(formationBonus.laserDamageMultiplier || 1),
     weaponDamagePercent: Number(skill.weaponDamageMultiplier || 1) * Number(formationBonus.laserDamageMultiplier || 1) - 1,

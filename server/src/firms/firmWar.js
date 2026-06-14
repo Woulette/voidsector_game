@@ -249,7 +249,7 @@ export function createFirmWarManager({
         firmId:normalizeFirmId(profile?.player?.firmId || own?.firmId || "astra"),
         contribution:Math.max(0, Number(own?.points || 0)),
         rank:ownRank || null,
-        rewardLabel:ownReward?.label || "Non classe",
+        rewardLabel:ownReward?.label || "Non classé",
         expectedReward:ownReward?.reward || null,
         collectiveEligible:Math.max(0, Number(own?.points || 0)) >= FIRM_COLLECTIVE_MIN_CONTRIBUTION,
         pendingRewards:getPendingRewards(playerKey),

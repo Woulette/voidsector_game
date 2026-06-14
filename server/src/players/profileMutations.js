@@ -1,6 +1,7 @@
 import { applyProgressionReward, spendCurrency } from "./progression.js";
 import { applyServerReputationFromXp, registerServerMonsterKill, updateRankScore } from "./rankProgression.js";
 import { sanitizeProfile } from "./profileSanitize.js";
+import { appendProfileActivity } from "./activityLog.js";
 
 export function createProfileMutations({profiles, persist, profileKeyForPlayer, getExistingProfile}){
   function applyReward({player, reward} = {}){
@@ -17,6 +18,19 @@ export function createProfileMutations({profiles, persist, profileKeyForPlayer, 
         kind:reward.enemyKind || reward.enemyType,
         enemyLevel:reward.enemyLevel,
         playerLevel:existing.player?.level
+      });
+      const enemyLabel = String(reward.enemyName || reward.enemyKind || reward.enemyType || "Monstre");
+      appendProfileActivity(draft, {
+        type:"monster_kill",
+        label:"Mob tue",
+        detail:`${enemyLabel} niv. ${Math.max(1, Number(reward.enemyLevel || 1))} - +${Math.max(0, Math.round(Number(reward.xp || 0)))} XP, +${Math.max(0, Math.round(Number(reward.credits || 0)))} credits, +${Math.max(0, Math.round(Number(reward.premium || 0)))} NOVA.`,
+        data:{
+          enemyKind:reward.enemyKind || reward.enemyType || "",
+          enemyLevel:Math.max(1, Number(reward.enemyLevel || 1)),
+          xp:Math.max(0, Math.round(Number(reward.xp || 0))),
+          credits:Math.max(0, Math.round(Number(reward.credits || 0))),
+          premium:Math.max(0, Math.round(Number(reward.premium || 0)))
+        }
       });
     }
     applyServerReputationFromXp(draft, reward?.xp);

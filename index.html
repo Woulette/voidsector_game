@@ -35,10 +35,13 @@
         <button class="nav-tab" data-view="leaderboard">CLASSEMENT</button>
       </nav>
 
-      <button id="startGameBtn" class="start-button">
-        <strong>DÉPART</strong>
-        <span>LANCER LA MISSION</span>
-      </button>
+      <div class="start-admin-stack">
+        <button id="startGameBtn" class="start-button">
+          <strong>DÉPART</strong>
+          <span>LANCER LA MISSION</span>
+        </button>
+        <div id="adminDock"></div>
+      </div>
 
       <section class="currency-strip frame">
         <div class="currency">
@@ -404,6 +407,6 @@
   </section>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="game.js"></script>
+  <script type="module" src="game.js?v=admin-panel-scroll-1"></script>
 </body>
 </html>

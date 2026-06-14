@@ -1,7 +1,8 @@
 import { WORLD_MAPS } from "./definitions.js";
 import { createWorldEnemy, publicEnemy, seededRandom } from "./spawn.js";
+import { getPlayerMapRoom } from "../players/visibility.js";
 
-export function createWorldStateManager({io, players, presence, progressProfileQuestAction}){
+export function createWorldStateManager({io, players, presence, progressProfileQuestAction, getGroups}){
   const worldMaps = new Map();
 
   function getWorldMapState(mapId){
@@ -45,7 +46,7 @@ export function createWorldStateManager({io, players, presence, progressProfileQ
     if(!player) return;
     const requestedMapId = String(mapId ?? "0");
     const nextMapId = WORLD_MAPS[requestedMapId] || requestedMapId.startsWith("portal-") || requestedMapId === "coop-test" ? requestedMapId : "0";
-    const nextRoom = `map:${nextMapId}`;
+    const nextRoom = getPlayerMapRoom(player, nextMapId, getGroups?.());
     if(player.mapRoom === nextRoom && player.worldMapSent) return;
     if(player.mapRoom && player.mapRoom !== nextRoom) socket.leave(player.mapRoom);
     player.mapId = nextMapId;

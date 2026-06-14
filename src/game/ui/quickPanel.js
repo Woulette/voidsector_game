@@ -47,6 +47,13 @@ function renderExtrasPanel({extras, repairState, repairBotActive, extraBonus, re
         <button class="blue-button small" type="button" disabled>Passif</button>
       </article>`;
     }
+    if(effect.portgun){
+      return `<article class="combat-pick-card" draggable="true" data-combat-extra-slot="${item.id}">
+        <img class="combat-extra-icon" src="${item.img}" alt="${item.name}">
+        <div><strong>${item.name}</strong><span>${item.stats?.extra || "Teleportation avec fluide"}</span><small>Ouvre la carte secteur pour choisir une destination.</small></div>
+        <div class="slot-actions"><button class="blue-button small" data-combat-extra-use="${item.id}" type="button">Carte</button><button class="blue-button small secondary" data-combat-extra-slot="${item.id}" type="button">Slot</button></div>
+      </article>`;
+    }
     return `<article class="combat-pick-card">
       <img class="combat-extra-icon" src="${item.img}" alt="${item.name}">
       <div><strong>${item.name}</strong><span>${item.stats?.extra || "Bonus passif"}</span><small>Effet passif actif.</small></div>

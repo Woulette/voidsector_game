@@ -161,7 +161,8 @@ export function createServerEventController({
         "job-claim":`Raffinage recupere cote serveur : ${event.recipe?.name || "recette"}.`,
         "shipment-start":`${event.amount || 0} ${event.material?.name || "materiau"} envoyes vers ${event.ship?.name || "vaisseau"} cote serveur.`,
         "shipment-rush":`Expedition terminee cote serveur : +${event.amount || 0} ${event.materialName || "materiau"} pour ${event.cost || 0} NOVA.`,
-        "ship-cargo-refine":`Fusion serveur : +${event.outputAmount || 0} ${event.output?.name || event.recipe?.outputId || "materiau"}.`
+        "ship-cargo-refine":`Fusion serveur : +${event.outputAmount || 0} ${event.output?.name || event.recipe?.outputId || "materiau"}.`,
+        "combat-boost-deposit":`${event.amount || 0} ${event.materialName || "materiau"} consomme(s) pour le perfectionnement ${event.target || ""}.`
       };
       if(messages[event.action]) showToast(messages[event.action]);
     }

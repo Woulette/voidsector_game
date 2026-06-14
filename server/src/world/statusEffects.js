@@ -69,6 +69,9 @@ export function createWorldStatusEffectManager({io, players, presence, profileMa
       const hpBefore = Math.max(0, Number(player.state.hp || 0));
       player.state.hp = Math.max(0, hpBefore - poison.damage);
       player.state.updatedAt = now;
+      player.lastServerDamageAt = now;
+      player.state.repairBotActive = false;
+      player.serverRepairBotTick = 0;
       poison.nextTickAt += poison.intervalMs;
       const hpLost = Math.max(0, hpBefore - Number(player.state.hp || 0));
       if(hpLost <= 0) continue;
@@ -79,6 +82,10 @@ export function createWorldStatusEffectManager({io, players, presence, profileMa
         enemyId:poison.sourceId,
         mapId:player.mapId,
         amount:hpLost,
+        hp:Number(player.state.hp || 0),
+        maxHp:Number(player.state.maxHp || 0),
+        shield:Number(player.state.shield || 0),
+        maxShield:Number(player.state.maxShield || 0),
         damageType:"poison",
         at:now
       });

@@ -10,7 +10,7 @@ export const FIRM_RANK_BONUSES = [0.25, 0.15, 0.10, 0.05];
 export const FIRM_REPUTATION_TIERS = [
   {reputation:10_000, discount:0, label:"Commun"},
   {reputation:75_000, discount:0.05, label:"Rare"},
-  {reputation:300_000, discount:0.10, label:"Tres rare"},
+  {reputation:300_000, discount:0.10, label:"Très rare"},
   {reputation:900_000, discount:0.15, label:"Elite"},
   {reputation:2_000_000, discount:0.20, label:"Mythique"}
 ];
@@ -18,7 +18,7 @@ export const FIRM_REPUTATION_TIERS = [
 export const FIRM_RARITIES = {
   common:{id:"common", label:"Commune", lower:null},
   rare:{id:"rare", label:"Rare", lower:"common"},
-  veryRare:{id:"veryRare", label:"Tres rare", lower:"rare"},
+  veryRare:{id:"veryRare", label:"Très rare", lower:"rare"},
   elite:{id:"elite", label:"Elite", lower:"veryRare"},
   mythic:{id:"mythic", label:"Mythique", lower:"elite"}
 };
@@ -53,8 +53,8 @@ const FIRM_SHOP_RESOURCE_CONFIG = {
   },
   veryRare:{
     chestId:"box_veryRare",
-    chestLabel:"Coffre tres rare",
-    chestDesc:"Un coffre de ressources tres rares.",
+    chestLabel:"Coffre très rare",
+    chestDesc:"Un coffre de ressources très rares.",
     chestPrice:300,
     chestAsset:"assets/firm/chests/chest_veryRare.svg",
     reputation:[300_000, 450_000, 650_000],
@@ -185,7 +185,7 @@ export const FIRM_DAILY_QUEST_DEFINITIONS = [
     label:"Offensive dimensionnelle",
     type:"portal",
     target:"portal",
-    targetLabel:"Portails termines",
+    targetLabel:"Portails terminés",
     startHourUtc:18,
     goal:100,
     firmPoints:25_000,
@@ -200,7 +200,7 @@ export const FIRM_SEASONAL_QUEST_DEFINITIONS = [
     label:"Domination spatiale",
     type:"monster",
     target:"*",
-    targetLabel:"Monstres elimines",
+    targetLabel:"Monstres éliminés",
     goal:300_000,
     firmPoints:150_000,
     claimFirmatons:5,
@@ -211,7 +211,7 @@ export const FIRM_SEASONAL_QUEST_DEFINITIONS = [
     label:"Maitrise dimensionnelle",
     type:"portal",
     target:"*",
-    targetLabel:"Portails termines",
+    targetLabel:"Portails terminés",
     goal:2_000,
     firmPoints:200_000,
     claimFirmatons:5,
@@ -234,10 +234,10 @@ export const FIRM_PERSONAL_SEASON_OBJECTIVES = [
   {
     id:"season-solo-monsters-100",
     label:"Chasseur de saison",
-    description:"Eliminer 100 monstres pendant la saison.",
+    description:"Éliminer 100 monstres pendant la saison.",
     type:"monster",
     target:"*",
-    targetLabel:"Monstres elimines",
+    targetLabel:"Monstres éliminés",
     goal:100,
     firmPoints:250,
     reward:{firmatons:25, ammo:{ammo_x2:1_000}}
@@ -245,7 +245,7 @@ export const FIRM_PERSONAL_SEASON_OBJECTIVES = [
   {
     id:"season-solo-orbs-50",
     label:"Nettoyeur d'orbes",
-    description:"Eliminer 50 Orbes sentinelles.",
+    description:"Éliminer 50 Orbes sentinelles.",
     type:"monster",
     target:"drone_pirate",
     targetLabel:"Orbes",
@@ -256,7 +256,7 @@ export const FIRM_PERSONAL_SEASON_OBJECTIVES = [
   {
     id:"season-solo-vorak-50",
     label:"Briseur de Vorak",
-    description:"Eliminer 50 Vorak Rushers.",
+    description:"Éliminer 50 Vorak Rushers.",
     type:"monster",
     target:"raider_astral",
     targetLabel:"Vorak Rushers",
@@ -270,7 +270,7 @@ export const FIRM_PERSONAL_SEASON_OBJECTIVES = [
     description:"Terminer 10 portails pendant la saison.",
     type:"portal",
     target:"portal",
-    targetLabel:"Portails termines",
+    targetLabel:"Portails terminés",
     goal:10,
     firmPoints:500,
     reward:{firmatons:50, ammo:{ammo_x3:1_000}}
@@ -305,7 +305,7 @@ export const FIRM_BOX_REWARD_TABLES = {
   ],
   veryRare:[
     {kind:"premium", label:"10 000 NOVA", amount:10_000},
-    {kind:"material", label:"1 ressource tres rare", id:"micro_heatpipe_quantique", amount:1},
+    {kind:"material", label:"1 ressource très rare", id:"micro_heatpipe_quantique", amount:1},
     {kind:"ammo", label:"25 000 munitions x4", id:"ammo_x4", amount:25_000},
     {kind:"ammo", label:"1 000 missiles tiers 2", id:"missile_m2", amount:1_000},
     {kind:"ammo", label:"500 roquettes tiers 3", id:"rocket_r3", amount:500}
@@ -355,7 +355,7 @@ export function getFirmIndividualReward(rank, totalPlayers){
   const percentile = cleanRank / total * 100;
   const tier = PERCENT_REWARDS.find(entry=>percentile <= entry.percent);
   if(tier) return {label:`Top ${tier.percent}%`, reward:cloneFirmReward(tier.reward)};
-  return {label:"Joueur classe", reward:{firmatons:100}};
+  return {label:"Joueur classé", reward:{firmatons:100}};
 }
 
 export function getFirmQuestFirmPoints(basePoints, elapsedMs){

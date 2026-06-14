@@ -7,6 +7,9 @@ import { buildPortalEnvironment, createPortalMap } from "./portalState.js";
 import { createRemoteWeaponEventProcessor } from "./combatRemoteWeaponEvents.js";
 import { createQuestServerEventProcessor } from "./combatQuestServerEvents.js";
 
+const RICKY_ALLY_ID = "ricky_companion";
+const RICKY_ROCKET_PROJECTILE = "assets/equipment/rocket_r2_projectile.png";
+
 export function createCombatServerEventSystem({
   multiplayer,
   getState,
@@ -23,7 +26,9 @@ export function createCombatServerEventSystem({
   showToast,
   updateHud,
   updateLootPopup,
-  portalStartingLives
+  portalStartingLives,
+  applyServerDeath,
+  applyServerRespawn
 }){
   const processedRewardIds = new Set();
   function getCurrentMapToken(map){
@@ -44,7 +49,7 @@ export function createCombatServerEventSystem({
   });
 
   function loadPortalArena(event){
-    const portal = portals.find(p=>p.id === event?.portal?.id) || portals[0];
+    const portal = portals.find(p=>p.id === event?.portal?.id) || event?.portal || portals[0];
     const currentMap = createPortalMap(portal);
     const environment = buildPortalEnvironment(portal.id, currentMap);
     const {player, missileSalvos} = getState();
@@ -64,6 +69,8 @@ export function createCombatServerEventSystem({
       portalDelay:0,
       portalCompleted:false,
       portalLives:portalStartingLives,
+      portalAlly:null,
+      portalBeacons:[],
       currentMap,
       enemies:[],
       asteroids:environment.asteroids,
@@ -93,7 +100,7 @@ export function createCombatServerEventSystem({
     const events = multiplayer.portalCompleteEvents.splice(0);
     for(const event of events){
       const {activePortal, portalCompleted} = getState();
-      const portal = portals.find(p=>p.id === event?.portal?.id) || activePortal;
+      const portal = portals.find(p=>p.id === event?.portal?.id) || event?.portal || activePortal;
       if(!portal || portalCompleted) continue;
       setState({activePortal:portal, portalCompleted:true});
       const reward = event.reward || {};
@@ -136,12 +143,34 @@ export function createCombatServerEventSystem({
       if(player.isDead) continue;
       const amount = Math.max(0, Math.round(Number(event.amount || 0)));
       if(amount <= 0) continue;
+      const serverHp = Number(event.hp);
+      const serverMaxHp = Number(event.maxHp);
+      const serverShield = Number(event.shield);
+      const serverMaxShield = Number(event.maxShield);
+      const hasServerVitals = Number.isFinite(serverHp) || Number.isFinite(serverShield);
+      const serverAgeMs = Number.isFinite(Number(event.at)) ? Date.now() - Number(event.at) : 0;
+      const staleVisual = serverAgeMs > 2500;
+      if(staleVisual && hasServerVitals){
+        if(Number.isFinite(serverMaxHp) && serverMaxHp > 0) player.maxHp = serverMaxHp;
+        if(Number.isFinite(serverHp)) player.hp = Math.max(0, Math.min(player.maxHp || serverHp, serverHp));
+        if(Number.isFinite(serverMaxShield) && serverMaxShield >= 0) player.maxShield = serverMaxShield;
+        if(Number.isFinite(serverShield)) player.shield = Math.max(0, Math.min(player.maxShield || serverShield, serverShield));
+        continue;
+      }
       const poison = event.damageType === "poison";
       damagePlayer(amount, {
         recordQuestHpLoss:false,
         bypassShield:poison,
-        allowDamageToHp:!poison
+        allowDamageToHp:!poison,
+        suppressDeath:true,
+        serverAuthoritative:true
       });
+      if(hasServerVitals){
+        if(Number.isFinite(serverMaxHp) && serverMaxHp > 0) player.maxHp = serverMaxHp;
+        if(Number.isFinite(serverHp)) player.hp = Math.max(0, Math.min(player.maxHp || serverHp, serverHp));
+        if(Number.isFinite(serverMaxShield) && serverMaxShield >= 0) player.maxShield = serverMaxShield;
+        if(Number.isFinite(serverShield)) player.shield = Math.max(0, Math.min(player.maxShield || serverShield, serverShield));
+      }
       pushDamageText({
         x:player.x,
         y:player.y - 58,
@@ -153,6 +182,34 @@ export function createCombatServerEventSystem({
     multiplayer.playerDamageEvents = remaining;
   }
 
+  function applyLifecycleEvents(){
+    const {player} = getState();
+    let warned = Boolean(getState().radiationWarned);
+    for(const event of multiplayer.playerRadiationEvents?.splice(0) || []){
+      player.radiationTimer = Math.max(0, Number(event.remainingSeconds ?? 30));
+      if(event.active && !warned){
+        warned = true;
+        setState({radiationWarned:true});
+        showToast("Zone irradiee : retourne dans la carte ou ton vaisseau sera detruit.");
+      }else if(event.active === false){
+        warned = false;
+        player.radiationTimer = 30;
+        setState({radiationWarned:false});
+      }
+    }
+    for(const event of multiplayer.playerDeathEvents?.splice(0) || []) applyServerDeath?.(event);
+    for(const event of multiplayer.playerRespawnEvents?.splice(0) || []) applyServerRespawn?.(event);
+    for(const event of multiplayer.portgunEvents?.splice(0) || []){
+      if(event?.type === "started"){
+        showToast(`Portgun charge vers ${event.targetMapName || "secteur"} : ne bouge pas pendant ${Math.ceil(Number(event.durationMs || 0) / 1000)}s.`);
+      }else if(event?.type === "cancelled"){
+        showToast(event.message || "Teleportation Portgun annulee.");
+      }else if(event?.type === "complete"){
+        applyServerRespawn?.(event);
+      }
+    }
+  }
+
   function applyStatusEffectEvents(){
     if(!multiplayer.playerStatusEffectEvents?.length) return;
     for(const event of multiplayer.playerStatusEffectEvents.splice(0)){
@@ -160,6 +217,67 @@ export function createCombatServerEventSystem({
       if(event.active === false) clearPoison?.();
       else applyPlayerPoison?.({...event, serverAuthoritative:true});
     }
+  }
+
+  function applyNpcDamageEvents(){
+    if(!multiplayer.npcDamageEvents?.length) return;
+    const {currentMap, portalAlly} = getState();
+    const remaining = [];
+    for(const event of multiplayer.npcDamageEvents.splice(0)){
+      if(String(event.mapId ?? "") !== getCurrentMapToken(currentMap)){
+        remaining.push(event);
+        continue;
+      }
+      if(event.targetId === "ricky_companion" && portalAlly){
+        portalAlly.hp = Math.max(0, Number(event.hp ?? portalAlly.hp ?? 0));
+        portalAlly.shield = Math.max(0, Number(event.shield ?? portalAlly.shield ?? 0));
+        portalAlly.alive = portalAlly.hp > 0;
+        pushDamageText({
+          x:Number(portalAlly.x || 0),
+          y:Number(portalAlly.y || 0) - 58,
+          value:Math.max(0, Math.round(Number(event.hpLost || event.amount || 0))),
+          color:"rgba(248,113,113,",
+          shadowColor:"rgba(248,113,113,.78)"
+        });
+      }
+    }
+    multiplayer.npcDamageEvents = remaining;
+  }
+
+  function applyPlayerHealEvents(){
+    if(!multiplayer.playerHealEvents?.length) return;
+    const {player, currentMap, portalAlly} = getState();
+    const remaining = [];
+    for(const event of multiplayer.playerHealEvents.splice(0)){
+      if(String(event.mapId ?? "") !== getCurrentMapToken(currentMap)){
+        remaining.push(event);
+        continue;
+      }
+      const amount = Math.max(0, Math.round(Number(event.amount || 0)));
+      if(event.targetId === multiplayer.playerId){
+        if(Number.isFinite(Number(event.maxHp)) && Number(event.maxHp) > 0) player.maxHp = Number(event.maxHp);
+        if(Number.isFinite(Number(event.hp))) player.hp = Math.max(0, Math.min(player.maxHp || Number(event.hp), Number(event.hp)));
+        pushDamageText({
+          x:player.x,
+          y:player.y - 62,
+          value:`+${amount}`,
+          color:"rgba(74,222,128,",
+          shadowColor:"rgba(34,197,94,.78)"
+        });
+      }else if(event.targetId === "ricky_companion" && portalAlly){
+        if(Number.isFinite(Number(event.maxHp)) && Number(event.maxHp) > 0) portalAlly.maxHp = Number(event.maxHp);
+        if(Number.isFinite(Number(event.hp))) portalAlly.hp = Math.max(0, Math.min(portalAlly.maxHp || Number(event.hp), Number(event.hp)));
+        portalAlly.alive = portalAlly.hp > 0;
+        pushDamageText({
+          x:Number(portalAlly.x || event.x || 0),
+          y:Number(portalAlly.y || event.y || 0) - 62,
+          value:`+${amount}`,
+          color:"rgba(74,222,128,",
+          shadowColor:"rgba(34,197,94,.78)"
+        });
+      }
+    }
+    multiplayer.playerHealEvents = remaining;
   }
 
   function applyEnemyAttackEvents(){
@@ -209,12 +327,71 @@ export function createCombatServerEventSystem({
     remoteWeaponEvents.applyRemoteWeaponEvents();
   }
 
+  function rickyMuzzlePoint(ally, targetX, targetY, weaponClass){
+    const angle = Math.atan2(targetY - Number(ally.y || 0), targetX - Number(ally.x || 0));
+    const facing = angle + Math.PI / 2;
+    ally.clientAimAngle = facing;
+    ally.clientAimUntil = performance.now() + (weaponClass === "rocket" ? 520 : 260);
+    const side = weaponClass === "rocket" ? (Math.random() > .5 ? -18 : 18) : 0;
+    const front = weaponClass === "rocket" ? 50 : 44;
+    return {
+      x:Number(ally.x || 0) + Math.cos(angle) * front + Math.cos(facing) * side,
+      y:Number(ally.y || 0) + Math.sin(angle) * front + Math.sin(facing) * side,
+      angle,
+      facing
+    };
+  }
+
+  function addRickyAttackVisual(event){
+    if(String(event?.attackerId || "") !== RICKY_ALLY_ID) return;
+    const {portalAlly, bullets, particles} = getState();
+    if(!portalAlly || portalAlly.alive === false || Number(portalAlly.hp || 0) <= 0) return;
+    const toX = Number(event.x || portalAlly.x || 0);
+    const toY = Number(event.y || portalAlly.y || 0);
+    const weaponClass = String(event.weaponClass || "laser");
+    const muzzle = rickyMuzzlePoint(portalAlly, toX, toY, weaponClass);
+    if(weaponClass === "rocket"){
+      const distance = Math.hypot(toX - muzzle.x, toY - muzzle.y);
+      const bullet = createProjectile({
+        owner:"player",
+        startX:muzzle.x,
+        startY:muzzle.y,
+        targetId:String(event.enemyId || ""),
+        damage:0,
+        travelTime:Math.max(.18, Math.min(.85, distance / 760)),
+        radius:10,
+        color:"rgba(125,211,252,.95)",
+        particle:"rgba(96,165,250,.82)",
+        kind:"rocket",
+        sprite:RICKY_ROCKET_PROJECTILE,
+        visualOnly:true,
+        ammoId:"rocket_r2"
+      });
+      bullet.fixedTarget = {x:toX, y:toY, hp:1};
+      bullets.push(bullet);
+      particles.push({x:muzzle.x, y:muzzle.y, life:.24, max:.24, size:26, color:"rgba(125,211,252,.78)"});
+      return;
+    }
+    beams.add({
+      ammoId:"ricky_laser",
+      fromX:muzzle.x,
+      fromY:muzzle.y,
+      toX,
+      toY,
+      targetId:String(event.enemyId || ""),
+      canReplay:false,
+      blueLaser:true
+    });
+    particles.push({x:muzzle.x, y:muzzle.y, life:.16, max:.16, size:18, color:"rgba(125,211,252,.72)"});
+  }
+
   function applyCombatHitEvents(){
     if(!multiplayer.combatEvents?.length) return;
     const {enemies} = getState();
     const events = multiplayer.combatEvents.splice(0);
     const remaining = [];
     for(const event of events){
+      addRickyAttackVisual(event);
       const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId));
       if(!enemy){
         const x = Number(event.x);
@@ -346,7 +523,10 @@ export function createCombatServerEventSystem({
     applyRemoteWeaponEvents();
     applyEnemyAttackEvents();
     applyStatusEffectEvents();
+    applyNpcDamageEvents();
     applyDamageEvents();
+    applyPlayerHealEvents();
+    applyLifecycleEvents();
     applyCombatHitEvents();
     applyRewardEvents();
     applyQuestClaimEvents();
@@ -360,6 +540,7 @@ export function createCombatServerEventSystem({
     loadPortalArena,
     applyPortalEvents,
     applyDamageEvents,
+    applyLifecycleEvents,
     applyRemoteWeaponEvents,
     applyCombatHitEvents,
     applyRewardEvents,

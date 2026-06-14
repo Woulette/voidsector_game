@@ -499,7 +499,12 @@ export function drawCargoBoxes({ctx, camera, cache, cargoBoxes}){
 export function drawGroundMaterials({ctx, camera, cache, materials}){
   const time = performance.now() / 420;
   for(const node of materials || []){
-    const img = cache[node.img];
+    if(node.img && cache && !cache[node.img] && typeof Image === "function"){
+      const lazyImg = new Image();
+      lazyImg.src = node.img;
+      cache[node.img] = lazyImg;
+    }
+    const img = node.img ? cache[node.img] : null;
     const sx = Math.round(node.x - camera.x);
     const sy = Math.round(node.y - camera.y + Math.sin(time + node.phase) * 3);
     const size = node.renderSize || node.size || 42;

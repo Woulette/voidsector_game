@@ -80,6 +80,7 @@ export function createCombatSessionController({
     player.hp = Math.max(isSameMapCorrection ? 0 : 1, Math.min(maxHp, Number(session.hp ?? maxHp)));
     player.maxShield = maxShield;
     player.shield = Math.max(0, Math.min(maxShield, Number(session.shield ?? maxShield)));
+    if("repairBotActive" in session) player.repairBotActive = Boolean(session.repairBotActive);
     if(shipChanged && stats) applyCombatStatFields(player, stats);
     if(!isSameMapCorrection){
       player.isDead = false;

@@ -56,6 +56,22 @@ export function recordServerQuestHpLoss(profile, amount){
   return {ok:true, updates, failed};
 }
 
+export function recordServerQuestDeath(profile){
+  normalizeQuestFields(profile);
+  const failed = [];
+  const activeIds = profile.activeQuestIds
+    .filter(id=>getQuest(id) && !profile.completedQuestClaims?.[id])
+    .slice(0, MAX_ACTIVE_QUESTS);
+  for(const id of activeIds){
+    const quest = getQuest(id);
+    if(!quest?.failConditions?.deathResets) continue;
+    resetQuestRun(profile, quest);
+    removeActiveQuest(profile, quest.id);
+    failed.push({id:quest.id, questId:quest.id, title:quest.title, failType:"death"});
+  }
+  return {ok:true, changed:failed.length > 0, failed};
+}
+
 export function checkServerQuestTimers(profile, now = Date.now()){
   normalizeQuestFields(profile);
   const failed = [];

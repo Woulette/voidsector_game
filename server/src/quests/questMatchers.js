@@ -21,6 +21,16 @@ export function objectiveMatchesAction(profile, objective = {}, action = {}){
   }
   if(action.type === "space_caster_use") return true;
   if(action.type === "quest_item_drop") return objective.itemId && objective.itemId === action.itemId;
+  if(action.type === "portal_complete"){
+    if(objective.portalId && objective.portalId !== action.portalId) return false;
+    return true;
+  }
+  if(action.type === "mission_control"){
+    if(objective.stationId && objective.stationId !== action.stationId) return false;
+    if(Array.isArray(objective.zones) && objective.zones.length && !objective.zones.includes(action.zoneName)) return false;
+    if(objective.zone && objective.zone !== action.zoneName) return false;
+    return true;
+  }
   if(action.type === "talk_npc" || action.type === "deliver_item"){
     if(objective.npcId && objective.npcId !== action.npcId) return false;
     if(Array.isArray(objective.zones) && objective.zones.length && !objective.zones.includes(action.zoneName)) return false;

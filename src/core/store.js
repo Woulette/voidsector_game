@@ -35,7 +35,7 @@ export {
   unequipInventoryItem,
   upgradeEquipment
 } from "./equipmentStore.js";
-export { acceptQuest, canClaimQuest, claimQuest, getActiveQuest, getActiveQuests, getQuestObjectiveProgress, getQuestProgress, recordQuestCoordinateVisit, recordQuestDeath, recordQuestHpLoss, recordQuestItemPickup, recordQuestKill, recordQuestMapVisit, recordQuestNpcTalk, recordQuestRefineryMaterialUpgradeStart, recordQuestRefineryModuleUpgradeStart, recordQuestSpaceCasterUse, recordQuestTimeElapsed, rollQuestItemDropFromKill } from "./questStore.js";
+export { acceptQuest, canClaimQuest, claimQuest, getActiveQuest, getActiveQuests, getQuestObjectiveProgress, getQuestProgress, recordQuestCoordinateVisit, recordQuestDeath, recordQuestHpLoss, recordQuestItemPickup, recordQuestKill, recordQuestMapVisit, recordQuestMissionControl, recordQuestNpcTalk, recordQuestRefineryMaterialUpgradeStart, recordQuestRefineryModuleUpgradeStart, recordQuestSpaceCasterUse, recordQuestTimeElapsed, rollQuestItemDropFromKill } from "./questStore.js";
 import { getRankScore } from "./rankStore.js";
 export {
   RANK_TABLE,
@@ -135,6 +135,7 @@ export const store = {
   firmShopFilter:"global",
   firmRankingFilter:"global",
   firmBoxOpening:null,
+  inventoryFilter:"all",
   selectedInventoryUid:null,
   selectedShopProduct:null,
   selectedShopAmmoMultiplier:1,

@@ -6,7 +6,7 @@ import {
   findSessionByTokenHash,
   saveSession
 } from "../storage/authStore.js";
-import { publicAccount } from "./accounts.js";
+import { isAccountBanned, publicAccount } from "./accounts.js";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
@@ -38,6 +38,10 @@ export async function getSessionAccount(token){
   if(!session) return null;
   const account = await findAccountById(session.accountId);
   if(!account){
+    await deleteSession(session.id);
+    return null;
+  }
+  if(isAccountBanned(account)){
     await deleteSession(session.id);
     return null;
   }

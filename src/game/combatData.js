@@ -1074,6 +1074,63 @@ const RICKY_PORTAL_BY_FIRM = {
   VERTE:{map:"VERTE-02", npcId:"verte02_portal_mechanic", portal:{x:-4300, y:-3300}, npc:{x:-4470, y:-3180}}
 };
 
+const RICKY_PORTAL_UNLOCK_QUEST_BASE_ID = "quest_lv10_maintenance_impossible";
+const RICKY_PORTAL_QUEST_SUFFIX_BY_FIRM = {
+  ASTRA:"",
+  CYAN:"_cyan",
+  JAUNE:"_jaune",
+  VERTE:"_verte"
+};
+
+function getMapFirmAndZone(map){
+  const match = String(map?.name || "").match(/^([A-Z]+)-(\d+)$/);
+  if(!match) return null;
+  return {firm:match[1], zone:Number(match[2])};
+}
+
+function getRickyPortalQuestId(firm){
+  if(!Object.hasOwn(RICKY_PORTAL_QUEST_SUFFIX_BY_FIRM, firm)) return null;
+  return `${RICKY_PORTAL_UNLOCK_QUEST_BASE_ID}${RICKY_PORTAL_QUEST_SUFFIX_BY_FIRM[firm]}`;
+}
+
+export function isRickyPortalUnlocked(map, completedQuestClaims = {}, questProgress = {}){
+  const info = getMapFirmAndZone(map);
+  if(!info || info.zone !== 2) return false;
+  const questId = getRickyPortalQuestId(info.firm);
+  return Boolean(questId && completedQuestClaims?.[questId]);
+}
+
+function removeLockedRickyPortalLinks(){
+  for(const firm of Object.keys(RICKY_PORTAL_BY_FIRM)){
+    const layout = ZONE_TWO_PORTAL_LAYOUT[firm];
+    const map2 = getMapByName(`${firm}-02`);
+    const map4 = getMapByName(`${firm}-04`);
+    if(!layout || !map2 || !map4) continue;
+    removePortalsTo(map2, map4.id);
+    removePortalsTo(map4, map2.id);
+    removePortalAtDir(map2, layout.to4);
+    removePortalAtDir(map4, layout.from4);
+  }
+}
+
+function getRickyUnlockedPortal(map){
+  const info = getMapFirmAndZone(map);
+  if(!info || info.zone !== 2) return null;
+  const config = RICKY_PORTAL_BY_FIRM[info.firm];
+  if(!config) return null;
+  return {
+    ...config.portal,
+    r:95,
+    safeRadius:230,
+    activationRadius:340,
+    label:"PORTAIL DE RICKY",
+    displayLabel:"PORTAIL DE RICKY",
+    portalId:"ricky",
+    rickyPortal:true,
+    dungeonPortal:true
+  };
+}
+
 function installFirmRickyPortals(){
   const rickyTemplate = {
     npcImg:"assets/ships/npc/npc_saucer.png",
@@ -1086,7 +1143,7 @@ function installFirmRickyPortals(){
   for(const config of Object.values(RICKY_PORTAL_BY_FIRM)){
     const map = MAPS.find(entry=>entry.name === config.map);
     if(!map) continue;
-    map.closedPortals = [{...config.portal, r:95, safeRadius:230}];
+    map.closedPortals = [{...config.portal, r:95, safeRadius:230, label:"PORTAIL FERME", damaged:true, closed:true}];
     map.questNpcs = [{
       ...rickyTemplate,
       id:config.npcId,
@@ -1114,17 +1171,37 @@ function applyMapDisplayNames(){
 
 applyMapDisplayNames();
 
-export function getMapPortals(map){
+function getBaseMapPortals(map){
   if(!map) return [];
   if(Array.isArray(map.portals)) return map.portals;
   return map.portal ? [map.portal] : [];
 }
 
+export function getMapPortals(map, options = {}){
+  const base = getBaseMapPortals(map);
+  if(!isRickyPortalUnlocked(map, options.completedQuestClaims, options.questProgress)) return base;
+  const rickyPortal = getRickyUnlockedPortal(map);
+  if(!rickyPortal) return base;
+  if(base.some(portal=>(portal.rickyPortal || portal.portalId === rickyPortal.portalId)
+    && Number(portal.x) === Number(rickyPortal.x)
+    && Number(portal.y) === Number(rickyPortal.y))){
+    return base;
+  }
+  return [...base, rickyPortal];
+}
+
+export function getClosedMapPortals(map, options = {}){
+  const closed = Array.isArray(map?.closedPortals) ? map.closedPortals : [];
+  if(!closed.length) return [];
+  return isRickyPortalUnlocked(map, options.completedQuestClaims, options.questProgress) ? [] : closed;
+}
+
 const BOSS_STAT_MULTIPLIER = 4;
+const BOSS_LOOT_MULTIPLIER = 2;
 function multiplyMaterials(materials = {}, multiplier = BOSS_STAT_MULTIPLIER){
   return Object.fromEntries(Object.entries(materials).map(([id, amount])=>[id, Math.max(0, Math.round(Number(amount || 0) * multiplier))]));
 }
-function multiplyLoot(loot, multiplier = BOSS_STAT_MULTIPLIER){
+function multiplyLoot(loot, multiplier = BOSS_LOOT_MULTIPLIER){
   return {
     credits:Math.max(0, Math.round(Number(loot?.credits || 0) * multiplier)),
     xp:Math.max(0, Math.round(Number(loot?.xp || 0) * multiplier)),
@@ -1151,9 +1228,9 @@ export const ENEMY_TYPES = {
     color:"rgba(248,113,113,.95)",
     particle:"rgba(252,165,165,.72)",
     loot:{
-      credits:1200,
-      xp:350,
-      premium:2,
+      credits:800,
+      xp:400,
+      premium:1,
       materials:{nickel_brut:10, titane_fissure:10, silice_conductrice:10}
     }
   },
@@ -1176,9 +1253,9 @@ export const ENEMY_TYPES = {
     color:"rgba(251,146,60,.95)",
     particle:"rgba(253,186,116,.72)",
     loot:{
-      credits:1500,
+      credits:1200,
       xp:500,
-      premium:3,
+      premium:2,
       materials:{cuivre_orbital:10, zinc_spatial:10, nickel_brut:10}
     }
   },
@@ -1204,8 +1281,8 @@ export const ENEMY_TYPES = {
     onHitEffect:{type:"poison", damage:50, interval:2, duration:10},
     loot:{
       credits:4000,
-      xp:1700,
-      premium:5,
+      xp:1500,
+      premium:4,
       materials:{
         cuivre_orbital:20,
         zinc_spatial:20,
@@ -1235,9 +1312,9 @@ export const ENEMY_TYPES = {
     color:"rgba(96,165,250,.95)",
     particle:"rgba(191,219,254,.72)",
     loot:{
-      credits:7000,
-      xp:3000,
-      premium:12,
+      credits:12000,
+      xp:5000,
+      premium:8,
       materials:{
         cuivre_orbital:30,
         zinc_spatial:30,
@@ -1268,8 +1345,8 @@ export const ENEMY_TYPES = {
     particle:"rgba(253,186,116,.72)",
     loot:{
       credits:100000,
-      xp:20000,
-      premium:48,
+      xp:50000,
+      premium:30,
       materials:{
         cuivre_orbital:120,
         zinc_spatial:120,
@@ -1302,8 +1379,8 @@ export const ENEMY_TYPES = {
     particle:"rgba(216,180,254,.72)",
     loot:{
       credits:60000,
-      xp:12000,
-      premium:32,
+      xp:35000,
+      premium:20,
       materials:{
         cuivre_orbital:80,
         zinc_spatial:80,
@@ -1333,9 +1410,9 @@ export const ENEMY_TYPES = {
     color:"rgba(248,113,113,.95)",
     particle:"rgba(252,165,165,.72)",
     loot:multiplyLoot({
-      credits:1200,
-      xp:350,
-      premium:2,
+      credits:800,
+      xp:400,
+      premium:1,
       materials:{nickel_brut:10, titane_fissure:10, silice_conductrice:10}
     }, 2)
   },
@@ -1359,9 +1436,9 @@ export const ENEMY_TYPES = {
     color:"rgba(251,146,60,.95)",
     particle:"rgba(253,186,116,.72)",
     loot:multiplyLoot({
-      credits:1500,
+      credits:1200,
       xp:500,
-      premium:3,
+      premium:2,
       materials:{cuivre_orbital:10, zinc_spatial:10, nickel_brut:10}
     }, 2)
   },
@@ -1387,8 +1464,8 @@ export const ENEMY_TYPES = {
     onHitEffect:{type:"poison", damage:50 * BOSS_STAT_MULTIPLIER, interval:2, duration:10},
     loot:multiplyLoot({
       credits:4000,
-      xp:1700,
-      premium:5,
+      xp:1500,
+      premium:4,
       materials:{
         cuivre_orbital:20,
         zinc_spatial:20,
@@ -1418,8 +1495,8 @@ export const ENEMY_TYPES = {
     color:"rgba(96,165,250,.95)",
     particle:"rgba(191,219,254,.72)",
     loot:multiplyLoot({
-      credits:7000,
-      xp:3000,
+      credits:12000,
+      xp:5000,
       premium:8,
       materials:{
         cuivre_orbital:30,
@@ -1451,7 +1528,7 @@ export const ENEMY_TYPES = {
     particle:"rgba(253,186,116,.72)",
     loot:multiplyLoot({
       credits:100000,
-      xp:20000,
+      xp:50000,
       premium:30,
       materials:{
         cuivre_orbital:120,
@@ -1485,7 +1562,7 @@ export const ENEMY_TYPES = {
     particle:"rgba(216,180,254,.72)",
     loot:multiplyLoot({
       credits:60000,
-      xp:12000,
+      xp:35000,
       premium:20,
       materials:{
         cuivre_orbital:80,
@@ -1651,5 +1728,22 @@ export const SHIP_ENGINE_PROFILES = {
     particleSpread:1.28,
     particleSize:1.22,
     particleLife:1.25
+  },
+  ricky_companion:{
+    ports:[
+      {x:-27, y:36, size:.70, length:.70, width:.88},
+      {x:0, y:43, size:1.08, length:1.04, width:1.15},
+      {x:27, y:36, size:.70, length:.70, width:.88}
+    ],
+    colors:{core:"240,253,255", hot:"125,211,252", mid:"14,165,233", edge:"30,64,175", particle:"96,165,250", spark:"224,242,254"},
+    baseLength:20,
+    powerLength:34,
+    baseWidth:7.2,
+    powerWidth:8.6,
+    particleRate:1.1,
+    particleSpeed:1.05,
+    particleSpread:.92,
+    particleSize:.96,
+    particleLife:.9
   }
 };

@@ -18,6 +18,15 @@ export function drawRotatedImage({ctx, camera, img, x, y, w, h, angle, fallbackC
 }
 
 const REPAIR_DRONE_IMG = "assets/equipment/drone_repair_starter.png";
+const STAFF_BADGES = {
+  owner:{label:"[OWN]", color:"#ff4d5f", shadow:"rgba(248,113,113,.95)"},
+  admin:{label:"[ADM]", color:"#ff4d5f", shadow:"rgba(248,113,113,.95)"},
+  moderator:{label:"[MOD]", color:"#facc15", shadow:"rgba(250,204,21,.9)"}
+};
+
+function getStaffBadge(role){
+  return STAFF_BADGES[String(role || "").toLowerCase()] || null;
+}
 
 function getEngineProfile({ship, defaultProfile, profiles}){
   const profile = profiles[ship.id] || defaultProfile;
@@ -353,11 +362,12 @@ function drawRepairDrone({ctx, camera, cache, player}){
   });
 }
 
-function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotFirmAssetPath, pilotName, pilotTitle}){
+function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotFirmAssetPath, pilotName, pilotRole, pilotTitle}){
   const px = player.x - camera.x;
   const py = player.y - camera.y;
   const rankImg = cache[rankAssetPath];
   const firmImg = cache[pilotFirmAssetPath];
+  const staffBadge = getStaffBadge(pilotRole);
   ctx.save();
   ctx.font = "800 15px Rajdhani, Arial";
   ctx.textBaseline = "middle";
@@ -367,8 +377,14 @@ function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilot
   const firmIconSize = 24;
   const firmGap = -4;
   const nameGap = 6;
+  const badgeGap = staffBadge ? 5 : 0;
+  const badgeWidth = staffBadge ? ctx.measureText(staffBadge.label).width : 0;
   const nameWidth = ctx.measureText(pilotName).width;
-  const groupWidth = (firmImg ? firmIconSize + firmGap : 0) + (rankImg ? iconSize + nameGap : 0) + nameWidth;
+  const groupWidth = (firmImg ? firmIconSize + firmGap : 0)
+    + (rankImg ? iconSize + nameGap : 0)
+    + badgeWidth
+    + badgeGap
+    + nameWidth;
   const startX = px - groupWidth / 2;
   let textX = startX;
   if(firmImg){
@@ -380,11 +396,19 @@ function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilot
     textX += iconSize + nameGap;
   }
   ctx.textAlign = "left";
-  ctx.fillStyle = "#e2e8f0";
   ctx.shadowColor = "rgba(2,6,17,.95)";
   ctx.shadowBlur = 7;
   ctx.lineWidth = 3;
   ctx.strokeStyle = "rgba(2,6,17,.82)";
+  if(staffBadge){
+    ctx.fillStyle = staffBadge.color;
+    ctx.shadowColor = staffBadge.shadow;
+    ctx.strokeText(staffBadge.label, textX, nameY);
+    ctx.fillText(staffBadge.label, textX, nameY);
+    textX += badgeWidth + badgeGap;
+    ctx.shadowColor = "rgba(2,6,17,.95)";
+  }
+  ctx.fillStyle = "#e2e8f0";
   ctx.strokeText(pilotName, textX, nameY);
   ctx.fillText(pilotName, textX, nameY);
   if(pilotTitle){
@@ -442,6 +466,7 @@ export function drawPlayerLayer({
   rankAssetPath,
   pilotFirmAssetPath,
   pilotName,
+  pilotRole,
   pilotTitle,
   getItemFromInventoryUid,
   getDronePermanentUpgrade,
@@ -451,8 +476,17 @@ export function drawPlayerLayer({
 }){
   drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles});
   drawPlayerStatusBars({ctx, camera, player});
-  drawRotatedImage({ctx, camera, img:cache[ship.combatImg || ship.img], x:player.x, y:player.y, w:96, h:96, angle:player.angle});
+  drawRotatedImage({
+    ctx,
+    camera,
+    img:cache[ship.combatImg || ship.img],
+    x:player.x,
+    y:player.y,
+    w:ship.renderWidth || 96,
+    h:ship.renderHeight || 96,
+    angle:player.angle + Number(ship.renderAngleOffset || 0)
+  });
   drawRepairDrone({ctx, camera, cache, player});
   drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, getDronePermanentUpgrade, droneFormation});
-  drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotFirmAssetPath, pilotName, pilotTitle});
+  drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotFirmAssetPath, pilotName, pilotRole, pilotTitle});
 }

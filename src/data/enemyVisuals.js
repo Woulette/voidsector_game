@@ -22,11 +22,16 @@ const COMPACT_QUEST_ASSET_KINDS = new Set([
   "shared_rusher"
 ]);
 
+const FULL_SIZE_QUEST_ASSET_KINDS = new Set([
+  "boss_raider_astral"
+]);
+
 export function getEnemyBaseKind(kind){
   return String(kind || "").replace(/^boss_/, "");
 }
 
 export function hasCompactQuestAsset(kind){
+  if(FULL_SIZE_QUEST_ASSET_KINDS.has(String(kind || ""))) return false;
   return COMPACT_QUEST_ASSET_KINDS.has(getEnemyBaseKind(kind));
 }
 

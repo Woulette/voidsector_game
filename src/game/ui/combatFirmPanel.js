@@ -54,7 +54,7 @@ function renderPlayers(snapshot){
     <div class="combat-firm-player-list">${(snapshot.individualRanking || []).slice(0, 40).map(row=>`
       <article class="${row.key === snapshot.personal?.key ? "own" : ""}">
         <b>${row.rank}</b><div><img src="${badge(row.firmId)}" alt=""><strong>${escapeHtml(row.name)}</strong></div><span>${fmt(row.points)}</span><em>${escapeHtml(row.rewardLabel)}</em>
-      </article>`).join("") || `<p class="social-empty">Aucun joueur classe.</p>`}</div>`;
+      </article>`).join("") || `<p class="social-empty">Aucun joueur classé.</p>`}</div>`;
 }
 
 function renderQuests(snapshot){
@@ -69,19 +69,19 @@ function renderQuests(snapshot){
     return `<article class="${own.completedAt ? "complete" : ""}">
       <div class="combat-firm-quest-head"><div><strong>${escapeHtml(quest.label)}</strong><span>${questKindLabel(quest)} - ${escapeHtml(quest.targetLabel)} - ${duration(Number(quest.endsAt || 0) - Date.now())}</span></div><b>${fmt(own.progress)} / ${fmt(quest.goal)}</b></div>
       <div class="combat-firm-progress"><span style="width:${percent}%"></span></div>
-      <div class="combat-firm-quest-personal"><span>Participation quete : <b>${fmt(quest.player?.contribution || 0)}</b></span><span>Rang quete : ${escapeHtml(quest.player?.rewardLabel || "Non classe")}</span></div>
+      <div class="combat-firm-quest-personal"><span>Participation quête : <b>${fmt(quest.player?.contribution || 0)}</b></span><span>Rang quête : ${escapeHtml(quest.player?.rewardLabel || "Non classé")}</span></div>
     </article>`;
-  }).join("") || `<p class="social-empty">Aucune quete active.</p>`}</div>`;
+  }).join("") || `<p class="social-empty">Aucune quête active.</p>`}</div>`;
 }
 
 function renderRewards(snapshot){
   const pending = snapshot.personal?.pendingRewards || [];
   return `<div class="combat-firm-reward-summary">
-      <article><span>Rang individuel</span><strong>${escapeHtml(snapshot.personal?.rewardLabel || "Non classe")}</strong><small>${escapeHtml(rewardText(snapshot.personal?.expectedReward || {}))}</small></article>
-      <article><span>Recompense collective</span><strong>${snapshot.personal?.collectiveEligible ? "ELIGIBLE" : "SEUIL NON ATTEINT"}</strong><small>${fmt(snapshot.personal?.contribution || 0)} / ${fmt(snapshot.collectiveMinimumContribution || 10_000)} points</small></article>
+      <article><span>Rang individuel</span><strong>${escapeHtml(snapshot.personal?.rewardLabel || "Non classé")}</strong><small>${escapeHtml(rewardText(snapshot.personal?.expectedReward || {}))}</small></article>
+      <article><span>Récompense collective</span><strong>${snapshot.personal?.collectiveEligible ? "ÉLIGIBLE" : "SEUIL NON ATTEINT"}</strong><small>${fmt(snapshot.personal?.contribution || 0)} / ${fmt(snapshot.collectiveMinimumContribution || 10_000)} points</small></article>
     </div>
-    <div class="combat-firm-pending">${pending.map(entry=>`<article><strong>${escapeHtml(entry.label)}</strong><span>${escapeHtml(rewardText(entry.reward))}</span></article>`).join("") || `<p class="social-empty">Aucune recompense en attente.</p>`}</div>
-    <button class="combat-firm-claim" data-social-action="firm-reward-claim" type="button" ${pending.length ? "" : "disabled"}>RECUPERER LES RECOMPENSES</button>`;
+    <div class="combat-firm-pending">${pending.map(entry=>`<article><strong>${escapeHtml(entry.label)}</strong><span>${escapeHtml(rewardText(entry.reward))}</span></article>`).join("") || `<p class="social-empty">Aucune récompense en attente.</p>`}</div>
+    <button class="combat-firm-claim" data-social-action="firm-reward-claim" type="button" ${pending.length ? "" : "disabled"}>RÉCUPÉRER LES RÉCOMPENSES</button>`;
 }
 
 function renderOverview(snapshot){
@@ -89,7 +89,7 @@ function renderOverview(snapshot){
   const quest = [...(snapshot.dailyQuests || []), ...(snapshot.seasonalQuests || [])].find(entry=>!entry.locked);
   return `<div class="combat-firm-overview">
     <section style="--firm-color:${escapeHtml(firm?.color || "#38bdf8")}"><img src="${badge(firm?.id)}" alt=""><div><span>Ta firme</span><strong>${escapeHtml(firm?.label || "Firme")}</strong><b>Top ${firm?.rank || "-"} - ${fmt(firm?.points)} pts</b></div></section>
-    <section><div><span>Contribution saisonniere</span><strong>${fmt(snapshot.personal?.contribution || 0)} pts</strong><b>${snapshot.personal?.rank ? `Top ${snapshot.personal.rank} mondial` : "Non classe"}</b></div></section>
+    <section><div><span>Contribution saisonnière</span><strong>${fmt(snapshot.personal?.contribution || 0)} pts</strong><b>${snapshot.personal?.rank ? `Top ${snapshot.personal.rank} mondial` : "Non classé"}</b></div></section>
     <section><div><span>Prochaine mission</span><strong>${escapeHtml(quest?.label || "Synchronisation")}</strong><b>${quest ? duration(Number(quest.endsAt || 0) - Date.now()) : "--"}</b></div></section>
   </div>
   ${renderFirms(snapshot)}`;
@@ -98,10 +98,10 @@ function renderOverview(snapshot){
 export function renderCombatFirmPanel({snapshot, selectedTab = "overview"} = {}){
   const data = snapshot || {firms:[], individualRanking:[], dailyQuests:[], seasonalQuests:[], personal:{}};
   const tabs = [
-    {id:"overview", label:"Resume"},
+    {id:"overview", label:"Résumé"},
     {id:"firms", label:"Firmes"},
     {id:"players", label:"Joueurs"},
-    {id:"quests", label:"Quetes"},
+    {id:"quests", label:"Quêtes"},
     {id:"rewards", label:"Gains"}
   ];
   const content = selectedTab === "firms"

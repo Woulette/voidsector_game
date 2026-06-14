@@ -18,7 +18,8 @@ import {
   requestSocialSync,
   respondFriendRequest,
   sendFriendRequest,
-  setSocialCategory
+  setSocialCategory,
+  startPortgunTeleport
 } from "../../multiplayer/client.js";
 
 function escapeHtml(value = ""){
@@ -87,6 +88,7 @@ export function createCombatPanels({
   let selectedShipRefineRecipeId = null;
   let groupHudRefreshT = 0;
   let groupHudDragReady = false;
+  let mapPanelMode = "view";
   let selectedSocialTab = "friends";
   let selectedSocialKey = null;
   let selectedFirmPanelTab = "overview";
@@ -324,7 +326,26 @@ export function createCombatPanels({
     return found?.displayName || found?.name || (id !== undefined && id !== null ? String(id) : "Hors combat");
   }
 
+  function getVisibleGroupMembers(){
+    const members = [...(multiplayer.group?.members || [])];
+    const ally = multiplayer.portalAlly;
+    if(!ally || ally.alive === false || Number(ally.hp || 0) <= 0) return members;
+    const portalId = multiplayer.portalInstance?.portal?.id || "ricky";
+    members.push({
+      id:ally.id || "ricky_companion",
+      name:ally.name || "Ricky",
+      npcAlly:true,
+      state:{
+        ...ally,
+        mapId:`portal-${portalId}`,
+        updatedAt:Date.now()
+      }
+    });
+    return members;
+  }
+
   function resolveGroupMemberState(member){
+    if(member?.npcAlly) return member.state || multiplayer.portalAlly || null;
     const currentMap = getCurrentMap?.();
     const localPlayer = getPlayer?.();
     if(member.id === multiplayer.playerId && localPlayer){
@@ -360,7 +381,7 @@ export function createCombatPanels({
     const localPlayer = getPlayer?.();
     const state = resolveGroupMemberState(member);
     const isLocal = member.id === multiplayer.playerId;
-    const role = member.id === multiplayer.group?.leaderId ? "Chef" : "Membre";
+    const role = member.npcAlly ? "Soutien" : member.id === multiplayer.group?.leaderId ? "Chef" : "Membre";
     const sameMap = state && currentMap && String(state.mapId) === String(currentMap.id);
     const distance = state && localPlayer && sameMap && !isLocal ? Math.round(Math.hypot(Number(state.x || 0) - localPlayer.x, Number(state.y || 0) - localPlayer.y)) : null;
     const lastSeen = state?.updatedAt ? Math.max(0, Math.round((Date.now() - Number(state.updatedAt || 0)) / 1000)) : null;
@@ -445,7 +466,7 @@ export function createCombatPanels({
   function refreshGroupFloatingHud(){
     const hud = ensureGroupFloatingHud();
     const content = hud.querySelector(".group-floating-content");
-    const members = multiplayer.group?.members || [];
+    const members = getVisibleGroupMembers();
     if(!members.length){
       hud.classList.add("hidden");
       if(content) content.innerHTML = "";
@@ -458,7 +479,7 @@ export function createCombatPanels({
 
   function renderGroupUtilityContent(){
     const onlinePlayers = multiplayer.players.filter(player=>player.id !== multiplayer.playerId);
-    const members = multiplayer.group?.members || [];
+    const members = getVisibleGroupMembers();
     const currentMap = getCurrentMap?.();
     const localPlayer = getPlayer?.();
     const mapLabel = state=>{
@@ -466,21 +487,7 @@ export function createCombatPanels({
       const found = maps.find(map=>String(map.id) === String(id) || String(map.name) === String(id));
       return found?.name || (id !== undefined && id !== null ? String(id) : "Hors combat");
     };
-    const resolveMemberState = member=>{
-      if(member.id === multiplayer.playerId && localPlayer){
-        return {
-          x:localPlayer.x,
-          y:localPlayer.y,
-          hp:localPlayer.hp,
-          maxHp:localPlayer.maxHp,
-          shield:localPlayer.shield,
-          maxShield:localPlayer.maxShield,
-          mapId:currentMap?.id ?? currentMap?.name ?? "unknown",
-          updatedAt:Date.now()
-        };
-      }
-      return multiplayer.remotePlayers.get(member.id)?.state || multiplayer.players.find(player=>player.id === member.id)?.state || member.state || null;
-    };
+    const resolveMemberState = member=>resolveGroupMemberState(member);
     const renderMeter = (label, value, max, className)=>{
       const safeMax = Math.max(1, Number(max || value || 1));
       const percent = clampPercent(Number(value || 0) / safeMax * 100);
@@ -490,7 +497,7 @@ export function createCombatPanels({
       ? members.map(member=>{
         const state = resolveMemberState(member);
         const isLocal = member.id === multiplayer.playerId;
-        const role = member.id === multiplayer.group?.leaderId ? "Chef" : "Membre";
+        const role = member.npcAlly ? "Soutien" : member.id === multiplayer.group?.leaderId ? "Chef" : "Membre";
         const sameMap = state && currentMap && String(state.mapId) === String(currentMap.id);
         const distance = state && localPlayer && sameMap && !isLocal ? Math.round(Math.hypot(Number(state.x || 0) - localPlayer.x, Number(state.y || 0) - localPlayer.y)) : null;
         const lastSeen = state?.updatedAt ? Math.max(0, Math.round((Date.now() - Number(state.updatedAt || 0)) / 1000)) : null;
@@ -543,22 +550,22 @@ export function createCombatPanels({
   }
 
   function renderCompactGroupUtilityContent(){
-    const members = multiplayer.group?.members || [];
+    const members = getVisibleGroupMembers();
     const isLeader = multiplayer.group?.leaderId === multiplayer.playerId;
     const actionButton = (action, targetId, label, title)=>`<button class="group-icon-action" data-group-action="${action}" data-player-id="${escapeHtml(targetId)}" type="button" title="${title}" aria-label="${title}">${label}</button>`;
     const visibleMembers = members.length <= 1 ? [] : members;
     const membersHtml = visibleMembers.map(member=>{
       const state = resolveGroupMemberState(member);
       const isLocal = member.id === multiplayer.playerId;
-      const memberIsLeader = member.id === multiplayer.group?.leaderId;
+      const memberIsLeader = !member.npcAlly && member.id === multiplayer.group?.leaderId;
       const mapName = getGroupMapLabel(state);
       return `
         <div class="group-compact-member ${isLocal ? "local" : ""}">
           <div class="group-compact-name">${memberIsLeader ? `<span class="group-crown" title="Chef du groupe">&#9819;</span>` : ""}<strong>${escapeHtml(member.name || (isLocal ? multiplayer.name : "Pilote"))}</strong><span class="group-compact-map">${escapeHtml(mapName)}</span></div>
           <div class="group-compact-actions">
-            ${!isLocal ? actionButton("ping", member.id, `<svg viewBox="0 0 24 24"><path d="M12 21s6-5.5 6-12a6 6 0 1 0-12 0c0 6.5 6 12 6 12z"></path><circle cx="12" cy="9" r="2"></circle></svg>`, "Ping GPS") : ""}
-            ${isLeader && !isLocal ? actionButton("promote", member.id, "&#9819;", "Donner le role de chef") : ""}
-            ${isLocal ? actionButton("leave", member.id, "&times;", "Quitter le groupe") : isLeader ? actionButton("kick", member.id, "&times;", "Retirer du groupe") : ""}
+            ${!isLocal && !member.npcAlly ? actionButton("ping", member.id, `<svg viewBox="0 0 24 24"><path d="M12 21s6-5.5 6-12a6 6 0 1 0-12 0c0 6.5 6 12 6 12z"></path><circle cx="12" cy="9" r="2"></circle></svg>`, "Ping GPS") : ""}
+            ${isLeader && !isLocal && !member.npcAlly ? actionButton("promote", member.id, "&#9819;", "Donner le role de chef") : ""}
+            ${isLocal ? actionButton("leave", member.id, "&times;", "Quitter le groupe") : isLeader && !member.npcAlly ? actionButton("kick", member.id, "&times;", "Retirer du groupe") : ""}
           </div>
           ${state ? `<div class="group-compact-meters">${renderCompactGroupMeter("PV", state.hp, state.maxHp, "hp")}${renderCompactGroupMeter("Bouclier", state.shield, state.maxShield, "shield")}</div>` : `<p class="group-panel-note">Signal indisponible.</p>`}
         </div>`;
@@ -825,6 +832,9 @@ export function createCombatPanels({
     const reason = String(event.detail?.reason || "");
     if(reason === "quest:claimed") selectNextQuestAfterClaim(event.detail?.payload?.id);
   });
+  window.addEventListener("voidsector:portgun-open-map", ()=>{
+    openPortgunMapPanel();
+  });
 
   function renderSettingsUtilityContent(){
     const quality = getGraphicsQuality?.() || store.state.graphicsQuality || "high";
@@ -867,7 +877,12 @@ export function createCombatPanels({
   }
 
   function renderGameMapUtilityContent(){
-    return renderCombatMapPanel({maps, getCurrentMap});
+    return renderCombatMapPanel({
+      maps,
+      getCurrentMap,
+      mode:mapPanelMode,
+      playerLevel:store.state.player?.level || 1
+    });
   }
 
   function refreshMapUtilityPanel({show = false} = {}){
@@ -904,6 +919,7 @@ export function createCombatPanels({
       return;
     }
     if(mode === "map"){
+      mapPanelMode = "view";
       refreshMapUtilityPanel({show:true});
       saveUtilityPanelOpenState(mode, true);
       return;
@@ -915,6 +931,29 @@ export function createCombatPanels({
     }
     refreshGroupUtilityPanel({show:true, focus:true});
     saveUtilityPanelOpenState(mode, true);
+  }
+
+  function openPortgunMapPanel(){
+    mapPanelMode = "portgun";
+    refreshMapUtilityPanel({show:true});
+    saveUtilityPanelOpenState("map", true);
+    showToast?.("Choisis une destination Portgun sur la carte.");
+  }
+
+  function selectPortgunMapTarget(mapId){
+    if(mapPanelMode !== "portgun") return false;
+    if(!multiplayer.connected || !multiplayer.socket){
+      showToast?.("Connexion serveur requise pour le Portgun.");
+      return true;
+    }
+    if(startPortgunTeleport(mapId)){
+      mapPanelMode = "view";
+      refreshMapUtilityPanel({show:true});
+      showToast?.("Teleportation Portgun demandee.");
+      return true;
+    }
+    showToast?.("Teleportation Portgun impossible.");
+    return true;
   }
 
   function restoreOpenUtilityPanels(){
@@ -1223,6 +1262,8 @@ export function createCombatPanels({
     saveSpawnPanelLayout,
     renderSpawnInteractionPanel,
     openUtilityPanel,
+    openPortgunMapPanel,
+    selectPortgunMapTarget,
     inviteGroupMember,
     handleGroupAction,
     togglePerfPanelVisibility,

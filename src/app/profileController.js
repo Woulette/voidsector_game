@@ -13,6 +13,8 @@ export function createProfileController({
   saveState,
   syncMultiplayerProfile,
   renderAll,
+  renderTop = null,
+  preserveScroll = callback=>callback(),
   showToast
 }){
   let activeProfileScope = localStorage.getItem(profileScopeStorageKey) || "guest";
@@ -114,7 +116,7 @@ export function createProfileController({
     store.state.player.xpNext = getXpNextForLevel(store.state.player.level);
     store.state.player.xp = Math.min(Math.max(0, Number(store.state.player.xp || 0)), store.state.player.xpNext);
     store.state.xpCurveVersion = xpCurveVersion;
-      for(const key of ["cargoHold","shipCargo","skillRanks","skillLevels","completedPortals","portalPieces","refineryLevels","refineryModules","refineryUpgradeJobs","refineryProductionDisabled","questProgress","questFailProgress","completedQuestClaims","killStats","rankKillStats","worldSession","shipWorldSessions","firmBoxes"]){
+      for(const key of ["cargoHold","shipCargo","combatBoosts","skillRanks","skillLevels","completedPortals","portalPieces","refineryLevels","refineryModules","refineryUpgradeJobs","refineryProductionDisabled","questProgress","questFailProgress","completedQuestClaims","killStats","rankKillStats","worldSession","shipWorldSessions","firmBoxes"]){
         if(profile[key] && typeof profile[key] === "object") store.state[key] = clone(profile[key]);
       }
     if(Number.isFinite(Number(profile.firmatons))) store.state.firmatons = Math.max(0, Math.floor(Number(profile.firmatons)));
@@ -127,15 +129,17 @@ export function createProfileController({
     if(keepLocalSelectedShip) store.state.selectedShip = localSelectedShip;
     store.state.mmoProfileUpdatedAt = incomingVersion || Date.now();
     const uiChanges = getProfileUiChanges(uiBefore, captureProfileUiState(store.state));
+    const hasUiChanges = hasProfileUiChanges(uiChanges);
     saveState();
     if(appMode === "game" && game.running){
-      if(uiChanges.loadoutChanged) game.refreshActiveLoadout?.();
+      if(uiChanges.loadoutChanged) preserveScroll(()=>game.refreshActiveLoadout?.());
       game.updateHud?.();
     }else{
-      renderAll();
+      if(hasUiChanges) preserveScroll(()=>renderAll());
+      else renderTop?.();
     }
     window.dispatchEvent(new CustomEvent("voidsector:profile-applied", {detail:{profile, uiChanges}}));
-    if(appMode !== "game" && hasProfileUiChanges(uiChanges)) showToast("Profil MMO synchronise.");
+    if(appMode !== "game" && hasUiChanges) showToast("Profil MMO synchronise.");
   }
 
   function initializeScope(){

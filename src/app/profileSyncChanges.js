@@ -6,6 +6,14 @@ function pick(state, keys){
   return serialize(keys.map(key=>state?.[key]));
 }
 
+function pickPanels(state, keys){
+  return serialize([
+    ...keys.map(key=>state?.[key]),
+    state?.player?.firmId,
+    state?.player?.firmSelected
+  ]);
+}
+
 export function captureProfileUiState(state = {}){
   return {
     loadout:pick(state, [
@@ -26,7 +34,7 @@ export function captureProfileUiState(state = {}){
       "ammoInventory",
       "shipLoadouts"
     ]),
-    panels:pick(state, [
+    panels:pickPanels(state, [
       "activeQuestIds",
       "activeQuestId",
       "questProgress",
@@ -38,6 +46,8 @@ export function captureProfileUiState(state = {}){
       "refineryProductionDisabled",
       "refineryShipmentJob",
       "refineryJob",
+      "shipCargo",
+      "combatBoosts",
       "inventoryItems"
     ]),
     layout:serialize(state.uiLayout)

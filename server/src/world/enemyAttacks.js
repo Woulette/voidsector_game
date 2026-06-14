@@ -7,6 +7,20 @@ export function getEnemyProjectileTravelTime({fromX, fromY, toX, toY, projectile
   return Math.max(MIN_PROJECTILE_TRAVEL_SECONDS, Math.min(MAX_PROJECTILE_TRAVEL_SECONDS, distance / speed + 0.06));
 }
 
+function applyDamageToNpcState(state, amount){
+  if(!state) return 0;
+  let incoming = Math.max(0, Number(amount || 0));
+  const hpBeforeDamage = Number(state.hp || 0);
+  if(Number(state.shield || 0) > 0){
+    const absorbed = Math.min(Number(state.shield || 0), incoming * 0.8);
+    state.shield = Math.max(0, Number(state.shield || 0) - absorbed);
+    incoming -= absorbed;
+  }
+  if(incoming > 0) state.hp = Math.max(0, Number(state.hp || 0) - incoming);
+  if(Number(state.hp || 0) <= 0) state.alive = false;
+  return Math.max(0, hpBeforeDamage - Number(state.hp || 0));
+}
+
 export function createEnemyAttackManager({io, players, presence, profileManager, emitProfileSync, applyEnemyOnHitEffect}){
   const pendingAttacks = [];
 
@@ -27,7 +41,7 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
   }
 
   function launchEnemyAttack({enemy, map, target, amount, now = Date.now(), attackStyle}){
-    presence.markCombat(target, "attaque ennemi");
+    if(!target?.npcTarget) presence.markCombat(target, "attaque ennemi");
     enemy.attackAnimUntil = now + 320;
     const fromX = Number(enemy.x || 0);
     const fromY = Number(enemy.y || 0);
@@ -48,7 +62,10 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
       fromY,
       impactAt,
       mapId:map.id,
+      room:map.room || `map:${map.id}`,
       targetId:target.id,
+      targetNpc:Boolean(target.npcTarget),
+      targetRef:target.npcTarget ? target : null,
       toX,
       toY
     });
@@ -74,10 +91,27 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
   }
 
   function resolveEnemyAttack(attack, now){
-    const target = players.get(attack.targetId);
+    const target = players.get(attack.targetId) || attack.targetRef;
     if(!target?.state || target.connected === false) return;
-    if(String(target.mapId ?? "") !== String(attack.mapId ?? "")) return;
+    if(!target.npcTarget && String(target.mapId ?? "") !== String(attack.mapId ?? "")) return;
     if(Number(target.state.hp || 0) <= 0) return;
+
+    if(target.npcTarget){
+      const hpLost = applyDamageToNpcState(target.state, attack.amount);
+      io.to(attack.room || `map:${attack.mapId}`).emit("npc:damage", {
+        targetId:target.id,
+        enemyId:attack.enemy.id,
+        mapId:attack.mapId,
+        amount:attack.amount,
+        hp:Number(target.state.hp || 0),
+        maxHp:Number(target.state.maxHp || 0),
+        shield:Number(target.state.shield || 0),
+        maxShield:Number(target.state.maxShield || 0),
+        hpLost,
+        at:now
+      });
+      return;
+    }
 
     presence.markCombat(target, "impact ennemi");
     const hpLost = presence.applyDamageToPlayerState(target, attack.amount);
@@ -87,6 +121,10 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
       enemyId:attack.enemy.id,
       mapId:attack.mapId,
       amount:attack.amount,
+      hp:Number(target.state.hp || 0),
+      maxHp:Number(target.state.maxHp || 0),
+      shield:Number(target.state.shield || 0),
+      maxShield:Number(target.state.maxShield || 0),
       fromX:attack.fromX,
       fromY:attack.fromY,
       toX:attack.toX,

@@ -58,7 +58,7 @@ export function openFirmBox(profile, rarity, {random = Math.random} = {}){
   profile.firmRewardHistory.push({
     id:`firm-box-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     source:"box",
-    label:reward.label || "Recompense de coffre",
+    label:reward.label || "Récompense de coffre",
     rarity:result.rewardRarity,
     reward:normalized,
     createdAt:Date.now()
@@ -75,7 +75,7 @@ export function applyFirmPendingRewards(profile, entries = []){
     const historyEntry = {
       id:String(entry.id || `firm-reward-${Date.now()}`),
       source:String(entry.source || "firm"),
-      label:String(entry.label || "Recompense de firme"),
+      label:String(entry.label || "Récompense de firme"),
       reward:JSON.parse(JSON.stringify(entry.reward || {})),
       createdAt:Number(entry.createdAt || Date.now())
     };
@@ -93,7 +93,7 @@ export function applyFirmQuestClaimReward(profile, entry = {}){
   const historyEntry = {
     id:`firm-quest-${String(entry.questId || "unknown")}-${Date.now()}`,
     source:"firm-quest",
-    label:String(entry.label || "Prime de quete de firme"),
+    label:String(entry.label || "Prime de quête de firme"),
     reward,
     createdAt:Math.max(0, Number(entry.claimedAt || Date.now()))
   };

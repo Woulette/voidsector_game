@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { getInventoryItemCount } from "../src/economy/inventoryStacks.js";
 import { WORLD_MAPS } from "../src/world/definitions.js";
 import { scaleMonsterReward, scaleMonsterStat } from "../src/world/enemyProgression.js";
-import { createWorldLootManager } from "../src/world/loot.js";
+import { createWorldLootManager, rollPortalAnchorKeyDrop } from "../src/world/loot.js";
 import { getResourceDropChance, rollResourceDrops } from "../src/world/resourceDrops.js";
 import { createWorldEnemy } from "../src/world/spawn.js";
 import { createWorldStateManager } from "../src/world/state.js";
@@ -40,7 +41,7 @@ test("ASTRA-02 and ASTRA-03 keep their fixed boss counts", ()=>{
 
 test("monster stats grow five percent and rewards grow ten percent above base level", ()=>{
   assert.equal(scaleMonsterStat(800, 1, 4), 920);
-  assert.deepEqual(scaleMonsterReward({xp:800, credits:1_020, premium:1}, 1, 4), {xp:1_040, credits:1_326, premium:1});
+  assert.deepEqual(scaleMonsterReward({xp:400, credits:800, premium:1}, 1, 4), {xp:520, credits:1_040, premium:1});
   const enemy = createWorldEnemy({
     id:"test",
     width:1000,
@@ -51,7 +52,7 @@ test("monster stats grow five percent and rewards grow ten percent above base le
   assert.equal(enemy.baseLevel, 1);
   assert.equal(enemy.level, 4);
   assert.equal(enemy.maxHp, 920);
-  assert.equal(enemy.reward.xp, 1_040);
+  assert.equal(enemy.reward.xp, 520);
 });
 
 test("Voraks and their early bosses scale from base level one", ()=>{
@@ -73,7 +74,7 @@ test("Voraks and their early bosses scale from base level one", ()=>{
     level:[5, 5],
     enemyTypes:[["boss_drone_pirate", 1]]
   }, 1, ()=>0.5, "boss_drone_pirate");
-  assert.deepEqual(bossOrbe.reward, {credits:2856, xp:2240, premium:2});
+  assert.deepEqual(bossOrbe.reward, {credits:2240, xp:1120, premium:2});
   const bossVorak = createWorldEnemy({
     id:"test",
     width:1000,
@@ -110,6 +111,25 @@ test("Boss Vorak rewards are exactly twice the same-level Vorak rewards", ()=>{
     const boss = createWorldEnemy(map, 2, ()=>0.5, "boss_raider_astral");
     assert.deepEqual(boss.reward, Object.fromEntries(
       Object.entries(vorak.reward).map(([key, value])=>[key, value * 2])
+    ));
+  }
+});
+
+test("every boss reward is exactly twice its same-level normal monster reward", ()=>{
+  const pairs = [
+    ["drone_pirate", "boss_drone_pirate", 1],
+    ["raider_astral", "boss_raider_astral", 1],
+    ["chasseur_spectral", "boss_chasseur_spectral", 5],
+    ["cuirasse_nebulaire", "boss_cuirasse_nebulaire", 10],
+    ["cuirasse_ambre", "boss_cuirasse_ambre", 15],
+    ["cristal_du_neant", "boss_cristal_du_neant", 15]
+  ];
+  for(const [normalKind, bossKind, level] of pairs){
+    const map = {id:"test", width:1000, height:1000, level:[level, level], enemyTypes:[[normalKind, 1]]};
+    const normal = createWorldEnemy(map, 1, ()=>0.5, normalKind);
+    const boss = createWorldEnemy(map, 2, ()=>0.5, bossKind);
+    assert.deepEqual(boss.reward, Object.fromEntries(
+      Object.entries(normal.reward).map(([key, value])=>[key, value * 2])
     ));
   }
 });
@@ -151,6 +171,54 @@ test("resource drop pools expose eight optimized assets per rarity", ()=>{
       assert.match(resource.img, new RegExp(`^assets/resources/${rarity}/.+\\.webp$`));
       assert.match(resource.dropImg, new RegExp(`^assets/resources/${rarity}/.+_drop\\.webp$`));
     }
+  }
+});
+
+test("dimensional anchor key drops at 0.1 percent on firm zones one to five", ()=>{
+  const drop = rollPortalAnchorKeyDrop("ASTRA-05", {random:()=>0.001});
+  assert.equal(drop.itemId, "portal_anchor_key");
+  assert.equal(drop.amount, 1);
+  assert.equal(rollPortalAnchorKeyDrop("ASTRA-05", {random:()=>0.0011}), null);
+  assert.equal(rollPortalAnchorKeyDrop("CORE", {random:()=>0}), null);
+  assert.equal(rollPortalAnchorKeyDrop("ASTRA-06", {random:()=>0}), null);
+  assert.equal(rollPortalAnchorKeyDrop("CYAN-01", {random:()=>0})?.itemId, "portal_anchor_key");
+});
+
+test("server emits and validates dimensional anchor key pickup", ()=>{
+  const previousRandom = Math.random;
+  Math.random = ()=>0;
+  try{
+    const emitted = [];
+    const socketEvents = [];
+    const player = {id:"p1", mapId:"ASTRA-01", state:{mapId:"ASTRA-01", x:100, y:200}};
+    const players = new Map([[player.id, player]]);
+    const profile = {inventoryItems:[], nextInventoryUid:1};
+    const manager = createWorldLootManager({
+      io:{to:id=>({emit:(event, payload)=>emitted.push({id, event, payload})})},
+      players,
+      profileManager:{
+        updateProfileForPlayer:({update})=>{
+          const result = update(profile);
+          return {...result, profile};
+        }
+      },
+      emitProfileSync(){}
+    });
+    manager.emitPrivatePortalAnchorKeyDrop({
+      ownerId:player.id,
+      mapId:"ASTRA-01",
+      enemy:{id:"enemy", kind:"drone_pirate", level:1, x:100, y:200}
+    });
+    const event = emitted.find(entry=>entry.event === "loot:drop" && entry.payload.kind === "item")?.payload;
+    assert.ok(event);
+    assert.equal(event.itemId, "portal_anchor_key");
+    assert.equal(event.serverControlled, true);
+    player.state = {mapId:"ASTRA-01", x:event.x, y:event.y};
+    manager.pickupLoot({id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, {id:event.id});
+    assert.equal(getInventoryItemCount(profile, "portal_anchor_key"), 1);
+    assert.equal(socketEvents.some(entry=>entry.name === "loot:picked"), true);
+  }finally{
+    Math.random = previousRandom;
   }
 });
 

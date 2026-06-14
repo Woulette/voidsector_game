@@ -2,6 +2,8 @@ import { normalizeProgressionPlayer } from "./progression.js";
 import { getInventoryEntryQuantity, isStackableInventoryItem } from "../economy/inventoryStacks.js";
 import { cleanupDuplicateEquippedInventoryUids } from "../economy/equipment.js";
 import { normalizeFirmId } from "../../../src/data/firms.js";
+import { sanitizeActivityLog } from "./activityLog.js";
+import { sanitizeCombatBoosts } from "../economy/combatBoosts.js";
 
 const EMPTY_ACTION_SLOTS = Array(9).fill(null);
 const STARTER_ACTION_SLOTS = ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
@@ -123,6 +125,7 @@ export function sanitizeProfile(profile = {}){
     activeDroneFormation:typeof profile.activeDroneFormation === "string" ? profile.activeDroneFormation : null,
     cargoHold:sanitizeObject(profile.cargoHold),
     shipCargo:sanitizeObject(profile.shipCargo),
+    combatBoosts:sanitizeCombatBoosts(profile.combatBoosts),
     skillRanks:sanitizeObject(profile.skillRanks),
     skillLevels:sanitizeObject(profile.skillLevels),
     unlockedPortals:Array.isArray(profile.unlockedPortals) ? profile.unlockedPortals.map(String) : [],
@@ -143,6 +146,7 @@ export function sanitizeProfile(profile = {}){
     completedQuestClaims:sanitizeObject(profile.completedQuestClaims),
     killStats:sanitizeObject(profile.killStats),
     rankKillStats:sanitizeObject(profile.rankKillStats),
+    activityLog:sanitizeActivityLog(profile.activityLog),
     worldSession:sanitizeWorldSession(profile.worldSession),
     shipWorldSessions:sanitizeShipWorldSessions(profile.shipWorldSessions),
     social:sanitizeSocial(profile.social),
@@ -186,6 +190,8 @@ export function preserveProtectedOwnership(incoming, existing){
     "firmatons",
     "firmBoxes",
     "firmRewardHistory",
+    "activityLog",
+    "combatBoosts",
     "starterRepairGranted"
   ]);
   for(const field of [
@@ -194,11 +200,11 @@ export function preserveProtectedOwnership(incoming, existing){
     "dronePermanentUpgrades", "equipmentUpgrades", "ownedDroneFormations",
     "activeDroneFormation", "activeQuestIds", "activeQuestId", "questProgress",
     "questFailProgress", "completedQuestClaims", "worldSession", "shipWorldSessions", "cargoHold",
-    "shipCargo", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
+    "shipCargo", "combatBoosts", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
     "portalPieces", "prestigeCount", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
     "refineryProductionDisabled", "refineryLastTick", "killStats", "rankKillStats",
-    "social", "firmatons", "firmBoxes", "firmRewardHistory", "starterRepairGranted"
+    "activityLog", "social", "firmatons", "firmBoxes", "firmRewardHistory", "starterRepairGranted"
   ]){
     if(alwaysProtected.has(field) || hasProtectedOwnershipValue(existing, field)){
       incoming[field] = cloneProtectedValue(existing[field]);

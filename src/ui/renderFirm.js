@@ -4,19 +4,20 @@ import { fmt } from "../core/utils.js";
 import { multiplayer } from "../multiplayer/client.js";
 import { store } from "../core/store.js";
 import { hasCompactQuestAsset } from "../data/enemyVisuals.js";
+import { buildFallbackPilotProfile, installPilotProfileModal, registerPilotProfile } from "./playerProfileModal.js";
 
 const FIRM_TABS = [
   {id:"overview", label:"Vue d'ensemble"},
   {id:"shop", label:"Boutique"},
-  {id:"quests", label:"Quetes"},
+  {id:"quests", label:"Quêtes"},
   {id:"rankings", label:"Classements"},
-  {id:"rewards", label:"Recompenses"}
+  {id:"rewards", label:"Récompenses"}
 ];
 
 const FIRM_SHOP_RARITIES = [
   {id:"common", label:"Commun", color:"#94a3b8"},
   {id:"rare", label:"Rare", color:"#38bdf8"},
-  {id:"veryRare", label:"Tres rare", color:"#a78bfa"},
+  {id:"veryRare", label:"Très rare", color:"#a78bfa"},
   {id:"elite", label:"Elite", color:"#fb923c"},
   {id:"mythic", label:"Mythique", color:"#facc15"}
 ];
@@ -80,7 +81,7 @@ function rewardHtml(reward = {}){
   for(const [id, amount] of Object.entries(reward.ammo || {})) parts.push(`${fmt(amount)} ${escapeHtml(id.replace("ammo_", "M-").replace("rocket_", "R-").replace("missile_", "MS-"))}`);
   for(const [rarity, amount] of Object.entries(reward.boxes || {})) parts.push(`${fmt(amount)} coffre(s) ${escapeHtml(rarity)}`);
   for(const [id, amount] of Object.entries(reward.materials || {})) parts.push(`${fmt(amount)} ${escapeHtml(id.replaceAll("_", " "))}`);
-  return parts.join(" + ") || "Aucune recompense";
+  return parts.join(" + ") || "Aucune récompense";
 }
 
 function firmBoxRewardView(reward = {}){
@@ -111,10 +112,10 @@ function firmBoxRewardView(reward = {}){
     };
   }
   return {
-    title:reward.label || "Recompense",
+    title:reward.label || "Récompense",
     amount:Math.max(0, Number(reward.amount || 0)),
     asset:"assets/materials/cargo_box.svg",
-    detail:reward.label || "Recompense obtenue"
+    detail:reward.label || "Récompense obtenue"
   };
 }
 
@@ -149,7 +150,7 @@ function renderFirmBoxOpening(){
         ${renderFirmOpeningChestSvg(rarity)}
       </div>
       <div class="firm-box-opening-reward">
-        <span>Recompense obtenue</span>
+        <span>Récompense obtenue</span>
         <img src="${escapeHtml(reward.asset)}" alt="${escapeHtml(reward.title)}">
         <h4>${escapeHtml(reward.title)}</h4>
         <strong>${escapeHtml(reward.detail)}</strong>
@@ -178,7 +179,7 @@ function questObjectiveImages(quest){
 
 function objectiveImageClass(quest, src){
   const target = String(quest?.target || "");
-  return hasCompactQuestAsset(target) || /(?:low_orbe|low_vorak|enemy_red_rusher)/.test(String(src || "")) ? "quest-enemy-art-large" : "";
+  return hasCompactQuestAsset(target) || /(?:low_orbe|low_vorak)/.test(String(src || "")) ? "quest-enemy-art-large" : "";
 }
 
 function lockSvg(){
@@ -279,7 +280,7 @@ function fallbackSnapshot(){
       firmId:normalizeFirmId(store.state?.player?.firmId || "astra"),
       contribution:0,
       rank:null,
-      rewardLabel:"Non classe",
+      rewardLabel:"Non classé",
       collectiveEligible:false,
       pendingRewards:[],
       firmatons:Number(store.state?.firmatons || 0),
@@ -330,7 +331,7 @@ function renderOverview(snapshot){
         <strong>${fmt(personal.contribution || 0)} pts</strong>
         <p>${personal.rank ? `Top ${personal.rank} mondial` : "Participe pour entrer dans le classement individuel."}</p>
         <div class="firm-threshold-track"><span style="width:${Math.min(100, Number(personal.contribution || 0) / Number(snapshot.collectiveMinimumContribution || 10_000) * 100)}%"></span></div>
-        <small>${personal.collectiveEligible ? "Seuil collectif atteint" : `${fmt(snapshot.collectiveMinimumContribution || 10_000)} points requis pour la recompense collective`}</small>
+        <small>${personal.collectiveEligible ? "Seuil collectif atteint" : `${fmt(snapshot.collectiveMinimumContribution || 10_000)} points requis pour la récompense collective`}</small>
       </section>
       <section class="firm-quest-focus-card">
         <span class="tiny">MISSION COLLECTIVE ACTIVE</span>
@@ -346,11 +347,11 @@ function renderOverview(snapshot){
         <div class="firm-main-ranking-list">${(snapshot.firms || []).map(firm=>renderFirmRow(firm, ownFirmId)).join("")}</div>
       </section>
       <section class="firm-main-block">
-        <div class="firm-main-block-head"><div><span class="tiny">OBJECTIFS</span><h3>Quetes en cours</h3></div></div>
+        <div class="firm-main-block-head"><div><span class="tiny">OBJECTIFS</span><h3>Quêtes en cours</h3></div></div>
         <div class="firm-compact-quest-list">${quests.map(quest=>{
           const data = quest.firms?.[ownFirmId] || {};
-          return `<article><div><strong>${escapeHtml(quest.label)}</strong><span>${escapeHtml(questKindLabel(quest))} - ${fmt(data.progress || 0)} / ${fmt(quest.goal || 0)}</span></div><b>${quest.player?.contribution ? `Quete : ${fmt(quest.player.contribution)}` : "Non classe"}</b></article>`;
-        }).join("") || `<p class="firm-empty">Aucune quete synchronisee.</p>`}</div>
+          return `<article><div><strong>${escapeHtml(quest.label)}</strong><span>${escapeHtml(questKindLabel(quest))} - ${fmt(data.progress || 0)} / ${fmt(quest.goal || 0)}</span></div><b>${quest.player?.contribution ? `Quête : ${fmt(quest.player.contribution)}` : "Non classé"}</b></article>`;
+        }).join("") || `<p class="firm-empty">Aucune quête synchronisée.</p>`}</div>
       </section>
     </div>`;
 }
@@ -414,7 +415,7 @@ function renderShop(snapshot){
 
 function questKindLabel(quest){
   if(quest.kind === "weekly" || quest.kind === "seasonal") return "Hebdomadaire";
-  return "Journaliere";
+  return "Journalière";
 }
 
 function renderQuestModeTabs(mode){
@@ -449,7 +450,7 @@ function renderQuestRow(snapshot, quest, ownFirmId){
   const goal = Math.max(1, Number(quest.goal || 1));
   const percent = Math.min(100, progress / goal * 100);
   const playerContribution = Number(quest.player?.contribution || 0);
-  const playerRank = quest.player?.rank ? `Top ${quest.player.rank}` : "Non classe";
+  const playerRank = quest.player?.rank ? `Top ${quest.player.rank}` : "Non classé";
   const complete = Boolean(own.completedAt);
   const firmPoints = Math.max(0, Number(quest.firmPoints || 0));
   const currentFirmPoints = Math.max(0, Number(quest.currentFirmPoints || firmPoints));
@@ -463,16 +464,16 @@ function renderQuestRow(snapshot, quest, ownFirmId){
   const timerLabel = locked
     ? `OUVRE DANS ${durationLabel(Number(quest.opensAt || quest.startedAt || 0) - Date.now())}`
     : complete
-      ? "TERMINEE"
+      ? "TERMINÉE"
       : `Ferme ${durationLabel(Number(quest.endsAt || 0) - Date.now())}`;
   const claimButton = locked
-    ? `<span class="firm-quest-status">Verrouillee</span>`
+    ? `<span class="firm-quest-status">Verrouillée</span>`
     : quest.claimable
-      ? `<button class="firm-quest-claim" data-firm-quest-claim="${escapeHtml(quest.id)}" type="button">RECLAMER ${firmatonAmount(claimFirmatons)}</button>`
+      ? `<button class="firm-quest-claim" data-firm-quest-claim="${escapeHtml(quest.id)}" type="button">RÉCLAMER ${firmatonAmount(claimFirmatons)}</button>`
       : quest.claimed
-        ? `<button class="firm-quest-claim claimed" type="button" disabled>RECOMPENSE RECUPEREE</button>`
+        ? `<button class="firm-quest-claim claimed" type="button" disabled>RÉCOMPENSE RÉCUPÉRÉE</button>`
         : complete
-          ? `<span class="firm-quest-status done">Terminee</span>`
+          ? `<span class="firm-quest-status done">Terminée</span>`
           : `<span class="firm-quest-status">En cours</span>`;
   return `<article class="firm-quest-row ${complete ? "complete" : ""} ${locked ? "locked" : ""}">
     ${renderQuestObjectiveVisual(quest)}
@@ -484,8 +485,8 @@ function renderQuestRow(snapshot, quest, ownFirmId){
       <div class="firm-quest-progress"><span style="width:${percent}%"></span></div>
       <div class="firm-quest-row-score"><strong>${fmt(progress)} / ${fmt(goal)}</strong><small>${Math.round(percent)}%</small></div>
       <div class="firm-quest-row-stats">
-        <span>Actions sur cette quete <b>${fmt(playerContribution)}</b><small>Ne donne pas de point individuel</small></span>
-        <span>Rang de la quete <b>${escapeHtml(playerRank)}</b></span>
+        <span>Actions sur cette quête <b>${fmt(playerContribution)}</b><small>Ne donne pas de point individuel</small></span>
+        <span>Rang de la quête <b>${escapeHtml(playerRank)}</b></span>
         <span>Points pour la firme <b>${pointsLabel}</b>${pointsDetail}</span>
         <span>Prime pilote <b>${firmatonAmount(claimFirmatons)}</b><small>0 point individuel</small></span>
       </div>
@@ -527,8 +528,8 @@ function renderQuestSummary(snapshot, quests, ownFirmId, mode){
       <span class="tiny">OBJECTIFS DE FIRME</span>
       <h3>${mode === "weekly" ? "Cycle hebdomadaire" : "Cycle journalier"}</h3>
       <strong>${completed} / ${total}</strong>
-      <p>Les missions sont actives automatiquement. Elles donnent des points a la firme, pas de points individuels.</p>
-      <span class="firm-open-session-title">${mode === "weekly" ? "Quetes ouvertes" : "Sessions d'aujourd'hui"}</span>
+      <p>Les missions sont actives automatiquement. Elles donnent des points à la firme, pas de points individuels.</p>
+      <span class="firm-open-session-title">${mode === "weekly" ? "Quêtes ouvertes" : "Sessions d'aujourd'hui"}</span>
       ${renderQuestSessions(summaryQuests, ownFirmId)}
     </div>
     <div class="firm-quest-summary-metrics">
@@ -552,7 +553,7 @@ function renderSeasonObjectiveCard(objective){
   return `<article class="firm-season-objective-card ${complete ? "complete" : ""}">
     <div class="firm-season-objective-head">
       <span>${escapeHtml(objective.targetLabel || "Objectif")}</span>
-      <b>${complete ? "TERMINE" : "EN COURS"}</b>
+      <b>${complete ? "TERMINÉ" : "EN COURS"}</b>
     </div>
     <div class="firm-season-objective-body">
       ${renderSeasonObjectiveVisual(objective)}
@@ -565,9 +566,9 @@ function renderSeasonObjectiveCard(objective){
     </div>
     <div class="firm-season-objective-meta">
       <span>Points joueur + firme <b>+${fmt(objective.firmPoints || 0)}</b></span>
-      <span>Recompense <b>${rewardHtml(objective.reward)}</b></span>
+      <span>Récompense <b>${rewardHtml(objective.reward)}</b></span>
     </div>
-    ${complete ? `<small class="firm-season-objective-status">Gain ajoute aux recompenses en attente</small>` : ""}
+    ${complete ? `<small class="firm-season-objective-status">Gain ajouté aux récompenses en attente</small>` : ""}
   </article>`;
 }
 
@@ -583,18 +584,18 @@ function renderSeasonObjectives(snapshot, ownFirmId){
         <span class="tiny">OBJECTIFS SOLO</span>
         <h3>Cycle saisonnier</h3>
         <strong>${completed} / ${objectives.length || 0}</strong>
-        <p>Ces objectifs sont personnels. Ils donnent des points au pilote et a sa firme quand ils sont termines.</p>
+        <p>Ces objectifs sont personnels. Ils donnent des points au pilote et à sa firme quand ils sont terminés.</p>
       </div>
       <div class="firm-quest-summary-metrics">
-        <article><span>Points deja obtenus</span><b>${fmt(firmPoints)}</b></article>
+        <article><span>Points déjà obtenus</span><b>${fmt(firmPoints)}</b></article>
         <article><span>Objectif suivi</span><b>${escapeHtml(nextObjective?.label || "--")}</b></article>
-        <article><span>Firme associee</span><b>${escapeHtml(getFirmDefinition(ownFirmId).label)}</b></article>
+        <article><span>Firme associée</span><b>${escapeHtml(getFirmDefinition(ownFirmId).label)}</b></article>
       </div>
     </aside>
     <section class="firm-main-block firm-season-objective-board">
-      <div class="firm-main-block-head"><div><span class="tiny">OBJECTIFS SAISONNIERS</span><h3>Defis personnels</h3></div><b>${completed} termines</b></div>
-      <p class="firm-season-objective-note">Petits objectifs individuels de saison : chaque completion ajoute ses points a ton classement et a ta firme, puis place la recompense dans l'onglet Recompenses.</p>
-      <div class="firm-season-objective-grid">${objectives.map(renderSeasonObjectiveCard).join("") || `<p class="firm-empty">Aucun objectif saisonnier synchronise.</p>`}</div>
+      <div class="firm-main-block-head"><div><span class="tiny">OBJECTIFS SAISONNIERS</span><h3>Défis personnels</h3></div><b>${completed} terminés</b></div>
+      <p class="firm-season-objective-note">Petits objectifs individuels de saison : chaque complétion ajoute ses points à ton classement et à ta firme, puis place la récompense dans l'onglet Récompenses.</p>
+      <div class="firm-season-objective-grid">${objectives.map(renderSeasonObjectiveCard).join("") || `<p class="firm-empty">Aucun objectif saisonnier synchronisé.</p>`}</div>
     </section>
   </div>`;
 }
@@ -609,8 +610,8 @@ function renderQuests(snapshot){
   return `<div class="firm-quest-layout">
     ${renderQuestSummary(snapshot, quests, ownFirmId, mode)}
     <section class="firm-main-block firm-quest-board">
-      <div class="firm-main-block-head"><div><span class="tiny">MISSIONS COLLECTIVES</span><h3>${mode === "weekly" ? "Quetes hebdomadaires" : "Quetes journalieres"}</h3></div><b>${mode === "daily" ? `${activeCount} ouvertes / ${lockedCount} verrouillees` : "Auto-actives"}</b></div>
-      <div class="firm-quest-wide-list">${quests.map(quest=>renderQuestRow(snapshot, quest, ownFirmId)).join("") || `<p class="firm-empty">Aucune quete active.</p>`}</div>
+      <div class="firm-main-block-head"><div><span class="tiny">MISSIONS COLLECTIVES</span><h3>${mode === "weekly" ? "Quêtes hebdomadaires" : "Quêtes journalières"}</h3></div><b>${mode === "daily" ? `${activeCount} ouvertes / ${lockedCount} verrouillées` : "Auto-actives"}</b></div>
+      <div class="firm-quest-wide-list">${quests.map(quest=>renderQuestRow(snapshot, quest, ownFirmId)).join("") || `<p class="firm-empty">Aucune quête active.</p>`}</div>
     </section>
   </div>`;
 }
@@ -629,26 +630,40 @@ function renderRankings(snapshot){
     displayRank: activeFilter === "global" ? row.rank : index + 1
   }));
   const title = selectedFirm ? `Contributeurs ${selectedFirm.label}` : "Contributeurs de toutes les firmes";
+  const renderPlayerRow = row=>{
+    const profile = row.publicProfile
+      ? {
+        ...row.publicProfile,
+        ranking:{
+          ...(row.publicProfile.ranking || {}),
+          displayRank:row.displayRank,
+          contribution:Number(row.points || 0)
+        }
+      }
+      : buildFallbackPilotProfile(row);
+    const profileKey = registerPilotProfile(profile);
+    return `<article class="${row.key === ownKey ? "own" : ""}">
+      ${renderRankMark(row.displayRank, `player-${activeFilter}-${row.key || row.name || row.displayRank}`)}
+      <button class="pilot-profile-link firm-player-profile-link" type="button" data-pilot-profile-key="${escapeHtml(profileKey)}">
+        <img src="${firmBadge(row.firmId)}" alt=""><strong>${escapeHtml(row.name)}</strong>
+      </button>
+      <span>${fmt(row.points)} pts</span>
+      <em>Top ${row.displayRank}</em>
+    </article>`;
+  };
   return `<div class="firm-main-two-columns ranking-columns">
     <section class="firm-main-block">
       <div class="firm-main-block-head"><div><span class="tiny">CLASSEMENT COLLECTIF</span><h3>Les quatre firmes</h3></div></div>
       <div class="firm-main-ranking-list">${(snapshot.firms || []).map(firm=>renderFirmRow(firm, snapshot.personal?.firmId)).join("")}</div>
     </section>
     <section class="firm-main-block">
-      <div class="firm-main-block-head"><div><span class="tiny">${selectedFirm ? `CLASSEMENT ${selectedFirm.label.toUpperCase()}` : "CLASSEMENT GLOBAL"}</span><h3>${escapeHtml(title)}</h3></div><b>${rows.length} classes</b></div>
+      <div class="firm-main-block-head"><div><span class="tiny">${selectedFirm ? `CLASSEMENT ${selectedFirm.label.toUpperCase()}` : "CLASSEMENT GLOBAL"}</span><h3>${escapeHtml(title)}</h3></div><b>${rows.length} classés</b></div>
       <div class="firm-ranking-filters">
         <button class="${activeFilter === "global" ? "active" : ""}" data-firm-ranking-filter="global" type="button">GLOBAL</button>
         ${FIRMS.map(firm=>`<button class="${activeFilter === firm.id ? "active" : ""}" style="--firm-color:${escapeHtml(firm.color)}" data-firm-ranking-filter="${firm.id}" type="button">${escapeHtml(firm.label)}</button>`).join("")}
       </div>
       <div class="firm-player-ranking-head"><span>Rang</span><span>Joueur</span><span>Contribution</span><span>Top</span></div>
-      <div class="firm-player-ranking-list">${rows.map(row=>`
-        <article class="${row.key === ownKey ? "own" : ""}">
-          ${renderRankMark(row.displayRank, `player-${activeFilter}-${row.key || row.name || row.displayRank}`)}
-          <div><img src="${firmBadge(row.firmId)}" alt=""><strong>${escapeHtml(row.name)}</strong></div>
-          <span>${fmt(row.points)} pts</span>
-          <em>Top ${row.displayRank}</em>
-        </article>
-      `).join("") || `<p class="firm-empty">Aucun joueur classe dans ce filtre pour le moment.</p>`}</div>
+      <div class="firm-player-ranking-list">${rows.map(renderPlayerRow).join("") || `<p class="firm-empty">Aucun joueur classé dans ce filtre pour le moment.</p>`}</div>
     </section>
   </div>`;
 }
@@ -658,27 +673,28 @@ function renderRewards(snapshot){
   const expected = snapshot.personal?.expectedReward || {};
   return `<div class="firm-main-two-columns">
     <section class="firm-main-block reward-preview">
-      <div class="firm-main-block-head"><div><span class="tiny">FIN DE SAISON</span><h3>Recompense individuelle prevue</h3></div><b>${escapeHtml(snapshot.personal?.rewardLabel || "Non classe")}</b></div>
+      <div class="firm-main-block-head"><div><span class="tiny">FIN DE SAISON</span><h3>Récompense individuelle prévue</h3></div><b>${escapeHtml(snapshot.personal?.rewardLabel || "Non classé")}</b></div>
       <strong>${rewardHtml(expected)}</strong>
-      <p>Cette recompense repose uniquement sur ton classement individuel parmi les joueurs des quatre firmes.</p>
+      <p>Cette récompense repose uniquement sur ton classement individuel parmi les joueurs des quatre firmes.</p>
     </section>
     <section class="firm-main-block reward-preview">
-      <div class="firm-main-block-head"><div><span class="tiny">RECOMPENSE COLLECTIVE</span><h3>Seuil saisonnier</h3></div><b>${snapshot.personal?.collectiveEligible ? "ELIGIBLE" : "NON ELIGIBLE"}</b></div>
+      <div class="firm-main-block-head"><div><span class="tiny">RÉCOMPENSE COLLECTIVE</span><h3>Seuil saisonnier</h3></div><b>${snapshot.personal?.collectiveEligible ? "ÉLIGIBLE" : "NON ÉLIGIBLE"}</b></div>
       <strong>${fmt(snapshot.personal?.contribution || 0)} / ${fmt(snapshot.collectiveMinimumContribution || 10_000)} points</strong>
       <p>La position finale de ta firme donne les coffres collectifs, uniquement si ce seuil personnel est atteint.</p>
     </section>
     <section class="firm-main-block pending-rewards">
-      <div class="firm-main-block-head"><div><span class="tiny">A RECUPERER</span><h3>Recompenses en attente</h3></div><button data-firm-reward-claim type="button" ${pending.length ? "" : "disabled"}>TOUT RECUPERER</button></div>
-      <div>${pending.map(entry=>`<article><div><strong>${escapeHtml(entry.label)}</strong><span>${escapeHtml(entry.source)}</span></div><b>${rewardHtml(entry.reward)}</b></article>`).join("") || `<p class="firm-empty">Aucune recompense en attente.</p>`}</div>
+      <div class="firm-main-block-head"><div><span class="tiny">A RÉCUPÉRER</span><h3>Récompenses en attente</h3></div><button data-firm-reward-claim type="button" ${pending.length ? "" : "disabled"}>TOUT RÉCUPÉRER</button></div>
+      <div>${pending.map(entry=>`<article><div><strong>${escapeHtml(entry.label)}</strong><span>${escapeHtml(entry.source)}</span></div><b>${rewardHtml(entry.reward)}</b></article>`).join("") || `<p class="firm-empty">Aucune récompense en attente.</p>`}</div>
     </section>
     <section class="firm-main-block pending-rewards">
       <div class="firm-main-block-head"><div><span class="tiny">JOURNAL</span><h3>Derniers gains</h3></div></div>
-      <div>${(snapshot.personal?.rewardHistory || []).map(entry=>`<article><div><strong>${escapeHtml(entry.label)}</strong><span>${new Date(entry.createdAt || Date.now()).toLocaleDateString("fr-FR")}</span></div><b>${rewardHtml(entry.reward)}</b></article>`).join("") || `<p class="firm-empty">Aucun gain de firme enregistre.</p>`}</div>
+      <div>${(snapshot.personal?.rewardHistory || []).map(entry=>`<article><div><strong>${escapeHtml(entry.label)}</strong><span>${new Date(entry.createdAt || Date.now()).toLocaleDateString("fr-FR")}</span></div><b>${rewardHtml(entry.reward)}</b></article>`).join("") || `<p class="firm-empty">Aucun gain de firme enregistré.</p>`}</div>
     </section>
   </div>`;
 }
 
 export function renderFirm(){
+  installPilotProfileModal();
   const panel = document.getElementById("firmMainPanel");
   if(!panel) return;
   if(!FIRM_TABS.some(tab=>tab.id === store.firmTab)) store.firmTab = "overview";

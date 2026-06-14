@@ -9,9 +9,12 @@ export function startServerTick({
   players,
   playersOnMap,
   presence,
+  updatePlayerActivity,
   updatePendingEnemyAttacks,
+  updatePlayerLifecycles,
   updateStatusEffects,
   updateQuestTimers,
+  updateRickyCompanions,
   updateWorldEnemy
 }){
   let worldLastTick = Date.now();
@@ -26,6 +29,7 @@ export function startServerTick({
     worldEmitT += dt;
     instanceEmitT += dt;
     questTimerT += dt;
+    updatePlayerActivity?.(dt, now);
     const activeMapIds = new Set([...players.values()]
       .filter(player=>presence.isActiveForWorld(player, now))
       .map(player=>player.mapId)
@@ -44,13 +48,33 @@ export function startServerTick({
     for(const group of groups.values()){
       const instance = group.instance;
       if(!instance?.enemies?.length || instance.completed) continue;
+      const instanceRoom = `instance:${instance.id}`;
       const map = instance.type === "portal"
-        ? {id:`portal-${instance.portal?.id || "blue"}`, room:group.id, width:5200, height:3600, spawn:{x:0, y:0, r:240}}
-        : {id:"coop-test", room:group.id, width:5200, height:3600, spawn:{x:instance.spawn?.x || 0, y:instance.spawn?.y || 0, r:260}};
-      const instancePlayers = group.members.map(id=>players.get(id)).filter(player=>presence.isActiveForWorld(player, now));
+        ? {id:`portal-${instance.portal?.id || "blue"}`, room:instanceRoom, width:5200, height:3600, spawn:{x:0, y:0, r:240}}
+        : {id:"coop-test", room:instanceRoom, width:5200, height:3600, spawn:{x:instance.spawn?.x || 0, y:instance.spawn?.y || 0, r:260}};
+      const joinedMemberIds = instance.type === "portal" && Array.isArray(instance.joinedMemberIds)
+        ? new Set(instance.joinedMemberIds.map(String))
+        : null;
+      const instancePlayers = group.members
+        .map(id=>players.get(id))
+        .filter(player=>presence.isActiveForWorld(player, now))
+        .filter(player=>!joinedMemberIds || joinedMemberIds.has(String(player.id)))
+        .filter(player=>String(player.state?.mapId || player.mapId || "") === map.id);
+      const hasInstancePlayers = instancePlayers.length > 0;
+      if(hasInstancePlayers && instance.type === "portal" && instance.portal?.id === "ricky" && instance.ally?.alive !== false && Number(instance.ally?.hp || 0) > 0){
+        instancePlayers.push({
+          id:"ricky_companion",
+          npcTarget:true,
+          connected:true,
+          clientMode:"game",
+          mapId:map.id,
+          state:instance.ally
+        });
+      }
       if(!instancePlayers.length) continue;
       for(const enemy of instance.enemies) updateWorldEnemy(enemy, map, instancePlayers, dt, now);
     }
+    updateRickyCompanions?.(dt, now);
     if(instanceEmitT >= 0.10){
       instanceEmitT = 0;
       for(const group of groups.values()) if(group.instance) emitInstance(group);
@@ -58,6 +82,7 @@ export function startServerTick({
     cleanupExpiredLootDrops(now);
     updatePendingEnemyAttacks?.(now);
     updateStatusEffects?.(now);
+    updatePlayerLifecycles?.(dt, now);
     if(questTimerT >= 1){
       questTimerT = 0;
       updateQuestTimers?.(now);

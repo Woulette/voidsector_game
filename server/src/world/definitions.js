@@ -108,7 +108,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:level=>34 + level * 4,
     attackCooldown:1250,
     projectileSpeed:680,
-    reward:()=>({credits:1020, xp:800, premium:1}),
+    reward:()=>({credits:800, xp:400, premium:1}),
     color:"rgba(248,113,113,.95)",
     particle:"rgba(252,165,165,.72)",
     shieldAbsorbRatio:.8
@@ -130,7 +130,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:()=>115,
     attackCooldown:1350,
     projectileSpeed:640,
-    reward:level=>({credits:1200 + level * 180, xp:360 + level * 70, premium:2}),
+    reward:()=>({credits:1200, xp:500, premium:2}),
     color:"rgba(251,146,60,.95)",
     particle:"rgba(253,186,116,.72)",
     shieldAbsorbRatio:.8
@@ -152,7 +152,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:()=>200,
     attackCooldown:1550,
     projectileSpeed:620,
-    reward:level=>({credits:2800 + level * 260, xp:950 + level * 120, premium:3}),
+    reward:()=>({credits:4000, xp:1500, premium:4}),
     color:"rgba(168,85,247,.95)",
     particle:"rgba(216,180,254,.72)",
     onHitEffect:{type:"poison", damage:50, interval:2, duration:10},
@@ -175,7 +175,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:()=>300,
     attackCooldown:1700,
     projectileSpeed:590,
-    reward:level=>({credits:7000 + level * 320, xp:3000 + level * 150, premium:8}),
+    reward:()=>({credits:12000, xp:5000, premium:8}),
     color:"rgba(96,165,250,.95)",
     particle:"rgba(191,219,254,.72)",
     shieldAbsorbRatio:.8
@@ -197,7 +197,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:()=>1500,
     attackCooldown:1650,
     projectileSpeed:610,
-    reward:()=>({credits:100000, xp:20000, premium:30}),
+    reward:()=>({credits:100000, xp:50000, premium:30}),
     color:"rgba(251,146,60,.95)",
     particle:"rgba(253,186,116,.72)",
     shieldAbsorbRatio:.8
@@ -219,7 +219,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:()=>900,
     attackCooldown:1850,
     projectileSpeed:560,
-    reward:()=>({credits:60000, xp:12000, premium:20}),
+    reward:()=>({credits:60000, xp:35000, premium:20}),
     color:"rgba(168,85,247,.95)",
     particle:"rgba(216,180,254,.72)",
     shieldAbsorbRatio:.8
@@ -243,7 +243,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:level=>(34 + level * 4) * 2,
     attackCooldown:1250,
     projectileSpeed:680,
-    reward:()=>({credits:1020 * 2, xp:800 * 2, premium:1 * 2}),
+    reward:()=>({credits:800 * 2, xp:400 * 2, premium:1 * 2}),
     color:"rgba(248,113,113,.95)",
     particle:"rgba(252,165,165,.72)",
     shieldAbsorbRatio:.8
@@ -270,7 +270,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:()=>115 * 2,
     attackCooldown:1350,
     projectileSpeed:640,
-    reward:level=>({credits:(1200 + level * 180) * 2, xp:(360 + level * 70) * 2, premium:2 * 2}),
+    reward:()=>({credits:1200 * 2, xp:500 * 2, premium:2 * 2}),
     color:"rgba(251,146,60,.95)",
     particle:"rgba(253,186,116,.72)",
     shieldAbsorbRatio:.8
@@ -279,6 +279,8 @@ export const WORLD_ENEMY_TYPES = {
     kind:"boss_chasseur_spectral",
     type:"Boss Parasite astral",
     baseLevel:5,
+    rewardSourceKind:"chasseur_spectral",
+    rewardMultiplier:2,
     img:"assets/enemies/enemy_green_parasite.png",
     radius:42,
     width:104,
@@ -292,7 +294,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:()=>200 * 4,
     attackCooldown:1550,
     projectileSpeed:620,
-    reward:()=>({credits:4000 * 4, xp:1700 * 4, premium:5 * 4}),
+    reward:()=>({credits:4000 * 2, xp:1500 * 2, premium:4 * 2}),
     color:"rgba(168,85,247,.95)",
     particle:"rgba(216,180,254,.72)",
     onHitEffect:{type:"poison", damage:50 * 4, interval:2, duration:10},
@@ -302,6 +304,8 @@ export const WORLD_ENEMY_TYPES = {
     kind:"boss_cuirasse_nebulaire",
     type:"Boss Traqueur abyssal",
     baseLevel:10,
+    rewardSourceKind:"cuirasse_nebulaire",
+    rewardMultiplier:2,
     img:"assets/enemies/enemy_blue_spider.png",
     radius:54,
     width:126,
@@ -315,7 +319,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:()=>300 * 4,
     attackCooldown:1700,
     projectileSpeed:590,
-    reward:()=>({credits:7000 * 4, xp:3000 * 4, premium:8 * 4}),
+    reward:()=>({credits:12000 * 2, xp:5000 * 2, premium:8 * 2}),
     color:"rgba(96,165,250,.95)",
     particle:"rgba(191,219,254,.72)",
     shieldAbsorbRatio:.8
@@ -324,6 +328,8 @@ export const WORLD_ENEMY_TYPES = {
     kind:"boss_cuirasse_ambre",
     type:"Boss Cuirasse ambre",
     baseLevel:15,
+    rewardSourceKind:"cuirasse_ambre",
+    rewardMultiplier:2,
     img:"assets/enemies/generated/astra4_ember_cuirass.png",
     radius:70,
     width:164,
@@ -337,7 +343,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:()=>1500 * 4,
     attackCooldown:1650,
     projectileSpeed:610,
-    reward:()=>({credits:100000 * 4, xp:20000 * 4, premium:30 * 4}),
+    reward:()=>({credits:100000 * 2, xp:50000 * 2, premium:30 * 2}),
     color:"rgba(251,146,60,.95)",
     particle:"rgba(253,186,116,.72)",
     shieldAbsorbRatio:.8
@@ -346,6 +352,8 @@ export const WORLD_ENEMY_TYPES = {
     kind:"boss_cristal_du_neant",
     type:"Boss Cristal du neant",
     baseLevel:15,
+    rewardSourceKind:"cristal_du_neant",
+    rewardMultiplier:2,
     img:"assets/enemies/enemy_purple_crystal.png",
     radius:56,
     width:128,
@@ -359,7 +367,7 @@ export const WORLD_ENEMY_TYPES = {
     attackDamage:()=>900 * 4,
     attackCooldown:1850,
     projectileSpeed:560,
-    reward:()=>({credits:60000 * 4, xp:12000 * 4, premium:20 * 4}),
+    reward:()=>({credits:60000 * 2, xp:35000 * 2, premium:20 * 2}),
     color:"rgba(168,85,247,.95)",
     particle:"rgba(216,180,254,.72)",
     shieldAbsorbRatio:.8
@@ -406,6 +414,7 @@ export const COOP_ENEMY_TYPES = {
 };
 
 export const PORTAL_CONFIGS = {
+  ricky:{id:"ricky", name:"Portail de Ricky", reward:{credits:0, xp:0, premium:0, ammoX4:0, ammoX6:0}},
   blue:{id:"blue", name:"Portail Bleu", reward:{credits:3000000, xp:400000, premium:20000, ammoX4:20000, ammoX6:0}},
   violet:{id:"violet", name:"Portail Violet", reward:{credits:0, xp:0, premium:35000, ammoX4:35000, ammoX6:0}},
   red:{id:"red", name:"Portail Rouge", reward:{credits:0, xp:0, premium:50000, ammoX4:50000, ammoX6:0}},

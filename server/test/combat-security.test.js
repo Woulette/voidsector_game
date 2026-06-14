@@ -171,3 +171,16 @@ test("server combat hit is broadcast to players in the same map room", ()=>{
   }]);
   assert.equal(socketEvents.length, 0);
 });
+
+test("instance combat hit uses the isolated instance room instead of the group room", ()=>{
+  const roomEvents = [];
+  emitCombatHitToAudience({
+    io:{to:room=>({emit:(eventName, payload)=>roomEvents.push({room, eventName, payload})})},
+    socket:{emit(){}},
+    player:{mapRoom:"instance:portal-1"},
+    group:{id:"group-1"},
+    payload:{enemyId:"enemy-1", damage:42}
+  });
+
+  assert.equal(roomEvents[0].room, "instance:portal-1");
+});

@@ -49,8 +49,15 @@ Deja en place :
 - verrous anti-spam par compte initiaux : les actions sensibles economie, equipement, quetes, progression, raffinerie, loot et portails ont une limite par compte en plus du rate-limit par socket.
 - chat MMO initial : canal Global serveur, fenetre combat redimensionnable et journal personnel des rewards / drops en combat.
 - vente d'equipement serveur : la vente se fait depuis l'inventaire du hangar, avec confirmation du prix avant mutation serveur ; prix de vente actuel : 35% du prix d'achat.
+- mort / radiation / respawn serveur : le serveur detecte la radiation hors map, pose l'etat de mort, facture les respawns NOVA et renvoie la position/PV/bouclier valides.
+- portails durcis : entree verifiee par portail deverrouille et niveau requis, vies restantes cote serveur, abandon force apres epuisement, sortie bloquee tant que l'instance n'est pas terminee.
+- chemins client MMO bloques : en session autoritaire, les rewards locaux, vagues portail locales, radiation locale persistante et consommation locale de munitions contre cibles serveur ne peuvent plus modifier la progression.
+- `profile:save` reduit aux preferences UI/action bar : credits, NOVA, XP, inventaire, equipement, quetes, rangs, kills, portails et firme restent des champs serveur.
+- quetes de position / PNJ securisees : le serveur utilise la position et la map connues du joueur pour valider distance, NPC et objectifs.
+- socle admin serveur initial : snapshot joueurs/groupes/profils, inspection de profil, kick moderation, ajustement credits/NOVA/XP reserve admin avec raison obligatoire et audit persistant.
+- monitoring `/health` enrichi : stockage actif, uptime et compteurs sockets/joueurs sans exposer les profils.
 
-Prochaine priorite : tests automatises MMO et controles admin minimum.
+Prochaine priorite : sauvegardes/backup, tests de charge multi-clients, logs economie/combat persistants et UI admin.
 
 ## Obligations gameplay MMO a integrer
 
@@ -320,6 +327,8 @@ A durcir :
 - logs de clear ;
 - prevention du farm anormal.
 
+Etat actuel : la creation, les vies, le respawn, l'abandon, la recompense unique et la sortie d'instance sont maintenant controles cote serveur. Il reste surtout les logs d'exploitation, les commandes admin de correction et les tests de charge.
+
 Le serveur doit stocker :
 
 ```txt
@@ -444,11 +453,11 @@ Un MMO a besoin d'outils admin simples.
 
 A faire :
 
-- voir joueurs connectes ;
-- voir profil joueur ;
-- modifier credits / NOVA / XP avec raison ;
+- voir joueurs connectes ; fait cote serveur via `admin:sync`, reste UI admin ;
+- voir profil joueur ; fait cote serveur via `admin:inspect-player`, reste UI admin ;
+- modifier credits / NOVA / XP avec raison ; fait cote serveur via `admin:adjust-player`, reste UI admin et workflow d'approbation ;
 - ban / unban ;
-- kick ;
+- kick ; fait cote serveur via `admin:kick`, reste UI admin ;
 - mute plus tard si chat ;
 - logs economie ;
 - logs portails ;

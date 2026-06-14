@@ -20,11 +20,13 @@ function formatObjectiveZone(objective = {}){
   if(objective.type === "refinery_material_upgrade_start") return "Raffinerie";
   if(objective.type === "owned_combat_drone") return "Hangar";
   if(objective.type === "equipped_ship") return "Hangar";
+  if(objective.type === "equipped_ship_lasers") return "Hangar";
   if(objective.type === "quest_item_drop") return Array.isArray(objective.zones) && objective.zones.length ? objective.zones.join(" / ") : objective.zone || "Toutes zones";
   if(objective.type === "visit_coordinates") return Array.isArray(objective.zones) && objective.zones.length ? objective.zones.join(" / ") : objective.zone || "Coordonnees";
   if(objective.type === "talk_npc") return objective.zone || "PNJ";
   if(objective.type === "deliver_item") return objective.zone || "PNJ";
   if(objective.type === "space_caster_use") return objective.zone || "Portails";
+  if(objective.type === "portal_complete") return objective.zone || "Portails";
   if(Array.isArray(objective.zones) && objective.zones.length) return objective.zones.join(" / ");
   return objective.zone || "Toutes zones";
 }
@@ -34,12 +36,14 @@ function formatObjectiveName(objective = {}, targetType = null){
   if(objective.type === "refinery_material_upgrade_start") return objective.label || "Materiau niveau 2";
   if(objective.type === "owned_combat_drone") return objective.label || "Drone de Combat";
   if(objective.type === "equipped_ship") return objective.label || "Vaisseau equipe";
+  if(objective.type === "equipped_ship_lasers") return objective.label || "Lasers équipés sur le vaisseau";
   if(objective.type === "quest_item_drop") return objective.label || objective.itemName || "Objet de quete";
   if(objective.type === "visit_map") return objective.label || `Atteindre ${objective.map || "la carte"}`;
   if(objective.type === "visit_coordinates") return objective.label || `Coord X ${objective.x} Y ${objective.y}`;
   if(objective.type === "talk_npc") return objective.label || "Parler au PNJ";
   if(objective.type === "deliver_item") return objective.label || objective.itemName || "Objet a rapporter";
   if(objective.type === "space_caster_use") return objective.label || "Space Caster";
+  if(objective.type === "portal_complete") return objective.label || "Portail termine";
   return objective.label || targetType?.name || objective.target?.replaceAll("_", " ") || "Cible";
 }
 
@@ -93,16 +97,25 @@ function renderObjectiveIcon(objective = {}, targetType = null){
   if(objective.type === "equipped_ship"){
     return `<span class="combat-quest-objective-icon"><img src="assets/ships/Velox.png" alt=""></span>`;
   }
+  if(objective.type === "equipped_ship_lasers"){
+    return `<span class="combat-quest-objective-icon"><img src="assets/equipment/laser_mk1_mk1_slot_v2.png" alt=""></span>`;
+  }
   if(objective.type === "quest_item_drop"){
     return `<span class="combat-quest-objective-icon"><img src="${objective.itemImg || "assets/quest_items/contaminated_sample.png"}" alt=""></span>`;
   }
   if(objective.type === "talk_npc"){
     return `<span class="combat-quest-objective-icon"><img src="${objective.npcImg || "assets/ships/npc/npc_saucer.png"}" alt=""></span>`;
   }
+  if(objective.type === "mission_control"){
+    return `<span class="combat-quest-objective-icon"><img src="assets/spawn/spawn_quest_relay.png" alt=""></span>`;
+  }
   if(objective.type === "deliver_item"){
     return `<span class="combat-quest-objective-icon"><img src="${objective.itemImg || "assets/quest_items/teleportation_fluid.png"}" alt=""></span>`;
   }
   if(objective.type === "space_caster_use"){
+    return `<span class="combat-quest-objective-icon"><img src="assets/portals/portail_bleu.svg" alt=""></span>`;
+  }
+  if(objective.type === "portal_complete"){
     return `<span class="combat-quest-objective-icon"><img src="assets/portals/portail_bleu.svg" alt=""></span>`;
   }
   const img = objective.type === "visit_coordinates" || objective.type === "visit_map" ? "assets/icons/coordinate_marker.svg" : targetType?.img || "assets/enemies/drone_pirate.png";
@@ -247,7 +260,7 @@ export function renderCombatQuestTracker({
       <b>${quest ? `${state.progress}/${state.target}` : "VIDE"}</b>
     </button>`;
   }).join("");
-  const firstObjective = questObjectiveEntries(selected).find(objective=>objective.target || objective.type === "refinery_module_upgrade_start" || objective.type === "refinery_material_upgrade_start" || objective.type === "owned_combat_drone" || objective.type === "equipped_ship" || objective.type === "quest_item_drop" || objective.type === "visit_coordinates" || objective.type === "talk_npc" || objective.type === "deliver_item" || objective.type === "space_caster_use") || selected.objective || {};
+  const firstObjective = questObjectiveEntries(selected).find(objective=>objective.target || objective.type === "refinery_module_upgrade_start" || objective.type === "refinery_material_upgrade_start" || objective.type === "owned_combat_drone" || objective.type === "equipped_ship" || objective.type === "equipped_ship_lasers" || objective.type === "quest_item_drop" || objective.type === "visit_coordinates" || objective.type === "talk_npc" || objective.type === "deliver_item" || objective.type === "space_caster_use" || objective.type === "portal_complete") || selected.objective || {};
   const targetType = enemyTypes[firstObjective.target];
   const tab = ["quest", "rewards", "description"].includes(detailTab) ? detailTab : "quest";
   return `

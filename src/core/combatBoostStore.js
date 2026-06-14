@@ -1,40 +1,20 @@
 import { consumeShipCargoMaterial, getShipCargo } from "./cargoStore.js";
 import { store } from "./store.js";
+import {
+  COMBAT_BOOST_DEFS,
+  getCombatBoostMaterialInfo,
+  getCombatBoostStoreField,
+  getCombatBoostTargetMaterialInfo,
+  getCombatBoostUnitAmount,
+  normalizeCombatBoostTarget
+} from "../data/combatBoosts.js";
 
-export const COMBAT_BOOST_DEFS = {
-  alliage_cuivre_zinc:{
-    name:"Alliage",
-    targets:{laser:{percent:0.10}, rocket:{percent:0.10}}
-  },
-  plaque_nickel_titane:{
-    name:"Plaque",
-    targets:{generator:{percent:0.10}, drone:{percent:0.10}}
-  },
-  conducteur_renforce:{
-    name:"Conducteur",
-    targets:{laser:{percent:0.25}, rocket:{percent:0.25}}
-  },
-  blindage_composite:{
-    name:"Blindage",
-    targets:{generator:{percent:0.25}, drone:{percent:0.25}}
-  },
-  noyau_astra:{
-    name:"Noyau Astra",
-    targets:{laser:{percent:0.50}, rocket:{percent:0.50}, generator:{percent:0.40}, drone:{percent:0.40}}
-  }
-};
-
-const TARGET_ALIASES = {
-  laser:"laser",
-  Laser:"laser",
-  Roquettes:"rocket",
-  rocket:"rocket",
-  Generateurs:"generator",
-  "Générateurs":"generator",
-  generator:"generator",
-  Drones:"drone",
-  drone:"drone"
-};
+export {
+  COMBAT_BOOST_DEFS,
+  getCombatBoostMaterialInfo,
+  getCombatBoostTargetMaterialInfo,
+  normalizeCombatBoostTarget
+} from "../data/combatBoosts.js";
 
 function ensureCombatBoosts(){
   if(!store.state.combatBoosts || typeof store.state.combatBoosts !== "object"){
@@ -48,21 +28,6 @@ function ensureCombatBoosts(){
   return store.state.combatBoosts;
 }
 
-export function normalizeCombatBoostTarget(target){
-  return TARGET_ALIASES[target] || TARGET_ALIASES[String(target || "").toLowerCase()] || "";
-}
-
-export function getCombatBoostMaterialInfo(materialId){
-  return COMBAT_BOOST_DEFS[materialId] || null;
-}
-
-export function getCombatBoostTargetMaterialInfo(target, materialId){
-  const normalized = normalizeCombatBoostTarget(target);
-  const def = getCombatBoostMaterialInfo(materialId);
-  const targetDef = def?.targets?.[normalized];
-  return targetDef ? {...targetDef, target:normalized, materialId, name:def.name} : null;
-}
-
 export function getCombatBoostTooltip(materialId){
   const def = getCombatBoostMaterialInfo(materialId);
   if(!def) return "";
@@ -74,16 +39,6 @@ export function getCombatBoostTooltip(materialId){
   return parts.join(" | ");
 }
 
-function getUnitAmountForTarget(target){
-  if(target === "laser") return 10;
-  if(target === "rocket") return 1;
-  return 60;
-}
-
-function getStoreFieldForTarget(target){
-  return target === "laser" || target === "rocket" ? "charges" : "seconds";
-}
-
 export function depositCombatBoostMaterial(target, materialId, amount = 1, shipId = store.state.activeShip){
   const normalized = normalizeCombatBoostTarget(target);
   const info = getCombatBoostTargetMaterialInfo(normalized, materialId);
@@ -93,19 +48,25 @@ export function depositCombatBoostMaterial(target, materialId, amount = 1, shipI
   if(Math.max(0, Number(cargo[materialId] || 0)) < count) return {ok:false, reason:"Quantite insuffisante dans la soute."};
   if(!consumeShipCargoMaterial(materialId, count, shipId)) return {ok:false, reason:"Quantite insuffisante dans la soute."};
   const boosts = ensureCombatBoosts();
-  const field = getStoreFieldForTarget(normalized);
+  const field = getCombatBoostStoreField(normalized);
   const slot = boosts[normalized][materialId] || {materialId, percent:info.percent, charges:0, seconds:0};
   slot.percent = info.percent;
-  slot[field] = Math.max(0, Number(slot[field] || 0)) + count * getUnitAmountForTarget(normalized);
+  slot[field] = Math.max(0, Number(slot[field] || 0)) + count * getCombatBoostUnitAmount(normalized);
   boosts[normalized][materialId] = slot;
-  return {ok:true, target:normalized, materialId, materialName:info.name, amount:count, added:count * getUnitAmountForTarget(normalized), field, percent:info.percent};
+  return {ok:true, target:normalized, materialId, materialName:info.name, amount:count, added:count * getCombatBoostUnitAmount(normalized), field, percent:info.percent};
+}
+
+function getEntryRemaining(entry, target){
+  const field = getCombatBoostStoreField(target);
+  if(field === "charges") return Math.max(0, Number(entry?.charges || 0));
+  if(Number(entry?.expiresAt || 0) > 0) return Math.max(0, (Number(entry.expiresAt) - Date.now()) / 1000);
+  return Math.max(0, Number(entry?.seconds || 0));
 }
 
 function getBestBoostEntry(target){
   const boosts = ensureCombatBoosts()[target] || {};
-  const field = getStoreFieldForTarget(target);
   return Object.values(boosts)
-    .filter(entry=>Math.max(0, Number(entry[field] || 0)) > 0)
+    .filter(entry=>getEntryRemaining(entry, target) > 0)
     .sort((a,b)=>Number(b.percent || 0) - Number(a.percent || 0))[0] || null;
 }
 
@@ -130,6 +91,7 @@ export function tickCombatBoosts(dt){
   let changed = false;
   for(const target of ["generator", "drone"]){
     for(const entry of Object.values(boosts[target] || {})){
+      if(Number(entry.expiresAt || 0) > 0) continue;
       const before = Math.max(0, Number(entry.seconds || 0));
       if(before <= 0) continue;
       entry.seconds = Math.max(0, before - Math.max(0, Number(dt || 0)));
@@ -142,13 +104,13 @@ export function tickCombatBoosts(dt){
 export function getCombatBoostSummary(target){
   const normalized = normalizeCombatBoostTarget(target);
   const boosts = ensureCombatBoosts()[normalized] || {};
-  const field = getStoreFieldForTarget(normalized);
+  const field = getCombatBoostStoreField(normalized);
   const entry = getBestBoostEntry(normalized);
   return {
     target:normalized,
     materialId:entry?.materialId || null,
     percent:entry ? Math.max(0, Number(entry.percent || 0)) : 0,
-    remaining:entry ? Math.max(0, Number(entry[field] || 0)) : 0,
+    remaining:entry ? getEntryRemaining(entry, normalized) : 0,
     field,
     entries:Object.values(boosts)
   };

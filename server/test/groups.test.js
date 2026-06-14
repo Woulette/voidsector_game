@@ -64,3 +64,28 @@ test("group membership moves to a reconnecting socket id", ()=>{
   assert.deepEqual(manager.groups.get(groupId).members.sort(), ["b", "next-a"]);
   assert.equal(manager.groups.get(groupId).leaderId, "next-a");
 });
+
+test("portal instance snapshots are sent only to members that joined the instance", ()=>{
+  const {events, manager, players, sockets} = createHarness();
+  const alphaSocket = sockets.get("a");
+  const betaSocket = sockets.get("b");
+  assert.equal(manager.invitePlayer(alphaSocket, players.get("b")).ok, true);
+  const groupId = players.get("a").groupId;
+  assert.equal(manager.acceptInvite(betaSocket, groupId), true);
+  const group = manager.groups.get(groupId);
+  group.instance = {
+    id:"portal-1",
+    type:"portal",
+    portal:{id:"ricky"},
+    joinedMemberIds:["a"],
+    abandonedMemberIds:[],
+    enemies:[]
+  };
+  events.length = 0;
+
+  manager.emitInstance(group);
+
+  assert.equal(events.some(entry=>entry.id === "a" && entry.event === "coop:enemies"), true);
+  assert.equal(events.some(entry=>entry.id === "b" && entry.event === "coop:enemies"), false);
+  assert.equal(events.some(entry=>entry.id === groupId && entry.event === "coop:enemies"), false);
+});

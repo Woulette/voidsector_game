@@ -3,12 +3,29 @@ import { droneFormations } from "../../../src/data/equipment.js";
 import { skills } from "../../../src/data/progression.js";
 import { getItemFromInventoryUid } from "../economy/equipment.js";
 import { WORLD_MAPS } from "../world/definitions.js";
-import { getWorldSafePortals, isPointInFriendlyWorldSafeArea, isPointInWorldSafeArea } from "../world/spawn.js";
+import { getWorldSafePortals, isPointInWorldSafeArea } from "../world/spawn.js";
 import { FIRMS, getFirmMapId } from "../../../src/data/firms.js";
+import { getServerCombatTimedBoostPercent } from "../economy/combatBoosts.js";
 
 const MAP_OUTSIDE_LIMIT = 1800;
 const PORTAL_TRANSFER_PADDING = 180;
 const MOVEMENT_JITTER_ALLOWANCE = 90;
+const PORTAL_TRANSFER_POINTS = {
+  top:{x:0, y:-3300},
+  bottom:{x:0, y:3300},
+  left:{x:-4300, y:0},
+  right:{x:4300, y:0},
+  topLeft:{x:-4300, y:-3300},
+  topRight:{x:4300, y:-3300},
+  bottomLeft:{x:-4300, y:3300},
+  bottomRight:{x:4300, y:3300}
+};
+const ZONE_TWO_FOUR_PORTAL_POINTS = {
+  astra:{map2:"bottomRight", map4:"bottomLeft"},
+  cyan:{map2:"topRight", map4:"topLeft"},
+  jaune:{map2:"topLeft", map4:"bottomLeft"},
+  verte:{map2:"bottomLeft", map4:"bottomRight"}
+};
 function buildWorldMapTransitions(){
   const transitions = new Set();
   const add = (a, b)=>{
@@ -42,6 +59,17 @@ function buildWorldMapTransitions(){
 
 const WORLD_MAP_TRANSITIONS = buildWorldMapTransitions();
 
+function getZoneTwoFourTransitionFirmId(fromMapId, toMapId){
+  const from = String(fromMapId);
+  const to = String(toMapId);
+  for(const firm of FIRMS){
+    const map2 = String(getFirmMapId(firm.id, 2));
+    const map4 = String(getFirmMapId(firm.id, 4));
+    if((from === map2 && to === map4) || (from === map4 && to === map2)) return firm.id;
+  }
+  return null;
+}
+
 function finite(value, fallback = 0){
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -56,7 +84,7 @@ function getActiveShip(profile){
   return ships.find(ship=>ship.id === shipId) || ships.find(ship=>ship.id === "orion") || ships[0];
 }
 
-function getSkillStats(profile){
+export function getSkillStats(profile){
   const result = {};
   for(const skill of skills){
     const savedRanks = Array.isArray(profile?.skillRanks?.[skill.id]) ? profile.skillRanks[skill.id] : [];
@@ -74,7 +102,7 @@ function getSkillStats(profile){
   return result;
 }
 
-function getFormationStats(profile){
+export function getFormationStats(profile){
   return droneFormations.find(formation=>formation.id === profile?.activeDroneFormation)?.effect || {};
 }
 
@@ -86,14 +114,63 @@ function getPublicDroneState(profile){
   return {droneCount, droneUpgrades:upgrades, activeDroneFormation:activeFormation};
 }
 
-function getRepairBotHealRate(profile){
-  const loadout = profile?.shipLoadouts?.[profile?.activeShip] || {};
-  const extras = Array.isArray(loadout.extras) ? loadout.extras : [];
-  const equippedRate = extras.reduce((rate, uid)=>{
+function getGeneratorStatTotal(profile, uids, key, upgradeValue){
+  return uids.reduce((total, uid)=>{
     const item = getItemFromInventoryUid(profile, uid);
-    return Math.max(rate, finite(item?.effect?.repairBotHealRate));
+    const base = Math.max(0, finite(item?.stats?.[key]));
+    const upgrade = Math.max(0, finite(profile?.equipmentUpgrades?.[item?.id]));
+    return total + base + (base > 0 ? upgrade * upgradeValue : 0);
   }, 0);
-  return equippedRate * finite(getSkillStats(profile).repairBotHealMultiplier, 1);
+}
+
+function getTrustedGeneratorStat(profile, key, upgradeValue){
+  const activeShipId = getActiveShip(profile)?.id || profile?.activeShip || "orion";
+  const loadout = profile?.shipLoadouts?.[activeShipId] || {};
+  const shipUids = (Array.isArray(loadout.generators) ? loadout.generators : []).filter(Boolean);
+  const droneUids = (Array.isArray(profile?.droneLoadout) ? profile.droneLoadout : []).filter(Boolean);
+  const droneMultiplier = 1 + getServerCombatTimedBoostPercent(profile, "drone");
+  return getGeneratorStatTotal(profile, shipUids, key, upgradeValue)
+    + getGeneratorStatTotal(profile, droneUids, key, upgradeValue) * droneMultiplier;
+}
+
+export function getRepairBotConfig(profile){
+  const skill = getSkillStats(profile);
+  const activeShipId = getActiveShip(profile)?.id || profile?.activeShip || "orion";
+  const loadout = profile?.shipLoadouts?.[activeShipId] || {};
+  const extras = Array.isArray(loadout.extras) ? loadout.extras : [];
+  const config = extras.reduce((result, uid)=>{
+    const item = getItemFromInventoryUid(profile, uid);
+    const effect = item?.effect || {};
+    if(effect.repairBot) result.hasRepairBot = true;
+    if(effect.repairBotAuto) result.hasAuto = true;
+    result.healRate = Math.max(result.healRate, finite(effect.repairBotHealRate));
+    if(effect.repairBotDelay) result.delay = Math.max(1, Math.min(result.delay, finite(effect.repairBotDelay, result.delay)));
+    return result;
+  }, {
+    hasRepairBot:false,
+    hasAuto:false,
+    healRate:0,
+    delay:Math.max(6, 15 - Math.max(0, finite(skill.repairBotDelayReduction)))
+  });
+  config.healRate = config.hasRepairBot
+    ? config.healRate * finite(skill.repairBotHealMultiplier, 1)
+    : 0;
+  return config;
+}
+
+export function getRepairBotHealRate(profile){
+  return getRepairBotConfig(profile).healRate;
+}
+
+export function getTrustedShieldRegen(profile){
+  const baseRegen = getTrustedGeneratorStat(profile, "regen", 1);
+  const skill = getSkillStats(profile);
+  const formation = getFormationStats(profile);
+  const generatorMultiplier = 1 + getServerCombatTimedBoostPercent(profile, "generator");
+  return Math.max(0, (baseRegen + finite(skill.regen))
+    * finite(formation.regenMultiplier, 1)
+    * finite(skill.regenMultiplier, 1)
+    * generatorMultiplier);
 }
 
 function getTrustedMaxHp(profile, ship){
@@ -115,22 +192,14 @@ function getProfileHomeMapId(profile){
 }
 
 function getShieldCap(profile, previous){
-  const loadout = profile?.shipLoadouts?.[profile?.activeShip] || {};
-  const generatorUids = [
-    ...(Array.isArray(loadout.generators) ? loadout.generators : []),
-    ...(Array.isArray(profile?.droneLoadout) ? profile.droneLoadout : [])
-  ].filter(Boolean);
-  const generatedShield = generatorUids.reduce((total, uid)=>{
-    const item = getItemFromInventoryUid(profile, uid);
-    const base = Math.max(0, finite(item?.stats?.bouclier));
-    const upgrade = Math.max(0, finite(profile?.equipmentUpgrades?.[item?.id]));
-    return total + base + (base > 0 ? upgrade * 30 : 0);
-  }, 0);
+  const generatedShield = getTrustedGeneratorStat(profile, "bouclier", 30);
   const skill = getSkillStats(profile);
   const formation = getFormationStats(profile);
+  const generatorMultiplier = 1 + getServerCombatTimedBoostPercent(profile, "generator");
   const trustedShield = (generatedShield > 0 ? generatedShield + finite(skill.shieldBonus) : 0)
     * finite(skill.shieldMultiplier, 1)
-    * finite(formation.shieldMultiplier, 1);
+    * finite(formation.shieldMultiplier, 1)
+    * generatorMultiplier;
   return Math.max(finite(previous?.maxShield), trustedShield * 1.5);
 }
 
@@ -172,21 +241,43 @@ function isNearMapTransferPoint(point, map){
   return isNearMapPortal(point, map) || isNearStandardSectorPortal(point, map);
 }
 
-function instanceMapAllowed(player, mapId, groups){
-  if(mapId === "coop-test"){
-    const group = player?.groupId ? groups?.get(player.groupId) : null;
-    return Boolean(group?.instance && group.instance.type !== "portal");
-  }
-  if(!mapId.startsWith("portal-")) return false;
-  const group = player?.groupId ? groups?.get(player.groupId) : null;
-  return Boolean(group?.instance?.type === "portal" && `portal-${group.instance.portal?.id}` === mapId);
+function isNearPortalTransferPoint(point, portalPoint){
+  return Boolean(portalPoint)
+    && Math.hypot(finite(point?.x) - finite(portalPoint.x), finite(point?.y) - finite(portalPoint.y)) <= 420 + PORTAL_TRANSFER_PADDING;
 }
 
-function canChangeMap({player, previous, nextMapId, nextPoint, groups}){
+function isNearZoneTwoFourPortal(point, mapId, firmId){
+  const layout = ZONE_TWO_FOUR_PORTAL_POINTS[firmId];
+  if(!layout) return false;
+  const zone = String(mapId) === String(getFirmMapId(firmId, 2)) ? "map2" : "map4";
+  return isNearPortalTransferPoint(point, PORTAL_TRANSFER_POINTS[layout[zone]]);
+}
+
+function instanceMapAllowed(player, mapId, groups){
+  const group = player?.groupId ? groups?.get(player.groupId) : null;
+  const instance = group?.instance;
+  if(instance?.abandonedMemberIds?.includes(player?.id)) return false;
+  if(mapId === "coop-test"){
+    return Boolean(instance && instance.type !== "portal");
+  }
+  if(!mapId.startsWith("portal-")) return false;
+  if(instance?.type !== "portal" || `portal-${instance.portal?.id}` !== mapId) return false;
+  if(Array.isArray(instance.joinedMemberIds) && !instance.joinedMemberIds.includes(player?.id)) return false;
+  return true;
+}
+
+function canChangeMap({player, previous, nextMapId, nextPoint, groups, profile}){
   const previousMapId = String(previous?.mapId ?? player?.mapId ?? "0");
   if(nextMapId === previousMapId) return true;
   if(instanceMapAllowed(player, nextMapId, groups)) return true;
-  if(previousMapId.startsWith("portal-") || previousMapId === "coop-test"){
+  if(previousMapId.startsWith("portal-")){
+    const group = player?.groupId ? groups?.get(player.groupId) : null;
+    if(group?.instance?.type !== "portal" || !group.instance.completed) return false;
+    const nextMap = WORLD_MAPS[nextMapId];
+    return Boolean(nextMap)
+      && (isNearMapTransferPoint(nextPoint, nextMap) || isPointInWorldSafeArea(nextPoint, nextMap, PORTAL_TRANSFER_PADDING));
+  }
+  if(previousMapId === "coop-test"){
     const nextMap = WORLD_MAPS[nextMapId];
     return Boolean(nextMap)
       && (isNearMapTransferPoint(nextPoint, nextMap) || isPointInWorldSafeArea(nextPoint, nextMap, PORTAL_TRANSFER_PADDING));
@@ -195,19 +286,30 @@ function canChangeMap({player, previous, nextMapId, nextPoint, groups}){
   const nextMap = WORLD_MAPS[nextMapId];
   if(!previousMap || !nextMap) return false;
   if(!WORLD_MAP_TRANSITIONS.has(`${previousMapId}:${nextMapId}`)) return false;
+  const zoneTwoFourFirmId = getZoneTwoFourTransitionFirmId(previousMapId, nextMapId);
+  if(zoneTwoFourFirmId){
+    return isNearZoneTwoFourPortal(previous, previousMapId, zoneTwoFourFirmId)
+      && isNearZoneTwoFourPortal(nextPoint, nextMapId, zoneTwoFourFirmId);
+  }
   return isNearMapTransferPoint(previous, previousMap)
     && (isNearMapTransferPoint(nextPoint, nextMap) || isPointInWorldSafeArea(nextPoint, nextMap, PORTAL_TRANSFER_PADDING));
 }
 
 function allowedMovementDistance(profile, ship, elapsedSeconds){
+  const speedWithEquipmentAndSkills = (getTrustedMovementSpeed(profile, ship) + 100) * 1.2;
+  return speedWithEquipmentAndSkills * elapsedSeconds + MOVEMENT_JITTER_ALLOWANCE;
+}
+
+export function getTrustedMovementSpeed(profile, ship = getActiveShip(profile)){
   const baseSpeed = Math.max(1, finite(ship?.stats?.vitesse, 300));
   const skill = getSkillStats(profile);
   const formation = getFormationStats(profile);
-  const speedWithEquipmentAndSkills = (baseSpeed + finite(skill.vitesse) + 100)
+  const generatorSpeed = getTrustedGeneratorStat(profile, "vitesse", 2);
+  const generatorMultiplier = 1 + getServerCombatTimedBoostPercent(profile, "generator");
+  return Math.max(1, (baseSpeed + finite(skill.vitesse) + generatorSpeed)
     * finite(skill.speedMultiplier, 1)
     * finite(formation.speedMultiplier, 1)
-    * 1.2;
-  return speedWithEquipmentAndSkills * elapsedSeconds + MOVEMENT_JITTER_ALLOWANCE;
+    * generatorMultiplier);
 }
 
 function validateVitals({player, previous, payload, profile, ship, elapsedSeconds, mapChanged, nextPoint, nextMap, now}){
@@ -244,9 +346,10 @@ function validateVitals({player, previous, payload, profile, ship, elapsedSecond
 
   const previousHp = clamp(finite(previous.hp), 0, maxHp);
   const previousShield = clamp(finite(previous.shield), 0, maxShield);
-  const safeRespawn = previousHp <= 0
-    && ((nextMap && isPointInFriendlyWorldSafeArea(nextPoint, nextMap, profile?.player?.firmId || "astra", PORTAL_TRANSFER_PADDING))
-      || String(previous.mapId || "").startsWith("portal-"));
+  const safeRespawn = false;
+  if(previousHp <= 0 && !safeRespawn){
+    return {hp:0, maxHp, shield:0, maxShield};
+  }
   const requestedHp = finite(payload?.hp, previousHp);
   const repairHealRate = getRepairBotHealRate(profile);
   const repairTickAllowance = maxHp * repairHealRate + 5;
@@ -267,12 +370,32 @@ function validateVitals({player, previous, payload, profile, ship, elapsedSecond
 
 export function validatePlayerState({player, payload, profile, groups, now = Date.now()} = {}){
   const previous = player?.state || null;
+  if(previous && player?.deathState){
+    return {
+      corrected:true,
+      reason:"vaisseau detruit",
+      state:{
+        ...previous,
+        hp:0,
+        vx:0,
+        vy:0,
+        enginePower:0,
+        moveTarget:null,
+        attackTargetId:"",
+        attackAmmoId:"",
+        attackWeaponClass:"",
+        repairBotActive:false,
+        updatedAt:now
+      }
+    };
+  }
   const ship = getActiveShip(profile);
   const previousSameShip = !previous || String(previous.shipId || ship.id) === ship.id;
   const requestedMapId = String(payload?.mapId ?? previous?.mapId ?? player?.mapId ?? "0");
   const rawPoint = {x:finite(payload?.x, previous?.x), y:finite(payload?.y, previous?.y)};
   const trustedSession = getTrustedShipSession(profile, ship.id);
-  const expectedInitialMapId = String(trustedSession?.mapId ?? profile?.worldSession?.mapId ?? getProfileHomeMapId(profile));
+  const savedInitialMapId = String(trustedSession?.mapId ?? profile?.worldSession?.mapId ?? "");
+  const expectedInitialMapId = WORLD_MAPS[savedInitialMapId] ? savedInitialMapId : getProfileHomeMapId(profile);
   const requestedMapAllowed = instanceMapAllowed(player, requestedMapId, groups)
     || Boolean(WORLD_MAPS[requestedMapId]) && Boolean(previous || requestedMapId === expectedInitialMapId);
   let mapId = requestedMapAllowed ? requestedMapId : String(previous?.mapId ?? expectedInitialMapId);
@@ -293,7 +416,7 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
   }
 
   const mapChanged = Boolean(previous && mapId !== String(previous.mapId ?? player?.mapId ?? "0"));
-  if(mapChanged && !canChangeMap({player, previous, nextMapId:mapId, nextPoint:point, groups})){
+  if(mapChanged && !canChangeMap({player, previous, nextMapId:mapId, nextPoint:point, groups, profile})){
     mapId = String(previous.mapId ?? player?.mapId ?? "0");
     nextMap = WORLD_MAPS[mapId] || null;
     point = {x:finite(previous.x), y:finite(previous.y)};
@@ -342,6 +465,19 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
   const derivedVx = previous && !mapChanged ? (point.x - finite(previous.x)) / elapsedSeconds : 0;
   const derivedVy = previous && !mapChanged ? (point.y - finite(previous.y)) / elapsedSeconds : 0;
   const droneState = getPublicDroneState(profile);
+  let moveTarget = null;
+  if(payload?.moveTarget && typeof payload.moveTarget === "object"){
+    const rawMoveTarget = {
+      x:finite(payload.moveTarget.x),
+      y:finite(payload.moveTarget.y)
+    };
+    moveTarget = nextMap ? clampPointToMap(rawMoveTarget, nextMap) : rawMoveTarget;
+  }
+  const attackTargetId = String(payload?.attackTargetId || "").slice(0, 100);
+  const attackWeaponClass = ["laser", "rocket", "missile"].includes(payload?.attackWeaponClass)
+    ? String(payload.attackWeaponClass)
+    : "";
+  const repairBotConfig = getRepairBotConfig(profile);
 
   return {
     corrected,
@@ -359,15 +495,19 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
       shipId:ship.id,
       shipImg:String(payload?.shipImg || previous?.shipImg || ship.combatImg || ship.img || ""),
       level:Math.max(1, Math.floor(finite(profile?.player?.level, previous?.level || 1))),
-      speed:Math.max(1, finite(ship?.stats?.vitesse, previous?.speed || 300)),
+      speed:getTrustedMovementSpeed(profile, ship),
       radius:Math.max(32, Math.min(96, finite(payload?.radius, previous?.radius || 48))),
       droneCount:droneState.droneCount,
       droneUpgrades:droneState.droneUpgrades,
       activeDroneFormation:droneState.activeDroneFormation,
       rankName:String(payload?.rankName || previous?.rankName || "").slice(0, 48),
       rankAssetPath:String(payload?.rankAssetPath || previous?.rankAssetPath || "").slice(0, 180),
+      moveTarget,
       lockedTargetId:String(payload?.lockedTargetId || "").slice(0, 100),
-      attackTargetId:String(payload?.attackTargetId || "").slice(0, 100),
+      attackTargetId,
+      attackAmmoId:attackTargetId ? String(payload?.attackAmmoId || "").slice(0, 40) : "",
+      attackWeaponClass:attackTargetId ? attackWeaponClass : "",
+      repairBotActive:repairBotConfig.hasRepairBot ? Boolean(payload?.repairBotActive ?? previous?.repairBotActive) : false,
       updatedAt:now
     }
   };

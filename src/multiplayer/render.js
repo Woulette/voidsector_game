@@ -226,6 +226,7 @@ export function drawRemotePlayers({
         rankAssetPath:sampledState.rankAssetPath || "",
         pilotFirmAssetPath:getFirmBadgeAsset(remote.firmId || "astra"),
         pilotName:String(remote.name || "Pilote").slice(0, 24),
+        pilotRole:remote.role || "",
         pilotTitle:"",
         getItemFromInventoryUid:()=>null,
         getDronePermanentUpgrade:index=>Boolean(sampledState.droneUpgrades?.[index]),
