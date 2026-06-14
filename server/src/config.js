@@ -64,6 +64,7 @@ export const config = {
     "admin:inspect-player":{minIntervalMs:500, limit:20, windowMs:10000},
     "admin:kick":{minIntervalMs:1000, limit:8, windowMs:30000},
     "admin:adjust-player":{minIntervalMs:1200, limit:8, windowMs:30000},
+    "admin:grant-player":{minIntervalMs:700, limit:12, windowMs:30000},
     "admin:inventory-remove":{minIntervalMs:700, limit:12, windowMs:30000},
     "admin:moderate-account":{minIntervalMs:1200, limit:8, windowMs:30000},
     "admin:reset-instance":{minIntervalMs:2000, limit:4, windowMs:60000}
@@ -104,6 +105,7 @@ export const config = {
     "admin:inspect-player":{limit:24, windowMs:10000},
     "admin:kick":{limit:8, windowMs:30000},
     "admin:adjust-player":{limit:8, windowMs:30000},
+    "admin:grant-player":{limit:12, windowMs:30000},
     "admin:inventory-remove":{limit:12, windowMs:30000},
     "admin:moderate-account":{limit:8, windowMs:30000},
     "admin:reset-instance":{limit:4, windowMs:60000},

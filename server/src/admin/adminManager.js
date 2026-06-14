@@ -670,6 +670,59 @@ export function createAdminManager({
     return {ok:true, before, after};
   }
 
+  async function grantPlayer(socket, {
+    targetId,
+    accountId,
+    profileKey,
+    type,
+    id,
+    amount = 1,
+    destination = "cargoHold",
+    shipId,
+    reason
+  } = {}){
+    const access = requireRole(socket, "admin");
+    if(!access.ok) return access;
+    const message = cleanReason(reason);
+    if(message.length < 4) return {ok:false, reason:"Raison admin obligatoire."};
+    const target = resolveProfileTarget({targetId, accountId, profileKey});
+    if(!target.key || !target.entry) return {ok:false, reason:"Profil cible introuvable."};
+    let granted = null;
+    let grantError = "Don impossible.";
+    const nextProfile = profileManager.updateProfileByKey?.(target.key, profile=>{
+      const result = applyGrantToProfile(profile, {type, id, amount, destination, shipId});
+      if(!result.ok){
+        grantError = result.reason || grantError;
+        return false;
+      }
+      granted = result.granted;
+      appendProfileActivity(profile, {
+        type:"admin_grant",
+        severity:"warning",
+        label:"Don admin",
+        detail:`${granted.amount} x ${granted.name}. Raison : ${message}`,
+        data:{type:granted.type, id:granted.id, amount:granted.amount, destination:granted.destination}
+      }, now());
+      return true;
+    });
+    if(!nextProfile || !granted) return {ok:false, reason:grantError};
+    const targetAccountId = String(accountId || target.online?.accountId || (target.key.startsWith("account:") ? target.key.slice("account:".length) : ""));
+    await recordAudit({
+      actor:access.actor,
+      action:"admin:grant-player",
+      reason:message,
+      target:{
+        key:target.key,
+        playerId:target.online?.id || targetId || "",
+        name:target.entry.profile?.player?.name || ""
+      },
+      payload:{accountId:targetAccountId, granted}
+    });
+    const onlineTargets = targetAccountId ? onlinePlayersForAccount(targetAccountId) : (target.online ? [target.online] : []);
+    for(const player of onlineTargets) io?.to?.(player.id)?.emit?.("profile:sync", nextProfile);
+    return {ok:true, profileKey:target.key, granted};
+  }
+
   async function removeInventoryItem(socket, {
     targetId,
     accountId,
@@ -876,6 +929,7 @@ export function createAdminManager({
 
   return {
     adjustPlayer,
+    grantPlayer,
     inspectPlayer,
     kickPlayer,
     moderateAccount,

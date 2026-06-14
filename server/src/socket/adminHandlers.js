@@ -29,6 +29,11 @@ export function registerAdminHandlers(socket, context){
     emitResult("admin:adjusted", await adminManager.adjustPlayer(socket, payload || {}));
   });
 
+  socket.on("admin:grant-player", async payload=>{
+    if(!guard("admin:grant-player")) return;
+    emitResult("admin:granted", await adminManager.grantPlayer(socket, payload || {}));
+  });
+
   socket.on("admin:inventory-remove", async payload=>{
     if(!guard("admin:inventory-remove")) return;
     emitResult("admin:inventory-removed", await adminManager.removeInventoryItem(socket, payload || {}));

@@ -34,6 +34,9 @@ export function createSocketCommands({multiplayer}){
     adjustAdminPlayer(payload = {}){
       return emit(multiplayer, "admin:adjust-player", payload);
     },
+    grantAdminPlayer(payload = {}){
+      return emit(multiplayer, "admin:grant-player", payload);
+    },
     removeAdminInventoryItem(payload = {}){
       return emit(multiplayer, "admin:inventory-remove", payload);
     },

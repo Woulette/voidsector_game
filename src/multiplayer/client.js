@@ -343,6 +343,11 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       toast("Correction admin appliquee.");
       emitChange("admin:adjusted", payload);
     });
+    socket.on("admin:granted", payload=>{
+      multiplayer.admin.lastAction = {type:"grant", payload, at:Date.now()};
+      toast("Don admin applique.");
+      emitChange("admin:granted", payload);
+    });
     socket.on("admin:inventory-removed", payload=>{
       multiplayer.admin.lastAction = {type:"inventory-remove", payload, at:Date.now()};
       toast("Objet supprime du profil.");
@@ -508,6 +513,7 @@ export const {
   inspectAdminPlayer,
   kickAdminPlayer,
   adjustAdminPlayer,
+  grantAdminPlayer,
   removeAdminInventoryItem,
   moderateAdminAccount,
   resetAdminInstance

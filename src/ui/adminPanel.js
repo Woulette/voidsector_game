@@ -1,6 +1,10 @@
 import { fmt } from "../core/utils.js";
+import { ammoTypes, droneCatalog, droneFormations, equipment } from "../data/equipment.js";
+import { portals, rawMaterialCatalog } from "../data/progression.js";
+import { ships } from "../data/ships.js";
 import {
   adjustAdminPlayer,
+  grantAdminPlayer,
   inspectAdminPlayer,
   kickAdminPlayer,
   moderateAdminAccount,
@@ -11,7 +15,26 @@ import {
 } from "../multiplayer/client.js";
 
 const STAFF_ROLES = new Set(["moderator", "admin", "owner"]);
-const ADMIN_ACTIONS = new Set(["kick", "mute", "ban", "unmute", "unban", "adjust"]);
+const ADMIN_ACTIONS = new Set(["kick", "mute", "ban", "unmute", "unban", "adjust", "grant"]);
+
+const FIRM_BOXES = [
+  {id:"common", name:"Coffre commun", short:"Commun", rarity:"COMMUN", img:"assets/firm/chests/chest_common.svg"},
+  {id:"rare", name:"Coffre rare", short:"Rare", rarity:"RARE", img:"assets/firm/chests/chest_rare.svg"},
+  {id:"veryRare", name:"Coffre tres rare", short:"Tres rare", rarity:"TRES RARE", img:"assets/firm/chests/chest_veryRare.svg"},
+  {id:"elite", name:"Coffre elite", short:"Elite", rarity:"ELITE", img:"assets/firm/chests/chest_elite.svg"},
+  {id:"mythic", name:"Coffre mythique", short:"Mythique", rarity:"MYTHIQUE", img:"assets/firm/chests/chest_mythic.svg"}
+];
+
+const GRANT_TYPES = [
+  ["item", "Equipement / extra"],
+  ["ammo", "Munitions"],
+  ["resource", "Ressources"],
+  ["ship", "Vaisseaux"],
+  ["drone", "Drones"],
+  ["formation", "Formations"],
+  ["portalPiece", "Pieces portail"],
+  ["firmBox", "Coffres firme"]
+];
 
 const adminUi = {
   open:false,
@@ -26,7 +49,14 @@ const adminUi = {
   adjustField:"credits",
   adjustMode:"add",
   adjustAmount:"0",
-  inventoryDeleteReason:""
+  inventoryDeleteReason:"",
+  grantType:"item",
+  grantId:"",
+  grantAmount:"1",
+  grantDestination:"cargoHold",
+  grantShipId:"",
+  grantReason:"",
+  grantQuery:""
 };
 
 function escapeHtml(value){
@@ -55,6 +85,16 @@ function resetInventoryDeleteDraft(){
   adminUi.inventoryDeleteReason = "";
 }
 
+function resetGrantDraft(){
+  adminUi.grantType = "item";
+  adminUi.grantId = "";
+  adminUi.grantAmount = "1";
+  adminUi.grantDestination = "cargoHold";
+  adminUi.grantShipId = "";
+  adminUi.grantReason = "";
+  adminUi.grantQuery = "";
+}
+
 function role(){
   return String(multiplayer.auth?.account?.role || "player").toLowerCase();
 }
@@ -66,7 +106,7 @@ function canUseAdminPanel(){
 function canUseAdminAction(action){
   const current = role();
   if(current === "owner") return true;
-  if(action === "ban" || action === "unban" || action === "adjust" || action === "inventory-remove" || action === "reset-instance") return current === "admin";
+  if(action === "ban" || action === "unban" || action === "adjust" || action === "grant" || action === "inventory-remove" || action === "reset-instance") return current === "admin";
   return current === "admin" || current === "moderator";
 }
 
@@ -240,7 +280,7 @@ function renderRows(rows){
 }
 
 function renderActionForm(target){
-  if(!adminUi.action || adminUi.action === "inventory-remove" || !target) return "";
+  if(!adminUi.action || adminUi.action === "inventory-remove" || adminUi.action === "grant" || !target) return "";
   const action = adminUi.action;
   const needsDuration = action === "ban" || action === "mute";
   const needsAdjust = action === "adjust";
@@ -280,6 +320,98 @@ function renderActionForm(target){
     <div class="admin-action-buttons">
       <button class="blue-button danger small" data-admin-confirm-action="${escapeHtml(action)}" type="button">CONFIRMER</button>
       <button class="blue-button secondary small" data-admin-cancel-action type="button">ANNULER</button>
+    </div>
+  </section>`;
+}
+
+function grantTypeLabel(type){
+  return GRANT_TYPES.find(([id])=>id === type)?.[1] || type;
+}
+
+function normalizeGrantEntry(entry, type, extra = {}){
+  return {
+    type,
+    id:String(entry.id || ""),
+    name:String(entry.name || entry.short || entry.id || ""),
+    short:String(entry.short || entry.name || entry.id || ""),
+    category:String(entry.category || entry.kind || extra.category || ""),
+    rarity:String(entry.rarity || extra.rarity || ""),
+    img:String(entry.img || entry.pieceImg || extra.img || ""),
+    desc:String(entry.desc || entry.className || extra.desc || ""),
+    meta:String(extra.meta || "")
+  };
+}
+
+function grantCatalog(){
+  if(adminUi.grantType === "ammo") return ammoTypes.map(entry=>normalizeGrantEntry(entry, "ammo", {meta:entry.weaponClass || "munition"}));
+  if(adminUi.grantType === "resource") return rawMaterialCatalog.map(entry=>normalizeGrantEntry(entry, "resource", {meta:entry.kind || "ressource"}));
+  if(adminUi.grantType === "ship") return ships.map(entry=>normalizeGrantEntry(entry, "ship", {meta:entry.className || "vaisseau"}));
+  if(adminUi.grantType === "drone") return droneCatalog.map(entry=>normalizeGrantEntry(entry, "drone", {meta:`Max ${entry.maxOwned || 0}`}));
+  if(adminUi.grantType === "formation") return droneFormations.map(entry=>normalizeGrantEntry(entry, "formation", {meta:"formation drone"}));
+  if(adminUi.grantType === "portalPiece") return portals.map(entry=>normalizeGrantEntry(entry, "portalPiece", {
+    img:entry.pieceImg || entry.img,
+    meta:`${entry.piecesRequired || 0} requises`
+  }));
+  if(adminUi.grantType === "firmBox") return FIRM_BOXES.map(entry=>normalizeGrantEntry(entry, "firmBox", {meta:"coffre firme"}));
+  return equipment.map(entry=>normalizeGrantEntry(entry, "item", {meta:entry.slotType || entry.category || "objet"}));
+}
+
+function ensureGrantSelection(){
+  const catalog = grantCatalog();
+  if(!catalog.some(entry=>entry.id === adminUi.grantId)){
+    adminUi.grantId = catalog[0]?.id || "";
+  }
+  return catalog.find(entry=>entry.id === adminUi.grantId) || null;
+}
+
+function grantMatchesQuery(entry, query){
+  if(!query) return true;
+  const haystack = [entry.id, entry.name, entry.short, entry.category, entry.rarity, entry.meta].join(" ").toLowerCase();
+  return haystack.includes(query);
+}
+
+function renderGrantForm(target, inventory = {}){
+  if(adminUi.action !== "grant" || !target) return "";
+  const selected = ensureGrantSelection();
+  const query = adminUi.grantQuery.trim().toLowerCase();
+  const entries = grantCatalog().filter(entry=>grantMatchesQuery(entry, query));
+  const amountLocked = adminUi.grantType === "ship" || adminUi.grantType === "formation";
+  const shipOptions = ships.map(ship=>`<option value="${escapeHtml(ship.id)}"${selectedAttr(ship.id, adminUi.grantShipId)}>${escapeHtml(ship.name)}</option>`).join("");
+  return `<section class="admin-action-box admin-grant-box">
+    <div class="admin-section-head">
+      <div><span class="tiny">DON SERVEUR</span><h3>Ajouter au profil</h3></div>
+      ${selected ? `<strong>${escapeHtml(selected.short || selected.name)}</strong>` : ""}
+    </div>
+    <div class="admin-grant-layout">
+      <div class="admin-grant-controls">
+        <label><span>Categorie</span><select id="adminGrantType">
+          ${GRANT_TYPES.map(([value, label])=>`<option value="${escapeHtml(value)}"${selectedAttr(value, adminUi.grantType)}>${escapeHtml(label)}</option>`).join("")}
+        </select></label>
+        <label><span>Recherche</span><input id="adminGrantQuery" value="${escapeHtml(adminUi.grantQuery)}" placeholder="Nom ou id"></label>
+        <div class="admin-grant-inline">
+          <label><span>Quantite</span><input id="adminGrantAmount" type="number" min="1" step="1" value="${escapeHtml(amountLocked ? "1" : adminUi.grantAmount)}"${amountLocked ? " disabled" : ""}></label>
+          ${adminUi.grantType === "resource" ? `<label><span>Destination</span><select id="adminGrantDestination">
+            <option value="cargoHold"${selectedAttr("cargoHold", adminUi.grantDestination)}>Hangar</option>
+            <option value="shipCargo"${selectedAttr("shipCargo", adminUi.grantDestination)}>Soute vaisseau</option>
+          </select></label>` : ""}
+        </div>
+        ${adminUi.grantType === "resource" && adminUi.grantDestination === "shipCargo" ? `<label><span>Vaisseau</span><select id="adminGrantShipId">
+          <option value=""${selectedAttr("", adminUi.grantShipId)}>Actif joueur</option>
+          ${shipOptions}
+        </select></label>` : ""}
+        <label><span>Raison</span><textarea id="adminGrantReason" maxlength="240" placeholder="Raison obligatoire pour l'audit">${escapeHtml(adminUi.grantReason)}</textarea></label>
+        <div class="admin-action-buttons">
+          <button class="blue-button small" data-admin-confirm-grant type="button">DONNER</button>
+          <button class="blue-button secondary small" data-admin-cancel-action type="button">ANNULER</button>
+        </div>
+      </div>
+      <div class="admin-grant-catalog">
+        ${entries.map(entry=>`<button class="admin-grant-pick ${entry.id === adminUi.grantId ? "active" : ""}" data-admin-grant-pick="${escapeHtml(entry.id)}" type="button">
+          ${entry.img ? `<img src="${escapeHtml(entry.img)}" alt="">` : `<span class="admin-inventory-placeholder">?</span>`}
+          <strong>${escapeHtml(entry.short || entry.name)}</strong>
+          <span>${escapeHtml(entry.rarity || entry.meta || grantTypeLabel(entry.type))}</span>
+        </button>`).join("") || `<div class="admin-empty">Aucun resultat.</div>`}
+      </div>
     </div>
   </section>`;
 }
@@ -421,12 +553,14 @@ function renderDetails(){
       <button class="blue-button secondary small" data-admin-jump-logs type="button">Logs / suspicion</button>
       ${target.targetId && canUseAdminAction("kick") ? `<button class="blue-button small" data-admin-prepare-action="kick" type="button">Kick</button>` : ""}
       ${(target.targetId || target.profileKey) && canUseAdminAction("adjust") ? `<button class="blue-button small" data-admin-prepare-action="adjust" type="button">Correction</button>` : ""}
+      ${(target.targetId || target.profileKey) && canUseAdminAction("grant") ? `<button class="blue-button small" data-admin-prepare-action="grant" type="button">Donner</button>` : ""}
       ${target.accountId && canUseAdminAction("mute") ? `<button class="blue-button small" data-admin-prepare-action="mute" type="button">Mute</button>` : ""}
       ${target.accountId && canUseAdminAction("ban") ? `<button class="blue-button danger small" data-admin-prepare-action="ban" type="button">Ban</button>` : ""}
       ${target.accountId && canUseAdminAction("unmute") ? `<button class="blue-button secondary small" data-admin-prepare-action="unmute" type="button">Unmute</button>` : ""}
       ${target.accountId && canUseAdminAction("unban") ? `<button class="blue-button secondary small" data-admin-prepare-action="unban" type="button">Unban</button>` : ""}
     </section>
     ${renderActionForm(target)}
+    ${renderGrantForm(target, inventory)}
     ${renderAdminInventory(target, inventory)}
     <section class="admin-section">
       <div class="admin-section-head"><span class="tiny">SUSPICION</span><h3>Analyse automatique</h3></div>
