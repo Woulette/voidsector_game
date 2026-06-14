@@ -323,6 +323,54 @@ export function createCombatSceneRenderer({
     });
   }
 
+  function drawPortgunChannel(){
+    const {camera, player, portgunChannel} = getState();
+    if(!portgunChannel || !player) return;
+    const remainingMs = Math.max(0, Number(portgunChannel.completeAt || 0) - Date.now());
+    if(remainingMs <= 0) return;
+    const durationMs = Math.max(1, Number(portgunChannel.durationMs || 20000));
+    const progress = Math.max(0, Math.min(1, 1 - remainingMs / durationMs));
+    const x = Number(player.x || 0) - camera.x;
+    const y = Number(player.y || 0) - camera.y;
+    const pulse = (Math.sin(performance.now() / 110) + 1) / 2;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineWidth = 3;
+    for(let index = 0; index < 4; index += 1){
+      const phase = (progress + index / 4) % 1;
+      const radius = 32 + (1 - phase) * 110;
+      ctx.strokeStyle = `rgba(74,222,128,${.22 + phase * .62})`;
+      ctx.shadowColor = "rgba(34,211,238,.9)";
+      ctx.shadowBlur = 12 + pulse * 8;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    const glow = ctx.createRadialGradient(x, y, 4, x, y, 76);
+    glow.addColorStop(0, `rgba(74,222,128,${.18 + pulse * .10})`);
+    glow.addColorStop(1, "rgba(34,211,238,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, 76, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "900 23px Rajdhani, Arial";
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "rgba(2,6,23,.95)";
+    ctx.fillStyle = "#86efac";
+    const timer = `${Math.max(1, Math.ceil(remainingMs / 1000))} SEC`;
+    ctx.strokeText(timer, x, y - 112);
+    ctx.fillText(timer, x, y - 112);
+    ctx.font = "800 14px Rajdhani, Arial";
+    ctx.fillStyle = "#bae6fd";
+    ctx.fillText(String(portgunChannel.targetMapName || "secteur").toUpperCase(), x, y - 88);
+    ctx.restore();
+  }
+
   function draw(){
     const state = getState();
     const {camera, bullets, particles, enemies, selectedEnemy, impactEffects, beams, player, currentMap, portalTransition} = state;
@@ -369,6 +417,7 @@ export function createCombatSceneRenderer({
       defaultProfile:defaultEngineProfile,
       profiles:engineProfiles
     });
+    drawPortgunChannel();
     drawRemotePlayers({
       ctx,
       camera,

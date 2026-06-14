@@ -42,7 +42,7 @@ export function renderActionBarHtml({slots, slotKeybinds, getAmmo, getExtra, get
     const content = ammo
       ? `${ammo.img ? `<img class="slot-ammo-img" src="${ammo.img}" alt="${ammo.name}">` : `<div class="ammo-glyph" style="--ammo-color:${ammo.color}">${actionSlotHint(ammo)}</div>`}<span class="slot-count">${fmt(count)}</span><span class="slot-name">${actionSlotCaption(ammo)}</span>`
       : extra
-        ? `<img src="${extra.img}" alt="${extra.name}"><span class="slot-name">${extra.short || extra.name}</span>`
+        ? `<img src="${extra.img}" alt="${extra.name}">${extra.effect?.portgun ? `<span class="slot-count">${fmt(Math.max(0, Number(state.chargeCount || 0)))}</span>` : ""}<span class="slot-name">${extra.short || extra.name}</span>`
         : cpu
           ? `<img src="${cpu.img}" alt="${cpu.name}">${(!unavailable && missileState?.ammo) ? `<span class="slot-count">${fmt(missileState.stock || 0)}</span>` : ""}<span class="slot-name">${unavailable ? (cpu.short || cpu.name) : missileState?.ammo ? missileState.ammo.short : "CPU Missile"}</span>`
           : rocketLauncher
@@ -89,6 +89,7 @@ export function updateActionBarDom({root=document, activeLaserSlot, selectedRock
     const count = el.querySelector(".slot-count");
     if(count && ammo) count.textContent = fmt(getAmmoCount(ammo.id));
     else if(count && cpu) count.textContent = fmt(missileState?.stock || 0);
+    else if(count && extra?.effect?.portgun) count.textContent = fmt(Math.max(0, Number(state.chargeCount || 0)));
     const slotName = el.querySelector(".slot-name");
     if(slotName && cpu) slotName.textContent = available ? (missileState?.ammo?.short || "CPU Missile") : (cpu.short || cpu.name);
     else if(slotName && formation) slotName.textContent = formation.short || formation.name;

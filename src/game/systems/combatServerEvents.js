@@ -233,10 +233,22 @@ export function createCombatServerEventSystem({
     for(const event of multiplayer.playerRespawnEvents?.splice(0) || []) applyServerRespawn?.(event);
     for(const event of multiplayer.portgunEvents?.splice(0) || []){
       if(event?.type === "started"){
+        const durationMs = Math.max(1, Number(event.durationMs || 20000));
+        setState({
+          portgunChannel:{
+            teleportId:event.id,
+            targetMapName:event.targetMapName || "secteur",
+            durationMs,
+            completeAt:Number(event.completeAt || Date.now() + durationMs)
+          }
+        });
         showToast(`Portgun charge vers ${event.targetMapName || "secteur"} : ne bouge pas pendant ${Math.ceil(Number(event.durationMs || 0) / 1000)}s.`);
       }else if(event?.type === "cancelled"){
+        setState({portgunChannel:null});
         showToast(event.message || "Teleportation Portgun annulee.");
       }else if(event?.type === "complete"){
+        setState({portgunChannel:null});
+        showToast(event.message || "Teleportation Portgun effectuee.");
         applyServerRespawn?.(event);
       }
     }

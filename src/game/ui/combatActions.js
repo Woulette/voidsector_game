@@ -176,6 +176,7 @@ export function createCombatActions({
           item,
           available:true,
           usable:connected && fluidCount > 0,
+          chargeCount:fluidCount,
           reason:!connected ? "Connexion serveur requise pour le Portgun." : fluidCount > 0 ? "" : "Il faut 1 fluide de teleportation."
         };
       }

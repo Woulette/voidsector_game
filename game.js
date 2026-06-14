@@ -1,1 +1,1 @@
-import "./src/app.js?v=ricky-portal-3";
+import "./src/app.js?v=ricky-portal-4";

@@ -575,9 +575,12 @@ const baseQuestCatalog = [
     title:"Sauvons Deadly",
     red:true,
     giver:"Relais de Commandement",
-    desc:"Entre dans le portail de Ricky et termine l'instance pour lancer le sauvetage de Deadly.",
+    desc:"Entre dans le portail de Ricky, sauve Deadly puis retourne voir Ricky.",
     unlock:{type:"complete_quest", questId:"quest_lv10_maintenance_impossible"},
-    objective:{type:"portal_complete", portalId:"ricky", label:"Terminer le portail de Ricky", count:1},
+    objectives:[
+      {id:"portal", type:"portal_complete", portalId:"ricky", label:"Terminer le portail de Ricky", count:1},
+      {id:"talk_return", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Retourner voir Ricky", zone:"ASTRA-02", count:1, requiresObjective:"portal"}
+    ],
     rewards:{credits:5000000, premium:15000, xp:3000000, materials:{}, portalPieces:{blue:10}, items:["laser_mk3", "pistou_portgun"]}
   },
   {

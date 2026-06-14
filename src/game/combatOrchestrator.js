@@ -146,7 +146,7 @@ export function createCombatGame({renderAll, showToast}){
   let currentMap = MAPS[0];
   let teleportLock = 0;
   let player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy;
-  let gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic;
+  let gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portgunChannel;
   let portalTransition = null;
   const missileSalvos = new Map();
   let radiationWarned = false;
@@ -155,7 +155,7 @@ export function createCombatGame({renderAll, showToast}){
   let deathState = null;
   const combatMetricModes = {hp:"bar", shield:"bar", xp:"bar"};
   function getCombatState(){
-    return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portalTransition, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
+    return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portgunChannel, portalTransition, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
   }
   function setCombatState(patch){
     if(Object.hasOwn(patch, "player")) player = patch.player;
@@ -182,6 +182,7 @@ export function createCombatGame({renderAll, showToast}){
     if(Object.hasOwn(patch, "portalBeacons")) portalBeacons = patch.portalBeacons;
     if(Object.hasOwn(patch, "portalObjective")) portalObjective = patch.portalObjective;
     if(Object.hasOwn(patch, "portalCinematic")) portalCinematic = patch.portalCinematic;
+    if(Object.hasOwn(patch, "portgunChannel")) portgunChannel = patch.portgunChannel;
     if(Object.hasOwn(patch, "portalTransition")) portalTransition = patch.portalTransition;
     if(Object.hasOwn(patch, "teleportLock")) teleportLock = patch.teleportLock;
     if(Object.hasOwn(patch, "radiationWarned")) radiationWarned = patch.radiationWarned;

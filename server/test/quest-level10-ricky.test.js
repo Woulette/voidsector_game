@@ -167,7 +167,9 @@ test("Sauvons Deadly unlocks after Maintenance impossible and progresses on Rick
   assert.equal(result.ok, true);
 
   const quest = getQuest(RESCUE_QUEST_ID);
-  const objective = getQuestObjectives(quest)[0];
+  const objectives = getQuestObjectives(quest);
+  const portal = objectives[0];
+  const talkReturn = objectives[1];
   assert.equal(quest.red, true);
   assert.deepEqual(quest.rewards, {
     credits:5000000,
@@ -177,10 +179,21 @@ test("Sauvons Deadly unlocks after Maintenance impossible and progresses on Rick
     portalPieces:{blue:10},
     items:["laser_mk3", "pistou_portgun"]
   });
-  assert.equal(objective.type, "portal_complete");
-  assert.equal(objective.portalId, "ricky");
+  assert.equal(portal.type, "portal_complete");
+  assert.equal(portal.portalId, "ricky");
+  assert.equal(talkReturn.type, "talk_npc");
+  assert.equal(talkReturn.npcId, "astra02_portal_mechanic");
+  assert.equal(talkReturn.requiresObjective, "portal");
 
   progressServerQuestAction(profile, {type:"portal_complete", portalId:"ricky"});
-  assert.equal(getQuestObjectiveProgress(profile, RESCUE_QUEST_ID, objective, 0), 1);
+  assert.equal(getQuestObjectiveProgress(profile, RESCUE_QUEST_ID, portal, 0), 1);
+  assert.equal(canClaimQuest(profile, quest), false);
+
+  progressServerQuestAction(profile, {
+    type:"talk_npc",
+    npcId:"astra02_portal_mechanic",
+    zoneName:"ASTRA-02"
+  });
+  assert.equal(getQuestObjectiveProgress(profile, RESCUE_QUEST_ID, talkReturn, 1), 1);
   assert.equal(canClaimQuest(profile, quest), true);
 });

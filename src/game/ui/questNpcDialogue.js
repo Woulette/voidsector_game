@@ -118,8 +118,30 @@ export function createQuestNpcDialogue({
     return {lines:["Le portail est en cours de stabilisation. Reviens quand tu seras equipe pour autre chose qu'une promenade de sante."], progress:false};
   }
 
+  function getDeadlyRescueDialogue(npc){
+    const quest = getRickyQuest("quest_lv10_sauvons_deadly", npc);
+    if(!quest) return null;
+    if(!isObjectiveDone(quest, "portal")){
+      return {lines:["Deadly est toujours coince dans le portail. Tu comptes le sauver ou attendre qu'il se recycle tout seul ?"], progress:false};
+    }
+    if(!isObjectiveDone(quest, "talk_return")){
+      return {
+        lines:[
+          "Ah, te voilà encore vivant. Honnêtement, j'avais déjà commencé à réfléchir à une façon rentable de recycler les morceaux de ton vaisseau.",
+          "J'ai remarqué. Les explosions, les alarmes dimensionnelles et la moitié de mes capteurs qui ont grillé étaient des indices plutôt subtils.",
+          "Mais bon... tu as réussi, tu n'as pas détruit l'univers et Deadly respire encore. Pour quelqu'un comme toi, c'est presque impressionnant.",
+          "Prends ta récompense et dégage avant que je décide de te facturer les réparations du portail."
+        ],
+        progress:true
+      };
+    }
+    return {lines:["Deadly respire encore. Profite de ce miracle statistique et laisse-moi travailler."], progress:false};
+  }
+
   function getDialogue(npc){
     if(!String(npc.id || "").endsWith("02_portal_mechanic")) return {lines:[`${npc.name || "PNJ"} n'a rien a te demander pour le moment.`], progress:false};
+    const deadlyRescueDialogue = getDeadlyRescueDialogue(npc);
+    if(deadlyRescueDialogue) return deadlyRescueDialogue;
     const levelTenDialogue = getLevelTenDialogue(npc);
     if(levelTenDialogue) return levelTenDialogue;
     const levelFiveDialogue = getLevelFiveDialogue(npc);
