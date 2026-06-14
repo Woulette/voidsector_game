@@ -243,6 +243,110 @@ test("only admins can adjust player progression and emit a profile sync", async 
   assert.equal(fixture.audit[0].payload.field, "premium");
 });
 
+test("only admins can grant player assets with audit and profile sync", async ()=>{
+  const fixture = createFixture();
+  const refused = await fixture.adminManager.grantPlayer({id:"socket-mod"}, {
+    profileKey:"account:player",
+    type:"item",
+    id:"laser_mk2",
+    amount:1,
+    reason:"Compensation test"
+  });
+  assert.equal(refused.ok, false);
+
+  const itemResult = await fixture.adminManager.grantPlayer({id:"socket-admin"}, {
+    accountId:"player",
+    profileKey:"account:player",
+    type:"item",
+    id:"laser_mk2",
+    amount:2,
+    reason:"Compensation beta"
+  });
+
+  assert.equal(itemResult.ok, true);
+  assert.equal(itemResult.granted.type, "item");
+  assert.equal(itemResult.granted.amount, 2);
+  assert.equal(fixture.profiles.get("account:player").inventoryItems.filter(item=>item.itemId === "laser_mk2").length, 2);
+  assert.equal(fixture.profiles.get("account:player").activityLog.at(-1).type, "admin_grant");
+  assert.equal(fixture.audit.at(-1).action, "admin:grant-player");
+  assert.equal(fixture.events.some(entry=>entry.id === "socket-player" && entry.event === "profile:sync"), true);
+
+  const resourceResult = await fixture.adminManager.grantPlayer({id:"socket-admin"}, {
+    profileKey:"account:player",
+    type:"resource",
+    id:"cuivre_orbital",
+    amount:50,
+    destination:"cargoHold",
+    reason:"Compensation beta"
+  });
+  assert.equal(resourceResult.ok, true);
+  assert.equal(fixture.profiles.get("account:player").cargoHold.cuivre_orbital, 75);
+
+  const ammoResult = await fixture.adminManager.grantPlayer({id:"socket-admin"}, {
+    profileKey:"account:player",
+    type:"ammo",
+    id:"ammo_x2",
+    amount:500,
+    reason:"Compensation beta"
+  });
+  assert.equal(ammoResult.ok, true);
+  assert.equal(fixture.profiles.get("account:player").ammoInventory.ammo_x2, 500);
+});
+
+test("admin can grant account unlocks and special currencies", async ()=>{
+  const fixture = createFixture();
+
+  const shipResult = await fixture.adminManager.grantPlayer({id:"socket-admin"}, {
+    profileKey:"account:player",
+    type:"ship",
+    id:"velox",
+    reason:"Deblocage test"
+  });
+  assert.equal(shipResult.ok, true);
+  assert.equal(fixture.profiles.get("account:player").ownedShips.includes("velox"), true);
+  assert.equal(Boolean(fixture.profiles.get("account:player").shipLoadouts.velox), true);
+
+  const droneResult = await fixture.adminManager.grantPlayer({id:"socket-admin"}, {
+    profileKey:"account:player",
+    type:"drone",
+    id:"combat_drone",
+    amount:3,
+    reason:"Deblocage test"
+  });
+  assert.equal(droneResult.ok, true);
+  assert.equal(fixture.profiles.get("account:player").ownedDroneCount, 3);
+  assert.equal(fixture.profiles.get("account:player").droneLoadout.length, 3);
+
+  const formationResult = await fixture.adminManager.grantPlayer({id:"socket-admin"}, {
+    profileKey:"account:player",
+    type:"formation",
+    id:"tir",
+    reason:"Deblocage test"
+  });
+  assert.equal(formationResult.ok, true);
+  assert.equal(fixture.profiles.get("account:player").ownedDroneFormations.includes("tir"), true);
+
+  const portalResult = await fixture.adminManager.grantPlayer({id:"socket-admin"}, {
+    profileKey:"account:player",
+    type:"portalPiece",
+    id:"blue",
+    amount:12,
+    reason:"Deblocage test"
+  });
+  assert.equal(portalResult.ok, true);
+  assert.equal(fixture.profiles.get("account:player").portalPieces.blue, 12);
+
+  const boxResult = await fixture.adminManager.grantPlayer({id:"socket-admin"}, {
+    profileKey:"account:player",
+    type:"firmBox",
+    id:"elite",
+    amount:2,
+    reason:"Deblocage test"
+  });
+  assert.equal(boxResult.ok, true);
+  assert.equal(fixture.profiles.get("account:player").firmBoxes.elite, 2);
+});
+
 test("only admins can remove an equipped inventory item with an audited reason", async ()=>{
   const fixture = createFixture();
   const refused = await fixture.adminManager.removeInventoryItem({id:"socket-mod"}, {
@@ -364,12 +468,14 @@ test("admin socket handlers emit snapshots and errors through the standard chann
 
   await listeners.get("admin:sync")({});
   await listeners.get("admin:adjust-player")({profileKey:"account:player", field:"unknown", amount:1, reason:"bad"});
+  await listeners.get("admin:grant-player")({profileKey:"account:player", type:"resource", id:"cuivre_orbital", amount:3, reason:"test"});
   await listeners.get("admin:inventory-remove")({profileKey:"account:player", source:"resource", resourceId:"cuivre_orbital", reason:"test"});
   await listeners.get("admin:moderate-account")({accountId:"player", action:"mute", durationMinutes:5, reason:"test"});
   await listeners.get("admin:reset-instance")({groupId:"group-1", reason:"test"});
 
   assert.equal(fixture.events.some(entry=>entry.event === "admin:snapshot"), true);
   assert.equal(fixture.events.some(entry=>entry.event === "admin:error"), true);
+  assert.equal(fixture.events.some(entry=>entry.event === "admin:granted"), true);
   assert.equal(fixture.events.some(entry=>entry.event === "admin:inventory-removed"), true);
   assert.equal(fixture.events.some(entry=>entry.event === "admin:moderated"), true);
   assert.equal(fixture.events.some(entry=>entry.event === "admin:instance-reset"), true);
