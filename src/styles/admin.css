@@ -288,7 +288,8 @@
   text-transform:uppercase;
 }
 .admin-action-box textarea,
-.admin-action-box select{
+.admin-action-box select,
+.admin-action-box input{
   width:100%;
   border:1px solid rgba(56,189,248,.22);
   background:rgba(2,10,19,.86);
@@ -312,6 +313,81 @@
   color:#e6fbff;
   padding:9px 10px;
   outline:none;
+}
+.admin-grant-box{
+  border-color:rgba(34,197,94,.22);
+  background:linear-gradient(145deg,rgba(4,28,22,.58),rgba(4,16,30,.72));
+}
+.admin-grant-box .admin-section-head strong{
+  color:#bbf7d0;
+  font-size:12px;
+  text-transform:uppercase;
+}
+.admin-grant-layout{
+  min-width:0;
+  display:grid;
+  grid-template-columns:minmax(260px,320px) minmax(0,1fr);
+  gap:10px;
+}
+.admin-grant-controls{
+  min-width:0;
+  display:grid;
+  gap:8px;
+  align-content:start;
+}
+.admin-grant-inline{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.admin-grant-catalog{
+  min-width:0;
+  height:262px;
+  overflow:auto;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(96px,1fr));
+  grid-auto-rows:108px;
+  gap:6px;
+  padding-right:4px;
+}
+.admin-grant-pick{
+  min-width:0;
+  display:grid;
+  grid-template-rows:50px auto auto;
+  align-items:center;
+  gap:3px;
+  border:1px solid rgba(56,189,248,.18);
+  background:rgba(2,10,19,.82);
+  color:#dff6ff;
+  padding:6px;
+  cursor:pointer;
+  overflow:hidden;
+}
+.admin-grant-pick:hover,
+.admin-grant-pick.active{
+  border-color:rgba(34,197,94,.82);
+  box-shadow:inset 0 0 18px rgba(34,197,94,.12);
+}
+.admin-grant-pick img{
+  width:100%;
+  height:50px;
+  object-fit:contain;
+}
+.admin-grant-pick strong,
+.admin-grant-pick span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.admin-grant-pick strong{
+  color:#e6fbff;
+  font-size:10px;
+}
+.admin-grant-pick span{
+  color:#8fb9d6;
+  font-size:9px;
+  text-transform:uppercase;
 }
 .admin-item-lines{
   display:flex;
@@ -616,6 +692,8 @@
   .admin-layout{grid-template-columns:1fr}
   .admin-player-list{max-height:240px}
   .admin-summary-strip,.admin-stat-grid,.admin-loadout-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .admin-grant-layout{grid-template-columns:1fr}
+  .admin-grant-catalog{height:220px}
   .admin-inventory-layout{grid-template-columns:180px minmax(0,1fr)}
   .admin-inventory-selected{grid-column:1 / -1;min-height:auto;max-height:none}
 }
@@ -625,6 +703,7 @@
   .admin-modal-head{align-items:stretch;flex-direction:column}
   .admin-head-actions{display:grid;grid-template-columns:1fr 1fr}
   .admin-adjust-grid{grid-template-columns:1fr}
+  .admin-grant-inline{grid-template-columns:1fr}
   .admin-inventory-layout{grid-template-columns:1fr}
   .admin-ship-mini{min-height:180px;grid-template-columns:130px 1fr;grid-template-rows:1fr}
   .admin-ship-mini img{height:150px}
