@@ -1,0 +1,9 @@
+{
+  "name": "voidsector-game",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "cd server && npm install",
+    "start": "cd server && npm start"
+  }
+}

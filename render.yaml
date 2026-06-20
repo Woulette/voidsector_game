@@ -1,13 +1,12 @@
 # Blueprint Render pour VoidSector
 # Usage : dans Render, choisir "New +" > "Blueprint" et connecter le repo GitHub.
+# Le package.json racine redirige vers server/.
 
 services:
   - type: web
     name: voidsector-server
     runtime: node
     branch: main
-    buildCommand: cd server && npm install
-    startCommand: cd server && npm start
     plan: free
     envVars:
       - key: NODE_ENV
