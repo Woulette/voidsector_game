@@ -21,5 +21,5 @@ services:
       - key: LOAD_TEST_ENABLED
         value: "true"
       - key: LOAD_TEST_SECRET
-        generateValue: true
-        # Change cette valeur si tu veux un secret fixe pour les tests de charge.
+        value: un-secret-de-test-tres-long
+        # Doit correspondre au secret dans server/loadtest.local.env pour les tests de charge locaux.
