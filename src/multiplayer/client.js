@@ -19,8 +19,8 @@ import {
 } from "./socketState.js";
 import { installWorldSocketListeners } from "./worldSocketListeners.js";
 
-const DEFAULT_SERVER_URL = "http://localhost:3001";
-const SERVER_STORAGE_KEY = "voidsector-multiplayer-server";
+const DEFAULT_SERVER_URL = "https://voidsector-server.onrender.com";
+const SERVER_STORAGE_KEY = "voidsector-multiplayer-server-v2";
 const NAME_STORAGE_KEY = "voidsector-multiplayer-name";
 const AUTH_TOKEN_STORAGE_KEY = "voidsector-auth-token";
 const AUTH_REMEMBER_STORAGE_KEY = "avosomanox-auth-remember";
