@@ -2,30 +2,23 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { compactQuestRewardLabels, createQuestServerEventProcessor } from "../../src/game/systems/combatQuestServerEvents.js";
 
-function createProcessor({multiplayer, quests, state}){
-  let saves = 0;
-  let hudUpdates = 0;
+function createProcessor({multiplayer, quests}){
   const toasts = [];
   const lootNotices = [];
   const processor = createQuestServerEventProcessor({
     multiplayer,
     rewards:{showLootNotice:notice=>lootNotices.push(notice)},
     showToast:message=>toasts.push(message),
-    updateHud:()=>{ hudUpdates += 1; },
-    getAllQuests:()=>quests,
-    store:{state},
-    saveState:()=>{ saves += 1; }
+    getAllQuests:()=>quests
   });
   return {
     processor,
     toasts,
     lootNotices,
-    get saves(){ return saves; },
-    get hudUpdates(){ return hudUpdates; }
   };
 }
 
-test("combat quest progress events update local quest progress once", ()=>{
+test("combat quest progress events never mutate protected local quest progress", ()=>{
   const multiplayer = {
     questProgressEvents:[{updates:[{id:"quest_a", progress:2, target:5, completed:true}]}],
     questEvents:[],
@@ -40,14 +33,12 @@ test("combat quest progress events update local quest progress once", ()=>{
 
   fixture.processor.applyQuestProgressEvents();
 
-  assert.equal(state.questProgress.quest_a, 2);
+  assert.deepEqual(state.questProgress, {});
   assert.equal(multiplayer.questProgressEvents.length, 0);
-  assert.equal(fixture.saves, 1);
-  assert.equal(fixture.hudUpdates, 1);
   assert.deepEqual(fixture.toasts, ["Objectif serveur termine : Test Quest."]);
 });
 
-test("combat quest failure events reset progress and remove failed active quest", ()=>{
+test("combat quest failure events wait for authoritative profile sync", ()=>{
   const multiplayer = {
     questProgressEvents:[],
     questEvents:[],
@@ -70,13 +61,11 @@ test("combat quest failure events reset progress and remove failed active quest"
 
   fixture.processor.applyQuestFailureEvents();
 
-  assert.equal(state.questProgress.quest_a, 0);
-  assert.deepEqual(state.questFailProgress.quest_a, {});
-  assert.deepEqual(state.activeQuestIds, ["quest_b"]);
-  assert.equal(state.activeQuestId, "quest_b");
+  assert.equal(state.questProgress.quest_a, 3);
+  assert.deepEqual(state.questFailProgress, {});
+  assert.deepEqual(state.activeQuestIds, ["quest_a", "quest_b"]);
+  assert.equal(state.activeQuestId, "quest_a");
   assert.equal(multiplayer.questFailureEvents.length, 0);
-  assert.equal(fixture.saves, 1);
-  assert.equal(fixture.hudUpdates, 1);
   assert.deepEqual(fixture.toasts, ["Test Quest : limite de vie depassee, quete annulee."]);
 });
 
@@ -92,7 +81,6 @@ test("quest claim events emit one compact reward notice per claim id", ()=>{
   const fixture = createProcessor({
     multiplayer,
     quests:[],
-    state:{questProgress:{}, questFailProgress:{}}
   });
 
   fixture.processor.applyQuestClaimEvents();

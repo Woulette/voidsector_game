@@ -1,1 +1,1 @@
-import "./src/app.js?v=ricky-portal-4";
+import "./src/app.js?v=connection-recovery-2";

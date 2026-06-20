@@ -1,11 +1,9 @@
 import { getFirmHomeMapName } from "../../data/firms.js";
+import { basePriceLabel, hasCurrencyDiscount, priceLabel } from "../../core/store.js";
 
 export function createCombatDeathRespawnSystem({
   mapList,
   store,
-  canAfford,
-  spend,
-  saveState,
   getState,
   setState,
   clearPoison,
@@ -21,6 +19,12 @@ export function createCombatDeathRespawnSystem({
   function getHomeMap(){
     const homeMapName = getFirmHomeMapName(store.state.player?.firmId || "astra");
     return mapList.find(map=>String(map.name || "").toUpperCase() === homeMapName) || mapList[0];
+  }
+
+  function novaCostHtml(cost){
+    const current = `<strong class="shop-price premium">${priceLabel("premium", cost)}</strong>`;
+    if(!hasCurrencyDiscount("premium", cost)) return current;
+    return `<span class="shop-price-discount"><s>${basePriceLabel("premium", cost)}</s>${current}</span>`;
   }
 
   function renderPanelContent(){
@@ -41,8 +45,8 @@ export function createCombatDeathRespawnSystem({
     head.innerHTML = `<span>Vaisseau detruit</span><strong>Choisir un point de retour</strong>`;
     actions.innerHTML = `
       <button data-respawn-choice="spawn" type="button">${getHomeMap().name}<br><small>Gratuit - 20% PV</small></button>
-      <button data-respawn-choice="portal" type="button">Portail proche<br><small>100 NOVA</small></button>
-      <button data-respawn-choice="death" type="button">Position actuelle<br><small>200 NOVA</small></button>
+      <button data-respawn-choice="portal" type="button">Portail proche<br><small>${novaCostHtml(100)}</small></button>
+      <button data-respawn-choice="death" type="button">Position actuelle<br><small>${novaCostHtml(200)}</small></button>
     `;
   }
 
@@ -134,44 +138,7 @@ export function createCombatDeathRespawnSystem({
   }
 
   function handlePlayerDeath(){
-    if(multiplayer?.authoritativeSession) return;
-    const state = getState();
-    const {player, gameMode, activePortal, currentMap} = state;
-    if(!player || player.isDead) return;
-    let portalLives = state.portalLives;
-    if(gameMode === "portal") portalLives = Math.max(0, Number(portalLives ?? portalStartingLives) - 1);
-    if(gameMode === "portal" && activePortal){
-      if(!store.state.portalRuns) store.state.portalRuns = {};
-      store.state.portalRuns[activePortal.id] = {lives:portalLives, status:"dead"};
-      saveState();
-    }
-    const portal = getNearestPortal();
-    player.isDead = true;
-    player.hp = 0;
-    player.vx = 0;
-    player.vy = 0;
-    clearPoison();
-    setState({
-      portalLives,
-      deathState:{
-        mapId:gameMode === "open" ? currentMap.id : getHomeMap().id,
-        gameMode,
-        x:player.x,
-        y:player.y,
-        portal:portal ? {x:portal.x, y:portal.y} : null
-      },
-      moveTarget:null,
-      mouseMoveHeld:false,
-      bullets:state.bullets.filter(bullet=>bullet.owner !== "enemy")
-    });
-    if(gameMode === "portal" && portalLives <= 0){
-      failPortalRun();
-      return;
-    }
-    setPanelVisible(true);
-    showToast("Vaisseau détruit.");
-    saveState();
-    updateHud();
+    return false;
   }
 
   function chooseRespawn(choice){
@@ -181,27 +148,7 @@ export function createCombatDeathRespawnSystem({
       requestServerRespawn?.(choice);
       return;
     }
-    if(deathState.gameMode === "portal"){
-      if(choice === "portal-resume") finishPortalRespawn();
-      else failPortalRun();
-      saveState();
-      return;
-    }
-    if(choice === "portal"){
-      if(!canAfford("premium", 100)) return showToast("Pas assez de NOVA.");
-      spend("premium", 100);
-      const map = mapList.find(entry=>entry.id === deathState.mapId) || mapList[0];
-      const point = deathState.portal || map.spawn;
-      finishRespawn({mapId:map.id, x:point.x, y:point.y, message:"Respawn au portail le plus proche."});
-    }else if(choice === "death"){
-      if(!canAfford("premium", 200)) return showToast("Pas assez de NOVA.");
-      spend("premium", 200);
-      finishRespawn({mapId:deathState.mapId, x:deathState.x, y:deathState.y, message:"Respawn à la position de destruction."});
-    }else{
-      const map = getHomeMap();
-      finishRespawn({mapId:map.id, x:map.spawn.x, y:map.spawn.y, message:`Respawn gratuit sur ${map.name}.`});
-    }
-    saveState();
+    showToast("Connexion serveur requise pour respawn.");
   }
 
   function applyServerDeath(event = {}){

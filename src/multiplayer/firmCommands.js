@@ -1,7 +1,9 @@
+import { isAuthenticatedGameplaySession } from "./gameplaySession.js";
+
 export function createFirmCommands({multiplayer, toast}){
   function emit(event, payload = {}){
-    if(!multiplayer.connected || !multiplayer.socket){
-      toast("Connecte-toi au serveur pour utiliser les fonctions de firme.");
+    if(!isAuthenticatedGameplaySession(multiplayer)){
+      toast("Compte MMO synchronise requis pour utiliser les fonctions de firme.");
       return false;
     }
     multiplayer.socket.emit(event, payload);

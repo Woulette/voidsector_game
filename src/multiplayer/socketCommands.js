@@ -1,5 +1,7 @@
+import { isAuthenticatedGameplaySession } from "./gameplaySession.js";
+
 function canEmit(multiplayer){
-  return Boolean(multiplayer.connected && multiplayer.socket);
+  return isAuthenticatedGameplaySession(multiplayer);
 }
 
 function emit(multiplayer, event, payload){
@@ -21,6 +23,9 @@ export function createSocketCommands({multiplayer}){
     },
     activateRickyPortalLever(leverId){
       return leverId ? emit(multiplayer, "portal:ricky-lever", {leverId}) : false;
+    },
+    activateRickyHealBeacon(){
+      return emit(multiplayer, "portal:ricky-heal");
     },
     requestLeaderboardSync(){
       return emit(multiplayer, "leaderboard:sync");
@@ -51,6 +56,9 @@ export function createSocketCommands({multiplayer}){
     },
     setupServerProfile({name, firmId} = {}){
       return emit(multiplayer, "profile:setup", {name, firmId});
+    },
+    setServerProfileTitle(payload = {}){
+      return emit(multiplayer, "profile:title-set", payload);
     },
     resetServerFirmDebug(){
       return emit(multiplayer, "profile:debug-reset-firm");
@@ -114,6 +122,12 @@ export function createSocketCommands({multiplayer}){
     },
     buyServerItem(id){
       return emit(multiplayer, "shop:buy-item", {id});
+    },
+    buyServerPremiumPack(id){
+      return id ? emit(multiplayer, "shop:buy-premium-pack", {id}) : false;
+    },
+    claimServerPremiumReward(){
+      return emit(multiplayer, "premium:reward-claim");
     },
     sellServerInventoryItem(inventoryUid){
       return inventoryUid ? emit(multiplayer, "inventory:sell-item", {inventoryUid}) : false;

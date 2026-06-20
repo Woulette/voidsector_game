@@ -151,7 +151,7 @@ test("server rocket damage applies and consumes the rocket perfection boost", ()
   assert.equal(profile.combatBoosts.rocket.alliage_cuivre_zinc.charges, 0);
 });
 
-test("offline weapon system applies timed drone boost without consuming it as charges", ()=>{
+test("MMO-only weapon volley exposes geometry without local damage or boost consumption", ()=>{
   const consumedTargets = [];
   const system = createWeaponSystem({
     getPlayer:()=>({damageBonus:0, damageMultiplier:1}),
@@ -166,8 +166,10 @@ test("offline weapon system applies timed drone boost without consuming it as ch
     getCombatTimedBoostPercent:target=>target === "drone" ? 0.10 : 0
   });
 
-  assert.equal(system.getLaserVolley().rollDamage(), 21);
-  assert.deepEqual(consumedTargets, ["laser"]);
+  const volley = system.getLaserVolley();
+  assert.equal(volley.count, 2);
+  assert.equal(volley.rollDamage, undefined);
+  assert.deepEqual(consumedTargets, []);
 });
 
 test("multiplayer perfection command sends a server action with the active ship cargo source", ()=>{
@@ -175,6 +177,7 @@ test("multiplayer perfection command sends a server action with the active ship 
   const commands = createSocketCommands({
     multiplayer:{
       connected:true,
+      auth:{account:{id:"account-1"}, profileReady:true},
       socket:{emit:(eventName, payload)=>emitted.push({eventName, payload})}
     }
   });

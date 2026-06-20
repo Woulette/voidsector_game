@@ -3,6 +3,14 @@ import test from "node:test";
 import { addInventoryItemAmount, getInventoryItemCount } from "../src/economy/inventoryStacks.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { createPortalInstanceManager } from "../src/portals/instances.js";
+import {
+  createDeadlyEnemy,
+  DEADLY_BEACON_WAVES,
+  DEADLY_BOSS_MAX_LIVE_SUMMONS,
+  DEADLY_BOSS_SUMMON_INTERVAL_MS,
+  DEADLY_FINAL_GATE_WAVE,
+  DEADLY_ROUTE_WAVES
+} from "../src/portals/deadlyEnemies.js";
 import { RICKY_PORTAL_MAP } from "../../src/data/rickyPortal.js";
 
 function createFixture(){
@@ -247,6 +255,7 @@ test("Ricky joins the portal with support stats, prioritizes the player for aggr
   assert.equal(instance.ally.shield, 30000);
   assert.equal(instance.ally.maxShield, 30000);
   assert.equal(instance.ally.attackRange, 600);
+  assert.equal(instance.ally.speed, 500);
 
   const enemy = {
     ...instance.enemies[0],
@@ -276,7 +285,52 @@ test("Ricky joins the portal with support stats, prioritizes the player for aggr
   assert.equal(instance.beacons.length, 1);
 });
 
-test("Ricky portal opens after four lever channels, then rewards the cage destruction and returns to firm map two", ()=>{
+test("Ricky prioritizes the enemy targeted by a player and only returns when the player exceeds his leash", ()=>{
+  const fixture = createFixture();
+  const profile = createDefaultProfile();
+  profile.player.level = 20;
+  profile.completedQuestClaims.quest_lv10_maintenance_impossible = true;
+  addInventoryItemAmount(profile, "portal_anchor_key", 1);
+  fixture.setProfile(profile);
+
+  fixture.manager.startPortalInstance(fixture.socket, "ricky");
+  const group = fixture.groups.get("group-1");
+  const instance = group.instance;
+  fixture.player.connected = true;
+  fixture.player.clientMode = "game";
+  fixture.player.mapId = "portal-ricky";
+  fixture.player.state = {
+    ...fixture.player.state,
+    mapId:"portal-ricky",
+    x:0,
+    y:1000,
+    hp:100000,
+    maxHp:100000,
+    shield:0,
+    maxShield:0
+  };
+  instance.ally.x=0;
+  instance.ally.y=900;
+  instance.ally.nextLaserAt=0;
+  instance.ally.nextRocketAt=Number.MAX_SAFE_INTEGER;
+  const nearby = createDeadlyEnemy("deadly_eclaireur", {id:"nearby", x:50, y:800});
+  const selected = createDeadlyEnemy("deadly_intercepteur", {id:"selected", x:0, y:350});
+  fixture.player.state.attackTargetId=selected.id;
+  instance.enemies=[nearby, selected];
+
+  fixture.manager.updateRickyCompanions(.05, 10_000);
+
+  assert.equal(nearby.hp, nearby.maxHp);
+  assert.ok(selected.hp < selected.maxHp);
+
+  const previousY = instance.ally.y;
+  fixture.player.state.x=0;
+  fixture.player.state.y=2300;
+  fixture.manager.updateRickyCompanions(.2, 11_000);
+  assert.ok(instance.ally.y > previousY);
+});
+
+test("Ricky portal enforces four numbered route waves, four beacon waves and the final gate wave", ()=>{
   const fixture = createFixture();
   const profile = createDefaultProfile();
   profile.player.level = 10;
@@ -299,29 +353,98 @@ test("Ricky portal opens after four lever channels, then rewards the cage destru
     maxShield:100000
   };
 
+  const killEncounter = encounterId=>{
+    for(const enemy of instance.enemies){
+      if(enemy.rickyEncounterId === encounterId) enemy.hp=0;
+    }
+  };
+  const aliveComposition = encounterId=>instance.enemies
+    .filter(enemy=>enemy.rickyEncounterId === encounterId && enemy.hp > 0)
+    .reduce((counts, enemy)=>{
+      counts[enemy.kind]=(counts[enemy.kind] || 0) + 1;
+      return counts;
+    }, {});
+
+  assert.deepEqual(instance.objective.levers.map(lever=>[lever.number, lever.id]), [
+    [1, "south_west"],
+    [2, "south_east"],
+    [3, "north_east"],
+    [4, "north_west"]
+  ]);
+  assert.equal(fixture.manager.activateRickyLever(fixture.socket, "south_east"), false);
+
   let now = Date.now() + 1000;
   for(const lever of instance.objective.levers){
+    const route = instance.objective.routeWaves[lever.number - 1];
+    fixture.player.state.x = route.centerX;
+    fixture.player.state.y = route.centerY;
+    fixture.manager.updateRickyCompanions(.05, now);
+    assert.equal(route.triggered, true);
+    assert.deepEqual(aliveComposition(`route_${lever.number}`), DEADLY_ROUTE_WAVES[lever.number]);
+
+    killEncounter(`route_${lever.number}`);
+    fixture.manager.updateRickyCompanions(.05, now + 100);
+    assert.equal(route.cleared, true);
+    assert.equal(lever.unlocked, true);
+
     fixture.player.state.x = lever.x;
     fixture.player.state.y = lever.y;
-    fixture.manager.updateRickyCompanions(.05, now);
-    for(const enemy of instance.enemies){
-      if(enemy.rickyLeverId === lever.id && enemy.rickyLeverPhase === "approach") enemy.hp=0;
-    }
     assert.equal(fixture.manager.activateRickyLever(fixture.socket, lever.id), true);
-    fixture.manager.updateRickyCompanions(.05, now + 100);
-    fixture.manager.updateRickyCompanions(.05, now + 10200);
+    fixture.manager.updateRickyCompanions(.05, now + 200);
+    fixture.manager.updateRickyCompanions(.05, now + 10300);
     assert.equal(lever.active, true);
+    assert.deepEqual(aliveComposition(`beacon_${lever.number}`), DEADLY_BEACON_WAVES[lever.number]);
+
+    killEncounter(`beacon_${lever.number}`);
+    fixture.manager.updateRickyCompanions(.05, now + 10400);
+    assert.equal(lever.activationWaveCleared, true);
     now += 20000;
   }
 
+  assert.equal(instance.objective.finalWaveSpawned, true);
+  assert.equal(instance.objective.breachOpen, false);
+  assert.deepEqual(aliveComposition("final_gate"), DEADLY_FINAL_GATE_WAVE);
+  killEncounter("final_gate");
+  fixture.manager.updateRickyCompanions(.05, now + 1);
+
+  assert.equal(instance.objective.finalWaveCleared, true);
   assert.equal(instance.objective.breachOpen, true);
   assert.equal(instance.objective.stage, "boss");
   assert.equal(fixture.events.some(entry=>entry.event === "portal:ricky-cinematic"), true);
 
   const boss = instance.enemies.find(enemy=>enemy.rickyBoss);
   assert.ok(boss);
+  assert.equal(boss.type, "Amiral K-137");
+  assert.equal(boss.level, 20);
+  assert.equal(boss.maxHp, 2000000);
+  assert.equal(boss.maxShield, 1000000);
+  assert.equal(boss.attackDamageMin, 3500);
+  assert.equal(boss.attackDamageMax, 5000);
+  assert.equal(boss.attackCooldown, 1000);
+
+  fixture.manager.updateRickyCompanions(.05, boss.rickyBossNextSummonAt - 1);
+  assert.equal(instance.enemies.filter(enemy=>enemy.rickyBossSummon && enemy.hp > 0).length, 0);
+  fixture.manager.updateRickyCompanions(.05, boss.rickyBossNextSummonAt + 1);
+  assert.equal(instance.enemies.filter(enemy=>enemy.rickyBossSummon && enemy.hp > 0).length, 5);
+
+  const nextSummonAt = boss.rickyBossNextSummonAt;
+  instance.enemies.push(...Array.from({length:13}, (_, index)=>createDeadlyEnemy("deadly_eclaireur", {
+    id:`extra-summon-${index}`,
+    x:boss.x,
+    y:boss.y,
+    summonedByBoss:true,
+    now:nextSummonAt
+  })));
+  fixture.manager.updateRickyCompanions(.05, nextSummonAt + 1);
+  assert.equal(instance.enemies.filter(enemy=>enemy.rickyBossSummon && enemy.hp > 0).length, DEADLY_BOSS_MAX_LIVE_SUMMONS);
+  const fullSummonAt = boss.rickyBossNextSummonAt;
+  fixture.manager.updateRickyCompanions(.05, fullSummonAt + 1);
+  assert.equal(instance.enemies.filter(enemy=>enemy.rickyBossSummon && enemy.hp > 0).length, DEADLY_BOSS_MAX_LIVE_SUMMONS);
+  assert.equal(boss.rickyBossNextSummonAt, fullSummonAt + 1 + DEADLY_BOSS_SUMMON_INTERVAL_MS);
+
   boss.hp=0;
   fixture.manager.handlePortalEnemyDeath(group, boss, fixture.player.id);
+  assert.equal(instance.enemies.some(enemy=>enemy.rickyBossSummon), false);
   const cage = instance.enemies.find(enemy=>enemy.rickyCage);
   assert.equal(cage.maxHp, 30000);
 
@@ -339,4 +462,59 @@ test("Ricky portal opens after four lever channels, then rewards the cage destru
   assert.equal(fixture.player.state.x, 4300);
   assert.equal(fixture.player.state.y, -3300);
   assert.equal(fixture.events.some(entry=>entry.event === "player:respawned"), true);
+});
+
+test("Ricky portal enemy rewards use the normal group split and ten percent XP reputation", ()=>{
+  const fixture = createFixture();
+  let leaderProfile = createDefaultProfile();
+  leaderProfile.player.level = 20;
+  leaderProfile.completedQuestClaims.quest_lv10_maintenance_impossible = true;
+  addInventoryItemAmount(leaderProfile, "portal_anchor_key", 1);
+  fixture.setProfile(leaderProfile);
+
+  const member = fixture.addPlayer({
+    id:"member-reward",
+    name:"Member",
+    groupId:null,
+    connected:true,
+    clientMode:"game",
+    mapId:"portal-ricky",
+    state:{hp:1000, maxHp:1000, mapId:"portal-ricky", x:0, y:0}
+  });
+  let memberProfile = createDefaultProfile();
+  memberProfile.player.level = 20;
+  memberProfile.completedQuestClaims.quest_lv10_maintenance_impossible = true;
+  addInventoryItemAmount(memberProfile, "portal_anchor_key", 1);
+  fixture.setProfile(memberProfile, member.id);
+
+  fixture.manager.startPortalInstance(fixture.socket, "ricky");
+  const group = fixture.groups.get("group-1");
+  member.groupId = group.id;
+  group.members.push(member.id);
+  fixture.manager.startPortalInstance({
+    id:member.id,
+    emit(event, payload){
+      fixture.events.push({target:member.id, event, payload});
+    }
+  }, "ricky");
+
+  fixture.player.connected = true;
+  fixture.player.clientMode = "game";
+  fixture.player.mapId = "portal-ricky";
+  fixture.player.state = {...fixture.player.state, hp:1000, maxHp:1000, mapId:"portal-ricky"};
+
+  const enemy = createDeadlyEnemy("deadly_eclaireur", {id:"reward-scout", x:0, y:0});
+  enemy.hp=0;
+  group.instance.enemies=[enemy];
+  fixture.manager.handlePortalEnemyDeath(group, enemy, fixture.player.id);
+
+  const rewards = fixture.events.filter(entry=>entry.event === "player:reward" && entry.payload.enemyId === enemy.id);
+  assert.equal(rewards.length, 2);
+  for(const reward of rewards){
+    assert.equal(reward.payload.share, .5);
+    assert.equal(reward.payload.credits, 12_000);
+    assert.equal(reward.payload.premium, 10);
+    assert.equal(reward.payload.xp, 3_200);
+    assert.equal(reward.payload.reputation, 320);
+  }
 });

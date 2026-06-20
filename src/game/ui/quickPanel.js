@@ -1,4 +1,11 @@
 import { fmt } from "../../core/utils.js";
+import { basePriceLabel, hasCurrencyDiscount, priceLabel } from "../../core/store.js";
+
+function priceHtml(priceType, price){
+  const current = `<strong class="${priceType === "premium" ? "shop-price premium" : "shop-price credits"}">${priceLabel(priceType, price)}</strong>`;
+  if(!hasCurrencyDiscount(priceType, price)) return current;
+  return `<span class="shop-price-discount"><s>${basePriceLabel(priceType, price)}</s>${current}</span>`;
+}
 
 function renderCpuPanel({missileState}){
   const state = missileState || {};
@@ -82,10 +89,9 @@ function renderShopPanel({ammoTypes, canAfford, getAmmoCount}){
     const purchaseMultiplier = ammo.weaponClass === "laser" ? 1 : 100;
     const packAmount = Math.max(1, Number(ammo.amount || 1)) * purchaseMultiplier;
     const packPrice = Math.max(0, Number(ammo.price || 0)) * purchaseMultiplier;
-    const currency = ammo.priceType === "premium" ? "NOVA" : "CR";
     return `<article class="combat-pick-card combat-shop-card">
       ${ammo.img ? `<img class="combat-ammo-icon" src="${ammo.img}" alt="${ammo.name}">` : `<div class="ammo-glyph" style="--ammo-color:${ammo.color}">${ammo.short}</div>`}
-      <div class="combat-shop-copy"><strong>${ammo.name}</strong><span>Pack ${fmt(packAmount)}</span><small>${fmt(packPrice)} ${currency}</small></div>
+      <div class="combat-shop-copy"><strong>${ammo.name}</strong><span>Pack ${fmt(packAmount)}</span><small>${priceHtml(ammo.priceType, packPrice)}</small></div>
       <button class="combat-buy-icon" data-combat-buy-ammo="${ammo.id}" data-combat-buy-multiplier="${purchaseMultiplier}" ${(!canAfford(ammo.priceType, packPrice)) ? "disabled" : ""} aria-label="Acheter ${ammo.name}" title="Acheter">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-2 8H8L6 3H3"/><path d="M8 18a1.4 1.4 0 1 0 0 .1M18 18a1.4 1.4 0 1 0 0 .1"/></svg>
       </button>

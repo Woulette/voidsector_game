@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
+    "loadtest:server": "node src/index.js",
     "dev": "node --watch src/index.js",
     "db:migrate-json": "node src/db/migrateJson.js",
+    "loadtest:bots": "node tools/mmo-bots.js",
     "test": "node --test"
   },
   "dependencies": {

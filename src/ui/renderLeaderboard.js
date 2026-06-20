@@ -393,7 +393,7 @@ export function renderLeaderboard(){
       <article class="leaderboard-summary-card">
         <span class="tiny">TA POSITION</span>
         <strong>#${self.position || "—"}</strong>
-        <small>${self.pilot || store.state.player.name}</small>
+        <small>${escapeHtml(self.pilot || store.state.player.name)}</small>
       </article>
       <article class="leaderboard-summary-card">
         <span class="tiny">GRADE</span>

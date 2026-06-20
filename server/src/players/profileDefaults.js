@@ -29,6 +29,8 @@ export function createDefaultProfile(){
     completedPortals:{},
     portalPieces:{blue:0, violet:0, red:0, emerald:0, void:0, ancient:0},
     prestigeCount:0,
+    premiumRewardState:{monthKey:"", claimedDays:[], lastClaimDate:""},
+    starterPackPurchases:[],
     activeQuestIds:[],
     activeQuestId:null,
     questProgress:{},

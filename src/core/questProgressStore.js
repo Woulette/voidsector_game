@@ -1,5 +1,6 @@
 import { questCatalog } from "../data/catalog.js";
 import { normalizeFirmId } from "../data/firms.js";
+import { isPremiumActive } from "../data/premium.js";
 import { getQuest, removeInventoryItems, store } from "./store.js";
 
 export const MAX_ACTIVE_QUESTS = 5;
@@ -127,6 +128,9 @@ export function acceptQuest(id){
   if(!questMatchesPlayerFirm(quest)) return {ok:false, reason:"Quete reservee a une autre firme."};
   const requiredLevel = Number(quest.requiredLevel || 1);
   if(Number(store.state.player?.level || 1) < requiredLevel) return {ok:false, reason:`Niveau ${requiredLevel} requis.`};
+  if((quest.category || "normal") === "weekly" && !isPremiumActive(store.state?.player)){
+    return {ok:false, reason:"Premium requis pour les quetes hebdomadaires."};
+  }
   if(!isQuestUnlocked(quest)) return {ok:false, reason:"Quete rare verrouillee."};
   if(store.state.completedQuestClaims?.[id]) return {ok:false, reason:"Quete deja terminee."};
   if(!Array.isArray(store.state.activeQuestIds)) store.state.activeQuestIds = [];

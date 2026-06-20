@@ -1,5 +1,14 @@
-export function createAccountActionLocks({rules, players, logger, onLimit} = {}){
+export function createAccountActionLocks({
+  rules,
+  players,
+  logger,
+  onLimit,
+  now = ()=>Date.now(),
+  staleAfterMs = 120000,
+  pruneIntervalMs = 60000
+} = {}){
   const entries = new Map();
+  let nextPruneAt = 0;
 
   function ruleFor(eventName){
     return rules?.[eventName] || null;
@@ -12,42 +21,45 @@ export function createAccountActionLocks({rules, players, logger, onLimit} = {})
     return `socket:${socket.id}`;
   }
 
-  function prune(now){
-    if(entries.size < 5000) return;
+  function prune(currentTime = now()){
     for(const [key, entry] of entries){
-      if(now - Number(entry.lastSeenAt || 0) > 120000) entries.delete(key);
+      if(currentTime - Number(entry.lastSeenAt || 0) > Math.max(1000, Number(staleAfterMs || 120000))){
+        entries.delete(key);
+      }
     }
+    nextPruneAt = currentTime + Math.max(1000, Number(pruneIntervalMs || 60000));
+    return entries.size;
   }
 
-  return function allowAccountAction(socket, eventName){
+  function allowAccountAction(socket, eventName){
     const rule = ruleFor(eventName);
     if(!rule) return true;
-    const now = Date.now();
+    const currentTime = now();
+    if(currentTime >= nextPruneAt) prune(currentTime);
     const key = `${accountKey(socket)}:${eventName}`;
     const minIntervalMs = Math.max(0, Number(rule.minIntervalMs || 0));
     const windowMs = Math.max(100, Number(rule.windowMs || 10000));
     const limit = Math.max(1, Number(rule.limit || 1));
     let entry = entries.get(key);
 
-    if(!entry || now >= Number(entry.resetAt || 0)){
+    if(!entry || currentTime >= Number(entry.resetAt || 0)){
       entry = {
         count:0,
-        resetAt:now + windowMs,
+        resetAt:currentTime + windowMs,
         nextAllowedAt:0,
         warned:false,
-        lastSeenAt:now
+        lastSeenAt:currentTime
       };
       entries.set(key, entry);
     }
 
-    entry.lastSeenAt = now;
-    prune(now);
+    entry.lastSeenAt = currentTime;
 
-    const tooSoon = minIntervalMs > 0 && now < Number(entry.nextAllowedAt || 0);
+    const tooSoon = minIntervalMs > 0 && currentTime < Number(entry.nextAllowedAt || 0);
     entry.count += 1;
     const overLimit = entry.count > limit;
     if(!tooSoon && !overLimit){
-      entry.nextAllowedAt = now + minIntervalMs;
+      entry.nextAllowedAt = currentTime + minIntervalMs;
       return true;
     }
 
@@ -60,11 +72,15 @@ export function createAccountActionLocks({rules, players, logger, onLimit} = {})
         count:entry.count,
         limit,
         windowMs,
-        retryAfterMs:Math.max(0, Number(entry.nextAllowedAt || now) - now)
+        retryAfterMs:Math.max(0, Number(entry.nextAllowedAt || currentTime) - currentTime)
       };
       logger?.warn?.("Account action limited", payload);
       if(typeof onLimit === "function") onLimit({socket, ...payload});
     }
     return false;
-  };
+  }
+
+  allowAccountAction.prune = prune;
+  allowAccountAction.size = ()=>entries.size;
+  return allowAccountAction;
 }

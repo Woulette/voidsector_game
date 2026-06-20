@@ -1,5 +1,7 @@
 ﻿import { ships } from "../../../src/data/catalog.js";
 
+import { premiumShopPacks } from "../../../src/data/premium.js";
+
 export const SERVER_AMMO_SHOP = {
   ammo_x1:{id:"ammo_x1", name:"Munition M-1", priceType:"credits", price:10000, amount:1000},
   ammo_x2:{id:"ammo_x2", name:"Munition M-2", priceType:"credits", price:50000, amount:1000},
@@ -48,6 +50,18 @@ export const SERVER_DRONE_FORMATION_SHOP = {
   tir:{id:"tir", name:"Formation Tir", priceType:"premium", price:50000},
   vitesse:{id:"vitesse", name:"Formation Vitesse", priceType:"premium", price:50000}
 };
+
+export const SERVER_PREMIUM_PACK_SHOP = Object.fromEntries(premiumShopPacks.map(pack=>[
+  pack.id,
+  {
+    id:pack.id,
+    name:pack.name,
+    priceType:pack.priceType,
+    price:Number(pack.price || 0),
+    days:Number(pack.days || 0),
+    realPrice:pack.realPrice || ""
+  }
+]));
 
 export function normalizeShopMultiplier(value){
   const count = Number(value || 1);
@@ -104,5 +118,14 @@ export function getDroneFormationPurchase(id){
   return {
     ...formation,
     totalPrice:Math.max(0, Math.round(Number(formation.price || 0)))
+  };
+}
+
+export function getPremiumPackPurchase(id){
+  const pack = SERVER_PREMIUM_PACK_SHOP[String(id || "")];
+  if(!pack) return null;
+  return {
+    ...pack,
+    totalPrice:Math.max(0, Math.round(Number(pack.price || 0)))
   };
 }

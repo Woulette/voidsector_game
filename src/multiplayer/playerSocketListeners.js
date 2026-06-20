@@ -25,6 +25,11 @@ export function installPlayerSocketListeners({
   emitChange,
   toast
 }){
+  socket.on("auth:required", payload=>{
+    multiplayer.auth.profileReady = false;
+    toast(payload?.message || "Compte MMO requis pour jouer.");
+    emitChange("auth:required", payload);
+  });
   socket.on("profile:sync", profile=>{
     multiplayer.auth.profileReady = true;
     requestSocialSyncFromProfile(socket, multiplayer);
@@ -54,15 +59,15 @@ export function installPlayerSocketListeners({
   });
   socket.on("players:list", players=>{
     multiplayer.players = Array.isArray(players) ? players : [];
-    const liveIds = new Set(multiplayer.players
-      .filter(player=>player?.connected !== false)
+    const visibleIds = new Set(multiplayer.players
+      .filter(player=>Boolean(player?.state))
       .map(player=>player?.id)
       .filter(Boolean));
     for(const id of multiplayer.remotePlayers.keys()){
-      if(!liveIds.has(id)) multiplayer.remotePlayers.delete(id);
+      if(!visibleIds.has(id)) multiplayer.remotePlayers.delete(id);
     }
     for(const player of multiplayer.players){
-      if(player?.connected !== false && player?.id && player.id !== multiplayer.playerId && player.state){
+      if(player?.id && player.id !== multiplayer.playerId && player.state){
         upsertRemotePlayer(player);
       }else if(player?.id && player.id !== multiplayer.playerId){
         multiplayer.remotePlayers.delete(player.id);

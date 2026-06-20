@@ -1,9 +1,15 @@
 import { ammoTypes, portals } from "../data/catalog.js";
 import { fmt } from "../core/utils.js";
-import { canAfford, getPortalPieces, isPortalUnlocked, store } from "../core/store.js";
+import { basePriceLabel, canAfford, getPortalPieces, hasCurrencyDiscount, isPortalUnlocked, priceLabel, store } from "../core/store.js";
 
 function getCasterCost(){
   return 100;
+}
+
+function novaPriceHtml(price){
+  const current = `<b class="shop-price premium">${priceLabel("premium", price)}</b>`;
+  if(!hasCurrencyDiscount("premium", price)) return current;
+  return `<span class="shop-price-discount"><s>${basePriceLabel("premium", price)}</s>${current}</span>`;
 }
 
 function getResultImage(entry, portal){
@@ -45,7 +51,7 @@ function renderCasterPanel(portal){
     </div>
     <div class="portal-caster-orb"><img src="${portal.img}" alt="${portal.name}"></div>
     <div class="portal-caster-summary">
-      <span>Cout : <b>${fmt(cost)} NOVA</b> par lancement</span>
+      <span>Cout : ${novaPriceHtml(cost)} par lancement</span>
       <span>Butin possible : pieces de portail, munitions x2/x3/x4, roquettes et missiles.</span>
       <span>Pieces : 4%${piecesFull ? " - bloquees jusqu'au nettoyage du portail" : ""}</span>
     </div>
@@ -55,7 +61,7 @@ function renderCasterPanel(portal){
       <button class="blue-button small ${pendingCount === 100 ? "active" : ""}" data-space-caster-count="100" data-space-caster-portal="${portal.id}">x100</button>
     </div>
     <div class="portal-caster-pay">
-      <span>Prix selection : <b>${fmt(totalCost)} NOVA</b></span>
+      <span>Prix selection : ${novaPriceHtml(totalCost)}</span>
       <button class="blue-button" data-space-caster-pay="${portal.id}" ${canPay ? "" : "disabled"}>Payer</button>
     </div>
     <div class="portal-caster-results">

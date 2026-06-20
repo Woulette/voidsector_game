@@ -1,25 +1,4 @@
-export function createRewardSystem({
-  store,
-  portals,
-  enemyTypes,
-  getCurrentMap,
-  getGameMode,
-  getSkillBonus,
-  registerKill,
-  recordQuestKill,
-  rollQuestItemDropFromKill,
-  addXP,
-  addReputationFromXp,
-  spawnPortalPieceDrop,
-  spawnQuestItemDrop,
-  getSelectedEnemy,
-  clearSelectedEnemy,
-  getParticles,
-  saveState,
-  showToast,
-  onLootChanged,
-  isMultiplayerConnected = ()=>false
-}){
+export function createRewardSystem({onLootChanged} = {}){
   const LOOT_NOTICE_DURATION = 3;
   const MAX_LOOT_NOTICES = 5;
   let lootNotices = [];
@@ -41,75 +20,18 @@ export function createRewardSystem({
 
   function pushLootNotice(loot){
     const duration = Math.max(1, Number(loot?.duration || LOOT_NOTICE_DURATION));
-    lootNotices.unshift({id:`loot_${Date.now()}_${Math.random().toString(16).slice(2)}`, loot, remaining:duration, duration});
+    lootNotices.unshift({
+      id:`loot_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      loot,
+      remaining:duration,
+      duration
+    });
     lootNotices = lootNotices.slice(0, MAX_LOOT_NOTICES);
     notifyLootChanged();
   }
 
-  function rollPortalPiece(){
-    if(getGameMode() !== "open") return null;
-    const currentMap = getCurrentMap();
-    for(const portal of portals){
-      if(!portal.dropChance || !(portal.dropZones || []).includes(currentMap.name)) continue;
-      if(Math.random() <= portal.dropChance) return portal;
-    }
-    return null;
-  }
-
-  function spawnRewardParticles(enemy){
-    const particles = getParticles();
-    for(let i = 0; i < 16; i++){
-      particles.push({
-        x:enemy.x,
-        y:enemy.y,
-        life:.5 + Math.random() * .35,
-        max:.75,
-        size:4 + Math.random() * 11,
-        color:i % 2 ? "rgba(56,189,248,.9)" : "rgba(239,68,68,.75)",
-        vx:(Math.random() - .5) * 180,
-        vy:(Math.random() - .5) * 180
-      });
-    }
-  }
-
-  function rewardEnemy(enemy){
-    if(isMultiplayerConnected()) return false;
-    if(getSelectedEnemy()?.id === enemy.id) clearSelectedEnemy();
-    const rankPoints = registerKill(enemy.kind, enemy.level);
-    const currentMap = getCurrentMap();
-    const questCompleted = recordQuestKill(enemy.kind, currentMap.name);
-    const questItemDrop = rollQuestItemDropFromKill?.(enemy.kind, currentMap.name);
-    const loot = enemy.loot || enemyTypes[enemy.kind]?.loot || enemyTypes.drone_pirate.loot;
-    const skillBonus = getSkillBonus?.() || {};
-    const credits = Math.round(Number(loot.credits || 0) * Number(skillBonus.lootMultiplier || 1));
-    const xp = Math.round(Number(loot.xp || 0));
-    const premium = Math.round(Number(loot.premium || 0) * Number(skillBonus.novaMultiplier || 1));
-    store.state.player.credits += credits;
-    store.state.player.premium += premium;
-    const reputation = addReputationFromXp?.(xp) || 0;
-    if(addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
-
-    const pieceDrop = rollPortalPiece();
-    if(pieceDrop) spawnPortalPieceDrop?.(enemy, pieceDrop);
-    if(questItemDrop) spawnQuestItemDrop?.(enemy, questItemDrop);
-    if(questCompleted) showToast("Quete terminee : retourne au relais pour reclamer la recompense.");
-
-    pushLootNotice({credits, xp, reputation, rankPoints, premium, piece:questItemDrop ? `${questItemDrop.itemName} au sol` : pieceDrop ? `Piece ${pieceDrop.name} au sol` : null});
-    window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
-      kind:"reward",
-      enemyName:enemy.name || enemy.type || enemyTypes[enemy.kind]?.name || enemy.kind || "Monstre",
-      enemyType:enemy.kind || "",
-      enemyLevel:enemy.level || 0,
-      credits,
-      xp,
-      premium,
-      reputation,
-      rankPoints,
-      at:Date.now()
-    }}));
-    spawnRewardParticles(enemy);
-    saveState();
-    return true;
+  function rewardEnemy(){
+    return false;
   }
 
   function showCargoLoot(materialLabels){

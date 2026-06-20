@@ -13,6 +13,7 @@ function getMapPortals(map){
 }
 
 const PASSIVE_UNTIL_ATTACKED = new Set(["drone_pirate", "raider_astral"]);
+const CHARGING_ENEMIES = new Set(["raider_astral", "deadly_intercepteur", "deadly_ravageur"]);
 
 function getEnemyAiKind(kind){
   return String(kind || "drone_pirate").replace(/^boss_/, "");
@@ -171,7 +172,7 @@ export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, l
       const dirY = dy / distance;
       const sideX = -dirY;
       const sideY = dirX;
-      if(enemy.kind === "drone_pirate"){
+      if(enemy.kind === "drone_pirate" || enemy.kind === "deadly_eclaireur"){
         const preferredDistance = Math.max(110, range - 45);
         if(distance > range - 20){
           targetX = player.x - dirX * preferredDistance;
@@ -182,7 +183,7 @@ export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, l
           targetY = enemy.y;
           speed = 0;
         }
-      }else if(enemy.kind === "raider_astral"){
+      }else if(CHARGING_ENEMIES.has(getEnemyAiKind(enemy.kind))){
         const contactDistance = Math.max(70, enemy.radius + playerCollisionRadius + 22);
         if(distance > contactDistance){
           targetX = player.x;
@@ -193,7 +194,7 @@ export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, l
           targetY = enemy.y - dirY * 42;
           speed = enemy.speed;
         }
-      }else if(enemy.kind === "chasseur_spectral"){
+      }else if(enemy.kind === "chasseur_spectral" || enemy.kind === "deadly_traqueur"){
         const preferredDistance = range * .62;
         const drift = Math.sin(performance.now() / 760 + enemy.id) * 115;
         if(distance > preferredDistance + 45){

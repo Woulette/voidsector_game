@@ -3,7 +3,49 @@ import {skills} from "../../../src/data/progression.js";
 import {getItemFromInventoryUid, getServerItem} from "../economy/equipment.js";
 import {consumeServerCombatBoostCharges, getServerCombatTimedBoostPercent} from "../economy/combatBoosts.js";
 
-const fireCooldowns = new Map();
+export function createCombatCooldownTracker({
+  now = ()=>Date.now(),
+  pruneIntervalMs = 60000
+} = {}){
+  const cooldowns = new Map();
+  let nextPruneAt = 0;
+
+  function playerKey(player){
+    return String(
+      player?.accountId
+      || player?.account?.id
+      || player?.clientId
+      || player?.id
+      || "unknown"
+    );
+  }
+
+  function prune(currentTime = now()){
+    for(const [key, readyAt] of cooldowns){
+      if(currentTime >= Number(readyAt || 0)) cooldowns.delete(key);
+    }
+    nextPruneAt = currentTime + Math.max(1000, Number(pruneIntervalMs || 60000));
+    return cooldowns.size;
+  }
+
+  function check(player, weaponClass, cooldownMs){
+    const currentTime = now();
+    if(currentTime >= nextPruneAt) prune(currentTime);
+    const key = `${playerKey(player)}:${weaponClass || "laser"}`;
+    const readyAt = Number(cooldowns.get(key) || 0);
+    if(currentTime < readyAt) return {ok:false, reason:"Arme en recharge."};
+    cooldowns.set(key, currentTime + Math.max(100, cooldownMs));
+    return {ok:true};
+  }
+
+  return {
+    check,
+    prune,
+    size:()=>cooldowns.size
+  };
+}
+
+const fireCooldowns = createCombatCooldownTracker();
 
 function rollBetween(min, max, random = Math.random){
   const lo = Number(min ?? max ?? 0);
@@ -20,17 +62,8 @@ function getUpgradeLevel(profile, itemId){
   return Math.max(0, Number(profile?.equipmentUpgrades?.[itemId] || 0));
 }
 
-function getCooldownKey(player, weaponClass){
-  return `${player?.id || "unknown"}:${weaponClass || "laser"}`;
-}
-
 function checkCooldown(player, weaponClass, cooldownMs){
-  const key = getCooldownKey(player, weaponClass);
-  const now = Date.now();
-  const readyAt = Number(fireCooldowns.get(key) || 0);
-  if(now < readyAt) return {ok:false, reason:"Arme en recharge."};
-  fireCooldowns.set(key, now + Math.max(100, cooldownMs));
-  return {ok:true};
+  return fireCooldowns.check(player, weaponClass, cooldownMs);
 }
 
 function consumeAmmo(profile, ammoId, amount){
@@ -40,6 +73,18 @@ function consumeAmmo(profile, ammoId, amount){
   if(have < need) return false;
   profile.ammoInventory[ammoId] = have - need;
   return true;
+}
+
+function recordServerWeaponUse(profile, weaponClass, amount){
+  if(!profile.player || typeof profile.player !== "object") profile.player = {};
+  const keys = {
+    laser:"laserShotsFired",
+    rocket:"rocketShotsFired",
+    missile:"missileShotsFired"
+  };
+  const key = keys[weaponClass];
+  if(!key) return;
+  profile.player[key] = Math.max(0, Math.floor(Number(profile.player[key] || 0))) + Math.max(0, Math.floor(Number(amount || 0)));
 }
 
 function getShipLoadout(profile, player){
@@ -202,6 +247,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, random
   const cooldown = checkCooldown(player, weaponClass, cooldownMs);
   if(!cooldown.ok) return cooldown;
   if(!consumeAmmo(profile, ammo.id, consumed)) return {ok:false, reason:"Munitions insuffisantes."};
+  recordServerWeaponUse(profile, weaponClass, consumed);
   let boostPercent = 0;
   let droneBoostPercent = 0;
   if(weaponClass === "laser"){

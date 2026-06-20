@@ -1,6 +1,8 @@
 export function createMultiplayerAuthController({
   multiplayer,
   authTokenStorageKey,
+  storeAuthToken,
+  clearStoredAuthToken,
   nameStorageKey,
   connectMultiplayer,
   emitChange,
@@ -16,7 +18,10 @@ export function createMultiplayerAuthController({
     multiplayer.auth.profileReady = false;
     multiplayer.auth.pending = false;
     multiplayer.auth.error = "";
-    if(multiplayer.auth.token) localStorage.setItem(authTokenStorageKey, multiplayer.auth.token);
+    if(multiplayer.auth.token){
+      if(typeof storeAuthToken === "function") storeAuthToken(multiplayer.auth.token, multiplayer.auth.remember !== false);
+      else localStorage.setItem(authTokenStorageKey, multiplayer.auth.token);
+    }
     if(multiplayer.auth.account?.username){
       multiplayer.name = multiplayer.auth.account.username;
       localStorage.setItem(nameStorageKey, multiplayer.name);
@@ -76,8 +81,9 @@ export function createMultiplayerAuthController({
 
   function logoutAccount(){
     if(!multiplayer.connected || !multiplayer.socket){
-      localStorage.removeItem(authTokenStorageKey);
-      multiplayer.auth = {account:null, token:"", expiresAt:null, pending:false, error:"", profileReady:false};
+      if(typeof clearStoredAuthToken === "function") clearStoredAuthToken();
+      else localStorage.removeItem(authTokenStorageKey);
+      multiplayer.auth = {...multiplayer.auth, account:null, token:"", expiresAt:null, pending:false, error:"", profileReady:false};
       emitChange("auth:logout");
       return;
     }

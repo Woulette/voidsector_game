@@ -8,6 +8,21 @@ export const PORTGUN_NORMAL_DURATION_MS = 20000;
 export const PORTGUN_PREMIUM_DURATION_MS = 5000;
 export const PORTGUN_MOVE_TOLERANCE = 24;
 
+export function cancelPendingPortgunTeleport(player, {
+  io = null,
+  reason = "cancelled",
+  message = "Teleportation annulee.",
+  now = Date.now()
+} = {}){
+  if(!player?.pendingPortgunTeleport) return false;
+  player.pendingPortgunTeleport = null;
+  const payload = {reason, message, at:now};
+  const targetSocket = io?.sockets?.sockets?.get?.(player.id);
+  if(targetSocket?.emit) targetSocket.emit("portgun:cancelled", payload);
+  else io?.to?.(player.id)?.emit?.("portgun:cancelled", payload);
+  return true;
+}
+
 function normalizeMapId(value){
   return String(value ?? "").trim();
 }
@@ -60,6 +75,8 @@ export function getRandomPortgunDestination(map, {random = Math.random} = {}){
 export function hasPortgunTeleportMoved(pending, state, tolerance = PORTGUN_MOVE_TOLERANCE){
   if(!pending || !state) return false;
   if(normalizeMapId(state.mapId) !== normalizeMapId(pending.startMapId)) return true;
+  if(Math.hypot(Number(state.vx || 0), Number(state.vy || 0)) > 1) return true;
+  if(Math.abs(Number(state.enginePower || 0)) > 0.05 || state.moveTarget) return true;
   const dx = Number(state.x || 0) - Number(pending.startX || 0);
   const dy = Number(state.y || 0) - Number(pending.startY || 0);
   return Math.hypot(dx, dy) > Math.max(0, Number(tolerance || 0));

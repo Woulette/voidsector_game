@@ -1,6 +1,7 @@
 import { renderActionBarHtml, updateActionBarDom } from "./actionBar.js";
 import { renderQuickPanelContent, updateQuickPanelTabs } from "./quickPanel.js";
 import { describeAmmo, getAmmoCooldown as readAmmoCooldown, setAmmoCooldown as writeAmmoCooldown } from "../systems/projectiles.js";
+import { requireMmoConnection } from "../../app/mmoGate.js";
 
 export function createCombatActions({
   ammoTypes,
@@ -16,8 +17,6 @@ export function createCombatActions({
   buyServerAmmo,
   buyServerDroneFormation,
   canAfford,
-  spend,
-  addAmmo,
   saveState,
   syncProfile,
   refreshPlayerStats,
@@ -445,20 +444,12 @@ export function createCombatActions({
     const ammo = getAmmo(id);
     if(!ammo) return;
     const count = [1, 10, 100, 1000].includes(Number(multiplier)) ? Number(multiplier) : 1;
-    const price = ammo.price * count;
-    const amount = ammo.amount * count;
-    if(multiplayer?.connected && buyServerAmmo?.(ammo.id, count)){
+    if(!requireMmoConnection(multiplayer, showToast)) return;
+    if(buyServerAmmo?.(ammo.id, count)){
       showToast("Achat envoye au serveur.");
       return;
     }
-    if(!canAfford(ammo.priceType, price)) return showToast("Fonds insuffisants.");
-    spend(ammo.priceType, price);
-    addAmmo(ammo.id, amount);
-    saveState();
-    updateHud();
-    renderGameActionBar();
-    renderCombatQuickPanel();
-    showToast(`${ammo.name} achetee : +${amount}.`);
+    showToast("Achat de munitions impossible.");
   }
 
   function saveAndSyncActionSlots(){
@@ -649,22 +640,13 @@ export function createCombatActions({
       showToast(`${formation.name} doit etre achetee avant utilisation.`);
       return false;
     }
-    if(multiplayer?.connected){
-      if(buyServerDroneFormation?.({id:formation.id, owned:true})){
-        showToast(`${formation.name} : activation envoyee au serveur.`);
-        return true;
-      }
-      showToast("Connexion serveur requise pour activer cette formation.");
-      return false;
+    if(!requireMmoConnection(multiplayer, showToast)) return false;
+    if(buyServerDroneFormation?.({id:formation.id, owned:true})){
+      showToast(`${formation.name} : activation envoyee au serveur.`);
+      return true;
     }
-    store.state.activeDroneFormation = formation.id;
-    saveState();
-    refreshPlayerStats?.();
-    renderCombatQuickPanel();
-    updateHud();
-    updateGameActionBar();
-    showToast(`${formation.name} activee.`);
-    return true;
+    showToast("Connexion serveur requise pour activer cette formation.");
+    return false;
   }
 
   function refreshOpenQuickPanel(dt, refreshState){

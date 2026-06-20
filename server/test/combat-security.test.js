@@ -40,6 +40,7 @@ test("client combat command never sends a damage amount", ()=>{
   const commands = createCombatCommands({
     multiplayer:{
       connected:true,
+      auth:{account:{id:"account-1"}, profileReady:true},
       socket:{emit:(eventName, payload)=>emitted.push({eventName, payload})}
     }
   });
@@ -61,6 +62,7 @@ test("client pvp combat command never sends a damage amount", ()=>{
   const commands = createCombatCommands({
     multiplayer:{
       connected:true,
+      auth:{account:{id:"account-1"}, profileReady:true},
       socket:{emit:(eventName, payload)=>emitted.push({eventName, payload})}
     }
   });
@@ -82,6 +84,7 @@ test("client remote weapon effect keeps exact ammo and missile salvo geometry", 
   const commands = createCombatCommands({
     multiplayer:{
       connected:true,
+      auth:{account:{id:"account-1"}, profileReady:true},
       socket:{emit:(eventName, payload)=>emitted.push({eventName, payload})}
     }
   });
@@ -103,6 +106,23 @@ test("client remote weapon effect keeps exact ammo and missile salvo geometry", 
   assert.equal(emitted[0].payload.ammoId, "missile_m2");
   assert.deepEqual(emitted[0].payload.starts, starts);
   assert.equal(Object.hasOwn(emitted[0].payload, "damage"), false);
+});
+
+test("client combat commands emit nothing before the account profile is ready", ()=>{
+  const emitted = [];
+  const commands = createCombatCommands({
+    multiplayer:{
+      connected:true,
+      auth:{account:null, profileReady:false},
+      socket:{emit:(eventName, payload)=>emitted.push({eventName, payload})}
+    }
+  });
+
+  commands.sendServerEnemyHit("enemy-1", {weaponClass:"laser", ammoId:"ammo_x1"});
+  commands.sendServerPlayerHit("player-2", {weaponClass:"laser", ammoId:"ammo_x1"});
+  commands.sendPlayerLaserEffect({kind:"laser", ammoId:"ammo_x1"});
+
+  assert.deepEqual(emitted, []);
 });
 
 test("combat:fire ignores a forged client damage amount", ()=>{
@@ -130,6 +150,7 @@ test("combat:fire ignores a forged client damage amount", ()=>{
   assert.ok(result.damage === 0 || (result.damage >= 35 && result.damage <= 60));
   assert.notEqual(result.damage, 999999999);
   assert.equal(profile.ammoInventory.ammo_x1, ammoBefore - 1);
+  assert.equal(profile.player.laserShotsFired, 1);
 });
 
 test("combat:fire rejects an out-of-range target without consuming ammo", ()=>{
@@ -151,6 +172,7 @@ test("combat:fire rejects an out-of-range target without consuming ammo", ()=>{
   assert.equal(result.ok, false);
   assert.match(result.reason, /portee/i);
   assert.equal(profile.ammoInventory.ammo_x1, ammoBefore);
+  assert.equal(profile.player.laserShotsFired, 0);
 });
 
 test("server combat hit is broadcast to players in the same map room", ()=>{

@@ -57,10 +57,20 @@ export function registerAuthHandlers(socket, context){
     if(!guard("auth:logout")) return;
     if(payload?.token) await revokeSessionByToken(payload.token);
     const player = players.get(socket.id);
-    if(player){
-      player.accountId = null;
-      player.account = null;
-      player.sessionExpiresAt = null;
+    const accountId = player?.accountId || null;
+    const accountPlayers = accountId
+      ? [...players.values()].filter(candidate=>candidate.accountId === accountId)
+      : player ? [player] : [];
+    if(accountPlayers.length){
+      for(const candidate of accountPlayers){
+        const candidateSocket = socket.nsp?.sockets?.get(candidate.id);
+        if(!candidateSocket) continue;
+        candidate.gracefulLogout = candidate.clientMode !== "game" || !candidate.state;
+        candidateSocket.emit("auth:logout", {source:"account"});
+        candidateSocket.disconnect(true);
+      }
+      emitPlayers();
+      return;
     }
     socket.emit("auth:logout");
     emitPlayers();

@@ -144,3 +144,16 @@ test("portal lives and forced abandonment are controlled by the server", ()=>{
   assert.equal(fixture.player.deathState, null);
   assert.equal(fixture.events.some(entry=>entry.event === "player:respawned" && entry.payload.portalAbandoned), true);
 });
+
+test("a repeated respawn request resends the authoritative live session", ()=>{
+  const fixture = createFixture({state:worldState({hp:0})});
+  fixture.manager.markPlayerDead(fixture.player);
+  assert.equal(fixture.manager.respawnPlayer(fixture.socket, "spawn"), true);
+  const firstRespawn = fixture.events.filter(entry=>entry.event === "player:respawned").length;
+
+  assert.equal(fixture.manager.respawnPlayer(fixture.socket, "spawn"), true);
+  const respawns = fixture.events.filter(entry=>entry.event === "player:respawned");
+  assert.equal(respawns.length, firstRespawn + 1);
+  assert.equal(respawns.at(-1).payload.session.hp > 0, true);
+  assert.equal(respawns.at(-1).payload.session.source, "respawn-already-applied");
+});

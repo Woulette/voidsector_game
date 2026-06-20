@@ -12,6 +12,14 @@ export function createPortalMap(portal){
       spawn:{...RICKY_PORTAL_MAP.spawn, r:240, kind:"portal", label:"POINT D'INSERTION"},
       portal:null,
       rickyPortal:true,
+      enemyAssets:[
+        "assets/enemies/deadly/deadly_01_emerald.webp",
+        "assets/enemies/deadly/deadly_02_amber.webp",
+        "assets/enemies/deadly/deadly_03_cyan.webp",
+        "assets/enemies/deadly/deadly_04_magenta.webp",
+        "assets/enemies/deadly/deadly_05_blue.webp",
+        "assets/enemies/deadly/deadly_06_boss.webp"
+      ],
       parallaxScene:{
         enabled:true,
         hideGrid:false,

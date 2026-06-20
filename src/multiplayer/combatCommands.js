@@ -1,15 +1,28 @@
+import { isAuthenticatedGameplaySession } from "./gameplaySession.js";
+
 export function createCombatCommands({multiplayer}){
   function sendPlayerSnapshot(payload){
-    if(!multiplayer.connected || !multiplayer.socket) return;
-    if(multiplayer.auth.token && !multiplayer.auth.account) return;
+    if(!isAuthenticatedGameplaySession(multiplayer)) return;
     const now = performance.now();
     if(now - multiplayer.lastSent < 50) return;
     multiplayer.lastSent = now;
     multiplayer.socket.emit("player:state", payload);
   }
 
+  function sendPlayerActivity(kind = "input"){
+    if(!isAuthenticatedGameplaySession(multiplayer)) return false;
+    const now = performance.now();
+    const lastSent = Number(multiplayer.lastActivitySent || 0);
+    if(lastSent > 0 && now - lastSent < 10000) return false;
+    multiplayer.lastActivitySent = now;
+    multiplayer.socket.emit("player:activity", {
+      kind:String(kind || "input").slice(0, 40)
+    });
+    return true;
+  }
+
   function sendServerEnemyHit(enemyId, context = {}){
-    if(!multiplayer.connected || !multiplayer.socket || !enemyId) return;
+    if(!isAuthenticatedGameplaySession(multiplayer) || !enemyId) return;
     multiplayer.socket.emit("combat:fire", {
       enemyId,
       weaponClass:context.weaponClass || "laser",
@@ -22,7 +35,7 @@ export function createCombatCommands({multiplayer}){
   }
 
   function sendServerPlayerHit(targetPlayerId, context = {}){
-    if(!multiplayer.connected || !multiplayer.socket || !targetPlayerId) return;
+    if(!isAuthenticatedGameplaySession(multiplayer) || !targetPlayerId) return;
     multiplayer.socket.emit("combat:fire-player", {
       targetPlayerId,
       weaponClass:context.weaponClass || "laser",
@@ -35,9 +48,9 @@ export function createCombatCommands({multiplayer}){
   }
 
   function sendPlayerLaserEffect(payload){
-    if(!multiplayer.connected || !multiplayer.socket) return;
+    if(!isAuthenticatedGameplaySession(multiplayer)) return;
     multiplayer.socket.emit("player:laser", payload);
   }
 
-  return {sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, sendPlayerLaserEffect};
+  return {sendPlayerSnapshot, sendPlayerActivity, sendServerEnemyHit, sendServerPlayerHit, sendPlayerLaserEffect};
 }

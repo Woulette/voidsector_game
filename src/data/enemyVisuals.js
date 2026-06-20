@@ -8,12 +8,21 @@ const FULL_ROTATION_KINDS = new Set([
   "drone_pirate",
   "raider_astral",
   "chasseur_spectral",
-  "cuirasse_ambre"
+  "cuirasse_nebulaire",
+  "cristal_du_neant",
+  "cuirasse_ambre",
+  "shared_orb",
+  "shared_rusher",
+  "shared_crystal",
+  "deadly_eclaireur",
+  "deadly_intercepteur",
+  "deadly_gardien",
+  "deadly_traqueur",
+  "deadly_ravageur",
+  "deadly_amiral_k137"
 ]);
 
-const FIXED_ROTATION_KINDS = new Set([
-  "boss_raider_astral"
-]);
+const FIXED_ROTATION_KINDS = new Set([]);
 
 const COMPACT_QUEST_ASSET_KINDS = new Set([
   "drone_pirate",

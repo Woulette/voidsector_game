@@ -7,6 +7,8 @@ import { sanitizeProfile } from "./profileSanitize.js";
 import { createProfileWorldSession } from "./profileWorldSession.js";
 import { claimCompletedServerQuests } from "../quests/quests.js";
 import { getFirmDefinition, getFirmMapId, normalizeFirmId } from "../../../src/data/firms.js";
+import { pilotNameKey, sanitizePilotName } from "./profileIdentity.js";
+import { reservePilotIdentity as defaultReservePilotIdentity } from "../storage/pilotIdentityStore.js";
 
 export { sanitizeProfile } from "./profileSanitize.js";
 
@@ -14,9 +16,13 @@ export function createProfileManager({
   cleanName,
   logger,
   loadProfileEntries = defaultLoadProfileEntries,
-  persistProfileEntries = defaultPersistProfileEntries
+  persistProfileEntries = defaultPersistProfileEntries,
+  reservePilotIdentity = defaultReservePilotIdentity
 }){
   const profiles = new Map();
+  const persistenceVersions = new Map();
+  let persistenceTail = Promise.resolve();
+  let identityTail = Promise.resolve();
 
   function profileKey(name){
     return cleanName(name).toLowerCase();
@@ -30,20 +36,47 @@ export function createProfileManager({
     try{
       const entries = await loadProfileEntries(sanitizeProfile);
       profiles.clear();
-      for(const [key, profile] of entries) profiles.set(key, profile);
+      persistenceVersions.clear();
+      for(const [key, profile] of entries){
+        profiles.set(key, profile);
+        persistenceVersions.set(key, Math.max(0, Number(profile?.updatedAt || 0)));
+      }
     }catch(error){
       logger?.warn?.("Unable to load profiles", {error:error?.message || String(error)});
     }
   }
 
-  function persist(){
+  function persist(key = null){
     try{
-      persistProfileEntries([...profiles.entries()]).catch(error=>{
+      const keys = key === null ? [...profiles.keys()] : [String(key || "")];
+      const entries = keys.map(entryKey=>{
+        const profile = profiles.get(entryKey);
+        if(!profile) return null;
+        const previousVersion = Math.max(0, Number(persistenceVersions.get(entryKey) || 0));
+        profile.updatedAt = Math.max(
+          previousVersion + 1,
+          Math.max(0, Number(profile.updatedAt || 0))
+        );
+        persistenceVersions.set(entryKey, profile.updatedAt);
+        return [entryKey, JSON.parse(JSON.stringify(profile))];
+      }).filter(Boolean);
+      if(!entries.length) return Promise.resolve();
+      const operation = persistenceTail
+        .catch(()=>{})
+        .then(()=>persistProfileEntries(entries));
+      persistenceTail = operation;
+      operation.catch(error=>{
         logger?.warn?.("Unable to save profiles", {error:error?.message || String(error)});
       });
+      return operation;
     }catch(error){
       logger?.warn?.("Unable to save profiles", {error:error?.message || String(error)});
+      return Promise.reject(error);
     }
+  }
+
+  async function flushPersistence(){
+    await persistenceTail;
   }
 
   function advanceRefineryState(profile, now = Date.now()){
@@ -110,7 +143,7 @@ export function createProfileManager({
       if(refineryChanged || starterChanged || identityChanged || claimedQuests.length){
         if(starterChanged || identityChanged) accountProfile.updatedAt = Date.now();
         profiles.set(accountKey, sanitizeProfile(accountProfile));
-        persist();
+        persist(accountKey);
       }
       emitQuestClaims(socket, claimedQuests);
       socket.emit("profile:sync", accountProfile);
@@ -126,7 +159,7 @@ export function createProfileManager({
       next.updatedAt = Math.max(Number(next.updatedAt || 0), Date.now());
       const claimedQuests = autoClaimCompletedQuests(next);
       profiles.set(accountKey, next);
-      persist();
+      persist(accountKey);
       emitQuestClaims(socket, claimedQuests);
       socket.emit("profile:sync", next);
       return;
@@ -140,8 +173,9 @@ export function createProfileManager({
     const claimedQuests = autoClaimCompletedQuests(legacyProfile);
     if(refineryChanged || starterChanged || identityChanged || claimedQuests.length){
       if(starterChanged || identityChanged) legacyProfile.updatedAt = Date.now();
-      profiles.set(profileKey(player.name), sanitizeProfile(legacyProfile));
-      persist();
+      const legacyKey = profileKey(player.name);
+      profiles.set(legacyKey, sanitizeProfile(legacyProfile));
+      persist(legacyKey);
     }
     emitQuestClaims(socket, claimedQuests);
     socket.emit("profile:sync", legacyProfile);
@@ -160,7 +194,7 @@ export function createProfileManager({
     if(existing && Number(incoming.updatedAt || 0) < Number(existing.updatedAt || 0)){
       if(refineryChanged){
         profiles.set(key, sanitizeProfile(existing));
-        persist();
+        persist(key);
       }
       return null;
     }
@@ -175,7 +209,7 @@ export function createProfileManager({
     ensureProfileIdentity(next, player);
     const claimedQuests = autoClaimCompletedQuests(next);
     profiles.set(key, next);
-    persist();
+    persist(key);
     return {profile:next, claimedQuests};
   }
 
@@ -188,7 +222,7 @@ export function createProfileManager({
       if(refineryChanged || starterChanged){
         if(starterChanged) existing.updatedAt = Date.now();
         profiles.set(key, sanitizeProfile(existing));
-        persist();
+        persist(key);
       }
       return {key, profile:existing};
     }
@@ -224,7 +258,7 @@ export function createProfileManager({
     draft.updatedAt = Date.now();
     const next = sanitizeProfile(draft);
     profiles.set(cleanKey, next);
-    persist();
+    persist(cleanKey);
     return next;
   }
 
@@ -232,7 +266,7 @@ export function createProfileManager({
     return [...profiles.entries()].map(([key, profile])=>({key, profile}));
   }
 
-  function setupProfileForPlayer({player, name, firmId} = {}){
+  async function setupProfileInternal({player, name, firmId} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const key = profileKeyForPlayer(player);
     const existing = getExistingProfile(player).profile;
@@ -243,8 +277,25 @@ export function createProfileManager({
     if(profile.player?.firmSelected && currentFirm !== nextFirm){
       return {ok:false, reason:"Firme deja selectionnee pour ce compte."};
     }
-    const pilotName = cleanName(name || profile.player?.name || player.account?.username || player.name || "NOVA-37");
+    const pilotName = sanitizePilotName(
+      name || profile.player?.name || player.account?.username || player.name || "NOVA-37",
+      ""
+    );
     if(!pilotName) return {ok:false, reason:"Nom de pilote invalide."};
+    const targetNameKey = pilotNameKey(pilotName);
+    const duplicate = [...profiles.entries()].find(([entryKey, entryProfile])=>
+      entryKey !== key
+      && entryProfile?.player?.firmSelected
+      && pilotNameKey(entryProfile?.player?.name) === targetNameKey
+    );
+    if(duplicate) return {ok:false, reason:"Nom de pilote deja utilise."};
+    const reservation = await reservePilotIdentity({
+      accountId:player.accountId,
+      pilotName
+    });
+    if(!reservation?.ok){
+      return {ok:false, reason:reservation?.reason || "Nom de pilote deja utilise."};
+    }
     profile.player = {
       ...profile.player,
       name:pilotName,
@@ -267,8 +318,16 @@ export function createProfileManager({
     profile.updatedAt = Date.now();
     ensureStarterRepairDrone(profile);
     profiles.set(key, sanitizeProfile(profile));
-    persist();
+    persist(key);
     return {ok:true, profile:profiles.get(key), firm:getFirmDefinition(nextFirm), firmChanged:currentFirm !== nextFirm};
+  }
+
+  function setupProfileForPlayer(input = {}){
+    const operation = identityTail
+      .catch(()=>{})
+      .then(()=>setupProfileInternal(input));
+    identityTail = operation;
+    return operation;
   }
 
   const {
@@ -283,6 +342,8 @@ export function createProfileManager({
     addShipPurchase,
     addDronePurchase,
     addDroneFormationPurchase,
+    addPremiumPackPurchase,
+    claimPremiumReward,
     sellInventoryItem,
     applyEquipmentAction,
     setActiveShipForPlayer,
@@ -300,6 +361,7 @@ export function createProfileManager({
 
   return {
     load,
+    flushPersistence,
     syncForSocket,
     saveFromPayload,
     applyReward,
@@ -310,6 +372,8 @@ export function createProfileManager({
     addShipPurchase,
     addDronePurchase,
     addDroneFormationPurchase,
+    addPremiumPackPurchase,
+    claimPremiumReward,
     sellInventoryItem,
     applyEquipmentAction,
     setActiveShipForPlayer,

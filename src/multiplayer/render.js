@@ -1,6 +1,7 @@
 import { multiplayer } from "./client.js";
 import { drawPlayerLayer } from "../game/render/player.js";
 import { getFirmBadgeAsset } from "../data/firms.js";
+import { getCachedCombatImage } from "../game/combatAssets.js";
 
 function lerp(a, b, t){
   return a + (b - a) * t;
@@ -57,13 +58,7 @@ function sampleBufferedState(samples, delayMs = 115){
 }
 
 function getCachedImage(cache, src){
-  if(!src) return null;
-  if(!cache[src]){
-    const img = new Image();
-    img.src = src;
-    cache[src] = img;
-  }
-  return cache[src];
+  return getCachedCombatImage(cache, src);
 }
 
 function colorWithAlpha(color, alpha){
@@ -201,7 +196,7 @@ export function drawRemotePlayers({
   const now = Date.now();
   for(const remote of multiplayer.remotePlayers.values()){
     const state = remote.state;
-    if(!state || now - Number(state.updatedAt || 0) > 10000) continue;
+    if(!state || (remote.connected !== false && now - Number(state.updatedAt || 0) > 10000)) continue;
     if(currentMapId !== null && String(state.mapId) !== String(currentMapId)) continue;
     const render = getRemoteRenderState(remote, state);
     const sampledState = sampleBufferedState(remote.stateSamples) || state;

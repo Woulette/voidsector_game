@@ -58,7 +58,6 @@ export function installCombatInputHandlers({
   claimCombatQuest,
   setCombatQuestDetailTab,
   selectQuestForPanel,
-  markQuestAcceptedForPanel,
   selectQuestCategoryForPanel,
   selectQuestTypeForPanel,
   toggleLockedQuestsForPanel,
@@ -91,8 +90,142 @@ export function installCombatInputHandlers({
   upgradeEquipment,
   showToast
 }){
+  const combatDoubleClickDelayMs = 500;
+  const combatDoubleClickTolerancePx = 80;
   let mouseMoveHeld = false;
   let miniMapDrag = null;
+  let lastCombatTargetClick = null;
+  let pendingBoostDeposit = null;
+
+  function getBoostDepositElements(){
+    const layer = documentRef.getElementById("combatBoostDepositLayer");
+    return {
+      layer,
+      amount:layer?.querySelector("[data-boost-deposit-amount]"),
+      range:layer?.querySelector("[data-boost-deposit-range]")
+    };
+  }
+
+  function clampBoostDepositAmount(value){
+    const max = Math.max(1, Number(pendingBoostDeposit?.maxAmount || 1));
+    return Math.max(1, Math.min(max, Math.floor(Number(value || 1))));
+  }
+
+  function getBoostDepositResultLabel(target, amount){
+    const cleanAmount = Math.max(0, Number(amount || 0));
+    if(target === "Laser") return `${cleanAmount * 10} tirs renforcés`;
+    if(target === "Roquettes") return `${cleanAmount} tir${cleanAmount > 1 ? "s" : ""} renforcé${cleanAmount > 1 ? "s" : ""}`;
+    const minutes = cleanAmount;
+    return `${minutes} minute${minutes > 1 ? "s" : ""} de boost`;
+  }
+
+  function syncBoostDepositAmount(value){
+    if(!pendingBoostDeposit) return;
+    const {layer, amount, range} = getBoostDepositElements();
+    const next = clampBoostDepositAmount(value);
+    if(amount) amount.value = String(next);
+    if(range) range.value = String(next);
+    const result = layer?.querySelector("[data-boost-deposit-result]");
+    if(result) result.textContent = getBoostDepositResultLabel(pendingBoostDeposit.target, next);
+  }
+
+  function closeBoostDepositDialog(){
+    const {layer} = getBoostDepositElements();
+    layer?.classList.add("hidden");
+    layer?.setAttribute("aria-hidden", "true");
+    pendingBoostDeposit = null;
+  }
+
+  function closeSpawnPanelWithDeposit(){
+    closeBoostDepositDialog();
+    closeSpawnPanel?.();
+  }
+
+  function openBoostDepositDialog({target, materialId, materialName, materialImg, maxAmount}){
+    const {layer, amount, range} = getBoostDepositElements();
+    const available = Math.max(0, Math.floor(Number(maxAmount || 0)));
+    if(!layer || available <= 0){
+      showToast("Aucun matériau disponible dans la soute.");
+      return false;
+    }
+    pendingBoostDeposit = {target, materialId, materialName, materialImg, maxAmount:available};
+    const targetNode = layer.querySelector("[data-boost-deposit-target]");
+    const materialNode = layer.querySelector("[data-boost-deposit-material]");
+    const imageNode = layer.querySelector("[data-boost-deposit-img]");
+    const stockNode = layer.querySelector("[data-boost-deposit-stock]");
+    const effectNode = layer.querySelector("[data-boost-deposit-effect]");
+    if(targetNode) targetNode.textContent = target;
+    if(materialNode) materialNode.textContent = materialName || materialId;
+    if(imageNode){
+      imageNode.src = materialImg || "assets/materials/cargo_box.svg";
+      imageNode.alt = materialName || materialId;
+    }
+    if(stockNode) stockNode.textContent = available.toLocaleString("fr-FR");
+    if(effectNode) effectNode.textContent = target === "Laser"
+      ? "1 matériau = 10 tirs"
+      : target === "Roquettes"
+        ? "1 matériau = 1 tir"
+        : "1 matériau = 1 minute";
+    if(amount) amount.max = String(available);
+    if(range) range.max = String(available);
+    layer.classList.remove("hidden");
+    layer.setAttribute("aria-hidden", "false");
+    syncBoostDepositAmount(1);
+    amount?.focus({preventScroll:true});
+    amount?.select();
+    return true;
+  }
+
+  function confirmBoostDeposit(){
+    if(!pendingBoostDeposit) return;
+    const {amount} = getBoostDepositElements();
+    const deposit = {...pendingBoostDeposit};
+    const selectedAmount = clampBoostDepositAmount(amount?.value);
+    const result = depositCombatBoostMaterial?.(deposit.target, deposit.materialId, selectedAmount);
+    if(!result?.ok){
+      showToast(result?.reason || "Boost impossible.");
+      return;
+    }
+    closeBoostDepositDialog();
+    if(result.serverPending) showToast(`Dépôt envoyé : ${selectedAmount} ${deposit.materialName || "matériau"}.`);
+    else showToast("Dépôt local refusé : validation serveur requise.");
+  }
+
+  function combatTargetKey(target){
+    if(!target) return "";
+    const targetId = target.isPlayerTarget ? target.playerId ?? target.id : target.serverId ?? target.id;
+    if(targetId === undefined || targetId === null || targetId === "") return target;
+    return `${target.isPlayerTarget ? "player" : "enemy"}:${targetId}`;
+  }
+
+  function isRepeatedCombatTargetClick(target, e){
+    const key = combatTargetKey(target);
+    const now = Date.now();
+    const previous = lastCombatTargetClick;
+    const repeated = Boolean(
+      key &&
+      previous?.key === key &&
+      now - previous.at <= combatDoubleClickDelayMs
+    );
+    lastCombatTargetClick = repeated ? null : {
+      key,
+      target,
+      at:now,
+      clientX:e.clientX,
+      clientY:e.clientY
+    };
+    return repeated;
+  }
+
+  function toleratedPreviousCombatTarget(e){
+    const previous = lastCombatTargetClick;
+    if(!previous) return null;
+    const recent = Date.now() - previous.at <= combatDoubleClickDelayMs;
+    const close = Math.hypot(e.clientX - previous.clientX, e.clientY - previous.clientY) <= combatDoubleClickTolerancePx;
+    if(!recent || !close) return null;
+    lastCombatTargetClick = null;
+    return previous.target;
+  }
 
   windowRef.addEventListener("resize", ()=>{ if(isRunning()) resize(); });
   windowRef.addEventListener("beforeunload", ()=>{ try{ saveState(); }catch(e){} });
@@ -199,7 +332,7 @@ export function installCombatInputHandlers({
       const enemy = findEnemyAt(world);
       if(enemy){
         setSelectedEnemy(enemy);
-        if(e.detail >= 2) attackSelectedWithActiveLaser?.();
+        if(isRepeatedCombatTargetClick(enemy, e)) attackSelectedWithActiveLaser?.();
         mouseMoveHeld = false;
         setMouseMoveHeld?.(false);
       }else{
@@ -207,16 +340,26 @@ export function installCombatInputHandlers({
         if(remotePlayer){
           fillSocialPlayerName?.(remotePlayer.name);
           setSelectedEnemy(remotePlayer);
-          if(e.detail >= 2) attackSelectedWithActiveLaser?.();
+          if(isRepeatedCombatTargetClick(remotePlayer, e)) attackSelectedWithActiveLaser?.();
           mouseMoveHeld = false;
           setMouseMoveHeld?.(false);
           updateHud();
           return;
         }
+        const toleratedTarget = toleratedPreviousCombatTarget(e);
+        if(toleratedTarget){
+          setSelectedEnemy(toleratedTarget);
+          attackSelectedWithActiveLaser?.();
+          mouseMoveHeld = false;
+          setMouseMoveHeld?.(false);
+          updateHud();
+          return;
+        }
+        lastCombatTargetClick = null;
         mouseMoveHeld = true;
         setMouseMoveHeld?.(true);
         setMoveTarget(world);
-        if(getSpawnPanelMode()) closeSpawnPanel();
+        if(getSpawnPanelMode()) closeSpawnPanelWithDeposit();
       }
       updateHud();
     }
@@ -344,7 +487,7 @@ export function installCombatInputHandlers({
     const panel = btn.dataset.utilityPanel;
     if(panel === "refinery"){
       if(getSpawnPanelMode?.() === "refinery"){
-        closeSpawnPanel?.();
+        closeSpawnPanelWithDeposit();
         return;
       }
       renderSpawnInteractionPanel("refinery");
@@ -460,7 +603,7 @@ export function installCombatInputHandlers({
     });
   });
 
-  documentRef.getElementById("spawnPanelClose")?.addEventListener("click", closeSpawnPanel);
+  documentRef.getElementById("spawnPanelClose")?.addEventListener("click", closeSpawnPanelWithDeposit);
   documentRef.querySelector("#spawnInteractionPanel .spawn-panel-header")?.addEventListener("pointerdown", e=>{
     if(!isRunning() || e.target.closest("button")) return;
     const panel = documentRef.getElementById("spawnInteractionPanel");
@@ -519,7 +662,7 @@ export function installCombatInputHandlers({
       const result = refineShipCargoRecipe(confirmShipRefineBtn.dataset.confirmShipRefine, amount);
       if(!result.ok) showToast(result.reason);
       else if(result.serverPending){ showToast("Fusion envoyee au serveur."); closeShipRefineRecipe?.(); }
-      else { saveState(); showToast(`Fusion : +${result.outputAmount} ${result.output?.name || result.recipe.outputId}.`); closeShipRefineRecipe?.(); }
+      else showToast("Fusion locale refusee : validation serveur requise.");
       renderSpawnInteractionPanel("refinery");
       updateHud();
       return;
@@ -548,9 +691,9 @@ export function installCombatInputHandlers({
     if(acceptBtn){
       const result = acceptQuest(acceptBtn.dataset.acceptQuest);
       if(!result.ok) showToast(result.reason);
-      else { saveState(); showToast(`Quête acceptée : ${result.quest.title}`); }
-      if(result.ok) markQuestAcceptedForPanel?.(acceptBtn.dataset.acceptQuest);
-      else renderSpawnInteractionPanel("quests");
+      else if(result.serverPending) showToast(`Acceptation envoyee : ${result.quest.title}`);
+      else showToast("Acceptation locale refusee : validation serveur requise.");
+      renderSpawnInteractionPanel("quests");
       updateHud();
       return;
     }
@@ -560,7 +703,7 @@ export function installCombatInputHandlers({
       const claimIsServerPending = Boolean(result.serverPending);
       if(!result.ok) showToast(result.reason);
       else if(claimIsServerPending) showToast(`Reclamation envoyee : ${result.quest.title}`);
-      else { saveState(); showToast(`Récompense reçue : ${result.quest.title}`); }
+      else showToast("Recompense locale refusee : validation serveur requise.");
       renderSpawnInteractionPanel("quests");
       updateHud();
       return;
@@ -569,7 +712,8 @@ export function installCombatInputHandlers({
     if(startRefBtn){
       const result = startRefineryJob(startRefBtn.dataset.startRefinery);
       if(!result.ok) showToast(result.reason);
-      else { saveState(); showToast(`Raffinage lancé : ${result.recipe.name}`); }
+      else if(result.serverPending) showToast(`Raffinage envoye au serveur : ${result.recipe.name}`);
+      else showToast("Raffinage local refuse : validation serveur requise.");
       renderSpawnInteractionPanel("refinery");
       updateHud();
       return;
@@ -578,7 +722,8 @@ export function installCombatInputHandlers({
     if(claimRefBtn){
       const result = claimRefineryJob();
       if(!result.ok) showToast(result.reason);
-      else { saveState(); showToast(`Raffinage terminé : +${result.recipe.outputAmount} ${result.recipe.outputId.toUpperCase()}`); }
+      else if(result.serverPending) showToast("Recuperation envoyee au serveur.");
+      else showToast("Recuperation locale refusee : validation serveur requise.");
       renderSpawnInteractionPanel("refinery");
       updateHud();
       return;
@@ -589,7 +734,7 @@ export function installCombatInputHandlers({
       const result = upgradeEquipment(itemId, upgradeBtn.dataset.upgradeShipItem ? {materialSource:"shipCargo"} : {});
       if(!result.ok) showToast(result.reason);
       else if(result.serverPending) showToast(`Amelioration envoyee au serveur : ${itemId}.`);
-      else { saveState(); showToast(`Amelioration appliquee : ${itemId} +${result.level}`); }
+      else showToast("Amelioration locale refusee : validation serveur requise.");
       renderSpawnInteractionPanel("refinery");
       updateHud();
     }
@@ -618,17 +763,54 @@ export function installCombatInputHandlers({
     slot.classList.remove("drag-over");
     const materialId = e.dataTransfer.getData("application/x-voidsector-boost-material");
     if(!materialId) return;
-    const rawAmount = windowRef.prompt(`Quantite a deposer dans ${slot.dataset.boostDropTarget} ?`, "1");
-    const amount = Math.max(0, Math.floor(Number(rawAmount || 0)));
-    if(amount <= 0) return;
-    const result = depositCombatBoostMaterial?.(slot.dataset.boostDropTarget, materialId, amount);
-    if(!result?.ok) showToast(result?.reason || "Boost impossible.");
-    else if(result.serverPending) showToast("Depot de perfectionnement envoye au serveur.");
-    else{
-      saveState();
-      showToast(`${result.materialName} charge : +${result.added} ${result.field === "charges" ? "tir(s)" : "seconde(s)"} pour ${slot.dataset.boostDropTarget}.`);
-      renderSpawnInteractionPanel("refinery");
-      updateHud();
+    const materialCard = [...documentRef.querySelectorAll("[data-boost-material]")]
+      .find(card=>card.dataset.boostMaterial === materialId);
+    openBoostDepositDialog({
+      target:slot.dataset.boostDropTarget,
+      materialId,
+      materialName:materialCard?.dataset.boostMaterialName || materialId,
+      materialImg:materialCard?.dataset.boostMaterialImg || "",
+      maxAmount:materialCard?.dataset.boostMaterialAmount || 0
+    });
+  });
+
+  const boostDepositLayer = documentRef.getElementById("combatBoostDepositLayer");
+  boostDepositLayer?.addEventListener("click", e=>{
+    if(e.target.closest("[data-boost-deposit-close]")){
+      closeBoostDepositDialog();
+      return;
     }
+    const step = e.target.closest("[data-boost-deposit-step]");
+    if(step){
+      const {amount} = getBoostDepositElements();
+      syncBoostDepositAmount(Number(amount?.value || 1) + Number(step.dataset.boostDepositStep || 0));
+      return;
+    }
+    const preset = e.target.closest("[data-boost-deposit-preset]");
+    if(preset){
+      const value = preset.dataset.boostDepositPreset;
+      syncBoostDepositAmount(value === "max"
+        ? pendingBoostDeposit?.maxAmount
+        : value === "half"
+          ? Math.max(1, Math.floor(Number(pendingBoostDeposit?.maxAmount || 1) / 2))
+          : value);
+      return;
+    }
+    if(e.target.closest("[data-boost-deposit-confirm]")) confirmBoostDeposit();
+  });
+  boostDepositLayer?.querySelector("[data-boost-deposit-amount]")?.addEventListener("input", e=>{
+    syncBoostDepositAmount(e.target.value);
+  });
+  boostDepositLayer?.querySelector("[data-boost-deposit-range]")?.addEventListener("input", e=>{
+    syncBoostDepositAmount(e.target.value);
+  });
+  boostDepositLayer?.querySelector("[data-boost-deposit-amount]")?.addEventListener("keydown", e=>{
+    if(e.key === "Enter"){
+      e.preventDefault();
+      confirmBoostDeposit();
+    }
+  });
+  windowRef.addEventListener("keydown", e=>{
+    if(e.key === "Escape" && pendingBoostDeposit) closeBoostDepositDialog();
   });
 }

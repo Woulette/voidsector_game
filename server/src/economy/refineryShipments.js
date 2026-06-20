@@ -1,4 +1,5 @@
 import { refineryRecipes } from "../../../src/data/catalog.js";
+import { isPremiumActive, PREMIUM_REFINERY_SHIPMENT_DURATION_MULTIPLIER } from "../../../src/data/premium.js";
 import { spendCurrency } from "../players/progression.js";
 import {
   REFINERY_MODULES,
@@ -36,9 +37,11 @@ function getRefineryTransportCapacity(profile){
   return getRefineryTransportCapacityAt(getRefineryModuleLevel(profile, "transport"));
 }
 
-function getRefineryShipmentDuration(amount){
+function getRefineryShipmentDuration(amount, profile = null){
   const safeAmount = Math.max(1, Math.ceil(Number(amount || 0)));
-  return Math.max(1000, Math.ceil(safeAmount * 60000 / REFINERY_SHIPMENT_MATERIALS_PER_MINUTE));
+  const baseDuration = Math.max(1000, Math.ceil(safeAmount * 60000 / REFINERY_SHIPMENT_MATERIALS_PER_MINUTE));
+  const multiplier = isPremiumActive(profile?.player) ? PREMIUM_REFINERY_SHIPMENT_DURATION_MULTIPLIER : 1;
+  return Math.max(1000, Math.ceil(baseDuration * multiplier));
 }
 
 function getRefineryShipmentCredits(materialId, amount){
@@ -68,7 +71,7 @@ export function startServerRefineryShipment(profile, {materialId, amount, shipId
   if(Number(profile.player?.credits || 0) < credits) return {ok:false, reason:"Credits insuffisants."};
   profile.player = spendCurrency(profile.player || {}, "credits", credits).player;
   consumeMaterial(profile, material.id, safeAmount);
-  const duration = getRefineryShipmentDuration(safeAmount);
+  const duration = getRefineryShipmentDuration(safeAmount, profile);
   profile.refineryShipmentJob = {
     materialId:material.id,
     materialName:material.name,
@@ -102,7 +105,7 @@ export function rushServerRefineryShipment(profile, {now = Date.now()} = {}){
   profile.player = spend.player;
   job.endsAt = now;
   completeServerRefineryShipment(profile, now);
-  return {ok:true, cost, materialName:job.materialName, amount:job.amount};
+  return {ok:true, cost:spend.cost, baseCost:cost, materialName:job.materialName, amount:job.amount};
 }
 
 export function refineServerShipCargoRecipe(profile, {recipeId, amount = 1, shipId = profile.activeShip} = {}){

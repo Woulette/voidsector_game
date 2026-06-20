@@ -69,7 +69,7 @@ export function createWorldStatusEffectManager({io, players, presence, profileMa
       const hpBefore = Math.max(0, Number(player.state.hp || 0));
       player.state.hp = Math.max(0, hpBefore - poison.damage);
       player.state.updatedAt = now;
-      player.lastServerDamageAt = now;
+      presence.markDamage(player, now);
       player.state.repairBotActive = false;
       player.serverRepairBotTick = 0;
       poison.nextTickAt += poison.intervalMs;

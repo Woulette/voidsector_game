@@ -1,7 +1,9 @@
+import { isAuthenticatedGameplaySession } from "./gameplaySession.js";
+
 export function createSocialCommands({multiplayer, toast}){
   function emit(event, payload = {}){
-    if(!multiplayer.connected || !multiplayer.socket){
-      toast("Connecte-toi au serveur pour utiliser les fonctions sociales.");
+    if(!isAuthenticatedGameplaySession(multiplayer)){
+      toast("Compte MMO synchronise requis pour utiliser les fonctions sociales.");
       return false;
     }
     multiplayer.socket.emit(event, payload);

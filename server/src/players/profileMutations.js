@@ -37,7 +37,7 @@ export function createProfileMutations({profiles, persist, profileKeyForPlayer, 
     updateRankScore(draft);
     const next = sanitizeProfile(draft);
     profiles.set(key, next);
-    persist();
+    persist(key);
     return next;
   }
 
@@ -53,7 +53,7 @@ export function createProfileMutations({profiles, persist, profileKeyForPlayer, 
       player:result.player
     });
     profiles.set(key, next);
-    persist();
+    persist(key);
     return {...result, profile:next};
   }
 
@@ -67,7 +67,7 @@ export function createProfileMutations({profiles, persist, profileKeyForPlayer, 
       updatedAt:Date.now()
     });
     profiles.set(key, next);
-    persist();
+    persist(key);
     return {...(result || {ok:true}), ok:true, profile:next};
   }
 

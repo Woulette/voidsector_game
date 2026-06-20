@@ -11,6 +11,11 @@ function getEnemyAiKind(kind){
 }
 
 const PASSIVE_UNTIL_ATTACKED = new Set(["drone_pirate", "raider_astral"]);
+const CHARGING_ENEMIES = new Set([
+  "raider_astral",
+  "deadly_intercepteur",
+  "deadly_ravageur"
+]);
 
 function requiresPlayerAttack(enemy){
   return PASSIVE_UNTIL_ATTACKED.has(getEnemyAiKind(enemy?.kind));
@@ -112,7 +117,7 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
       const sideY = dirX;
       const aiKind = getEnemyAiKind(enemy.kind);
       const range = Number(enemy.attackRange || 360);
-      if(aiKind === "drone_pirate"){
+      if(aiKind === "drone_pirate" || aiKind === "deadly_eclaireur"){
         const preferredDistance = Math.max(110, range - 45);
         const orbit = Math.sin(now / 1000 + Number(String(enemy.id).replace(/\D/g, "") || 0) * 0.77) * Math.min(180, range * .34);
         if(target.distance > range - 20){
@@ -124,7 +129,7 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
           targetY = Number(target.player.state.y || enemy.y) - dirY * currentDistance + sideY * orbit;
           speed *= .72;
         }
-      }else if(aiKind === "raider_astral"){
+      }else if(CHARGING_ENEMIES.has(aiKind)){
         const contactDistance = Math.max(75, Number(enemy.radius || 32) + 46);
         if(target.distance > contactDistance){
           targetX = Number(target.player.state.x || enemy.x);
@@ -134,7 +139,7 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
           targetX = enemy.x - dirX * 58;
           targetY = enemy.y - dirY * 58;
         }
-      }else if(aiKind === "chasseur_spectral"){
+      }else if(aiKind === "chasseur_spectral" || aiKind === "deadly_traqueur"){
         const preferredDistance = range * .62;
         const side = Math.sin(now / 760 + Number(String(enemy.id).replace(/\D/g, "") || 0)) * 145;
         if(target.distance > preferredDistance + 45){
@@ -156,10 +161,9 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
           targetX = enemy.x - target.dx;
           targetY = enemy.y - target.dy;
         }else{
-          const side = Math.sin(now / 900 + Number(String(enemy.id).replace(/\D/g, "") || 0)) * 130;
-          targetX = enemy.x + sideX * side;
-          targetY = enemy.y + sideY * side;
-          speed *= .55;
+          targetX = enemy.x;
+          targetY = enemy.y;
+          speed = 0;
         }
       }
     }else{
@@ -235,8 +239,18 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
     const attackDistance = attackTarget?.state
       ? Math.hypot(Number(attackTarget.state.x || 0) - enemy.x, Number(attackTarget.state.y || 0) - enemy.y)
       : Infinity;
+    if(attackTarget?.state && canAttackTarget){
+      enemy.angle = Math.atan2(
+        Number(attackTarget.state.y || 0) - enemy.y,
+        Number(attackTarget.state.x || 0) - enemy.x
+      ) + Math.PI / 2;
+    }
     if(canAttackTarget && presence.isActiveForWorld(attackTarget, now) && attackDistance <= Number(enemy.attackRange || 360) && now >= Number(enemy.nextAttackAt || 0)){
-      const amount = Math.max(1, Math.round(Number(enemy.attackDamage || 25) * (0.85 + Math.random() * 0.3)));
+      const damageMin = Number(enemy.attackDamageMin);
+      const damageMax = Number(enemy.attackDamageMax);
+      const amount = enemy.useExactDamageRange && Number.isFinite(damageMin) && Number.isFinite(damageMax)
+        ? Math.max(1, Math.round(Math.min(damageMin, damageMax) + Math.random() * Math.abs(damageMax - damageMin)))
+        : Math.max(1, Math.round(Number(enemy.attackDamage || 25) * (0.85 + Math.random() * 0.3)));
       enemy.nextAttackAt = now + Number(enemy.attackCooldown || 1400);
       launchEnemyAttack({
         enemy,

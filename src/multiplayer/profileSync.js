@@ -1,6 +1,7 @@
+import { isAuthenticatedGameplaySession } from "./gameplaySession.js";
+
 export function syncMultiplayerProfile(multiplayer, state){
-  if(!multiplayer.connected || !multiplayer.socket || !state) return;
-  if(multiplayer.auth.token && multiplayer.auth.account && !multiplayer.auth.profileReady) return;
+  if(!isAuthenticatedGameplaySession(multiplayer) || !state) return;
   const profile = {
     updatedAt:Date.now(),
     actionSlots:state.actionSlots,

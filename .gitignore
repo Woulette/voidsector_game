@@ -12,4 +12,12 @@ tmp/
 server/.env
 server/data/accounts.json
 server/data/firmWar.json
+server/data/profiles.json
 server/data/sessions.json
+
+# Logs serveur
+server/.codex-server.err.log
+server/.codex-server.out.log
+
+# Config load test local uniquement (secrets + overrides dev)
+server/loadtest.local.env

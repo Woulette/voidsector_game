@@ -601,6 +601,7 @@ export const questCatalog = buildFirmQuestCatalog(baseQuestCatalog);
 export const pageText = {
   hangar:{title:"HANGAR", subtitle:"Configure ton vaisseau, tes drones et tes extras."},
   shop:{title:"MAGASIN", subtitle:"Progression par niveau : vaisseaux, lasers, roquettes, générateurs et drones."},
+  store:{title:"BOUTIQUE", subtitle:"Packs premium, Nova, credits et starters."},
   firm:{title:"FIRME", subtitle:"Saison, contribution, quetes collectives, boutique et recompenses de firme."},
   portals:{title:"PORTAILS DIMENSIONNELS", subtitle:"Déverrouille les portails avec des pièces, puis affronte 30 vagues."},
   refinery:{title:"RAFFINERIE", subtitle:"Transforme tes matériaux bruts en ressources avancées pour améliorer ton équipement."},

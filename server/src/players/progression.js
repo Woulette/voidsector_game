@@ -1,3 +1,5 @@
+import { getNovaDiscountedPrice, isPremiumActive } from "../../../src/data/premium.js";
+
 const XP_FIXED_NEXT_BY_LEVEL = {
   1:3000,
   2:12000,
@@ -27,6 +29,8 @@ export const PROTECTED_PLAYER_FIELDS = [
   "firmSelected",
   "credits",
   "premium",
+  "premiumUntil",
+  "premiumActive",
   "xp",
   "totalXp",
   "level",
@@ -36,7 +40,11 @@ export const PROTECTED_PLAYER_FIELDS = [
   "totalKills",
   "totalPlayerKills",
   "monsterRankPoints",
-  "rankScore"
+  "rankScore",
+  "totalPlaySeconds",
+  "laserShotsFired",
+  "rocketShotsFired",
+  "missileShotsFired"
 ];
 
 export function getXpNextForLevel(level = 1){
@@ -53,6 +61,8 @@ export function normalizeProgressionPlayer(player = {}){
     ...player,
     credits:Math.max(0, Math.round(Number(player.credits || 0))),
     premium:Math.max(0, Math.round(Number(player.premium || 0))),
+    premiumUntil:Math.max(0, Number(player.premiumUntil || 0)),
+    premiumActive:isPremiumActive(player),
     xp:Math.max(0, Math.min(xpNext, Math.round(Number(player.xp || 0)))),
     totalXp:Math.max(0, Math.round(Number(player.totalXp || 0))),
     reputation:Math.max(0, Math.round(Number(player.reputation || 0))),
@@ -60,6 +70,10 @@ export function normalizeProgressionPlayer(player = {}){
     totalPlayerKills:Math.max(0, Math.round(Number(player.totalPlayerKills || 0))),
     monsterRankPoints:Math.max(0, Number(player.monsterRankPoints || 0)),
     rankScore:Math.max(0, Number(player.rankScore || 0)),
+    totalPlaySeconds:Math.max(0, Number(player.totalPlaySeconds || 0)),
+    laserShotsFired:Math.max(0, Math.floor(Number(player.laserShotsFired || 0))),
+    rocketShotsFired:Math.max(0, Math.floor(Number(player.rocketShotsFired || 0))),
+    missileShotsFired:Math.max(0, Math.floor(Number(player.missileShotsFired || 0))),
     level,
     xpNext,
     skillPoints:Math.max(0, Math.round(Number(player.skillPoints || 0)))
@@ -94,7 +108,8 @@ export function applyProgressionReward(player = {}, reward = {}){
 
 export function spendCurrency(player = {}, priceType = "credits", amount = 0){
   const next = normalizeProgressionPlayer(player);
-  const cost = Math.max(0, Math.round(Number(amount || 0)));
+  const baseCost = Math.max(0, Math.round(Number(amount || 0)));
+  const cost = priceType === "premium" ? getNovaDiscountedPrice(baseCost, next) : baseCost;
   const field = priceType === "premium" ? "premium" : "credits";
   if(cost <= 0) return {ok:true, player:next, field, cost};
   if(Number(next[field] || 0) < cost) return {ok:false, player:next, field, cost, reason:"Fonds insuffisants."};

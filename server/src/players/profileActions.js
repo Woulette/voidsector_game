@@ -9,6 +9,7 @@ import { sanitizeProfile } from "./profileSanitize.js";
 import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
 import { appendProfileActivity } from "./activityLog.js";
 import { depositServerCombatBoostMaterial } from "../economy/combatBoosts.js";
+import { applyPremiumPackToPlayer, claimPremiumRewardState } from "../../../src/data/premium.js";
 
 export function createProfileActions({profiles, persist, getExistingProfile}){
   function spendAndUpdate({player, priceType, amount, update, activity} = {}){
@@ -24,7 +25,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(typeof update === "function") update(next);
     if(activity) appendProfileActivity(next, activity);
     profiles.set(key, next);
-    persist();
+    persist(key);
     return {...result, profile:next};
   }
   
@@ -126,8 +127,68 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     });
     const finalProfile = sanitizeProfile(next);
     profiles.set(key, finalProfile);
-    persist();
+    persist(key);
     return {...result, profile:finalProfile, owned:alreadyOwned};
+  }
+
+  function addPremiumPackPurchase({player, purchase} = {}){
+    return spendAndUpdate({
+      player,
+      priceType:purchase?.priceType,
+      amount:purchase?.totalPrice,
+      update:profile=>{
+        applyPremiumPackToPlayer(profile.player, purchase);
+      },
+      activity:{
+        type:"premium_purchase",
+        label:"Pass premium",
+        detail:`${purchase?.id || "premium"} active pour ${Math.max(0, Number(purchase?.days || 0))} jours.`,
+        data:{packId:purchase?.id || "", price:Number(purchase?.totalPrice || 0), priceType:purchase?.priceType || "premium", days:Number(purchase?.days || 0)}
+      }
+    });
+  }
+
+  function rewardSummary(reward = {}){
+    const parts = [];
+    if(reward.credits) parts.push(`${Math.max(0, Number(reward.credits || 0))} credits`);
+    if(reward.premium) parts.push(`${Math.max(0, Number(reward.premium || 0))} NOVA`);
+    for(const [id, amount] of Object.entries(reward.ammo || {})) parts.push(`${Math.max(0, Number(amount || 0))} ${id}`);
+    for(const [id, amount] of Object.entries(reward.itemCounts || {})) parts.push(`${Math.max(0, Number(amount || 0))} ${id}`);
+    for(const id of reward.items || []) parts.push(`1 ${id}`);
+    return parts.join(" + ") || "recompense";
+  }
+
+  function applyPremiumRewardPayload(profile, reward = {}){
+    if(!profile.player || typeof profile.player !== "object") profile.player = {};
+    profile.player.credits = Math.max(0, Number(profile.player.credits || 0)) + Math.max(0, Number(reward.credits || 0));
+    profile.player.premium = Math.max(0, Number(profile.player.premium || 0)) + Math.max(0, Number(reward.premium || 0));
+    if(!profile.ammoInventory || typeof profile.ammoInventory !== "object") profile.ammoInventory = {};
+    for(const [id, amount] of Object.entries(reward.ammo || {})){
+      profile.ammoInventory[id] = Math.max(0, Number(profile.ammoInventory[id] || 0)) + Math.max(0, Number(amount || 0));
+    }
+    for(const [id, amount] of Object.entries(reward.itemCounts || {})) addInventoryItemAmount(profile, id, amount);
+    for(const id of reward.items || []) addInventoryItemAmount(profile, id, 1);
+  }
+
+  function claimPremiumReward({player} = {}){
+    if(!player) return {ok:false, reason:"Joueur introuvable."};
+    const {key, profile} = getExistingProfile(player);
+    const result = claimPremiumRewardState(profile);
+    if(!result.ok) return result;
+    applyPremiumRewardPayload(profile, result.reward?.reward || {});
+    appendProfileActivity(profile, {
+      type:"premium_reward",
+      label:"Recompense premium",
+      detail:`Jour ${result.day} : ${rewardSummary(result.reward?.reward || {})}.`,
+      data:{day:result.day, reward:result.reward?.reward || {}}
+    });
+    const next = sanitizeProfile({
+      ...profile,
+      updatedAt:Date.now()
+    });
+    profiles.set(key, next);
+    persist(key);
+    return {...result, profile:next};
   }
 
   function getSaleValue(item){
@@ -169,7 +230,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       updatedAt:Date.now()
     });
     profiles.set(key, next);
-    persist();
+    persist(key);
     return {
       ok:true,
       item:{id:item.id, name:item.name},
@@ -214,7 +275,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       updatedAt:Date.now()
     });
     profiles.set(key, next);
-    persist();
+    persist(key);
     return {...result, claimedQuests, profile:next};
   }
   
@@ -247,7 +308,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(claimedQuests.length) draft.updatedAt = Date.now();
     const next = sanitizeProfile(draft);
     profiles.set(key, next);
-    persist();
+    persist(key);
     return {ok:true, shipId:cleanShipId, claimedQuests, profile:next};
   }
   
@@ -301,7 +362,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       updatedAt:Date.now()
     });
     profiles.set(key, next);
-    persist();
+    persist(key);
     return {...result, claimedQuests, profile:next};
   }
   
@@ -362,7 +423,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       updatedAt:Date.now()
     });
     profiles.set(key, next);
-    persist();
+    persist(key);
     return {...result, questUpdates:questProgress?.updates || [], claimedQuests, profile:next};
   }
   
@@ -391,9 +452,9 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       updatedAt:Date.now()
     });
     profiles.set(key, next);
-    persist();
+    persist(key);
     return {...result, profile:next};
   }
   
-  return {addAmmoPurchase, addItemPurchase, addShipPurchase, addDronePurchase, addDroneFormationPurchase, sellInventoryItem, applyEquipmentAction, setActiveShipForPlayer, applyQuestAction, applyEconomyAction, applyProgressionAction};
+  return {addAmmoPurchase, addItemPurchase, addShipPurchase, addDronePurchase, addDroneFormationPurchase, addPremiumPackPurchase, claimPremiumReward, sellInventoryItem, applyEquipmentAction, setActiveShipForPlayer, applyQuestAction, applyEconomyAction, applyProgressionAction};
 }

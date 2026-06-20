@@ -23,8 +23,44 @@ const DEFAULT_SERVER_URL = "http://localhost:3001";
 const SERVER_STORAGE_KEY = "voidsector-multiplayer-server";
 const NAME_STORAGE_KEY = "voidsector-multiplayer-name";
 const AUTH_TOKEN_STORAGE_KEY = "voidsector-auth-token";
+const AUTH_REMEMBER_STORAGE_KEY = "avosomanox-auth-remember";
+const AUTH_SYNC_CHANNEL_NAME = "avosomanox-auth-sync";
 const CLIENT_ID_STORAGE_KEY = "voidsector-client-id";
 const LEADERBOARD_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+
+let authSyncChannel = null;
+let authSyncInstalled = false;
+let authStorageRevision = 0;
+
+function broadcastAuthChange(message){
+  try{ authSyncChannel?.postMessage(message); }catch(error){}
+}
+
+function getStoredAuthToken(){
+  return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "";
+}
+
+function clearStoredAuthToken(){
+  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  broadcastAuthChange({type:"logout"});
+}
+
+function shouldRememberAuth(){
+  return localStorage.getItem(AUTH_REMEMBER_STORAGE_KEY) !== "0";
+}
+
+function storeAuthToken(token, remember = shouldRememberAuth()){
+  if(!token) return clearStoredAuthToken();
+  if(remember){
+    sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  }else{
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  }
+  broadcastAuthChange({type:"token", token:String(token)});
+}
 
 function getClientId(){
   let id = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
@@ -43,11 +79,12 @@ export const multiplayer = {
   playerId:null,
   auth:{
     account:null,
-    token:localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "",
+    token:getStoredAuthToken(),
     expiresAt:null,
     profileReady:false,
     pending:false,
-    error:""
+    error:"",
+    remember:shouldRememberAuth()
   },
   clientId:getClientId(),
   serverUrl:localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER_URL,
@@ -68,6 +105,8 @@ export const multiplayer = {
   lootDropEvents:[],
   shopAmmoEvents:[],
   shopItemEvents:[],
+  shopPremiumPackEvents:[],
+  premiumRewardEvents:[],
   inventorySaleEvents:[],
   shopShipEvents:[],
   shipEvents:[],
@@ -120,6 +159,8 @@ export const multiplayer = {
     completeAt:null,
     reason:""
   },
+  disconnectIntent:"",
+  lastActivitySent:0,
   lastSent:0,
   showToast:null
 };
@@ -132,8 +173,60 @@ function toast(message){
   if(typeof multiplayer.showToast === "function") multiplayer.showToast(message);
 }
 
+function applyExternalAuthToken(token){
+  const clean = String(token || "");
+  if(!clean) return;
+  authStorageRevision += 1;
+  multiplayer.auth.token = clean;
+  multiplayer.auth.pending = false;
+  multiplayer.auth.error = "";
+  emitChange("auth:external-token");
+}
+
+function applyExternalAuthLogout(){
+  authStorageRevision += 1;
+  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  multiplayer.auth = {
+    ...multiplayer.auth,
+    account:null,
+    token:"",
+    expiresAt:null,
+    pending:false,
+    error:"",
+    profileReady:false
+  };
+  emitChange("auth:external-logout");
+  disconnectMultiplayer("external-auth-logout");
+}
+
+function installCrossTabAuthSync(){
+  if(authSyncInstalled) return;
+  authSyncInstalled = true;
+  if(typeof BroadcastChannel === "function"){
+    authSyncChannel = new BroadcastChannel(AUTH_SYNC_CHANNEL_NAME);
+    authSyncChannel.addEventListener("message", event=>{
+      if(event.data?.type === "token") applyExternalAuthToken(event.data.token);
+      else if(event.data?.type === "logout") applyExternalAuthLogout();
+    });
+  }
+  window.addEventListener("storage", event=>{
+    if(event.key !== AUTH_TOKEN_STORAGE_KEY) return;
+    if(event.newValue){
+      applyExternalAuthToken(event.newValue);
+      return;
+    }
+    const revision = ++authStorageRevision;
+    setTimeout(()=>{
+      if(revision !== authStorageRevision || localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)) return;
+      applyExternalAuthLogout();
+    }, 50);
+  });
+}
+
 const {
   sendPlayerSnapshot,
+  sendPlayerActivity,
   sendServerEnemyHit,
   sendServerPlayerHit,
   sendPlayerLaserEffect
@@ -163,11 +256,22 @@ const addRemoteEffect = effect=>addRemoteEffectState(multiplayer, effect);
 const auth = createMultiplayerAuthController({
   multiplayer,
   authTokenStorageKey:AUTH_TOKEN_STORAGE_KEY,
+  storeAuthToken,
+  clearStoredAuthToken,
   nameStorageKey:NAME_STORAGE_KEY,
   connectMultiplayer:options=>connectMultiplayer(options),
   emitChange,
   toast
 });
+
+export function setAuthRememberEnabled(remember = true){
+  multiplayer.auth.remember = remember !== false;
+  localStorage.setItem(AUTH_REMEMBER_STORAGE_KEY, multiplayer.auth.remember ? "1" : "0");
+  if(multiplayer.auth.token) storeAuthToken(multiplayer.auth.token, multiplayer.auth.remember);
+  else if(!multiplayer.auth.remember) localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  emitChange("auth:remember");
+  return multiplayer.auth.remember;
+}
 
 export function requestLeaderboardSync({force = false} = {}){
   if(!multiplayer.connected || !multiplayer.socket) return false;
@@ -206,6 +310,7 @@ function loadSocketIo(serverUrl = multiplayer.serverUrl){
 export function initMultiplayer({showToast = null, getDefaultName = null, autoConnectAuth = true, clientMode = "launcher"} = {}){
   multiplayer.showToast = showToast;
   multiplayer.clientMode = clientMode === "game" ? "game" : "launcher";
+  installCrossTabAuthSync();
   if(!multiplayer.name && typeof getDefaultName === "function"){
     multiplayer.name = String(getDefaultName() || "").slice(0, 24);
   }
@@ -255,13 +360,17 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     socket.on("connect_error", ()=>{
       multiplayer.connected = false;
       multiplayer.connecting = false;
+      multiplayer.auth.pending = false;
       emitChange("connection:error");
     });
-    socket.on("disconnect", ()=>{
+    socket.on("disconnect", socketReason=>{
       multiplayer.connected = false;
       multiplayer.group = null;
       multiplayer.logout = {pending:false, completeAt:null, reason:""};
-      emitChange("connection:disconnect");
+      emitChange("connection:disconnect", {
+        intent:multiplayer.disconnectIntent || "",
+        socketReason:String(socketReason || "")
+      });
     });
     socket.on("server:ready", payload=>{
       multiplayer.playerId = payload?.id || socket.id;
@@ -282,17 +391,18 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     });
     socket.on("auth:error", payload=>{
       if(multiplayer.auth.token && String(payload?.message || "").toLowerCase().includes("session")){
-        localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+        clearStoredAuthToken();
         multiplayer.auth.token = "";
         multiplayer.auth.account = null;
       }
       auth.setError(payload?.message);
     });
     socket.on("auth:logout", ()=>{
-      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-      multiplayer.auth = {account:null, token:"", expiresAt:null, pending:false, error:"", profileReady:false};
+      clearStoredAuthToken();
+      multiplayer.auth = {...multiplayer.auth, account:null, token:"", expiresAt:null, pending:false, error:"", profileReady:false};
       toast("Compte deconnecte.");
       emitChange("auth:logout");
+      setTimeout(()=>disconnectMultiplayer("account-logout"), 0);
     });
     socket.on("session:logout-started", payload=>{
       multiplayer.logout = {
@@ -321,6 +431,15 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     socket.on("session:logout-complete", payload=>{
       multiplayer.logout = {pending:false, completeAt:null, reason:""};
       emitChange("logout:complete", payload);
+    });
+    socket.on("session:afk-status", payload=>{
+      if(payload?.afk) toast("Tu es maintenant AFK. Déconnexion automatique après 10 minutes d'inactivité.");
+      else toast("Statut AFK retiré.");
+      emitChange("session:afk-status", payload);
+    });
+    socket.on("session:afk-disconnect", payload=>{
+      emitChange("session:afk-disconnect", payload);
+      disconnectMultiplayer("afk-timeout");
     });
     socket.on("admin:snapshot", payload=>{
       multiplayer.admin.snapshot = payload?.snapshot || null;
@@ -387,7 +506,9 @@ export async function connectMultiplayer({serverUrl, name} = {}){
   }
 }
 
-export function disconnectMultiplayer(){
+export function disconnectMultiplayer(intent = "manual"){
+  const disconnectIntent = String(intent || "manual");
+  multiplayer.disconnectIntent = disconnectIntent;
   multiplayer.socket?.disconnect();
   multiplayer.socket = null;
   multiplayer.connected = false;
@@ -419,6 +540,8 @@ export function disconnectMultiplayer(){
   multiplayer.lootDropEvents = [];
   multiplayer.shopAmmoEvents = [];
   multiplayer.shopItemEvents = [];
+  multiplayer.shopPremiumPackEvents = [];
+  multiplayer.premiumRewardEvents = [];
   multiplayer.inventorySaleEvents = [];
   multiplayer.shopShipEvents = [];
   multiplayer.shopDroneEvents = [];
@@ -446,7 +569,34 @@ export function disconnectMultiplayer(){
   multiplayer.portalAlly = null;
   multiplayer.portalBeacons = [];
   multiplayer.portalObjective = null;
-  emitChange("connection:disconnect");
+  emitChange("connection:disconnect", {intent:disconnectIntent});
+  multiplayer.disconnectIntent = "";
+}
+
+export function getLatestAuthToken(){
+  return String(multiplayer.auth?.token || getStoredAuthToken() || "");
+}
+
+export function reconnectWithStoredAuthSession(){
+  const token = getLatestAuthToken();
+  if(!token) return false;
+  multiplayer.auth = {
+    ...multiplayer.auth,
+    account:null,
+    token,
+    expiresAt:null,
+    profileReady:false,
+    pending:true,
+    error:""
+  };
+  if(multiplayer.socket){
+    multiplayer.connecting = true;
+    emitChange("connection:pending", {reconnect:true});
+    multiplayer.socket.connect();
+  }else{
+    connectMultiplayer({name:multiplayer.name});
+  }
+  return true;
 }
 
 export const {
@@ -459,7 +609,9 @@ export const requestServerLogout = socketCommands.requestServerLogout;
 export const requestPlayerRespawn = socketCommands.requestPlayerRespawn;
 export const startPortgunTeleport = socketCommands.startPortgunTeleport;
 export const activateRickyPortalLever = socketCommands.activateRickyPortalLever;
+export const activateRickyHealBeacon = socketCommands.activateRickyHealBeacon;
 export const setupServerProfile = socketCommands.setupServerProfile;
+export const setServerProfileTitle = socketCommands.setServerProfileTitle;
 export const resetServerFirmDebug = socketCommands.resetServerFirmDebug;
 export const sendChatMessage = socketCommands.sendChatMessage;
 export const requestSocialSync = socialCommands.requestSocialSync;
@@ -475,7 +627,7 @@ export const openFirmBox = firmCommands.openFirmBox;
 export const claimFirmRewards = firmCommands.claimFirmRewards;
 export const claimFirmQuest = firmCommands.claimFirmQuest;
 export const acceptFirmQuest = firmCommands.acceptFirmQuest;
-export {sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, sendPlayerLaserEffect};
+export {sendPlayerSnapshot, sendPlayerActivity, sendServerEnemyHit, sendServerPlayerHit, sendPlayerLaserEffect};
 
 export const syncMultiplayerProfile = state=>syncProfile(multiplayer, state);
 
@@ -499,6 +651,8 @@ export const {
   depositServerCombatBoostMaterial,
   buyServerAmmo,
   buyServerItem,
+  buyServerPremiumPack,
+  claimServerPremiumReward,
   sellServerInventoryItem,
   buyServerShip,
   equipServerActiveShip,

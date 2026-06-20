@@ -132,5 +132,5 @@ export function registerFirmHandlers(socket, context){
     emitSnapshot({includeShop:true});
   });
 
-  emitSnapshot();
+  if(players.get(socket.id)?.accountId) emitSnapshot();
 }

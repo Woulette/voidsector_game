@@ -44,10 +44,10 @@ test("combat owns quest progress events without launcher-wide render", ()=>{
   assert.deepEqual(fixture.store.state.questProgress, {});
 });
 
-test("launcher still consumes and renders quest progress events", ()=>{
+test("launcher consumes quest events without duplicating authoritative profile mutations", ()=>{
   const fixture = createFixture({appMode:"launcher", gameRunning:false});
   fixture.controller.handleChange({detail:{reason:"quest:progress"}});
-  assert.equal(fixture.renders, 1);
+  assert.equal(fixture.renders, 0);
   assert.equal(fixture.multiplayer.questProgressEvents.length, 0);
-  assert.equal(fixture.store.state.questProgress.quest_test, 1);
+  assert.deepEqual(fixture.store.state.questProgress, {});
 });

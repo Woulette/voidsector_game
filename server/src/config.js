@@ -1,14 +1,85 @@
+function normalizeClientOrigins(value){
+  const raw = String(value || "").trim();
+  if(!raw || raw === "*") return "*";
+  return raw.split(",").map(origin=>origin.trim()).filter(Boolean);
+}
+
+function isValidClientOrigin(origin){
+  try{
+    const url = new URL(origin);
+    return ["http:", "https:"].includes(url.protocol)
+      && !url.username
+      && !url.password
+      && url.pathname === "/"
+      && !url.search
+      && !url.hash;
+  }catch{
+    return false;
+  }
+}
+
+export function createRuntimeConfig(environment = process.env){
+  const nodeEnv = String(environment.NODE_ENV || "development").trim().toLowerCase();
+  const isProduction = nodeEnv === "production";
+  const port = Number(environment.PORT || 3001);
+  const clientOrigin = normalizeClientOrigins(environment.CLIENT_ORIGIN || "*");
+  const databaseUrl = String(environment.DATABASE_URL || "").trim();
+  const loadTestEnabled = String(environment.LOAD_TEST_ENABLED || "").trim().toLowerCase() === "true";
+  const loadTestSecret = String(environment.LOAD_TEST_SECRET || "").trim();
+  const origins = clientOrigin === "*" ? [] : clientOrigin;
+  const errors = [];
+
+  if(!Number.isInteger(port) || port < 1 || port > 65535){
+    errors.push("PORT must be an integer between 1 and 65535.");
+  }
+  if(clientOrigin !== "*" && (!origins.length || origins.some(origin=>!isValidClientOrigin(origin)))){
+    errors.push("CLIENT_ORIGIN must contain valid comma-separated http(s) origins without paths.");
+  }
+  if(isProduction && clientOrigin === "*"){
+    errors.push("CLIENT_ORIGIN cannot be '*' in production.");
+  }
+  if(isProduction && !databaseUrl){
+    errors.push("DATABASE_URL is required in production; JSON storage is development-only.");
+  }
+  if(loadTestEnabled && loadTestSecret.length < 16){
+    errors.push("LOAD_TEST_SECRET must contain at least 16 characters when load testing is enabled.");
+  }
+  if(isProduction && loadTestEnabled){
+    errors.push("LOAD_TEST_ENABLED cannot be true in production.");
+  }
+  if(errors.length){
+    throw new Error(`Invalid server configuration:\n- ${errors.join("\n- ")}`);
+  }
+
+  return {
+    nodeEnv,
+    isProduction,
+    port,
+    clientOrigin:clientOrigin === "*" || clientOrigin.length === 1 ? clientOrigin === "*" ? "*" : clientOrigin[0] : clientOrigin,
+    databaseEnabled:Boolean(databaseUrl),
+    loadTest:{
+      enabled:loadTestEnabled,
+      secret:loadTestSecret
+    }
+  };
+}
+
+const runtimeConfig = createRuntimeConfig();
+
 export const config = {
-  port:Number(process.env.PORT || 3001),
-  clientOrigin:process.env.CLIENT_ORIGIN || "*",
+  ...runtimeConfig,
   portalWaveTotal:30,
   logoutDelayMs:15000,
   combatRecentMs:15000,
   disconnectCombatGraceMs:30000,
   logoutMoveSpeed:8,
+  afkAfterMs:5 * 60 * 1000,
+  afkDisconnectMs:10 * 60 * 1000,
   accountActionLocks:{
     "shop:buy-ammo":{minIntervalMs:220, limit:24, windowMs:10000},
     "shop:buy-item":{minIntervalMs:300, limit:16, windowMs:10000},
+    "shop:buy-premium-pack":{minIntervalMs:600, limit:8, windowMs:10000},
+    "premium:reward-claim":{minIntervalMs:800, limit:6, windowMs:10000},
     "shop:buy-ship":{minIntervalMs:600, limit:8, windowMs:10000},
     "shop:buy-drone":{minIntervalMs:600, limit:8, windowMs:10000},
     "shop:buy-drone-formation":{minIntervalMs:600, limit:8, windowMs:10000},
@@ -60,6 +131,8 @@ export const config = {
     "group:kick":{minIntervalMs:350, limit:12, windowMs:10000},
     "group:promote":{minIntervalMs:350, limit:12, windowMs:10000},
     "profile:setup":{minIntervalMs:1200, limit:4, windowMs:30000},
+    "loadtest:provision":{minIntervalMs:1000, limit:2, windowMs:30000},
+    "profile:title-set":{minIntervalMs:300, limit:12, windowMs:10000},
     "profile:debug-reset-firm":{minIntervalMs:1500, limit:3, windowMs:30000},
     "admin:sync":{minIntervalMs:500, limit:10, windowMs:10000},
     "admin:inspect-player":{minIntervalMs:500, limit:20, windowMs:10000},
@@ -95,10 +168,13 @@ export const config = {
     "loot:pickup":{limit:20, windowMs:10000},
     "player:laser":{limit:25, windowMs:1000},
     "player:respawn":{limit:8, windowMs:10000},
+    "player:activity":{limit:30, windowMs:10000},
     "portgun:teleport":{limit:4, windowMs:10000},
     "portal:ricky-lever":{limit:30, windowMs:10000},
     "profile:save":{limit:6, windowMs:10000},
     "profile:setup":{limit:6, windowMs:60000},
+    "loadtest:provision":{limit:3, windowMs:60000},
+    "profile:title-set":{limit:16, windowMs:10000},
     "profile:debug-reset-firm":{limit:4, windowMs:60000},
     "auth:register":{limit:4, windowMs:60000},
     "auth:login":{limit:8, windowMs:60000},
@@ -113,6 +189,8 @@ export const config = {
     "admin:reset-instance":{limit:4, windowMs:60000},
     "shop:buy-ammo":{limit:20, windowMs:10000},
     "shop:buy-item":{limit:20, windowMs:10000},
+    "shop:buy-premium-pack":{limit:12, windowMs:10000},
+    "premium:reward-claim":{limit:8, windowMs:10000},
     "shop:buy-ship":{limit:12, windowMs:10000},
     "shop:buy-drone":{limit:12, windowMs:10000},
     "shop:buy-drone-formation":{limit:12, windowMs:10000},

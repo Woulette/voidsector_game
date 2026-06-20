@@ -1,11 +1,14 @@
 import { ammoTypes, droneCatalog, droneFormations, equipment, ships } from "../data/catalog.js";
+import { isPremiumActive, premiumRemainingLabel, premiumShopPacks } from "../data/premium.js";
 import { fmt } from "../core/utils.js";
 import {
+  basePriceLabel,
   canAfford,
   getAmmoCount,
   getDronePurchasePrice,
   getInventoryCount,
   getShipPurchaseLockReason,
+  hasCurrencyDiscount,
   priceLabel,
   store
 } from "../core/store.js";
@@ -17,11 +20,13 @@ function shopCatalog(){
     ...equipment.filter(item=>item.shop !== false).map(item=>({kind:"item", category:item.shopCategory || item.category, id:item.id, data:item})),
     ...ammoTypes.map(ammo=>({kind:"ammo", category:"munition", id:ammo.id, data:ammo})),
     ...droneCatalog.map(drone=>({kind:"drone", category:"drone", id:drone.id, data:drone})),
-    ...droneFormations.map(formation=>({kind:"droneFormation", category:"drone", id:formation.id, data:formation}))
+    ...droneFormations.map(formation=>({kind:"droneFormation", category:"drone", id:formation.id, data:formation})),
+    ...premiumShopPacks.map(pack=>({kind:"premiumPack", category:"premium", id:pack.id, data:pack}))
   ];
 }
 
 function productIsOwned(product){
+  if(product.kind === "premiumPack") return false;
   if(product.kind === "ship") return store.state.ownedShips.includes(product.id);
   if(product.kind === "ammo") return getAmmoCount(product.id) > 0;
   if(product.kind === "drone") return (store.state.ownedDroneCount || 0) > 0;
@@ -31,7 +36,6 @@ function productIsOwned(product){
 
 function productMatchesFilter(product){
   if(store.shopFilter === "owned") return productIsOwned(product);
-  if(store.shopFilter === "premium") return product.data.priceType === "premium";
   return product.category === store.shopFilter;
 }
 
@@ -49,7 +53,7 @@ const SHOP_FILTER_META = {
   drone:{title:"Drones", subtitle:"Drones orbitaux : achat progressif, un slot par drone, max 10.", empty:"Aucun drone dans cette catégorie."},
   extra:{title:"Extras", subtitle:"Modules extra à placer dans les 3 slots extras du vaisseau.", empty:"Aucun extra disponible."},
   module:{title:"Modules", subtitle:"Modules spéciaux et améliorations de munitions.", empty:"Aucun module disponible."},
-  premium:{title:"Premium", subtitle:"Articles premium disponibles pour le compte pilote.", empty:"Aucun article premium."},
+  premium:{title:"Packs Premium", subtitle:"Pass premium achetables en NOVA. Ils prolongent la duree si le statut est deja actif.", empty:"Aucun pack premium."},
   owned:{title:"Possédé", subtitle:"Retrouve rapidement tout ce que tu as deja acheté.", empty:"Tu ne possèdes encore rien dans ce filtre."}
 };
 
@@ -59,7 +63,9 @@ function shopPriceClass(priceType){
   return priceType === "premium" ? "shop-price premium" : "shop-price credits";
 }
 function shopPriceHtml(priceType, price){
-  return `<strong class="${shopPriceClass(priceType)}">${priceLabel(priceType, price)}</strong>`;
+  const current = `<strong class="${shopPriceClass(priceType)}">${priceLabel(priceType, price)}</strong>`;
+  if(!hasCurrencyDiscount(priceType, price)) return current;
+  return `<span class="shop-price-discount"><s>${basePriceLabel(priceType, price)}</s>${current}</span>`;
 }
 function renderAmmoPurchaseControls(ammo){
   const selected = shopAmmoMultiplier();
@@ -114,6 +120,15 @@ function productDetailStats(product){
       `Emplacements 1 par drone`,
       `Compatibilité laser / générateur`,
       `Prix suivant ${next ? priceLabel(drone.priceType, next) : "MAX"}`
+    ];
+  }
+  if(product.kind === "premiumPack"){
+    const pack = product.data;
+    return [
+      `Duree ${pack.days} jours`,
+      `Prix boutique ${pack.realPrice}`,
+      `Statut ${isPremiumActive(store.state?.player) ? premiumRemainingLabel(store.state.player) : "Inactif"}`,
+      ...pack.features
     ];
   }
   const item = product.data;
@@ -245,6 +260,7 @@ function renderShopDetailStat(line){
 }
 function productStatusText(product){
   if(!productUnlocked(product)) return productLockLabel(product);
+  if(product.kind === "premiumPack") return isPremiumActive(store.state?.player) ? `Actif ${premiumRemainingLabel(store.state.player)}` : "Non actif";
   if(product.kind === "ship") return shipStateLabel(product.data);
   if(product.kind === "ammo") return `Stock ${fmt(getAmmoCount(product.id))}`;
   if(product.kind === "drone") return `${store.state.ownedDroneCount || 0} possédé(s)`;
@@ -309,6 +325,18 @@ function renderShopListCard(product, selected){
       </div>
     </article>`;
   }
+  if(product.kind === "premiumPack"){
+    const pack = product.data;
+    return `<article class="shop-list-card premium-pack ${selected ? "selected" : ""}" data-select-shop="${productKey(product)}">
+      <div class="shop-list-art premium"><img src="${pack.img}" alt="${pack.name}"></div>
+      <div class="shop-list-copy">
+        <div class="shop-list-head"><h4>${pack.name}</h4><span class="badge">${pack.days} JOURS</span></div>
+        <p>${pack.desc}</p>
+        <div class="shop-item-stat-lines"><span><b>Bonus</b>Reduction NOVA 5%</span><span><b>Drone</b>Soin +50%</span></div>
+        <div class="shop-list-meta"><span>${productStatusText(product)}</span>${shopPriceHtml(pack.priceType, pack.price)}</div>
+      </div>
+    </article>`;
+  }
   const item = product.data;
   const ownedCount = getInventoryCount(item.id);
   const lockLine = lockBadge ? `<div class="shop-list-meta">${lockBadge}</div>` : "";
@@ -332,6 +360,18 @@ function renderShopDetail(product){
   }
   const unlocked = productUnlocked(product);
   const lockHtml = unlocked ? "" : `<div class="shop-detail-lock">${productLockLabel(product)}</div>`;
+  if(product.kind === "premiumPack"){
+    const pack = product.data;
+    detail.innerHTML = `
+      <div class="shop-detail-top"><span class="badge">PASS PREMIUM</span><span class="badge">${pack.days} JOURS</span></div>
+      <div class="shop-detail-art premium"><img src="${pack.img}" alt="${pack.name}"></div>
+      <h3>${pack.name}</h3>
+      <p class="shop-detail-copy">${pack.desc} Statut actuel : ${premiumRemainingLabel(store.state.player)}.</p>
+      <div class="shop-premium-features">${pack.features.map(feature=>`<span>${feature}</span>`).join("")}</div>
+      <div class="shop-detail-stats">${productDetailStats(product).slice(0, 3).map(renderShopDetailStat).join("")}</div>
+      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix Nova</small>${shopPriceHtml(pack.priceType, pack.price)}</div><button class="blue-button" data-buy-premium-pack="${pack.id}" ${(!canAfford(pack.priceType, pack.price)) ? "disabled" : ""}>ACTIVER</button></div>`;
+    return;
+  }
   if(product.kind === "ship"){
     const ship = product.data;
     const owned = store.state.ownedShips.includes(ship.id);

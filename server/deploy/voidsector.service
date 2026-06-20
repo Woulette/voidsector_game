@@ -1,0 +1,16 @@
+[Unit]
+Description=VoidSector Realtime Server
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=__SERVER_DIR__
+ExecStart=/usr/bin/node __SERVER_DIR__/src/index.js
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

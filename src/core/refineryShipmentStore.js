@@ -1,6 +1,7 @@
 import { refineryMaterialCatalog, refineryRecipes } from "../data/catalog.js";
+import { isPremiumActive, PREMIUM_REFINERY_SHIPMENT_DURATION_MULTIPLIER } from "../data/premium.js";
 import { addMaterial, addShipCargoMaterial, consumeMaterial, consumeShipCargoMaterial, getMaterialCount, getShipCargo, getShipCargoCapacity, getShipCargoUsed } from "./cargoStore.js";
-import { enforcePlayerCurrencyMinimums, getRawMaterial, getShip, store } from "./store.js";
+import { enforcePlayerCurrencyMinimums, getCurrencyPrice, getRawMaterial, getShip, store } from "./store.js";
 import {
   REFINERY_MODULES,
   REFINERY_RUSH_NOVA_PER_MINUTE,
@@ -40,7 +41,9 @@ export function getRefineryShipmentJob(){
 
 function getRefineryShipmentDuration(amount){
   const safeAmount = Math.max(1, Math.ceil(Number(amount || 0)));
-  return Math.max(1000, Math.ceil(safeAmount * 60000 / REFINERY_SHIPMENT_MATERIALS_PER_MINUTE));
+  const baseDuration = Math.max(1000, Math.ceil(safeAmount * 60000 / REFINERY_SHIPMENT_MATERIALS_PER_MINUTE));
+  const multiplier = isPremiumActive(store.state?.player) ? PREMIUM_REFINERY_SHIPMENT_DURATION_MULTIPLIER : 1;
+  return Math.max(1000, Math.ceil(baseDuration * multiplier));
 }
 
 function getRefineryShipmentCredits(materialId, amount){
@@ -175,7 +178,8 @@ export function getRefineryShipmentRushCost(now = Date.now()){
   if(!job) return null;
   const minutes = Math.max(1, Math.ceil(Number(job.remaining || 0) / 60000));
   const cost = minutes * REFINERY_RUSH_NOVA_PER_MINUTE;
-  return {cost, minutes, remaining:job.remaining, canAfford:store.state.player.premium >= cost};
+  const effectiveCost = getCurrencyPrice("premium", cost);
+  return {cost, effectiveCost, minutes, remaining:job.remaining, canAfford:store.state.player.premium >= effectiveCost};
 }
 
 export function completeRefineryShipment(now = Date.now()){
@@ -192,10 +196,10 @@ export function rushRefineryShipment(now = Date.now()){
   if(!job) return {ok:false, reason:"Aucune expedition en cours."};
   const rush = getRefineryShipmentRushCost(now);
   if(!rush) return {ok:false, reason:"Aucune expedition en cours."};
-  if(store.state.player.premium < rush.cost) return {ok:false, reason:"Pas assez de NOVA."};
-  store.state.player.premium -= rush.cost;
+  if(store.state.player.premium < rush.effectiveCost) return {ok:false, reason:"Pas assez de NOVA."};
+  store.state.player.premium -= rush.effectiveCost;
   enforcePlayerCurrencyMinimums();
   job.endsAt = now;
   completeRefineryShipment(now);
-  return {ok:true, cost:rush.cost, materialName:job.materialName, amount:job.amount};
+  return {ok:true, cost:rush.effectiveCost, baseCost:rush.cost, materialName:job.materialName, amount:job.amount};
 }

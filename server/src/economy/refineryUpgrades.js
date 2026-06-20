@@ -134,5 +134,5 @@ export function rushServerRefineryUpgrade(profile, {type, id, now = Date.now()} 
   profile.player = spend.player;
   job.endsAt = now;
   completeServerRefineryUpgrades(profile, now);
-  return {ok:true, type:safeType, id, name:job.name, level:job.toLevel, cost};
+  return {ok:true, type:safeType, id, name:job.name, level:job.toLevel, cost:spend.cost, baseCost:cost};
 }

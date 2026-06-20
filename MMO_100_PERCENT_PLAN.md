@@ -20,10 +20,19 @@ Conclusion : VoidSector n'a pas besoin d'une refonte totale pour devenir MMO. Le
 Deja en place :
 
 - comptes joueur avec inscription / connexion ;
+- noms de pilote normalises cote serveur et echappes dans les rendus HTML sensibles ;
+- noms de pilote configures uniques : reservation PostgreSQL atomique par compte et controle local du fallback JSON ;
 - sessions persistantes ;
+- compte authentifie obligatoire pour tous les events gameplay ; seuls l'authentification, `player:hello` et le classement restent publics avant `accountId` ;
 - stockage PostgreSQL avec fallback JSON ;
+- migrations PostgreSQL versionnees, transactionnelles et protegees par verrou inter-processus ;
 - migration des anciens profils JSON ;
 - sauvegarde profil liee au compte ;
+- ecritures de profils serialisees et ciblees par compte pour eviter les sauvegardes concurrentes qui s'ecrasent ;
+- sauvegarde PostgreSQL transactionnelle avec rejet des versions de profil plus anciennes ;
+- fallback JSON atomique par fichier temporaire, synchronisation disque et renommage, sans supprimer les autres profils ;
+- politique de sauvegarde session monde optimisee : la position simple est limitee a une sauvegarde toutes les 15 secondes, tandis que mort, deconnexion, changement de map/portail, rewards, loot, quetes, achats et inventaire restent sauvegardes immediatement ;
+- arret gracieux SIGINT/SIGTERM : tick stoppe, etats joueurs sauvegardes, file de persistance videe puis base fermee ;
 - serveur decoupe en premiers modules ;
 - logs serveur et rate limit Socket.IO ;
 - deconnexion en jeu avec delai et annulation en mouvement / combat ;
@@ -55,9 +64,14 @@ Deja en place :
 - `profile:save` reduit aux preferences UI/action bar : credits, NOVA, XP, inventaire, equipement, quetes, rangs, kills, portails et firme restent des champs serveur.
 - quetes de position / PNJ securisees : le serveur utilise la position et la map connues du joueur pour valider distance, NPC et objectifs.
 - socle admin serveur initial : snapshot joueurs/groupes/profils, inspection de profil, kick moderation, ajustement credits/NOVA/XP reserve admin avec raison obligatoire et audit persistant.
-- monitoring `/health` enrichi : stockage actif, uptime et compteurs sockets/joueurs sans exposer les profils.
+- monitoring `/health` enrichi : requete PostgreSQL reelle, HTTP 503 si la base est indisponible, latence base, uptime et compteurs sockets/joueurs sans exposer les profils.
+- configuration production verrouillee : PostgreSQL et origines CORS explicites obligatoires, ports et URLs d'origine valides.
+- fichiers JSON d'execution exclus de Git, y compris `server/data/profiles.json`.
+- memoire anti-spam nettoyee : buckets socket liberes a la deconnexion et verrous compte expires apres inactivite.
+- cooldowns de combat lies au compte plutot qu'a la socket, donc non contournables par reconnexion et purges apres expiration.
+- les sockets non authentifiees ne rejoignent plus une map, ne recoivent plus de profil invite et ne sont plus publiees dans `players:list`.
 
-Prochaine priorite : sauvegardes/backup, tests de charge multi-clients, logs economie/combat persistants et UI admin.
+Prochaine priorite : backups/restauration, tests de charge multi-clients, logs economie/combat persistants et UI admin.
 
 ## Obligations gameplay MMO a integrer
 

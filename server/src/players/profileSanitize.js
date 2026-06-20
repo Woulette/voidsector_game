@@ -2,8 +2,10 @@ import { normalizeProgressionPlayer } from "./progression.js";
 import { getInventoryEntryQuantity, isStackableInventoryItem } from "../economy/inventoryStacks.js";
 import { cleanupDuplicateEquippedInventoryUids } from "../economy/equipment.js";
 import { normalizeFirmId } from "../../../src/data/firms.js";
+import { normalizePremiumRewardState, normalizeStarterPackPurchases } from "../../../src/data/premium.js";
 import { sanitizeActivityLog } from "./activityLog.js";
 import { sanitizeCombatBoosts } from "../economy/combatBoosts.js";
+import { sanitizePilotName } from "./profileIdentity.js";
 
 const EMPTY_ACTION_SLOTS = Array(9).fill(null);
 const STARTER_ACTION_SLOTS = ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
@@ -107,6 +109,8 @@ export function sanitizeProfile(profile = {}){
   const sanitized = {
     updatedAt:Math.max(0, Number(profile.updatedAt || Date.now())),
     player:normalizeProgressionPlayer(sanitizeObject(profile.player)),
+    premiumRewardState:normalizePremiumRewardState(profile.premiumRewardState),
+    starterPackPurchases:normalizeStarterPackPurchases(profile.starterPackPurchases),
     activeShip:typeof profile.activeShip === "string" ? profile.activeShip : null,
     selectedShip:typeof profile.selectedShip === "string" ? profile.selectedShip : null,
     ownedShips:Array.isArray(profile.ownedShips) ? profile.ownedShips.map(String) : undefined,
@@ -138,6 +142,7 @@ export function sanitizeProfile(profile = {}){
     refineryShipmentJob:profile.refineryShipmentJob && typeof profile.refineryShipmentJob === "object" ? sanitizeObject(profile.refineryShipmentJob) : null,
     refineryJob:profile.refineryJob && typeof profile.refineryJob === "object" ? sanitizeObject(profile.refineryJob) : null,
     refineryProductionDisabled:sanitizeObject(profile.refineryProductionDisabled),
+    refineryProductionRemainders:sanitizeObject(profile.refineryProductionRemainders),
     refineryLastTick:Math.max(0, Number(profile.refineryLastTick || Date.now())),
     activeQuestIds:Array.isArray(profile.activeQuestIds) ? profile.activeQuestIds.map(String).slice(0, 5) : [],
     activeQuestId:typeof profile.activeQuestId === "string" ? profile.activeQuestId : null,
@@ -155,7 +160,7 @@ export function sanitizeProfile(profile = {}){
     firmRewardHistory:sanitizeFirmRewardHistory(profile.firmRewardHistory),
     starterRepairGranted:Boolean(profile.starterRepairGranted)
   };
-  sanitized.player.name = String(sanitized.player.name || "NOVA-37").trim().replace(/\s+/g, " ").slice(0, 24) || "NOVA-37";
+  sanitized.player.name = sanitizePilotName(sanitized.player.name, "NOVA-37");
   sanitized.player.firmId = normalizeFirmId(sanitized.player.firmId || sanitized.player.firm || sanitized.player.company || sanitized.player.faction || "astra");
   sanitized.player.firmSelected = Boolean(sanitized.player.firmSelected);
   cleanupDuplicateEquippedInventoryUids(sanitized);
@@ -192,6 +197,9 @@ export function preserveProtectedOwnership(incoming, existing){
     "firmRewardHistory",
     "activityLog",
     "combatBoosts",
+    "premiumRewardState",
+    "starterPackPurchases",
+    "refineryProductionRemainders",
     "starterRepairGranted"
   ]);
   for(const field of [
@@ -201,10 +209,10 @@ export function preserveProtectedOwnership(incoming, existing){
     "activeDroneFormation", "activeQuestIds", "activeQuestId", "questProgress",
     "questFailProgress", "completedQuestClaims", "worldSession", "shipWorldSessions", "cargoHold",
     "shipCargo", "combatBoosts", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
-    "portalPieces", "prestigeCount", "refineryLevels", "refineryModules",
+    "portalPieces", "prestigeCount", "premiumRewardState", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
-    "refineryProductionDisabled", "refineryLastTick", "killStats", "rankKillStats",
-    "activityLog", "social", "firmatons", "firmBoxes", "firmRewardHistory", "starterRepairGranted"
+    "refineryProductionDisabled", "refineryProductionRemainders", "refineryLastTick", "killStats", "rankKillStats",
+    "activityLog", "social", "firmatons", "firmBoxes", "firmRewardHistory", "starterPackPurchases", "starterRepairGranted"
   ]){
     if(alwaysProtected.has(field) || hasProtectedOwnershipValue(existing, field)){
       incoming[field] = cloneProtectedValue(existing[field]);

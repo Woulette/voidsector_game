@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "./loadtestEnv.js";
 import http from "node:http";
 import { Server } from "socket.io";
 import { createAdminAuditStore } from "./admin/adminAudit.js";
@@ -7,7 +8,7 @@ import { createSocketSessionManager } from "./auth/socketSession.js";
 import { resolveServerCombatFire } from "./combat/damage.js";
 import { getPlayerPvpBlockReason } from "./combat/playerPvp.js";
 import { config } from "./config.js";
-import { dbEnabled, initializeDatabase } from "./db/client.js";
+import { checkDatabaseConnection, closeDatabase, dbEnabled, initializeDatabase } from "./db/client.js";
 import { createGroupManager } from "./groups/groups.js";
 import { createFirmWarManager } from "./firms/firmWar.js";
 import { enrichFirmSnapshot } from "./firms/firmSnapshots.js";
@@ -19,10 +20,14 @@ import { createPlayerLifecycleManager } from "./players/playerLifecycle.js";
 import { canSharePlayerState } from "./players/visibility.js";
 import { createPresenceManager } from "./players/presence.js";
 import { createProfileManager } from "./players/profiles.js";
+import { sanitizePilotName } from "./players/profileIdentity.js";
 import { updateRankScore } from "./players/rankProgression.js";
 import { createPortalInstanceManager } from "./portals/instances.js";
 import { createKillQuestProgress } from "./quests/killProgress.js";
+import { createGracefulShutdown } from "./lifecycle/gracefulShutdown.js";
+import { buildHealthStatus } from "./monitoring/health.js";
 import { createAccountActionLocks } from "./security/accountActionLocks.js";
+import { createGameplayAccountGuard } from "./security/gameplayAccountGuard.js";
 import { pauseServerQuestTimers, resumeServerQuestTimers } from "./quests/questFailures.js";
 import { createSocketRateLimiter } from "./socket/rateLimit.js";
 import { createEnemyHitHandler } from "./combat/enemyHits.js";
@@ -36,6 +41,7 @@ import { registerEconomyHandlers } from "./socket/economyHandlers.js";
 import { registerEquipmentHandlers } from "./socket/equipmentHandlers.js";
 import { registerFirmHandlers } from "./socket/firmHandlers.js";
 import { registerGroupHandlers } from "./socket/groupHandlers.js";
+import { registerLoadTestHandlers } from "./socket/loadTestHandlers.js";
 import { registerPlayerHandlers } from "./socket/playerHandlers.js";
 import { registerProgressionHandlers } from "./socket/progressionHandlers.js";
 import { registerQuestHandlers } from "./socket/questHandlers.js";
@@ -54,28 +60,15 @@ import { createWorldStateManager } from "./world/state.js";
 
 const PORT = config.port;
 
-const httpServer = http.createServer((req, res)=>{
+const httpServer = http.createServer(async (req, res)=>{
   if(req.url === "/health"){
-    res.writeHead(200, {"content-type":"application/json"});
-    const onlinePlayers = [...players.values()].filter(player=>player.connected !== false);
-    const onlineAccounts = new Set(onlinePlayers.map(player=>
-      String(player.accountId || player.account?.id || player.clientId || player.id || "")
-    ).filter(Boolean));
-    const gameAccounts = new Set(onlinePlayers.filter(player=>player.clientMode === "game").map(player=>
-      String(player.accountId || player.account?.id || player.clientId || player.id || "")
-    ).filter(Boolean));
-    res.end(JSON.stringify({
-      ok:true,
-      service:"voidsector-realtime",
-      storage:dbEnabled ? "postgres" : "json",
-      uptimeSeconds:Math.round(process.uptime()),
-      players:{
-        sockets:players.size,
-        online:onlineAccounts.size,
-        game:gameAccounts.size
-      },
-      at:Date.now()
-    }));
+    const health = await buildHealthStatus({
+      players,
+      databaseEnabled:dbEnabled,
+      checkDatabase:checkDatabaseConnection
+    });
+    res.writeHead(health.statusCode, {"content-type":"application/json"});
+    res.end(JSON.stringify(health.body));
     return;
   }
   res.writeHead(200, {"content-type":"text/plain; charset=utf-8"});
@@ -105,6 +98,8 @@ const allowSocketEvent = createSocketRateLimiter({
 
 const players = new Map();
 
+const requireGameplayAccount = createGameplayAccountGuard({players, logger});
+
 const allowAccountAction = createAccountActionLocks({
   rules:config.accountActionLocks,
   players,
@@ -116,7 +111,7 @@ const allowAccountAction = createAccountActionLocks({
 
 
 function cleanName(value){
-  return String(value || "Pilote").trim().replace(/\s+/g, " ").slice(0, 24) || "Pilote";
+  return sanitizePilotName(value, "Pilote");
 }
 
 function publicAccountRole(role){
@@ -147,6 +142,7 @@ function publicPlayer(player, options = {}){
     connectedAt:player.connectedAt,
     connected:Boolean(player.connected !== false),
     disconnecting:Boolean(player.disconnecting),
+    afk:Boolean(player.afk),
     logoutPending:Boolean(player.logoutPending)
   };
 }
@@ -171,7 +167,8 @@ const presence = createPresenceManager({
   onPlayerRemove:player=>{
     profileManager.saveWorldSession({player, state:player.state, force:true});
     removeDisconnectedPlayerFromGroup(player.id);
-  }
+  },
+  getProfileForPlayer:player=>profileManager.getProfileForPlayer(player)
 });
 
 function progressProfileQuestAction(socket, action = {}){
@@ -322,7 +319,7 @@ const {
 });
 
 function emitPlayers(){
-  const candidates = [...players.values()];
+  const candidates = [...players.values()].filter(player=>Boolean(player.accountId));
   for(const recipient of candidates){
     io.to(recipient.id).emit("players:list", candidates.map(candidate=>
       publicPlayer(candidate, {includeState:canSharePlayerState(recipient, candidate)})
@@ -467,6 +464,7 @@ const {applyEnemyHit, applyEnemyHitForPlayer} = createEnemyHitHandler({
 const {updatePlayerActivity} = createPlayerActivityManager({
   io,
   players,
+  presence,
   profileManager,
   publicPlayer,
   applyEnemyHitForPlayer
@@ -491,7 +489,7 @@ function applyPlayerHit(socket, payload){
       at:Date.now()
     });
   };
-  if(!attacker?.state || !target?.state || target.connected === false){
+  if(!attacker?.state || !target?.state || !presence.isActiveForWorld(target)){
     emitMiss("Cible joueur introuvable.");
     return;
   }
@@ -673,7 +671,7 @@ function updateQuestTimers(now){
   }
 }
 
-startServerTick({
+const serverTick = startServerTick({
   cleanupExpiredLootDrops,
   emitInstance,
   emitWorldEnemies,
@@ -694,13 +692,13 @@ startServerTick({
 io.on("connection", socket=>{
   function guard(eventName){
     if(!allowSocketEvent(socket, eventName)) return false;
+    if(!requireGameplayAccount(socket, eventName)) return false;
     return allowAccountAction(socket, eventName);
   }
 
   players.set(socket.id, presence.createPlayer(socket.id));
 
   socket.emit("server:ready", {id:socket.id, port:PORT});
-  setPlayerMap(socket, "0");
   emitPlayers();
 
   const socketContext = {
@@ -739,6 +737,11 @@ io.on("connection", socket=>{
     syncPlayerStatusEffects,
     setPlayerMap,
     syncProfileForPlayer
+  });
+  registerLoadTestHandlers(socket, {
+    ...socketContext,
+    emitPlayers,
+    setPlayerMap
   });
   registerQuestHandlers(socket, socketContext);
   registerChatHandlers(socket, {
@@ -792,10 +795,32 @@ io.on("connection", socket=>{
     ...socketContext,
     leaveCurrentGroup,
     pauseQuestTimers:player=>setQuestTimersConnected(player, false),
-    presence
+    presence,
+    releaseSocketRateLimits:allowSocketEvent.releaseSocket
   });
 });
 
 httpServer.listen(PORT, ()=>{
   logger.info(`VoidSector realtime server listening on :${PORT}`);
 });
+
+const shutdown = createGracefulShutdown({
+  io,
+  tickHandle:serverTick,
+  players,
+  profileManager,
+  closeDatabase,
+  logger
+});
+
+for(const signal of ["SIGINT", "SIGTERM"]){
+  process.once(signal, ()=>{
+    shutdown(signal).catch(error=>{
+      logger.error("Graceful shutdown failed.", {
+        signal,
+        error:error?.message || String(error)
+      });
+      process.exitCode = 1;
+    });
+  });
+}

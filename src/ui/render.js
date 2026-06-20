@@ -1,5 +1,6 @@
 import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js";
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
+import { creditCurrencyPacks, getPremiumRewardStatus, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js";
 import { fmt } from "../core/utils.js";
 import { DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js";
 import {
@@ -588,50 +589,6 @@ function getActiveProfileTitle(){
   return profileTitles().find(title=>title.id === player.activeTitleId && title.unlocked) || null;
 }
 
-function renderMmoAccountCard(){
-  const account = multiplayer.auth?.account;
-  const pending = Boolean(multiplayer.auth?.pending);
-  const error = multiplayer.auth?.error ? `<p class="account-error">${escapeHtml(multiplayer.auth.error)}</p>` : "";
-  if(account){
-    return `<section class="profile-card profile-wide mmo-account-card">
-      <div class="profile-card-head"><span class="tiny">MMO</span><h3>Compte connecte</h3></div>
-      <div class="profile-stat-grid">
-        <div><span>Pseudo</span><b>${escapeHtml(account.username)}</b></div>
-        <div><span>Email</span><b>${escapeHtml(account.email)}</b></div>
-      </div>
-      <p>La progression serveur sera maintenant liee a ce compte.</p>
-      <button class="blue-button secondary small" data-auth-action="logout" type="button">DECONNEXION</button>
-    </section>`;
-  }
-  const serverControls = multiplayer.connected
-    ? `<span class="badge">Serveur connecte</span>`
-    : `<div class="account-form-row" data-mp-form>
-        <input data-mp-player-name type="text" maxlength="24" value="${escapeHtml(multiplayer.name || store.state?.player?.name || "NOVA-37")}" placeholder="Pseudo multi">
-        <input data-mp-server-url type="text" value="${escapeHtml(multiplayer.serverUrl)}" placeholder="URL serveur">
-        <button class="blue-button small" data-mp-action="connect" type="button">${multiplayer.connecting ? "CONNEXION" : "CONNECTER SERVEUR"}</button>
-      </div>`;
-  return `<section class="profile-card profile-wide mmo-account-card">
-    <div class="profile-card-head"><span class="tiny">MMO</span><h3>Compte serveur</h3>${serverControls}</div>
-    ${error}
-    <div class="account-form-grid">
-      <div class="account-form-box">
-        <strong>Connexion</strong>
-        <input id="authLogin" type="text" autocomplete="username" placeholder="Email ou pseudo">
-        <input id="authPassword" type="password" autocomplete="current-password" placeholder="Mot de passe">
-        <button class="blue-button small" data-auth-action="login" type="button" ${pending ? "disabled" : ""}>${pending ? "..." : "CONNECTER"}</button>
-      </div>
-      <div class="account-form-box">
-        <strong>Inscription</strong>
-        <input id="authRegisterEmail" type="email" autocomplete="email" placeholder="Email">
-        <input id="authRegisterUsername" type="text" maxlength="24" autocomplete="username" placeholder="Pseudo public">
-        <input id="authRegisterPassword" type="password" autocomplete="new-password" placeholder="Mot de passe">
-        <button class="blue-button small" data-auth-action="register" type="button" ${pending ? "disabled" : ""}>${pending ? "..." : "CREER COMPTE"}</button>
-      </div>
-    </div>
-    <p>${multiplayer.connected ? "Cree un compte ou connecte-toi pour lier la sauvegarde MMO au serveur." : "Tu peux creer un compte directement : le jeu connectera le serveur avant l'inscription."}</p>
-  </section>`;
-}
-
 function renderProfileTabContent(tab){
   const player = store.state.player;
   const rank = getCurrentRank();
@@ -678,7 +635,7 @@ function renderProfileTabContent(tab){
   return `<div class="profile-overview-grid">
     <section class="profile-card hero">
       <div class="profile-rank">${rankIcon(rank, rank.name)}</div>
-      <div><span class="tiny">COMMANDANT</span><h3>${player.name}</h3><p>${activeTitle ? `${activeTitle.name} · ` : ""}${rank.name} · Niveau ${fmt(player.level)}</p></div>
+      <div><span class="tiny">COMMANDANT</span><h3>${escapeHtml(player.name)}</h3><p>${activeTitle ? `${activeTitle.name} · ` : ""}${rank.name} · Niveau ${fmt(player.level)}</p></div>
       <div class="mini-bar"><span style="width:${rankProgress.progress}%"></span></div>
       <small>${nextRank ? `Prochain grade : ${nextRank.name} · ${fmt(rankProgress.remaining)} points restants` : "Grade maximum atteint"}</small>
     </section>
@@ -692,7 +649,6 @@ function renderProfileTabContent(tab){
       <p>${prestige.ok ? "Pret : retour niveau 1, competences conservees, cap niveau 100." : prestige.reason}</p>
       <button class="blue-button" data-prestige type="button" ${prestige.ok ? "" : "disabled"}>PRESTIGE</button>
     </section>
-    ${renderMmoAccountCard()}
   </div>`;
 }
 
@@ -763,6 +719,215 @@ export function renderSettingsSection(){
     </div>`;
 }
 
+const STORE_TAB_IDS = storeTabs.map(tab=>tab.id);
+
+function rewardAmountLabel(id, amount){
+  const cleanAmount = Math.max(0, Number(amount || 0));
+  if(id === "credits") return `${fmt(cleanAmount)} CR`;
+  if(id === "premium") return `${fmt(cleanAmount)} NOVA`;
+  return `${fmt(cleanAmount)} ${String(id || "").replaceAll("_", " ").toUpperCase()}`;
+}
+
+function rewardLines(reward = {}){
+  const lines = [];
+  if(reward.credits) lines.push({kind:"credits", label:rewardAmountLabel("credits", reward.credits), img:"assets/icons/credits.svg"});
+  if(reward.premium) lines.push({kind:"nova", label:rewardAmountLabel("premium", reward.premium), img:"assets/icons/premium.svg"});
+  for(const [id, amount] of Object.entries(reward.ammo || {})){
+    const ammo = ammoTypes.find(entry=>entry.id === id);
+    lines.push({kind:"ammo", label:rewardAmountLabel(id, amount), img:ammo?.img || "assets/equipment/ammo_laser_x2_same_preview.png"});
+  }
+  for(const [id, amount] of Object.entries(reward.itemCounts || {})){
+    const item = getItem(id);
+    lines.push({kind:"item", label:`${fmt(amount)} ${item?.name || id}`, img:item?.img || "assets/equipment/module_munitions.svg"});
+  }
+  for(const id of reward.items || []){
+    const item = getItem(id);
+    lines.push({kind:"item", label:item?.name || id, img:item?.img || "assets/equipment/module_munitions.svg"});
+  }
+  return lines;
+}
+
+function rewardPills(reward = {}){
+  return rewardLines(reward).map(line=>`
+    <span class="store-reward-pill ${escapeHtml(line.kind)}">
+      <img src="${escapeHtml(line.img)}" alt="">
+      <b>${escapeHtml(line.label)}</b>
+    </span>
+  `).join("");
+}
+
+function renderPremiumStoreCard(pack){
+  return `<article class="store-offer-card store-premium-card" data-store-offer-kind="premium" data-store-offer="${escapeHtml(pack.id)}">
+    <div class="store-offer-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
+    <div class="store-offer-copy">
+      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${fmt(pack.price)} NOVA</span></div>
+      <p>${escapeHtml(pack.desc)} Clique pour voir les bonus inclus.</p>
+      <div class="store-offer-foot"><b>${escapeHtml(pack.realPrice)}</b><button class="gold-button small" type="button">DETAILS</button></div>
+    </div>
+  </article>`;
+}
+
+function renderCurrencyStoreCard(pack){
+  const isNova = pack.tag === "NOVA";
+  return `<article class="store-offer-card ${isNova ? "store-nova-card" : "store-credit-card"}">
+    <div class="store-offer-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
+    <div class="store-offer-copy">
+      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${escapeHtml(pack.tag || "")}</span></div>
+      <p>${escapeHtml(pack.desc || "")}</p>
+      <div class="store-offer-foot"><b>${pack.amount ? fmt(pack.amount) + ` ${escapeHtml(pack.tag || "")}` : escapeHtml(pack.price || "A definir")}</b><button class="gold-button small" type="button" disabled>${escapeHtml(pack.price || "Bientot")}</button></div>
+    </div>
+  </article>`;
+}
+
+function renderStarterContentIcon(item){
+  if(typeof item === "string"){
+    return `<span class="store-starter-content-chip text-only" data-tooltip="${escapeHtml(item)}"><b>${escapeHtml(item)}</b></span>`;
+  }
+  const label = item?.label || "Contenu";
+  const quantity = item?.quantity || "x1";
+  const img = item?.img || "assets/icons/premium.svg";
+  const kind = item?.kind || "item";
+  return `<span class="store-starter-content-chip ${escapeHtml(kind)}" data-tooltip="${escapeHtml(label)}" title="${escapeHtml(label)}">
+    <img src="${escapeHtml(img)}" alt="${escapeHtml(label)}">
+    <b>${escapeHtml(quantity)}</b>
+  </span>`;
+}
+
+function renderStarterContentStrip(pack){
+  return `<div class="store-starter-strip">${(pack.contents || []).map(renderStarterContentIcon).join("")}</div>`;
+}
+
+function renderStarterStoreCard(pack){
+  const purchased = hasStarterPackPurchase(store.state, pack.id);
+  return `<article class="store-offer-card store-starter-card ${purchased ? "purchased" : ""}" data-store-offer-kind="starter" data-store-offer="${escapeHtml(pack.id)}">
+    <div class="store-offer-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
+    <div class="store-offer-copy">
+      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${purchased ? "DEJA ACHETE" : escapeHtml(pack.tag || "STARTER")}</span></div>
+      <p>${escapeHtml(pack.desc || "")}</p>
+      ${renderStarterContentStrip(pack)}
+      <div class="store-offer-foot"><b>${purchased ? "Achat unique utilise" : escapeHtml(pack.price || "A definir")}</b><button class="gold-button small" type="button">${purchased ? "VOIR" : "DETAILS"}</button></div>
+    </div>
+  </article>`;
+}
+
+function renderPremiumRewards(){
+  const status = getPremiumRewardStatus(store.state || {});
+  const claimed = new Set(status.claimedDays || []);
+  const nextDay = status.nextDay;
+  return `<section class="store-rewards-panel">
+    <div class="store-reward-summary">
+      <div><span class="tiny">CALENDRIER ${escapeHtml(status.monthKey)}</span><h3>${fmt(status.claimedCount)} / 28 jours</h3><p>${status.canClaim ? "Une recompense premium est disponible aujourd'hui." : escapeHtml(status.reason || "Reviens demain pour la suite.")}</p></div>
+      <button class="gold-button" data-claim-premium-reward type="button" ${status.canClaim ? "" : "disabled"}>${status.canClaim ? `RECLAMER JOUR ${nextDay}` : "BLOQUE"}</button>
+    </div>
+    <div class="store-reward-grid">
+      ${premiumRewardCalendar.map(entry=>{
+        const isClaimed = claimed.has(entry.day);
+        const isNext = !isClaimed && entry.day === nextDay && !status.completed;
+        const locked = !isClaimed && entry.day > nextDay;
+        return `<article class="store-reward-day ${isClaimed ? "claimed" : ""} ${isNext ? "next" : ""} ${locked ? "locked" : ""}">
+          <div class="store-reward-day-head"><span>Jour ${entry.day}</span><b>${isClaimed ? "RECU" : isNext ? "SUIVANT" : "A VENIR"}</b></div>
+          <strong>${escapeHtml(entry.label)}</strong>
+          <div class="store-reward-pills">${rewardPills(entry.reward)}</div>
+        </article>`;
+      }).join("")}
+    </div>
+  </section>`;
+}
+
+function renderStoreTabContent(activeTab){
+  if(activeTab === "premium"){
+    return `<div class="store-offer-grid premium-grid">${premiumShopPacks.map(renderPremiumStoreCard).join("")}</div>`;
+  }
+  if(activeTab === "currencies"){
+    return `<div class="store-offer-grid currency-grid">${[...novaCurrencyPacks, ...creditCurrencyPacks].map(renderCurrencyStoreCard).join("")}</div>`;
+  }
+  if(activeTab === "starters"){
+    return `<div class="store-offer-grid starter-grid">${starterPacks.map(renderStarterStoreCard).join("")}</div>`;
+  }
+  return renderPremiumRewards();
+}
+
+function renderStoreModal(){
+  const modal = store.storeModal || null;
+  if(!modal?.id) return "";
+  if(modal.kind === "premium"){
+    const pack = premiumShopPacks.find(entry=>entry.id === modal.id);
+    if(!pack) return "";
+    return `<div class="store-modal-backdrop" data-store-modal-backdrop>
+      <section class="store-modal">
+        <button class="store-modal-close" data-store-modal-close type="button">x</button>
+        <div class="store-modal-head"><span class="tiny">PACK PREMIUM</span><h3>${escapeHtml(pack.name)}</h3><b>${escapeHtml(pack.realPrice)}</b></div>
+        <div class="store-modal-body">
+          <div class="store-modal-art premium"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
+          <div class="store-modal-copy">
+            <p>${escapeHtml(pack.desc)} Peut aussi etre active dans le magasin contre ${fmt(pack.price)} NOVA.</p>
+            <div class="store-modal-features">${pack.features.map(feature=>`<span>${escapeHtml(feature)}</span>`).join("")}</div>
+          </div>
+        </div>
+        <div class="store-modal-actions">
+          <button class="gold-button" type="button" disabled>PAIEMENT BIENTOT</button>
+          <button class="blue-button small" data-buy-premium-pack="${escapeHtml(pack.id)}" type="button">ACHETER EN NOVA</button>
+        </div>
+      </section>
+    </div>`;
+  }
+  if(modal.kind === "starter"){
+    const pack = starterPacks.find(entry=>entry.id === modal.id);
+    if(!pack) return "";
+    const purchased = hasStarterPackPurchase(store.state, pack.id);
+    return `<div class="store-modal-backdrop" data-store-modal-backdrop>
+      <section class="store-modal">
+        <button class="store-modal-close" data-store-modal-close type="button">x</button>
+        <div class="store-modal-head"><span class="tiny">STARTER PACK</span><h3>${escapeHtml(pack.name)}</h3><b>${purchased ? "DEJA ACHETE" : escapeHtml(pack.price)}</b></div>
+        <div class="store-modal-body">
+          <div class="store-modal-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
+          <div class="store-modal-copy">
+            <p>${escapeHtml(pack.desc || "")}${purchased ? " Ce starter pack est un achat unique deja utilise sur ce compte." : " Ce starter pack ne pourra etre achete qu'une seule fois par compte."}</p>
+            <div class="store-starter-contents">${(pack.contents || []).map(renderStarterContentIcon).join("")}</div>
+          </div>
+        </div>
+        <div class="store-modal-actions"><button class="gold-button" type="button" disabled>${purchased ? "DEJA ACHETE" : "PAIEMENT BIENTOT"}</button></div>
+      </section>
+    </div>`;
+  }
+  return "";
+}
+
+export function renderStoreSection(){
+  const panel = document.getElementById("premiumStorePanel");
+  if(!panel) return;
+  const premiumActive = isPremiumActive(store.state?.player);
+  const activeTab = STORE_TAB_IDS.includes(store.storeTab) ? store.storeTab : "premium";
+  const tabMeta = storeTabs.find(tab=>tab.id === activeTab) || storeTabs[0];
+  panel.innerHTML = `
+    <div class="panel-head store-head">
+      <div>
+        <span class="tiny">BOUTIQUE</span>
+        <h2>Packs de soutien</h2>
+        <p class="shop-intro">Achats en euros pour soutenir le jeu : premium, NOVA, credits, starters et recompenses premium.</p>
+      </div>
+      <div class="store-premium-status ${premiumActive ? "active" : ""}">
+        <span>Premium</span>
+        <strong>${premiumActive ? "ACTIF" : "INACTIF"}</strong>
+        <small>${premiumRemainingLabel(store.state.player)}</small>
+      </div>
+    </div>
+    <div class="store-layout">
+      <nav class="store-tab-nav">
+        ${storeTabs.map(tab=>`<button class="${activeTab === tab.id ? "active" : ""}" data-store-tab="${escapeHtml(tab.id)}" type="button">${escapeHtml(tab.label)}</button>`).join("")}
+      </nav>
+      <section class="store-tab-panel">
+        <div class="store-section-head">
+          <span class="tiny">${escapeHtml(tabMeta.id)}</span>
+          <h3>${escapeHtml(tabMeta.title)}</h3>
+          <p>${escapeHtml(tabMeta.subtitle)}</p>
+        </div>
+        ${renderStoreTabContent(activeTab)}
+      </section>
+    </div>
+    ${renderStoreModal()}`;
+}
+
 export function renderExtraSection(){
   const extra = document.getElementById("extraSection");
   if(extra) extra.innerHTML = "";
@@ -779,32 +944,96 @@ function renderFirmSetupGate(){
   if(!gate){
     gate = document.createElement("div");
     gate.id = "firmSetupGate";
-    gate.className = "firm-setup-gate";
     document.body.appendChild(gate);
   }
-  const selectedFirm = normalizeFirmId(store.pendingFirmId || store.state.player.firmId || "astra");
-  const defaultName = store.state.player.name && store.state.player.name !== "NOVA-37"
+  const firmPresentations = {
+    astra:{
+      asset:"assets/firms/representatives/astra.png",
+      badge:"assets/firms/astra.svg",
+      role:"Commandement offensif",
+      motto:"Frapper vite. Tenir toujours.",
+      speech:"Astra ne recule devant aucun secteur hostile. Rejoins-nous et transforme chaque bataille en territoire conquis."
+    },
+    cyan:{
+      asset:"assets/firms/representatives/cygnus.png",
+      badge:"assets/firms/cyan.svg",
+      role:"Strategie et maitrise",
+      motto:"Voir plus loin. Agir avec precision.",
+      speech:"Cygnus gagne avant le premier tir. Nos pilotes dominent par la discipline, la technologie et une strategie sans faille."
+    },
+    verte:{
+      asset:"assets/firms/representatives/verdantis.png",
+      badge:"assets/firms/verte.svg",
+      role:"Expansion et resilience",
+      motto:"Grandir. Proteger. Perseverer.",
+      speech:"Verdantis transforme les mondes hostiles en bastions vivants. Ensemble, nous survivons, progressons et ne cedons rien."
+    },
+    jaune:{
+      asset:"assets/firms/representatives/solarys.png",
+      badge:"assets/firms/jaune.svg",
+      role:"Prestige et puissance",
+      motto:"Rayonner au-dessus des autres.",
+      speech:"Solarys rassemble les pilotes qui refusent l'ordinaire. Porte nos couleurs et grave ton nom dans la lumiere des etoiles."
+    }
+  };
+  const selectedFirmId = store.pendingFirmId ? normalizeFirmId(store.pendingFirmId) : null;
+  const selectedFirm = FIRMS.find(firm=>firm.id === selectedFirmId) || null;
+  const selectedPresentation = selectedFirm ? firmPresentations[selectedFirm.id] : null;
+  const profileName = store.state.player.name && store.state.player.name !== "NOVA-37"
     ? store.state.player.name
     : (account.username || "");
+  const defaultName = store.pendingFirmName || profileName;
+  gate.className = `firm-setup-gate ${selectedFirm ? "has-selection" : ""}`;
   gate.innerHTML = `
-    <div class="firm-setup-panel frame">
-      <span class="tiny">PREMIERE CONNEXION MMO</span>
-      <h2>Choisis ton identite pilote</h2>
-      <p>Cette firme fixe ta base, tes maps de depart et tes quetes. Elle ne pourra plus etre changee ensuite.</p>
-      <label class="firm-setup-name">
-        <span>Nom du joueur</span>
-        <input id="firmSetupName" maxlength="24" value="${escapeHtml(defaultName)}" placeholder="Ton pseudo en jeu">
-      </label>
-      <div class="firm-choice-grid">
+    <main class="firm-selection-shell">
+      <header class="firm-selection-head">
+        <div class="firm-selection-title">
+          <span class="tiny">PREMIERE CONNEXION MMO / AFFECTATION DEFINITIVE</span>
+          <h1>Quel territoire defendras-tu ?</h1>
+          <p>Choisis ton commandement. Ta firme fixe ta base, tes secteurs de depart et tes alliances.</p>
+        </div>
+        <label class="firm-setup-name">
+          <span>Identite pilote</span>
+          <input id="firmSetupName" data-firm-setup-name maxlength="24" value="${escapeHtml(defaultName)}" placeholder="Ton pseudo en jeu" autocomplete="off">
+        </label>
+      </header>
+      <section class="firm-choice-grid" aria-label="Choix de la firme">
         ${FIRMS.map(firm=>`
-          <button type="button" class="firm-choice ${selectedFirm === firm.id ? "active" : ""}" data-firm-choice="${firm.id}" style="--firm-color:${firm.color}">
-            <strong>${escapeHtml(firm.label)}</strong>
-            <span>Base ${escapeHtml(firm.homeMapName)}</span>
+          <button type="button" class="firm-choice ${selectedFirmId === firm.id ? "active" : ""}" data-firm-choice="${firm.id}" style="--firm-color:${firm.color}" aria-pressed="${selectedFirmId === firm.id}">
+            <img class="firm-choice-scene" src="${firmPresentations[firm.id].asset}" alt="Representant de ${escapeHtml(firm.label)}">
+            <span class="firm-choice-shade" aria-hidden="true"></span>
+            ${selectedFirmId === firm.id ? `
+              <span class="firm-choice-speech">
+                <small>TRANSMISSION DU COMMANDEMENT</small>
+                <strong>${escapeHtml(firmPresentations[firm.id].speech)}</strong>
+              </span>` : ""}
+            <span class="firm-choice-identity">
+              <img src="${firmPresentations[firm.id].badge}" alt="">
+              <span>
+                <strong>${escapeHtml(firm.label)}</strong>
+                <small>${escapeHtml(firmPresentations[firm.id].role)}</small>
+              </span>
+            </span>
+            <span class="firm-choice-base">Base ${escapeHtml(firm.homeMapName)}</span>
           </button>
         `).join("")}
-      </div>
-      <button type="button" class="blue-button firm-setup-confirm" data-firm-setup-confirm>VALIDER ET ENTRER EN MMO</button>
-    </div>`;
+      </section>
+      <footer class="firm-selection-footer" style="--firm-color:${selectedFirm?.color || "#38bdf8"}">
+        <div class="firm-selection-summary">
+          <span>${selectedFirm ? `FIRME SELECTIONNEE / ${escapeHtml(selectedFirm.homeMapName)}` : "EN ATTENTE DE TON CHOIX"}</span>
+          <strong>${selectedFirm ? escapeHtml(selectedFirm.label) : "QUATRE FIRMES. UNE SEULE ALLEGEANCE."}</strong>
+          <small>${selectedPresentation ? escapeHtml(selectedPresentation.motto) : "Selectionne un representant pour recevoir sa transmission."}</small>
+        </div>
+        <div class="firm-selection-warning">
+          <b>CHOIX DEFINITIF</b>
+          <span>Cette affectation ne pourra plus etre changee apres validation.</span>
+        </div>
+        <div class="firm-selection-actions">
+          ${selectedFirm ? `<button type="button" class="firm-selection-reset" data-firm-choice-reset>VOIR LES QUATRE FIRMES</button>` : ""}
+          <button type="button" class="firm-setup-confirm" data-firm-setup-confirm ${selectedFirm ? "" : "disabled"}>REJOINDRE ${selectedFirm ? escapeHtml(selectedFirm.label).toUpperCase() : "UNE FIRME"}</button>
+        </div>
+      </footer>
+    </main>`;
 }
 
 export { renderShop } from "./renderShop.js";
@@ -823,6 +1052,7 @@ export function renderAll(){
   renderDroneSection();
   renderProfile();
   renderExtraSection();
+  renderStoreSection();
   renderSettingsSection();
   renderLeaderboard();
   renderShop();

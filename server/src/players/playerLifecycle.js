@@ -1,6 +1,7 @@
 import { FIRMS } from "../../../src/data/firms.js";
 import { WORLD_MAPS } from "../world/definitions.js";
 import { getWorldSafePortals } from "../world/spawn.js";
+import { spendCurrency } from "./progression.js";
 
 const RADIATION_GRACE_MS = 30_000;
 const PORTAL_STARTING_LIVES = 3;
@@ -216,8 +217,9 @@ export function createPlayerLifecycleManager({
     const result = profileManager.updateProfileForPlayer({
       player,
       update:profile=>{
-        if(Number(profile.player?.premium || 0) < cost) return {ok:false, reason:"Pas assez de NOVA."};
-        profile.player.premium = Math.max(0, Number(profile.player.premium || 0) - cost);
+        const spent = spendCurrency(profile.player || {}, "premium", cost);
+        if(!spent.ok) return {ok:false, reason:"Pas assez de NOVA."};
+        profile.player = spent.player;
         return {ok:true, changed:true};
       }
     });
@@ -228,11 +230,21 @@ export function createPlayerLifecycleManager({
   function respawnPlayer(socket, choiceValue){
     const player = players.get(socket.id);
     const choice = String(choiceValue || "spawn");
-    const death = player?.deathState;
-    if(!player?.state || !death){
+    if(!player?.state){
       logger?.warn?.("Invalid respawn request", {playerId:socket.id, reason:"player not dead", choice});
       socket.emit("player:respawn-error", {message:"Respawn impossible.", at:Date.now()});
       return false;
+    }
+    if(!player.deathState && Number(player.state.hp || 0) <= 0) markPlayerDead(player);
+    const death = player.deathState;
+    if(!death){
+      io.to(player.id).emit("player:respawned", {
+        session:makeRespawnSession(player, "respawn-already-applied"),
+        portalAbandoned:!String(player.state.mapId || "").startsWith("portal-"),
+        message:"Respawn deja applique.",
+        at:Date.now()
+      });
+      return true;
     }
     if(!Array.isArray(death.choices) || !death.choices.includes(choice)){
       logger?.warn?.("Invalid respawn request", {playerId:socket.id, reason:"choice rejected", choice});

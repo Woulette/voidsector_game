@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createCombatCargoSystem } from "../../src/game/systems/combatCargo.js";
 import { createRewardSystem } from "../../src/game/systems/rewards.js";
 import { createWeaponSystem } from "../../src/game/systems/weapons.js";
 import { syncMultiplayerProfile } from "../../src/multiplayer/profileSync.js";
@@ -66,28 +67,60 @@ test("server-controlled targets never consume MMO ammunition locally", ()=>{
   assert.equal(fixture.resolved(), 1);
 });
 
-test("offline targets keep the legacy local ammunition path", ()=>{
+test("local targets are rejected in MMO-only combat", ()=>{
   const enemy = {id:"local-enemy", x:100, y:0, hp:100};
   const fixture = createWeaponFixture(enemy);
 
-  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), true);
-  assert.equal(fixture.consumed(), 1);
-  assert.equal(fixture.saved(), 1);
+  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), false);
+  assert.equal(fixture.consumed(), 0);
+  assert.equal(fixture.saved(), 0);
+  assert.equal(fixture.resolved(), 0);
+});
+
+test("manual missiles reject local targets before any client combat logic", ()=>{
+  const enemy = {id:"local-enemy", x:100, y:0, hp:100};
+  const fixture = createWeaponFixture(enemy);
+
+  assert.equal(fixture.system.fireManualMissile({id:"missile_m1", weaponClass:"missile"}, 3), false);
+  assert.equal(fixture.consumed(), 0);
+  assert.equal(fixture.saved(), 0);
 });
 
 test("local enemy rewards are blocked while connected to the MMO", ()=>{
-  const rewards = createRewardSystem({
-    store:{state:{player:{credits:0, premium:0}}},
-    portals:[],
-    enemyTypes:{},
-    getCurrentMap:()=>({name:"ASTRA-01"}),
-    getGameMode:()=>"open",
-    getSelectedEnemy:()=>null,
-    getParticles:()=>[],
-    isMultiplayerConnected:()=>true
-  });
+  const rewards = createRewardSystem();
 
   assert.equal(rewards.rewardEnemy({id:"local", kind:"drone_pirate"}), false);
+});
+
+test("only server-controlled ground loot can request a pickup", ()=>{
+  let requests = 0;
+  const cargo = createCombatCargoSystem({
+    rewards:{showLootNotice(){}},
+    requestServerLootPickup(){
+      requests += 1;
+      return true;
+    },
+    showToast(){},
+    onCargoChanged(){},
+    particles:()=>[]
+  });
+  const localLoot = cargo.spawnServerLootDrop({
+    id:"local-loot",
+    kind:"material",
+    name:"Butin local",
+    serverControlled:false
+  });
+  const serverLoot = cargo.spawnServerLootDrop({
+    id:"server-loot",
+    kind:"material",
+    name:"Butin serveur",
+    serverControlled:true
+  });
+
+  assert.equal(localLoot, null);
+  assert.equal(requests, 0);
+  assert.equal(cargo.collectGroundMaterial(serverLoot), true);
+  assert.equal(requests, 1);
 });
 
 test("profile sync sends preferences only, never critical MMO progression", ()=>{
@@ -115,4 +148,22 @@ test("profile sync sends preferences only, never critical MMO progression", ()=>
     "lastLaserAmmoId",
     "updatedAt"
   ]);
+});
+
+test("profile sync emits nothing before an authenticated profile is ready", ()=>{
+  const sent = [];
+  const multiplayer = {
+    connected:true,
+    socket:{emit:(event, payload)=>sent.push({event, payload})},
+    auth:{token:"", account:null, profileReady:false},
+    name:"Guest"
+  };
+
+  syncMultiplayerProfile(multiplayer, {
+    actionSlots:["ammo_x1"],
+    actionSlotsByShip:{orion:["ammo_x1"]},
+    lastLaserAmmoId:"ammo_x1"
+  });
+
+  assert.deepEqual(sent, []);
 });

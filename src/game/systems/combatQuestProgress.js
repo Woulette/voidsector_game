@@ -1,61 +1,33 @@
+import { isMmoConnected } from "../../app/mmoGate.js";
+
 export function createCombatQuestProgressSystem({
   multiplayer,
   getPlayer,
   getCurrentMap,
-  progressServerQuest,
-  recordQuestCoordinateVisit,
-  recordQuestDeath,
-  recordQuestHpLoss,
-  recordQuestMapVisit,
-  recordQuestTimeElapsed,
-  saveState,
-  getSpawnPanelMode,
-  renderSpawnInteractionPanel,
-  showToast
+  progressServerQuest
 }){
   let coordinateCheckTimer = 0;
 
-  function refreshQuestPanel(){
-    const panelMode = getSpawnPanelMode?.();
-    if(panelMode) renderSpawnInteractionPanel?.(panelMode);
-  }
-
-  function handleFailures(failedQuests, reason){
-    if(!failedQuests.length) return;
-    saveState();
-    failedQuests.forEach(quest=>showToast(`${quest.title} : ${reason}, quete annulee.`));
-    refreshQuestPanel();
-  }
-
-  function recordMapVisit(mapName){
-    if(multiplayer.connected || !recordQuestMapVisit(mapName)) return false;
-    saveState();
-    refreshQuestPanel();
-    return true;
+  function recordMapVisit(){
+    return false;
   }
 
   function recordDeath(){
-    handleFailures(recordQuestDeath(), "mort du pilote");
+    return false;
   }
 
-  function recordHpLoss(amount){
-    handleFailures(recordQuestHpLoss(amount), "limite de vie depassee");
+  function recordHpLoss(){
+    return false;
   }
 
   function update(dt){
-    if(!multiplayer.connected) handleFailures(recordQuestTimeElapsed(dt), "temps depasse");
+    if(!isMmoConnected(multiplayer)) return;
     coordinateCheckTimer -= dt;
     const player = getPlayer();
     const currentMap = getCurrentMap();
     if(coordinateCheckTimer > 0 || !player || !currentMap) return;
-    coordinateCheckTimer = multiplayer.connected ? 1 : .25;
-    const progressed = multiplayer.connected
-      ? progressServerQuest({type:"visit_coordinates", x:player.x, y:player.y, zoneName:currentMap.name})
-      : recordQuestCoordinateVisit({x:player.x, y:player.y}, currentMap.name);
-    if(progressed && !multiplayer.connected){
-      saveState();
-      refreshQuestPanel();
-    }
+    coordinateCheckTimer = 1;
+    progressServerQuest({type:"visit_coordinates", x:player.x, y:player.y, zoneName:currentMap.name});
   }
 
   return {recordMapVisit, recordDeath, recordHpLoss, update};

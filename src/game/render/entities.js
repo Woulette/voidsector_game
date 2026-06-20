@@ -1,5 +1,6 @@
 import { drawRotatedImage } from "./player.js";
 import { getEnemyRenderRotation } from "../../data/enemyVisuals.js";
+import { getCachedCombatImage } from "../combatAssets.js";
 
 const impactSpriteCache = new Map();
 
@@ -125,7 +126,7 @@ export function drawProjectiles({ctx, camera, cache, bullets}){
   ctx.translate(-camera.x, -camera.y);
   for(const bullet of bullets){
     if(bullet.kind === "rocket" || bullet.kind === "missile"){
-      const img = cache?.[bullet.sprite || (bullet.kind === "rocket" ? "assets/equipment/rocket_projectile.png" : "")] || null;
+      const img = getCachedCombatImage(cache, bullet.sprite || (bullet.kind === "rocket" ? "assets/equipment/rocket_projectile.png" : ""));
       const angle = bullet.angle ?? Math.atan2(bullet.y - bullet.fromY, bullet.x - bullet.fromX);
       const pulse = .75 + Math.sin(performance.now() / 55 + bullet.elapsed * 12) * .25;
       drawFastProjectileTrail(ctx, bullet, angle);
@@ -436,10 +437,12 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
     const attackPulse = Math.max(0, Math.min(1, Number(enemy.attackT || 0) / .32));
     const attackScale = 1 + attackPulse * .10;
     if(enemy.renderMode !== "deadly_cage"){
+      const enemyImg = getCachedCombatImage(cache, enemy.img)
+        || getCachedCombatImage(cache, "assets/ships/intercepteur.png");
       drawRotatedImage({
         ctx,
         camera,
-        img:cache[enemy.img] || cache["assets/ships/intercepteur.png"],
+        img:enemyImg,
         x:enemy.x + idleX,
         y:enemy.y + idleY,
         w:(enemy.width || 72) * attackScale,
@@ -468,7 +471,7 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
 }
 
 export function drawCargoBoxes({ctx, camera, cache, cargoBoxes}){
-  const boxImg = cache["assets/materials/cargo_box.svg"];
+  const boxImg = getCachedCombatImage(cache, "assets/materials/cargo_box.svg");
   const time = performance.now() / 260;
   for(const box of cargoBoxes){
     const sx = Math.round(box.x - camera.x);
@@ -501,12 +504,7 @@ export function drawCargoBoxes({ctx, camera, cache, cargoBoxes}){
 export function drawGroundMaterials({ctx, camera, cache, materials}){
   const time = performance.now() / 420;
   for(const node of materials || []){
-    if(node.img && cache && !cache[node.img] && typeof Image === "function"){
-      const lazyImg = new Image();
-      lazyImg.src = node.img;
-      cache[node.img] = lazyImg;
-    }
-    const img = node.img ? cache[node.img] : null;
+    const img = getCachedCombatImage(cache, node.img);
     const sx = Math.round(node.x - camera.x);
     const sy = Math.round(node.y - camera.y + Math.sin(time + node.phase) * 3);
     const size = node.renderSize || node.size || 42;

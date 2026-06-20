@@ -2,6 +2,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import { initializeDatabase, query, dbEnabled, closeDatabase } from "./client.js";
 import { sanitizeProfile } from "../players/profiles.js";
+import { reservePilotIdentity } from "../storage/pilotIdentityStore.js";
 
 const DATA_DIR_URL = new URL("../../data/", import.meta.url);
 const ACCOUNTS_URL = new URL("../../data/accounts.json", import.meta.url);
@@ -94,6 +95,20 @@ async function migrateProfiles(){
       JSON.stringify(clean),
       Number(clean.updatedAt || Date.now())
     ]);
+    if(
+      accountId
+      && clean.player?.firmSelected
+      && String(clean.player?.name || "").trim()
+      && String(clean.player.name).trim().toLowerCase() !== "nova-37"
+    ){
+      const reservation = await reservePilotIdentity({
+        accountId,
+        pilotName:clean.player.name
+      });
+      if(!reservation.ok){
+        throw new Error(`Unable to reserve pilot identity for ${key}: ${reservation.reason}`);
+      }
+    }
     count += 1;
   }
   return count;

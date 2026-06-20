@@ -1,29 +1,7 @@
 import { ammoTypes, droneFormations, equipment, ships } from "../../../src/data/catalog.js";
 import { getFirmDefinition, normalizeFirmId } from "../../../src/data/firms.js";
 import { calculateRankScore, getRankAssetPath, getRankForScore } from "../../../src/data/ranks.js";
-
-const PROFILE_TITLE_NAMES = {
-  first_contact:"Premier sang",
-  hunter_100:"Traqueur spatial",
-  veteran_25:"Vétéran d'Astra",
-  portal_mastery:"Nettoyeur d'Astra",
-  quest_5:"Mercenaire fiable",
-  inventory_30:"Ingénieur de bord",
-  skill_15:"Spécialiste",
-  drone_5:"Chef d'escadron",
-  hunter_500:"Chasseur abyssal",
-  laser_100k:"Canonnier laser",
-  laser_1m:"Déluge photonique",
-  laser_10m:"Architecte de faisceaux",
-  laser_100m:"Tempête laser",
-  laser_1b:"Légende photonique",
-  rocket_25k:"Artilleur orbital",
-  rocket_250k:"Maître roquettes",
-  rocket_25m:"Barrage orbital",
-  missile_10k:"Artilleur guidé",
-  missile_1m:"Commandant missile",
-  missile_100m:"Doctrine orbitale"
-};
+import { getActiveProfileTitleName } from "./profileTitles.js";
 
 function completedPortalCount(completedPortals = {}){
   return Object.values(completedPortals || {}).reduce((sum, count)=>sum + Math.max(0, Number(count || 0)), 0);
@@ -64,9 +42,7 @@ function activeShipForProfile(profile){
 }
 
 function activeTitle(profile){
-  const player = profile?.player || {};
-  if(player.titleVisible === false || !player.activeTitleId) return null;
-  return PROFILE_TITLE_NAMES[player.activeTitleId] || null;
+  return getActiveProfileTitleName(profile);
 }
 
 function activeAmmo(profile){

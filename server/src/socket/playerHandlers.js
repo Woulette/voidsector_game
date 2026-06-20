@@ -3,6 +3,7 @@ import { buildGlobalLeaderboardSnapshotFromManager } from "../players/leaderboar
 import { consumeInventoryItemAmount } from "../economy/inventoryStacks.js";
 import {
   PORTGUN_FLUID_ITEM_ID,
+  cancelPendingPortgunTeleport,
   getRandomPortgunDestination,
   hasPortgunTeleportMoved,
   validatePortgunTeleport
@@ -65,11 +66,7 @@ export function registerPlayerHandlers(socket, context){
   }
 
   function cancelPendingPortgun(player, reason = "cancelled", message = "Teleportation annulee."){
-    if(!player?.pendingPortgunTeleport) return false;
-    player.pendingPortgunTeleport = null;
-    const targetSocket = io?.sockets?.sockets?.get(player.id);
-    targetSocket?.emit?.("portgun:cancelled", {reason, message, at:Date.now()});
-    return true;
+    return cancelPendingPortgunTeleport(player, {io, reason, message});
   }
 
   function completePendingPortgun(playerId, teleportId){
@@ -184,10 +181,22 @@ export function registerPlayerHandlers(socket, context){
     player.clientId = cleanClientId(payload?.clientId);
     if(!player.accountId) player.name = cleanName(payload?.name);
     player = takeoverGuestSocket(player, player.clientId);
-    if(player.clientMode === "game") resumeQuestTimers?.(player);
+    if(player.clientMode === "game") presence.markActivity?.(player, "connexion", Date.now());
     const waitingForAuthProfile = Boolean(payload?.hasAuthToken && !player.accountId);
-    if(!waitingForAuthProfile) syncProfileForPlayer(socket);
-    if(player.clientMode === "game" && !waitingForAuthProfile){
+    if(!player.accountId){
+      if(player.clientMode === "game" && !waitingForAuthProfile){
+        socket.emit("auth:required", {
+          eventName:"player:hello",
+          message:"Connecte un compte MMO avant d'entrer en jeu.",
+          at:Date.now()
+        });
+      }
+      emitLeaderboard();
+      return;
+    }
+    syncProfileForPlayer(socket);
+    if(player.clientMode === "game"){
+      resumeQuestTimers?.(player);
       syncPlayerStatusEffects?.(player);
       syncPlayerLifecycle?.(player);
     }
@@ -223,18 +232,29 @@ export function registerPlayerHandlers(socket, context){
     }
   });
 
-  socket.on("profile:setup", payload=>{
+  socket.on("profile:setup", async payload=>{
     if(!guard("profile:setup")) return;
     const player = players.get(socket.id);
     if(!player?.accountId){
       socket.emit("profile:setup-error", {message:"Connecte ton compte avant de choisir ta firme."});
       return;
     }
-    const result = profileManager.setupProfileForPlayer({
-      player,
-      name:payload?.name,
-      firmId:payload?.firmId
-    });
+    let result = null;
+    try{
+      result = await profileManager.setupProfileForPlayer({
+        player,
+        name:payload?.name,
+        firmId:payload?.firmId
+      });
+    }catch(error){
+      logger?.warn?.("Profile setup failed", {
+        playerId:player.id,
+        accountId:player.accountId,
+        error:error?.message || String(error)
+      });
+      socket.emit("profile:setup-error", {message:"Configuration du profil temporairement indisponible."});
+      return;
+    }
     if(!result.ok){
       socket.emit("profile:setup-error", {message:result.reason || "Configuration du profil impossible."});
       return;
@@ -355,10 +375,20 @@ export function registerPlayerHandlers(socket, context){
       now
     });
     player.state = validation.state;
+    const moved = !previousState
+      || Math.hypot(
+        Number(validation.state.x || 0) - Number(previousState.x || 0),
+        Number(validation.state.y || 0) - Number(previousState.y || 0)
+      ) >= 1
+      || Math.hypot(Number(validation.state.vx || 0), Number(validation.state.vy || 0)) > 1;
+    if(!backgroundSnapshot && moved) presence.markActivity?.(player, "deplacement", now);
     if(player.pendingPortgunTeleport && hasPortgunTeleportMoved(player.pendingPortgunTeleport, player.state)){
       cancelPendingPortgun(player, "moved", "Teleportation annulee : ton vaisseau a bouge.");
     }
     const nextMapId = validation.state.mapId;
+    const mapChanged = previousState
+      ? String(validation.state.mapId ?? "") !== String(previousState.mapId ?? "")
+      : String(validation.state.mapId ?? "") !== String(player.mapId ?? "");
     if(validation.corrected){
       logger?.warn?.("Player state corrected", {
         playerId:player.id,
@@ -367,11 +397,18 @@ export function registerPlayerHandlers(socket, context){
       });
       socket.emit("player:state-correction", {...validation.state, source:"state-correction"});
     }
-    profileManager.saveWorldSession({player, state:player.state});
+    profileManager.saveWorldSession({player, state:player.state, force:mapChanged});
     presence.syncMovementLogoutState(player);
     setPlayerMap(socket, nextMapId);
     const visibilityRooms = [...new Set([player.mapRoom, player.groupId].filter(Boolean))];
     if(visibilityRooms.length) socket.to(visibilityRooms).emit("player:state", publicPlayer(player));
+  });
+
+  socket.on("player:activity", payload=>{
+    if(!guard("player:activity")) return;
+    const player = players.get(socket.id);
+    if(!player || player.clientMode !== "game") return;
+    presence.markActivity?.(player, String(payload?.kind || "action"), Date.now());
   });
 
   socket.on("portgun:teleport", payload=>{

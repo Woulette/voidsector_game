@@ -1,5 +1,4 @@
 import { portals } from "../../data/catalog.js";
-import { addAmmo, addReputationFromXp, addXP, markPortalCompleted, registerKill, saveState, store } from "../../core/store.js";
 import { fmt } from "../../core/utils.js";
 import { SAFE_ZONE_DELAY } from "../combatData.js";
 import { createProjectile } from "./projectiles.js";
@@ -44,8 +43,7 @@ export function createCombatServerEventSystem({
   const questEvents = createQuestServerEventProcessor({
     multiplayer,
     rewards,
-    showToast,
-    updateHud
+    showToast
   });
 
   function loadPortalArena(event){
@@ -54,8 +52,8 @@ export function createCombatServerEventSystem({
     const environment = buildPortalEnvironment(portal.id, currentMap);
     const {player, missileSalvos} = getState();
     cargo.clear();
-    player.x = Number(event?.spawn?.x || currentMap.spawn.x || 0);
-    player.y = Number(event?.spawn?.y || currentMap.spawn.y || 0);
+    player.x = Number(event?.spawn?.x ?? currentMap.spawn.x ?? 0);
+    player.y = Number(event?.spawn?.y ?? currentMap.spawn.y ?? 0);
     player.vx = 0;
     player.vy = 0;
     player.enginePower = 0;
@@ -88,7 +86,7 @@ export function createCombatServerEventSystem({
       teleportLock:1.2
     });
     panels.closeSpawnPanel();
-    showToast(`${portal.name} lance cote serveur pour le groupe.`);
+    if(!event?.resumed) showToast(`${portal.name} lance cote serveur pour le groupe.`);
     updateHud();
   }
 
@@ -106,16 +104,7 @@ export function createCombatServerEventSystem({
       if(!portal || portalCompleted) continue;
       setState({activePortal:portal, portalCompleted:true});
       const reward = event.reward || {};
-      const rewardAppliedByServer = Boolean(event.rewardAppliedByServer);
-      if(!rewardAppliedByServer){
-        markPortalCompleted(portal.id);
-        store.state.player.credits += Math.max(0, Math.round(Number(reward.credits || 0)));
-        store.state.player.premium += Math.max(0, Math.round(Number(reward.premium || 0)));
-        addAmmo("ammo_x4", Math.max(0, Math.round(Number(reward.ammoX4 || 0))));
-        addAmmo("ammo_x6", Math.max(0, Math.round(Number(reward.ammoX6 || 0))));
-      }
       const xp = Math.max(0, Math.round(Number(reward.xp || 0)));
-      if(!rewardAppliedByServer && xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
       if(portal.id !== "ricky") spawnPortalExit();
       const ammoRewards = [
         ...(reward.ammoX4 ? [`+${fmt(reward.ammoX4)} munitions x4`] : []),
@@ -141,7 +130,6 @@ export function createCombatServerEventSystem({
       showToast(portal.id === "ricky"
         ? `${portal.name} termine. Retour automatique dans 15 secondes.`
         : `${portal.name} termine cote serveur.`);
-      saveState();
       updateHud();
     }
   }
@@ -237,6 +225,7 @@ export function createCombatServerEventSystem({
         setState({
           portgunChannel:{
             teleportId:event.id,
+            targetMapId:event.targetMapId,
             targetMapName:event.targetMapName || "secteur",
             durationMs,
             completeAt:Number(event.completeAt || Date.now() + durationMs)
@@ -481,13 +470,8 @@ export function createCombatServerEventSystem({
       const xp = Math.max(0, Math.round(Number(event.xp || 0)));
       const premium = Math.max(0, Math.round(Number(event.premium || 0)));
       const rewardAppliedByServer = Boolean(event.rewardAppliedByServer);
-      const rankPoints = rewardAppliedByServer ? Math.max(0, Number(event.rankPoints || 0)) : registerKill(event.enemyType || "server_enemy", event.enemyLevel);
-      const reputation = rewardAppliedByServer ? Math.max(0, Math.round(Number(event.reputation || 0))) : addReputationFromXp(xp);
-      if(!rewardAppliedByServer){
-        if(credits > 0) store.state.player.credits += credits;
-        if(premium > 0) store.state.player.premium += premium;
-        if(xp > 0 && addXP(xp)) showToast(`Niveau ${store.state.player.level} atteint ! +1 point de competence.`);
-      }
+      const rankPoints = rewardAppliedByServer ? Math.max(0, Number(event.rankPoints || 0)) : 0;
+      const reputation = rewardAppliedByServer ? Math.max(0, Math.round(Number(event.reputation || 0))) : 0;
       window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
         kind:"reward",
         enemyName:event.enemyName || event.enemyType || "Monstre",
@@ -505,7 +489,6 @@ export function createCombatServerEventSystem({
       const shareValue = Number(event.share || 1);
       const shareLabel = shareValue < 1 ? ` (partage groupe ${Math.round(shareValue * 100)}%)` : "";
       showToast(`Butin serveur${shareLabel} : +${fmt(credits)} credits${premium ? `, +${fmt(premium)} NOVA` : ""}, +${fmt(xp)} XP, +${fmt(reputation)} reputation.`);
-      if(!rewardAppliedByServer) saveState();
     }
     multiplayer.playerRewardEvents = remaining;
     updateLootPopup();

@@ -47,9 +47,6 @@ export function createCombatFrameUpdateSystem({
     let state = getState();
     const {player, camera, portalTransition, mouseMoveHeld, mouse, currentMap} = state;
     if(!player) return;
-    if(state.store?.state?.player){
-      state.store.state.player.totalPlaySeconds = Math.max(0, Number(state.store.state.player.totalPlaySeconds || 0)) + Math.max(0, Number(dt || 0));
-    }
     setState({teleportLock:Math.max(0, state.teleportLock - dt)});
     if(portalTransition){
       const completed = advancePortalTransition(portalTransition, dt);
@@ -78,7 +75,14 @@ export function createCombatFrameUpdateSystem({
     player.safeZoneLock = Math.max(0, Number(player.safeZoneLock || 0) - dt);
     updateLootPopup();
     if(player.isDead){
-      updateCamera({camera, player, canvas:getCanvas(), follow:1});
+      serverEvents.applyAll();
+      const refreshed = getState();
+      updateCamera({
+        camera:refreshed.camera || camera,
+        player:refreshed.player || player,
+        canvas:getCanvas(),
+        follow:1
+      });
       updateHud();
       return;
     }

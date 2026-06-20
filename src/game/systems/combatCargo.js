@@ -1,19 +1,8 @@
 export function createCombatCargoSystem({
-  addPortalPiece,
-  addShipCargoMaterial,
-  recordQuestItemPickup,
-  getAllRawMaterials,
-  getShipCargoCapacity,
-  getShipCargoUsed,
-  getActiveShipId,
-  getSpawnPanelMode,
-  fmt,
   rewards,
   requestServerLootPickup,
-  saveState,
   showToast,
   onCargoChanged,
-  onSpawnPanelRefresh,
   particles
 }){
   let cargoBoxes = [];
@@ -32,21 +21,8 @@ export function createCombatCargoSystem({
     groundMaterialSuction = null;
   }
 
-  function spawnCargoBox(enemy, materials){
-    if(!materials?.length) return null;
-    const box = {
-      id:Date.now() + Math.floor(Math.random() * 10000),
-      x:enemy.x + (Math.random() - .5) * 70,
-      y:enemy.y + (Math.random() - .5) * 70,
-      radius:38,
-      materials
-    };
-    cargoBoxes.push(box);
-    return box;
-  }
-
   function spawnPortalPieceDrop(enemy, portal, source = {}){
-    if(!enemy || !portal) return null;
+    if(!enemy || !portal || source.serverControlled !== true) return null;
     const node = {
       uid:source.uid || `portal_piece_${portal.id}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
       kind:"portalPiece",
@@ -64,39 +40,14 @@ export function createCombatCargoSystem({
       glowCore:"rgba(216,180,254,.55)",
       fallback:"rgba(168,85,247,.86)",
       expiresAt:Number(source.expiresAt || Date.now() + DROP_TTL_MS),
-      serverControlled:Boolean(source.serverControlled)
-    };
-    groundMaterials.push(node);
-    return node;
-  }
-
-  function spawnQuestItemDrop(enemy, item, source = {}){
-    if(!enemy || !item?.itemId) return null;
-    const node = {
-      uid:source.uid || `quest_item_${item.itemId}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-      kind:"questItem",
-      itemId:item.itemId,
-      questId:item.questId || null,
-      objectiveId:item.objectiveId || null,
-      id:item.itemId,
-      name:item.itemName || "Objet de quete",
-      label:"QUETE",
-      img:item.itemImg || "assets/quest_items/contaminated_sample.png",
-      x:Number(source.x ?? enemy.x) + (source.x === undefined ? (Math.random() - .5) * 70 : 0),
-      y:Number(source.y ?? enemy.y) + (source.y === undefined ? (Math.random() - .5) * 70 : 0),
-      radius:32,
-      size:42,
-      phase:Math.random() * Math.PI * 2,
-      glow:"rgba(34,197,94,.24)",
-      glowCore:"rgba(134,239,172,.58)",
-      fallback:"rgba(34,197,94,.86)",
-      expiresAt:Number(source.expiresAt || Date.now() + DROP_TTL_MS)
+      serverControlled:true
     };
     groundMaterials.push(node);
     return node;
   }
 
   function spawnServerLootDrop(event = {}){
+    if(event.serverControlled !== true) return null;
     const kind = String(event.kind || "");
     const rarityPalette = {
       common:{glow:"rgba(148,163,184,.22)", core:"rgba(226,232,240,.62)", fallback:"rgba(203,213,225,.86)"},
@@ -127,7 +78,7 @@ export function createCombatCargoSystem({
       glowCore:rarityColors?.core || (kind === "item" ? "rgba(253,224,71,.58)" : kind === "ammo" ? "rgba(125,211,252,.58)" : "rgba(134,239,172,.52)"),
       fallback:rarityColors?.fallback || (kind === "item" ? "rgba(250,204,21,.86)" : kind === "ammo" ? "rgba(56,189,248,.82)" : "rgba(34,197,94,.78)"),
       expiresAt:Number(event.expiresAt || Date.now() + DROP_TTL_MS),
-      serverControlled:Boolean(event.serverControlled)
+      serverControlled:true
     };
     groundMaterials.push(node);
     return node;
@@ -144,43 +95,10 @@ export function createCombatCargoSystem({
   function collectCargoBox(box){
     const index = cargoBoxes.findIndex(entry=>entry.id === box.id);
     if(index < 0) return false;
-    const rawMaterials = getAllRawMaterials();
-    const labels = [];
-    const remainingMaterials = [];
-    let addedTotal = 0;
-    for(const drop of box.materials || []){
-      const result = addShipCargoMaterial(drop.id, drop.amount);
-      const material = rawMaterials.find(item=>item.id === drop.id);
-      if(result.added > 0){
-        labels.push(`${result.added} ${material?.short || drop.id.toUpperCase()}`);
-        addedTotal += result.added;
-      }
-      if(result.remaining > 0) remainingMaterials.push({...drop, amount:result.remaining});
-    }
-    if(addedTotal <= 0){
-      pendingCargoBox = null;
-      showToast("Soute pleine.");
-      onCargoChanged?.();
-      return false;
-    }
-    if(remainingMaterials.length) box.materials = remainingMaterials;
-    else cargoBoxes.splice(index, 1);
-    particles().push({x:box.x, y:box.y, life:.42, max:.42, size:26, color:"rgba(34,197,94,.58)"});
-    saveState();
-    const used = getShipCargoUsed(getActiveShipId());
-    const capacity = getShipCargoCapacity(getActiveShipId());
-    showToast(`Cargo recupere : ${labels.join(" - ")} (${fmt(used)} / ${fmt(capacity)}).`);
-    rewards.showCargoLoot(labels);
-    window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
-      kind:"loot",
-      enemyName:"Ramassage",
-      label:`Cargo : ${labels.join(" - ")}`,
-      at:Date.now()
-    }}));
+    cargoBoxes.splice(index, 1);
     pendingCargoBox = null;
-    onCargoChanged?.();
-    if(getSpawnPanelMode()) onSpawnPanelRefresh?.(getSpawnPanelMode());
-    return true;
+    showToast("Cargo local desactive : seuls les butins serveur sont acceptes.");
+    return false;
   }
 
   function setCargoDestination(box){
@@ -210,67 +128,10 @@ export function createCombatCargoSystem({
       }
       return false;
     }
-    if(node.kind === "portalPiece"){
-      addPortalPiece(node.portalId || node.id, 1);
-      groundMaterials.splice(index, 1);
-      particles().push({x:node.x, y:node.y, life:.42, max:.42, size:28, color:node.glowCore || "rgba(216,180,254,.58)"});
-      saveState();
-      showToast(`+1 ${node.name}.`);
-      rewards.showLootNotice({piece:`+1 ${node.name}`});
-      window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
-        kind:"loot",
-        enemyName:"Ramassage",
-        label:`+1 ${node.name}`,
-        at:Date.now()
-      }}));
-      pendingGroundMaterial = null;
-      onCargoChanged?.();
-      return true;
-    }
-    if(node.kind === "questItem"){
-      const completed = recordQuestItemPickup?.(node.itemId);
-      if(!completed && node.questId){
-        pendingGroundMaterial = null;
-        showToast("Objet de quete non requis pour le moment.");
-        onCargoChanged?.();
-        return false;
-      }
-      groundMaterials.splice(index, 1);
-      particles().push({x:node.x, y:node.y, life:.42, max:.42, size:28, color:node.glowCore || "rgba(134,239,172,.58)"});
-      saveState();
-      showToast(`${node.name} recupere.`);
-      rewards.showLootNotice({piece:`${node.name} recupere`});
-      window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
-        kind:"loot",
-        enemyName:"Ramassage",
-        label:`${node.name} recupere`,
-        at:Date.now()
-      }}));
-      pendingGroundMaterial = null;
-      onCargoChanged?.();
-      if(getSpawnPanelMode()) onSpawnPanelRefresh?.(getSpawnPanelMode());
-      return true;
-    }
-    const result = addShipCargoMaterial(node.id, 1);
-    if(result.added <= 0){
-      pendingGroundMaterial = null;
-      showToast("Soute pleine.");
-      onCargoChanged?.();
-      return false;
-    }
     groundMaterials.splice(index, 1);
-    particles().push({x:node.x, y:node.y, life:.36, max:.36, size:24, color:node.glowCore || "rgba(125,211,252,.5)"});
-    saveState();
-    showToast(`+1 ${node.name} dans la soute.`);
-    window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
-      kind:"loot",
-      enemyName:"Ramassage",
-      label:`+1 ${node.name}`,
-      at:Date.now()
-    }}));
     pendingGroundMaterial = null;
-    onCargoChanged?.();
-    return true;
+    showToast("Butin local refuse : validation serveur requise.");
+    return false;
   }
 
   function beginGroundMaterialSuction(node, player){
@@ -365,9 +226,7 @@ export function createCombatCargoSystem({
 
   return {
     clear,
-    spawnCargoBox,
     spawnPortalPieceDrop,
-    spawnQuestItemDrop,
     spawnServerLootDrop,
     findCargoBoxAt,
     findGroundMaterialAt,

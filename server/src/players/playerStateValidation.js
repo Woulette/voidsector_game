@@ -7,6 +7,7 @@ import { getWorldSafePortals, isPointInWorldSafeArea } from "../world/spawn.js";
 import { FIRMS, getFirmMapId } from "../../../src/data/firms.js";
 import { getServerCombatTimedBoostPercent } from "../economy/combatBoosts.js";
 import { resolveRickyPortalPoint, RICKY_PORTAL_MAP } from "../../../src/data/rickyPortal.js";
+import { isPremiumActive, PREMIUM_REPAIR_BOT_MULTIPLIER } from "../../../src/data/premium.js";
 
 const MAP_OUTSIDE_LIMIT = 1800;
 const PORTAL_TRANSFER_PADDING = 180;
@@ -156,6 +157,7 @@ export function getRepairBotConfig(profile){
   config.healRate = config.hasRepairBot
     ? config.healRate * finite(skill.repairBotHealMultiplier, 1)
     : 0;
+  if(config.hasRepairBot && isPremiumActive(profile?.player)) config.healRate *= PREMIUM_REPAIR_BOT_MULTIPLIER;
   return config;
 }
 

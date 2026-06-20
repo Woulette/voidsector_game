@@ -3,12 +3,107 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VoidSector - Prototype jouable</title>
+  <title>AvosomaNox - MMO</title>
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="styles.css?v=ricky-portal-4" />
+  <link rel="stylesheet" href="styles.css?v=auth-boot-1" />
+  <script>
+    document.documentElement.dataset.appMode = new URLSearchParams(location.search).get("mode") === "game" ? "game" : "launcher";
+  </script>
 </head>
-<body>
+<body class="app-booting auth-locked">
+  <section id="appBootScreen" class="app-boot-screen" aria-live="polite">
+    <div class="app-boot-core">
+      <img src="assets/icons/avosomanox_logo.svg" alt="">
+      <span class="app-boot-kicker">AVOSOMANOX</span>
+      <strong data-boot-launcher>CHARGEMENT DU HANGAR</strong>
+      <strong data-boot-game>CHARGEMENT DU SECTEUR</strong>
+      <div class="app-boot-progress" aria-hidden="true"><span></span></div>
+      <small>Synchronisation avec le serveur MMO…</small>
+    </div>
+  </section>
+  <section id="authGate" class="auth-gate" aria-live="polite">
+    <div class="auth-backdrop" aria-hidden="true">
+      <img class="auth-planet" src="assets/maps/decor/planet_astra_red.png" alt="">
+      <img class="auth-station" src="assets/spawn/spawn_dock.png" alt="">
+      <img class="auth-ship auth-ship-main" src="assets/ships/Razorion.png" alt="">
+      <img class="auth-ship auth-ship-escort" src="assets/ships/Velox.png" alt="">
+    </div>
+    <div class="auth-top-line">
+      <span data-auth-server-state>Serveur MMO</span>
+      <b data-auth-connection-state>Connexion requise</b>
+    </div>
+    <div class="auth-shell">
+      <section class="auth-hero">
+        <img class="auth-logo" src="assets/icons/avosomanox_logo.svg" alt="AvosomaNox">
+        <h1>AvosomaNox</h1>
+        <p>Entre dans le secteur avec ton compte pilote.</p>
+        <div class="auth-signal-grid" aria-hidden="true">
+          <span><b>ASTRA</b><small>Relais actif</small></span>
+          <span><b>NOX</b><small>Zone instable</small></span>
+          <span><b>MMO</b><small>Profil serveur</small></span>
+        </div>
+      </section>
+      <section class="auth-panel frame">
+        <div class="auth-tabs" role="tablist" aria-label="Compte AvosomaNox">
+          <button class="active" type="button" data-auth-gate-mode="login">Connexion</button>
+          <button type="button" data-auth-gate-mode="register">Créer un compte</button>
+        </div>
+        <form id="authGateLoginForm" class="auth-form" data-auth-form="login">
+          <label>
+            <span>Email</span>
+            <input id="authGateEmail" name="email" type="email" autocomplete="email" placeholder="pilote@email.fr" required>
+          </label>
+          <label>
+            <span>Mot de passe</span>
+            <input id="authGatePassword" name="password" type="password" autocomplete="current-password" placeholder="Mot de passe" required>
+          </label>
+          <label class="auth-check">
+            <input id="authGateRemember" type="checkbox" checked>
+            <span>Se souvenir</span>
+          </label>
+          <button class="auth-submit" type="submit" data-auth-submit="login">Connexion</button>
+        </form>
+        <form id="authGateRegisterForm" class="auth-form hidden" data-auth-form="register">
+          <label>
+            <span>Email</span>
+            <input id="authGateRegisterEmail" name="email" type="email" autocomplete="email" placeholder="pilote@email.fr" required>
+          </label>
+          <label>
+            <span>Pseudo pilote</span>
+            <input id="authGateRegisterUsername" name="username" type="text" autocomplete="username" maxlength="24" placeholder="Nom pilote" required>
+          </label>
+          <label>
+            <span>Mot de passe</span>
+            <input id="authGateRegisterPassword" name="password" type="password" autocomplete="new-password" placeholder="8 caractères minimum" required>
+          </label>
+          <label>
+            <span>Confirmation</span>
+            <input id="authGateRegisterConfirm" name="confirm" type="password" autocomplete="new-password" placeholder="Confirme le mot de passe" required>
+          </label>
+          <button class="auth-submit" type="submit" data-auth-submit="register">Créer le compte</button>
+        </form>
+        <p id="authGateStatus" class="auth-status">Connecte ton compte pour entrer.</p>
+      </section>
+    </div>
+  </section>
+  <section id="gameDisconnectOverlay" class="game-disconnect-overlay hidden" aria-hidden="true" aria-live="assertive">
+    <div class="game-disconnect-card frame" role="dialog" aria-modal="true" aria-labelledby="gameDisconnectTitle">
+      <span class="game-disconnect-kicker">SESSION MMO INTERROMPUE</span>
+      <h2 id="gameDisconnectTitle">Vous avez été déconnecté</h2>
+      <p>Ton vaisseau reste dans le monde selon les règles anti-déconnexion. Les dégâts reçus pendant ton absence sont conservés.</p>
+      <p id="gameDisconnectStatus" class="game-disconnect-status"></p>
+      <div class="game-disconnect-actions">
+        <button id="gameReconnectBtn" type="button">RECONNECTER</button>
+        <button id="gameCloseBtn" type="button">FERMER</button>
+      </div>
+      <small>Chaque dégât reçu hors ligne relance le délai serveur de 30 secondes.</small>
+    </div>
+  </section>
   <div id="dashboard" class="dashboard">
+    <button class="account-logout-dock" data-auth-action="logout" type="button" title="Déconnecter complètement le compte">
+      <span>Compte MMO</span>
+      <strong>Déconnexion</strong>
+    </button>
     <header class="topbar">
       <section class="pilot-card frame">
         <div class="pilot-avatar">
@@ -31,7 +126,7 @@
         <button class="nav-tab" data-view="portals">PORTAILS</button>
         <button class="nav-tab" data-view="refinery">RAFFINERIE</button>
         <button class="nav-tab firm-nav-tab" data-view="firm">FIRME</button>
-        <button class="nav-tab" data-view="settings">PARAMÈTRES</button>
+        <button class="nav-tab boutique-nav-tab" data-view="store">BOUTIQUE</button>
         <button class="nav-tab" data-view="leaderboard">CLASSEMENT</button>
       </nav>
 
@@ -50,7 +145,6 @@
             <small>CRÉDITS</small>
             <strong id="creditsValue">0</strong>
           </div>
-          <button class="plus">+</button>
         </div>
         <div class="currency premium">
           <img src="assets/icons/premium.svg" alt="">
@@ -58,7 +152,6 @@
             <small>NOVA</small>
             <strong id="premiumValue">0</strong>
           </div>
-          <button class="plus">+</button>
         </div>
       </section>
     </header>
@@ -180,6 +273,11 @@
             <aside id="shopDetailPanel" class="shop-detail-panel frame"></aside>
           </div>
         </section>
+      </section>
+
+
+      <section class="page-view store-view" data-page="store">
+        <section id="premiumStorePanel" class="panel store-panel frame"></section>
       </section>
 
 
@@ -305,6 +403,54 @@
         <button data-respawn-choice="death" type="button">Position actuelle<br><small>200 NOVA</small></button>
       </div>
     </div>
+    <div id="combatBoostDepositLayer" class="combat-boost-deposit-layer hidden" aria-hidden="true">
+      <section class="combat-boost-deposit-dialog frame" role="dialog" aria-modal="false" aria-labelledby="combatBoostDepositTitle">
+        <button class="combat-boost-deposit-close" data-boost-deposit-close type="button" aria-label="Fermer">×</button>
+        <div class="combat-boost-deposit-head">
+          <span>PERFECTIONNEMENT DE COMBAT</span>
+          <h3 id="combatBoostDepositTitle">DÉPÔT DE MATÉRIAUX</h3>
+        </div>
+        <div class="combat-boost-deposit-selection">
+          <figure>
+            <img data-boost-deposit-img src="assets/materials/cargo_box.svg" alt="">
+            <figcaption data-boost-deposit-material>MATÉRIAU</figcaption>
+          </figure>
+          <strong>→</strong>
+          <div>
+            <span>CIBLE</span>
+            <b data-boost-deposit-target>LASER</b>
+            <small data-boost-deposit-effect></small>
+          </div>
+        </div>
+        <div class="combat-boost-deposit-stock">
+          <span>Disponible dans la soute</span>
+          <b data-boost-deposit-stock>0</b>
+        </div>
+        <label class="combat-boost-deposit-quantity">
+          <span>Quantité à déposer</span>
+          <div>
+            <button data-boost-deposit-step="-1" type="button" aria-label="Retirer un">−</button>
+            <input data-boost-deposit-amount type="number" min="1" value="1" inputmode="numeric">
+            <button data-boost-deposit-step="1" type="button" aria-label="Ajouter un">+</button>
+          </div>
+        </label>
+        <input class="combat-boost-deposit-range" data-boost-deposit-range type="range" min="1" max="1" value="1">
+        <div class="combat-boost-deposit-presets">
+          <button data-boost-deposit-preset="1" type="button">1</button>
+          <button data-boost-deposit-preset="10" type="button">10</button>
+          <button data-boost-deposit-preset="half" type="button">MOITIÉ</button>
+          <button data-boost-deposit-preset="max" type="button">MAX</button>
+        </div>
+        <div class="combat-boost-deposit-result">
+          <span>Gain obtenu</span>
+          <b data-boost-deposit-result>—</b>
+        </div>
+        <div class="combat-boost-deposit-actions">
+          <button data-boost-deposit-close type="button">ANNULER</button>
+          <button class="confirm" data-boost-deposit-confirm type="button">VALIDER LE DÉPÔT</button>
+        </div>
+      </section>
+    </div>
     <div id="safeZoneNotice" class="safe-zone-notice hidden">
       <strong>ZONE NON-AGRESSION</strong>
       <span>Protection active</span>
@@ -413,6 +559,6 @@
   </section>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="game.js?v=ricky-portal-4"></script>
+  <script type="module" src="game.js?v=connection-recovery-2"></script>
 </body>
 </html>

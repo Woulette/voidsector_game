@@ -5,6 +5,7 @@ import { getRankScore } from "./rankStore.js";
 import { saveState, store } from "./store.js";
 import { getSkillBonus } from "./skillStore.js";
 import { getXpNextForLevel, syncSkillPoints } from "./xpStore.js";
+import { isPremiumActive, PREMIUM_REPAIR_BOT_MULTIPLIER } from "../data/premium.js";
 
 export function recordWeaponUse(type, amount=1){
   const keys = {
@@ -53,6 +54,7 @@ export function getExtraBonus(shipId = store.state.activeShip){
   }
   bonus.rocketCooldownMultiplier = Math.max(0.25, bonus.rocketCooldownMultiplier);
   bonus.repairBotHealRate *= Number(skill.repairBotHealMultiplier || 1);
+  if(isPremiumActive(store.state?.player)) bonus.repairBotHealRate *= PREMIUM_REPAIR_BOT_MULTIPLIER;
   return bonus;
 }
 

@@ -1,9 +1,10 @@
 import { WORLD_MAPS } from "./definitions.js";
 import { getRepairBotConfig, getTrustedShieldRegen } from "../players/playerStateValidation.js";
+import { WORLD_SESSION_SAVE_INTERVAL_MS } from "../players/profileWorldSession.js";
 
 const CLIENT_STALE_MS = 250;
 const MOVEMENT_SYNC_MS = 250;
-const MOVEMENT_SAVE_MS = 1000;
+const MOVEMENT_SAVE_MS = WORLD_SESSION_SAVE_INTERVAL_MS;
 const AUTO_FIRE_CHECK_MS = 120;
 const MAP_PADDING = 65;
 
@@ -156,6 +157,7 @@ function updateServerShieldRegen(player, profile, dt, now){
 export function createPlayerActivityManager({
   io,
   players,
+  presence,
   profileManager,
   publicPlayer,
   applyEnemyHitForPlayer
@@ -208,6 +210,7 @@ export function createPlayerActivityManager({
     for(const player of players.values()){
       const profile = profileManager?.getProfileForPlayer?.(player) || null;
       const moved = updateServerMovement(player, dt, now);
+      if(moved) presence?.markActivity?.(player, "deplacement serveur", now);
       const repaired = updateServerRepairBot(player, profile, dt, now);
       const shieldRegenerated = updateServerShieldRegen(player, profile, dt, now);
       const fired = updateServerAutoFire(player, now);

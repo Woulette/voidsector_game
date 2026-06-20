@@ -1,5 +1,6 @@
 import * as cargoStore from "./cargoStore.js";
 import { skills } from "../data/catalog.js";
+import { isPremiumActive } from "../data/premium.js";
 import { addAmmo, addInventoryItem, addPortalPiece, addXP, getQuest, store } from "./store.js";
 import { MAX_ACTIVE_QUESTS, canClaimQuest } from "./questProgressStore.js";
 
@@ -26,6 +27,7 @@ export function claimQuest(id){
   if(!quest) return {ok:false, reason:"Quete introuvable."};
   if(store.state.completedQuestClaims?.[id]) return {ok:false, reason:"Quete deja terminee."};
   if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.includes(id)) return {ok:false, reason:"Quete non active."};
+  if((quest.category || "normal") === "weekly" && !isPremiumActive(store.state?.player)) return {ok:false, reason:"Premium requis pour les quetes hebdomadaires."};
   if(!canClaimQuest(id)) return {ok:false, reason:"Objectif non rempli."};
   const multipliers = getQuestRewardMultipliers();
   store.state.player.credits += Math.round(Number(quest.rewards.credits || 0) * multipliers.credits);

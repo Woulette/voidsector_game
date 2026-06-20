@@ -910,3 +910,234 @@ Checks effectues :
 - `node --check` sur les fichiers JS modifies : OK ;
 - `git diff --check` : OK ;
 - verification visuelle navigateur non effectuee dans la session, car le navigateur integre etait indisponible.
+
+## Verrou MMO-only - Autorite serveur et fin des fallbacks locaux
+
+La passe MMO-only retire les derniers chemins actifs qui pouvaient encore doubler la logique serveur cote client.
+
+- `src/core/store.js` ne sauvegarde plus l'etat complet dans `localStorage`.
+- `src/core/localPreferencesStore.js` ne persiste que les preferences locales :
+  - qualite graphique ;
+  - raccourcis de slots ;
+  - layout UI.
+- Les anciens saves locaux complets sont relus uniquement pour migrer ces preferences, puis reecrits en format preferences-only.
+- `src/multiplayer/profileSync.js` n'envoie plus que les preferences non critiques au serveur :
+  - action slots ;
+  - action slots par vaisseau ;
+  - dernier laser selectionne.
+- `server/src/players/profiles.js` rejette les sauvegardes non authentifiees et ignore les champs critiques envoyes par le client.
+
+Progression et combat :
+
+- XP, credits, NOVA, niveaux, inventaire, munitions, ressources, quetes, portails, kills, stats de tir et temps de jeu ne doivent plus etre modifies localement.
+- Les recompenses, drops, ramassages, tirs et quetes attendent la validation serveur puis un `profile:sync`.
+- Les evenements client de recompense ou de quete servent a afficher des notifications, pas a appliquer la progression.
+- Les cibles non serveur sont refusees par le systeme d'armes MMO-only.
+- Les drops au sol ne sont ramassables que s'ils sont explicitement `serverControlled`.
+- Les titres de profil sont valides cote serveur via `profile:title-set`.
+
+Tests de protection ajoutes ou mis a jour :
+
+- sauvegarde locale preferences-only ;
+- sauvegarde profil client limitee aux preferences autorisees ;
+- rejet des cibles et butins locaux ;
+- absence de consommation locale des munitions ;
+- absence de calcul de degats local ;
+- stats de tir et temps de jeu persistants cote serveur ;
+- validation serveur des titres publics.
+
+Checks effectues :
+
+- `node --check` sur les fichiers modifies clefs : OK ;
+- tests cibles MMO-only : OK ;
+- `npm test` dans `server/` : 241 tests OK ;
+- recherches `rg` sur les mutations locales sensibles : aucune mutation active hors application du `profile:sync` serveur.
+
+Regle de maintenance :
+
+- Ne pas recreer de branche `else saveState()` pour quetes, recompenses, achats, raffinage, tirs ou drops.
+- Si une action touche a la progression MMO, elle doit passer par une commande socket serveur, puis etre appliquee au client uniquement par `profile:sync`.
+- Les modules legacy de `src/core/*Store.js` peuvent rester tant qu'ils ne sont pas appeles par les workflows actifs ; leur suppression doit se faire par domaine, avec tests dedies.
+
+## Verrou MMO-only - Compte obligatoire
+
+- `server/src/security/gameplayAccountGuard.js` applique une politique privee par defaut : tout event socket exige un `accountId`, sauf auth, `player:hello` et classement.
+- `player:hello` n'envoie plus de profil invite. Un token en attente peut terminer `auth:session`, mais aucun gameplay n'est accepte avant l'attachement du compte.
+- Les sockets non authentifiees ne rejoignent plus automatiquement la map 0 et ne sont plus publiees dans `players:list`.
+- Les commandes client combat, economie, profil, firme, groupe et social attendent maintenant un compte et un `profile:sync` termines.
+- Un logout compte ferme proprement la socket afin que l'ancien vaisseau ne reste pas actif sous une identite invitee.
+- Tout nouveau handler Socket.IO doit appeler `guard(eventName)` ; un test structurel controle cette regle.
+
+## Securite MMO - Identite pilote et rendu HTML
+
+- `server/src/players/profileIdentity.js`
+  - normalise les noms de pilote en texte affichable ;
+  - conserve lettres, accents, chiffres, espaces, points, tirets et `_` ;
+  - retire les caracteres de controle et de balisage HTML ;
+  - limite les noms a 24 caracteres.
+- `server/src/players/profileSanitize.js`
+  - nettoie aussi les noms deja stockes lors du chargement des profils.
+- `src/ui/render.js` et `src/ui/renderLeaderboard.js`
+  - echappent explicitement les noms avant insertion avec `innerHTML`.
+- `server/test/profile-name-security.test.js`
+  - verrouille la normalisation serveur ;
+  - verrouille le nettoyage des anciens profils ;
+  - controle les deux rendus client sensibles.
+
+Checks effectues :
+
+- `node --check` sur les modules modifies ;
+- `npm test` dans `server/` : 256 tests OK ;
+- `git diff --check` sur les fichiers de cette passe.
+
+## Persistance MMO - Ecritures atomiques et arret gracieux
+
+- `server/src/storage/profileStore.js`
+  - serialise les ecritures dans une file unique ;
+  - execute les sauvegardes PostgreSQL dans une transaction ;
+  - refuse qu'une ancienne version `updatedAt` remplace une version plus recente ;
+  - fusionne les profils modifies avec le contenu JSON existant ;
+  - ecrit le fallback JSON dans un fichier temporaire unique, force la synchronisation disque puis effectue un renommage atomique.
+- `server/src/players/profiles.js`
+  - sauvegarde uniquement le profil concerne par une action ;
+  - attribue une version `updatedAt` strictement croissante ;
+  - expose `flushPersistence()` pour attendre toutes les sauvegardes en cours.
+- `server/src/lifecycle/gracefulShutdown.js`
+  - arrete le tick serveur et les nouvelles connexions ;
+  - force une derniere capture des joueurs connectes ;
+  - attend la fin de la persistance avant de fermer PostgreSQL ;
+  - rend l'arret idempotent pour eviter une double fermeture.
+- `server/src/index.js`
+  - branche cet arret propre sur `SIGINT` et `SIGTERM`.
+- `server/test/profile-persistence.test.js`
+  - controle la serialisation, la fusion JSON, les fichiers temporaires, les versions obsoletes et la transaction PostgreSQL.
+- `server/test/graceful-shutdown.test.js`
+  - controle l'ordre complet de fermeture et l'idempotence.
+
+Checks effectues :
+
+- `node --check` sur les 99 fichiers JavaScript serveur : OK ;
+- `npm test` dans `server/` : 260 tests OK ;
+- `git diff --check` sur les fichiers de cette passe : OK.
+
+## Exploitation MMO - Configuration production et readiness
+
+- `server/src/config.js`
+  - refuse un port hors plage ;
+  - valide une ou plusieurs origines HTTP(S) separees par des virgules ;
+  - interdit `CLIENT_ORIGIN=*` en production ;
+  - exige `DATABASE_URL` en production pour empecher un demarrage accidentel sur le fallback JSON.
+- `server/src/db/client.js`
+  - expose un controle PostgreSQL reel avec `SELECT 1` et mesure de latence.
+- `server/src/monitoring/health.js`
+  - construit un etat de readiness testable sans demarrer tout le serveur ;
+  - retourne HTTP 503 quand PostgreSQL est configure mais indisponible ;
+  - conserve les compteurs sockets, comptes en ligne et sessions de jeu.
+- `server/src/index.js`
+  - utilise cette readiness pour `/health`.
+- `server/.env.example`
+  - documente les variables obligatoires en production.
+- `.gitignore`
+  - exclut tous les magasins JSON d'execution, y compris `server/data/profiles.json`.
+- `server/test/production-safety.test.js`
+  - controle les erreurs de configuration production et les reponses 200/503 de readiness.
+- `server/test/live-server-config.test.js`
+  - controle que tous les fichiers JSON runtime sont exclus de Git.
+
+Attention :
+
+- `server/data/profiles.json` etait deja suivi par Git avant l'ajout de la regle. La regle empeche les futurs ajouts une fois le fichier retire de l'index, mais le retrait de l'index doit etre fait explicitement sans supprimer la copie locale.
+
+Checks effectues :
+
+- `npm test` dans `server/` : 266 tests OK ;
+- `node --check` sur les 158 fichiers JavaScript de `server/src` et `server/test` : OK ;
+- `git diff --check` sur les fichiers de cette passe : OK.
+
+## Stabilite 24/7 - Rate limits et cooldowns
+
+- `server/src/socket/rateLimit.js`
+  - purge periodiquement les buckets expires ;
+  - expose un nettoyage par socket ;
+  - supprime immediatement les buckets d'une socket deconnectee.
+- `server/src/security/accountActionLocks.js`
+  - conserve les verrous par `accountId` lors d'une reconnexion ;
+  - purge periodiquement les comptes inactifs sans attendre un seuil de 5 000 entrees.
+- `server/src/combat/damage.js`
+  - lie les cooldowns d'armes a l'identite stable du compte ;
+  - empeche de contourner une recharge en changeant de socket ;
+  - purge les cooldowns expires.
+- `server/src/socket/disconnectHandlers.js`
+  - declenche le nettoyage des rate limits socket a chaque deconnexion.
+- `server/test/rate-limit-lifecycle.test.js`
+  - controle la liberation memoire ;
+  - controle la conservation des verrous compte apres reconnexion ;
+  - controle le cooldown combat stable par compte.
+
+Checks effectues :
+
+- `npm test` dans `server/` : 269 tests OK ;
+- `node --check` sur les 159 fichiers JavaScript de `server/src` et `server/test` : OK ;
+- `git diff --check` sur les fichiers de cette passe : OK.
+
+## Schema MMO - Migrations versionnees et identites uniques
+
+- `server/src/db/migrations.js`
+  - remplace les modifications SQL dispersees au demarrage par des migrations identifiees ;
+  - stocke les versions appliquees dans `schema_migrations` ;
+  - execute chaque migration dans sa propre transaction ;
+  - utilise un verrou consultatif PostgreSQL pour empecher deux instances de migrer simultanement ;
+  - cree `pilot_identities` avec une cle de nom unique et un seul nom reserve par compte ;
+  - bloque la migration si des noms de pilote deja configures sont en conflit.
+- `server/src/db/client.js`
+  - lance le moteur de migrations lors de l'initialisation PostgreSQL.
+- `server/src/players/profileIdentity.js`
+  - produit une cle d'identite NFKC insensible a la casse.
+- `server/src/storage/pilotIdentityStore.js`
+  - reserve ou remplace le nom d'un compte dans une transaction ;
+  - refuse un nom possede par un autre compte ;
+  - detecte aussi la course ou une autre instance insere le nom entre la verification et l'ecriture.
+- `server/src/players/profiles.js`
+  - serialise les configurations d'identite dans le processus ;
+  - refuse les doublons locaux deja configures ;
+  - attend la reservation PostgreSQL avant de modifier le profil.
+- `server/src/db/migrateJson.js`
+  - reserve les noms des anciens profils configures pendant l'import JSON.
+- `server/src/socket/playerHandlers.js`
+  - attend la reservation et renvoie une erreur temporaire propre si PostgreSQL echoue.
+- `server/test/database-migrations.test.js`
+  - controle migrations en attente, transactions, rollback et liberation du verrou.
+- `server/test/pilot-identity.test.js`
+  - controle normalisation, doublons locaux, proprietaire PostgreSQL, renommage et course concurrente.
+
+Checks effectues :
+
+- `npm test` dans `server/` : 276 tests OK ;
+- `node --check` sur les 163 fichiers JavaScript de `server/src` et `server/test` : OK ;
+- `git diff --check` sur les fichiers de cette passe : OK.
+
+## Optimisation MMO - Cadence de sauvegarde session monde
+
+- `server/src/players/profileWorldSession.js`
+  - expose `WORLD_SESSION_SAVE_INTERVAL_MS = 15_000` ;
+  - limite les sauvegardes non forcees de session monde a une fois toutes les 15 secondes par joueur ;
+  - conserve les sauvegardes forcees immediates pour mort, deconnexion, respawn, changement de vaisseau, Portgun et retours de portail.
+- `server/src/world/playerActivity.js`
+  - aligne les sauvegardes de mouvement serveur/background sur la meme cadence de 15 secondes.
+- `server/src/socket/playerHandlers.js`
+  - force la sauvegarde quand un snapshot valide change de map, donc transition portail/map sauvegardee immediatement.
+- Les gains importants restent immediats car ils passent par les mutations profil :
+  - kill mob : `applyReward()` persiste le profil ;
+  - ressource / item / piece de portail ramasse : `loot:pickup` mute le profil puis persiste ;
+  - quetes, achats, equipement, raffinerie et progression : actions serveur avec persistance immediate.
+- `server/test/server-profile-stats.test.js`
+  - controle la cadence 15 secondes et l'exception `force:true`.
+- `server/test/firm-setup.test.js`
+  - controle qu'une transition de map force une sauvegarde immediate.
+
+Checks effectues :
+
+- `npm test -- test/server-profile-stats.test.js test/firm-setup.test.js test/player-background-intent.test.js` dans `server/` : 11 tests OK ;
+- `node --check` sur les fichiers JS modifies de cette passe : OK ;
+- `npm test` dans `server/` : 278 tests OK ;
+- `git diff --check` : OK, uniquement des avertissements CRLF.

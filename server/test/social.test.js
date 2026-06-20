@@ -19,7 +19,7 @@ function createHarness(){
   const emitted = [];
   const players = new Map([
     ["socket-a", {id:"socket-a", accountId:"a", clientMode:"game", connected:true, state:{mapId:"0", shipId:"orion", updatedAt:Date.now()}}],
-    ["socket-b", {id:"socket-b", accountId:"b", clientMode:"game", connected:true, state:{mapId:"0", shipId:"velox", updatedAt:Date.now() - 6 * 60 * 1000}}]
+    ["socket-b", {id:"socket-b", accountId:"b", clientMode:"game", connected:true, afk:true, state:{mapId:"0", shipId:"velox", updatedAt:Date.now()}}]
   ]);
   const profileManager = {
     profileKeyForPlayer:player=>`account:${player.accountId}`,

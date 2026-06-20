@@ -5,6 +5,7 @@ import { getDroneCatalog, getItem, getQuest, getRawMaterial, getShip } from "./c
 import { enforcePlayerCurrencyMinimums } from "./currencyStore.js";
 import { cleanDroneLoadout, ensureShipLoadout, getDroneLoadout, getInventoryItem, getItemFromInventoryUid } from "./equipmentStore.js";
 import { normalizeGraphicsQuality } from "./graphicsStore.js";
+import { isPremiumActive, normalizePremiumRewardState, normalizeStarterPackPurchases } from "../data/premium.js";
 import { getRankScore } from "./rankStore.js";
 import { canShipRefineryMaterial, getDefaultRefineryLevel, REFINERY_MODULES } from "./refineryStore.js";
 import { store } from "./store.js";
@@ -48,6 +49,10 @@ export function normalizeState(saved){
   merged.player.missileShotsFired = Math.max(0, Number(merged.player.missileShotsFired || 0));
   merged.player.activeTitleId = typeof merged.player.activeTitleId === "string" ? merged.player.activeTitleId : null;
   merged.player.titleVisible = merged.player.titleVisible !== false;
+  merged.player.premiumUntil = Math.max(0, Number(merged.player.premiumUntil || 0));
+  merged.player.premiumActive = isPremiumActive(merged.player);
+  merged.premiumRewardState = normalizePremiumRewardState(saved?.premiumRewardState || base.premiumRewardState);
+  merged.starterPackPurchases = normalizeStarterPackPurchases(saved?.starterPackPurchases || base.starterPackPurchases);
   enforcePlayerCurrencyMinimums(merged.player);
   merged.ownedShips = Array.isArray(saved?.ownedShips) ? saved.ownedShips.filter(id=>ships.some(s=>s.id===id)) : base.ownedShips;
   merged.ownedItems = Array.isArray(saved?.ownedItems) ? saved.ownedItems.filter(id=>equipment.some(i=>i.id===id)) : base.ownedItems;

@@ -1,3 +1,6 @@
+import { store } from "../../core/store.js";
+import { isPremiumActive, PREMIUM_LOGOUT_DELAY_MS } from "../../data/premium.js";
+
 export function createCombatLogoutController({
   multiplayer,
   requestServerLogout,
@@ -31,6 +34,14 @@ export function createCombatLogoutController({
     button.classList.toggle("danger", pending);
   }
 
+  function getLogoutDelayMs(){
+    return isPremiumActive(store.state?.player) ? PREMIUM_LOGOUT_DELAY_MS : 15000;
+  }
+
+  function getLogoutDelaySeconds(ms = getLogoutDelayMs()){
+    return Math.max(1, Math.ceil(Number(ms || 0) / 1000));
+  }
+
   function getBlockReason(){
     const player = getPlayer();
     if(!player || player.isDead) return "vaisseau detruit";
@@ -60,7 +71,7 @@ export function createCombatLogoutController({
   function complete(){
     reset();
     saveState();
-    disconnectMultiplayer();
+    disconnectMultiplayer("game-logout");
     setRunning(false);
     document.getElementById("gameScreen").classList.add("hidden");
     document.getElementById("combatQuickPanel").classList.add("hidden");
@@ -86,9 +97,11 @@ export function createCombatLogoutController({
       showToast("Demande de deconnexion envoyee au serveur.");
       return;
     }
-    logoutRequest = {remaining:15, completeAt:Date.now() + 15000, server:false};
-    setButtonLabel("DECO 15S", true);
-    showToast("Deconnexion dans 15 secondes. Reste immobile et hors combat.");
+    const delayMs = getLogoutDelayMs();
+    const seconds = getLogoutDelaySeconds(delayMs);
+    logoutRequest = {remaining:seconds, completeAt:Date.now() + delayMs, server:false};
+    setButtonLabel(`DECO ${seconds}S`, true);
+    showToast(`Deconnexion dans ${seconds} secondes. Reste immobile et hors combat.`);
   }
 
   function handleServerChange(event){
@@ -96,14 +109,14 @@ export function createCombatLogoutController({
     const payload = event.detail?.payload || {};
     if(!getRunning() && reason !== "logout:complete") return;
     if(reason === "logout:started"){
-      const remainingMs = Math.max(0, Number(payload.delayMs || 15000));
+      const remainingMs = Math.max(0, Number(payload.delayMs || getLogoutDelayMs()));
       logoutRequest = {
         remaining:remainingMs / 1000,
         completeAt:Date.now() + remainingMs,
         server:true
       };
       setButtonLabel(`DECO ${Math.ceil(logoutRequest.remaining)}S`, true);
-      showToast("Deconnexion serveur dans 15 secondes. Reste immobile et hors combat.");
+      showToast(`Deconnexion serveur dans ${getLogoutDelaySeconds(remainingMs)} secondes. Reste immobile et hors combat.`);
       return;
     }
     if(reason === "logout:rejected"){

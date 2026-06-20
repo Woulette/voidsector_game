@@ -1,7 +1,7 @@
 import { refineryRecipes } from "../data/catalog.js";
 import { consumeMaterial, getMaterialCount } from "./cargoStore.js";
 import { getRefineryMaterialLevel, getRefineryModuleLevel } from "./refineryStateStore.js";
-import { enforcePlayerCurrencyMinimums, getRawMaterial, getRefineryMaterial, store } from "./store.js";
+import { enforcePlayerCurrencyMinimums, getCurrencyPrice, getRawMaterial, getRefineryMaterial, store } from "./store.js";
 import {
   REFINERY_MAX_LEVEL,
   REFINERY_MODULES,
@@ -78,11 +78,13 @@ export function getRefineryRushCost(type, id, now = Date.now()){
   if(!job) return null;
   const minutes = Math.max(1, Math.ceil(Number(job.remaining || 0) / 60000));
   const cost = minutes * REFINERY_RUSH_NOVA_PER_MINUTE;
+  const effectiveCost = getCurrencyPrice("premium", cost);
   return {
     cost,
+    effectiveCost,
     minutes,
     remaining:job.remaining,
-    canAfford:store.state.player.premium >= cost
+    canAfford:store.state.player.premium >= effectiveCost
   };
 }
 
@@ -91,12 +93,12 @@ export function rushRefineryUpgrade(type, id, now = Date.now()){
   if(!job) return {ok:false, reason:"Aucune amelioration en cours."};
   const rush = getRefineryRushCost(type, id, now);
   if(!rush) return {ok:false, reason:"Aucune amelioration en cours."};
-  if(store.state.player.premium < rush.cost) return {ok:false, reason:"Pas assez de NOVA."};
-  store.state.player.premium -= rush.cost;
+  if(store.state.player.premium < rush.effectiveCost) return {ok:false, reason:"Pas assez de NOVA."};
+  store.state.player.premium -= rush.effectiveCost;
   enforcePlayerCurrencyMinimums();
   job.endsAt = now;
   completeRefineryUpgradeJobs(now);
-  return {ok:true, cost:rush.cost, name:job.name, level:job.toLevel};
+  return {ok:true, cost:rush.effectiveCost, baseCost:rush.cost, name:job.name, level:job.toLevel};
 }
 
 function hasActiveRefineryUpgrade(type, id){

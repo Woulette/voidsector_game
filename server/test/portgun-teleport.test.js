@@ -5,6 +5,7 @@ import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import {
   PORTGUN_NORMAL_DURATION_MS,
   PORTGUN_PREMIUM_DURATION_MS,
+  cancelPendingPortgunTeleport,
   getPortgunMapLevelRequirement,
   getPortgunTeleportDurationMs,
   getRandomPortgunDestination,
@@ -12,6 +13,7 @@ import {
   hasPortgunTeleportMoved,
   validatePortgunTeleport
 } from "../src/players/portgunTeleport.js";
+import { createPresenceManager } from "../src/players/presence.js";
 import { WORLD_MAPS } from "../src/world/definitions.js";
 
 function makeProfileWithPortgun(){
@@ -69,6 +71,8 @@ test("Portgun duration uses premium flags and movement tolerance cancels countdo
 
   const pending = {startMapId:"0", startX:100, startY:100};
   assert.equal(hasPortgunTeleportMoved(pending, {mapId:"0", x:110, y:110}), false);
+  assert.equal(hasPortgunTeleportMoved(pending, {mapId:"0", x:100, y:100, vx:2, vy:0}), true);
+  assert.equal(hasPortgunTeleportMoved(pending, {mapId:"0", x:100, y:100, moveTarget:{x:200, y:100}}), true);
   assert.equal(hasPortgunTeleportMoved(pending, {mapId:"0", x:140, y:100}), true);
   assert.equal(hasPortgunTeleportMoved(pending, {mapId:"1", x:100, y:100}), true);
 });
@@ -85,4 +89,36 @@ test("Portgun destination is random inside map bounds", ()=>{
     assert.ok(point.y > -map.height / 2);
     assert.ok(point.y < map.height / 2);
   }
+});
+
+test("taking an attack cancels a pending Portgun teleport immediately", ()=>{
+  const emitted = [];
+  const player = {
+    id:"player-portgun-damage",
+    connected:true,
+    state:{hp:100, maxHp:100, shield:100, maxShield:100},
+    pendingPortgunTeleport:{id:"teleport-1"}
+  };
+  const io = {
+    to:target=>({emit:(eventName, payload)=>emitted.push({target, eventName, payload})})
+  };
+  const presence = createPresenceManager({
+    io,
+    players:new Map([[player.id, player]]),
+    emitPlayers(){},
+    config:{logoutDelayMs:15000, combatRecentMs:15000}
+  });
+
+  presence.applyDamageToPlayerState(player, 10, 12345);
+
+  assert.equal(player.pendingPortgunTeleport, null);
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].target, player.id);
+  assert.equal(emitted[0].eventName, "portgun:cancelled");
+  assert.equal(emitted[0].payload.reason, "damaged");
+  assert.equal(emitted[0].payload.at, 12345);
+});
+
+test("cancelling an absent Portgun teleport is a no-op", ()=>{
+  assert.equal(cancelPendingPortgunTeleport({id:"player-1"}), false);
 });

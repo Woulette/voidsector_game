@@ -1,3 +1,5 @@
+import { applyProfileTitleSelection } from "../players/profileTitles.js";
+
 export function registerProgressionHandlers(socket, context){
   const {emitProfileSync, guard, players, profileManager} = context;
 
@@ -57,6 +59,32 @@ export function registerProgressionHandlers(socket, context){
     }
     socket.emit("prestige:performed", {
       prestige:result.prestige,
+      at:Date.now()
+    });
+    emitProfileSync(player, result.profile);
+  });
+
+  socket.on("profile:title-set", payload=>{
+    if(!guard("profile:title-set")) return;
+    const player = players.get(socket.id);
+    if(!player?.accountId){
+      socket.emit("profile:title-error", {message:"Compte MMO requis."});
+      return;
+    }
+    const result = profileManager.updateProfileForPlayer({
+      player,
+      update:profile=>applyProfileTitleSelection(profile, {
+        titleId:Object.hasOwn(payload || {}, "titleId") ? payload.titleId : undefined,
+        visible:Object.hasOwn(payload || {}, "visible") ? payload.visible : undefined
+      })
+    });
+    if(!result.ok){
+      socket.emit("profile:title-error", {message:result.reason || "Titre impossible."});
+      return;
+    }
+    socket.emit("profile:title-updated", {
+      titleId:result.titleId,
+      visible:result.visible,
       at:Date.now()
     });
     emitProfileSync(player, result.profile);

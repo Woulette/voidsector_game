@@ -3,6 +3,7 @@ import { renderSpawnPanelContent } from "./spawnPanel.js";
 import { renderCombatFirmPanel } from "./combatFirmPanel.js";
 import { renderCombatMapPanel } from "./combatMapPanel.js";
 import { FIRMS, getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
+import { isPremiumActive } from "../../data/premium.js";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import {
   multiplayer,
@@ -294,7 +295,6 @@ export function createCombatPanels({
     const activeQuests = getActiveQuests();
     const trackedQuest = getActiveQuest();
     const selected = activeQuests.find(quest=>quest.id === trackedQuest?.id) || activeQuests[0] || null;
-    if(selected && store.state.activeQuestId !== selected.id) store.state.activeQuestId = selected.id;
     return renderCombatQuestTrackerHtml({
       activeQuests,
       trackedQuest:selected,
@@ -790,28 +790,6 @@ export function createCombatPanels({
     refreshGroupFloatingHud();
   });
 
-  function selectNextQuestAfterClaim(claimedQuestId){
-    if(!claimedQuestId) return;
-    if(!store.state.completedQuestClaims || typeof store.state.completedQuestClaims !== "object") store.state.completedQuestClaims = {};
-    store.state.completedQuestClaims[claimedQuestId] = true;
-    if(Array.isArray(store.state.activeQuestIds)){
-      store.state.activeQuestIds = store.state.activeQuestIds.filter(id=>id !== claimedQuestId);
-    }
-    if(store.state.activeQuestId === claimedQuestId) store.state.activeQuestId = store.state.activeQuestIds?.[0] || null;
-    if(selectedQuestId === claimedQuestId){
-      const activeIds = new Set(getActiveQuests().map(quest=>quest.id));
-      const completedClaims = store.state.completedQuestClaims || {};
-      const sameType = quest=>(quest.category || "normal") === selectedQuestType;
-      const activeQuest = getAllQuests().find(quest=>sameType(quest) && activeIds.has(quest.id));
-      const availableQuest = getAllQuests().find(quest=>sameType(quest) && !completedClaims[quest.id] && !activeIds.has(quest.id) && Number(store.state.player?.level || 1) >= Number(quest.requiredLevel || 1));
-      selectedQuestCategory = activeQuest ? "active" : "available";
-      selectedQuestId = activeQuest?.id || availableQuest?.id || null;
-    }
-    if(spawnPanelMode === "quests") renderSpawnInteractionPanel("quests");
-    refreshQuestUtilityPanel({show:true});
-    syncUtilityDockButtons();
-  }
-
   function isPerfPanelVisible(){
     return store.state?.uiLayout?.perfVisible !== false;
   }
@@ -828,10 +806,6 @@ export function createCombatPanels({
     refreshSettingsUtilityPanel();
   }
 
-  window.addEventListener("voidsector:multiplayer-change", event=>{
-    const reason = String(event.detail?.reason || "");
-    if(reason === "quest:claimed") selectNextQuestAfterClaim(event.detail?.payload?.id);
-  });
   window.addEventListener("voidsector:portgun-open-map", ()=>{
     openPortgunMapPanel();
   });
@@ -948,7 +922,9 @@ export function createCombatPanels({
     }
     if(startPortgunTeleport(mapId)){
       mapPanelMode = "view";
-      refreshMapUtilityPanel({show:true});
+      getUtilityPanel("map")?.classList.add("hidden");
+      saveUtilityPanelOpenState("map", false);
+      syncUtilityDockButtons();
       showToast?.("Teleportation Portgun demandee.");
       return true;
     }
@@ -991,10 +967,8 @@ export function createCombatPanels({
     if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.includes(questId)){
       return showToast("Cette quete n'est pas en cours.");
     }
-    store.state.activeQuestId = questId;
+    if(!trackServerQuest?.(questId)) return showToast("Suivi de quete serveur impossible.");
     selectedQuestId = questId;
-    saveState();
-    if(multiplayer.connected) trackServerQuest?.(questId);
     refreshQuestUtilityPanel({show:true});
   }
 
@@ -1010,10 +984,7 @@ export function createCombatPanels({
       showToast(`Reclamation envoyee : ${result.quest.title}`);
       return;
     }
-    saveState();
-    showToast(`Recompense recue : ${result.quest.title}`);
-    selectNextQuestAfterClaim(questId);
-    updateHud();
+    showToast("Recompense locale refusee : validation serveur requise.");
   }
 
   function inviteGroupMember(name){
@@ -1081,6 +1052,7 @@ export function createCombatPanels({
       showLockedQuests,
       quests:getAllQuests().filter(quest=>!quest.firmId || normalizeFirmId(quest.firmId) === normalizeFirmId(store.state.player?.firmId || "astra")),
       playerLevel:store.state.player.level,
+      premiumActive:isPremiumActive(store.state?.player),
       enemyTypes,
       rawMaterials:getAllRawMaterials(),
       getQuestProgress,
@@ -1113,10 +1085,6 @@ export function createCombatPanels({
 
   function selectQuestForPanel(questId){
     selectedQuestId = questId;
-    renderSpawnInteractionPanel("quests");
-  }
-
-  function markQuestAcceptedForPanel(){
     renderSpawnInteractionPanel("quests");
   }
 
@@ -1276,7 +1244,6 @@ export function createCombatPanels({
     claimCombatQuest,
     setCombatQuestDetailTab,
     selectQuestForPanel,
-    markQuestAcceptedForPanel,
     selectQuestCategoryForPanel,
     selectQuestTypeForPanel,
     toggleLockedQuestsForPanel,

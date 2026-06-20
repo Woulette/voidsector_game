@@ -139,7 +139,7 @@ export function renderRefinery(){
       <div class="sky-shipment-meter"><i style="width:${shipmentJob.percent}%"></i></div>
       <div class="sky-shipment-current-meta">
         <span>Temps restant <b>${durationText(shipmentJob.remaining)}</b></span>
-        <span>Terminer <b>${fmt(shipmentRush?.cost || 0)} NOVA</b></span>
+        <span>Terminer <b>${fmt(shipmentRush?.effectiveCost ?? shipmentRush?.cost ?? 0)} NOVA</b></span>
       </div>
       <button class="sky-shipment-btn" ${shipmentRush?.canAfford ? "" : "disabled"} data-rush-refinery-shipment>Terminer maintenant</button>
     </section>` : `<section class="sky-shipment-builder">
@@ -325,7 +325,7 @@ export function renderRefinery(){
       ${job ? `<div class="sky-upgrade-timer">
         <div><span>Temps restant</span><b>${durationText(job.remaining)}</b></div>
         <div class="sky-upgrade-meter"><i style="width:${job.percent}%"></i></div>
-        <div><span>Terminer maintenant</span><b>${fmt(rush?.cost || 0)} NOVA</b></div>
+        <div><span>Terminer maintenant</span><b>${fmt(rush?.effectiveCost ?? rush?.cost ?? 0)} NOVA</b></div>
         <button class="sky-upgrade-confirm" ${rush?.canAfford ? "" : "disabled"} data-rush-refinery-upgrade="${selectedUpgrade.id}" data-rush-refinery-type="${selectedUpgrade.type}">Terminer</button>
       </div>` : `${costList(data)}
         <div class="sky-upgrade-duration"><span>Duree</span><b>${durationText(data?.duration || 0)}</b></div>
@@ -363,5 +363,4 @@ export function renderRefinery(){
       ${refineryTab === "shipment" ? shipmentPanel : refineryTab === "stats" ? statsPanel : forgeHtml}
     </div>`;
 }
-
 

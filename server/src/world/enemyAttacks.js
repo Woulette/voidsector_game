@@ -92,7 +92,10 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
 
   function resolveEnemyAttack(attack, now){
     const target = players.get(attack.targetId) || attack.targetRef;
-    if(!target?.state || target.connected === false) return;
+    const targetIsActive = typeof presence.isActiveForWorld === "function"
+      ? presence.isActiveForWorld(target, now)
+      : target?.connected !== false;
+    if(!target?.state || (!target.npcTarget && !targetIsActive)) return;
     if(!target.npcTarget && String(target.mapId ?? "") !== String(attack.mapId ?? "")) return;
     if(Number(target.state.hp || 0) <= 0) return;
 
@@ -114,7 +117,7 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
     }
 
     presence.markCombat(target, "impact ennemi");
-    const hpLost = presence.applyDamageToPlayerState(target, attack.amount);
+    const hpLost = presence.applyDamageToPlayerState(target, attack.amount, now);
     emitQuestHpLoss(target, hpLost, now);
     profileManager.saveWorldSession({player:target, state:target.state, force:Number(target.state.hp || 0) <= 0});
     io.to(target.id).emit("player:damage", {

@@ -1,6 +1,5 @@
 import { getClosedMapPortals, getMapPortals, SAFE_ZONE_DELAY } from "../combatData.js";
 import { getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
-import { makeGroundMaterialPreview } from "./groundMaterials.js";
 import { buildMapState } from "./mapState.js";
 
 export function createCombatWorldStateSystem({
@@ -8,15 +7,12 @@ export function createCombatWorldStateSystem({
   mapList,
   getState,
   setState,
-  getAllRawMaterials,
   cargo,
   beams,
   panels,
-  saveState,
   showToast,
   updateHud,
-  clampPlayerToMap,
-  isMultiplayerConnected = ()=>false
+  clampPlayerToMap
 }){
   const mapStates = new Map();
 
@@ -147,7 +143,7 @@ export function createCombatWorldStateSystem({
     const mapState = getMapState(currentMap);
     const {player, missileSalvos} = getState();
     cargo.clear();
-    cargo.setGroundMaterials(makeGroundMaterialPreview(currentMap, getAllRawMaterials()));
+    cargo.setGroundMaterials([]);
     const nebulae = currentMap.id === 0 ? [
       {x:-1500,y:-820,r:980,c:"rgba(56,189,248,.11)",p:.22},
       {x:880,y:-260,r:760,c:"rgba(34,197,94,.06)",p:.18},
@@ -193,7 +189,6 @@ export function createCombatWorldStateSystem({
     clampPlayerToMap();
     player.safeZoneLock = options.safeNow || isPointInSafeArea(player, currentMap) ? 0 : SAFE_ZONE_DELAY;
     panels.closeSpawnPanel();
-    saveState();
     showToast(`Entree dans ${currentMap.displayName || currentMap.name}.`);
     updateHud();
   }
@@ -206,25 +201,8 @@ export function createCombatWorldStateSystem({
     return player.x < -halfW || player.x > halfW || player.y < -halfH || player.y > halfH;
   }
 
-  function updateRadiation(dt, handlePlayerDeath){
-    if(isMultiplayerConnected()) return;
-    const {gameMode, player, radiationWarned} = getState();
-    if(gameMode !== "open" || !isPlayerOutsideMap()){
-      player.radiationTimer = 30;
-      setState({radiationWarned:false});
-      return;
-    }
-    player.radiationTimer = Math.max(0, Number(player.radiationTimer ?? 30) - dt);
-    if(!radiationWarned){
-      setState({radiationWarned:true});
-      showToast("Zone irradiee : retourne dans la carte ou ton vaisseau sera detruit.");
-    }
-    if(player.radiationTimer <= 0){
-      showToast("Vaisseau detruit par la zone irradiee.");
-      player.radiationTimer = 30;
-      setState({radiationWarned:false});
-      handlePlayerDeath();
-    }
+  function updateRadiation(){
+    return;
   }
 
   return {

@@ -1,3 +1,5 @@
+import { getCachedCombatImage } from "../combatAssets.js";
+
 export function drawRotatedImage({ctx, camera, img, x, y, w, h, angle, fallbackColor = "#38bdf8"}){
   ctx.save();
   ctx.translate(Math.round(x - camera.x), Math.round(y - camera.y));
@@ -276,7 +278,7 @@ function drawDroneSprite({ctx, camera, img, x, y, angle, upgraded}){
 
 function drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, getDronePermanentUpgrade, droneFormation}){
   if(!drones.length) return;
-  const img = cache["assets/drones/drone_test_sprite.webp"];
+  const img = getCachedCombatImage(cache, "assets/drones/drone_test_sprite.webp");
   const time = performance.now() / 1000;
   const previousTime = Number.isFinite(player.droneRenderTime) ? player.droneRenderTime : time;
   const dt = Math.max(0, Math.min(.05, time - previousTime));
@@ -305,7 +307,8 @@ function drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInvent
 function drawRepairDrone({ctx, camera, cache, player}){
   if(!player?.repairBotActive) return;
   const repairImg = player.extraBonus?.repairBotImg || REPAIR_DRONE_IMG;
-  const img = cache[repairImg] || cache[REPAIR_DRONE_IMG];
+  const img = getCachedCombatImage(cache, repairImg)
+    || getCachedCombatImage(cache, REPAIR_DRONE_IMG);
   const time = performance.now() / 1000;
   const orbit = time * 1.15;
   const hover = Math.sin(time * 5.2) * 3;
@@ -365,8 +368,10 @@ function drawRepairDrone({ctx, camera, cache, player}){
 function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotFirmAssetPath, pilotName, pilotRole, pilotTitle}){
   const px = player.x - camera.x;
   const py = player.y - camera.y;
-  const rankImg = cache[rankAssetPath];
-  const firmImg = cache[pilotFirmAssetPath];
+  const rankImg = getCachedCombatImage(cache, rankAssetPath);
+  const firmImg = getCachedCombatImage(cache, pilotFirmAssetPath);
+  const rankReady = Boolean(rankImg?.complete && rankImg.naturalWidth);
+  const firmReady = Boolean(firmImg?.complete && firmImg.naturalWidth);
   const staffBadge = getStaffBadge(pilotRole);
   ctx.save();
   ctx.font = "800 15px Rajdhani, Arial";
@@ -380,18 +385,18 @@ function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilot
   const badgeGap = staffBadge ? 5 : 0;
   const badgeWidth = staffBadge ? ctx.measureText(staffBadge.label).width : 0;
   const nameWidth = ctx.measureText(pilotName).width;
-  const groupWidth = (firmImg ? firmIconSize + firmGap : 0)
-    + (rankImg ? iconSize + nameGap : 0)
+  const groupWidth = (firmReady ? firmIconSize + firmGap : 0)
+    + (rankReady ? iconSize + nameGap : 0)
     + badgeWidth
     + badgeGap
     + nameWidth;
   const startX = px - groupWidth / 2;
   let textX = startX;
-  if(firmImg){
+  if(firmReady){
     ctx.drawImage(firmImg, textX, labelY - firmIconSize / 2 - 1, firmIconSize, firmIconSize);
     textX += firmIconSize + firmGap;
   }
-  if(rankImg){
+  if(rankReady){
     ctx.drawImage(rankImg, textX, labelY - iconSize / 2 - 1, iconSize, iconSize);
     textX += iconSize + nameGap;
   }
@@ -479,7 +484,7 @@ export function drawPlayerLayer({
   drawRotatedImage({
     ctx,
     camera,
-    img:cache[ship.combatImg || ship.img],
+    img:getCachedCombatImage(cache, ship.combatImg || ship.img),
     x:player.x,
     y:player.y,
     w:ship.renderWidth || 96,

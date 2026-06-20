@@ -37,7 +37,11 @@ function makeForgedProfile(overrides = {}){
       totalKills:999_999,
       totalPlayerKills:999_999,
       monsterRankPoints:999_999,
-      rankScore:999_999
+      rankScore:999_999,
+      totalPlaySeconds:999_999,
+      laserShotsFired:999_999,
+      rocketShotsFired:999_999,
+      missileShotsFired:999_999
     },
     ownedShips:["orion", "razorion"],
     activeShip:"razorion",
@@ -62,6 +66,7 @@ function makeForgedProfile(overrides = {}){
     activeQuestIds:["astra_l1_collect"],
     questProgress:{astra_l1_collect:999},
     completedQuestClaims:{astra_l1_collect:true},
+    starterPackPurchases:["starter_razorion"],
     killStats:{sentinel_orb:999},
     rankKillStats:{sentinel_orb:999},
     activityLog:[{id:"forged", type:"admin", label:"Faux log", detail:"Tout va bien", createdAt:Date.now()}],
@@ -103,6 +108,10 @@ test("profile save cannot forge critical account progression or ownership", ()=>
   assert.equal(profile.player.premium, 0);
   assert.equal(profile.player.level, 1);
   assert.equal(profile.player.skillPoints, 1);
+  assert.equal(profile.player.totalPlaySeconds, 0);
+  assert.equal(profile.player.laserShotsFired, 0);
+  assert.equal(profile.player.rocketShotsFired, 0);
+  assert.equal(profile.player.missileShotsFired, 0);
   assert.equal(profile.player.firmId, "astra");
   assert.equal(profile.player.firmSelected, false);
   assert.deepEqual(profile.ownedShips, ["orion", "test_runner"]);
@@ -121,6 +130,7 @@ test("profile save cannot forge critical account progression or ownership", ()=>
   assert.deepEqual(profile.refineryLevels, {});
   assert.deepEqual(profile.refineryModules, {});
   assert.deepEqual(profile.completedQuestClaims, {});
+  assert.deepEqual(profile.starterPackPurchases, []);
   assert.deepEqual(profile.killStats, {});
   assert.deepEqual(profile.activityLog, []);
   assert.equal(profile.worldSession, null);

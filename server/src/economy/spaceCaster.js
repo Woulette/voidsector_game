@@ -69,7 +69,8 @@ export function runServerSpaceCaster(profile, {portalId, count = 1} = {}){
     ok:true,
     portal:{id:portal.id, name:portal.name},
     count:rollCount,
-    cost,
+    cost:spend.cost,
+    baseCost:cost,
     rewards:[...summary.values()]
   };
 }

@@ -119,15 +119,25 @@ export function drawMiniMap({
     const mx = mapX(marker.x);
     const my = mapY(marker.y);
     ctx.save();
-    ctx.fillStyle = marker.active ? "rgba(125,211,252,.98)" : "rgba(37,99,235,.98)";
-    ctx.strokeStyle = "#bae6fd";
+    ctx.fillStyle = marker.active
+      ? "rgba(34,197,94,.98)"
+      : marker.unlocked
+        ? "rgba(37,99,235,.98)"
+        : "rgba(30,41,59,.98)";
+    ctx.strokeStyle = marker.active ? "#bbf7d0" : marker.unlocked ? "#bae6fd" : "#64748b";
     ctx.shadowColor = "rgba(56,189,248,.92)";
     ctx.shadowBlur = 7;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(mx, my, marker.active ? 5 : 4, 0, Math.PI * 2);
+    ctx.arc(mx, my, 7, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "900 9px Rajdhani, Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(marker.number || ""), mx, my + .5);
     ctx.restore();
   }
   for(const beacon of beacons || []){

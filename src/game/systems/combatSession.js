@@ -50,6 +50,9 @@ export function createCombatSessionController({
     if(!getRunning() || !session) return false;
     const rawMapId = session.mapId ?? 0;
     const mapId = Number.isFinite(Number(rawMapId)) ? Number(rawMapId) : rawMapId;
+    const portalId = String(rawMapId).startsWith("portal-")
+      ? String(rawMapId).slice("portal-".length)
+      : "";
     const x = Number(session.x);
     const y = Number(session.y);
     if(!Number.isFinite(x) || !Number.isFinite(y)) return false;
@@ -61,6 +64,8 @@ export function createCombatSessionController({
       stateBeforeCorrection.player.y = y;
       stateBeforeCorrection.player.vx = Number(session.vx || 0);
       stateBeforeCorrection.player.vy = Number(session.vy || 0);
+    }else if(portalId){
+      if(loadPortalArena(portalId, {...session, x, y}) === false) return false;
     }else{
       loadMap(mapId, x, y, {safeNow:true});
     }

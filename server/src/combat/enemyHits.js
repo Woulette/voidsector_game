@@ -119,6 +119,9 @@ export function createEnemyHitHandler({
         at:Date.now()
       }});
       emitProfileSync?.(player, result.profile);
+      // A valid shot is hostile even when the accuracy roll misses. Register
+      // the attacker before the damage-only path so passive enemies retaliate.
+      markEnemyAttackedByPlayer(worldEnemy, attackerId, incoming);
       if(incoming <= 0){
         emitWorldEnemies(player.mapId);
         return {ok:true, hit:false, enemy:worldEnemy, result};
@@ -126,7 +129,6 @@ export function createEnemyHitHandler({
       const mapId = player.mapId;
       const wasAlive = worldEnemy.hp > 0;
       updateLootOwner(worldEnemy, attackerId);
-      markEnemyAttackedByPlayer(worldEnemy, attackerId, incoming);
       markFirmHitOwner(worldEnemy, player);
       applyDamageToEnemy(worldEnemy, incoming);
       if(wasAlive && worldEnemy.hp <= 0){
@@ -185,12 +187,12 @@ export function createEnemyHitHandler({
       at:Date.now()
     }});
     emitProfileSync?.(player, result.profile);
+    markEnemyAttackedByPlayer(enemy, attackerId, incoming);
     if(incoming <= 0){
       emitInstance(group);
       return {ok:true, hit:false, enemy, result};
     }
     const wasAlive = enemy.hp > 0;
-    markEnemyAttackedByPlayer(enemy, attackerId, incoming);
     markFirmHitOwner(enemy, player);
     applyDamageToEnemy(enemy, incoming);
     if(instance.type === "portal" && wasAlive && enemy.hp <= 0 && !instance.completed){

@@ -131,6 +131,7 @@
 .firm-quest-rival-strip i{grid-column:1 / -1;height:4px;background:#020a13;overflow:hidden}
 .firm-quest-rival-strip i b{display:block;height:100%;background:var(--firm-color)}
 .firm-quest-actions{display:flex;justify-content:flex-end;align-items:center;min-height:30px}.firm-quest-claim,.firm-quest-status{min-height:30px;padding:0 12px;border:1px solid rgba(56,189,248,.34);background:linear-gradient(180deg,rgba(12,50,80,.82),rgba(3,15,29,.96));color:#fff36a;font:900 11px/1 var(--font);letter-spacing:.55px;text-transform:uppercase}.firm-quest-claim{cursor:pointer}.firm-quest-claim:hover{border-color:rgba(56,189,248,.88);box-shadow:0 0 14px rgba(56,189,248,.16),inset 0 -2px 0 rgba(56,189,248,.75)}.firm-quest-claim:disabled,.firm-quest-status{opacity:.65;cursor:default}.firm-quest-status{display:grid;place-items:center;color:#b9d9e8}.firm-quest-status.done{color:#86efac;border-color:rgba(34,197,94,.35)}
+.firm-quest-status.premium{color:#fde68a;border-color:rgba(250,204,21,.42);background:linear-gradient(180deg,rgba(92,61,8,.48),rgba(3,15,29,.96));opacity:1}
 .firm-season-objective-board{min-height:430px}
 .firm-season-objective-note{margin:-2px 0 10px;color:#9fc5dc;font-size:12px;line-height:1.4}
 .firm-season-objective-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}

@@ -1,4 +1,5 @@
 import { skills } from "../../../src/data/progression.js";
+import { isPremiumActive } from "../../../src/data/premium.js";
 import { applyProgressionReward } from "../players/progression.js";
 import { canClaimQuest, deepClone, getQuest, normalizeQuestFields, MAX_ACTIVE_QUESTS } from "./questState.js";
 import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
@@ -91,6 +92,7 @@ export function claimCompletedServerQuests(profile, questIds = null){
     const quest = getQuest(id);
     if(!quest || profile.completedQuestClaims?.[quest.id]) continue;
     if(!profile.activeQuestIds.includes(quest.id)) continue;
+    if((quest.category || "normal") === "weekly" && !isPremiumActive(profile.player)) continue;
     if(!canClaimQuest(profile, quest)) continue;
     claimed.push(completeServerQuest(profile, quest));
   }
@@ -103,6 +105,7 @@ export function claimServerQuest(profile, id){
   normalizeQuestFields(profile);
   if(profile.completedQuestClaims?.[quest.id]) return {ok:false, reason:"Quete deja terminee."};
   if(!profile.activeQuestIds.includes(quest.id)) return {ok:false, reason:"Quete non active."};
+  if((quest.category || "normal") === "weekly" && !isPremiumActive(profile.player)) return {ok:false, reason:"Premium requis pour les quetes hebdomadaires."};
   if(!canClaimQuest(profile, quest)) return {ok:false, reason:"Objectif non rempli."};
   const completed = completeServerQuest(profile, quest);
   return {ok:true, quest:completed.quest, reward:completed.reward, claimedQuests:[completed]};

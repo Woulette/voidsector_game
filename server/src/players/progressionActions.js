@@ -1,4 +1,5 @@
 import { portals, skills } from "../../../src/data/catalog.js";
+import { getNovaDiscountedPrice } from "../../../src/data/premium.js";
 import { getXpNextForLevel, normalizeProgressionPlayer } from "./progression.js";
 
 const SKILL_PORTAL_REQUIREMENTS = [
@@ -108,13 +109,13 @@ function syncSkillPoints(profile){
 
 function hasSkillResources(profile, cost){
   if(Number(profile.player.credits || 0) < cost.credits) return false;
-  if(Number(profile.player.premium || 0) < cost.premium) return false;
+  if(Number(profile.player.premium || 0) < getNovaDiscountedPrice(cost.premium, profile.player)) return false;
   return Object.entries(cost.materials).every(([id, amount])=>Number(profile.cargoHold?.[id] || 0) >= amount);
 }
 
 function spendSkillResources(profile, cost){
   profile.player.credits = Math.max(0, Number(profile.player.credits || 0) - cost.credits);
-  profile.player.premium = Math.max(0, Number(profile.player.premium || 0) - cost.premium);
+  profile.player.premium = Math.max(0, Number(profile.player.premium || 0) - getNovaDiscountedPrice(cost.premium, profile.player));
   for(const [id, amount] of Object.entries(cost.materials)){
     profile.cargoHold[id] = Math.max(0, Number(profile.cargoHold[id] || 0) - amount);
   }

@@ -1,6 +1,16 @@
 import { sanitizeProfile, sanitizeWorldSession } from "./profileSanitize.js";
 
+export const WORLD_SESSION_SAVE_INTERVAL_MS = 15_000;
+
 export function createProfileWorldSession({profiles, persist, getExistingProfile}){
+  function accountServerPlaytime(profile, player, now){
+    const previous = Number(player.lastPlaytimeAccountedAt || 0);
+    player.lastPlaytimeAccountedAt = now;
+    if(player.clientMode !== "game" || player.connected === false || !previous || now <= previous) return;
+    if(!profile.player || typeof profile.player !== "object") profile.player = {};
+    profile.player.totalPlaySeconds = Math.max(0, Number(profile.player.totalPlaySeconds || 0)) + (now - previous) / 1000;
+  }
+
   function getWorldSessionForPlayer(player){
     if(!player) return null;
     const {profile} = getExistingProfile(player);
@@ -19,12 +29,13 @@ export function createProfileWorldSession({profiles, persist, getExistingProfile
     return sanitizeProfile(profile);
   }
 
-  function saveWorldSession({player, state, force = false} = {}){
+  function saveWorldSession({player, state, force = false, now = Date.now()} = {}){
     if(!player || !state) return null;
-    const now = Date.now();
-    if(!force && now - Number(player.lastWorldSessionPersistAt || 0) < 2000) return null;
+    const lastPersistAt = Number(player.lastWorldSessionPersistAt || 0);
+    if(!force && lastPersistAt > 0 && now - lastPersistAt < WORLD_SESSION_SAVE_INTERVAL_MS) return null;
     player.lastWorldSessionPersistAt = now;
     const {key, profile} = getExistingProfile(player);
+    accountServerPlaytime(profile, player, now);
     const session = sanitizeWorldSession({
       ...state,
       updatedAt:now
@@ -40,7 +51,7 @@ export function createProfileWorldSession({profiles, persist, getExistingProfile
       }
     });
     profiles.set(key, next);
-    persist();
+    persist(key);
     return next;
   }
 

@@ -19,10 +19,53 @@ export const RICKY_PORTAL_MAP = Object.freeze({
 });
 
 export const RICKY_PORTAL_LEVERS = Object.freeze([
-  Object.freeze({id:"south_west", label:"Levier sud-ouest", x:-4300, y:2850}),
-  Object.freeze({id:"south_east", label:"Levier sud-est", x:4300, y:2850}),
-  Object.freeze({id:"north_west", label:"Levier nord-ouest", x:-4300, y:-3000}),
-  Object.freeze({id:"north_east", label:"Levier nord-est", x:4300, y:-3000})
+  Object.freeze({id:"south_west", number:1, label:"Balise 1", x:-4300, y:2850}),
+  Object.freeze({id:"south_east", number:2, label:"Balise 2", x:4300, y:2850}),
+  Object.freeze({id:"north_east", number:3, label:"Balise 3", x:4300, y:-3000}),
+  Object.freeze({id:"north_west", number:4, label:"Balise 4", x:-4300, y:-3000})
+]);
+
+export const RICKY_PORTAL_TRIGGER_ZONES = Object.freeze([
+  Object.freeze({
+    id:"route_1",
+    number:1,
+    centerX:-2000,
+    centerY:2800,
+    minX:-2850,
+    maxX:-1150,
+    minY:1450,
+    maxY:4100
+  }),
+  Object.freeze({
+    id:"route_2",
+    number:2,
+    centerX:2000,
+    centerY:2800,
+    minX:1150,
+    maxX:2850,
+    minY:1450,
+    maxY:4100
+  }),
+  Object.freeze({
+    id:"route_3",
+    number:3,
+    centerX:4000,
+    centerY:0,
+    minX:2850,
+    maxX:5500,
+    minY:-2200,
+    maxY:2200
+  }),
+  Object.freeze({
+    id:"route_4",
+    number:4,
+    centerX:0,
+    centerY:-3000,
+    minX:-5500,
+    maxX:5500,
+    minY:-4100,
+    maxY:-2100
+  })
 ]);
 
 export const RICKY_PORTAL_RETURN_POINTS = Object.freeze({
@@ -96,4 +139,14 @@ export function resolveRickyPortalPoint(previous, requested, breachOpen = false,
 export function findRickyPortalLever(id){
   const cleanId = String(id || "");
   return RICKY_PORTAL_LEVERS.find(lever=>lever.id === cleanId) || null;
+}
+
+export function isPointInRickyTriggerZone(point, zone){
+  if(!point || !zone) return false;
+  const x = Number(point.x || 0);
+  const y = Number(point.y || 0);
+  return x >= Number(zone.minX)
+    && x <= Number(zone.maxX)
+    && y >= Number(zone.minY)
+    && y <= Number(zone.maxY);
 }

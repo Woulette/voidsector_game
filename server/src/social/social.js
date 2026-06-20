@@ -2,8 +2,6 @@ import { ships } from "../../../src/data/ships.js";
 import { getFirmDefinition, normalizeFirmId } from "../../../src/data/firms.js";
 import { WORLD_MAPS } from "../world/definitions.js";
 
-const AWAY_AFTER_MS = 5 * 60 * 1000;
-
 function unique(list){
   return [...new Set((Array.isArray(list) ? list : []).map(String).filter(Boolean))];
 }
@@ -38,8 +36,7 @@ export function createSocialManager({io, players, profileManager}){
     const profile = entry.profile;
     const live = livePlayerForKey(key);
     const gameLive = live?.clientMode === "game" && live?.state ? live : socketsForKey(key).find(player=>player.clientMode === "game" && player.connected !== false && player.state);
-    const lastUpdate = Number(gameLive?.state?.updatedAt || 0);
-    const status = gameLive && now - lastUpdate < AWAY_AFTER_MS ? "online" : live ? "away" : "offline";
+    const status = gameLive ? (gameLive.afk ? "away" : "online") : "offline";
     const firm = getFirmDefinition(profile?.player?.firmId || "astra");
     const ship = ships.find(entry=>entry.id === String(gameLive?.state?.shipId || profile?.activeShip || ""));
     const map = WORLD_MAPS[String(gameLive?.state?.mapId ?? "")];

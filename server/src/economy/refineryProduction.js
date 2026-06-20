@@ -51,19 +51,28 @@ export function tickServerRefineryProduction(profile, now = Date.now()){
     if(!Number(profile.refineryLastTick || 0)) profile.refineryLastTick = now;
     return false;
   }
-  let changed = false;
+  if(!profile.refineryProductionRemainders
+    || typeof profile.refineryProductionRemainders !== "object"
+    || Array.isArray(profile.refineryProductionRemainders)){
+    profile.refineryProductionRemainders = {};
+  }
+  // Advancing the production clock and its fractional balances is itself a
+  // state change that must be persisted, even before a whole unit is ready.
+  let changed = true;
   for(const material of refineryMaterialCatalog){
     const rate = getRefineryProductionRate(profile, material.id);
     if(rate <= 0) continue;
     const perTick = rate * REFINERY_PRODUCTION_TICK_MS / 3600000;
-    const produced = Math.floor(perTick * ticks);
+    const previousRemainder = Math.max(0, Math.min(1, Number(profile.refineryProductionRemainders[material.id] || 0)));
+    const accumulated = previousRemainder + perTick * ticks;
+    const produced = Math.floor(accumulated + 1e-9);
+    profile.refineryProductionRemainders[material.id] = Math.max(0, accumulated - produced);
     if(produced <= 0) continue;
     const current = getMaterialCount(profile, material.id);
     const cap = getMaterialStorageCap(profile, material.id);
     const next = Math.min(cap, current + produced);
     if(next !== current){
       setMaterialCount(profile, material.id, next);
-      changed = true;
     }
   }
   profile.refineryLastTick = lastTick + ticks * REFINERY_PRODUCTION_TICK_MS;

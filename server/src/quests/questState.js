@@ -1,5 +1,6 @@
 import { questCatalog } from "../../../src/data/progression.js";
 import { normalizeFirmId } from "../../../src/data/firms.js";
+import { isPremiumActive } from "../../../src/data/premium.js";
 
 export const MAX_ACTIVE_QUESTS = 5;
 
@@ -120,6 +121,9 @@ export function acceptServerQuest(profile, id){
   if(!questMatchesProfileFirm(profile, quest)) return {ok:false, reason:"Quete reservee a une autre firme."};
   const requiredLevel = Number(quest.requiredLevel || 1);
   if(Number(profile.player?.level || 1) < requiredLevel) return {ok:false, reason:`Niveau ${requiredLevel} requis.`};
+  if((quest.category || "normal") === "weekly" && !isPremiumActive(profile.player)){
+    return {ok:false, reason:"Premium requis pour les quetes hebdomadaires."};
+  }
   if(!isQuestUnlocked(profile, quest)) return {ok:false, reason:"Quete rare verrouillee."};
   if(profile.completedQuestClaims?.[quest.id]) return {ok:false, reason:"Quete deja terminee."};
   if(profile.activeQuestIds.includes(quest.id)) return {ok:false, reason:"Quete deja en cours."};

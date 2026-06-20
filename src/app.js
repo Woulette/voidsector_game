@@ -1,56 +1,32 @@
-import { ammoTypes, portals, questCatalog, rawMaterialCatalog } from "./data/catalog.js";
+import { ammoTypes, portals, rawMaterialCatalog } from "./data/catalog.js";
 import {
-  addAmmo,
-  addInventoryItem,
-  addPortalPiece,
-  applyDronePermanentUpgrade,
-  canAfford,
   ensureShipLoadout,
   findEquippedSlot,
   getDroneCatalog,
   getDroneFormation,
   getDroneLoadout,
-  getDronePurchasePrice,
   getInventoryItem,
   getItem,
   getItemFromInventoryUid,
   getLoadout,
   getMaterialStorageCap,
   getPortal,
-  getPortalPieces,
   getXpNextForLevel,
   getShipPurchaseLockReason,
   getShip,
   isDroneCompatibleEquipment,
   isDronePermanentUpgradeItem,
-  performPrestige,
   isPortalUnlocked,
   loadState,
   saveState,
   setStateStorageScope,
   setGraphicsQuality,
-  spend,
-  rushRefineryUpgrade,
-  rushRefineryShipment,
-  recordQuestRefineryMaterialUpgradeStart,
-  recordQuestRefineryModuleUpgradeStart,
-  recordQuestSpaceCasterUse,
-  startRefineryJob,
-  startRefineryMaterialUpgrade,
-  startRefineryModuleUpgrade,
-  startRefineryShipment,
   store,
-  claimRefineryJob,
-  tickRefineryProduction,
-  toggleRefineryProduction,
-  unequipInventoryItem,
-  upgradeSkill,
-  unlockPortal,
   XP_CURVE_VERSION
 } from "./core/store.js";
 import { createCombatGame } from "./game/combat.js?v=quest-claim-ui-1";
-import { applyServerDroneUpgrade, buyFirmShopItem, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerShip, claimFirmQuest, claimFirmRewards, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
-import { initMultiplayer } from "./multiplayer/client.js";
+import { applyServerDroneUpgrade, buyFirmShopItem, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
+import { connectMultiplayer, disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, registerAccount, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js";
 import { renderAll, renderFirm, renderLeaderboard, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js";
 import { showToast } from "./ui/toast.js";
 import { DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeSlotKeybinds } from "./core/keybinds.js";
@@ -62,12 +38,17 @@ import { createRefineryActions } from "./app/refineryActions.js";
 import { createProgressionActions } from "./app/progressionActions.js";
 import { createInventorySaleController } from "./app/inventorySaleController.js";
 import { createUnequipAllController } from "./app/unequipAllController.js";
+import { createAuthGateController, isMmoAuthenticated } from "./app/authGate.js";
+import { createGameConnectionRecoveryController } from "./app/gameConnectionRecovery.js";
+import { requireMmoConnection, sendMmoCommand } from "./app/mmoGate.js";
 import { handleAdminPanelChange, handleAdminPanelClick, handleAdminPanelInput, handleAdminPanelServerChange } from "./ui/adminPanel.js";
 
 const Game = createCombatGame({renderAll, showToast});
 let inventoryClickTimer = null;
 let pendingKeybindSlot = null;
 let pendingServerResume = null;
+let gameStartConnectRequested = false;
+let lastGameAuthNoticeAt = 0;
 const urlParams = new URLSearchParams(window.location.search);
 const appMode = urlParams.get("mode") === "game" ? "game" : "launcher";
 const PROFILE_SCOPE_STORAGE_KEY = "voidsector-active-profile-scope";
@@ -101,6 +82,15 @@ const SCROLL_PRESERVE_SELECTORS = [
   ".admin-inventory-grid",
   ".admin-inventory-selected"
 ];
+
+function reportGameInputActivity(event){
+  if(appMode !== "game" || !Game.running) return;
+  sendPlayerActivity(event?.type || "input");
+}
+
+window.addEventListener("pointerdown", reportGameInputActivity, {passive:true});
+window.addEventListener("keydown", reportGameInputActivity, {passive:true});
+window.addEventListener("wheel", reportGameInputActivity, {passive:true});
 
 function getScrollSnapshot(){
   return {
@@ -172,27 +162,42 @@ const applyServerProfile = profileController.applyServerProfile;
 const switchLocalProfileScope = profileController.switchLocalProfileScope;
 const accountProfileScope = profileController.accountProfileScope;
 
+let authGate = null;
+let gameRecovery = null;
+
+function promptAuthGate(message = "Connecte ton compte AvosomaNox avant d'entrer en jeu."){
+  if(appMode === "game"){
+    if(multiplayer.auth?.token && (multiplayer.connecting || multiplayer.auth?.pending)) return;
+    gameRecovery?.show?.("account");
+    return;
+  }
+  authGate?.show?.();
+  const now = Date.now();
+  if(!lastGameAuthNoticeAt || now - lastGameAuthNoticeAt > 4000){
+    showToast(message);
+    lastGameAuthNoticeAt = now;
+  }
+}
+
+function requireMmoAccountReady(message){
+  if(isMmoAuthenticated(multiplayer)) return true;
+  promptAuthGate(message);
+  if(multiplayer.auth?.token && !multiplayer.connected && !multiplayer.connecting){
+    connectMultiplayer({name:multiplayer.name});
+  }
+  return false;
+}
+
 function equipSelectedShip(){
   const ship = getShip(store.state.selectedShip);
   if(store.state.activeShip === ship.id) return showToast(`${ship.name} est deja le vaisseau equipe.`);
-  if(multiplayer.connected){
-    if(equipServerActiveShip(ship.id)){
-      showToast("Changement de vaisseau envoye au serveur.");
-      return;
-    }
-  }
-  if(store.state.activeShip === ship.id){
-    store.state.activeShip = null;
-    showToast(`${ship.name} déséquipé.`);
-    saveAndSyncProfile();
-    renderAll();
-    return;
-  }
-  ensureShipLoadout(ship.id);
-  store.state.activeShip = ship.id;
-  showToast(`${ship.name} équipé.`);
-  saveAndSyncProfile();
-  renderAll();
+  sendMmoCommand({
+    multiplayer,
+    send:()=>equipServerActiveShip?.(ship.id),
+    showToast,
+    sentMessage:"Changement de vaisseau envoye au serveur.",
+    failedMessage:"Changement de vaisseau impossible."
+  });
 }
 
 const {
@@ -200,7 +205,9 @@ const {
   buyItem,
   buyAmmo,
   buyCombatDrone,
-  buyDroneFormation
+  buyDroneFormation,
+  buyPremiumPack,
+  claimPremiumReward
 } = createShopActions({
   multiplayer,
   store,
@@ -209,20 +216,14 @@ const {
   getItem,
   getDroneCatalog,
   getDroneFormation,
-  getDroneLoadout,
-  getDronePurchasePrice,
   getShipPurchaseLockReason,
-  ensureShipLoadout,
-  canAfford,
-  spend,
-  addInventoryItem,
-  addAmmo,
   buyServerShip,
   buyServerItem,
   buyServerAmmo,
   buyServerDrone,
   buyServerDroneFormation,
-  renderAll,
+  buyServerPremiumPack,
+  claimServerPremiumReward,
   showToast
 });
 
@@ -236,42 +237,13 @@ const inventorySaleController = createInventorySaleController({
 });
 
 const progressionActions = createProgressionActions({
-  multiplayer, store, ammoTypes, getPortal, getPortalPieces, isPortalUnlocked, canAfford, spend, addPortalPiece, addAmmo, unlockPortal, upgradeSkill,
-  runServerSpaceCaster, progressServerQuest, recordQuestSpaceCasterUse, unlockServerPortal, upgradeServerSkill, saveAndSyncProfile, saveState, renderAll, showToast
+  multiplayer, store, getPortal, isPortalUnlocked,
+  runServerSpaceCaster, unlockServerPortal, upgradeServerSkill, showToast
 });
 const {runSpaceCaster, unlockPortalWithPieces, unlockSkill} = progressionActions;
 
 function applyDevProgressionBoost(){
-  if(!store.state) return;
-  store.state.player.level = Math.max(Number(store.state.player.level || 0), 999);
-  store.state.player.xp = Math.max(Number(store.state.player.xp || 0), 0);
-  store.state.player.xpNext = Math.max(Number(store.state.player.xpNext || 0), 1);
-  store.state.player.credits = Math.max(Number(store.state.player.credits || 0), 1000000000);
-  store.state.player.premium = Math.max(Number(store.state.player.premium || 0), 1000000);
-  store.state.player.skillPoints = Math.max(Number(store.state.player.skillPoints || 0), 999);
-
-  if(!store.state.refineryLevels || typeof store.state.refineryLevels !== "object") store.state.refineryLevels = {};
-  for(const material of rawMaterialCatalog){
-    store.state.refineryLevels[material.id] = Number(material.maxLevel || 20);
-  }
-  store.state.refineryModules = {storage:20, transport:20};
-  store.state.refineryUpgradeJobs = {};
-  store.state.refineryShipmentJob = null;
-  store.state.refineryProductionDisabled = {};
-  store.state.refineryLastTick = Date.now();
-  store.state.unlockedPortals = portals.map(portal=>portal.id);
-  store.state.completedPortals = portals.reduce((completed, portal)=>{
-    completed[portal.id] = Math.max(1, Number(store.state.completedPortals?.[portal.id] || 0));
-    return completed;
-  }, {});
-
-  if(!store.state.cargoHold || typeof store.state.cargoHold !== "object") store.state.cargoHold = {};
-  for(const material of rawMaterialCatalog){
-    store.state.cargoHold[material.id] = getMaterialStorageCap(material.id);
-  }
-  saveState();
-  renderAll();
-  showToast("Mode test : raffinerie max, stocks pleins, points disponibles.");
+  showToast("Mode test local desactive : utilise le panel admin serveur pour modifier un profil MMO.");
 }
 
 window.voidsectorDev = {
@@ -285,17 +257,12 @@ const {equipPart, autoEquipInventoryItem, unequipPart, unequipSelectedShipLoadou
   getShip,
   getLoadout,
   getDroneLoadout,
-  findEquippedSlot,
-  unequipInventoryItem,
   isDronePermanentUpgradeItem,
   isDroneCompatibleEquipment,
-  applyDronePermanentUpgrade,
   applyServerDroneUpgrade,
   equipServerInventoryItem,
   unequipServerSlot,
   unequipServerShip,
-  saveState,
-  renderAllPreserveInventoryScroll,
   showToast
 });
 
@@ -318,17 +285,6 @@ const refineryActions = createRefineryActions({
   rushServerRefineryUpgrade,
   startServerRefineryShipment,
   rushServerRefineryShipment,
-  startRefineryJob,
-  claimRefineryJob,
-  toggleRefineryProduction,
-  startRefineryMaterialUpgrade,
-  startRefineryModuleUpgrade,
-  recordQuestRefineryMaterialUpgradeStart,
-  recordQuestRefineryModuleUpgradeStart,
-  rushRefineryUpgrade,
-  startRefineryShipment,
-  rushRefineryShipment,
-  saveState,
   renderAll,
   renderRefinery,
   showToast
@@ -339,14 +295,23 @@ document.addEventListener("click", (e)=>{
 
   const firmChoice = e.target.closest("[data-firm-choice]");
   if(firmChoice){
+    store.pendingFirmName = document.getElementById("firmSetupName")?.value || store.pendingFirmName || "";
     store.pendingFirmId = firmChoice.dataset.firmChoice || "astra";
+    renderAll();
+    return;
+  }
+  const firmChoiceReset = e.target.closest("[data-firm-choice-reset]");
+  if(firmChoiceReset){
+    store.pendingFirmName = document.getElementById("firmSetupName")?.value || store.pendingFirmName || "";
+    store.pendingFirmId = null;
     renderAll();
     return;
   }
   const firmSetupConfirm = e.target.closest("[data-firm-setup-confirm]");
   if(firmSetupConfirm){
     const name = document.getElementById("firmSetupName")?.value || store.state.player.name || multiplayer.auth?.account?.username || "NOVA-37";
-    const firmId = store.pendingFirmId || store.state.player.firmId || "astra";
+    const firmId = store.pendingFirmId;
+    if(!firmId) return showToast("Selectionne une firme avant de valider.");
     if(!multiplayer.connected) return showToast("Connexion serveur requise pour choisir la firme.");
     if(setupServerProfile({name, firmId})){
       showToast("Configuration du profil envoyee au serveur.");
@@ -404,31 +369,37 @@ document.addEventListener("click", (e)=>{
 
   const profileTitleBtn = e.target.closest("[data-profile-title]");
   if(profileTitleBtn){
-    store.state.player.activeTitleId = profileTitleBtn.dataset.profileTitle || null;
-    saveState();
-    renderAll();
+    sendMmoCommand({
+      multiplayer,
+      send:()=>setServerProfileTitle?.({titleId:profileTitleBtn.dataset.profileTitle || null}),
+      showToast,
+      sentMessage:"Changement de titre envoye au serveur.",
+      failedMessage:"Changement de titre impossible."
+    });
     return;
   }
 
   const profileTitleVisibilityBtn = e.target.closest("[data-profile-title-visibility]");
   if(profileTitleVisibilityBtn){
-    store.state.player.titleVisible = store.state.player.titleVisible === false;
-    saveState();
-    renderAll();
+    sendMmoCommand({
+      multiplayer,
+      send:()=>setServerProfileTitle?.({visible:store.state.player.titleVisible === false}),
+      showToast,
+      sentMessage:"Visibilite du titre envoyee au serveur.",
+      failedMessage:"Changement de visibilite impossible."
+    });
     return;
   }
 
   const prestigeBtn = e.target.closest("[data-prestige]");
   if(prestigeBtn){
-    if(multiplayer.connected && performServerPrestige()){
-      showToast("Prestige envoye au serveur.");
-      return;
-    }
-    const result = performPrestige();
-    if(!result.ok) return showToast(result.reason);
-    saveState();
-    showToast(`Prestige ${result.prestige} actif : retour niveau 1, cap niveau 100 conserve.`);
-    renderAll();
+    sendMmoCommand({
+      multiplayer,
+      send:()=>performServerPrestige?.(),
+      showToast,
+      sentMessage:"Prestige envoye au serveur.",
+      failedMessage:"Prestige impossible."
+    });
     return;
   }
 
@@ -446,17 +417,43 @@ document.addEventListener("click", (e)=>{
 
   const resetSaveBtn = e.target.closest("[data-reset-save]");
   if(resetSaveBtn){
-    const ok = window.confirm("Remettre VoidSector a zero  Toute la progression locale sera supprimee.");
-    if(!ok) return;
-    window.__voidsectorResetInProgress = true;
-    sessionStorage.setItem("voidsector-reset-requested", "1");
-    localStorage.removeItem("voidsector-prototype-state");
-    window.location.reload();
+    showToast("Reset local desactive en MMO-only. Utilise le panel admin serveur pour reinitialiser un profil.");
     return;
   }
 
+  const storeModalClose = e.target.closest("[data-store-modal-close]");
+  if(storeModalClose || e.target.matches?.("[data-store-modal-backdrop]")){
+    store.storeModal = null;
+    renderAll();
+    return;
+  }
+
+  const storeTab = e.target.closest("[data-store-tab]");
+  if(storeTab){
+    store.storeTab = storeTab.dataset.storeTab || "premium";
+    store.storeModal = null;
+    renderAll();
+    return;
+  }
+
+  const storeOffer = e.target.closest("[data-store-offer]");
+  if(storeOffer && !e.target.closest("[data-buy-premium-pack], [data-claim-premium-reward]")){
+    store.storeModal = {
+      kind:storeOffer.dataset.storeOfferKind || "",
+      id:storeOffer.dataset.storeOffer || ""
+    };
+    renderAll();
+    return;
+  }
+
+  const premiumRewardBtn = e.target.closest("[data-claim-premium-reward]");
+  if(premiumRewardBtn){ claimPremiumReward(); return; }
+
   const itemBtn = e.target.closest("[data-buy-item]");
   if(itemBtn){ buyItem(itemBtn.dataset.buyItem); return; }
+
+  const premiumPackBtn = e.target.closest("[data-buy-premium-pack]");
+  if(premiumPackBtn){ buyPremiumPack(premiumPackBtn.dataset.buyPremiumPack); return; }
 
   const ammoBtn = e.target.closest("[data-buy-ammo]");
   if(ammoBtn){ buyAmmo(ammoBtn.dataset.buyAmmo, ammoBtn.dataset.buyAmmoMultiplier); return; }
@@ -578,12 +575,12 @@ document.addEventListener("click", (e)=>{
   const portalBtn = e.target.closest("[data-start-portal]");
   if(portalBtn){
     if(!store.state.activeShip) return showToast("Équipe un vaisseau avant d'entrer dans un portail.");
-    if(multiplayer.connected && multiplayer.group){
-      startServerPortal(portalBtn.dataset.startPortal);
+    if(!requireMmoConnection(multiplayer, showToast)) return;
+    if(startServerPortal(portalBtn.dataset.startPortal)){
       Game.start("open");
       return;
     }
-    Game.start(`portal:${portalBtn.dataset.startPortal}`);
+    showToast("Activation du portail serveur impossible.");
     return;
   }
 
@@ -634,13 +631,12 @@ document.addEventListener("click", (e)=>{
   const inventoryUnequipBtn = e.target.closest("[data-inventory-unequip]");
   if(inventoryUnequipBtn){
     const uid = inventoryUnequipBtn.dataset.inventoryUnequip;
-    if(multiplayer.connected && unequipServerInventoryItem(uid)){
+    if(!requireMmoConnection(multiplayer, showToast)) return;
+    if(unequipServerInventoryItem(uid)){
       showToast("Retrait envoye au serveur.");
       return;
     }
-    if(!unequipInventoryItem(uid)) return showToast("Objet déjà retiré.");
-    showToast("Équipement retiré.");
-    renderAllPreserveInventoryScroll();
+    showToast("Retrait serveur impossible.");
     return;
   }
 
@@ -674,6 +670,11 @@ document.addEventListener("dblclick", (e)=>{
 document.addEventListener("input", e=>{
   if(handleAdminPanelInput(e, {renderAll:renderAllPreserveScroll})) return;
 
+  const firmNameInput = e.target.closest("[data-firm-setup-name]");
+  if(firmNameInput){
+    store.pendingFirmName = firmNameInput.value;
+    return;
+  }
   const amountInput = e.target.closest("#refineryPanel [data-refinery-shipment-amount]");
   if(!amountInput) return;
   store.selectedRefineryShipmentAmount = Math.max(1, Math.ceil(Number(amountInput.value || 1)));
@@ -725,6 +726,7 @@ document.getElementById("backToShipsBtn").addEventListener("click", ()=>{
   renderAll();
 });
 document.getElementById("startGameBtn").addEventListener("click", ()=>{
+  if(!requireMmoAccountReady()) return;
   if(!store.state.activeShip) return showToast("Équipe un vaisseau avant de lancer la mission.");
   if(multiplayer.auth?.account && store.state.player?.firmSelected !== true){
     showToast("Choisis ton nom de joueur et ta firme avant d'entrer en jeu.");
@@ -783,6 +785,8 @@ window.addEventListener("voidsector:profile-sync", event=>{
     || (Object.hasOwn(player, "firmId") && beforeFirmId !== store.state?.player?.firmId)
   );
   if(appMode === "game" && firmSetupChanged) renderAllPreserveScroll();
+  if(appMode === "game") window.setTimeout(startGameWhenMmoReady, 0);
+  gameRecovery?.handleProfileSync();
 });
 
 window.addEventListener("voidsector:player-resume", event=>{
@@ -796,12 +800,9 @@ window.addEventListener("voidsector:player-resume", event=>{
 const serverEvents = createServerEventController({
   multiplayer,
   store,
-  questCatalog,
   getItem,
   getShip,
   getDroneFormation,
-  ensureShipLoadout,
-  saveState,
   renderAll:renderAllPreserveScroll,
   renderTop,
   renderProfile,
@@ -814,6 +815,7 @@ const serverEvents = createServerEventController({
 window.addEventListener("voidsector:multiplayer-change", serverEvents.handleChange);
 window.addEventListener("voidsector:multiplayer-change", event=>{
   const reason = String(event.detail?.reason || "");
+  gameRecovery?.handleChange(event);
   if(handleAdminPanelServerChange(reason) || reason === "auth:success" || reason === "auth:role" || reason === "auth:logout") renderAllPreserveScroll();
   if(reason === "firm:updated" && event.detail?.payload?.action === "box-open"){
     store.firmBoxOpening = {...event.detail.payload, revealId:`box_${Date.now()}`};
@@ -836,6 +838,30 @@ initMultiplayer({
   getDefaultName:()=>store.state?.player?.name || "NOVA-37",
   clientMode:appMode
 });
+authGate = createAuthGateController({
+  multiplayer,
+  loginAccount,
+  registerAccount,
+  setAuthRememberEnabled,
+  connectMultiplayer,
+  showToast,
+  appMode
+});
+gameRecovery = createGameConnectionRecoveryController({
+  appMode,
+  multiplayer,
+  isGameRunning:()=>Game.running,
+  suspendGame:()=>{
+    if(Game.running) Game.stop(false);
+  },
+  resumeGame:()=>startGameWhenMmoReady(),
+  reconnect:()=>reconnectWithStoredAuthSession(),
+  getAuthToken:()=>getLatestAuthToken(),
+  disconnect:intent=>disconnectMultiplayer(intent)
+});
+if(appMode === "game" && !multiplayer.auth?.token && !isMmoAuthenticated(multiplayer)){
+  gameRecovery.show("account");
+}
 window.voidResetFirm = ()=>{
   if(!multiplayer.auth?.account) return "Connecte un compte avant d'utiliser cette commande.";
   if(!multiplayer.connected) return "Serveur multijoueur deconnecte.";
@@ -845,15 +871,44 @@ window.voidResetFirm = ()=>{
 window.voidResetFirme = window.voidResetFirm;
 setView("hangar");
 renderAll();
-if(appMode === "game"){
-  if(store.state.activeShip){
-    Game.start();
-    if(pendingServerResume && Game.resumeWorldSession(pendingServerResume)) pendingServerResume = null;
+function startGameWhenMmoReady(){
+  if(appMode !== "game" || Game.running) return;
+  if(!isMmoAuthenticated(multiplayer)){
+    if(multiplayer.auth?.token && !multiplayer.connected && !multiplayer.connecting && !gameStartConnectRequested){
+      gameStartConnectRequested = true;
+      connectMultiplayer({name:multiplayer.name});
+    }
+    promptAuthGate("Connecte ton compte AvosomaNox pour lancer la session.");
+    return;
   }
-  else showToast("Aucun vaisseau equipe. Retourne au launcher pour preparer ton depart.");
+  if(store.state.player?.firmSelected !== true){
+    store.hangarTab = "profile";
+    setView("hangar");
+    renderAll();
+    showToast("Choisis ton nom de joueur et ta firme avant d'entrer en jeu.");
+    return;
+  }
+  if(!store.state.activeShip){
+    showToast("Aucun vaisseau equipe. Retourne au launcher pour preparer ton depart.");
+    return;
+  }
+  Game.start();
+  if(pendingServerResume && Game.resumeWorldSession(pendingServerResume)) pendingServerResume = null;
+}
+if(appMode === "game"){
+  const handleGameConnection = ()=>{
+    if(Game.running){
+      window.removeEventListener("voidsector:multiplayer-change", handleGameConnection);
+      return;
+    }
+    startGameWhenMmoReady();
+    if(Game.running) window.removeEventListener("voidsector:multiplayer-change", handleGameConnection);
+  };
+  window.addEventListener("voidsector:multiplayer-change", handleGameConnection);
+  startGameWhenMmoReady();
 }
 setInterval(()=>{
-  const changed = tickRefineryProduction();
+  const changed = false;
   const hasRefineryUpgrade = store.state?.refineryUpgradeJobs && Object.keys(store.state.refineryUpgradeJobs).length > 0;
   const hasRefineryShipment = !!store.state?.refineryShipmentJob;
   if(changed) saveAndSyncProfile();

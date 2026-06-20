@@ -1,12 +1,9 @@
 export function createServerEventController({
   multiplayer,
   store,
-  questCatalog,
   getItem,
   getShip,
   getDroneFormation,
-  ensureShipLoadout,
-  saveState,
   renderAll,
   renderTop,
   renderProfile,
@@ -22,24 +19,9 @@ export function createServerEventController({
 
   function applyPurchaseEvents(reason){
     if(reason === "shop:ammo-bought"){
-      let changed = false;
-      if(!store.state.ammoInventory || typeof store.state.ammoInventory !== "object") store.state.ammoInventory = {};
       for(const event of consume(multiplayer.shopAmmoEvents)){
         const amount = Math.max(0, Math.round(Number(event.amount || 0)));
-        if(event.id && amount > 0){
-          const ammoId = String(event.id);
-          store.state.ammoInventory[ammoId] = Math.max(0, Number(store.state.ammoInventory[ammoId] || 0)) + amount;
-          const price = Math.max(0, Math.round(Number(event.price || 0)));
-          const currency = event.priceType === "premium" ? "premium" : "credits";
-          if(price > 0 && store.state.player) store.state.player[currency] = Math.max(0, Number(store.state.player[currency] || 0) - price);
-          changed = true;
-          showToast(`${event.name || "Munitions"} achetee cote serveur : +${amount.toLocaleString("fr-FR")}.`);
-        }
-      }
-      if(changed){
-        saveState();
-        renderAll();
-        window.dispatchEvent(new CustomEvent("voidsector:inventory-updated", {detail:{reason, type:"ammo"}}));
+        if(event.id && amount > 0) showToast(`${event.name || "Munitions"} achetee cote serveur : +${amount.toLocaleString("fr-FR")}.`);
       }
       return true;
     }
@@ -48,6 +30,21 @@ export function createServerEventController({
         const item = getItem(event.id);
         if(item) showToast(`${item.name} achete cote serveur. Un exemplaire a ete ajoute a l'inventaire.`);
       }
+      return true;
+    }
+    if(reason === "shop:premium-pack-bought"){
+      for(const event of consume(multiplayer.shopPremiumPackEvents)){
+        showToast(`${event.name || "Pass premium"} active cote serveur. Premium restant : ${event.remaining || "actif"}.`);
+      }
+      renderAll();
+      return true;
+    }
+    if(reason === "premium:reward-claimed"){
+      for(const event of consume(multiplayer.premiumRewardEvents)){
+        const day = Number(event.day || 0);
+        showToast(`Recompense premium jour ${day || "?"} recue cote serveur.`);
+      }
+      renderAll();
       return true;
     }
     if(reason === "inventory:item-sold"){
@@ -89,65 +86,19 @@ export function createServerEventController({
   }
 
   function applyQuestProgress(){
-    let changed = false;
-    if(!store.state.questProgress || typeof store.state.questProgress !== "object") store.state.questProgress = {};
     for(const event of consume(multiplayer.questProgressEvents)){
       for(const update of event.updates || []){
-        const questId = update?.questId || update?.id;
-        if(!questId) continue;
-        const value = Math.max(0, Number(update.objectiveProgress ?? update.progress ?? 0));
-        const quest = questCatalog.find(entry=>entry.id === questId);
-        const objectiveCount = Array.isArray(quest?.objectives) ? quest.objectives.length : quest?.objective ? 1 : 0;
-        if(objectiveCount <= 1) store.state.questProgress[questId] = value;
-        else if(update.objectiveKey){
-          const current = store.state.questProgress[questId];
-          store.state.questProgress[questId] = current && typeof current === "object" ? current : {};
-          store.state.questProgress[questId][update.objectiveKey] = value;
-        }else store.state.questProgress[questId] = Math.max(Number(store.state.questProgress[questId] || 0), value);
-        changed = true;
+        if(update?.completed) showToast(`Objectif serveur termine : ${update.title || "quete"}.`);
       }
-    }
-    if(changed){
-      saveState();
-      renderAll();
     }
   }
 
   function applyQuestFailureProgress(){
-    let changed = false;
-    if(!store.state.questFailProgress || typeof store.state.questFailProgress !== "object") store.state.questFailProgress = {};
-    if(!store.state.questProgress || typeof store.state.questProgress !== "object") store.state.questProgress = {};
     for(const event of consume(multiplayer.questFailureEvents)){
-      for(const update of event.updates || []){
-        const questId = update?.questId || update?.id;
-        if(!questId || update.failType !== "hpLost") continue;
-        const current = store.state.questFailProgress[questId] && typeof store.state.questFailProgress[questId] === "object"
-          ? store.state.questFailProgress[questId]
-          : {};
-        store.state.questFailProgress[questId] = {
-          ...current,
-          hpLost:Math.max(0, Number(update.hpLost || 0))
-        };
-        changed = true;
-      }
       for(const failed of event.failed || []){
-        const questId = failed?.questId || failed?.id;
-        if(!questId) continue;
-        const quest = questCatalog.find(entry=>entry.id === questId);
-        store.state.questProgress[questId] = Array.isArray(quest?.objectives) && quest.objectives.length > 1 ? {} : 0;
-        store.state.questFailProgress[questId] = {};
-        if(Array.isArray(store.state.activeQuestIds)){
-          store.state.activeQuestIds = store.state.activeQuestIds.filter(id=>id !== questId);
-        }
-        if(store.state.activeQuestId === questId) store.state.activeQuestId = store.state.activeQuestIds?.[0] || null;
         const reason = failed?.failType === "timeElapsed" ? "temps depasse" : "limite de vie depassee";
-        showToast(`${failed.title || quest?.title || "Quete"} : ${reason}, quete annulee.`);
-        changed = true;
+        showToast(`${failed.title || "Quete"} : ${reason}, quete annulee.`);
       }
-    }
-    if(changed){
-      saveState();
-      renderAll();
     }
   }
 
@@ -184,17 +135,7 @@ export function createServerEventController({
     if(reason === "ship:active-equipped"){
       const serverEvent = multiplayer.shipEvents?.shift();
       if(serverEvent?.shipId){
-          store.state.activeShip = serverEvent.shipId;
-          store.state.selectedShip = serverEvent.shipId;
-          if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
-          if(!Array.isArray(store.state.actionSlotsByShip[serverEvent.shipId])){
-            store.state.actionSlotsByShip[serverEvent.shipId] = Array(9).fill(null);
-          }
-          store.state.actionSlots = Array.from({length:9}, (_,index)=>store.state.actionSlotsByShip[serverEvent.shipId][index] || null);
-          ensureShipLoadout(serverEvent.shipId);
-        saveState();
         showToast(`Vaisseau equipe au spawn ${serverEvent.homeMap || "de firme"}.`);
-        renderAll();
       }
       return;
     }

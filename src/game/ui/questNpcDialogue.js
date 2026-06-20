@@ -236,15 +236,13 @@ export function createQuestNpcDialogue({
     const itemId = dialogueState.itemId || "";
     close();
     const currentMap = getCurrentMap();
-    const progressed = shouldProgress && (multiplayer.connected
-      ? progressServerQuest({type:progressType, itemId, npcId:npc.id, zoneName:currentMap.name})
-      : recordQuestNpcTalk(npc.id, currentMap.name));
+    const progressed = shouldProgress && multiplayer.connected
+      && progressServerQuest({type:progressType, itemId, npcId:npc.id, zoneName:currentMap.name});
     if(progressed){
       saveState();
       const panelMode = getSpawnPanelMode();
       if(panelMode) renderSpawnInteractionPanel(panelMode);
       updateHud();
-      if(!multiplayer.connected) showToast("Objectif mis a jour.");
     }
   }
 

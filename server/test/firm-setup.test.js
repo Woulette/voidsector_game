@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { registerPlayerHandlers } from "../src/socket/playerHandlers.js";
 
 function makeSocket(id){
@@ -13,6 +14,7 @@ function makeSocket(id){
     conn:{remoteAddress:"127.0.0.1"},
     on:(event, handler)=>handlers.set(event, handler),
     emit:(event, payload)=>emitted.push({event, payload}),
+    to:()=>({emit(){}}),
     broadcast:{emit(){}}
   };
 }
@@ -62,25 +64,28 @@ function registerHelloFixture({hasAuthToken = false} = {}){
 }
 
 test("player hello waits for auth session before syncing a token-backed profile", ()=>{
-  const {calls, player} = registerHelloFixture({hasAuthToken:true});
+  const {calls, player, socket} = registerHelloFixture({hasAuthToken:true});
 
   assert.equal(player.clientMode, "game");
   assert.equal(player.clientId, "client-1");
   assert.equal(calls.syncProfile, 0);
   assert.equal(calls.status, 0);
   assert.equal(calls.lifecycle, 0);
+  assert.equal(socket.emitted.some(event=>event.event === "auth:required"), false);
 });
 
-test("player hello still syncs guest profiles when no auth token is present", ()=>{
-  const {calls, player} = registerHelloFixture({hasAuthToken:false});
+test("player hello refuses guest gameplay when no auth token is present", ()=>{
+  const {calls, player, socket} = registerHelloFixture({hasAuthToken:false});
 
   assert.equal(player.clientMode, "game");
-  assert.equal(calls.syncProfile, 1);
-  assert.equal(calls.status, 1);
-  assert.equal(calls.lifecycle, 1);
+  assert.equal(calls.syncProfile, 0);
+  assert.equal(calls.status, 0);
+  assert.equal(calls.lifecycle, 0);
+  const rejection = socket.emitted.find(event=>event.event === "auth:required");
+  assert.equal(rejection?.payload?.eventName, "player:hello");
 });
 
-test("changing firm moves every live game socket to the new firm home map", ()=>{
+test("changing firm moves every live game socket to the new firm home map", async ()=>{
   const launcherSocket = makeSocket("launcher");
   const gameSocket = makeSocket("game");
   const launcherPlayer = {
@@ -143,7 +148,7 @@ test("changing firm moves every live game socket to the new firm home map", ()=>
     setPlayerMap:(socket, mapId)=>mapChanges.push({socketId:socket.id, mapId})
   });
 
-  launcherSocket.handlers.get("profile:setup")({name:"Pilote Cyan", firmId:"cyan"});
+  await launcherSocket.handlers.get("profile:setup")({name:"Pilote Cyan", firmId:"cyan"});
 
   assert.equal(gamePlayer.mapId, "20");
   assert.equal(gamePlayer.state.mapId, "20");
@@ -152,4 +157,78 @@ test("changing firm moves every live game socket to the new firm home map", ()=>
   const resume = gameSocket.emitted.find(event=>event.event === "player:resume");
   assert.equal(resume?.payload?.source, "firm-change");
   assert.equal(resume?.payload?.mapId, "20");
+});
+
+test("map transitions force an immediate world session save", ()=>{
+  const socket = makeSocket("game");
+  const saves = [];
+  const mapChanges = [];
+  const profile = createDefaultProfile();
+  const player = {
+    id:"game",
+    accountId:"account-1",
+    account:{id:"account-1", firmId:"astra"},
+    clientMode:"game",
+    connected:true,
+    mapId:"0",
+    mapRoom:"map:0",
+    state:{
+      mapId:"0",
+      x:4300,
+      y:-3300,
+      angle:0,
+      hp:5000,
+      maxHp:5000,
+      shield:0,
+      maxShield:0,
+      vx:0,
+      vy:0,
+      enginePower:0,
+      engineAngle:0,
+      shipId:"orion",
+      speed:300,
+      updatedAt:1000
+    }
+  };
+  const players = new Map([[player.id, player]]);
+  registerPlayerHandlers(socket, {
+    cleanName:value=>String(value || "Pilote"),
+    emitPlayers(){},
+    emitProfileSync(){},
+    groups:new Map(),
+    guard:()=>true,
+    io:{sockets:{sockets:new Map([[socket.id, socket]])}, emit(){}},
+    logger:{warn(){}},
+    players,
+    presence:{syncMovementLogoutState(){}, markActivity(){}, markCombat(){}, startLogout(){}},
+    profileManager:{
+      profileKeyForPlayer:()=>"account:1",
+      listProfileEntries:()=>[],
+      getProfileForPlayer:()=>profile,
+      saveWorldSession(payload){
+        saves.push(payload);
+        return profile;
+      }
+    },
+    publicPlayer:current=>current,
+    replaceGroupMemberId(){},
+    resumeQuestTimers(){},
+    setPlayerMap:(_socket, mapId)=>mapChanges.push(String(mapId)),
+    syncPlayerLifecycle(){},
+    syncPlayerStatusEffects(){},
+    syncProfileForPlayer(){}
+  });
+
+  socket.handlers.get("player:state")({
+    ...player.state,
+    mapId:"1",
+    x:-4300,
+    y:3300,
+    updatedAt:5000
+  });
+
+  assert.equal(saves.length, 1);
+  assert.equal(saves[0].force, true);
+  assert.equal(saves[0].state.mapId, "1");
+  assert.deepEqual(mapChanges, ["1"]);
 });

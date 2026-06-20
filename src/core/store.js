@@ -1,7 +1,6 @@
 import { normalizeState } from "./stateNormalizer.js";
 export { getActiveDroneFormation, getAllRawMaterials, getAllRefineryMaterials, getAllQuests, getAmmo, getDroneCatalog, getDroneFormation, getDroneFormationBonus, getItem, getPortal, getQuest, getRawMaterial, getRefineryMaterial, getRefineryRecipe, getRefineryRecipes, getShip, isGenerator, isWeapon } from "./catalogStore.js";
-import { enforcePlayerCurrencyMinimums } from "./currencyStore.js";
-export { canAfford, enforcePlayerCurrencyMinimums, priceLabel, spend } from "./currencyStore.js";
+export { basePriceLabel, canAfford, enforcePlayerCurrencyMinimums, getCurrencyPrice, hasCurrencyDiscount, priceLabel, spend } from "./currencyStore.js";
 export { getSpentSkillPoints, getXpNextForLevel, syncSkillPoints, XP_CURVE_VERSION } from "./xpStore.js";
 export { addPortalPiece, getCompletedPortalCount, getCompletedPortalCountForId, getPlayerLevelCap, getPortalPieces, getPrestigeStatus, getShipPurchaseLockReason, getShipRequiredCompletedPortal, hasCompletedPortal, hasMaxedFirstLoopSkills, isEquipmentUpgradeUnlocked, isPortalUnlocked, isRecipeSystemUnlocked, isPrestigeUnlocked, isShipPurchaseUnlocked, markPortalCompleted, performPrestige, unlockPortal } from "./portalProgressStore.js";
 export { canAffordSkillCost, getNodeMaxRank, getSkillBonus, getSkillDefinition, getSkillLevel, getSkillNodeLockReason, getSkillNodePortalRequirement, getSkillProgress, getSkillRanks, getSkillUpgradeData, hasCompletedSkillNodePortal, isSkillNodeUnlocked, skillCostLabel, upgradeSkill } from "./skillStore.js";
@@ -36,7 +35,6 @@ export {
   upgradeEquipment
 } from "./equipmentStore.js";
 export { acceptQuest, canClaimQuest, claimQuest, getActiveQuest, getActiveQuests, getQuestObjectiveProgress, getQuestProgress, recordQuestCoordinateVisit, recordQuestDeath, recordQuestHpLoss, recordQuestItemPickup, recordQuestKill, recordQuestMapVisit, recordQuestMissionControl, recordQuestNpcTalk, recordQuestRefineryMaterialUpgradeStart, recordQuestRefineryModuleUpgradeStart, recordQuestSpaceCasterUse, recordQuestTimeElapsed, rollQuestItemDropFromKill } from "./questStore.js";
-import { getRankScore } from "./rankStore.js";
 export {
   RANK_TABLE,
   RANK_POINT_RULES,
@@ -118,6 +116,7 @@ export {
   upgradeRefineryMaterial,
   upgradeRefineryModule
 } from "./refineryStore.js";
+import { loadLocalPreferences, saveLocalPreferences } from "./localPreferencesStore.js";
 
 
 
@@ -126,6 +125,8 @@ export {
 export const store = {
   state:null,
   shopFilter:"vaisseau",
+  storeTab:"premium",
+  storeModal:null,
   currentView:"hangar",
   hangarDetailOpen:false,
   hangarTab:"vaisseau",
@@ -135,6 +136,8 @@ export const store = {
   firmShopFilter:"global",
   firmRankingFilter:"global",
   firmBoxOpening:null,
+  pendingFirmId:null,
+  pendingFirmName:"",
   inventoryFilter:"all",
   selectedInventoryUid:null,
   selectedShopProduct:null,
@@ -151,8 +154,7 @@ let stateStorageKey = DEFAULT_STATE_STORAGE_KEY;
 
 export function loadState(){
   try{
-    const raw = localStorage.getItem(stateStorageKey);
-    return normalizeState(raw ? JSON.parse(raw) : null);
+    return normalizeState(loadLocalPreferences(localStorage, stateStorageKey));
   }catch(e){
     return normalizeState(null);
   }
@@ -160,9 +162,7 @@ export function loadState(){
 
 export function saveState(){
   if(globalThis.__voidsectorResetInProgress) return;
-  if(store.state.player) store.state.player.rankScore = getRankScore();
-  enforcePlayerCurrencyMinimums();
-  localStorage.setItem(stateStorageKey, JSON.stringify(store.state));
+  saveLocalPreferences(localStorage, stateStorageKey, store.state);
 }
 
 export function getStateStorageKey(){

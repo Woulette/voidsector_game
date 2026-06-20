@@ -68,4 +68,12 @@ export function installProgressionSocketListeners({socket, multiplayer, emitChan
     toast(payload?.message || "Prestige impossible.");
     emitChange("prestige:error", payload);
   });
+  socket.on("profile:title-updated", event=>{
+    toast(event?.titleId ? "Titre public mis a jour." : "Titre public retire.");
+    emitChange("profile:title-updated", event);
+  });
+  socket.on("profile:title-error", payload=>{
+    toast(payload?.message || "Titre impossible.");
+    emitChange("profile:title-error", payload);
+  });
 }

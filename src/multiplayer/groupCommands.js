@@ -1,38 +1,42 @@
+import { isAuthenticatedGameplaySession } from "./gameplaySession.js";
+
 export function createGroupCommands({multiplayer, toast, emitChange}){
+  const canPlay = ()=>isAuthenticatedGameplaySession(multiplayer);
+
   function createMultiplayerGroup(){
-    if(!multiplayer.connected) return toast("Connecte-toi au serveur multi d'abord.");
+    if(!canPlay()) return toast("Compte MMO synchronise requis.");
     multiplayer.socket.emit("group:create");
   }
 
   function inviteMultiplayerPlayer(targetId){
-    if(!multiplayer.connected) return toast("Connecte-toi au serveur multi d'abord.");
+    if(!canPlay()) return toast("Compte MMO synchronise requis.");
     if(!targetId) return toast("Choisis un joueur a inviter.");
     multiplayer.socket.emit("group:invite", {targetId});
   }
 
   function inviteMultiplayerPlayerByName(targetName){
-    if(!multiplayer.connected) return toast("Connecte-toi au serveur multi d'abord.");
+    if(!canPlay()) return toast("Compte MMO synchronise requis.");
     const name = String(targetName || "").trim();
     if(!name) return toast("Entre le nom du joueur a inviter.");
     multiplayer.socket.emit("group:invite", {targetName:name});
   }
 
   function acceptMultiplayerInvite(groupId){
-    if(!multiplayer.connected || !groupId) return;
+    if(!canPlay() || !groupId) return;
     multiplayer.socket.emit("group:accept", {groupId});
     multiplayer.invites = multiplayer.invites.filter(invite=>invite.groupId !== groupId);
     emitChange();
   }
 
   function declineMultiplayerInvite(groupId){
-    if(!multiplayer.connected || !groupId) return;
+    if(!canPlay() || !groupId) return;
     multiplayer.socket.emit("group:decline", {groupId});
     multiplayer.invites = multiplayer.invites.filter(invite=>invite.groupId !== groupId);
     emitChange();
   }
 
   function leaveMultiplayerGroup(){
-    if(!multiplayer.connected) return;
+    if(!canPlay()) return;
     multiplayer.socket.emit("group:leave");
     multiplayer.serverEnemies.clear();
     multiplayer.serverEnemyScope = null;
@@ -47,12 +51,12 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
   }
 
   function kickMultiplayerGroupMember(targetId){
-    if(!multiplayer.connected || !targetId) return;
+    if(!canPlay() || !targetId) return;
     multiplayer.socket.emit("group:kick", {targetId});
   }
 
   function promoteMultiplayerGroupMember(targetId){
-    if(!multiplayer.connected || !targetId) return;
+    if(!canPlay() || !targetId) return;
     multiplayer.socket.emit("group:promote", {targetId});
   }
 
@@ -63,14 +67,18 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
   }
 
   function startCoopTestInstance(){
-    if(!multiplayer.connected) return toast("Connecte-toi au serveur multi d'abord.");
+    if(!canPlay()) return toast("Compte MMO synchronise requis.");
     if(!multiplayer.group) return toast("Cree ou rejoins un groupe d'abord.");
     multiplayer.socket.emit("coop:start-test");
   }
 
   function startServerPortal(portalId){
-    if(!multiplayer.connected) return toast("Connecte-toi au serveur multi d'abord.");
+    if(!canPlay()){
+      toast("Compte MMO synchronise requis.");
+      return false;
+    }
     multiplayer.socket.emit("portal:start", {portalId});
+    return true;
   }
 
   function getGroupRemotePlayers(mapId = null){

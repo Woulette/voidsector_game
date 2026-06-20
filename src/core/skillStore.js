@@ -1,4 +1,5 @@
 import { skills } from "../data/catalog.js";
+import { getNovaDiscountedPrice, hasNovaDiscount } from "../data/premium.js";
 import { canAfford, spend, store, syncSkillPoints } from "./store.js";
 
 const MATERIAL_LABELS = {
@@ -38,7 +39,12 @@ export function skillCostLabel(step){
   const cost = getSkillCostEntries(step);
   const parts = [];
   if(cost.credits > 0) parts.push(`${cost.credits.toLocaleString("fr-FR")} CR`);
-  if(cost.premium > 0) parts.push(`${cost.premium.toLocaleString("fr-FR")} NOVA`);
+  if(cost.premium > 0){
+    const discounted = getNovaDiscountedPrice(cost.premium, store.state?.player);
+    parts.push(hasNovaDiscount(cost.premium, store.state?.player)
+      ? `${discounted.toLocaleString("fr-FR")} NOVA`
+      : `${cost.premium.toLocaleString("fr-FR")} NOVA`);
+  }
   for(const [id, amount] of Object.entries(cost.materials)){
     if(amount > 0) parts.push(`${amount.toLocaleString("fr-FR")} ${MATERIAL_LABELS[id] || id}`);
   }
@@ -48,7 +54,7 @@ export function skillCostLabel(step){
 export function canAffordSkillCost(step){
   const cost = getSkillCostEntries(step);
   if(cost.credits > 0 && Number(store.state.player.credits || 0) < cost.credits) return false;
-  if(cost.premium > 0 && Number(store.state.player.premium || 0) < cost.premium) return false;
+  if(cost.premium > 0 && Number(store.state.player.premium || 0) < getNovaDiscountedPrice(cost.premium, store.state?.player)) return false;
   return Object.entries(cost.materials).every(([id, amount])=>Number(store.state.cargoHold?.[id] || 0) >= amount);
 }
 
