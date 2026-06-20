@@ -1,0 +1,25 @@
+# Blueprint Render pour VoidSector
+# Usage : dans Render, choisir "New +" > "Blueprint" et connecter le repo GitHub.
+
+services:
+  - type: web
+    name: voidsector-server
+    runtime: node
+    rootDir: server
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGIN
+        value: "*"
+      - key: LOAD_TEST_ENABLED
+        value: "true"
+      - key: LOAD_TEST_SECRET
+        generateValue: true
+        # Change cette valeur si tu veux un secret fixe pour les tests de charge.
+      - key: DATABASE_URL
+        value: ""
+        # Laisse vide pour utiliser le stockage JSON. Pour PostgreSQL, mets l'URL de ta base.

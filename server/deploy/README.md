@@ -1,20 +1,77 @@
-# Déploiement sur Oracle Cloud Free Tier
+# Déploiement du serveur VoidSector
 
-Ce guide explique comment déployer le serveur VoidSector sur une instance **Oracle Cloud Free Tier** (ARM, 4 OCPU / 24 Go RAM, gratuit à vie).
+Ce dossier contient plusieurs méthodes pour déployer le serveur VoidSector en ligne.
 
 ---
 
-## 1. Créer un compte Oracle Cloud
+## Option 1 : Render (gratuit, rapide, recommandé pour tester)
+
+Render offre un hébergement Node.js gratuit. Le serveur s'endort après 15 min d'inactivité mais se réveille automatiquement.
+
+### 1. Créer un compte Render
+
+Va sur https://render.com et inscris-toi avec ton compte GitHub.
+
+### 2. Déployer depuis GitHub
+
+1. Dans Render, clique sur **"New +"** puis **"Blueprint"**.
+2. Connecte ton repo GitHub `Woulette/voidsector_game`.
+3. Render détecte automatiquement le fichier `server/deploy/render.yaml`.
+4. Clique sur **"Apply"**.
+
+Render va :
+- Détecter automatiquement le fichier `render.yaml` à la racine du repo
+- Créer un service web Node.js à partir du dossier `server/`
+- Installer les dépendances avec `npm install`
+- Lancer le serveur avec `npm start`
+- Te donner une URL publique (ex: `https://voidsector-server.onrender.com`)
+
+### 3. Ouvrir l'URL du serveur
+
+Une fois déployé, Render te donne une URL. Tu peux tester avec :
+
+```
+https://voidsector-server.onrender.com/health
+```
+
+### 4. Jouer
+
+Le client (ton jeu dans le navigateur) doit pointer vers l'URL Render. Par défaut il est sur `http://localhost:3001`. Dans les options du jeu, change l'URL du serveur pour ton URL Render.
+
+**Important :** Render gratuit coupe le serveur après 15 min d'inactivité. La première connexion après une inactivité peut prendre 10-30 secondes à démarrer.
+
+### 5. Lancer des bots de test
+
+Sur ton PC :
+
+```powershell
+cd C:\Users\Ntmav\Desktop\voidsector_game\server
+$env:BOT_COUNT="25"
+$env:BOT_SERVER_URL="https://ton-url-render.onrender.com"
+npm run loadtest:bots
+```
+
+### Note sur la base de données
+
+Par défaut, `render.yaml` utilise le **stockage JSON** (pas de base de données). C'est suffisant pour tester, mais les données sont réinitialisées si le serveur redémarre.
+
+Pour une base PostgreSQL persistante, tu peux créer une base **Supabase** gratuite et renseigner `DATABASE_URL` dans les variables d'environnement Render.
+
+---
+
+## Option 2 : Oracle Cloud Free Tier
+
+Oracle Cloud offre un VPS ARM gratuit à vie (4 cœurs / 24 Go RAM).
+
+### 1. Créer un compte Oracle Cloud
 
 1. Va sur https://www.oracle.com/cloud/free/
 2. Clique sur **"Start for free"**
 3. Crée un compte (email + mot de passe Oracle)
-4. Renseigne tes infos personnelles et une carte bancaire (pas de prélèvement immédiat, c'est juste pour vérification)
+4. Renseigne tes infos personnelles et une carte bancaire (pré-autorisation d'environ 0,93€, remboursée)
 5. Choisis un **home region** proche de toi (ex: `eu-frankfurt-1` pour l'Europe)
 
----
-
-## 2. Créer l'instance (VM)
+### 2. Créer l'instance (VM)
 
 1. Dans la console Oracle, va dans **Compute → Instances**
 2. Clique sur **"Create instance"**
@@ -29,11 +86,9 @@ Ce guide explique comment déployer le serveur VoidSector sur une instance **Ora
 
 Attends que l'instance soit en statut **RUNNING**.
 
----
+### 3. Ouvrir les ports (règles de sécurité)
 
-## 3. Ouvrir les ports (règles de sécurité)
-
-Par défaut, seul le SSH (port 22) est ouvert. Il faut ouvrir **3001** (serveur de jeu) et éventuellement **8765** (client web si tu veux le servir aussi).
+Par défaut, seul le SSH (port 22) est ouvert. Il faut ouvrir **3001**.
 
 1. Va sur la page de ton instance
 2. Clique sur le **Subnet** (ex: `subnet-...`)
@@ -46,88 +101,37 @@ Par défaut, seul le SSH (port 22) est ouvert. Il faut ouvrir **3001** (serveur 
    - Destination Port Range : `3001`
    - Description : `VoidSector game server`
 
-Répète pour le port `8765` si tu veux servir le client web depuis le serveur.
+### 4. Déployer le projet
 
----
-
-## 4. Se connecter en SSH
-
-Sur Windows, avec PowerShell (depuis le dossier où tu as mis la clé privée) :
+Sur ton PC, dans PowerShell, depuis `C:\Users\Ntmav\Desktop\voidsector_game` :
 
 ```powershell
-ssh -i "C:\Chemin\Vers\TaCle.key" ubuntu@<IP_PUBLIQUE>
+.\server\deploy\deploy.ps1 -KeyPath "C:\Chemin\Vers\TaCle.key" -ServerIp "IP_PUBLIQUE"
 ```
 
-Remplace `<IP_PUBLIQUE>` par l'adresse IP publique affichée dans la console Oracle.
-
-Si la clé n'a pas les bonnes permissions, fais :
+Puis connecte-toi en SSH :
 
 ```powershell
-icacls "C:\Chemin\Vers\TaCle.key" /inheritance:r /grant:r "%USERNAME%:R"
+ssh -i "C:\Chemin\Vers\TaCle.key" ubuntu@IP_PUBLIQUE
 ```
 
----
-
-## 5. Déployer le projet
-
-### 5.1 Envoyer le code sur le serveur
-
-Depuis ton PC, dans PowerShell (depuis la racine du projet) :
-
-```powershell
-# Récupère d'abord Node.js si ce n'est pas déjà fait
-# Puis compresse le projet
-Compress-Archive -Path "src","server","index.html","game.js","styles.css","assets","favicon.ico" -DestinationPath "voidsector-deploy.zip" -Force
-
-# Envoie sur le serveur
-scp -i "C:\Chemin\Vers\TaCle.key" voidsector-deploy.zip ubuntu@<IP_PUBLIQUE>:/home/ubuntu/
-```
-
-### 5.2 Installer et lancer sur le serveur
-
-Sur le serveur (dans le SSH) :
+Et sur le serveur :
 
 ```bash
-cd /home/ubuntu
-unzip -q voidsector-deploy.zip -d voidsector
-cd voidsector/server/deploy
-chmod +x install.sh
-./install.sh
+cd /home/ubuntu && unzip -q voidsector-deploy.zip -d voidsector && cd voidsector/server/deploy && chmod +x install.sh && ./install.sh
 ```
 
-Le script va :
-- Installer Node.js 22 LTS
-- Installer PostgreSQL et créer la base
-- Installer les dépendances npm
-- Créer le fichier `.env`
-- Lancer le serveur avec systemd
+Le script installe Node.js, PostgreSQL, configure le serveur et le lance avec systemd.
 
----
+### 5. Configurer l'environnement
 
-## 6. Configurer l'environnement
-
-Le script `install.sh` crée un fichier `/home/ubuntu/voidsector/server/.env` avec des valeurs par défaut.
-
-Modifie-le si besoin :
+Le script `install.sh` crée un fichier `/home/ubuntu/voidsector/server/.env`. Modifie-le si besoin :
 
 ```bash
 nano /home/ubuntu/voidsector/server/.env
 ```
 
-Exemple minimal :
-
-```env
-NODE_ENV=production
-PORT=3001
-CLIENT_ORIGIN=*
-DATABASE_URL=postgresql://voidsector:mot_de_passe_fort@localhost:5432/voidsector
-LOAD_TEST_ENABLED=true
-LOAD_TEST_SECRET=un-secret-de-test-tres-long-change-moi
-```
-
-**Important :** en production, change `LOAD_TEST_SECRET` et mets `LOAD_TEST_ENABLED=false` si tu ne fais pas de tests de charge.
-
-Après modification :
+Puis redémarre :
 
 ```bash
 sudo systemctl restart voidsector
@@ -135,64 +139,12 @@ sudo systemctl restart voidsector
 
 ---
 
-## 7. Vérifier que le serveur tourne
-
-```bash
-sudo systemctl status voidsector
-```
-
-Ou teste depuis ton PC avec curl :
-
-```powershell
-curl http://<IP_PUBLIQUE>:3001/health
-```
-
-Tu devrais recevoir un JSON avec le statut du serveur.
-
----
-
-## 8. Jouer depuis le client
-
-### Option A : Client servi localement
-Depuis ton PC :
-
-```powershell
-cd C:\Users\Ntmav\Desktop\voidsector_game
-python -m http.server 8765 --bind 127.0.0.1
-```
-
-Puis ouvre `http://127.0.0.1:8765/index.html` et change l'URL du serveur dans les options pour `http://<IP_PUBLIQUE>:3001`.
-
-### Option B : Client servi par le serveur Oracle
-Si tu as ouvert le port 8765 et lancé le client web sur le serveur, tu peux accéder directement à :
-
-```
-http://<IP_PUBLIQUE>:8765/index.html
-```
-
----
-
-## 9. Lancer des bots de test (optionnel)
-
-Sur ton PC, avec le serveur distant :
-
-```powershell
-cd C:\Users\Ntmav\Desktop\voidsector_game\server
-$env:BOT_COUNT="25"
-$env:BOT_SERVER_URL="http://<IP_PUBLIQUE>:3001"
-npm run loadtest:bots
-```
-
----
-
-## 10. Mettre à jour le serveur
+## Mise à jour du serveur (Oracle)
 
 Pour mettre à jour le code après des modifications :
 
 ```powershell
-# Sur ton PC
-Compress-Archive -Path "src","server","index.html","game.js","styles.css","assets","favicon.ico" -DestinationPath "voidsector-deploy.zip" -Force
-scp -i "C:\Chemin\Vers\TaCle.key" voidsector-deploy.zip ubuntu@<IP_PUBLIQUE>:/home/ubuntu/
+.\server\deploy\deploy.ps1 -KeyPath "C:\Chemin\Vers\TaCle.key" -ServerIp "IP_PUBLIQUE"
 ```
 
 Puis sur le serveur :
@@ -203,7 +155,6 @@ sudo systemctl stop voidsector
 rm -rf voidsector.old
 mv voidsector voidsector.old
 unzip -q voidsector-deploy.zip -d voidsector
-# Recopie l'ancien .env et les données si nécessaire
 cp voidsector.old/server/.env voidsector/server/.env
 cd voidsector/server
 npm install
@@ -213,8 +164,9 @@ sudo systemctl start voidsector
 
 ---
 
-## Notes
+## Fichiers de déploiement
 
-- Le tier gratuit Oracle est suffisant pour **quelques dizaines de joueurs** en test.
-- Pour plus de joueurs, il faudra passer à une instance payante ou optimiser le code.
-- N'oublie pas de désactiver `LOAD_TEST_ENABLED` en production publique.
+- `render.yaml` → Blueprint Render
+- `deploy.ps1` → Script Windows pour envoyer le projet sur un serveur
+- `install.sh` → Installation automatique sur Ubuntu
+- `voidsector.service` → Service systemd
