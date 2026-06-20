@@ -8,6 +8,7 @@ services:
   - type: web
     name: voidsector-server
     runtime: node
+    region: frankfurt
     branch: main
     buildCommand: npm run build
     startCommand: npm start
