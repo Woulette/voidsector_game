@@ -1,6 +1,8 @@
-# Blueprint Render pour VoidSector
+# Blueprint Render pour VoidSector (mode test)
 # Usage : dans Render, choisir "New +" > "Blueprint" et connecter le repo GitHub.
 # Le package.json racine redirige vers server/.
+# En mode "development", le serveur accepte CLIENT_ORIGIN=*, pas de DATABASE_URL et LOAD_TEST_ENABLED=true.
+# Pour une vraie production, passer NODE_ENV=production et ajouter une base PostgreSQL (DATABASE_URL).
 
 services:
   - type: web
@@ -12,7 +14,7 @@ services:
     plan: free
     envVars:
       - key: NODE_ENV
-        value: production
+        value: development
       - key: CLIENT_ORIGIN
         value: "*"
       - key: LOAD_TEST_ENABLED
@@ -20,6 +22,3 @@ services:
       - key: LOAD_TEST_SECRET
         generateValue: true
         # Change cette valeur si tu veux un secret fixe pour les tests de charge.
-      - key: DATABASE_URL
-        value: ""
-        # Laisse vide pour utiliser le stockage JSON. Pour PostgreSQL, mets l'URL de ta base.
