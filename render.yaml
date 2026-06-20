@@ -5,10 +5,9 @@ services:
   - type: web
     name: voidsector-server
     runtime: node
-    rootDir: server
     branch: main
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
     plan: free
     envVars:
       - key: NODE_ENV
