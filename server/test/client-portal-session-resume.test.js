@@ -1,6 +1,41 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createCombatSessionController } from "../../src/game/systems/combatSession.js";
+import { createPortalMap } from "../../src/game/systems/portalState.js";
+
+test("Ricky portal places its closed return portal on the entry spawn", ()=>{
+  const map = createPortalMap({id:"ricky", name:"Portail de Ricky"});
+  const entryPortal = map.closedPortals?.[0];
+
+  assert.equal(entryPortal.x, map.spawn.x);
+  assert.equal(entryPortal.y, map.spawn.y);
+  assert.equal(entryPortal.closed, true);
+  assert.equal(entryPortal.damaged, true);
+  assert.equal(Object.hasOwn(entryPortal, "targetMap"), false);
+
+  const centralLight = map.parallaxScene?.starLights?.[0];
+  const centralGlow = map.parallaxScene?.glowSpots?.[0];
+  assert.equal(centralLight.x, -100);
+  assert.equal(centralLight.y, -120);
+  assert.equal(centralLight.p, .10);
+  assert.equal(centralLight.alpha, .40);
+  assert.equal(centralLight.coreAlpha, .58);
+  assert.equal(centralGlow.x, centralLight.x);
+  assert.equal(centralGlow.y, centralLight.y);
+  assert.equal(centralGlow.p, centralLight.p);
+
+  assert.deepEqual(map.parallaxScene.background, ["#080313", "#19072d", "#03010b"]);
+  assert.equal(map.parallaxScene.asteroidFields.length, 3);
+  assert.equal(map.parallaxScene.asteroidFields.reduce((total, field)=>total + field.count, 0), 126);
+  assert.deepEqual(map.parallaxScene.backdrops.map(layer=>layer.src), [
+    "assets/maps/decor/deadly/deadly_cosmic_creature.png",
+    "assets/maps/decor/deadly/deadly_cracked_moon.png"
+  ]);
+  assert.deepEqual(map.parallaxScene.images.map(layer=>layer.src), [
+    "assets/maps/decor/deadly/deadly_wreck_scout.png",
+    "assets/maps/decor/deadly/deadly_wreck_crescent.png"
+  ]);
+});
 
 test("a refreshed Ricky portal session rebuilds the portal instead of falling back to map one", ()=>{
   const state = {

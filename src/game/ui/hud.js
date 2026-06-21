@@ -61,7 +61,11 @@ export function updateSafeZoneNotice({safeArea, isActive}){
   if(isActive){
     notice.classList.remove("is-radiation");
     notice.querySelector("strong").textContent = "ZONE NON-AGRESSION";
-    notice.querySelector("span").textContent = safeArea.type === "portal" ? "Protection active - zone portail" : "Protection active - zone spawn";
+    notice.querySelector("span").textContent = safeArea.type === "portal"
+      ? "Protection active - zone portail"
+      : safeArea.type === "relay"
+        ? "Protection active - relais Helion-05"
+        : "Protection active - zone spawn";
   }
 }
 
@@ -125,6 +129,22 @@ export function updatePoisonStatus(effect){
   if(timer) timer.textContent = `${Math.ceil(remaining)}s`;
 }
 
+export function updateSlowStatus(effect){
+  const panel = document.getElementById("slowStatus");
+  if(!panel) return;
+  const remaining = Math.max(0, Number(effect?.remaining || 0));
+  const duration = Math.max(0.1, Number(effect?.duration || effect?.remaining || 0));
+  if(remaining <= 0){
+    panel.classList.add("hidden");
+    return;
+  }
+  const fill = document.getElementById("slowStatusFill");
+  const timer = document.getElementById("slowStatusTimer");
+  panel.classList.remove("hidden");
+  if(fill) fill.style.width = `${Math.max(0, Math.min(100, remaining / duration * 100))}%`;
+  if(timer) timer.textContent = `${Math.ceil(remaining)}s`;
+}
+
 export function updateLootPopup({notices = []}){
   const el = document.getElementById("lootPopup");
   if(!el) return;
@@ -168,7 +188,15 @@ export function updateLootPopup({notices = []}){
       takeParts(part=>String(part.label || "").toLowerCase().includes("putation"));
       takeParts(part=>String(part.label || "").toLowerCase().includes("detruit"));
       orderedParts.push(...parts);
-      line.innerHTML = orderedParts.map(part=>`<div class="${part.kind === "quest" ? "loot-quest-title" : ""}"><span>${escapeHtml(part.label)}</span>${part.value ? `<b>${escapeHtml(part.value)}</b>` : ""}</div>`).join("");
+      const questTone = ["red", "special", "rare"].includes(loot.questTone) ? loot.questTone : "normal";
+      if(loot.questTitle) line.classList.add(`quest-tone-${questTone}`);
+      line.innerHTML = orderedParts.map((part, index)=>{
+        const classes = [
+          part.kind === "quest" ? "loot-quest-title" : "",
+          part.value ? "loot-reward-pair" : "loot-reward-single"
+        ].filter(Boolean).join(" ");
+        return `<div class="${classes}" style="animation-delay:${(index * .08).toFixed(2)}s"><span>${escapeHtml(part.label)}</span>${part.value ? `<b>${escapeHtml(part.value)}</b>` : ""}</div>`;
+      }).join("");
       el.prepend(line);
     }
     line.style.opacity = opacity.toFixed(3);

@@ -4,7 +4,7 @@ import { getPortgunMapLevelRequirement, renderCombatMapPanel } from "../../src/g
 
 test("combat map panel marks current map and counts active sectors", ()=>{
   const maps = [
-    {name:"ASTRA-01", displayName:"Helion-01", portals:[{x:4500, y:0}]},
+    {name:"Helion-01", displayName:"Helion-01", portals:[{x:4500, y:0}]},
     {name:"CORE", displayName:"CORE", portals:[{x:-4500, y:0}]}
   ];
 
@@ -22,7 +22,7 @@ test("combat map panel marks current map and counts active sectors", ()=>{
 
 test("combat map panel escapes map display names", ()=>{
   const maps = [
-    {name:"CYAN-01", displayName:"<script>alert(1)</script>"}
+    {name:"Nereid-01", displayName:"<script>alert(1)</script>"}
   ];
 
   const html = renderCombatMapPanel({
@@ -36,10 +36,10 @@ test("combat map panel escapes map display names", ()=>{
 
 test("combat map panel locks Portgun destinations by map number", ()=>{
   const maps = [
-    {id:"0", name:"ASTRA-01", displayName:"Helion-01"},
-    {id:"1", name:"ASTRA-02", displayName:"Helion-02"},
-    {id:"2", name:"ASTRA-03", displayName:"Helion-03"},
-    {id:"3", name:"ASTRA-04", displayName:"Helion-04"},
+    {id:"0", name:"Helion-01", displayName:"Helion-01"},
+    {id:"1", name:"Helion-02", displayName:"Helion-02"},
+    {id:"2", name:"Helion-03", displayName:"Helion-03"},
+    {id:"3", name:"Helion-04", displayName:"Helion-04"},
     {id:"50", name:"CORE", displayName:"CORE"}
   ];
 

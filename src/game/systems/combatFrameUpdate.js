@@ -11,6 +11,7 @@ export function createCombatFrameUpdateSystem({
   updateCamera,
   updateRadiation,
   updatePlayerPoison,
+  updatePlayerSlow = ()=>{},
   updateLootPopup,
   tickCombatBoosts,
   isSafeModeActive,
@@ -72,6 +73,7 @@ export function createCombatFrameUpdateSystem({
     rewards.tick(dt);
     tickCombatBoosts(dt);
     updatePlayerPoison(dt);
+    updatePlayerSlow(dt);
     player.safeZoneLock = Math.max(0, Number(player.safeZoneLock || 0) - dt);
     updateLootPopup();
     if(player.isDead){

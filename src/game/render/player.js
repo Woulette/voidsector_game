@@ -25,9 +25,61 @@ const STAFF_BADGES = {
   admin:{label:"[ADM]", color:"#ff4d5f", shadow:"rgba(248,113,113,.95)"},
   moderator:{label:"[MOD]", color:"#facc15", shadow:"rgba(250,204,21,.9)"}
 };
+const RANK_VISIBLE_CENTER_CACHE = new WeakMap();
+const FIRST_DYNAMICALLY_ALIGNED_RANK = 6;
+const RANK_ALPHA_THRESHOLD = 24;
 
 function getStaffBadge(role){
   return STAFF_BADGES[String(role || "").toLowerCase()] || null;
+}
+
+function shouldDynamicallyAlignRank(rankAssetPath){
+  const match = String(rankAssetPath || "")
+    .replaceAll("\\", "/")
+    .match(/(?:^|\/)(\d{2})_[^/?#]+(?:[?#].*)?$/);
+  return Number(match?.[1] || 0) >= FIRST_DYNAMICALLY_ALIGNED_RANK;
+}
+
+function getVisibleImageCenterRatio(image){
+  if(!image?.naturalWidth || !image?.naturalHeight) return .5;
+  const cached = RANK_VISIBLE_CENTER_CACHE.get(image);
+  if(cached !== undefined) return cached;
+  let centerRatio = .5;
+  try{
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.min(128, image.naturalWidth));
+    canvas.height = Math.max(1, Math.min(128, image.naturalHeight));
+    const sample = canvas.getContext("2d", {willReadFrequently:true});
+    sample.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const pixels = sample.getImageData(0, 0, canvas.width, canvas.height).data;
+    let minY = canvas.height;
+    let maxY = -1;
+    for(let y = 0; y < canvas.height; y++){
+      for(let x = 0; x < canvas.width; x++){
+        if(pixels[(y * canvas.width + x) * 4 + 3] < RANK_ALPHA_THRESHOLD) continue;
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+    }
+    if(maxY >= minY) centerRatio = (minY + maxY + 1) / (2 * canvas.height);
+  }catch{
+    centerRatio = .5;
+  }
+  RANK_VISIBLE_CENTER_CACHE.set(image, centerRatio);
+  return centerRatio;
+}
+
+export function getRankIconDrawY({rankAssetPath, iconSize, nameY, defaultY, visibleCenterRatio = .5}){
+  if(!shouldDynamicallyAlignRank(rankAssetPath)) return defaultY;
+  const numericCenterRatio = Number(visibleCenterRatio);
+  const safeCenterRatio = Number.isFinite(numericCenterRatio)
+    ? Math.max(0, Math.min(1, numericCenterRatio))
+    : .5;
+  return nameY - iconSize * safeCenterRatio;
+}
+
+export function getFirmIconDrawY({firmIconSize, nameY}){
+  return nameY - firmIconSize / 2 - 1;
 }
 
 function getEngineProfile({ship, defaultProfile, profiles}){
@@ -393,11 +445,18 @@ function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilot
   const startX = px - groupWidth / 2;
   let textX = startX;
   if(firmReady){
-    ctx.drawImage(firmImg, textX, labelY - firmIconSize / 2 - 1, firmIconSize, firmIconSize);
+    ctx.drawImage(firmImg, textX, getFirmIconDrawY({firmIconSize, nameY}), firmIconSize, firmIconSize);
     textX += firmIconSize + firmGap;
   }
   if(rankReady){
-    ctx.drawImage(rankImg, textX, labelY - iconSize / 2 - 1, iconSize, iconSize);
+    const rankY = getRankIconDrawY({
+      rankAssetPath,
+      iconSize,
+      nameY,
+      defaultY:labelY - iconSize / 2 - 1,
+      visibleCenterRatio:getVisibleImageCenterRatio(rankImg)
+    });
+    ctx.drawImage(rankImg, textX, rankY, iconSize, iconSize);
     textX += iconSize + nameGap;
   }
   ctx.textAlign = "left";

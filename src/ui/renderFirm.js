@@ -165,6 +165,7 @@ const QUEST_OBJECTIVE_ASSETS = {
   drone_pirate:["assets/enemies/generated/orbe_vorak_lowlevel_01/low_orbe_01.png"],
   sentinel_orb:["assets/enemies/generated/orbe_vorak_lowlevel_01/low_orbe_01.png"],
   raider_astral:["assets/enemies/generated/orbe_vorak_lowlevel_01/low_vorak_03.png"],
+  pondeuse_astrale:["assets/enemies/generated/astra4_astral_brood.png"],
   monster:["assets/enemies/generated/orbe_vorak_lowlevel_01/low_orbe_01.png", "assets/enemies/generated/orbe_vorak_lowlevel_01/low_vorak_03.png", "assets/enemies/enemy_green_parasite.png"],
   pvp:["assets/ships/Razorion.png"]
 };

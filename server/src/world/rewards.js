@@ -1,5 +1,5 @@
-import { calculateMonsterKillRankPoints } from "../../../src/data/ranks.js";
 import { enrichFirmSnapshot } from "../firms/firmSnapshots.js";
+import { getProgressionSnapshot } from "../players/progression.js";
 
 function canAwardFirmMonsterPoint(playerLevel, enemyLevel){
   const level = Math.max(1, Math.floor(Number(playerLevel || 1)));
@@ -35,8 +35,21 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
       const credits = Math.max(0, Math.round(Number(reward.credits || 0) * share * multiplier));
       const xp = Math.max(0, Math.round(Number(reward.xp || 0) * share * multiplier));
       const premium = Math.max(0, Math.round(Number(reward.premium || 0) * share * multiplier));
-      const rankPoints = calculateMonsterKillRankPoints(currentProfile?.player?.level || 1, enemy.level);
+      const previousMonsterRankPoints = Math.max(0, Number(currentProfile?.player?.monsterRankPoints || 0));
       const reputation = Math.max(0, Math.round(xp * 0.1));
+      const profile = (profileManager.applyCombatReward || profileManager.applyReward)({
+        player,
+        reward:{
+          credits,
+          xp,
+          premium,
+          enemyName:enemy.name || enemy.type || enemy.kind,
+          enemyKind:enemy.kind || enemy.type,
+          enemyType:enemy.type,
+          enemyLevel:enemy.level
+        }
+      });
+      const rankPoints = Math.max(0, Number(profile?.player?.monsterRankPoints || 0) - previousMonsterRankPoints);
       io.to(player.id).emit("player:reward", {
         rewardId,
         enemyId:enemy.id,
@@ -52,22 +65,10 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
         reputation,
         rankPoints,
         firmBonus,
+        progression:getProgressionSnapshot(profile?.player),
         rewardAppliedByServer:true,
         at:Date.now()
       });
-      const profile = profileManager.applyReward({
-        player,
-        reward:{
-          credits,
-          xp,
-          premium,
-          enemyName:enemy.name || enemy.type || enemy.kind,
-          enemyKind:enemy.kind || enemy.type,
-          enemyType:enemy.type,
-          enemyLevel:enemy.level
-        }
-      });
-      emitProfileSync?.(player, profile);
     }
     const firmPlayer = players.get(firmAttackerId);
     if(firmWarManager && firmPlayer){

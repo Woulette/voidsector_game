@@ -13,6 +13,7 @@ function createFixture(){
   const players = new Map([[target.id, target]]);
   const poisonApplications = [];
   const saves = [];
+  const profileSyncs = [];
   const manager = createEnemyAttackManager({
     io:{
       to(room){
@@ -34,11 +35,14 @@ function createFixture(){
     },
     profileManager:{
       applyQuestAction(){
-        return {profile:{}, updates:[], failed:[]};
+        return {profile:{}, changed:false, updates:[], failed:[]};
       },
       saveWorldSession(payload){
         saves.push(payload);
       }
+    },
+    emitProfileSync(player, profile){
+      profileSyncs.push({player, profile});
     },
     applyEnemyOnHitEffect(enemy, player, now){
       poisonApplications.push({enemy, player, now});
@@ -51,7 +55,7 @@ function createFixture(){
     projectileSpeed:600,
     onHitEffect:{type:"poison", damage:2}
   };
-  return {emitted, enemy, manager, poisonApplications, saves, target};
+  return {emitted, enemy, manager, poisonApplications, profileSyncs, saves, target};
 }
 
 test("enemy damage is applied only when the server projectile reaches its impact time", ()=>{
@@ -86,6 +90,8 @@ test("enemy damage is applied only when the server projectile reaches its impact
   assert.equal(fixture.target.state.hp, 75);
   assert.equal(fixture.poisonApplications.length, 1);
   assert.equal(fixture.saves.length, 1);
+  assert.equal(fixture.profileSyncs.length, 0);
+  assert.equal(fixture.emitted[0].room, fixture.target.id);
   assert.equal(fixture.emitted.at(-1).eventName, "player:damage");
 });
 
@@ -108,4 +114,32 @@ test("a pending enemy projectile is cancelled when the target leaves the map", (
   assert.equal(fixture.poisonApplications.length, 0);
   assert.equal(fixture.saves.length, 0);
   assert.equal(fixture.emitted.some(event=>event.eventName === "player:damage"), false);
+});
+
+test("Ricky receives the same shield split as a player while exposing the complete hit amount", ()=>{
+  const fixture = createFixture();
+  const now = 30_000;
+  const ricky = {
+    id:"ricky_companion",
+    npcTarget:true,
+    connected:true,
+    mapId:"portal-ricky",
+    state:{x:300, y:0, hp:1000, maxHp:1000, shield:1000, maxShield:1000, alive:true}
+  };
+
+  fixture.manager.launchEnemyAttack({
+    enemy:fixture.enemy,
+    map:{id:"portal-ricky", room:"instance:ricky"},
+    target:ricky,
+    amount:500,
+    now,
+    attackStyle:"deadly_eclaireur"
+  });
+  fixture.manager.updatePendingEnemyAttacks(now + 2_000);
+
+  assert.equal(ricky.state.shield, 600);
+  assert.equal(ricky.state.hp, 900);
+  const damageEvent = fixture.emitted.find(event=>event.eventName === "npc:damage");
+  assert.equal(damageEvent.payload.amount, 500);
+  assert.equal(damageEvent.payload.hpLost, 100);
 });

@@ -30,7 +30,8 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     multiplayer.portalBeacons = payload?.portal ? Array.isArray(payload?.beacons) ? payload.beacons : [] : [];
     multiplayer.portalObjective = payload?.portal ? payload?.objective || null : null;
     replaceServerEnemies(payload, "coop");
-    emitChange();
+    // Combat reads these snapshots directly. A global UI event here would rerender
+    // authentication and utility panels ten times per second during an instance.
   });
   socket.on("portal:started", event=>{
     multiplayer.portalInstance = {
@@ -78,7 +79,7 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     if(multiplayer.coopInstanceId) return;
     multiplayer.coopSpawn = null;
     replaceServerEnemies(payload, "world");
-    emitChange();
+    // Keep high-frequency world snapshots out of the general application event bus.
   });
   socket.on("group:invite", invite=>{
     if(!invite?.groupId) return;

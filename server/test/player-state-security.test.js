@@ -150,7 +150,7 @@ test("allows the standard zone two to zone four portal away from Ricky", ()=>{
   const cases = [
     {map2:"1", from:{x:4300, y:3300}, map4:"3", to:{x:-4300, y:3300}},
     {map2:"21", from:{x:4300, y:-3300}, map4:"23", to:{x:-4300, y:-3300}},
-    {map2:"31", from:{x:-4300, y:-3300}, map4:"33", to:{x:-4300, y:3300}},
+    {map2:"31", from:{x:-4300, y:-3300}, map4:"33", to:{x:4300, y:-3300}},
     {map2:"41", from:{x:-4300, y:3300}, map4:"43", to:{x:4300, y:3300}}
   ];
   for(const entry of cases){
@@ -244,7 +244,7 @@ test("initial combat vitals prefer the saved session for the active ship", ()=>{
   assert.equal(result.state.maxHp, 15000);
 });
 
-test("a cyan profile starts on CYAN-01 even when the socket still points to ASTRA-01", ()=>{
+test("a cyan profile starts on Nereid-01 even when the socket still points to Helion-01", ()=>{
   const profile = createDefaultProfile();
   profile.player.firmId = "cyan";
   profile.player.firmSelected = true;

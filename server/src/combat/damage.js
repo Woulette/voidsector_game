@@ -268,6 +268,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, random
     damage:hit ? Math.max(1, Math.round(damage)) : 0,
     ammoId:ammo.id,
     consumed,
+    ammoRemaining:Math.max(0, Number(profile.ammoInventory?.[ammo.id] || 0)),
     weaponClass,
     missileHits,
     missileMisses,

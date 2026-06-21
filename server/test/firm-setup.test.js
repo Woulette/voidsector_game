@@ -139,7 +139,7 @@ test("changing firm moves every live game socket to the new firm home map", asyn
       setupProfileForPlayer:()=>({
         ok:true,
         profile,
-        firm:{id:"cyan", label:"Cyan", baseMapId:20, homeMapName:"CYAN-01"},
+        firm:{id:"cyan", label:"Cyan", baseMapId:20, homeMapName:"Nereid-01"},
         firmChanged:true
       }),
       saveWorldSession:()=>profile

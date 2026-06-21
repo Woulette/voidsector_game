@@ -41,8 +41,8 @@ export function createCombatWorldStateSystem({
     if(map?.spawn && map.spawn.kind !== "portal"){
       const rect = map.spawn.safeRect;
       zones.push(rect
-        ? {id:"spawn", label:map.spawn.label || "Zone de spawn", type:"spawn", shape:"rect", minX:rect.minX, minY:rect.minY, maxX:rect.maxX, maxY:rect.maxY}
-        : {id:"spawn", label:map.spawn.label || "Zone de spawn", x:map.spawn.x, y:map.spawn.y, r:map.spawn.safeRadius || map.spawn.r || 260, type:"spawn", shape:"circle"});
+        ? {id:"spawn", label:map.spawn.label || "Zone de spawn", type:map.spawn.safeType || "spawn", shape:"rect", minX:rect.minX, minY:rect.minY, maxX:rect.maxX, maxY:rect.maxY}
+        : {id:"spawn", label:map.spawn.label || "Zone de spawn", x:map.spawn.x, y:map.spawn.y, r:map.spawn.safeRadius || map.spawn.r || 260, type:map.spawn.safeType || "spawn", shape:"circle"});
     }
     getMapPortals(map, {completedQuestClaims, questProgress}).forEach((portal, index)=>{
       zones.push({id:`portal-${index}`, label:portal.label || "Zone portail", x:portal.x, y:portal.y, r:(portal.safeRadius || Math.max(330, (portal.r || 90) * 3.5)) * 1.95, type:"portal"});
@@ -96,13 +96,25 @@ export function createCombatWorldStateSystem({
     if(gameMode !== "open" || !currentMap?.spawn || currentMap.spawn.kind === "portal") return [];
     if(!isFriendlyFirmMap(currentMap)) return [];
     const spawn = currentMap.spawn;
-    if(spawn.hub === false) return [];
+    const configuredStations = (Array.isArray(currentMap.questStations) ? currentMap.questStations : [])
+      .map(station=>({
+        ...station,
+        id:"quests",
+        radius:Math.max(80, Number(station.radius || 96)),
+        marker:station.marker || {x:Number(station.x || 0), y:Number(station.y || 0) - 180, radius:54, text:"!"},
+        asset:station.asset || "assets/spawn/spawn_quest_relay.png",
+        assetWidth:Number(station.assetWidth || 266),
+        assetHeight:Number(station.assetHeight || 266),
+        title:station.title || "RELAIS DE QUETES",
+        subtitle:station.subtitle || "Recevoir et rendre des missions"
+      }));
+    if(spawn.hub === false) return configuredStations;
     const sideX = spawn.x > 0 ? -1 : 1;
     const sideY = spawn.y > 0 ? -1 : 1;
     const stationY = spawn.y + sideY * 300;
     const questX = spawn.x + sideX * 600;
     const refineryX = spawn.x - sideX * 600;
-    return [
+    const hubStations = [
       {
         id:"quests",
         x:questX,
@@ -128,6 +140,8 @@ export function createCombatWorldStateSystem({
         subtitle:"Fusionner et ameliorer l'equipement"
       }
     ];
+    const configuredIds = new Set(configuredStations.map(station=>station.id));
+    return [...configuredStations, ...hubStations.filter(station=>!configuredIds.has(station.id))];
   }
 
   function getStationAt(world){

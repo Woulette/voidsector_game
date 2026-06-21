@@ -1,18 +1,16 @@
 const HALF_TURN_ASSET_KINDS = new Set([
   "raider_astral",
   "cuirasse_nebulaire",
-  "cristal_du_neant"
+  "shared_rusher"
 ]);
 
 const FULL_ROTATION_KINDS = new Set([
   "drone_pirate",
   "raider_astral",
   "chasseur_spectral",
-  "cuirasse_nebulaire",
-  "cristal_du_neant",
+  "pondeuse_astrale",
   "cuirasse_ambre",
   "shared_orb",
-  "shared_rusher",
   "shared_crystal",
   "deadly_eclaireur",
   "deadly_intercepteur",
@@ -21,8 +19,6 @@ const FULL_ROTATION_KINDS = new Set([
   "deadly_ravageur",
   "deadly_amiral_k137"
 ]);
-
-const FIXED_ROTATION_KINDS = new Set([]);
 
 const COMPACT_QUEST_ASSET_KINDS = new Set([
   "drone_pirate",
@@ -45,12 +41,11 @@ export function hasCompactQuestAsset(kind){
 }
 
 export function getEnemyAssetRotation(kind){
-  if(FIXED_ROTATION_KINDS.has(String(kind || ""))) return Math.PI;
   return HALF_TURN_ASSET_KINDS.has(getEnemyBaseKind(kind)) ? Math.PI : 0;
 }
 
 export function canEnemyRotateFully(kind){
-  if(FIXED_ROTATION_KINDS.has(String(kind || ""))) return false;
+  if(String(kind || "") === "boss_raider_astral") return false;
   return FULL_ROTATION_KINDS.has(getEnemyBaseKind(kind));
 }
 

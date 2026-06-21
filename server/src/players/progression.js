@@ -1,27 +1,7 @@
 import { getNovaDiscountedPrice, isPremiumActive } from "../../../src/data/premium.js";
+import { getXpNextForLevel } from "../../../src/data/xpCurve.js";
 
-const XP_FIXED_NEXT_BY_LEVEL = {
-  1:3000,
-  2:12000,
-  3:35000,
-  4:51000,
-  5:80000,
-  6:113000,
-  7:169000,
-  8:220000,
-  9:314000,
-  10:580000,
-  11:984000,
-  12:1432000,
-  13:2035000,
-  14:2822000,
-  15:3920000,
-  16:5200000,
-  17:6900000,
-  18:9000000,
-  19:12000000,
-  20:16000000
-};
+export { getXpNextForLevel };
 
 export const PROTECTED_PLAYER_FIELDS = [
   "name",
@@ -47,23 +27,29 @@ export const PROTECTED_PLAYER_FIELDS = [
   "missileShotsFired"
 ];
 
-export function getXpNextForLevel(level = 1){
-  const targetLevel = Math.max(1, Math.floor(Number(level || 1)));
-  if(XP_FIXED_NEXT_BY_LEVEL[targetLevel]) return XP_FIXED_NEXT_BY_LEVEL[targetLevel];
-  const previous = XP_FIXED_NEXT_BY_LEVEL[20];
-  return Math.round(previous * Math.pow(1.18, targetLevel - 20));
+export function getProgressionSnapshot(player = {}){
+  const normalized = normalizeProgressionPlayer(player);
+  return Object.fromEntries(PROTECTED_PLAYER_FIELDS.map(field=>[field, normalized[field]]));
 }
 
 export function normalizeProgressionPlayer(player = {}){
-  const level = Math.max(1, Math.floor(Number(player.level || 1)));
-  const xpNext = getXpNextForLevel(level);
+  let level = Math.max(1, Math.floor(Number(player.level || 1)));
+  let xp = Math.max(0, Math.round(Number(player.xp || 0)));
+  let skillPoints = Math.max(0, Math.round(Number(player.skillPoints || 0)));
+  let xpNext = getXpNextForLevel(level);
+  while(xp >= xpNext){
+    xp -= xpNext;
+    level += 1;
+    skillPoints += 1;
+    xpNext = getXpNextForLevel(level);
+  }
   return {
     ...player,
     credits:Math.max(0, Math.round(Number(player.credits || 0))),
     premium:Math.max(0, Math.round(Number(player.premium || 0))),
     premiumUntil:Math.max(0, Number(player.premiumUntil || 0)),
     premiumActive:isPremiumActive(player),
-    xp:Math.max(0, Math.min(xpNext, Math.round(Number(player.xp || 0)))),
+    xp,
     totalXp:Math.max(0, Math.round(Number(player.totalXp || 0))),
     reputation:Math.max(0, Math.round(Number(player.reputation || 0))),
     totalKills:Math.max(0, Math.round(Number(player.totalKills || 0))),
@@ -76,7 +62,7 @@ export function normalizeProgressionPlayer(player = {}){
     missileShotsFired:Math.max(0, Math.floor(Number(player.missileShotsFired || 0))),
     level,
     xpNext,
-    skillPoints:Math.max(0, Math.round(Number(player.skillPoints || 0)))
+    skillPoints
   };
 }
 

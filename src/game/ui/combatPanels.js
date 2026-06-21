@@ -298,6 +298,7 @@ export function createCombatPanels({
     return renderCombatQuestTrackerHtml({
       activeQuests,
       trackedQuest:selected,
+      selectedQuestId,
       detailTab:combatQuestDetailTab,
       enemyTypes,
       rawMaterials:getAllRawMaterials(),
@@ -967,9 +968,13 @@ export function createCombatPanels({
     if(!Array.isArray(store.state.activeQuestIds) || !store.state.activeQuestIds.includes(questId)){
       return showToast("Cette quete n'est pas en cours.");
     }
-    if(!trackServerQuest?.(questId)) return showToast("Suivi de quete serveur impossible.");
+    const previousQuestId = selectedQuestId;
     selectedQuestId = questId;
     refreshQuestUtilityPanel({show:true});
+    if(trackServerQuest?.(questId)) return;
+    selectedQuestId = previousQuestId;
+    refreshQuestUtilityPanel({show:true});
+    showToast("Suivi de quete serveur impossible.");
   }
 
   function setCombatQuestDetailTab(tab){

@@ -5,7 +5,8 @@ import { drawPortalTransitionOverlay } from "./portalTransition.js";
 import { drawWorldLayer } from "./world.js";
 import { drawRemotePlayers } from "../../multiplayer/render.js";
 import { getFirmBadgeAsset } from "../../data/firms.js";
-import { getRickyPortalWalls, RICKY_PORTAL_MAP } from "../../data/rickyPortal.js";
+import { RICKY_PORTAL_ASSETS, getRickyPortalWalls, RICKY_PORTAL_MAP } from "../../data/rickyPortal.js";
+import { getCachedCombatImage } from "../combatAssets.js";
 
 function lerp(a, b, t){
   return a + (b - a) * t;
@@ -64,7 +65,7 @@ export function createCombatSceneRenderer({
       asteroids,
       player,
       safeReady:isSafeModeActive(),
-      spawnProtected:safeAreas.some(area=>area.type === "spawn"),
+      spawnProtected:safeAreas.some(area=>area.id === "spawn"),
       stations:getSpawnStations(),
       graphicsQuality:getGraphicsQuality(),
       getMapPortals,
@@ -114,6 +115,7 @@ export function createCombatSceneRenderer({
       beacons:isRickyPortal ? portalBeacons || [] : [],
       groupPlayers,
       groupPingTarget:getGroupPingTarget?.() || null,
+      closedPortals:getClosedMapPortals(currentMap),
       getMapPortals
     });
   }
@@ -150,75 +152,129 @@ export function createCombatSceneRenderer({
     }
   }
 
+  function readyRickyAsset(src){
+    const image = getCachedCombatImage(cache, src);
+    return image?.complete && Number(image.naturalWidth || 0) > 0 ? image : null;
+  }
+
+  function drawRickyAsteroidWall(wall, image, camera){
+    const width = wall.maxX - wall.minX;
+    const height = wall.maxY - wall.minY;
+    const horizontal = width >= height;
+    const axisLength = horizontal ? width : height;
+    const tileCount = Math.max(1, Math.ceil(axisLength / 390));
+    const step = axisLength / tileCount;
+    const drawLength = step + 48;
+    const aspect = Number(image.naturalWidth || 1) / Math.max(1, Number(image.naturalHeight || 1));
+    const drawDepth = Math.max(205, Math.min(245, drawLength / aspect));
+    const centerX = (wall.minX + wall.maxX) / 2;
+    const centerY = (wall.minY + wall.maxY) / 2;
+
+    for(let index = 0; index < tileCount; index += 1){
+      const offset = -axisLength / 2 + step * (index + .5);
+      const x = (horizontal ? centerX + offset : centerX) - camera.x;
+      const y = (horizontal ? centerY : centerY + offset) - camera.y;
+      ctx.save();
+      ctx.translate(x, y);
+      if(!horizontal) ctx.rotate(Math.PI / 2);
+      if(index % 2) ctx.scale(-1, 1);
+      ctx.globalAlpha = .98;
+      ctx.drawImage(image, -drawLength / 2, -drawDepth / 2, drawLength, drawDepth);
+      ctx.restore();
+    }
+  }
+
+  function drawRickyAsteroidCorners(image, camera){
+    const {left, right, top, bottom} = RICKY_PORTAL_MAP.chamber;
+    const width = 350;
+    const height = width * Number(image.naturalHeight || 1) / Math.max(1, Number(image.naturalWidth || 1));
+    const anchorX = width * .29;
+    const anchorY = height * .69;
+    const corners = [
+      {x:left, y:top, scaleX:1, scaleY:-1, rotation:0},
+      {x:right, y:top, scaleX:1, scaleY:1, rotation:Math.PI},
+      {x:right, y:bottom, scaleX:-1, scaleY:1, rotation:0},
+      {x:left, y:bottom, scaleX:1, scaleY:1, rotation:0}
+    ];
+    for(const corner of corners){
+      ctx.save();
+      ctx.translate(corner.x - camera.x, corner.y - camera.y);
+      ctx.rotate(corner.rotation);
+      ctx.scale(corner.scaleX, corner.scaleY);
+      ctx.drawImage(image, -anchorX, -anchorY, width, height);
+      ctx.restore();
+    }
+  }
+
+  function drawFallbackRickyWall(wall, camera){
+    const x = wall.minX - camera.x;
+    const y = wall.minY - camera.y;
+    const width = wall.maxX - wall.minX;
+    const height = wall.maxY - wall.minY;
+    const gradient = ctx.createLinearGradient(x, y, x + width, y + height);
+    gradient.addColorStop(0, "rgba(15,23,42,.98)");
+    gradient.addColorStop(.5, "rgba(51,65,85,.98)");
+    gradient.addColorStop(1, "rgba(2,6,23,.98)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x, y, width, height);
+  }
+
   function drawRickyArena(){
-    const {activePortal, camera, portalObjective, portalCinematic} = getState();
+    const {activePortal, camera, portalObjective, portalCinematic, portalCompleted} = getState();
     if(activePortal?.id !== "ricky") return;
     const now = performance.now();
     const pulse = (Math.sin(now / 260) + 1) / 2;
+    const wallImage = readyRickyAsset(RICKY_PORTAL_ASSETS.asteroidWallStraight);
+    const cornerImage = readyRickyAsset(RICKY_PORTAL_ASSETS.asteroidWallCorner);
     ctx.save();
     for(const wall of getRickyPortalWalls(Boolean(portalObjective?.breachOpen))){
-      const x = wall.minX - camera.x;
-      const y = wall.minY - camera.y;
-      const width = wall.maxX - wall.minX;
-      const height = wall.maxY - wall.minY;
-      const gradient = ctx.createLinearGradient(x, y, x + width, y + height);
-      gradient.addColorStop(0, "rgba(14,39,58,.98)");
-      gradient.addColorStop(.5, "rgba(32,68,82,.98)");
-      gradient.addColorStop(1, "rgba(8,22,37,.98)");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(x, y, width, height);
-      ctx.strokeStyle = "rgba(34,211,238,.62)";
-      ctx.lineWidth = 4;
-      ctx.strokeRect(x, y, width, height);
+      if(wallImage) drawRickyAsteroidWall(wall, wallImage, camera);
+      else drawFallbackRickyWall(wall, camera);
     }
-    const breachX = -camera.x;
-    const breachY = RICKY_PORTAL_MAP.chamber.bottom - camera.y;
-    ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = portalObjective?.breachOpen
-      ? `rgba(74,222,128,${.45 + pulse * .35})`
-      : `rgba(250,204,21,${.32 + pulse * .20})`;
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(breachX - RICKY_PORTAL_MAP.chamber.breachHalfWidth, breachY);
-    ctx.lineTo(breachX + RICKY_PORTAL_MAP.chamber.breachHalfWidth, breachY);
-    ctx.stroke();
-    ctx.globalCompositeOperation = "source-over";
+    if(cornerImage) drawRickyAsteroidCorners(cornerImage, camera);
 
     for(const lever of portalObjective?.levers || []){
       const x = Number(lever.x || 0) - camera.x;
       const y = Number(lever.y || 0) - camera.y;
       const active = Boolean(lever.active);
       const unlocked = Boolean(lever.unlocked);
+      const leverImage = readyRickyAsset(active ? RICKY_PORTAL_ASSETS.leverActive : RICKY_PORTAL_ASSETS.leverInactive);
       ctx.save();
       ctx.translate(x, y);
       ctx.shadowColor = active ? "rgba(74,222,128,.9)" : unlocked ? "rgba(56,189,248,.85)" : "rgba(100,116,139,.7)";
       ctx.shadowBlur = 18 + pulse * 8;
-      ctx.fillStyle = active ? "rgba(22,101,52,.95)" : unlocked ? "rgba(8,47,73,.98)" : "rgba(15,23,42,.98)";
-      ctx.strokeStyle = active ? "#4ade80" : unlocked ? "#38bdf8" : "#64748b";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(0, 0, 52, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+      if(leverImage){
+        const drawWidth = 150;
+        const drawHeight = drawWidth * Number(leverImage.naturalHeight || 1) / Math.max(1, Number(leverImage.naturalWidth || 1));
+        const baseRatio = active ? .50 : .70;
+        ctx.drawImage(leverImage, -drawWidth / 2, -drawHeight * baseRatio, drawWidth, drawHeight);
+      }else{
+        ctx.fillStyle = active ? "rgba(22,101,52,.95)" : unlocked ? "rgba(8,47,73,.98)" : "rgba(15,23,42,.98)";
+        ctx.strokeStyle = active ? "#4ade80" : unlocked ? "#38bdf8" : "#64748b";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0, 0, 52, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
       ctx.shadowBlur = 0;
-      ctx.fillStyle = active ? "#dcfce7" : unlocked ? "#e0f2fe" : "#94a3b8";
-      ctx.font = "900 26px Rajdhani, Arial";
       ctx.textAlign = "center";
-      ctx.fillText(String(lever.number || ""), 0, 8);
       ctx.font = "900 12px Rajdhani, Arial";
-      ctx.fillText(`BALISE ${lever.number || ""}`, 0, -68);
+      ctx.fillStyle = active ? "#dcfce7" : unlocked ? "#e0f2fe" : "#94a3b8";
+      ctx.fillText(`LEVIER ${lever.number || ""}`, 0, active ? -96 : -150);
       ctx.font = "800 10px Rajdhani, Arial";
       ctx.fillStyle = active ? "#86efac" : unlocked ? "#7dd3fc" : "#94a3b8";
-      ctx.fillText(active ? "ACTIVE" : unlocked ? "ACTIVER" : "VERROUILLEE", 0, 76);
+      ctx.fillText(active ? "ACTIVE" : unlocked ? "ACTIVER" : "VERROUILLE", 0, 92);
       const activation = lever.activation;
       if(activation){
+        const barY = active ? -126 : -180;
         ctx.fillStyle = "rgba(2,6,23,.92)";
-        ctx.fillRect(-72, -86, 144, 12);
+        ctx.fillRect(-72, barY, 144, 12);
         ctx.fillStyle = activation.blocked ? "#f87171" : "#facc15";
-        ctx.fillRect(-70, -84, 140 * Math.max(0, Math.min(1, Number(activation.progress || 0))), 8);
+        ctx.fillRect(-70, barY + 2, 140 * Math.max(0, Math.min(1, Number(activation.progress || 0))), 8);
         ctx.strokeStyle = "rgba(226,232,240,.65)";
         ctx.lineWidth = 1;
-        ctx.strokeRect(-72, -86, 144, 12);
+        ctx.strokeRect(-72, barY, 144, 12);
       }
       ctx.restore();
     }
@@ -226,29 +282,37 @@ export function createCombatSceneRenderer({
     if(portalObjective?.breachOpen || portalObjective?.cageSpawned || portalCinematic){
       const cageX = RICKY_PORTAL_MAP.cage.x - camera.x;
       const cageY = RICKY_PORTAL_MAP.cage.y - camera.y;
+      const destroyed = Boolean(portalCompleted || portalObjective?.completedAt || portalObjective?.stage === "complete");
+      const cageImage = readyRickyAsset(destroyed ? RICKY_PORTAL_ASSETS.cageDestroyed : RICKY_PORTAL_ASSETS.cageIntact);
       ctx.save();
       ctx.translate(cageX, cageY);
-      ctx.shadowColor = "rgba(250,204,21,.8)";
+      ctx.shadowColor = destroyed ? "rgba(249,115,22,.72)" : "rgba(250,204,21,.8)";
       ctx.shadowBlur = 22;
-      ctx.strokeStyle = "#facc15";
-      ctx.lineWidth = 7;
-      ctx.beginPath();
-      ctx.arc(0, 0, RICKY_PORTAL_MAP.cage.radius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = "rgba(253,224,71,.75)";
-      ctx.lineWidth = 5;
-      for(let x = -105; x <= 105; x += 35){
+      if(cageImage){
+        const drawWidth = destroyed ? 350 : 300;
+        const drawHeight = drawWidth * Number(cageImage.naturalHeight || 1) / Math.max(1, Number(cageImage.naturalWidth || 1));
+        ctx.drawImage(cageImage, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+      }else{
+        ctx.strokeStyle = destroyed ? "#f97316" : "#facc15";
+        ctx.lineWidth = 7;
         ctx.beginPath();
-        ctx.moveTo(x, -112);
-        ctx.lineTo(x, 112);
+        ctx.arc(0, 0, RICKY_PORTAL_MAP.cage.radius, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(253,224,71,.75)";
+        ctx.lineWidth = 5;
+        if(!destroyed){
+          for(let x = -105; x <= 105; x += 35){
+            ctx.beginPath();
+            ctx.moveTo(x, -112);
+            ctx.lineTo(x, 112);
+            ctx.stroke();
+          }
+        }
       }
-      ctx.fillStyle = "#f8fafc";
-      ctx.font = "900 24px Rajdhani, Arial";
-      ctx.textAlign = "center";
-      ctx.fillText("DEADLY", 0, 8);
+      ctx.shadowBlur = 0;
       if(portalCinematic){
+        ctx.textAlign = "center";
         ctx.fillStyle = "#fef08a";
         ctx.font = "900 32px Rajdhani, Arial";
         ctx.fillText(portalCinematic.message || "A l'aiiiideeee !!", 0, -205);

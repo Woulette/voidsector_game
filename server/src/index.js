@@ -200,7 +200,9 @@ const {
   findWorldEnemyForPlayer,
   getWorldMapState,
   playersOnMap,
+  removeWorldEnemy,
   respawnWorldEnemy,
+  spawnWorldEnemyChildren,
   setPlayerMap
 } = createWorldStateManager({
   io,
@@ -272,6 +274,7 @@ function setQuestTimersConnected(player, connected, now = Date.now()){
 }
 
 const {
+  applyEnemyDeathEffect,
   applyEnemyOnHitEffect,
   syncPlayerStatusEffects,
   updateStatusEffects
@@ -433,6 +436,7 @@ const {
   firmWarManager,
   createGroup,
   emitInstance,
+  resetGroupInstance,
   setPlayerMap,
   portalWaveTotal:config.portalWaveTotal
 });
@@ -455,8 +459,11 @@ const {applyEnemyHit, applyEnemyHitForPlayer} = createEnemyHitHandler({
   presence,
   profileManager,
   emitProfileSync:emitProfileSyncForPlayer,
+  applyEnemyDeathEffect,
   progressServerQuestsForKill,
+  removeWorldEnemy,
   respawnWorldEnemy,
+  spawnWorldEnemyChildren,
   updateLootOwner,
   portalWaveTotal
 });
@@ -536,7 +543,7 @@ function applyPlayerHit(socket, payload){
     y:Number(target.state.y || 0),
     radius:Number(target.state.radius || 48)
   };
-  const result = profileManager.updateProfileForPlayer({
+  const result = (profileManager.updateCombatProfileForPlayer || profileManager.updateProfileForPlayer)({
     player:attacker,
     update:profile=>resolveServerCombatFire({player:attacker, profile, enemy:virtualTarget, payload})
   });
@@ -544,7 +551,6 @@ function applyPlayerHit(socket, payload){
     emitMiss(result.reason || "Tir joueur non valide.");
     return;
   }
-  emitProfileSyncForPlayer(attacker, result.profile);
   const incoming = Math.max(0, Math.round(Number(result.damage || 0)));
   io.to(attacker.mapRoom || `map:${String(attacker.mapId ?? "")}`).emit("combat:hit", {
     enemyId:`player:${target.id}`,
@@ -553,6 +559,7 @@ function applyPlayerHit(socket, payload){
     weaponClass:result.weaponClass,
     ammoId:result.ammoId,
     consumed:result.consumed,
+    ammoRemaining:result.ammoRemaining,
     hit:result.hit,
     damage:incoming,
     mapId:String(attacker.mapId ?? ""),

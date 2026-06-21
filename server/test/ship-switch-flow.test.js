@@ -105,5 +105,5 @@ test("ship switch is refused from an enemy firm base", ()=>{
 
   const location = manager.canChangeActiveShipAtFirmSpawn(player);
   assert.equal(location.ok, false);
-  assert.match(location.reason, /ASTRA-01/);
+  assert.match(location.reason, /Helion-01/);
 });

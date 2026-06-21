@@ -38,5 +38,5 @@ test("a valid missed shot makes a passive world enemy retaliate", ()=>{
   assert.equal(enemy.lockedPlayerId, player.id);
   assert.equal(enemy.attackedPlayerId, player.id);
   assert.equal(enemy.damageThreat[player.id], 0);
-  assert.equal(worldStateEmits, 1);
+  assert.equal(worldStateEmits, 0);
 });

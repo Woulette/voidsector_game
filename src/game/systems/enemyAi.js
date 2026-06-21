@@ -1,3 +1,12 @@
+import {
+  completeEnemyEngagement,
+  getEnemyEngagementPoint,
+  getEnemyRepathDelayMs,
+  isEnemyEngagementCrossing,
+  isEnemyEngagementHolding,
+  resetEnemyEngagement
+} from "./enemyTrajectory.js";
+
 function clamp(value, min, max){
   return Math.max(min, Math.min(max, value));
 }
@@ -13,14 +22,20 @@ function getMapPortals(map){
 }
 
 const PASSIVE_UNTIL_ATTACKED = new Set(["drone_pirate", "raider_astral"]);
-const CHARGING_ENEMIES = new Set(["raider_astral", "deadly_intercepteur", "deadly_ravageur"]);
-
 function getEnemyAiKind(kind){
   return String(kind || "drone_pirate").replace(/^boss_/, "");
 }
 
 function requiresPlayerAttack(enemy){
-  return PASSIVE_UNTIL_ATTACKED.has(getEnemyAiKind(enemy?.kind));
+  return Boolean(enemy?.requiresPlayerAttack) || PASSIVE_UNTIL_ATTACKED.has(getEnemyAiKind(enemy?.kind));
+}
+
+function followsPlayerBeforeAttack(enemy){
+  return Boolean(enemy?.followBeforeAttacked);
+}
+
+function hasBeenAttackedByPlayer(enemy){
+  return Boolean(enemy?.attackedByPlayer);
 }
 
 function isValidPatrolPoint(map, x, y, player){
@@ -74,6 +89,7 @@ function resolveEnemyOverlap(enemies, map){
       for(let j = i + 1; j < enemies.length; j++){
         const b = enemies[j];
         if(!b) continue;
+        if(a.aggro && b.aggro) continue;
         let dx = b.x - a.x;
         let dy = b.y - a.y;
         let distance = Math.hypot(dx, dy);
@@ -103,7 +119,7 @@ function resolveEnemyOverlap(enemies, map){
   }
 }
 
-export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, leashRange, playerCollisionRadius, onEnemyAttack}){
+export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, leashRange, onEnemyAttack, now = performance.now()}){
   for(const enemy of enemies){
     const beforeX = enemy.x;
     const beforeY = enemy.y;
@@ -114,17 +130,25 @@ export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, l
     if(safeMode){
       enemy.aggro = false;
       enemy.hitT = Math.max(enemy.hitT || 0, enemy.attackCooldown || 1.4);
-    }else if(!enemy.aggro && !requiresPlayerAttack(enemy) && distance < Math.max(aggroRange, range + 120)) enemy.aggro = true;
+    }else if(!enemy.aggro
+      && (!requiresPlayerAttack(enemy) || followsPlayerBeforeAttack(enemy))
+      && distance < Math.max(aggroRange, range + 120)){
+      enemy.aggro = true;
+    }
 
     let returningHome = false;
     if(enemy.aggro && distance > leashRange){
-      returningHome = true;
+      const memorySeconds = Math.max(0, Number(enemy.targetMemoryMs || 0) / 1000);
+      enemy.targetOutOfRangeT = Math.max(0, Number(enemy.targetOutOfRangeT || 0)) + dt;
+      returningHome = !followsPlayerBeforeAttack(enemy) || memorySeconds <= 0 || enemy.targetOutOfRangeT >= memorySeconds;
       const homeDistance = Math.hypot(enemy.x-enemy.homeX, enemy.y-enemy.homeY);
-      if(homeDistance < 30){
+      if(returningHome && homeDistance < 30){
         enemy.aggro = false;
+        enemy.attackedByPlayer = false;
+        enemy.targetOutOfRangeT = 0;
         returningHome = false;
       }
-    }
+    }else enemy.targetOutOfRangeT = 0;
     if(enemy.aggro || returningHome){
       enemy.wanderPauseT = 0;
       enemy.wanderNeedsNewDestination = false;
@@ -167,65 +191,59 @@ export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, l
         speed = enemy.speed;
       }
     }
+    const aiMode = enemy.aggro && !returningHome ? "aggro" : returningHome ? "return" : "wander";
+    if(enemy.aiMode !== aiMode){
+      resetEnemyEngagement(enemy);
+      enemy.aiMode = aiMode;
+      enemy.aiDecision = null;
+      enemy.nextAiDecisionAt = 0;
+    }
     if(enemy.aggro && !returningHome){
-      const dirX = dx / distance;
-      const dirY = dy / distance;
-      const sideX = -dirY;
-      const sideY = dirX;
-      if(enemy.kind === "drone_pirate" || enemy.kind === "deadly_eclaireur"){
-        const preferredDistance = Math.max(110, range - 45);
-        if(distance > range - 20){
-          targetX = player.x - dirX * preferredDistance;
-          targetY = player.y - dirY * preferredDistance;
-          speed = enemy.speed;
-        }else{
-          targetX = enemy.x;
-          targetY = enemy.y;
-          speed = 0;
-        }
-      }else if(CHARGING_ENEMIES.has(getEnemyAiKind(enemy.kind))){
-        const contactDistance = Math.max(70, enemy.radius + playerCollisionRadius + 22);
-        if(distance > contactDistance){
-          targetX = player.x;
-          targetY = player.y;
-          speed = enemy.speed;
-        }else{
-          targetX = enemy.x - dirX * 42;
-          targetY = enemy.y - dirY * 42;
-          speed = enemy.speed;
-        }
-      }else if(enemy.kind === "chasseur_spectral" || enemy.kind === "deadly_traqueur"){
-        const preferredDistance = range * .62;
-        const drift = Math.sin(performance.now() / 760 + enemy.id) * 115;
-        if(distance > preferredDistance + 45){
-          targetX = player.x - dirX * preferredDistance + sideX * drift;
-          targetY = player.y - dirY * preferredDistance + sideY * drift;
-          speed = enemy.speed;
-        }else if(distance < preferredDistance - 55){
-          targetX = enemy.x - dirX * 150 + sideX * drift * .45;
-          targetY = enemy.y - dirY * 150 + sideY * drift * .45;
-          speed = enemy.speed;
-        }else{
-          targetX = enemy.x + sideX * drift;
-          targetY = enemy.y + sideY * drift;
-          speed = enemy.speed;
-        }
-      }else{
-        const preferredDistance = range * .72;
-        if(distance > preferredDistance){
-          targetX = player.x;
-          targetY = player.y;
-          speed = enemy.speed;
-        }else if(distance < Math.max(120, enemy.radius + playerCollisionRadius + 40)){
-          targetX = enemy.x - dx;
-          targetY = enemy.y - dy;
-          speed = enemy.speed;
-        }else{
-          targetX = enemy.x;
-          targetY = enemy.y;
-          speed = 0;
-        }
+      if(isEnemyEngagementHolding(enemy) && distance > range){
+        enemy.aiDecision = null;
+        enemy.nextAiDecisionAt = 0;
       }
+      if(!enemy.aiDecision || now >= Number(enemy.nextAiDecisionAt || 0)){
+        enemy.aiDecisionIndex = Number(enemy.aiDecisionIndex || 0) + 1;
+        const engagementPoint = getEnemyEngagementPoint(
+          enemy,
+          {
+            id:"local-player",
+            x:player.x,
+            y:player.y,
+            vx:Number(player.vx || 0),
+            vy:Number(player.vy || 0),
+            moving:Boolean(player.moving)
+          },
+          range,
+          enemy.aiDecisionIndex,
+          now
+        );
+        enemy.aiDecision = {
+          targetX:engagementPoint.x,
+          targetY:engagementPoint.y,
+          speed:enemy.speed
+        };
+        enemy.nextAiDecisionAt = now + getEnemyRepathDelayMs(enemy);
+      }
+      targetX = Number(enemy.aiDecision.targetX ?? enemy.x);
+      targetY = Number(enemy.aiDecision.targetY ?? enemy.y);
+      speed = Number(enemy.aiDecision.speed || 0);
+    }else if(returningHome){
+      if(!enemy.aiDecision || now >= Number(enemy.nextAiDecisionAt || 0)){
+        enemy.aiDecision = {targetX:enemy.homeX, targetY:enemy.homeY, speed:enemy.speed};
+        enemy.nextAiDecisionAt = now + getEnemyRepathDelayMs(enemy);
+      }
+      targetX = Number(enemy.aiDecision.targetX ?? enemy.homeX);
+      targetY = Number(enemy.aiDecision.targetY ?? enemy.homeY);
+      speed = Number(enemy.aiDecision.speed || enemy.speed);
+    }
+
+    const crossingTargetCenter = isEnemyEngagementCrossing(enemy);
+    if(enemy.aggro && !returningHome && distance <= range && !crossingTargetCenter){
+      targetX = enemy.x;
+      targetY = enemy.y;
+      speed = 0;
     }
 
     if(map?.width && map?.height){
@@ -236,8 +254,9 @@ export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, l
     const clampedY = targetY-enemy.y;
     const ed = Math.hypot(clampedX,clampedY) || 1;
     if(speed > 0 && ed > 12){
-      enemy.x += clampedX/ed*speed*dt;
-      enemy.y += clampedY/ed*speed*dt;
+      const step = Math.min(ed, speed * dt);
+      enemy.x += clampedX / ed * step;
+      enemy.y += clampedY / ed * step;
     }
     if(map?.width && map?.height){
       enemy.x = clamp(enemy.x, -map.width / 2 + 40, map.width / 2 - 40);
@@ -245,10 +264,26 @@ export function updateEnemyAi({enemies, player, dt, map, safeMode, aggroRange, l
     }
     const moveDx = enemy.x - beforeX;
     const moveDy = enemy.y - beforeY;
-    if(enemy.aggro && !safeMode) enemy.angle = Math.atan2(dy,dx)+Math.PI/2;
-    else if(Math.hypot(moveDx, moveDy) > .5) enemy.angle = Math.atan2(moveDy, moveDx)+Math.PI/2;
+    const movementDistance = Math.hypot(moveDx, moveDy);
+    enemy.moving = movementDistance > .5;
+    enemy.vx = enemy.moving ? moveDx / Math.max(dt, .001) : 0;
+    enemy.vy = enemy.moving ? moveDy / Math.max(dt, .001) : 0;
+    if(enemy.moving) enemy.angle = Math.atan2(moveDy, moveDx)+Math.PI/2;
+    if(crossingTargetCenter && Math.hypot(targetX - enemy.x, targetY - enemy.y) <= 12){
+      const distanceAfterMove = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+      if(distanceAfterMove <= range){
+        completeEnemyEngagement(enemy);
+      }else{
+        resetEnemyEngagement(enemy);
+        enemy.aiDecision = null;
+        enemy.nextAiDecisionAt = 0;
+      }
+    }
     enemy.hitT -= dt;
-    if(!safeMode && enemy.aggro && distance <= range && enemy.hitT <= 0){
+    const attackDistance = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+    const attackUnlocked = !requiresPlayerAttack(enemy) || hasBeenAttackedByPlayer(enemy);
+    if(!safeMode && attackUnlocked && enemy.aggro && attackDistance <= range && enemy.hitT <= 0){
+      enemy.angle = Math.atan2(player.y-enemy.y, player.x-enemy.x)+Math.PI/2;
       onEnemyAttack(enemy, dx, dy, distance);
       enemy.hitT = enemy.attackCooldown || 1.4;
     }

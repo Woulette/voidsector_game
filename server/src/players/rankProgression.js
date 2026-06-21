@@ -1,4 +1,4 @@
-import { calculateMonsterKillRankPoints, calculateRankScore } from "../../../src/data/ranks.js";
+import { calculateMonsterRankPointsForKills, calculateRankScore } from "../../../src/data/ranks.js";
 
 function completedPortalCount(completedPortals = {}){
   return Object.values(completedPortals || {}).reduce((sum, value)=>sum + Math.max(0, Number(value || 0)), 0);
@@ -6,8 +6,31 @@ function completedPortalCount(completedPortals = {}){
 
 export function updateRankScore(profile){
   if(!profile?.player) return 0;
+  recalculateMonsterRankPoints(profile);
   profile.player.rankScore = calculateRankScore(profile.player, completedPortalCount(profile.completedPortals));
   return profile.player.rankScore;
+}
+
+export function recalculateMonsterRankPoints(profile){
+  if(!profile?.player) profile.player = {};
+  if(!profile.killStats || typeof profile.killStats !== "object" || Array.isArray(profile.killStats)) profile.killStats = {};
+  if(!profile.rankKillStats || typeof profile.rankKillStats !== "object" || Array.isArray(profile.rankKillStats)) profile.rankKillStats = {};
+  const kinds = new Set([...Object.keys(profile.killStats), ...Object.keys(profile.rankKillStats)]);
+  let total = 0;
+  for(const kind of kinds){
+    const current = profile.rankKillStats[kind];
+    const kills = Math.max(
+      0,
+      Math.floor(Number(profile.killStats[kind] || 0)),
+      Math.floor(Number(current?.kills || 0))
+    );
+    const points = calculateMonsterRankPointsForKills(kind, kills);
+    profile.killStats[kind] = kills;
+    profile.rankKillStats[kind] = {kills, points};
+    total += points;
+  }
+  profile.player.monsterRankPoints = total;
+  return total;
 }
 
 export function applyServerReputationFromXp(profile, xp, ratio = 0.1){
@@ -19,24 +42,17 @@ export function applyServerReputationFromXp(profile, xp, ratio = 0.1){
   return gain;
 }
 
-export function registerServerMonsterKill(profile, {kind = "server_enemy", enemyLevel = 1, playerLevel = null} = {}){
+export function registerServerMonsterKill(profile, {kind = "server_enemy"} = {}){
   if(!profile?.player) profile.player = {};
   const cleanKind = String(kind || "server_enemy");
-  const cleanPlayerLevel = Math.max(1, Number(playerLevel ?? profile.player.level ?? 1));
-  const cleanEnemyLevel = Math.max(1, Number(enemyLevel || 1));
-  const rankPoints = calculateMonsterKillRankPoints(cleanPlayerLevel, cleanEnemyLevel);
+  const previousPoints = recalculateMonsterRankPoints(profile);
   profile.player.totalKills = Math.max(0, Number(profile.player.totalKills || 0)) + 1;
-  profile.player.monsterRankPoints = Math.max(0, Number(profile.player.monsterRankPoints || 0)) + rankPoints;
-  if(!profile.killStats || typeof profile.killStats !== "object" || Array.isArray(profile.killStats)) profile.killStats = {};
   profile.killStats[cleanKind] = Math.max(0, Number(profile.killStats[cleanKind] || 0)) + 1;
-  if(!profile.rankKillStats || typeof profile.rankKillStats !== "object" || Array.isArray(profile.rankKillStats)) profile.rankKillStats = {};
   const current = profile.rankKillStats[cleanKind] || {};
   profile.rankKillStats[cleanKind] = {
     kills:Math.max(0, Number(current.kills || 0)) + 1,
-    points:Math.max(0, Number(current.points || 0)) + rankPoints,
-    lastEnemyLevel:cleanEnemyLevel,
-    lastPlayerLevel:cleanPlayerLevel
+    points:Math.max(0, Number(current.points || 0))
   };
   updateRankScore(profile);
-  return rankPoints;
+  return Math.max(0, profile.player.monsterRankPoints - previousPoints);
 }

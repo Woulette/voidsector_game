@@ -2,6 +2,7 @@ export function createCombatStatusEffectSystem({
   getState,
   setState,
   updatePoisonStatus,
+  updateSlowStatus,
   pushDamageText,
   handlePlayerDeath,
   onPlayerHpLost
@@ -10,6 +11,12 @@ export function createCombatStatusEffectSystem({
     const {player} = getState();
     if(player) player.poisonEffect = null;
     updatePoisonStatus(null);
+  }
+
+  function clearSlow(){
+    const {player} = getState();
+    if(player) player.slowEffect = null;
+    updateSlowStatus(null);
   }
 
   function applyPlayerPoison(effect){
@@ -79,6 +86,49 @@ export function createCombatStatusEffectSystem({
     updatePoisonStatus(player.poisonEffect);
   }
 
+  function applyPlayerSlow(effect){
+    const {player} = getState();
+    if(!player || effect?.type !== "slow") return;
+    const duration = Number(effect.duration || 0);
+    player.slowEffect = {
+      amount:Math.max(0, Number(effect.amount || 0)),
+      duration,
+      remaining:Number(effect.remaining ?? duration),
+      pulseT:0,
+      serverAuthoritative:Boolean(effect.serverAuthoritative)
+    };
+    updateSlowStatus(player.slowEffect);
+  }
+
+  function updatePlayerSlow(dt){
+    const {player, particles} = getState();
+    if(!player) return;
+    const effect = player.slowEffect;
+    if(!effect?.remaining){
+      updateSlowStatus(null);
+      return;
+    }
+    effect.remaining -= dt;
+    effect.pulseT = Number(effect.pulseT || 0) - dt;
+    if(effect.pulseT <= 0){
+      effect.pulseT = .1;
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 22 + Math.random() * 32;
+      particles.push({
+        x:player.x + Math.cos(angle) * radius,
+        y:player.y + Math.sin(angle) * radius,
+        vx:-Math.cos(angle) * 8,
+        vy:-Math.sin(angle) * 8,
+        life:.52,
+        max:.52,
+        size:3 + Math.random() * 5,
+        color:"rgba(56,189,248,.68)"
+      });
+    }
+    if(effect.remaining <= 0) player.slowEffect = null;
+    updateSlowStatus(player.slowEffect);
+  }
+
   function updateParticles(dt){
     const {player, particles, impactEffects, damageTexts} = getState();
     for(const p of particles){
@@ -103,17 +153,26 @@ export function createCombatStatusEffectSystem({
       text.y += (text.vy || -38) * dt;
       text.vy = (text.vy || -38) + 42 * dt;
     }
+    const nextParticles = particles.filter(p=>p.life > 0);
+    const nextImpactEffects = impactEffects.filter(effect=>effect.life > 0 || effect.delay > 0);
+    const nextDamageTexts = damageTexts.filter(text=>text.life > 0);
+    if(nextParticles.length > 240) nextParticles.splice(0, nextParticles.length - 240);
+    if(nextImpactEffects.length > 96) nextImpactEffects.splice(0, nextImpactEffects.length - 96);
+    if(nextDamageTexts.length > 80) nextDamageTexts.splice(0, nextDamageTexts.length - 80);
     setState({
-      particles:particles.filter(p=>p.life > 0),
-      impactEffects:impactEffects.filter(effect=>effect.life > 0 || effect.delay > 0),
-      damageTexts:damageTexts.filter(text=>text.life > 0)
+      particles:nextParticles,
+      impactEffects:nextImpactEffects,
+      damageTexts:nextDamageTexts
     });
   }
 
   return {
     clearPoison,
+    clearSlow,
     applyPlayerPoison,
+    applyPlayerSlow,
     updatePlayerPoison,
+    updatePlayerSlow,
     updateParticles
   };
 }

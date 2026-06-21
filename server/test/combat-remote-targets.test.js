@@ -5,7 +5,7 @@ import { createCombatRemoteTargetResolver } from "../../src/game/systems/combatR
 function createResolver({
   player = {level:20, firmId:"astra"},
   group = null,
-  map = {id:"ASTRA-01"},
+  map = {id:"Helion-01"},
   remotes = []
 } = {}){
   return createCombatRemoteTargetResolver({
@@ -24,7 +24,7 @@ function createRemote(id, state = {}, extra = {}){
     name:`Pilot ${id}`,
     firmId:"cyan",
     state:{
-      mapId:"ASTRA-01",
+      mapId:"Helion-01",
       x:100,
       y:200,
       hp:500,
@@ -69,8 +69,8 @@ test("remote player targets keep group and level attack blocks", ()=>{
 
 test("remote player target lookup ignores players on other maps", ()=>{
   const resolver = createResolver({
-    map:{id:"ASTRA-02"},
-    remotes:[createRemote("enemy", {mapId:"ASTRA-01"})]
+    map:{id:"Helion-02"},
+    remotes:[createRemote("enemy", {mapId:"Helion-01"})]
   });
 
   assert.equal(resolver.findRemotePlayerTargetById("enemy"), null);
@@ -81,7 +81,7 @@ test("remote player click lookup picks the closest player on the current map", (
     remotes:[
       createRemote("far", {x:150, y:200}),
       createRemote("close", {x:104, y:202}),
-      createRemote("other-map", {mapId:"CYAN-01", x:100, y:200})
+      createRemote("other-map", {mapId:"Nereid-01", x:100, y:200})
     ]
   });
 

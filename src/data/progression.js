@@ -1,6 +1,6 @@
-﻿export const portals = [
-  { id:"blue", name:"Portail Bleu", img:"assets/portals/portail_bleu.svg", pieceImg:"assets/portal_pieces/portal_piece_blue.png", level:"NIV. 15+", requirement:{level:15}, piecesRequired:20, dropZones:["ASTRA-01","ASTRA-02","ASTRA-03","ASTRA-04"], dropChance:0.0033, reward:"20 000 NOVA · 20 000 munitions x4 · Laser MK-IV garanti puis 50%", open:false },
-  { id:"violet", name:"Portail Violet", img:"assets/portals/portail_violet.svg", level:"NIV. 20+", requirement:{level:20}, piecesRequired:35, dropZones:["ASTRA-03","ASTRA-04","ASTRA-05"], dropChance:0.0033, reward:"35 000 NOVA · 35 000 munitions x4 · Accès vaisseaux à compétence", open:false },
+export const portals = [
+  { id:"blue", name:"Portail Bleu", img:"assets/portals/portail_bleu.svg", pieceImg:"assets/portal_pieces/portal_piece_blue.png", level:"NIV. 15+", requirement:{level:15}, piecesRequired:20, dropZones:["Helion-01","Helion-02","Helion-03","Helion-04"], dropChance:0.0033, reward:"20 000 NOVA · 20 000 munitions x4 · Laser MK-IV garanti puis 50%", open:false },
+  { id:"violet", name:"Portail Violet", img:"assets/portals/portail_violet.svg", level:"NIV. 20+", requirement:{level:20}, piecesRequired:35, dropZones:["Helion-03","Helion-04","Helion-05"], dropChance:0.0033, reward:"35 000 NOVA · 35 000 munitions x4 · Accès vaisseaux à compétence", open:false },
   { id:"red", name:"Portail Rouge", img:"assets/portals/portail_rouge.svg", level:"NIV. 25+", requirement:{level:25}, piecesRequired:50, dropZones:["Zone 21-30"], dropChance:0.0033, reward:"50 000 NOVA · 50 000 munitions x4 · 50% Noyau Overdrive Drone", open:false },
   { id:"emerald", name:"Portail Émeraude", img:"assets/portals/portail_emeraude.svg", level:"NIV. 35+", requirement:{level:35}, piecesRequired:70, dropZones:["Zone 31-40"], dropChance:0.0033, reward:"50 000 NOVA · 25 000 munitions x4 · 33% Laser MK-IV · Accès améliorations", open:false },
   { id:"void", name:"Portail du Néant", img:"assets/portals/portail_neant.svg", level:"NIV. 40+", requirement:{level:40}, piecesRequired:95, dropZones:["Zone 41-50"], dropChance:0.0033, reward:"60 000 NOVA · 30 000 munitions x4 · 33% Laser MK-IV · 33% Noyau Overdrive · Accès recettes", open:false },
@@ -153,20 +153,20 @@ export const refineryRecipes = [
 
 const generatedCombatQuests = [
   ["quest_lv3_combat_drone_companion", "normal", 3, "Un drone de compagnie", "Possède au moins 1 drone de combat. Si tu en possèdes déjà un, retourne simplement au relais.", "owned_combat_drone", 1, "Hangar", 23000, 3500, {}, 200],
-  ["quest_astra01_raider_easy_02", "daily", 3, "Prime de patrouille", "Détruis 12 Vorak rushers dans ASTRA-01.", "raider_astral", 12, "ASTRA-01", 26000, 1300, {nickel_brut:16, titane_fissure:8}],
-  ["quest_astra03_spectral_hard_01", "weekly", 10, "Purge ASTRA-03", "Détruis 35 Parasites astraux dans ASTRA-03.", "chasseur_spectral", 35, "ASTRA-03", 150000, 9200, {silice_conductrice:70, catalyseur_quantique:5}],
-  ["quest_astra04_spectral_hard_01", "normal", 12, "Ombres d'ASTRA-04", "Détruis 22 Parasites astraux dans ASTRA-04.", "chasseur_spectral", 22, "ASTRA-04", 115000, 7200, {silice_conductrice:50, catalyseur_quantique:4}],
-  ["quest_astra04_spectral_hard_02", "weekly", 14, "Front spectral lourd", "Détruis 45 Parasites astraux dans ASTRA-04.", "chasseur_spectral", 45, "ASTRA-04", 240000, 16000, {silice_conductrice:110, catalyseur_quantique:8}],
-  ["quest_astra05_boss_orb_01", "normal", 18, "Boss sentinelles", "Détruis 5 Boss Orbes sentinelles dans ASTRA-05.", "boss_drone_pirate", 5, "ASTRA-05", 90000, 6500, {cuivre_orbital:60, zinc_spatial:30, catalyseur_quantique:3}],
-  ["quest_astra05_boss_raider_01", "normal", 18, "Boss rushers", "Détruis 5 Boss Vorak rushers dans ASTRA-05.", "boss_raider_astral", 5, "ASTRA-05", 110000, 7600, {nickel_brut:60, titane_fissure:30, catalyseur_quantique:3}],
-  ["quest_astra05_boss_spectral_01", "normal", 19, "Boss parasites", "Détruis 5 Boss Parasites astraux dans ASTRA-05.", "boss_chasseur_spectral", 5, "ASTRA-05", 150000, 9800, {silice_conductrice:70, catalyseur_quantique:4}],
-  ["quest_astra05_boss_nebular_01", "normal", 20, "Traqueurs d'élite", "Détruis 4 Boss Traqueurs abyssaux dans ASTRA-05.", "boss_cuirasse_nebulaire", 4, "ASTRA-05", 190000, 12000, {alliage_cuivre_zinc:8, plaque_nickel_titane:8, catalyseur_quantique:5}],
-  ["quest_astra05_boss_crystal_01", "normal", 21, "Cristaux d'élite", "Détruis 4 Boss Cristaux du néant dans ASTRA-05.", "boss_cristal_du_neant", 4, "ASTRA-05", 260000, 15500, {conducteur_renforce:5, blindage_composite:5, catalyseur_quantique:6}],
-  ["quest_astra05_boss_amber_01", "normal", 22, "Cuirasses d'élite", "Détruis 3 Boss Cuirasses ambre dans ASTRA-05.", "boss_cuirasse_ambre", 3, "ASTRA-05", 420000, 25000, {conducteur_renforce:8, blindage_composite:8, noyau_astra:1}],
-  ["quest_astra05_boss_daily_01", "daily", 18, "Prime orbes boss", "Détruis 10 Boss Orbes sentinelles dans ASTRA-05.", "boss_drone_pirate", 10, "ASTRA-05", 180000, 12000, {catalyseur_quantique:8}],
-  ["quest_astra05_boss_daily_02", "daily", 20, "Prime parasites boss", "Détruis 8 Boss Parasites astraux dans ASTRA-05.", "boss_chasseur_spectral", 8, "ASTRA-05", 240000, 16000, {silice_conductrice:120, catalyseur_quantique:10}],
-  ["quest_astra05_boss_weekly_01", "weekly", 20, "Nettoyage des rushers boss", "Détruis 25 Boss Vorak rushers dans ASTRA-05.", "boss_raider_astral", 25, "ASTRA-05", 500000, 36000, {conducteur_renforce:10, blindage_composite:10, noyau_astra:2}],
-  ["quest_astra05_boss_weekly_02", "weekly", 22, "Siège d'ASTRA-05", "Détruis 12 Boss Cuirasses ambre dans ASTRA-05.", "boss_cuirasse_ambre", 12, "ASTRA-05", 1200000, 70000, {conducteur_renforce:20, blindage_composite:20, noyau_astra:5}]
+  ["quest_astra01_raider_easy_02", "daily", 3, "Prime de patrouille", "Détruis 12 Vorak rushers dans Helion-01.", "raider_astral", 12, "Helion-01", 26000, 1300, {nickel_brut:16, titane_fissure:8}],
+  ["quest_astra03_spectral_hard_01", "weekly", 10, "Purge Helion-03", "Détruis 35 Parasites astraux dans Helion-03.", "chasseur_spectral", 35, "Helion-03", 150000, 9200, {silice_conductrice:70, catalyseur_quantique:5}],
+  ["quest_astra04_spectral_hard_01", "normal", 12, "Ombres d'Helion-04", "Détruis 22 Pondeuses astrales dans Helion-04.", "pondeuse_astrale", 22, "Helion-04", 115000, 7200, {silice_conductrice:50, catalyseur_quantique:4}],
+  ["quest_astra04_spectral_hard_02", "weekly", 14, "Front spectral lourd", "Détruis 45 Pondeuses astrales dans Helion-04.", "pondeuse_astrale", 45, "Helion-04", 240000, 16000, {silice_conductrice:110, catalyseur_quantique:8}],
+  ["quest_astra05_boss_orb_01", "normal", 18, "Boss sentinelles", "Détruis 5 Boss Orbes sentinelles dans Helion-05.", "boss_drone_pirate", 5, "Helion-05", 90000, 6500, {cuivre_orbital:60, zinc_spatial:30, catalyseur_quantique:3}],
+  ["quest_astra05_boss_raider_01", "normal", 18, "Boss rushers", "Détruis 5 Boss Vorak rushers dans Helion-05.", "boss_raider_astral", 5, "Helion-05", 110000, 7600, {nickel_brut:60, titane_fissure:30, catalyseur_quantique:3}],
+  ["quest_astra05_boss_spectral_01", "normal", 19, "Boss parasites", "Détruis 5 Boss Parasites astraux dans Helion-05.", "boss_chasseur_spectral", 5, "Helion-05", 150000, 9800, {silice_conductrice:70, catalyseur_quantique:4}],
+  ["quest_astra05_boss_nebular_01", "normal", 20, "Traqueurs d'élite", "Détruis 4 Boss Traqueurs abyssaux dans Helion-05.", "boss_cuirasse_nebulaire", 4, "Helion-05", 190000, 12000, {alliage_cuivre_zinc:8, plaque_nickel_titane:8, catalyseur_quantique:5}],
+  ["quest_astra05_boss_crystal_01", "normal", 21, "Astranites", "Détruis 4 Astranites dans Helion-05.", "astranite", 4, "Helion-05", 260000, 15500, {conducteur_renforce:5, blindage_composite:5, catalyseur_quantique:6}],
+  ["quest_astra05_boss_amber_01", "normal", 22, "Cuirasses d'élite", "Détruis 3 Boss Cuirasses ambre dans Helion-05.", "boss_cuirasse_ambre", 3, "Helion-05", 420000, 25000, {conducteur_renforce:8, blindage_composite:8, noyau_astra:1}],
+  ["quest_astra05_boss_daily_01", "daily", 18, "Prime orbes boss", "Détruis 10 Boss Orbes sentinelles dans Helion-05.", "boss_drone_pirate", 10, "Helion-05", 180000, 12000, {catalyseur_quantique:8}],
+  ["quest_astra05_boss_daily_02", "daily", 20, "Prime parasites boss", "Détruis 8 Boss Parasites astraux dans Helion-05.", "boss_chasseur_spectral", 8, "Helion-05", 240000, 16000, {silice_conductrice:120, catalyseur_quantique:10}],
+  ["quest_astra05_boss_weekly_01", "weekly", 20, "Nettoyage des rushers boss", "Détruis 25 Boss Vorak rushers dans Helion-05.", "boss_raider_astral", 25, "Helion-05", 500000, 36000, {conducteur_renforce:10, blindage_composite:10, noyau_astra:2}],
+  ["quest_astra05_boss_weekly_02", "weekly", 22, "Siège d'Helion-05", "Détruis 12 Boss Cuirasses ambre dans Helion-05.", "boss_cuirasse_ambre", 12, "Helion-05", 1200000, 70000, {conducteur_renforce:20, blindage_composite:20, noyau_astra:5}]
 ].map(([id, category, requiredLevel, title, desc, target, count, zone, credits, xp, materials, premium = 0])=>({
   id,
   category,
@@ -179,10 +179,10 @@ const generatedCombatQuests = [
 }));
 
 const QUEST_FIRMS = [
-  {id:"astra", label:"Astra", mapPrefix:"ASTRA"},
-  {id:"cyan", label:"Cyan", mapPrefix:"CYAN"},
-  {id:"jaune", label:"Jaune", mapPrefix:"JAUNE"},
-  {id:"verte", label:"Vert", mapPrefix:"VERTE"}
+  {id:"astra", label:"Astra", mapPrefix:"Helion", npcPrefix:"astra"},
+  {id:"cyan", label:"Cygnus", mapPrefix:"Nereid", npcPrefix:"cyan"},
+  {id:"jaune", label:"Solarys", mapPrefix:"Aureon", npcPrefix:"jaune"},
+  {id:"verte", label:"Verdantis", mapPrefix:"Sylva", npcPrefix:"verte"}
 ];
 
 const RICKY_QUEST_COORDINATES = {
@@ -207,18 +207,22 @@ function deepClone(value){
 
 function firmNpcId(npcId, firmId){
   if(String(npcId || "") !== "astra02_portal_mechanic") return npcId;
-  const prefix = getQuestFirmDefinition(firmId).mapPrefix.toLowerCase();
+  const prefix = getQuestFirmDefinition(firmId).npcPrefix;
   return `${prefix}02_portal_mechanic`;
 }
 
 function firmText(value, firmId){
   if(typeof value !== "string") return value;
   const firm = getQuestFirmDefinition(firmId);
-  return value.replace(/ASTRA/g, firm.mapPrefix).replace(/Astra/g, firm.label);
+  const mapPrefixWithDe = /^[AEIOUYH]/i.test(firm.mapPrefix) ? `d'${firm.mapPrefix}` : `de ${firm.mapPrefix}`;
+  return value
+    .replace(/d'Helion/g, mapPrefixWithDe)
+    .replace(/HELION/g, firm.mapPrefix.toUpperCase())
+    .replace(/Helion/g, firm.mapPrefix);
 }
 
 function firmZone(value, firmId){
-  const match = String(value || "").match(/^ASTRA-(\d{2})$/i);
+  const match = String(value || "").match(/^Helion-(\d{2})$/i);
   if(!match) return value;
   return getQuestFirmMapName(firmId, Number(match[1]));
 }
@@ -283,8 +287,8 @@ const baseQuestCatalog = [
     special:true,
     giver:"Relais de Commandement",
     desc:"Sécurise la zone et reviens me voir, je t'offrirai ton passe droit.",
-    objective:{type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:3, zones:["ASTRA-01","ASTRA-02"]},
-    rewards:{credits:200000, premium:5000, xp:500, items:["laser_mk3", "launcher_rocket_mk1"], materials:{}}
+    objective:{type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:3, zones:["Helion-01","Helion-02"]},
+    rewards:{credits:200000, premium:5000, xp:5000, items:["laser_mk3", "launcher_rocket_mk1"], materials:{}}
   },
   {
     id:"quest_raider_patrol",
@@ -293,7 +297,7 @@ const baseQuestCatalog = [
     title:"Pulvérisé à la racine",
     giver:"Relais de Commandement",
     desc:"Nettoie la zone et reviens me voir quand les Vorak rushers ne seront plus une menace.",
-    objective:{type:"kill", target:"raider_astral", label:"Vorak rusher", count:3, zones:["ASTRA-01","ASTRA-02"]},
+    objective:{type:"kill", target:"raider_astral", label:"Vorak rusher", count:3, zones:["Helion-01","Helion-02"]},
     rewards:{credits:10000, premium:150, xp:500, items:["shield_omega"], materials:{zinc_spatial:1000, cuivre_orbital:1000, nickel_brut:1000, titane_fissure:1000, silice_conductrice:1000}}
   },
   {
@@ -313,12 +317,12 @@ const baseQuestCatalog = [
     title:"Compréhension acquisition",
     rare:true,
     giver:"Relais de Commandement",
-    desc:"Prouve que tu maitrises les bases d'ASTRA-01 et rejoins ASTRA-02 au moins une fois.",
+    desc:"Prouve que tu maitrises les bases d'Helion-01 et rejoins Helion-02 au moins une fois.",
     unlock:{type:"complete_level_quests", level:1},
     objectives:[
-      {id:"orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:5, zones:["ASTRA-01","ASTRA-02"]},
-      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:5, zones:["ASTRA-01","ASTRA-02"]},
-      {id:"astra02", type:"visit_map", map:"ASTRA-02", label:"Atteindre ASTRA-02", count:1}
+      {id:"orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:5, zones:["Helion-01","Helion-02"]},
+      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:5, zones:["Helion-01","Helion-02"]},
+      {id:"astra02", type:"visit_map", map:"Helion-02", label:"Atteindre Helion-02", count:1}
     ],
     rewards:{credits:75000, premium:500, xp:1500, materials:{}, shipCargoMaterialsForced:{noyau_astra:100}}
   },
@@ -328,8 +332,8 @@ const baseQuestCatalog = [
     requiredLevel:4,
     title:"Prime journaliere",
     giver:"Relais de Commandement",
-    desc:"Elimine 8 ennemis dans ASTRA-01 pour maintenir la route commerciale ouverte.",
-    objective:{type:"kill", target:"drone_pirate", count:8, zone:"ASTRA-01"},
+    desc:"Elimine 8 ennemis dans Helion-01 pour maintenir la route commerciale ouverte.",
+    objective:{type:"kill", target:"drone_pirate", count:8, zone:"Helion-01"},
     rewards:{credits:18000, xp:900, materials:{cuivre_orbital:14, zinc_spatial:4}}
   },
   {
@@ -338,8 +342,8 @@ const baseQuestCatalog = [
     requiredLevel:4,
     title:"Place au combat",
     giver:"Relais de Commandement",
-    desc:"Détruis 15 Orbes sentinelles dans les zones ASTRA.",
-    objective:{type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:15, zones:["ASTRA-01","ASTRA-02"]},
+    desc:"Détruis 15 Orbes sentinelles dans les zones Helion.",
+    objective:{type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:15, zones:["Helion-01","Helion-02"]},
     rewards:{credits:75000, premium:250, xp:6500, materials:{}}
   },
   {
@@ -372,12 +376,12 @@ const baseQuestCatalog = [
     requiredLevel:3,
     title:"Un pas aprés l'autre",
     giver:"Relais de Commandement",
-    desc:"Détruis 3 Vorak rushers et 5 Orbes sentinelles dans ASTRA-01 ou ASTRA-02, puis rejoins les deux coordonnées indiquées.",
+    desc:"Détruis 3 Vorak rushers et 5 Orbes sentinelles dans Helion-01 ou Helion-02, puis rejoins les deux coordonnées indiquées.",
     objectives:[
-      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:3, zones:["ASTRA-01","ASTRA-02"]},
-      {id:"orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:5, zones:["ASTRA-01","ASTRA-02"]},
-      {id:"coord_a", type:"visit_coordinates", label:"Coord X -430 Y 0", x:-430, y:0, scale:10, tolerance:6, zones:["ASTRA-01","ASTRA-02"], count:1},
-      {id:"coord_b", type:"visit_coordinates", label:"Coord X 170 Y 120", x:170, y:120, scale:10, tolerance:6, zones:["ASTRA-01","ASTRA-02"], count:1}
+      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:3, zones:["Helion-01","Helion-02"]},
+      {id:"orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:5, zones:["Helion-01","Helion-02"]},
+      {id:"coord_a", type:"visit_coordinates", label:"Coord X -430 Y 0", x:-430, y:0, scale:10, tolerance:6, zones:["Helion-01","Helion-02"], count:1},
+      {id:"coord_b", type:"visit_coordinates", label:"Coord X 170 Y 120", x:170, y:120, scale:10, tolerance:6, zones:["Helion-01","Helion-02"], count:1}
     ],
     rewards:{credits:32000, premium:200, xp:5000, materials:{}}
   },
@@ -391,9 +395,9 @@ const baseQuestCatalog = [
     desc:"Elimine les cibles demandees sans perdre plus de 3000 points de vie. Si la limite est depassee, la mission repart de zero.",
     unlock:{type:"complete_level_quests", level:3},
     objectives:[
-      {id:"astra01_orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:5, zone:"ASTRA-01"},
-      {id:"astra02_vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:5, zone:"ASTRA-02"},
-      {id:"astra02_parasites", type:"kill", target:"chasseur_spectral", label:"Parasite vert", count:2, zone:"ASTRA-02"}
+      {id:"astra01_orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:5, zone:"Helion-01"},
+      {id:"astra02_vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:5, zone:"Helion-02"},
+      {id:"astra02_parasites", type:"kill", target:"chasseur_spectral", label:"Parasite vert", count:2, zone:"Helion-02"}
     ],
     failConditions:{hpLossLimit:3000},
     rewards:{credits:250000, premium:800, xp:15000, materials:{}, portalPieces:{blue:1}, ammo:{ammo_x2:3000}}
@@ -404,11 +408,11 @@ const baseQuestCatalog = [
     requiredLevel:4,
     title:"Établir reconaissance",
     giver:"Relais de Commandement",
-    desc:"Va dans ASTRA-02 et élimine 5 Parasites astraux et 5 Vorak rushers en moins de 5 minutes.",
+    desc:"Va dans Helion-02 et élimine 5 Parasites astraux et 5 Vorak rushers en moins de 5 minutes.",
     objectives:[
-      {id:"astra02", type:"visit_map", map:"ASTRA-02", label:"Atteindre ASTRA-02", count:1},
-      {id:"parasites", type:"kill", target:"chasseur_spectral", label:"Parasite vert", count:5, zone:"ASTRA-02"},
-      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:5, zone:"ASTRA-02"}
+      {id:"astra02", type:"visit_map", map:"Helion-02", label:"Atteindre Helion-02", count:1},
+      {id:"parasites", type:"kill", target:"chasseur_spectral", label:"Parasite vert", count:5, zone:"Helion-02"},
+      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:5, zone:"Helion-02"}
     ],
     failConditions:{timeLimit:300},
     rewards:{credits:75000, premium:250, xp:6500, materials:{}}
@@ -422,7 +426,7 @@ const baseQuestCatalog = [
     giver:"Relais de Commandement",
     desc:"Détruis des Parasites astraux jusqu'à récupérer un échantillon contaminé. Si tu meurs avant de le rapporter au relais, l'échantillon est perdu.",
     unlock:{type:"complete_level_quests", level:4},
-    objective:{type:"quest_item_drop", target:"chasseur_spectral", label:"Échantillon contaminé", itemId:"contaminated_sample", itemName:"Échantillon contaminé", itemImg:"assets/quest_items/contaminated_sample.png", dropChance:.20, count:1, zone:"ASTRA-02"},
+    objective:{type:"quest_item_drop", target:"chasseur_spectral", label:"Échantillon contaminé", itemId:"contaminated_sample", itemName:"Échantillon contaminé", itemImg:"assets/quest_items/contaminated_sample.png", dropChance:.20, count:1, zone:"Helion-02"},
     failConditions:{deathResets:true},
     rewards:{credits:350000, premium:1000, xp:20000, materials:{}, ammo:{rocket_r2:100}}
   },
@@ -433,16 +437,16 @@ const baseQuestCatalog = [
     title:"Un apelle a l'aide",
     red:true,
     giver:"Relais de Commandement",
-    desc:"Rejoins le portail ferme d'ASTRA-02, aide Ricky a repousser l'attaque, puis rapporte-lui le fluide de teleportation demande.",
+    desc:"Rejoins le portail ferme d'Helion-02, aide Ricky a repousser l'attaque, puis rapporte-lui le fluide de teleportation demande.",
     objectives:[
-      {id:"portal_coord", type:"visit_coordinates", label:"Coord X 430 Y -330", x:430, y:-330, scale:10, tolerance:10, zone:"ASTRA-02", count:1},
-      {id:"talk_start", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Parler a Ricky", zone:"ASTRA-02", count:1, requiresObjective:"portal_coord"},
-      {id:"traqueurs", type:"kill", target:"cuirasse_nebulaire", label:"Traqueur abyssal", count:2, zone:"ASTRA-03", requiresObjective:"talk_start"},
-      {id:"parasites", type:"kill", target:"chasseur_spectral", label:"Parasite vert", count:6, zones:["ASTRA-02","ASTRA-03"], requiresObjective:"talk_start"},
-      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:8, zones:["ASTRA-01","ASTRA-02"], requiresObjective:"talk_start"},
-      {id:"orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:15, zones:["ASTRA-01","ASTRA-02"], requiresObjective:"talk_start"},
-      {id:"talk_return", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Retourner voir Ricky", zone:"ASTRA-02", count:1, requiresObjectives:["traqueurs","parasites","vorak","orbes"]},
-      {id:"fluides", type:"deliver_item", npcId:"astra02_portal_mechanic", itemId:"teleportation_fluid", itemName:"Fluide de Teleportation", itemImg:"assets/quest_items/teleportation_fluid.png", label:"Ramener 10 fluides de teleportation", zone:"ASTRA-02", count:10, consumeItems:true, requiresObjective:"talk_return"}
+      {id:"portal_coord", type:"visit_coordinates", label:"Coord X 430 Y -330", x:430, y:-330, scale:10, tolerance:10, zone:"Helion-02", count:1},
+      {id:"talk_start", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Parler a Ricky", zone:"Helion-02", count:1, requiresObjective:"portal_coord"},
+      {id:"traqueurs", type:"kill", target:"cuirasse_nebulaire", label:"Traqueur abyssal", count:2, zone:"Helion-03", requiresObjective:"talk_start"},
+      {id:"parasites", type:"kill", target:"chasseur_spectral", label:"Parasite vert", count:6, zones:["Helion-02","Helion-03"], requiresObjective:"talk_start"},
+      {id:"vorak", type:"kill", target:"raider_astral", label:"Vorak rusher", count:8, zones:["Helion-01","Helion-02"], requiresObjective:"talk_start"},
+      {id:"orbes", type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:15, zones:["Helion-01","Helion-02"], requiresObjective:"talk_start"},
+      {id:"talk_return", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Retourner voir Ricky", zone:"Helion-02", count:1, requiresObjectives:["traqueurs","parasites","vorak","orbes"]},
+      {id:"fluides", type:"deliver_item", npcId:"astra02_portal_mechanic", itemId:"teleportation_fluid", itemName:"Fluide de Teleportation", itemImg:"assets/quest_items/teleportation_fluid.png", label:"Ramener 10 fluides de teleportation", zone:"Helion-02", count:10, consumeItems:true, requiresObjective:"talk_return"}
     ],
     rewards:{credits:2000000, premium:10000, xp:300000, materials:{}, itemCounts:{teleportation_fluid:10}, items:["laser_mk3"], ammo:{ammo_x3:5000}}
   },
@@ -490,10 +494,10 @@ const baseQuestCatalog = [
     title:"Je l'avais prédit !",
     rare:true,
     giver:"Relais de Commandement",
-    desc:"Détruis 4 Cristaux du néant, 5 Parasites astraux et 5 Traqueurs abyssaux en moins de 10 minutes. Si le temps est dépassé, la quête est annulée et doit être reprise.",
+    desc:"Détruis 4 Eclanites, 5 Parasites astraux et 5 Traqueurs abyssaux en moins de 10 minutes. Si le temps est dépassé, la quête est annulée et doit être reprise.",
     unlock:{type:"complete_level_quests", level:8},
     objectives:[
-      {id:"cristaux", type:"kill", target:"cristal_du_neant", label:"Cristal du néant", count:4},
+      {id:"cristaux", type:"kill", target:"eclanite", label:"Eclanite", count:4},
       {id:"parasites", type:"kill", target:"chasseur_spectral", label:"Parasite astral", count:5},
       {id:"traqueurs", type:"kill", target:"cuirasse_nebulaire", label:"Traqueur abyssal", count:5}
     ],
@@ -547,9 +551,9 @@ const baseQuestCatalog = [
     title:"Reflets du néant",
     rare:true,
     giver:"Relais de Commandement",
-    desc:"Détruis 10 Cristaux du néant sans mourir. Si tu meurs, la quête est annulée et doit être reprise.",
+    desc:"Détruis 10 Eclanites sans mourir. Si tu meurs, la quête est annulée et doit être reprise.",
     unlock:{type:"complete_level_quests", level:9},
-    objective:{type:"kill", target:"cristal_du_neant", label:"Cristal du néant", count:10},
+    objective:{type:"kill", target:"eclanite", label:"Eclanite", count:10},
     failConditions:{deathResets:true},
     rewards:{credits:1200000, premium:1400, xp:125000, materials:{}, portalPieces:{blue:2}, ammo:{rocket_r2:150}}
   },
@@ -561,10 +565,10 @@ const baseQuestCatalog = [
     giver:"Relais de Commandement",
     desc:"Retourne voir Ricky pres du portail ferme. Il lui faut 5 pieces de stabilisation recuperees en zone 4 de ta firme pour reparer l'armature du portail.",
     objectives:[
-      {id:"talk_start", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Retourner voir Ricky", zone:"ASTRA-02", count:1},
-      {id:"stabilisateurs", type:"quest_item_drop", itemId:"stabilisateur_dimensionnel", itemName:"Piece de stabilisation", itemImg:"assets/quest_items/stabilizer_part.png", label:"Pieces de stabilisation", dropChance:.15, count:5, zone:"ASTRA-04", requiresObjective:"talk_start"},
-      {id:"talk_return", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Rapporter les pieces a Ricky", zone:"ASTRA-02", count:1, requiresObjective:"stabilisateurs"},
-      {id:"mission_control", type:"mission_control", stationId:"quests", label:"Retourner au controleur de mission", zone:"ASTRA-01", count:1, requiresObjective:"talk_return"}
+      {id:"talk_start", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Retourner voir Ricky", zone:"Helion-02", count:1},
+      {id:"stabilisateurs", type:"quest_item_drop", itemId:"stabilisateur_dimensionnel", itemName:"Piece de stabilisation", itemImg:"assets/quest_items/stabilizer_part.png", label:"Pieces de stabilisation", dropChance:.15, count:5, zone:"Helion-04", requiresObjective:"talk_start"},
+      {id:"talk_return", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Rapporter les pieces a Ricky", zone:"Helion-02", count:1, requiresObjective:"stabilisateurs"},
+      {id:"mission_control", type:"mission_control", stationId:"quests", label:"Retourner au controleur de mission", zone:"Helion-01", count:1, requiresObjective:"talk_return"}
     ],
     rewards:{credits:500000, premium:400, xp:75000, materials:{}, itemCounts:{portal_anchor_key:1}}
   },
@@ -579,7 +583,7 @@ const baseQuestCatalog = [
     unlock:{type:"complete_quest", questId:"quest_lv10_maintenance_impossible"},
     objectives:[
       {id:"portal", type:"portal_complete", portalId:"ricky", label:"Terminer le portail de Ricky", count:1},
-      {id:"talk_return", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Retourner voir Ricky", zone:"ASTRA-02", count:1, requiresObjective:"portal"}
+      {id:"talk_return", type:"talk_npc", npcId:"astra02_portal_mechanic", label:"Retourner voir Ricky", zone:"Helion-02", count:1, requiresObjective:"portal"}
     ],
     rewards:{credits:5000000, premium:15000, xp:3000000, materials:{}, portalPieces:{blue:10}, items:["laser_mk3", "pistou_portgun"]}
   },
@@ -589,8 +593,8 @@ const baseQuestCatalog = [
     requiredLevel:10,
     title:"Contrat hebdomadaire",
     giver:"Relais de Commandement",
-    desc:"Neutralise une force spectrale dans ASTRA-02. Contrat lourd reserve aux pilotes prepares.",
-    objective:{type:"kill", target:"chasseur_spectral", count:15, zone:"ASTRA-02"},
+    desc:"Neutralise une force spectrale dans Helion-02. Contrat lourd reserve aux pilotes prepares.",
+    objective:{type:"kill", target:"chasseur_spectral", count:15, zone:"Helion-02"},
     rewards:{credits:85000, xp:4200, materials:{silice_conductrice:18, catalyseur_quantique:2}}
   },
   ...generatedCombatQuests

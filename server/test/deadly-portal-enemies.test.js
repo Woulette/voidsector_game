@@ -16,8 +16,9 @@ const EXPECTED = {
     hp:20_000,
     shield:10_000,
     damage:[250, 350],
-    speed:380,
-    range:350,
+    speed:350,
+    range:300,
+    size:[55, 71],
     reward:{credits:24_000, premium:19, xp:6_400}
   },
   deadly_intercepteur:{
@@ -25,35 +26,39 @@ const EXPECTED = {
     hp:25_000,
     shield:10_000,
     damage:[350, 450],
-    speed:360,
-    range:380,
+    speed:330,
+    range:330,
+    size:[58, 76],
     reward:{credits:32_000, premium:24, xp:8_000}
   },
   deadly_gardien:{
     type:"Gardien",
-    hp:230_000,
-    shield:130_000,
+    hp:155_250,
+    shield:87_750,
     damage:[600, 900],
-    speed:320,
-    range:380,
+    speed:290,
+    range:330,
+    size:[79, 116],
     reward:{credits:200_000, premium:96, xp:40_000}
   },
   deadly_traqueur:{
     type:"Traqueur",
-    hp:140_000,
-    shield:80_000,
+    hp:105_000,
+    shield:60_000,
     damage:[500, 700],
-    speed:370,
-    range:380,
+    speed:340,
+    range:330,
+    size:[69, 108],
     reward:{credits:160_000, premium:80, xp:35_200}
   },
   deadly_ravageur:{
     type:"Ravageur",
-    hp:180_000,
-    shield:120_000,
+    hp:135_000,
+    shield:90_000,
     damage:[700, 950],
-    speed:410,
-    range:330,
+    speed:380,
+    range:280,
+    size:[108, 116],
     reward:{credits:240_000, premium:116, xp:51_200}
   },
   deadly_amiral_k137:{
@@ -61,8 +66,9 @@ const EXPECTED = {
     hp:2_000_000,
     shield:1_000_000,
     damage:[3_500, 5_000],
-    speed:380,
-    range:410,
+    speed:330,
+    range:360,
+    size:[181, 182],
     reward:{credits:4_000_000, premium:5_000, xp:750_000}
   }
 };
@@ -83,6 +89,7 @@ test("Deadly enemy family uses the configured level 20 stats and rewards", ()=>{
     assert.equal(enemy.attackCooldown, 1_000);
     assert.equal(enemy.speed, expected.speed);
     assert.equal(enemy.attackRange, expected.range);
+    assert.deepEqual([enemy.width, enemy.height], expected.size);
     assert.deepEqual(enemy.reward, expected.reward);
     assert.match(enemy.img, /^assets\/enemies\/deadly\/.+\.webp$/);
   }

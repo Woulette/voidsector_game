@@ -23,7 +23,11 @@ export function updatePlayerMovement({player, moveTarget, dt, map, clampToMap = 
     if(distance < 8){
       nextMoveTarget = null;
     }else{
-      const step = Math.min(player.speed * dt, distance);
+      const activeSlow = Number(player.slowEffect?.remaining || 0) > 0
+        ? Math.max(0, Number(player.slowEffect?.amount || 0))
+        : 0;
+      const movementSpeed = Math.max(1, Number(player.speed || 0) - activeSlow);
+      const step = Math.min(movementSpeed * dt, distance);
       movedX = dx / distance * step;
       movedY = dy / distance * step;
       player.x += movedX;

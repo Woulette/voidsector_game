@@ -3,9 +3,9 @@ import { getMapDisplayName } from "../../data/firms.js";
 export const GAME_MAP_SECTORS = [
   {
     id:"cyan",
-    name:"CYAN",
+    name:"Nereid",
     theme:"cyan",
-    label:"Firme bleue",
+    label:"Cygnus",
     cells:[
       {n:1, x:1.05, y:.9, portals:["bottom-right"]},
       {n:2, x:2.25, y:2.15, portals:["top-left","bottom-left","right"]},
@@ -17,9 +17,9 @@ export const GAME_MAP_SECTORS = [
   },
   {
     id:"astra",
-    name:"ASTRA",
+    name:"Helion",
     theme:"astra",
-    label:"Firme rouge",
+    label:"Astra",
     cells:[
       {n:3, x:2.25, y:4.85, bridge:"cyan", portals:["top-left","bottom-left","bottom-right","top-right"]},
       {n:5, x:3.5, y:4.85, portals:["top-left","bottom-left","right"]},
@@ -31,9 +31,9 @@ export const GAME_MAP_SECTORS = [
   },
   {
     id:"yellow",
-    name:"JAUNE",
+    name:"Aureon",
     theme:"auric",
-    label:"Firme jaune",
+    label:"Solarys",
     cells:[
       {n:1, x:9.2, y:.9, portals:["bottom-left"]},
       {n:4, x:6.85, y:2.15, portals:["left","right","bottom-left"]},
@@ -45,9 +45,9 @@ export const GAME_MAP_SECTORS = [
   },
   {
     id:"green",
-    name:"VERTE",
+    name:"Sylva",
     theme:"verdant",
-    label:"Firme verte",
+    label:"Verdantis",
     cells:[
       {n:5, x:6.85, y:4.85, portals:["left","right","bottom-right"]},
       {n:3, x:8.1, y:4.85, portals:["top-left","left","top-right"]},
@@ -60,16 +60,16 @@ export const GAME_MAP_SECTORS = [
 ];
 
 export const GAME_MAP_BRIDGES = [
-  {from:"CYAN-04", to:"JAUNE-04", label:"Liaison nord"},
-  {from:"CYAN-03", to:"ASTRA-03", label:"CYAN-03 / ASTRA-03"},
-  {from:"CYAN-05", to:"ASTRA-05", label:"Liaison verticale"},
-  {from:"ASTRA-04", to:"VERTE-04", label:"ASTRA-04 / VERTE-04"},
-  {from:"ASTRA-05", to:"CORE", label:"Acces noyau ASTRA"},
-  {from:"CYAN-05", to:"CORE", label:"Acces noyau CYAN"},
-  {from:"JAUNE-05", to:"CORE", label:"Acces noyau jaune"},
-  {from:"JAUNE-05", to:"VERTE-05", label:"Liaison verticale"},
-  {from:"JAUNE-03", to:"VERTE-03", label:"Liaison verticale"},
-  {from:"VERTE-05", to:"CORE", label:"Acces noyau vert"}
+  {from:"Nereid-04", to:"Aureon-04", label:"Liaison nord"},
+  {from:"Nereid-03", to:"Helion-03", label:"Nereid-03 / Helion-03"},
+  {from:"Nereid-05", to:"Helion-05", label:"Liaison verticale"},
+  {from:"Helion-04", to:"Sylva-04", label:"Helion-04 / Sylva-04"},
+  {from:"Helion-05", to:"CORE", label:"Acces noyau Helion"},
+  {from:"Nereid-05", to:"CORE", label:"Acces noyau Nereid"},
+  {from:"Aureon-05", to:"CORE", label:"Acces noyau Aureon"},
+  {from:"Aureon-05", to:"Sylva-05", label:"Liaison verticale"},
+  {from:"Aureon-03", to:"Sylva-03", label:"Liaison verticale"},
+  {from:"Sylva-05", to:"CORE", label:"Acces noyau Sylva"}
 ];
 
 function escapeHtml(value = ""){
@@ -135,7 +135,7 @@ function renderGameMapNode({maps, getCurrentMap, sector, cell, mode, playerLevel
   const mapName = `${sector.name}-${String(cell.n).padStart(2, "0")}`;
   const existing = getMapByName(maps, mapName);
   const displayName = existing?.displayName || getMapDisplayName(mapName);
-  const current = getCurrentMapName(getCurrentMap) === mapName;
+  const current = getCurrentMapName(getCurrentMap) === mapName.toUpperCase();
   const portgunMode = mode === "portgun";
   const requirement = getPortgunMapLevelRequirement(existing || {name:mapName});
   const level = Math.max(1, Math.floor(Number(playerLevel || 1)));
@@ -199,10 +199,10 @@ export function renderCombatMapPanel({maps = [], getCurrentMap, mode = "view", p
       ${GAME_MAP_SECTORS.map(sector=>sector.cells.map(cell=>renderGameMapNode({maps, getCurrentMap, sector, cell, mode, playerLevel})).join("")).join("")}
     </div>
     <div class="sector-map-legend">
-      <span class="astra">ASTRA</span>
-      <span class="cyan">CYAN</span>
-      <span class="auric">JAUNE</span>
-      <span class="verdant">VERTE</span>
+      <span class="astra">HELION</span>
+      <span class="cyan">NEREID</span>
+      <span class="auric">AUREON</span>
+      <span class="verdant">SYLVA</span>
       <span class="future">A creer</span>
     </div>
     <div class="sector-map-routes">

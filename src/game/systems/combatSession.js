@@ -174,7 +174,7 @@ export function createCombatSessionController({
     if(typeof entry === "string" && entry.startsWith("portal:")) loadPortalArena(entry.split(":")[1] || "blue");
     else{
       const homeMapName = getFirmHomeMapName(store.state.player?.firmId || "astra");
-      const homeMap = mapList.find(map=>String(map.name || "").toUpperCase() === homeMapName) || mapList[0];
+      const homeMap = mapList.find(map=>String(map.name || "").toUpperCase() === String(homeMapName || "").toUpperCase()) || mapList[0];
       loadMap(homeMap.id, homeMap.spawn.x, homeMap.spawn.y);
     }
     actions.renderGameActionBar();

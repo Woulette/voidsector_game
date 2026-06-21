@@ -13,7 +13,7 @@ function createProcessor(remoteEffects){
   const processor = createRemoteWeaponEventProcessor({
     multiplayer,
     getState:()=>({
-      currentMap:{id:"ASTRA-01"},
+      currentMap:{id:"Helion-01"},
       bullets,
       particles
     }),
@@ -25,7 +25,7 @@ function createProcessor(remoteEffects){
 
 test("remote laser effects keep exact ammo, beam color and target", ()=>{
   const fixture = createProcessor([{
-    mapId:"ASTRA-01",
+    mapId:"Helion-01",
     kind:"laser",
     ammoId:"ammo_x4",
     starts:[{x:10, y:20}],
@@ -52,7 +52,7 @@ test("remote laser effects keep exact ammo, beam color and target", ()=>{
 
 test("remote missile effects create visual projectiles with ammo sprite and curves", ()=>{
   const fixture = createProcessor([{
-    mapId:"ASTRA-01",
+    mapId:"Helion-01",
     kind:"missile",
     ammoId:"missile_m2",
     starts:[
@@ -81,7 +81,7 @@ test("remote missile effects create visual projectiles with ammo sprite and curv
 
 test("remote weapon effects for another map are retained briefly", ()=>{
   const fixture = createProcessor([{
-    mapId:"ASTRA-02",
+    mapId:"Helion-02",
     kind:"laser",
     ammoId:"ammo_x1",
     createdAt:Date.now()

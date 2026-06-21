@@ -348,8 +348,10 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
         .filter(Boolean))];
       if(completedIds.length) claimedQuests = claimCompletedServerQuests(profile, completedIds).claimed || [];
     }
-    if((action?.kind === "timer-check" || action?.kind === "death") && !result.changed) return result;
-    if(action?.kind !== "timer-check"){
+    if((action?.kind === "timer-check" || action?.kind === "death" || action?.kind === "hp-loss") && !result.changed){
+      return {...result, profile};
+    }
+    if(action?.kind !== "timer-check" && action?.kind !== "hp-loss"){
       appendProfileActivity(profile, {
         type:"quest",
         label:"Quete",

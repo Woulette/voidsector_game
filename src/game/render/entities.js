@@ -1,6 +1,8 @@
 import { drawRotatedImage } from "./player.js";
-import { getEnemyRenderRotation } from "../../data/enemyVisuals.js";
+import { canEnemyRotateFully, getEnemyRenderRotation } from "../../data/enemyVisuals.js";
 import { getCachedCombatImage } from "../combatAssets.js";
+import { drawTargetSelectionOverlay, getEntityTargetSelectionRadius } from "./targetOverlay.js";
+import { drawDeadlyEnemyEngines } from "./enemyEngines.js";
 
 const impactSpriteCache = new Map();
 
@@ -377,17 +379,12 @@ export function drawParticles({ctx, camera, particles, repairLayer = false}){
 }
 
 function drawSelectedEnemyOverlay({ctx, enemy, sx, sy}){
-  sx = Math.round(sx);
-  sy = Math.round(sy);
-  ctx.save();
-  ctx.strokeStyle = "rgba(86,255,79,.9)";
-  ctx.shadowColor = "#56ff4f";
-  ctx.shadowBlur = 18;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(sx, sy, enemy.radius + 12 + Math.sin(performance.now() / 120) * 3, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
+  drawTargetSelectionOverlay({
+    ctx,
+    x:sx,
+    y:sy,
+    radius:getEntityTargetSelectionRadius(enemy)
+  });
 }
 
 function drawEnemyStatusBars({ctx, enemy, sx, sy}){
@@ -424,7 +421,15 @@ function drawEnemyStatusBars({ctx, enemy, sx, sy}){
 
 export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
   const time = performance.now();
+  const viewWidth = ctx.canvas.__renderWidth || ctx.canvas.__viewWidth || ctx.canvas.clientWidth || ctx.canvas.width;
+  const viewHeight = ctx.canvas.__renderHeight || ctx.canvas.__viewHeight || ctx.canvas.clientHeight || ctx.canvas.height;
   for(const enemy of enemies){
+    const renderWidth = Number(enemy.width || 72);
+    const renderHeight = Number(enemy.height || 72);
+    const margin = Math.max(renderWidth, renderHeight, 100);
+    const screenX = Number(enemy.x || 0) - Number(camera.x || 0);
+    const screenY = Number(enemy.y || 0) - Number(camera.y || 0);
+    if(screenX < -margin || screenX > viewWidth + margin || screenY < -margin || screenY > viewHeight + margin) continue;
     const isPaused = Number(enemy.wanderPauseT || 0) > 0 && !enemy.aggro;
     const hasMovementState = typeof enemy.moving === "boolean" || Number.isFinite(enemy.vx) || Number.isFinite(enemy.vy);
     const isStopped = hasMovementState && (enemy.moving === false || Math.hypot(Number(enemy.vx || 0), Number(enemy.vy || 0)) < 4);
@@ -436,18 +441,31 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
     const idleAngle = isIdle ? Math.sin(idlePhase * .48) * .045 : 0;
     const attackPulse = Math.max(0, Math.min(1, Number(enemy.attackT || 0) / .32));
     const attackScale = 1 + attackPulse * .10;
+    const renderAngle = getEnemyRenderRotation(enemy.kind, enemy.angle)
+      + (canEnemyRotateFully(enemy.kind) ? idleAngle : 0);
     if(enemy.renderMode !== "deadly_cage"){
       const enemyImg = getCachedCombatImage(cache, enemy.img)
         || getCachedCombatImage(cache, "assets/ships/intercepteur.png");
+      drawDeadlyEnemyEngines({
+        ctx,
+        camera,
+        enemy,
+        x:enemy.x + idleX,
+        y:enemy.y + idleY,
+        width:renderWidth * attackScale,
+        height:renderHeight * attackScale,
+        angle:renderAngle,
+        time
+      });
       drawRotatedImage({
         ctx,
         camera,
         img:enemyImg,
         x:enemy.x + idleX,
         y:enemy.y + idleY,
-        w:(enemy.width || 72) * attackScale,
-        h:(enemy.height || 72) * attackScale,
-        angle:getEnemyRenderRotation(enemy.kind, enemy.angle) + idleAngle
+        w:renderWidth * attackScale,
+        h:renderHeight * attackScale,
+        angle:renderAngle
       });
     }
     const isSelected = selectedEnemy && selectedEnemy.id === enemy.id;

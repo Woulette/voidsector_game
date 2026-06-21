@@ -1,6 +1,14 @@
 import { WORLD_AI_REPATH_MS, WORLD_ENEMY_AGGRO_MULTIPLIER, WORLD_ENEMY_TARGET_MEMORY_MS } from "./constants.js";
 import { canEnemyTargetPlayerInSafeZone, ENEMY_THREAT_RECALC_MS, pickEnemyThreatTarget } from "./aggro.js";
 import { seededRandom } from "./spawn.js";
+import {
+  completeEnemyEngagement,
+  getEnemyEngagementPoint,
+  getEnemyRepathDelayMs,
+  isEnemyEngagementCrossing,
+  isEnemyEngagementHolding,
+  resetEnemyEngagement
+} from "../../../src/game/systems/enemyTrajectory.js";
 
 function clamp(value, min, max){
   return Math.max(min, Math.min(max, value));
@@ -11,14 +19,27 @@ function getEnemyAiKind(kind){
 }
 
 const PASSIVE_UNTIL_ATTACKED = new Set(["drone_pirate", "raider_astral"]);
-const CHARGING_ENEMIES = new Set([
-  "raider_astral",
-  "deadly_intercepteur",
-  "deadly_ravageur"
-]);
-
 function requiresPlayerAttack(enemy){
-  return PASSIVE_UNTIL_ATTACKED.has(getEnemyAiKind(enemy?.kind));
+  return Boolean(enemy?.requiresPlayerAttack) || PASSIVE_UNTIL_ATTACKED.has(getEnemyAiKind(enemy?.kind));
+}
+
+function followsPlayerBeforeAttack(enemy){
+  return Boolean(enemy?.followBeforeAttacked);
+}
+
+function hasBeenAttackedByPlayer(enemy){
+  return Boolean(enemy?.attackedPlayerId) || Object.keys(enemy?.damageThreat || {}).length > 0;
+}
+
+function clearEnemyTargetMemory(enemy){
+  enemy.lockedPlayerId = null;
+  enemy.lockedPlayerLastSeenAt = 0;
+  enemy.attackedPlayerId = null;
+  enemy.attackedPlayerLastAt = 0;
+  enemy.damageThreat = {};
+  enemy.threatRecalcAt = 0;
+  enemy.aiDecision = null;
+  enemy.nextAiDecisionAt = 0;
 }
 
 export function createWorldAiManager({players, presence, launchEnemyAttack, isPlayerSafeOnMap}){
@@ -67,7 +88,8 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
     const aggroDistance = Math.max(780, Number(enemy.attackRange || 400) + 260) * WORLD_ENEMY_AGGRO_MULTIPLIER;
     let target = null;
 
-    const canAcquireByProximity = !requiresPlayerAttack(enemy);
+    const canAcquireByProximity = !requiresPlayerAttack(enemy) || followsPlayerBeforeAttack(enemy);
+    const targetMemoryMs = Math.max(0, Number(enemy.targetMemoryMs || WORLD_ENEMY_TARGET_MEMORY_MS));
     const activePlayerIds = new Set(mapPlayers
       .filter(player=>canTargetPlayer(enemy, player, map, now))
       .map(player=>player.id));
@@ -98,75 +120,35 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
         if(distance <= aggroDistance){
           enemy.lockedPlayerLastSeenAt = now;
         }
-        if(now - Number(enemy.lockedPlayerLastSeenAt || 0) <= WORLD_ENEMY_TARGET_MEMORY_MS){
+        if(now - Number(enemy.lockedPlayerLastSeenAt || 0) <= targetMemoryMs){
           target = {player:lockedPlayer, dx, dy, distance};
         }else{
-          enemy.lockedPlayerId = null;
-          enemy.lockedPlayerLastSeenAt = 0;
+          clearEnemyTargetMemory(enemy);
         }
       }else{
-        enemy.lockedPlayerId = null;
-        enemy.lockedPlayerLastSeenAt = 0;
+        clearEnemyTargetMemory(enemy);
       }
     }
 
     if(target){
-      const dirX = target.dx / Math.max(1, target.distance);
-      const dirY = target.dy / Math.max(1, target.distance);
-      const sideX = -dirY;
-      const sideY = dirX;
-      const aiKind = getEnemyAiKind(enemy.kind);
-      const range = Number(enemy.attackRange || 360);
-      if(aiKind === "drone_pirate" || aiKind === "deadly_eclaireur"){
-        const preferredDistance = Math.max(110, range - 45);
-        const orbit = Math.sin(now / 1000 + Number(String(enemy.id).replace(/\D/g, "") || 0) * 0.77) * Math.min(180, range * .34);
-        if(target.distance > range - 20){
-          targetX = Number(target.player.state.x || enemy.x) - dirX * preferredDistance + sideX * orbit;
-          targetY = Number(target.player.state.y || enemy.y) - dirY * preferredDistance + sideY * orbit;
-        }else{
-          const currentDistance = Math.max(120, Math.min(range - 35, target.distance || preferredDistance));
-          targetX = Number(target.player.state.x || enemy.x) - dirX * currentDistance + sideX * orbit;
-          targetY = Number(target.player.state.y || enemy.y) - dirY * currentDistance + sideY * orbit;
-          speed *= .72;
-        }
-      }else if(CHARGING_ENEMIES.has(aiKind)){
-        const contactDistance = Math.max(75, Number(enemy.radius || 32) + 46);
-        if(target.distance > contactDistance){
-          targetX = Number(target.player.state.x || enemy.x);
-          targetY = Number(target.player.state.y || enemy.y);
-          speed *= 1.04;
-        }else{
-          targetX = enemy.x - dirX * 58;
-          targetY = enemy.y - dirY * 58;
-        }
-      }else if(aiKind === "chasseur_spectral" || aiKind === "deadly_traqueur"){
-        const preferredDistance = range * .62;
-        const side = Math.sin(now / 760 + Number(String(enemy.id).replace(/\D/g, "") || 0)) * 145;
-        if(target.distance > preferredDistance + 45){
-          targetX = Number(target.player.state.x || enemy.x) - dirX * preferredDistance + sideX * side;
-          targetY = Number(target.player.state.y || enemy.y) - dirY * preferredDistance + sideY * side;
-        }else if(target.distance < preferredDistance - 55){
-          targetX = enemy.x - dirX * 170 + sideX * side * .45;
-          targetY = enemy.y - dirY * 170 + sideY * side * .45;
-        }else{
-          targetX = enemy.x + sideX * side;
-          targetY = enemy.y + sideY * side;
-        }
-      }else{
-        const preferredDistance = Math.max(120, range * .72);
-        if(target.distance > preferredDistance + 35){
-          targetX = Number(target.player.state.x || enemy.x);
-          targetY = Number(target.player.state.y || enemy.y);
-        }else if(target.distance < Math.max(95, preferredDistance - 75)){
-          targetX = enemy.x - target.dx;
-          targetY = enemy.y - target.dy;
-        }else{
-          targetX = enemy.x;
-          targetY = enemy.y;
-          speed = 0;
-        }
-      }
+      const engagementPoint = getEnemyEngagementPoint(
+        enemy,
+        {
+          id:target.player.id,
+          x:Number(target.player.state.x || 0),
+          y:Number(target.player.state.y || 0),
+          vx:Number(target.player.state.vx || 0),
+          vy:Number(target.player.state.vy || 0),
+          moving:Boolean(target.player.state.moving)
+        },
+        Number(enemy.attackRange || 360),
+        Number(enemy.aiDecisionIndex || 0),
+        now
+      );
+      targetX = engagementPoint.x;
+      targetY = engagementPoint.y;
     }else{
+      resetEnemyEngagement(enemy);
       pickEnemyWanderTarget(enemy, map, now);
       targetX = enemy.wanderX;
       targetY = enemy.wanderY;
@@ -191,19 +173,43 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
       return;
     }
     enemy.recentHitTimer = Math.max(0, Number(enemy.recentHitTimer || 0) - dt);
+    const engagementTarget = enemy.lockedPlayerId
+      ? players.get(enemy.lockedPlayerId) || mapPlayers.find(player=>player.id === enemy.lockedPlayerId) || null
+      : null;
+    const engagementAttackRange = Number(enemy.attackRange || 360);
+    const engagementTargetDistance = engagementTarget?.state
+      ? Math.hypot(
+        Number(engagementTarget.state.x || 0) - enemy.x,
+        Number(engagementTarget.state.y || 0) - enemy.y
+      )
+      : Infinity;
+    if(isEnemyEngagementHolding(enemy) && engagementTargetDistance > engagementAttackRange){
+      enemy.aiDecision = null;
+      enemy.nextAiDecisionAt = 0;
+    }
     if(!enemy.aiDecision || now >= Number(enemy.nextAiDecisionAt || 0)){
+      enemy.aiDecisionIndex = Number(enemy.aiDecisionIndex || 0) + 1;
       enemy.aiDecision = computeWorldEnemyDecision(enemy, map, mapPlayers, now);
-      const jitter = Number(String(enemy.id).replace(/\D/g, "") || 0) % 90;
-      enemy.nextAiDecisionAt = now + WORLD_AI_REPATH_MS + jitter;
+      enemy.nextAiDecisionAt = now + getEnemyRepathDelayMs(enemy, WORLD_AI_REPATH_MS);
     }
     const decision = enemy.aiDecision || {targetX:enemy.x, targetY:enemy.y, speed:0, targetPlayerId:null, targetDistance:Infinity};
+    const attackTarget = decision.targetPlayerId
+      ? players.get(decision.targetPlayerId) || mapPlayers.find(player=>player.id === decision.targetPlayerId) || null
+      : null;
+    const canAttackTarget = canTargetPlayer(enemy, attackTarget, map, now);
+    const attackRange = Number(enemy.attackRange || 360);
+    const liveTargetDistance = attackTarget?.state
+      ? Math.hypot(Number(attackTarget.state.x || 0) - enemy.x, Number(attackTarget.state.y || 0) - enemy.y)
+      : Infinity;
+    const targetInAttackRange = canAttackTarget && liveTargetDistance <= attackRange;
+    const crossingTargetCenter = isEnemyEngagementCrossing(enemy);
     const targetX = Number(decision.targetX || enemy.x);
     const targetY = Number(decision.targetY || enemy.y);
     const speed = Number(decision.speed || 0);
     const dx = targetX - enemy.x;
     const dy = targetY - enemy.y;
     const distance = Math.hypot(dx, dy);
-    if(distance > 8){
+    if((crossingTargetCenter || !targetInAttackRange) && distance > 8){
       const step = Math.min(distance, speed * dt);
       let nx = dx / distance;
       let ny = dy / distance;
@@ -232,20 +238,31 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
       enemy.moving = false;
     }
 
-    const attackTarget = decision.targetPlayerId
-      ? players.get(decision.targetPlayerId) || mapPlayers.find(player=>player.id === decision.targetPlayerId) || null
-      : null;
-    const canAttackTarget = canTargetPlayer(enemy, attackTarget, map, now);
+    if(crossingTargetCenter && Math.hypot(targetX - enemy.x, targetY - enemy.y) <= 8){
+      const distanceAfterMove = attackTarget?.state
+        ? Math.hypot(
+          Number(attackTarget.state.x || 0) - enemy.x,
+          Number(attackTarget.state.y || 0) - enemy.y
+        )
+        : Infinity;
+      if(canAttackTarget && distanceAfterMove <= attackRange){
+        completeEnemyEngagement(enemy);
+      }else{
+        resetEnemyEngagement(enemy);
+        enemy.aiDecision = null;
+        enemy.nextAiDecisionAt = 0;
+      }
+    }
+
     const attackDistance = attackTarget?.state
       ? Math.hypot(Number(attackTarget.state.x || 0) - enemy.x, Number(attackTarget.state.y || 0) - enemy.y)
       : Infinity;
-    if(attackTarget?.state && canAttackTarget){
+    const attackUnlocked = !requiresPlayerAttack(enemy) || hasBeenAttackedByPlayer(enemy);
+    if(attackUnlocked && canAttackTarget && presence.isActiveForWorld(attackTarget, now) && attackDistance <= attackRange && now >= Number(enemy.nextAttackAt || 0)){
       enemy.angle = Math.atan2(
         Number(attackTarget.state.y || 0) - enemy.y,
         Number(attackTarget.state.x || 0) - enemy.x
       ) + Math.PI / 2;
-    }
-    if(canAttackTarget && presence.isActiveForWorld(attackTarget, now) && attackDistance <= Number(enemy.attackRange || 360) && now >= Number(enemy.nextAttackAt || 0)){
       const damageMin = Number(enemy.attackDamageMin);
       const damageMax = Number(enemy.attackDamageMax);
       const amount = enemy.useExactDamageRange && Number.isFinite(damageMin) && Number.isFinite(damageMax)

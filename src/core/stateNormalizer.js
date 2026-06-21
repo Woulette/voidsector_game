@@ -6,6 +6,7 @@ import { enforcePlayerCurrencyMinimums } from "./currencyStore.js";
 import { cleanDroneLoadout, ensureShipLoadout, getDroneLoadout, getInventoryItem, getItemFromInventoryUid } from "./equipmentStore.js";
 import { normalizeGraphicsQuality } from "./graphicsStore.js";
 import { isPremiumActive, normalizePremiumRewardState, normalizeStarterPackPurchases } from "../data/premium.js";
+import { calculateMonsterRankPointsForKills } from "../data/ranks.js";
 import { getRankScore } from "./rankStore.js";
 import { canShipRefineryMaterial, getDefaultRefineryLevel, REFINERY_MODULES } from "./refineryStore.js";
 import { store } from "./store.js";
@@ -13,7 +14,7 @@ import { clone } from "./utils.js";
 import { getXpNextForLevel, syncSkillPoints, XP_CURVE_VERSION } from "./xpStore.js";
 
 const MAX_ACTIVE_QUESTS = 5;
-const RANK_KILL_POINTS_VERSION = 2;
+const RANK_KILL_POINTS_VERSION = 3;
 
 export function normalizeState(saved){
   const base = clone(defaultState);
@@ -36,9 +37,7 @@ export function normalizeState(saved){
   merged.player.reputation = Math.max(0, Number(merged.player.reputation || 0));
   merged.player.totalKills = Math.max(0, Number(merged.player.totalKills || 0));
   merged.rankKillPointsVersion = RANK_KILL_POINTS_VERSION;
-  merged.player.monsterRankPoints = Number(saved?.rankKillPointsVersion || 0) >= RANK_KILL_POINTS_VERSION
-    ? Math.max(0, Number(saved?.player?.monsterRankPoints || 0))
-    : Math.max(0, Number(merged.player.totalKills || 0) / 10);
+  merged.player.monsterRankPoints = 0;
   merged.player.totalPlayerKills = Math.max(0, Number(merged.player.totalPlayerKills || 0));
   merged.player.name = String(merged.player.name || "NOVA-37").trim().replace(/\s+/g, " ").slice(0, 24) || "NOVA-37";
   merged.player.firmId = normalizeFirmId(merged.player.firmId || merged.player.firm || merged.player.company || merged.player.faction || "astra");
@@ -175,17 +174,22 @@ export function normalizeState(saved){
     for(const [kind, entry] of Object.entries(saved.rankKillStats)){
       merged.rankKillStats[kind] = {
         kills:Math.max(0, Number(entry?.kills || 0)),
-        points:Math.max(0, Number(entry?.points || 0)),
-        lastEnemyLevel:Math.max(1, Number(entry?.lastEnemyLevel || 1)),
-        lastPlayerLevel:Math.max(1, Number(entry?.lastPlayerLevel || 1))
+        points:0
       };
     }
   }
   for(const [kind, kills] of Object.entries(merged.killStats)){
     if(merged.rankKillStats[kind]) continue;
     const count = Math.max(0, Number(kills || 0));
-    merged.rankKillStats[kind] = {kills:count, points:count / 10, lastEnemyLevel:1, lastPlayerLevel:1};
+    merged.rankKillStats[kind] = {kills:count, points:0};
   }
+  merged.player.monsterRankPoints = Object.entries(merged.rankKillStats).reduce((total, [kind, entry])=>{
+    const kills = Math.max(0, Math.floor(Number(entry?.kills || 0)), Math.floor(Number(merged.killStats[kind] || 0)));
+    const points = calculateMonsterRankPointsForKills(kind, kills);
+    merged.killStats[kind] = kills;
+    merged.rankKillStats[kind] = {kills, points};
+    return total + points;
+  }, 0);
   merged.cargoHold = {...(base.cargoHold || {})};
   if(saved?.cargoHold && typeof saved.cargoHold === "object"){
     for(const mat of rawMaterialCatalog) merged.cargoHold[mat.id] = Math.max(0, Number(saved.cargoHold[mat.id] || 0));

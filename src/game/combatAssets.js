@@ -64,6 +64,7 @@ export function getCombatMapAssetPaths(map){
     ...(map.parallaxScene?.images?.map(layer=>layer.src) || []),
     ...(map.parallaxScene?.tiles?.map(layer=>layer.src) || []),
     ...(map.questNpcs?.map(npc=>npc.npcImg) || []),
+    ...(map.questStations?.map(station=>station.asset) || []),
     ...(map.enemyAssets || []),
     ...mapTiles
   ]);

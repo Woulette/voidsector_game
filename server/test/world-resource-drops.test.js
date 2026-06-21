@@ -18,7 +18,7 @@ test("world maps use the requested monster level bands", ()=>{
   assert.deepEqual(WORLD_MAPS["50"].level, [25, 34]);
 });
 
-test("ASTRA-02 and ASTRA-03 keep their fixed boss counts", ()=>{
+test("Helion-02, Helion-03 and Helion-05 keep their fixed elite counts", ()=>{
   const emitted = [];
   const manager = createWorldStateManager({
     io:{to:()=>({emit:(event, payload)=>emitted.push({event, payload})})},
@@ -33,10 +33,169 @@ test("ASTRA-02 and ASTRA-03 keep their fixed boss counts", ()=>{
   assert.equal(astra03.enemies.length, 50);
   assert.equal(astra03.enemies.filter(enemy=>enemy.kind === "boss_drone_pirate").length, 0);
   assert.equal(astra03.enemies.filter(enemy=>enemy.kind === "boss_raider_astral").length, 4);
-  assert.equal(astra03.enemies.filter(enemy=>enemy.kind === "cristal_du_neant").length, 4);
+  assert.equal(astra03.enemies.filter(enemy=>enemy.kind === "eclanite").length, 4);
   manager.respawnWorldEnemy("2", astra03.enemies.find(enemy=>enemy.kind === "boss_raider_astral").id);
   assert.equal(astra03.enemies.filter(enemy=>enemy.kind === "boss_raider_astral").length, 4);
+  const astra05 = manager.getWorldMapState("4");
+  assert.equal(astra05.enemies.length, 50);
+  assert.equal(astra05.enemies.filter(enemy=>enemy.kind === "eclanite").length, 30);
+  assert.equal(astra05.enemies.filter(enemy=>enemy.kind === "cristanite").length, 16);
+  assert.equal(astra05.enemies.filter(enemy=>enemy.kind === "astranite").length, 4);
+  assert.deepEqual(WORLD_MAPS["4"].enemyTypes.map(([kind])=>kind), ["eclanite", "cristanite", "astranite"]);
+  assert.equal(WORLD_MAPS["50"].enemyTypes.some(([kind])=>kind === "boss_cristal_du_neant"), false);
   assert.equal(WORLD_MAPS["4"].enemyTypes.some(([kind])=>kind === "boss_drone_pirate"), false);
+});
+
+test("Helion-04 replaces parasites with the level fifteen Astral Brood Layer", ()=>{
+  assert.equal(WORLD_MAPS["3"].enemyTypes.some(([kind])=>kind === "chasseur_spectral"), false);
+  assert.equal(WORLD_MAPS["3"].enemyTypes.some(([kind])=>kind === "pondeuse_astrale"), true);
+
+  const levelFifteen = createWorldEnemy({
+    id:"astra-04-test",
+    width:1000,
+    height:1000,
+    level:[15, 15],
+    enemyTypes:[["pondeuse_astrale", 1]]
+  }, 1, ()=>0.5, "pondeuse_astrale");
+
+  assert.equal(levelFifteen.baseLevel, 15);
+  assert.equal(levelFifteen.maxHp, 45_000);
+  assert.equal(levelFifteen.maxShield, 30_000);
+  assert.equal(levelFifteen.speed, 230);
+  assert.equal(levelFifteen.attackRange, 350);
+  assert.equal(levelFifteen.attackCooldown, 1000);
+  assert.equal(levelFifteen.attackDamageMin, 600);
+  assert.equal(levelFifteen.attackDamageMax, 900);
+  assert.deepEqual(levelFifteen.onHitEffect, {type:"poison", damage:350, interval:2, duration:10});
+  assert.deepEqual(levelFifteen.reward, {credits:60_000, xp:38_000, premium:50});
+
+  const levelNineteen = createWorldEnemy({
+    id:"astra-04-test",
+    width:1000,
+    height:1000,
+    level:[19, 19],
+    enemyTypes:[["pondeuse_astrale", 1]]
+  }, 2, ()=>0.5, "pondeuse_astrale");
+
+  assert.equal(levelNineteen.maxHp, 54_000);
+  assert.equal(levelNineteen.maxShield, 36_000);
+  assert.equal(levelNineteen.attackDamageMin, 720);
+  assert.equal(levelNineteen.attackDamageMax, 1080);
+  assert.equal(levelNineteen.onHitEffect.damage, 420);
+  assert.deepEqual(levelNineteen.reward, {credits:84_000, xp:53_200, premium:70});
+});
+
+test("an Astral Brood Layer death spawns three temporary same-level parasites", ()=>{
+  const manager = createWorldStateManager({
+    io:{to:()=>({emit(){}})},
+    players:new Map(),
+    presence:{isActiveForWorld:()=>true},
+    progressProfileQuestAction(){}
+  });
+  const map = manager.getWorldMapState("3");
+  const parent = createWorldEnemy({
+    ...WORLD_MAPS["3"],
+    level:[18, 18],
+    enemyTypes:[["pondeuse_astrale", 1]]
+  }, 999, ()=>0.5, "pondeuse_astrale");
+  parent.x = 400;
+  parent.y = -300;
+
+  const children = manager.spawnWorldEnemyChildren("3", parent);
+
+  assert.equal(children.length, 3);
+  assert.equal(children.every(enemy=>enemy.kind === "chasseur_spectral"), true);
+  assert.equal(children.every(enemy=>enemy.level === 18), true);
+  assert.equal(children.every(enemy=>enemy.temporarySpawn === true), true);
+  assert.equal(children.every(enemy=>enemy.spawnedBy === parent.id), true);
+  assert.equal(map.enemies.filter(enemy=>enemy.spawnedBy === parent.id).length, 3);
+
+  assert.equal(manager.removeWorldEnemy("3", children[0].id), true);
+  assert.equal(map.enemies.some(enemy=>enemy.id === children[0].id), false);
+});
+
+test("Astra three and four elite NOVA rewards use the updated values", ()=>{
+  const cuirasse = createWorldEnemy(
+    {id:"test-four", width:1000, height:1000, level:[15, 15], enemyTypes:[["cuirasse_ambre", 1]]},
+    1,
+    ()=>0.5,
+    "cuirasse_ambre"
+  );
+  const eclat = createWorldEnemy(
+    {id:"test-three", width:1000, height:1000, level:[10, 10], enemyTypes:[["eclanite", 1]]},
+    2,
+    ()=>0.5,
+    "eclanite"
+  );
+
+  assert.equal(cuirasse.reward.premium, 60);
+  assert.equal(eclat.reward.premium, 24);
+});
+
+test("map five void crystals use their requested level twenty base stats", ()=>{
+  const map = {id:"test", width:1000, height:1000, level:[20, 20], enemyTypes:[["cristanite", 1]]};
+  const cristal = createWorldEnemy(map, 1, ()=>0.5, "cristanite");
+  const etoile = createWorldEnemy(map, 2, ()=>0.5, "astranite");
+
+  assert.equal(cristal.maxHp, 180_000);
+  assert.equal(cristal.maxShield, 140_000);
+  assert.equal(cristal.radius, 47);
+  assert.equal(cristal.width, 112);
+  assert.equal(cristal.height, 112);
+  assert.equal(cristal.speed, 250);
+  assert.equal(cristal.attackRange, 350);
+  assert.equal(cristal.attackCooldown, 1000);
+  assert.equal(cristal.attackDamageMin, 1_600);
+  assert.equal(cristal.attackDamageMax, 2_500);
+  assert.equal(cristal.useExactDamageRange, true);
+  assert.deepEqual(cristal.reward, {credits:250_000, xp:84_000, premium:110});
+  assert.equal(cristal.requiresPlayerAttack, true);
+  assert.equal(cristal.followBeforeAttacked, true);
+
+  assert.equal(etoile.maxHp, 450_000);
+  assert.equal(etoile.maxShield, 400_000);
+  assert.equal(etoile.speed, 240);
+  assert.equal(etoile.attackRange, 360);
+  assert.equal(etoile.attackCooldown, 1000);
+  assert.equal(etoile.attackDamageMin, 3_800);
+  assert.equal(etoile.attackDamageMax, 5_600);
+  assert.equal(etoile.useExactDamageRange, true);
+  assert.deepEqual(etoile.reward, {credits:1_000_000, xp:350_000, premium:400});
+  assert.deepEqual(etoile.deathEffect, {type:"slow", amount:200, duration:5, radius:150});
+  assert.deepEqual(etoile.deathSpawn, {kind:"cristanite", count:1});
+});
+
+test("Eclanite uses its slightly reduced visual dimensions", ()=>{
+  const eclanite = createWorldEnemy(
+    {id:"test", width:1000, height:1000, level:[10, 10], enemyTypes:[["eclanite", 1]]},
+    1,
+    ()=>0.5,
+    "eclanite"
+  );
+
+  assert.equal(eclanite.radius, 35);
+  assert.equal(eclanite.width, 82);
+  assert.equal(eclanite.height, 82);
+});
+
+test("an Astranite death summons one temporary Cristanite on Helion-05", ()=>{
+  const manager = createWorldStateManager({
+    io:{to:()=>({emit(){}})},
+    players:new Map(),
+    presence:{isActiveForWorld:()=>true},
+    progressProfileQuestAction(){}
+  });
+  const map = manager.getWorldMapState("4");
+  const astranite = map.enemies.find(enemy=>enemy.kind === "astranite");
+  astranite.hp = 0;
+  const children = manager.spawnWorldEnemyChildren("4", astranite);
+  assert.equal(children.length, 1);
+  assert.equal(children[0].kind, "cristanite");
+  assert.equal(children[0].temporarySpawn, true);
+  assert.equal(children[0].spawnedBy, astranite.id);
+  assert.equal(map.enemies.filter(enemy=>enemy.kind === "astranite" && enemy.hp > 0).length, 3);
+  assert.equal(map.enemies.filter(enemy=>enemy.kind === "cristanite" && enemy.hp > 0).length, 17);
+  assert.equal(map.enemies.filter(enemy=>enemy.hp > 0).length, 50);
 });
 
 test("monster stats grow five percent and rewards grow ten percent above base level", ()=>{
@@ -121,8 +280,7 @@ test("every boss reward is exactly twice its same-level normal monster reward", 
     ["raider_astral", "boss_raider_astral", 1],
     ["chasseur_spectral", "boss_chasseur_spectral", 5],
     ["cuirasse_nebulaire", "boss_cuirasse_nebulaire", 10],
-    ["cuirasse_ambre", "boss_cuirasse_ambre", 15],
-    ["cristal_du_neant", "boss_cristal_du_neant", 15]
+    ["cuirasse_ambre", "boss_cuirasse_ambre", 15]
   ];
   for(const [normalKind, bossKind, level] of pairs){
     const map = {id:"test", width:1000, height:1000, level:[level, level], enemyTypes:[[normalKind, 1]]};
@@ -175,13 +333,13 @@ test("resource drop pools expose eight optimized assets per rarity", ()=>{
 });
 
 test("dimensional anchor key drops at 0.1 percent on firm zones one to five", ()=>{
-  const drop = rollPortalAnchorKeyDrop("ASTRA-05", {random:()=>0.001});
+  const drop = rollPortalAnchorKeyDrop("Helion-05", {random:()=>0.001});
   assert.equal(drop.itemId, "portal_anchor_key");
   assert.equal(drop.amount, 1);
-  assert.equal(rollPortalAnchorKeyDrop("ASTRA-05", {random:()=>0.0011}), null);
+  assert.equal(rollPortalAnchorKeyDrop("Helion-05", {random:()=>0.0011}), null);
   assert.equal(rollPortalAnchorKeyDrop("CORE", {random:()=>0}), null);
-  assert.equal(rollPortalAnchorKeyDrop("ASTRA-06", {random:()=>0}), null);
-  assert.equal(rollPortalAnchorKeyDrop("CYAN-01", {random:()=>0})?.itemId, "portal_anchor_key");
+  assert.equal(rollPortalAnchorKeyDrop("Helion-06", {random:()=>0}), null);
+  assert.equal(rollPortalAnchorKeyDrop("Nereid-01", {random:()=>0})?.itemId, "portal_anchor_key");
 });
 
 test("server emits and validates dimensional anchor key pickup", ()=>{
@@ -190,7 +348,7 @@ test("server emits and validates dimensional anchor key pickup", ()=>{
   try{
     const emitted = [];
     const socketEvents = [];
-    const player = {id:"p1", mapId:"ASTRA-01", state:{mapId:"ASTRA-01", x:100, y:200}};
+    const player = {id:"p1", mapId:"Helion-01", state:{mapId:"Helion-01", x:100, y:200}};
     const players = new Map([[player.id, player]]);
     const profile = {inventoryItems:[], nextInventoryUid:1};
     const manager = createWorldLootManager({
@@ -206,14 +364,14 @@ test("server emits and validates dimensional anchor key pickup", ()=>{
     });
     manager.emitPrivatePortalAnchorKeyDrop({
       ownerId:player.id,
-      mapId:"ASTRA-01",
+      mapId:"Helion-01",
       enemy:{id:"enemy", kind:"drone_pirate", level:1, x:100, y:200}
     });
     const event = emitted.find(entry=>entry.event === "loot:drop" && entry.payload.kind === "item")?.payload;
     assert.ok(event);
     assert.equal(event.itemId, "portal_anchor_key");
     assert.equal(event.serverControlled, true);
-    player.state = {mapId:"ASTRA-01", x:event.x, y:event.y};
+    player.state = {mapId:"Helion-01", x:event.x, y:event.y};
     manager.pickupLoot({id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, {id:event.id});
     assert.equal(getInventoryItemCount(profile, "portal_anchor_key"), 1);
     assert.equal(socketEvents.some(entry=>entry.name === "loot:picked"), true);

@@ -69,21 +69,23 @@
 .target-health.target-shield-text{color:#bae6fd;margin-bottom:4px}
 .target-health b{color:#f8fafc;font-size:9px}
 .loot-popup{
-  position:absolute;z-index:14;top:26px;left:46%;transform:translateX(-50%);
-  display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+  position:absolute;z-index:14;top:26px;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:5px;
   min-width:0;padding:0;background:transparent;border:0;color:#dff6ff;box-shadow:none;text-align:center;pointer-events:none;
 }
-.loot-line{display:grid;gap:3px;width:350px;padding:0;background:transparent;border:0;color:#fff;font-size:15px;font-weight:900;letter-spacing:.35px;text-align:left;text-shadow:0 2px 2px #000,0 0 8px rgba(255,255,255,.18);transition:opacity .18s linear}
-.loot-line div{position:relative;display:grid;grid-template-columns:190px max-content;align-items:center;justify-content:center;gap:10px;opacity:0;transform:translateY(-10px) scale(1.28);animation:lootRewardSettle .34s cubic-bezier(.2,.9,.2,1) forwards}
-.loot-line div:nth-child(1){animation-delay:0s}
-.loot-line div:nth-child(2){animation-delay:.10s}
-.loot-line div:nth-child(3){left:55px;animation-delay:.20s}
-.loot-line div:nth-child(4){left:55px;animation-delay:.30s}
-.loot-line div:nth-child(n+5){animation-delay:.40s}
+.target-panel:not(.hidden) + .loot-popup{top:86px}
+.loot-line{display:grid;gap:3px;width:min(420px,calc(100vw - 24px));padding:0;background:transparent;border:0;color:#fff;font-size:15px;font-weight:900;letter-spacing:.35px;text-align:center;text-shadow:0 2px 2px #000,0 0 8px rgba(255,255,255,.18);transition:opacity .18s linear}
+.loot-line div{display:grid;align-items:center;gap:10px;opacity:0;transform:translateY(-10px) scale(1.28);animation:lootRewardSettle .34s cubic-bezier(.2,.9,.2,1) forwards}
+.loot-line .loot-reward-pair{grid-template-columns:minmax(0,1fr) max-content}
+.loot-line .loot-reward-single{grid-template-columns:1fr}
 .loot-line span{color:#fff;text-transform:none;font-size:15px;text-align:right;white-space:nowrap}
 .loot-line b{color:#fff;font-size:15px;text-align:left}
-.loot-line .loot-quest-title{grid-template-columns:1fr;justify-content:start}
-.loot-line .loot-quest-title span{text-align:left;color:#facc15;text-transform:uppercase;text-shadow:0 2px 2px #000,0 0 10px rgba(250,204,21,.28)}
+.loot-line .loot-reward-single span,.loot-line .loot-quest-title span{text-align:center}
+.loot-line .loot-quest-title{grid-template-columns:1fr;margin-bottom:2px}
+.loot-line .loot-quest-title span{color:#f8fafc;text-transform:uppercase;text-shadow:0 2px 2px #000,0 0 10px rgba(248,250,252,.22)}
+.loot-line.quest-tone-special .loot-quest-title span{color:#fb7185;text-shadow:0 2px 2px #000,0 0 10px rgba(248,113,113,.28)}
+.loot-line.quest-tone-rare .loot-quest-title span{color:#facc15;text-shadow:0 2px 2px #000,0 0 10px rgba(250,204,21,.28)}
+.loot-line.quest-tone-red .loot-quest-title span{color:#ff4d5f;text-shadow:0 2px 2px #000,0 0 11px rgba(239,68,68,.34)}
 @keyframes lootRewardSettle{
   0%{opacity:0;transform:translateY(-14px) scale(1.34)}
   70%{opacity:1;transform:translateY(1px) scale(.96)}
@@ -108,6 +110,12 @@
 .poison-status-body span{height:6px;border:1px solid rgba(134,239,172,.22);background:rgba(2,6,17,.72);overflow:hidden}
 .poison-status-body i{display:block;height:100%;width:0;background:linear-gradient(90deg,#16a34a,#86efac);box-shadow:0 0 10px rgba(74,222,128,.72)}
 .poison-status b{min-width:27px;text-align:right;font-size:13px;color:#f0fdf4}
+.slow-status{top:118px;border-color:rgba(56,189,248,.46);background:linear-gradient(180deg,rgba(8,47,73,.94),rgba(3,18,31,.90));color:#e0f2fe;box-shadow:0 0 22px rgba(14,165,233,.22),inset 0 0 14px rgba(56,189,248,.10)}
+.slow-status .poison-status-icon{border-color:rgba(125,211,252,.62);background:radial-gradient(circle,rgba(14,165,233,.38),rgba(8,47,73,.94));color:#bae6fd;text-shadow:0 0 8px rgba(56,189,248,.94)}
+.slow-status .poison-status-body strong{color:#bae6fd}
+.slow-status .poison-status-body span{border-color:rgba(125,211,252,.25)}
+.slow-status .poison-status-body i{background:linear-gradient(90deg,#0284c7,#7dd3fc);box-shadow:0 0 10px rgba(56,189,248,.78)}
+.slow-status b{color:#f0f9ff}
 .death-respawn-panel{
   position:absolute;z-index:30;left:50%;top:50%;transform:translate(-50%,-50%);
   width:min(520px,calc(100vw - 32px));padding:18px;

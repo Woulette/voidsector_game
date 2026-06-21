@@ -2,6 +2,7 @@ import { multiplayer } from "./client.js";
 import { drawPlayerLayer } from "../game/render/player.js";
 import { getFirmBadgeAsset } from "../data/firms.js";
 import { getCachedCombatImage } from "../game/combatAssets.js";
+import { drawTargetSelectionOverlay } from "../game/render/targetOverlay.js";
 
 function lerp(a, b, t){
   return a + (b - a) * t;
@@ -149,28 +150,7 @@ function drawSelectedRemoteOverlay({ctx, camera, remote, state, selectedEnemy}){
   const x = Number(state.x || 0) - camera.x;
   const y = Number(state.y || 0) - camera.y;
   const radius = Math.max(48, Number(state.radius || 48)) + 15;
-  const pulse = .5 + Math.sin(performance.now() / 120) * .5;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.strokeStyle = `rgba(34,197,94,${.58 + pulse * .25})`;
-  ctx.lineWidth = 2.5;
-  ctx.shadowColor = "rgba(34,197,94,.82)";
-  ctx.shadowBlur = 12 + pulse * 8;
-  ctx.setLineDash([14, 9]);
-  ctx.lineDashOffset = -performance.now() / 55;
-  ctx.beginPath();
-  ctx.arc(0, 0, radius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.strokeStyle = "rgba(134,239,172,.92)";
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.arc(0, 0, radius + 5, -Math.PI / 3, Math.PI / 3);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(0, 0, radius + 5, Math.PI * .66, Math.PI * 1.33);
-  ctx.stroke();
-  ctx.restore();
+  drawTargetSelectionOverlay({ctx, x, y, radius});
 }
 
 function findRemoteLockedTarget({remote, player, enemies = []}){

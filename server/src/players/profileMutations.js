@@ -3,24 +3,16 @@ import { applyServerReputationFromXp, registerServerMonsterKill, updateRankScore
 import { sanitizeProfile } from "./profileSanitize.js";
 import { appendProfileActivity } from "./activityLog.js";
 
-export function createProfileMutations({profiles, persist, profileKeyForPlayer, getExistingProfile}){
-  function applyReward({player, reward} = {}){
-    if(!player) return null;
-    const key = profileKeyForPlayer(player);
-    const existing = profiles.get(key) || sanitizeProfile({updatedAt:Date.now(), player:{}});
-    const draft = {
-      ...existing,
-      updatedAt:Date.now(),
-      player:applyProgressionReward(existing.player || {}, reward || {})
-    };
+export function createProfileMutations({profiles, persist, persistDeferred, profileKeyForPlayer, getExistingProfile}){
+  function applyRewardChanges(profile, reward = {}){
+    profile.updatedAt = Date.now();
+    profile.player = applyProgressionReward(profile.player || {}, reward);
     if(reward?.enemyKind || reward?.enemyType){
-      registerServerMonsterKill(draft, {
-        kind:reward.enemyKind || reward.enemyType,
-        enemyLevel:reward.enemyLevel,
-        playerLevel:existing.player?.level
+      registerServerMonsterKill(profile, {
+        kind:reward.enemyKind || reward.enemyType
       });
       const enemyLabel = String(reward.enemyName || reward.enemyKind || reward.enemyType || "Monstre");
-      appendProfileActivity(draft, {
+      appendProfileActivity(profile, {
         type:"monster_kill",
         label:"Mob tue",
         detail:`${enemyLabel} niv. ${Math.max(1, Number(reward.enemyLevel || 1))} - +${Math.max(0, Math.round(Number(reward.xp || 0)))} XP, +${Math.max(0, Math.round(Number(reward.credits || 0)))} credits, +${Math.max(0, Math.round(Number(reward.premium || 0)))} NOVA.`,
@@ -33,12 +25,36 @@ export function createProfileMutations({profiles, persist, profileKeyForPlayer, 
         }
       });
     }
-    applyServerReputationFromXp(draft, reward?.xp);
-    updateRankScore(draft);
+    applyServerReputationFromXp(profile, reward?.xp);
+    updateRankScore(profile);
+    return profile;
+  }
+
+  function applyReward({player, reward} = {}){
+    if(!player) return null;
+    const key = profileKeyForPlayer(player);
+    const existing = profiles.get(key) || sanitizeProfile({updatedAt:Date.now(), player:{}});
+    const draft = applyRewardChanges({
+      ...existing,
+      player:{...(existing.player || {})},
+      killStats:{...(existing.killStats || {})},
+      rankKillStats:{...(existing.rankKillStats || {})},
+      activityLog:[...(existing.activityLog || [])]
+    }, reward);
     const next = sanitizeProfile(draft);
     profiles.set(key, next);
     persist(key);
     return next;
+  }
+
+  function applyCombatReward({player, reward} = {}){
+    if(!player) return null;
+    const {key, profile} = getExistingProfile(player);
+    applyRewardChanges(profile, reward);
+    profiles.set(key, profile);
+    if(typeof persistDeferred === "function") persistDeferred(key, 500);
+    else persist(key);
+    return profile;
   }
 
   function spendForPlayer({player, priceType, amount} = {}){
@@ -71,9 +87,23 @@ export function createProfileMutations({profiles, persist, profileKeyForPlayer, 
     return {...(result || {ok:true}), ok:true, profile:next};
   }
 
+  function updateCombatProfileForPlayer({player, update} = {}){
+    if(!player) return {ok:false, reason:"Joueur introuvable."};
+    const {key, profile} = getExistingProfile(player);
+    const result = typeof update === "function" ? update(profile) : {ok:true};
+    if(result && result.ok === false) return result;
+    profile.updatedAt = Date.now();
+    profiles.set(key, profile);
+    if(typeof persistDeferred === "function") persistDeferred(key, 500);
+    else persist(key);
+    return {...(result || {ok:true}), ok:true, profile};
+  }
+
   return {
     applyReward,
+    applyCombatReward,
     spendForPlayer,
-    updateProfileForPlayer
+    updateProfileForPlayer,
+    updateCombatProfileForPlayer
   };
 }

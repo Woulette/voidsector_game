@@ -13,10 +13,10 @@ const ITEM_ID = "stabilisateur_dimensionnel";
 
 test("Maintenance impossible sends each firm to its own map four", ()=>{
   const expected = [
-    {questId:QUEST_ID, npcId:"astra02_portal_mechanic", npcZone:"ASTRA-02", dropZone:"ASTRA-04", missionZone:"ASTRA-01"},
-    {questId:`${QUEST_ID}_cyan`, npcId:"cyan02_portal_mechanic", npcZone:"CYAN-02", dropZone:"CYAN-04", missionZone:"CYAN-01"},
-    {questId:`${QUEST_ID}_jaune`, npcId:"jaune02_portal_mechanic", npcZone:"JAUNE-02", dropZone:"JAUNE-04", missionZone:"JAUNE-01"},
-    {questId:`${QUEST_ID}_verte`, npcId:"verte02_portal_mechanic", npcZone:"VERTE-02", dropZone:"VERTE-04", missionZone:"VERTE-01"}
+    {questId:QUEST_ID, npcId:"astra02_portal_mechanic", npcZone:"Helion-02", dropZone:"Helion-04", missionZone:"Helion-01"},
+    {questId:`${QUEST_ID}_cyan`, npcId:"cyan02_portal_mechanic", npcZone:"Nereid-02", dropZone:"Nereid-04", missionZone:"Nereid-01"},
+    {questId:`${QUEST_ID}_jaune`, npcId:"jaune02_portal_mechanic", npcZone:"Aureon-02", dropZone:"Aureon-04", missionZone:"Aureon-01"},
+    {questId:`${QUEST_ID}_verte`, npcId:"verte02_portal_mechanic", npcZone:"Sylva-02", dropZone:"Sylva-04", missionZone:"Sylva-01"}
   ];
 
   for(const entry of expected){
@@ -50,30 +50,30 @@ test("Maintenance impossible drops stabilizer parts after Ricky sends the player
 
   assert.equal(rollServerQuestItemDrop(profile, {
     enemyKind:"cuirasse_nebulaire",
-    zoneName:"ASTRA-04",
+    zoneName:"Helion-04",
     random:()=>0
   }), null);
 
   const start = progressServerQuestAction(profile, {
     type:"talk_npc",
     npcId:"astra02_portal_mechanic",
-    zoneName:"ASTRA-02"
+    zoneName:"Helion-02"
   });
   assert.equal(start.updates.length, 1);
 
   assert.equal(rollServerQuestItemDrop(profile, {
     enemyKind:"chasseur_spectral",
-    zoneName:"ASTRA-03",
+    zoneName:"Helion-03",
     random:()=>0
   }), null);
   assert.equal(rollServerQuestItemDrop(profile, {
     enemyKind:"chasseur_spectral",
-    zoneName:"ASTRA-04",
+    zoneName:"Helion-04",
     random:()=>0.151
   }), null);
   const drop = rollServerQuestItemDrop(profile, {
     enemyKind:"chasseur_spectral",
-    zoneName:"ASTRA-04",
+    zoneName:"Helion-04",
     random:()=>0.15
   });
   assert.equal(drop.itemId, ITEM_ID);
@@ -94,7 +94,7 @@ test("Maintenance impossible requires five parts, Ricky handoff, then mission co
   progressServerQuestAction(profile, {
     type:"talk_npc",
     npcId:"astra02_portal_mechanic",
-    zoneName:"ASTRA-02"
+    zoneName:"Helion-02"
   });
   assert.equal(getQuestObjectiveProgress(profile, QUEST_ID, talkStart, 0), 1);
   for(let index = 0; index < 5; index += 1){
@@ -106,7 +106,7 @@ test("Maintenance impossible requires five parts, Ricky handoff, then mission co
   progressServerQuestAction(profile, {
     type:"talk_npc",
     npcId:"astra02_portal_mechanic",
-    zoneName:"ASTRA-02"
+    zoneName:"Helion-02"
   });
   assert.equal(getQuestObjectiveProgress(profile, QUEST_ID, talkReturn, 2), 1);
   assert.equal(canClaimQuest(profile, quest), false);
@@ -114,7 +114,7 @@ test("Maintenance impossible requires five parts, Ricky handoff, then mission co
   progressServerQuestAction(profile, {
     type:"mission_control",
     stationId:"quests",
-    zoneName:"ASTRA-01"
+    zoneName:"Helion-01"
   });
   assert.equal(getQuestObjectiveProgress(profile, QUEST_ID, missionControl, 3), 1);
   assert.equal(canClaimQuest(profile, quest), true);
@@ -127,10 +127,10 @@ test("Maintenance impossible requires five parts, Ricky handoff, then mission co
 
 test("Ricky's portal stays locked while the normal zone four portal remains available", ()=>{
   const cases = [
-    {firm:"ASTRA", questId:QUEST_ID},
-    {firm:"CYAN", questId:`${QUEST_ID}_cyan`},
-    {firm:"JAUNE", questId:`${QUEST_ID}_jaune`},
-    {firm:"VERTE", questId:`${QUEST_ID}_verte`}
+    {firm:"Helion", questId:QUEST_ID},
+    {firm:"Nereid", questId:`${QUEST_ID}_cyan`},
+    {firm:"Aureon", questId:`${QUEST_ID}_jaune`},
+    {firm:"Sylva", questId:`${QUEST_ID}_verte`}
   ];
   for(const entry of cases){
     const map2 = MAPS.find(map=>map.name === `${entry.firm}-02`);
@@ -192,7 +192,7 @@ test("Sauvons Deadly unlocks after Maintenance impossible and progresses on Rick
   progressServerQuestAction(profile, {
     type:"talk_npc",
     npcId:"astra02_portal_mechanic",
-    zoneName:"ASTRA-02"
+    zoneName:"Helion-02"
   });
   assert.equal(getQuestObjectiveProgress(profile, RESCUE_QUEST_ID, talkReturn, 1), 1);
   assert.equal(canClaimQuest(profile, quest), true);

@@ -239,6 +239,7 @@ function renderTabContent({quest, tab, enemyTypes, rawMaterials, getQuestProgres
 export function renderCombatQuestTracker({
   activeQuests,
   trackedQuest,
+  selectedQuestId = null,
   detailTab,
   enemyTypes,
   rawMaterials,
@@ -246,7 +247,10 @@ export function renderCombatQuestTracker({
   getQuestObjectiveProgress,
   questFailProgress = {}
 }){
-  const selected = activeQuests.find(quest=>quest.id === trackedQuest?.id) || activeQuests[0] || null;
+  const selected = activeQuests.find(quest=>quest.id === selectedQuestId)
+    || activeQuests.find(quest=>quest.id === trackedQuest?.id)
+    || activeQuests[0]
+    || null;
   if(!activeQuests.length || !selected){
     return `<p class="group-panel-note">Aucune quete en cours. Passe par le relais pour accepter des missions.</p>`;
   }

@@ -32,6 +32,7 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
     if(group.instance.type === "portal" && Array.isArray(group.instance.joinedMemberIds)){
       for(const memberId of group.instance.joinedMemberIds){
         if(group.instance.abandonedMemberIds?.includes(memberId)) continue;
+        if(group.instance.objective?.returnedMemberIds?.includes(memberId)) continue;
         io.to(memberId).emit("coop:enemies", payload);
       }
       return;

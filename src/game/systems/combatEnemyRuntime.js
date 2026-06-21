@@ -1,4 +1,4 @@
-import { AGGRO_RANGE, ENEMY_HIT_CHANCE, LEASH_RANGE, PLAYER_COLLISION_RADIUS, PLAYER_HIT_CHANCE } from "../combatData.js";
+import { AGGRO_RANGE, ENEMY_HIT_CHANCE, LEASH_RANGE, PLAYER_HIT_CHANCE } from "../combatData.js";
 import { getServerEnemyId, getSoloEnemies, hasServerControlledEnemies, isServerControlledEnemy } from "../../multiplayer/enemies.js";
 import { createProjectile, updateProjectiles } from "./projectiles.js";
 import { createMapEnemy } from "./mapState.js";
@@ -102,7 +102,7 @@ export function createCombatEnemyRuntime({
       safeMode:isSafeModeActive(),
       aggroRange:AGGRO_RANGE,
       leashRange:gameMode === "portal" ? 999999 : LEASH_RANGE,
-      playerCollisionRadius:PLAYER_COLLISION_RADIUS,
+      now:performance.now(),
       onEnemyAttack:fireEnemyBullet
     });
   }

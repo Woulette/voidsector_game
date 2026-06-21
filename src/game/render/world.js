@@ -248,7 +248,7 @@ function getParallaxDustSpecks(currentMap){
   if(parallaxDustSpeckCache.has(key)) return parallaxDustSpeckCache.get(key);
   const specks = [];
   scene.dustSpecks.forEach((field, fieldIndex)=>{
-    const rnd = seededValue(26000 + fieldIndex * 701 + (currentMap.id || 0) * 131);
+    const rnd = seededValue(26000 + fieldIndex * 701 + getMapSeed(currentMap) * 131);
     const count = field.count || 120;
     const colors = field.colors || [
       "255,222,128",
@@ -471,6 +471,9 @@ function drawParallaxStarLights({ctx, canvas, currentMap, camera}){
     const flicker = .92 + Math.sin(now / (light.speed || 1500) + (light.seed || 0)) * .08;
     const alpha = (Number.isFinite(light.alpha) ? light.alpha : .62) * flicker;
     const coreRadius = Math.max(10, r * (light.coreRadius || .035));
+    const coreAlpha = Number.isFinite(light.coreAlpha)
+      ? Math.max(0, Math.min(1, light.coreAlpha))
+      : 1;
 
     const colors = light.colors || {};
     const coreColor = colors.core || "255,255,255";
@@ -501,8 +504,8 @@ function drawParallaxStarLights({ctx, canvas, currentMap, camera}){
     ctx.restore();
 
     const core = ctx.createRadialGradient(sx, sy, 0, sx, sy, coreRadius);
-    core.addColorStop(0, "rgba(255,255,255,1)");
-    core.addColorStop(.38, `rgba(255,255,255,${Math.min(1, alpha * .95)})`);
+    core.addColorStop(0, `rgba(255,255,255,${coreAlpha})`);
+    core.addColorStop(.38, `rgba(255,255,255,${Math.min(coreAlpha, alpha * .95)})`);
     core.addColorStop(1, "rgba(186,230,253,0)");
     ctx.fillStyle = core;
     ctx.beginPath();
@@ -521,6 +524,18 @@ function seededValue(seed){
   };
 }
 
+function getMapSeed(currentMap){
+  const raw = currentMap?.id ?? currentMap?.name ?? 0;
+  const numeric = Number(raw);
+  if(Number.isFinite(numeric)) return numeric;
+  const text = String(raw);
+  let hash = 2166136261;
+  for(let i = 0; i < text.length; i += 1){
+    hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
+  }
+  return hash >>> 0;
+}
+
 function getParallaxAsteroids(currentMap){
   const scene = currentMap?.parallaxScene;
   if(!scene?.asteroidFields?.length) return [];
@@ -528,7 +543,7 @@ function getParallaxAsteroids(currentMap){
   if(parallaxAsteroidCache.has(key)) return parallaxAsteroidCache.get(key);
   const asteroids = [];
   scene.asteroidFields.forEach((field, fieldIndex)=>{
-    const rnd = seededValue(9000 + fieldIndex * 1193 + (currentMap.id || 0) * 97);
+    const rnd = seededValue(9000 + fieldIndex * 1193 + getMapSeed(currentMap) * 97);
     const count = field.count || 40;
     const cos = Math.cos(field.angle || 0);
     const sin = Math.sin(field.angle || 0);
@@ -973,7 +988,7 @@ function drawSpawnStations({ctx, cache, stations}){
     const glow = 6 + Math.sin(now/220 + station.x*0.002) * 4;
     ctx.save();
     ctx.translate(station.x, station.y + bob);
-    const color = station.id === "quests" ? "56,189,248" : "250,204,21";
+    const color = station.color || (station.id === "quests" ? "56,189,248" : "250,204,21");
     const assetDrawn = drawSpawnAsset({
       ctx,
       cache,
@@ -1022,9 +1037,9 @@ function drawSpawnStationPrompts({ctx, stations}){
     const marker = station.marker;
     if(!marker) continue;
     const pulse = .5 + Math.sin(now / 210 + station.x * .003) * .5;
-    const color = station.id === "quests" ? "56,189,248" : "250,204,21";
-    const dark = station.id === "quests" ? "4,20,35" : "28,18,4";
-    const label = station.id === "quests" ? "MISSIONS" : "RAFFINAGE";
+    const color = station.color || (station.id === "quests" ? "56,189,248" : "250,204,21");
+    const dark = station.dark || (station.id === "quests" ? "4,20,35" : "28,18,4");
+    const label = station.promptLabel || (station.id === "quests" ? "MISSIONS" : "RAFFINAGE");
     const r = marker.radius || 42;
     const bob = getSpawnStationBob(station, now);
     ctx.save();
@@ -1207,6 +1222,8 @@ function drawWorldMarkers({
     }
     if(spawn.hub !== false){
       drawSpawnHub({ctx, cache, spawn, stations});
+    }
+    if(stations.length){
       drawSpawnStations({ctx, cache, stations});
       drawSpawnStationPrompts({ctx, stations});
     }

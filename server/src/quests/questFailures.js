@@ -24,7 +24,7 @@ function removeActiveQuest(profile, questId){
 
 export function recordServerQuestHpLoss(profile, amount){
   const hpLoss = Math.max(0, Number(amount || 0));
-  if(hpLoss <= 0) return {ok:true, updates:[], failed:[]};
+  if(hpLoss <= 0) return {ok:true, changed:false, updates:[], failed:[]};
   normalizeQuestFields(profile);
   const updates = [];
   const failed = [];
@@ -53,7 +53,7 @@ export function recordServerQuestHpLoss(profile, amount){
       failed.push({id:quest.id, questId:quest.id, title:quest.title});
     }
   }
-  return {ok:true, updates, failed};
+  return {ok:true, changed:updates.length > 0 || failed.length > 0, updates, failed};
 }
 
 export function recordServerQuestDeath(profile){

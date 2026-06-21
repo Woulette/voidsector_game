@@ -6,6 +6,7 @@ import { normalizePremiumRewardState, normalizeStarterPackPurchases } from "../.
 import { sanitizeActivityLog } from "./activityLog.js";
 import { sanitizeCombatBoosts } from "../economy/combatBoosts.js";
 import { sanitizePilotName } from "./profileIdentity.js";
+import { calculateMonsterRankPointsForKills, calculateRankScore } from "../../../src/data/ranks.js";
 
 const EMPTY_ACTION_SLOTS = Array(9).fill(null);
 const STARTER_ACTION_SLOTS = ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
@@ -95,6 +96,32 @@ function sanitizeFirmRewardHistory(value){
   }));
 }
 
+function rebuildMonsterRankStats(profile){
+  const killStats = profile.killStats || {};
+  const rankKillStats = profile.rankKillStats || {};
+  const kinds = new Set([...Object.keys(killStats), ...Object.keys(rankKillStats)]);
+  const rebuilt = {};
+  let total = 0;
+  for(const kind of kinds){
+    const entry = rankKillStats[kind];
+    const kills = Math.max(
+      0,
+      Math.floor(Number(killStats[kind] || 0)),
+      Math.floor(Number(entry?.kills || 0))
+    );
+    const points = calculateMonsterRankPointsForKills(kind, kills);
+    killStats[kind] = kills;
+    rebuilt[kind] = {kills, points};
+    total += points;
+  }
+  profile.killStats = killStats;
+  profile.rankKillStats = rebuilt;
+  profile.player.monsterRankPoints = total;
+  const portalClears = Object.values(profile.completedPortals || {})
+    .reduce((sum, count)=>sum + Math.max(0, Number(count || 0)), 0);
+  profile.player.rankScore = calculateRankScore(profile.player, portalClears);
+}
+
 export function sanitizeProfile(profile = {}){
   const inventoryItems = [];
   for(const entry of Array.isArray(profile.inventoryItems) ? profile.inventoryItems : []){
@@ -163,6 +190,7 @@ export function sanitizeProfile(profile = {}){
   sanitized.player.name = sanitizePilotName(sanitized.player.name, "NOVA-37");
   sanitized.player.firmId = normalizeFirmId(sanitized.player.firmId || sanitized.player.firm || sanitized.player.company || sanitized.player.faction || "astra");
   sanitized.player.firmSelected = Boolean(sanitized.player.firmSelected);
+  rebuildMonsterRankStats(sanitized);
   cleanupDuplicateEquippedInventoryUids(sanitized);
   return sanitized;
 }

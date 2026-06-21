@@ -65,6 +65,7 @@ export function drawMiniMap({
   beacons = [],
   groupPlayers = [],
   groupPingTarget = null,
+  closedPortals = [],
   getMapPortals = getDefaultMapPortals
 }){
   const {x, y, w, h} = rect;
@@ -164,6 +165,25 @@ export function drawMiniMap({
   for(const portal of getMapPortals(currentMap)){
     ctx.fillStyle = "rgba(168,85,247,.95)";
     ctx.beginPath(); ctx.arc(mapX(portal.x),mapY(portal.y),5,0,Math.PI*2); ctx.fill();
+  }
+  for(const portal of closedPortals || []){
+    const px = mapX(portal.x);
+    const py = mapY(portal.y);
+    ctx.save();
+    ctx.fillStyle = "rgba(127,29,29,.88)";
+    ctx.strokeStyle = "rgba(248,113,113,.98)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(px, py, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(px - 3, py - 3);
+    ctx.lineTo(px + 3, py + 3);
+    ctx.moveTo(px + 3, py - 3);
+    ctx.lineTo(px - 3, py + 3);
+    ctx.stroke();
+    ctx.restore();
   }
   ctx.strokeStyle = "rgba(56,189,248,.25)";
   ctx.beginPath(); ctx.arc(mapX(player.x),mapY(player.y),Math.max(5,player.radar*sx),0,Math.PI*2); ctx.stroke();

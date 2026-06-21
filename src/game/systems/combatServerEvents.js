@@ -8,6 +8,42 @@ import { createQuestServerEventProcessor } from "./combatQuestServerEvents.js";
 
 const RICKY_ALLY_ID = "ricky_companion";
 const RICKY_ROCKET_PROJECTILE = "assets/equipment/rocket_r2_projectile.png";
+const MAX_SERVER_ENEMY_PROJECTILES = 32;
+
+export function applyAuthoritativeCombatAmmo({event, playerId, ammoInventory} = {}){
+  const consumed = Math.max(0, Math.round(Number(event?.consumed || 0)));
+  const ammoId = String(event?.ammoId || "");
+  if(consumed <= 0
+    || !ammoId
+    || String(event?.attackerId || "") !== String(playerId || "")
+    || !ammoInventory){
+    return false;
+  }
+  const authoritativeRemaining = Number(event?.ammoRemaining);
+  if(Number.isFinite(authoritativeRemaining)){
+    ammoInventory[ammoId] = Math.max(0, authoritativeRemaining);
+  }else{
+    const current = Math.max(0, Number(ammoInventory[ammoId] || 0));
+    ammoInventory[ammoId] = Math.max(0, current - consumed);
+  }
+  return true;
+}
+
+export function applyAuthoritativeRewardProgression({event, player} = {}){
+  const progression = event?.progression;
+  if(!player || !progression || typeof progression !== "object") return false;
+  for(const [field, value] of Object.entries(progression)){
+    if(value === undefined) continue;
+    player[field] = value;
+  }
+  return true;
+}
+
+export function getNpcDamageDisplayAmount(event = {}){
+  const totalDamage = Number(event.amount);
+  if(Number.isFinite(totalDamage)) return Math.max(0, Math.round(totalDamage));
+  return Math.max(0, Math.round(Number(event.hpLost || 0)));
+}
 
 export function createCombatServerEventSystem({
   multiplayer,
@@ -19,13 +55,16 @@ export function createCombatServerEventSystem({
   panels,
   damagePlayer,
   applyPlayerPoison,
+  applyPlayerSlow,
   clearPoison,
+  clearSlow,
   pushDamageText,
   spawnPortalExit,
   showToast,
   updateHud,
   updateLootPopup,
   portalStartingLives,
+  onPortalMapLoaded = ()=>{},
   applyServerDeath,
   applyServerRespawn
 }){
@@ -43,7 +82,8 @@ export function createCombatServerEventSystem({
   const questEvents = createQuestServerEventProcessor({
     multiplayer,
     rewards,
-    showToast
+    showToast,
+    getProfileState:()=>getState()?.store?.state || null
   });
 
   function loadPortalArena(event){
@@ -85,6 +125,7 @@ export function createCombatServerEventSystem({
       damageTexts:[],
       teleportLock:1.2
     });
+    onPortalMapLoaded(currentMap);
     panels.closeSpawnPanel();
     if(!event?.resumed) showToast(`${portal.name} lance cote serveur pour le groupe.`);
     updateHud();
@@ -246,9 +287,13 @@ export function createCombatServerEventSystem({
   function applyStatusEffectEvents(){
     if(!multiplayer.playerStatusEffectEvents?.length) return;
     for(const event of multiplayer.playerStatusEffectEvents.splice(0)){
-      if(event?.type !== "poison") continue;
-      if(event.active === false) clearPoison?.();
-      else applyPlayerPoison?.({...event, serverAuthoritative:true});
+      if(event?.type === "poison"){
+        if(event.active === false) clearPoison?.();
+        else applyPlayerPoison?.({...event, serverAuthoritative:true});
+      }else if(event?.type === "slow"){
+        if(event.active === false) clearSlow?.();
+        else applyPlayerSlow?.({...event, serverAuthoritative:true});
+      }
     }
   }
 
@@ -268,7 +313,7 @@ export function createCombatServerEventSystem({
         pushDamageText({
           x:Number(portalAlly.x || 0),
           y:Number(portalAlly.y || 0) - 58,
-          value:Math.max(0, Math.round(Number(event.hpLost || event.amount || 0))),
+          value:getNpcDamageDisplayAmount(event),
           color:"rgba(248,113,113,",
           shadowColor:"rgba(248,113,113,.78)"
         });
@@ -317,6 +362,7 @@ export function createCombatServerEventSystem({
     if(!multiplayer.enemyAttackEvents?.length) return;
     const {player, currentMap, enemies, bullets, particles} = getState();
     const remaining = [];
+    let activeServerProjectiles = bullets.reduce((count, bullet)=>count + (bullet.owner === "serverEnemy" ? 1 : 0), 0);
     for(const event of multiplayer.enemyAttackEvents){
       if(String(event.mapId ?? "") !== getCurrentMapToken(currentMap)){
         remaining.push(event);
@@ -328,6 +374,7 @@ export function createCombatServerEventSystem({
         enemy.attackT = Math.max(Number(enemy.attackT || 0), Number(event.life || .22));
         enemy.recentHitTimer = Math.max(Number(enemy.recentHitTimer || 0), .35);
       }
+      if(activeServerProjectiles >= MAX_SERVER_ENEMY_PROJECTILES) continue;
       const fromX = Number(event.fromX ?? enemy?.x ?? player.x);
       const fromY = Number(event.fromY ?? enemy?.y ?? player.y);
       const toX = Number(event.toX ?? player.x);
@@ -351,6 +398,7 @@ export function createCombatServerEventSystem({
         hitChance:1,
         visualOnly:true
       }));
+      activeServerProjectiles += 1;
       particles.push({x:fromX, y:fromY, life:.16, max:.16, size:16, color:event.particle || enemy?.particle || "rgba(252,165,165,.72)"});
     }
     multiplayer.enemyAttackEvents = remaining;
@@ -420,10 +468,15 @@ export function createCombatServerEventSystem({
 
   function applyCombatHitEvents(){
     if(!multiplayer.combatEvents?.length) return;
-    const {enemies} = getState();
+    const {enemies, store} = getState();
     const events = multiplayer.combatEvents.splice(0);
     const remaining = [];
     for(const event of events){
+      applyAuthoritativeCombatAmmo({
+        event,
+        playerId:multiplayer.playerId,
+        ammoInventory:store?.state?.ammoInventory
+      });
       addRickyAttackVisual(event);
       const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId));
       if(!enemy){
@@ -452,7 +505,7 @@ export function createCombatServerEventSystem({
 
   function applyRewardEvents(){
     if(!multiplayer.playerRewardEvents?.length) return;
-    const {currentMap} = getState();
+    const {currentMap, store} = getState();
     const remaining = [];
     for(const event of multiplayer.playerRewardEvents){
       if(String(event.mapId ?? "") !== getCurrentMapToken(currentMap)){
@@ -472,6 +525,7 @@ export function createCombatServerEventSystem({
       const rewardAppliedByServer = Boolean(event.rewardAppliedByServer);
       const rankPoints = rewardAppliedByServer ? Math.max(0, Number(event.rankPoints || 0)) : 0;
       const reputation = rewardAppliedByServer ? Math.max(0, Math.round(Number(event.reputation || 0))) : 0;
+      applyAuthoritativeRewardProgression({event, player:store?.state?.player});
       window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
         kind:"reward",
         enemyName:event.enemyName || event.enemyType || "Monstre",

@@ -40,6 +40,8 @@ export {
   RANK_POINT_RULES,
   LOCAL_LEADERBOARD_PREVIEW,
   calculateMonsterKillRankPoints,
+  calculateMonsterRankPointsForKills,
+  getMonsterRankPointRule,
   getCurrentRank,
   getLeaderboardRows,
   getNextRank,

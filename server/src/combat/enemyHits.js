@@ -42,8 +42,11 @@ export function createEnemyHitHandler({
   presence,
   profileManager,
   emitProfileSync,
+  applyEnemyDeathEffect,
   progressServerQuestsForKill,
+  removeWorldEnemy,
   respawnWorldEnemy,
+  spawnWorldEnemyChildren,
   updateLootOwner,
   portalWaveTotal
 }){
@@ -93,10 +96,13 @@ export function createEnemyHitHandler({
       return emitCombatMiss(null, "Joueur serveur introuvable.");
     }
     presence.markCombat(player, "attaque joueur");
+    const updateCombatProfile = profileManager.updateCombatProfileForPlayer
+      ? profileManager.updateCombatProfileForPlayer.bind(profileManager)
+      : profileManager.updateProfileForPlayer.bind(profileManager);
 
     const worldEnemy = findWorldEnemyForPlayer(player, String(payload?.enemyId || ""));
     if(worldEnemy){
-      const result = profileManager.updateProfileForPlayer({
+      const result = updateCombatProfile({
         player,
         update:profile=>resolveServerCombatFire({player, profile, enemy:worldEnemy, payload})
       });
@@ -110,6 +116,7 @@ export function createEnemyHitHandler({
         weaponClass:result.weaponClass,
         ammoId:result.ammoId,
         consumed:result.consumed,
+        ammoRemaining:result.ammoRemaining,
         hit:result.hit,
         damage:incoming,
         mapId:String(player.mapId ?? ""),
@@ -118,12 +125,10 @@ export function createEnemyHitHandler({
         radius:Number(worldEnemy.radius || 0),
         at:Date.now()
       }});
-      emitProfileSync?.(player, result.profile);
       // A valid shot is hostile even when the accuracy roll misses. Register
       // the attacker before the damage-only path so passive enemies retaliate.
       markEnemyAttackedByPlayer(worldEnemy, attackerId, incoming);
       if(incoming <= 0){
-        emitWorldEnemies(player.mapId);
         return {ok:true, hit:false, enemy:worldEnemy, result};
       }
       const mapId = player.mapId;
@@ -143,11 +148,13 @@ export function createEnemyHitHandler({
         emitPrivatePortalAnchorKeyDrop?.({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || attackerId});
         emitPrivateResourceDrops?.({enemy:worldEnemy, mapId, ownerId:worldEnemy.lootOwnerId || attackerId});
         progressServerQuestsForKill({enemy:worldEnemy, mapId, attackerId});
+        applyEnemyDeathEffect?.(mapId, worldEnemy, Date.now());
+        spawnWorldEnemyChildren?.(mapId, worldEnemy);
       }
-      emitWorldEnemies(mapId);
       if(worldEnemy.hp <= 0 && !worldEnemy.respawning){
         worldEnemy.respawning = true;
-        setTimeout(()=>respawnWorldEnemy(mapId, worldEnemy.id), 8000);
+        if(worldEnemy.temporarySpawn) setTimeout(()=>removeWorldEnemy?.(mapId, worldEnemy.id), 100);
+        else setTimeout(()=>respawnWorldEnemy(mapId, worldEnemy.id), 8000);
       }
       return {ok:true, hit:true, enemy:worldEnemy, result};
     }
@@ -164,7 +171,7 @@ export function createEnemyHitHandler({
     if(!enemy){
       return emitCombatMiss(null, "Cible deja detruite ou introuvable.");
     }
-    const result = profileManager.updateProfileForPlayer({
+    const result = updateCombatProfile({
       player,
       update:profile=>resolveServerCombatFire({player, profile, enemy, payload})
     });
@@ -178,6 +185,7 @@ export function createEnemyHitHandler({
       weaponClass:result.weaponClass,
       ammoId:result.ammoId,
       consumed:result.consumed,
+      ammoRemaining:result.ammoRemaining,
       hit:result.hit,
       damage:incoming,
       mapId:String(player.mapId ?? ""),
@@ -186,10 +194,8 @@ export function createEnemyHitHandler({
       radius:Number(enemy.radius || 0),
       at:Date.now()
     }});
-    emitProfileSync?.(player, result.profile);
     markEnemyAttackedByPlayer(enemy, attackerId, incoming);
     if(incoming <= 0){
-      emitInstance(group);
       return {ok:true, hit:false, enemy, result};
     }
     const wasAlive = enemy.hp > 0;
@@ -208,7 +214,6 @@ export function createEnemyHitHandler({
         }
       }
     }
-    emitInstance(group);
     return {ok:true, hit:true, enemy, result};
   }
 

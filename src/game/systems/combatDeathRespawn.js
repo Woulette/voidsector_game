@@ -1,6 +1,14 @@
 import { getFirmHomeMapName } from "../../data/firms.js";
 import { basePriceLabel, hasCurrencyDiscount, priceLabel } from "../../core/store.js";
 
+export function getPortalRespawnActionCopy(deathState = {}){
+  const isDeadly = String(deathState.mapId || "") === "portal-ricky";
+  return {
+    label:"Continuer",
+    detail:isDeadly ? "Point d'entrée - 100% PV" : "Position de mort - 50% PV"
+  };
+}
+
 export function createCombatDeathRespawnSystem({
   mapList,
   store,
@@ -18,7 +26,7 @@ export function createCombatDeathRespawnSystem({
 }){
   function getHomeMap(){
     const homeMapName = getFirmHomeMapName(store.state.player?.firmId || "astra");
-    return mapList.find(map=>String(map.name || "").toUpperCase() === homeMapName) || mapList[0];
+    return mapList.find(map=>String(map.name || "").toUpperCase() === String(homeMapName || "").toUpperCase()) || mapList[0];
   }
 
   function novaCostHtml(cost){
@@ -35,9 +43,10 @@ export function createCombatDeathRespawnSystem({
     const actions = panel.querySelector(".death-respawn-actions");
     if(!head || !actions) return;
     if(deathState?.gameMode === "portal"){
+      const continueCopy = getPortalRespawnActionCopy(deathState);
       head.innerHTML = `<span>Vie de portail perdue</span><strong>${Math.max(0, portalLives)} / ${portalStartingLives} vies restantes</strong>`;
       actions.innerHTML = `
-        <button data-respawn-choice="portal-resume" type="button">Reprendre le portail<br><small>Position de mort</small></button>
+        <button data-respawn-choice="portal-resume" type="button">${continueCopy.label}<br><small>${continueCopy.detail}</small></button>
         <button data-respawn-choice="spawn" type="button">Abandonner<br><small>Retour ${getHomeMap().name}</small></button>
       `;
       return;

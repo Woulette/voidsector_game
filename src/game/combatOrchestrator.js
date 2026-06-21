@@ -91,7 +91,7 @@ import { clampPlayerToMap as clampPlayerToMapSystem, updateCamera, updatePlayerM
 import { createRepairBotSystem } from "./systems/repairBot.js";
 import { createRewardSystem } from "./systems/rewards.js";
 import { createWeaponSystem } from "./systems/weapons.js";
-import { updatePoisonStatus } from "./ui/hud.js";
+import { updatePoisonStatus, updateSlowStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
 import { createCombatChat } from "./ui/combatChat.js";
 import { createCombatLogoutController } from "./ui/combatLogoutController.js";
@@ -260,6 +260,7 @@ export function createCombatGame({renderAll, showToast}){
     getState:getCombatState,
     setState:setCombatState,
     updatePoisonStatus,
+    updateSlowStatus,
     pushDamageText,
     handlePlayerDeath,
     onPlayerHpLost:amount=>questProgress.recordHpLoss(amount)
@@ -563,13 +564,19 @@ export function createCombatGame({renderAll, showToast}){
     panels,
     damagePlayer,
     applyPlayerPoison,
-    clearPoison,
+    applyPlayerSlow,
+    clearPoison:()=>statusEffects.clearPoison(),
+    clearSlow:()=>statusEffects.clearSlow(),
     pushDamageText,
     spawnPortalExit,
     showToast,
     updateHud,
     updateLootPopup,
     portalStartingLives:PORTAL_STARTING_LIVES,
+    onPortalMapLoaded:map=>{
+      mapAssetCache.activate(map);
+      mapAssetStreaming.reset();
+    },
     applyServerDeath:event=>deathRespawn.applyServerDeath(event),
     applyServerRespawn:event=>deathRespawn.applyServerRespawn(event)
   });
@@ -593,6 +600,7 @@ export function createCombatGame({renderAll, showToast}){
     updateCamera,
     updateRadiation,
     updatePlayerPoison,
+    updatePlayerSlow,
     updateLootPopup,
     tickCombatBoosts,
     isSafeModeActive,
@@ -733,11 +741,13 @@ export function createCombatGame({renderAll, showToast}){
   function getCanvasViewWidth(){ return canvas.__viewWidth || canvas.clientWidth || canvas.width; }
   function getCanvasViewHeight(){ return canvas.__viewHeight || canvas.clientHeight || canvas.height; }
   function resize(){
-    const dpr = window.devicePixelRatio || 1;
+    const quality = getGraphicsQuality();
+    const maxDpr = quality === "high" ? 1.5 : quality === "medium" ? 1.25 : 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     const rect = canvas.getBoundingClientRect();
     const width = Math.max(1, Math.floor(rect.width || window.innerWidth || canvas.clientWidth || 1));
     const height = Math.max(1, Math.floor(rect.height || window.innerHeight || canvas.clientHeight || 1));
-    canvas.__viewWidth = width; canvas.__viewHeight = height;
+    canvas.__viewWidth = width; canvas.__viewHeight = height; canvas.__dpr = dpr;
     canvas.width = Math.floor(width * dpr);
     canvas.height = Math.floor(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -752,7 +762,10 @@ export function createCombatGame({renderAll, showToast}){
   function getAccessibleMapPortals(map){ return getMapPortals(map, {completedQuestClaims:getCompletedQuestClaims(), questProgress:getQuestProgressState()}); }
   function getLockedMapPortals(map){ return getClosedMapPortals(map, {completedQuestClaims:getCompletedQuestClaims(), questProgress:getQuestProgressState()}); }
 
-  function clearPoison(){ statusEffects.clearPoison(); }
+  function clearPoison(){
+    statusEffects.clearPoison();
+    statusEffects.clearSlow();
+  }
   function handlePlayerDeath(){
     if(multiplayer.authoritativeSession) return;
     questProgress.recordDeath();
@@ -927,8 +940,16 @@ export function createCombatGame({renderAll, showToast}){
     statusEffects.applyPlayerPoison(effect);
   }
 
+  function applyPlayerSlow(effect){
+    statusEffects.applyPlayerSlow(effect);
+  }
+
   function updatePlayerPoison(dt){
     statusEffects.updatePlayerPoison(dt);
+  }
+
+  function updatePlayerSlow(dt){
+    statusEffects.updatePlayerSlow(dt);
   }
 
   function resolveBulletImpact(bullet){

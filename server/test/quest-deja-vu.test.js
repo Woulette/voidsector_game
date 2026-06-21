@@ -99,7 +99,7 @@ test("Je l'avais prédit counts global kills and is cancelled after ten minutes"
   const objectives = getQuestObjectives(quest);
   const startedAt = profile.questFailProgress[RARE_QUEST_ID].timeStartedAt;
 
-  progressServerQuestKill(profile, {kind:"cristal_du_neant", zoneName:"ANY-MAP"});
+  progressServerQuestKill(profile, {kind:"eclanite", zoneName:"ANY-MAP"});
   progressServerQuestKill(profile, {kind:"chasseur_spectral", zoneName:"OTHER-MAP"});
   progressServerQuestKill(profile, {kind:"cuirasse_nebulaire", zoneName:"THIRD-MAP"});
   assert.deepEqual(objectives.map((objective, index)=>
@@ -134,15 +134,26 @@ test("Un Déjà vu boss kills count on any map", ()=>{
 test("Un Déjà vu is cancelled after losing 2000 hp", ()=>{
   const profile = makeProfile();
   assert.equal(acceptServerQuest(profile, QUEST_ID).ok, true);
-  progressServerQuestKill(profile, {kind:"boss_raider_astral", zoneName:"ASTRA-02"});
+  progressServerQuestKill(profile, {kind:"boss_raider_astral", zoneName:"Helion-02"});
 
   const firstHit = recordServerQuestHpLoss(profile, 1999);
+  assert.equal(firstHit.changed, true);
   assert.equal(firstHit.failed.length, 0);
   assert.equal(profile.activeQuestIds.includes(QUEST_ID), true);
 
   const failure = recordServerQuestHpLoss(profile, 1);
+  assert.equal(failure.changed, true);
   assert.equal(failure.failed.length, 1);
   assert.equal(profile.activeQuestIds.includes(QUEST_ID), false);
   assert.deepEqual(profile.questProgress[QUEST_ID], {});
   assert.equal(profile.questFailProgress[QUEST_ID].hpLost, 0);
+});
+
+test("damage without an HP-loss quest does not mark the profile as changed", ()=>{
+  const profile = makeProfile();
+  const result = recordServerQuestHpLoss(profile, 500);
+
+  assert.equal(result.changed, false);
+  assert.deepEqual(result.updates, []);
+  assert.deepEqual(result.failed, []);
 });

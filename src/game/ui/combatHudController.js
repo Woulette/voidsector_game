@@ -2,6 +2,10 @@ import { fmt } from "../../core/utils.js";
 import { PORTAL_WAVE_TOTAL } from "../combatData.js";
 import { updateCombatMeter, updateLootPopup as renderLootPopup, updateSafeZoneNotice, updateTargetPanel } from "./hud.js";
 
+export function portalUsesWaveHud({gameMode, currentMap} = {}){
+  return gameMode === "portal" && !currentMap?.rickyPortal;
+}
+
 export function createCombatHudController({
   store,
   rewards,
@@ -47,11 +51,18 @@ export function createCombatHudController({
     const currentMapLabel = currentMap.displayName || currentMap.name;
     const portalWave = getPortalWave();
     const portalCompleted = getPortalCompleted();
-    const safeLabel = safeArea ? ((player.safeZoneLock || 0) <= 0 ? ` · SAFE ${safeArea.type === "portal" ? "PORTAIL" : "SPAWN"}` : ` · SAFE DANS ${Math.ceil(player.safeZoneLock || 0)}S`) : "";
-    document.getElementById("gameZoneName").textContent = gameMode === "portal" ? `PORTAIL : ${getActivePortal()?.name || currentMapLabel}${portalWave ? ` · VAGUE ${Math.min(portalWave, PORTAL_WAVE_TOTAL)}/${PORTAL_WAVE_TOTAL}` : " · PRÉPARATION"}` : `ZONE : ${currentMapLabel}${safeLabel}`;
+    const showPortalWaves = portalUsesWaveHud({gameMode, currentMap});
+    const safeAreaLabel = safeArea?.type === "portal" ? "PORTAIL" : safeArea?.type === "relay" ? "RELAIS" : "SPAWN";
+    const safeLabel = safeArea ? ((player.safeZoneLock || 0) <= 0 ? ` · SAFE ${safeAreaLabel}` : ` · SAFE DANS ${Math.ceil(player.safeZoneLock || 0)}S`) : "";
+    const portalWaveLabel = showPortalWaves
+      ? (portalWave ? ` · VAGUE ${Math.min(portalWave, PORTAL_WAVE_TOTAL)}/${PORTAL_WAVE_TOTAL}` : " · PRÉPARATION")
+      : "";
+    document.getElementById("gameZoneName").textContent = gameMode === "portal"
+      ? `PORTAIL : ${getActivePortal()?.name || currentMapLabel}${portalWaveLabel}`
+      : `ZONE : ${currentMapLabel}${safeLabel}`;
     const portalTimerHud = document.getElementById("portalTimerHud");
     if(portalTimerHud){
-      const showPortalTimer = gameMode === "portal" && !portalCompleted && portalWave < PORTAL_WAVE_TOTAL;
+      const showPortalTimer = showPortalWaves && !portalCompleted && portalWave < PORTAL_WAVE_TOTAL;
       portalTimerHud.classList.toggle("hidden", !showPortalTimer);
       portalTimerHud.querySelector("strong").textContent = Math.max(0, Math.ceil(getPortalDelay() || 0));
       portalTimerHud.querySelector("span").textContent = portalWave <= 0 ? "Premieres vagues" : "Vague suivante";

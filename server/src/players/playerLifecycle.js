@@ -7,6 +7,8 @@ const RADIATION_GRACE_MS = 30_000;
 const PORTAL_STARTING_LIVES = 3;
 const OPEN_RESPAWN_HP_RATIO = 0.2;
 const PORTAL_RESPAWN_HP_RATIO = 0.5;
+const DEADLY_PORTAL_ID = "ricky";
+const DEADLY_PORTAL_RESPAWN_HP_RATIO = 1;
 const RESPAWN_COSTS = {
   portal:100,
   death:200
@@ -262,17 +264,22 @@ export function createPlayerLifecycleManager({
         abandonPortal(player, context, "Portail abandonne.");
         return true;
       }
+      const isDeadlyPortal = String(context.instance.portal?.id || "") === DEADLY_PORTAL_ID;
+      const initialSpawn = context.instance.spawn || {};
       const map = {
         id:String(death.mapId),
-        spawn:{x:0, y:0}
+        spawn:{
+          x:finite(initialSpawn.x, 0),
+          y:finite(initialSpawn.y, 0)
+        }
       };
       applyRespawnState(player, {
         map,
-        x:death.x,
-        y:death.y,
-        hpRatio:PORTAL_RESPAWN_HP_RATIO,
+        x:isDeadlyPortal ? finite(initialSpawn.x, death.x) : death.x,
+        y:isDeadlyPortal ? finite(initialSpawn.y, death.y) : death.y,
+        hpRatio:isDeadlyPortal ? DEADLY_PORTAL_RESPAWN_HP_RATIO : PORTAL_RESPAWN_HP_RATIO,
         source:"portal-respawn",
-        message:"Retour dans le portail."
+        message:isDeadlyPortal ? "Continuation du portail Deadly." : "Retour dans le portail."
       });
       return true;
     }

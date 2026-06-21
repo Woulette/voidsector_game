@@ -10,6 +10,15 @@ export function createPortalMap(portal){
       width:RICKY_PORTAL_MAP.width,
       height:RICKY_PORTAL_MAP.height,
       spawn:{...RICKY_PORTAL_MAP.spawn, r:240, kind:"portal", label:"POINT D'INSERTION"},
+      closedPortals:[{
+        x:RICKY_PORTAL_MAP.spawn.x,
+        y:RICKY_PORTAL_MAP.spawn.y,
+        r:95,
+        safeRadius:230,
+        label:"PORTAIL FERME",
+        damaged:true,
+        closed:true
+      }],
       portal:null,
       rickyPortal:true,
       enemyAssets:[
@@ -22,11 +31,45 @@ export function createPortalMap(portal){
       ],
       parallaxScene:{
         enabled:true,
-        hideGrid:false,
-        background:["#02040b", "#090d1b", "#03050d"],
+        hideGrid:true,
+        tileAlpha:0,
+        background:["#080313", "#19072d", "#03010b"],
         nebulae:[
-          {x:-1900, y:-900, r:1500, p:.08, color:"rgba(34,211,238,.12)", mid:"rgba(37,99,235,.05)", edge:"rgba(0,0,0,0)"},
-          {x:2100, y:400, r:1700, p:.06, color:"rgba(236,72,153,.10)", mid:"rgba(88,28,135,.05)", edge:"rgba(0,0,0,0)"}
+          {x:-1680, y:-720, r:1420, p:.055, color:"rgba(88,28,135,.16)", mid:"rgba(67,56,202,.055)", edge:"rgba(0,0,0,0)"},
+          {x:1840, y:260, r:1580, p:.070, color:"rgba(147,51,234,.15)", mid:"rgba(76,29,149,.060)", edge:"rgba(0,0,0,0)"},
+          {x:240, y:920, r:920, p:.10, color:"rgba(192,38,211,.085)", mid:"rgba(109,40,217,.035)", edge:"rgba(0,0,0,0)"}
+        ],
+        backdrops:[
+          {src:"assets/maps/decor/deadly/deadly_cosmic_creature.png", x:420, y:240, w:1250, h:625, p:.025, alpha:.11},
+          {src:"assets/maps/decor/deadly/deadly_cracked_moon.png", x:-680, y:-280, w:520, h:520, p:.045, alpha:.58}
+        ],
+        dustSpecks:[
+          {x:-120, y:-160, w:1900, h:680, count:150, p:.09, sizeMin:.20, sizeMax:.78, alphaMin:.010, alphaMax:.048, colors:["216,180,254", "196,181,253", "244,114,182"]},
+          {x:540, y:420, w:1550, h:560, count:96, p:.16, sizeMin:.18, sizeMax:.66, alphaMin:.008, alphaMax:.036, colors:["192,132,252", "167,139,250", "232,121,249"]}
+        ],
+        lightClouds:[
+          {x:-520, y:-120, r:760, p:.045, seed:711, alpha:.125, blobs:13, filaments:0, rotation:.18, squeeze:.46, core:"rgba(168,85,247,.125)", mid:"rgba(88,28,135,.054)", edge:"rgba(20,4,32,.014)"},
+          {x:520, y:300, r:680, p:.060, seed:712, alpha:.110, blobs:11, filaments:0, rotation:-.30, squeeze:.54, core:"rgba(192,132,252,.110)", mid:"rgba(109,40,217,.048)", edge:"rgba(18,4,32,.012)"},
+          {x:1080, y:-460, r:500, p:.080, seed:713, alpha:.082, blobs:9, filaments:0, rotation:.42, squeeze:.48, core:"rgba(217,70,239,.082)", mid:"rgba(126,34,206,.036)", edge:"rgba(20,3,30,.010)"}
+        ],
+        images:[
+          {src:"assets/maps/decor/deadly/deadly_wreck_scout.png", x:-620, y:420, w:330, h:220, p:.18, alpha:.86, rotation:.14},
+          {src:"assets/maps/decor/deadly/deadly_wreck_crescent.png", x:760, y:-380, w:420, h:280, p:.26, alpha:.82, rotation:-.10}
+        ],
+        foregroundClouds:[
+          {x:-1540, y:1180, r:430, p:.48, seed:731, alpha:.090, blobs:14, filaments:0, scale:.66, squeeze:.48, core:"rgba(168,85,247,.090)", mid:"rgba(88,28,135,.042)", edge:"rgba(14,3,24,.011)"},
+          {x:1480, y:-860, r:390, p:.52, seed:732, alpha:.082, blobs:13, filaments:0, scale:.62, squeeze:.52, core:"rgba(217,70,239,.082)", mid:"rgba(126,34,206,.038)", edge:"rgba(16,3,26,.010)"}
+        ],
+        glowSpots:[
+          {x:-100, y:-120, r:1150, p:.10, seed:741, alpha:.18, speed:1800, core:"rgba(255,255,255,.64)", hot:"rgba(103,232,249,.28)", mid:"rgba(37,99,235,.09)"}
+        ],
+        starLights:[
+          {x:-100, y:-120, r:980, p:.10, seed:742, alpha:.40, coreAlpha:.58, speed:1650, coreRadius:.050, colors:{core:"255,255,255", hot:"224,242,254", mid:"103,232,249", haze:"37,99,235"}}
+        ],
+        asteroidFields:[
+          {x:-380, y:-760, w:4700, h:1650, count:64, p:.11, angle:-.06, alpha:.40, sizeMin:2, sizeMax:9, sizePower:1.7, craters:0, tint:"slate", shadeMin:24, shadeMax:58},
+          {x:760, y:520, w:3300, h:1500, count:42, p:.22, angle:.12, alpha:.56, sizeMin:5, sizeMax:17, sizePower:1.9, craters:1, tint:"slate", shadeMin:22, shadeMax:52},
+          {x:-900, y:620, w:2600, h:1300, count:20, p:.32, angle:-.14, alpha:.72, sizeMin:10, sizeMax:25, sizePower:2.1, craters:2, tint:"slate", shadeMin:20, shadeMax:48}
         ]
       }
     };

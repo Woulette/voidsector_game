@@ -93,8 +93,6 @@ export function createWeaponSystem(deps){
         travelTime:Math.max(.22, Math.min(1.55, dist/(ammo.speed || 620) + .14))
       });
       particles.push({x:startX,y:startY,life:.24,max:.24,size:26,color:ammo.particle});
-      deps.refreshActionBar();
-      deps.refreshQuickPanel();
       return true;
     }
 
@@ -136,8 +134,6 @@ export function createWeaponSystem(deps){
     });
     deps.resolveLaserHit?.(enemy, damage, deps.playerHitChance, ammo);
     particles.push({x:startX,y:startY,life:.16,max:.16,size:14,color:player.blueLaserBeams && ammo.id !== "ammo_x4" ? "rgba(56,189,248,.65)" : ammo.id === "ammo_x4" ? "rgba(255,132,24,.65)" : "rgba(255,218,72,.62)"});
-    deps.refreshActionBar();
-    deps.refreshQuickPanel();
     return true;
   }
 
@@ -223,8 +219,6 @@ export function createWeaponSystem(deps){
       toY:enemy.y,
       travelTime
     });
-    deps.refreshActionBar();
-    deps.refreshQuickPanel();
     return true;
   }
 

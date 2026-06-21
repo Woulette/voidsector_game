@@ -1,4 +1,4 @@
-import { applyProgressionReward } from "../players/progression.js";
+import { applyProgressionReward, getProgressionSnapshot } from "../players/progression.js";
 import { applyServerReputationFromXp, updateRankScore } from "../players/rankProgression.js";
 import { enrichFirmSnapshot } from "../firms/firmSnapshots.js";
 import { consumeInventoryItemAmount, getInventoryItemCount } from "../economy/inventoryStacks.js";
@@ -31,6 +31,11 @@ const RICKY_PORTAL_QUEST_BASE_ID = "quest_lv10_maintenance_impossible";
 const RICKY_MAX_GROUP_MEMBERS = 4;
 const RICKY_ALLY_ID = "ricky_companion";
 const RICKY_ALLY_IMG = "assets/ships/npc/npc_saucer.png";
+const RICKY_SHIELD_REGEN_PER_SECOND = 150;
+const RICKY_LASER_DAMAGE_MIN = 3000;
+const RICKY_LASER_DAMAGE_MAX = 5000;
+const RICKY_ROCKET_DAMAGE_MIN = 1500;
+const RICKY_ROCKET_DAMAGE_MAX = 3000;
 const RICKY_HEAL_COOLDOWN_MS = 60000;
 const RICKY_HEAL_BEACON_DURATION_MS = 18000;
 const RICKY_HEAL_BEACON_INTERVAL_MS = 2000;
@@ -87,7 +92,7 @@ function healShipState(state, amount){
   return Math.max(0, state.hp - before);
 }
 
-export function createPortalInstanceManager({io, players, groups, profileManager, emitProfileSync, emitQuestClaims, createGroup, emitInstance, firmWarManager, setPlayerMap, portalWaveTotal}){
+export function createPortalInstanceManager({io, players, groups, profileManager, emitProfileSync, emitQuestClaims, createGroup, emitInstance, resetGroupInstance, firmWarManager, setPlayerMap, portalWaveTotal}){
   let instanceSeq = 1;
 
   function createPortalEnemy(kind, wave, index, x, y, boss = false){
@@ -321,10 +326,11 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       vx:0,
       vy:0,
       angle:0,
-      hp:50000,
-      maxHp:50000,
-      shield:30000,
-      maxShield:30000,
+      hp:100000,
+      maxHp:100000,
+      shield:80000,
+      maxShield:80000,
+      shieldRegenPerSecond:RICKY_SHIELD_REGEN_PER_SECOND,
       radius:44,
       width:86,
       height:86,
@@ -332,6 +338,10 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       followDistance:260,
       maxLeaderDistance:950,
       attackRange:600,
+      laserDamageMin:RICKY_LASER_DAMAGE_MIN,
+      laserDamageMax:RICKY_LASER_DAMAGE_MAX,
+      rocketDamageMin:RICKY_ROCKET_DAMAGE_MIN,
+      rocketDamageMax:RICKY_ROCKET_DAMAGE_MAX,
       laserCooldownMs:1400,
       rocketCooldownMs:4600,
       nextLaserAt:now + 900,
@@ -791,6 +801,20 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       const xp = Math.max(0, Math.round(Number(reward.xp || 0) * share * multiplier));
       const premium = Math.max(0, Math.round(Number(reward.premium || 0) * share * multiplier));
       const reputation = Math.max(0, Math.round(xp * 0.1));
+      const previousMonsterRankPoints = Math.max(0, Number(currentProfile?.player?.monsterRankPoints || 0));
+      const profile = (profileManager.applyCombatReward || profileManager.applyReward)?.({
+        player,
+        reward:{
+          credits,
+          xp,
+          premium,
+          enemyName:enemy.name || enemy.type || enemy.kind,
+          enemyKind:enemy.kind || enemy.type,
+          enemyType:enemy.type,
+          enemyLevel:enemy.level
+        }
+      });
+      const rankPoints = Math.max(0, Number(profile?.player?.monsterRankPoints || 0) - previousMonsterRankPoints);
       io.to(player.id).emit("player:reward", {
         rewardId,
         enemyId:enemy.id,
@@ -804,24 +828,12 @@ export function createPortalInstanceManager({io, players, groups, profileManager
         xp,
         premium,
         reputation,
-        rankPoints:0,
+        rankPoints,
         firmBonus,
+        progression:getProgressionSnapshot(profile?.player),
         rewardAppliedByServer:true,
         at:Date.now()
       });
-      const profile = profileManager.applyReward?.({
-        player,
-        reward:{
-          credits,
-          xp,
-          premium,
-          enemyName:enemy.name || enemy.type || enemy.kind,
-          enemyKind:enemy.kind || enemy.type,
-          enemyType:enemy.type,
-          enemyLevel:enemy.level
-        }
-      });
-      emitProfileSync?.(player, profile);
     }
   }
 
@@ -974,6 +986,26 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       return;
     }
 
+    for(const routeWave of objective.routeWaves || []){
+      if(!routeWave.triggered && activePlayers.some(player=>
+        isPointInRickyTriggerZone(player.state, routeWave)
+      )){
+        routeWave.triggered=true;
+        routeWave.triggeredAt=now;
+        spawnRickyRouteWave(group, routeWave);
+        emitInstance(group);
+      }
+      if(routeWave.triggered
+        && !routeWave.cleared
+        && !hasAliveRickyEncounter(instance, `route_${routeWave.number}`)){
+        routeWave.cleared=true;
+        routeWave.clearedAt=now;
+        const protectedLever = objective.levers?.[routeWave.number - 1];
+        if(protectedLever) protectedLever.unlocked=true;
+        emitInstance(group);
+      }
+    }
+
     const lever = objective.levers?.[activeCount];
     const routeWave = objective.routeWaves?.[activeCount];
     const previousCleared = activeCount === 0 || Boolean(objective.levers?.[activeCount - 1]?.activationWaveCleared);
@@ -982,23 +1014,8 @@ export function createPortalInstanceManager({io, players, groups, profileManager
         Math.hypot(Number(player.state?.x || 0) - lever.x, Number(player.state?.y || 0) - lever.y) <= RICKY_PORTAL_MAP.approachRadius
       );
     }
-    if(routeWave && previousCleared && !routeWave.triggered && activePlayers.some(player=>
-      isPointInRickyTriggerZone(player.state, routeWave)
-    )){
-      routeWave.triggered=true;
-      routeWave.triggeredAt=now;
-      objective.stage=`route_${routeWave.number}`;
-      spawnRickyRouteWave(group, routeWave);
-      emitInstance(group);
-    }
-    if(routeWave?.triggered
-      && !routeWave.cleared
-      && !hasAliveRickyEncounter(instance, `route_${routeWave.number}`)){
-      routeWave.cleared=true;
-      routeWave.clearedAt=now;
-      lever.unlocked=true;
+    if(routeWave?.cleared && lever && objective.stage === `route_${routeWave.number}`){
       objective.stage=`beacon_${lever.number}`;
-      emitInstance(group);
     }
 
     if(!lever?.activation) return;
@@ -1177,12 +1194,28 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       const memberSocket = io.sockets?.sockets?.get?.(player.id);
       if(memberSocket) setPlayerMap?.(memberSocket, mapId);
       profileManager.saveWorldSession?.({player, state:player.state, force:true});
+      objective.returnedMemberIds.push(player.id);
+      io.to(player.id).emit("coop:enemies", {
+        instanceId:null,
+        previousInstanceId:instance.id,
+        spawn:null,
+        portal:null,
+        wave:0,
+        completed:false,
+        enemies:[]
+      });
       io.to(player.id).emit("player:respawned", {
         session:{...player.state, source:"ricky-portal-complete"},
         message:"Ricky referme la breche derriere vous.",
         at:now
       });
-      objective.returnedMemberIds.push(player.id);
+    }
+    const resolvedMemberIds = new Set([
+      ...objective.returnedMemberIds,
+      ...(instance.abandonedMemberIds || [])
+    ]);
+    if(getJoinedMemberIds(instance).every(memberId=>resolvedMemberIds.has(memberId))){
+      resetGroupInstance?.(group.id, "ricky-portal-complete");
     }
   }
 
@@ -1196,6 +1229,12 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       ally.alive = false;
       return;
     }
+    const maxShield = Math.max(0, Number(ally.maxShield || 0));
+    ally.shield = Math.min(
+      maxShield,
+      Math.max(0, Number(ally.shield || 0))
+        + Math.max(0, Number(ally.shieldRegenPerSecond || 0)) * Math.max(0, Number(dt || 0))
+    );
     const leader = getRickyFollowTarget(group);
     if(!leader?.state){
       ally.vx = 0;
@@ -1221,11 +1260,11 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       }
       if(targetDistance <= Number(ally.attackRange || 600) && now >= Number(ally.nextLaserAt || 0)){
         ally.nextLaserAt = now + Number(ally.laserCooldownMs || 1400);
-        damagePortalEnemyByRicky(group, target, randomBetween(1000, 1500), "laser", now);
+        damagePortalEnemyByRicky(group, target, randomBetween(ally.laserDamageMin, ally.laserDamageMax), "laser", now);
       }
       if(targetDistance <= Number(ally.attackRange || 600) && now >= Number(ally.nextRocketAt || 0)){
         ally.nextRocketAt = now + Number(ally.rocketCooldownMs || 4600);
-        damagePortalEnemyByRicky(group, target, randomBetween(500, 1000), "rocket", now);
+        damagePortalEnemyByRicky(group, target, randomBetween(ally.rocketDamageMin, ally.rocketDamageMax), "rocket", now);
       }
       return;
     }

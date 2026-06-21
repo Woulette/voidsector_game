@@ -1,12 +1,12 @@
 export { ships } from "./ships.js";
 export { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js";
-export { FIRMS, getFirmDefinition, getFirmHomeMapName, getFirmIdFromMapName, getFirmMapId, getFirmMapName, getFirmMapPrefix, normalizeFirmId } from "./firms.js";
+export { FIRMS, getCanonicalMapName, getFirmDefinition, getFirmHomeMapName, getFirmIdFromMapName, getFirmMapId, getFirmMapName, getFirmMapPrefix, normalizeFirmId } from "./firms.js";
 export { craftResourceCatalog, pageText, portals, questCatalog, rawMaterialCatalog, refineryMaterialCatalog, refineryRecipes, skills } from "./progression.js";
 export { COMMON_CRAFT_RESOURCES, ELITE_CRAFT_RESOURCES, MYTHIC_CRAFT_RESOURCES, RARE_CRAFT_RESOURCES, RESOURCE_DROP_POOLS, VERY_RARE_CRAFT_RESOURCES } from "./resources.js";
 
 export const defaultState = {
   economyVersion:1,
-  rankKillPointsVersion:2,
+  rankKillPointsVersion:3,
   player:{name:"NOVA-37", firmId:"astra", firmSelected:false, level:1, xp:0, xpNext:3000, credits:0, premium:0, premiumUntil:0, premiumActive:false, skillPoints:1, totalXp:0, reputation:0, totalKills:0, monsterRankPoints:0, totalPlayerKills:0, totalPlaySeconds:0, laserShotsFired:0, rocketShotsFired:0, missileShotsFired:0, rankScore:0, activeTitleId:null, titleVisible:true},
   premiumRewardState:{monthKey:"", claimedDays:[], lastClaimDate:""},
   starterPackPurchases:[],

@@ -30,7 +30,7 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
       player:target,
       action:{kind:"hp-loss", amount:hpLost}
     });
-    emitProfileSync?.(target, questResult.profile);
+    if(questResult?.failed?.length) emitProfileSync?.(target, questResult.profile);
     if(questResult.updates?.length || questResult.failed?.length){
       io.to(target.id).emit("quest:fail-progress", {
         updates:questResult.updates || [],
@@ -70,7 +70,8 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
       toY
     });
 
-    io.to(map.room || `map:${map.id}`).emit("enemy:attack", {
+    const attackRecipient = target.npcTarget ? (map.room || `map:${map.id}`) : target.id;
+    io.to(attackRecipient).emit("enemy:attack", {
       sourceId:enemy.id,
       enemyId:enemy.id,
       targetId:target.id,

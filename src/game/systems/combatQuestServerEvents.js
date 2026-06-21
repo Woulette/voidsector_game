@@ -30,15 +30,23 @@ export function compactQuestRewardLabels(reward = {}, {
   const materialRewards = {...(reward.materials || {}), ...(reward.shipCargoMaterialsForced || {})};
   for(const [materialId, amount] of Object.entries(materialRewards)){
     const material = byId(materialList, materialId);
-    labels.push(`+${format(amount)} ${material?.short || material?.name || materialId}`);
+    labels.push(`+${format(amount)} ${material?.name || material?.short || materialId}`);
   }
   return labels;
+}
+
+export function getQuestRewardTone(quest = {}){
+  if(quest.red) return "red";
+  if(quest.special) return "special";
+  if(quest.rare) return "rare";
+  return "normal";
 }
 
 export function createQuestServerEventProcessor({
   multiplayer,
   rewards,
   showToast,
+  getProfileState = ()=>null,
   getAllQuests = defaultGetAllQuests
 }){
   const processedQuestClaimIds = new Set();
@@ -59,14 +67,17 @@ export function createQuestServerEventProcessor({
 
   function applyQuestClaimEvents(){
     if(!multiplayer.questEvents?.length) return;
+    const quests = getAllQuests();
     for(const event of multiplayer.questEvents){
       if(event?.type !== "claimed") continue;
       const reward = event.reward || {};
       const claimId = `${event.id || "quest"}:${event.at || 0}:${event.receivedAt || 0}`;
       if(processedQuestClaimIds.has(claimId)) continue;
       processedQuestClaimIds.add(claimId);
+      const quest = quests.find(entry=>entry.id === event.id);
       rewards.showLootNotice?.({
         questTitle:event.title ? `Quete : ${event.title}` : "Quete terminee",
+        questTone:getQuestRewardTone(quest),
         credits:Math.max(0, Math.round(Number(reward.credits || 0))),
         xp:Math.max(0, Math.round(Number(reward.xp || 0))),
         premium:Math.max(0, Math.round(Number(reward.premium || 0))),
@@ -78,7 +89,20 @@ export function createQuestServerEventProcessor({
 
   function applyQuestFailureEvents(){
     if(!multiplayer.questFailureEvents?.length) return;
+    const profileState = getProfileState?.();
     for(const event of multiplayer.questFailureEvents){
+      if(profileState){
+        if(!profileState.questFailProgress || typeof profileState.questFailProgress !== "object") profileState.questFailProgress = {};
+        for(const update of event.updates || []){
+          const questId = String(update?.questId || update?.id || "");
+          if(!questId) continue;
+          const current = profileState.questFailProgress[questId] || {};
+          profileState.questFailProgress[questId] = {
+            ...current,
+            ...(Number.isFinite(Number(update.hpLost)) ? {hpLost:Number(update.hpLost)} : {})
+          };
+        }
+      }
       for(const failed of event.failed || []){
         const quest = getAllQuests().find(entry=>entry.id === (failed?.questId || failed?.id));
         const reason = failed?.failType === "timeElapsed" ? "temps depasse" : "limite de vie depassee";

@@ -61,10 +61,10 @@ test("visit coordinate progress uses the trusted server position", ()=>{
     }
   });
 
-  socket.trigger("quest:progress", {type:"visit_coordinates", zoneName:"ASTRA-05", x:0, y:0, amount:100});
+  socket.trigger("quest:progress", {type:"visit_coordinates", zoneName:"Helion-05", x:0, y:0, amount:100});
 
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].zoneName, "ASTRA-02");
+  assert.equal(calls[0].zoneName, "Helion-02");
   assert.equal(calls[0].x, 4300);
   assert.equal(calls[0].y, -3300);
   assert.equal(calls[0].amount, 1);
@@ -79,7 +79,7 @@ test("npc quest progress is rejected when the player is too far", ()=>{
     }
   });
 
-  socket.trigger("quest:progress", {type:"talk_npc", npcId:"astra02_portal_mechanic", zoneName:"ASTRA-02"});
+  socket.trigger("quest:progress", {type:"talk_npc", npcId:"astra02_portal_mechanic", zoneName:"Helion-02"});
 
   assert.equal(calls.length, 0);
   assert.equal(socket.emitted.at(-1)?.event, "quest:error");
@@ -99,14 +99,14 @@ test("npc quest progress uses trusted map and npc when the player is nearby", ()
     type:"deliver_item",
     itemId:"teleportation_fluid",
     npcId:"astra02_portal_mechanic",
-    zoneName:"ASTRA-05"
+    zoneName:"Helion-05"
   });
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].type, "deliver_item");
   assert.equal(calls[0].itemId, "teleportation_fluid");
   assert.equal(calls[0].npcId, "astra02_portal_mechanic");
-  assert.equal(calls[0].zoneName, "ASTRA-02");
+  assert.equal(calls[0].zoneName, "Helion-02");
 });
 
 test("mission control progress requires the trusted station position", ()=>{
@@ -118,7 +118,7 @@ test("mission control progress requires the trusted station position", ()=>{
     }
   });
 
-  rejected.trigger("quest:progress", {type:"mission_control", stationId:"quests", zoneName:"ASTRA-01"});
+  rejected.trigger("quest:progress", {type:"mission_control", stationId:"quests", zoneName:"Helion-01"});
   assert.equal(rejectedCalls.length, 0);
   assert.equal(rejected.emitted.at(-1)?.event, "quest:error");
   assert.match(rejected.emitted.at(-1)?.payload?.message || "", /trop loin/i);
@@ -131,7 +131,7 @@ test("mission control progress requires the trusted station position", ()=>{
     }
   });
 
-  nearStation.trigger("quest:progress", {type:"mission_control", stationId:"quests", zoneName:"ASTRA-01"});
+  nearStation.trigger("quest:progress", {type:"mission_control", stationId:"quests", zoneName:"Helion-01"});
   assert.equal(relaxedCalls.length, 1);
   assert.equal(relaxedCalls[0].stationId, "quests");
 
@@ -143,9 +143,37 @@ test("mission control progress requires the trusted station position", ()=>{
     }
   });
 
-  accepted.trigger("quest:progress", {type:"mission_control", stationId:"forged", zoneName:"ASTRA-05"});
+  accepted.trigger("quest:progress", {type:"mission_control", stationId:"forged", zoneName:"Helion-05"});
   assert.equal(calls.length, 1);
   assert.equal(calls[0].type, "mission_control");
   assert.equal(calls[0].stationId, "quests");
-  assert.equal(calls[0].zoneName, "ASTRA-01");
+  assert.equal(calls[0].zoneName, "Helion-01");
+});
+
+test("Helion-05 mission control uses its dedicated relay position", ()=>{
+  const calls = [];
+  const relay = installQuestHandler({
+    player:{id:"socket-quest", mapId:"4", state:{x:-4300, y:3300, mapId:"4"}},
+    progressProfileQuestAction(_socket, action){
+      calls.push(action);
+    }
+  });
+
+  relay.trigger("quest:progress", {type:"mission_control", stationId:"forged", zoneName:"Helion-01"});
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].stationId, "quests");
+  assert.equal(calls[0].zoneName, "Helion-05");
+
+  const rejectedCalls = [];
+  const outsideRelay = installQuestHandler({
+    player:{id:"socket-quest", mapId:"4", state:{x:-3500, y:3300, mapId:"4"}},
+    progressProfileQuestAction(_socket, action){
+      rejectedCalls.push(action);
+    }
+  });
+
+  outsideRelay.trigger("quest:progress", {type:"mission_control", stationId:"quests"});
+  assert.equal(rejectedCalls.length, 0);
+  assert.match(outsideRelay.emitted.at(-1)?.payload?.message || "", /trop loin/i);
 });

@@ -29,10 +29,30 @@ export const RANK_TABLE = [
 export const RANK_POINT_RULES = [
   {id:"xp", label:"Expérience totale gagnée", source:"XP totale gagnée", rate:"1 point par 100 000 XP", multiplier:0.00001},
   {id:"reputation", label:"Réputation", source:"Réputation totale gagnée", rate:"1 point par 10 000 réputation", multiplier:0.0001},
-  {id:"kill", label:"Monstres détruits", source:"Points fixes au moment du kill selon l'écart de niveau", rate:"1/10 à 1/1000 point par monstre", multiplier:1},
+  {id:"kill", label:"Monstres détruits", source:"Barème fixe propre à chaque monstre", rate:"Points attribués par paliers de kills", multiplier:1},
   {id:"level", label:"Niveaux pilote", source:"Progression du niveau du commandant", rate:"1 000 points par niveau gagné après le niveau 1", multiplier:1000},
   {id:"portal", label:"Portails terminés", source:"Nettoyage complet des 30 vagues d'un portail", rate:"2 500 points par portail terminé", multiplier:2500}
 ];
+
+export const MONSTER_RANK_POINT_RULES = Object.freeze({
+  drone_pirate:Object.freeze({kills:70, points:1}),
+  raider_astral:Object.freeze({kills:70, points:1}),
+  chasseur_spectral:Object.freeze({kills:50, points:1}),
+  pondeuse_astrale:Object.freeze({kills:1, points:1}),
+  cuirasse_nebulaire:Object.freeze({kills:30, points:1}),
+  boss_drone_pirate:Object.freeze({kills:10, points:1}),
+  boss_raider_astral:Object.freeze({kills:10, points:1}),
+  deadly_eclaireur:Object.freeze({kills:3, points:1}),
+  deadly_intercepteur:Object.freeze({kills:3, points:1}),
+  deadly_traqueur:Object.freeze({kills:1, points:1}),
+  deadly_gardien:Object.freeze({kills:1, points:1}),
+  deadly_ravageur:Object.freeze({kills:1, points:2}),
+  eclanite:Object.freeze({kills:1, points:1}),
+  cristanite:Object.freeze({kills:1, points:1}),
+  astranite:Object.freeze({kills:1, points:1}),
+  cuirasse_ambre:Object.freeze({kills:1, points:2}),
+  deadly_amiral_k137:Object.freeze({kills:1, points:120})
+});
 
 export const LOCAL_LEADERBOARD_PREVIEW = [
   {id:"vex09", pilot:"VEX-09", level:34, kills:1260, portals:12, points:186000},
@@ -62,17 +82,21 @@ export function getRankForScore(score){
   return current;
 }
 
-export function calculateMonsterKillRankPoints(playerLevel=1, enemyLevel=1){
-  const gap = Math.max(0, Math.floor(Number(playerLevel || 1)) - Math.floor(Number(enemyLevel || 1)));
-  if(gap <= 4) return 1 / 10;
-  if(gap <= 9) return 1 / 25;
-  if(gap <= 14) return 1 / 100;
-  if(gap <= 19) return 1 / 150;
-  if(gap <= 24) return 1 / 200;
-  if(gap <= 29) return 1 / 300;
-  if(gap <= 34) return 1 / 500;
-  if(gap <= 39) return 1 / 700;
-  return 1 / 1000;
+export function getMonsterRankPointRule(kind){
+  return MONSTER_RANK_POINT_RULES[String(kind || "")] || null;
+}
+
+export function calculateMonsterRankPointsForKills(kind, kills=0){
+  const rule = getMonsterRankPointRule(kind);
+  if(!rule) return 0;
+  const cleanKills = Math.max(0, Math.floor(Number(kills || 0)));
+  return Math.floor(cleanKills / rule.kills) * rule.points;
+}
+
+export function calculateMonsterKillRankPoints(kind, previousKills=0){
+  const cleanKills = Math.max(0, Math.floor(Number(previousKills || 0)));
+  return calculateMonsterRankPointsForKills(kind, cleanKills + 1)
+    - calculateMonsterRankPointsForKills(kind, cleanKills);
 }
 
 export function calculateRankScore(player={}, portalClears=0){
@@ -94,7 +118,7 @@ export function buildRankBreakdown(player={}, portalClears=0){
   return [
     {id:"xp", label:"XP totale gagnée", source:"1 point pour 100 000 XP", amount:totalXp, rate:0.00001, formula:`floor(${totalXp} / 100000)`, points:Math.floor(totalXp / 100000)},
     {id:"reputation", label:"Réputation", source:"1 point pour 10 000 réputation", amount:reputation, rate:0.0001, formula:`floor(${reputation} / 10000)`, points:Math.floor(reputation / 10000)},
-    {id:"kill", label:"Monstres détruits", source:"1 point pour 10 monstres tués selon niveau joueur / ennemi", amount:totalKills, rate:null, formula:`${monsterRankPoints} points historiques`, points:monsterRankPoints},
+    {id:"kill", label:"Monstres détruits", source:"Barème fixe selon le type de monstre", amount:totalKills, rate:null, formula:`${monsterRankPoints} points par paliers`, points:monsterRankPoints},
     {id:"level", label:"Niveaux gagnés", source:"1 000 points par niveau gagné", amount:levelBonus, rate:1000, formula:`${levelBonus} x 1000`, points:levelBonus * 1000},
     {id:"portal", label:"Portails terminés", source:"2 500 points par portail terminé", amount:clears, rate:2500, formula:`${clears} x 2500`, points:clears * 2500}
   ];

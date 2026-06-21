@@ -145,6 +145,64 @@ test("portal lives and forced abandonment are controlled by the server", ()=>{
   assert.equal(fixture.events.some(entry=>entry.event === "player:respawned" && entry.payload.portalAbandoned), true);
 });
 
+test("Deadly continue respawns at the initial portal entry with full health", ()=>{
+  const group = {
+    id:"group-deadly-continue",
+    members:["player-1"],
+    instance:{
+      type:"portal",
+      portal:{id:"ricky"},
+      spawn:{mapId:"portal-ricky", x:0, y:3400},
+      playerLives:{"player-1":3},
+      joinedMemberIds:["player-1"],
+      abandonedMemberIds:[],
+      enemies:[]
+    }
+  };
+  const fixture = createFixture({
+    group,
+    state:worldState({mapId:"portal-ricky", hp:0, x:1700, y:-900})
+  });
+
+  fixture.manager.markPlayerDead(fixture.player);
+  assert.equal(fixture.manager.respawnPlayer(fixture.socket, "portal-resume"), true);
+
+  assert.equal(fixture.player.state.mapId, "portal-ricky");
+  assert.equal(fixture.player.state.x, 0);
+  assert.equal(fixture.player.state.y, 3400);
+  assert.equal(fixture.player.state.hp, fixture.player.state.maxHp);
+  assert.equal(fixture.player.state.shield, fixture.player.state.maxShield);
+});
+
+test("abandoning Deadly returns each pilot to their firm map one base", ()=>{
+  const group = {
+    id:"group-deadly-abandon",
+    members:["player-1"],
+    instance:{
+      type:"portal",
+      portal:{id:"ricky"},
+      spawn:{mapId:"portal-ricky", x:0, y:3400},
+      playerLives:{"player-1":3},
+      joinedMemberIds:["player-1"],
+      abandonedMemberIds:[],
+      enemies:[]
+    }
+  };
+  const fixture = createFixture({
+    group,
+    profile:{player:{firmId:"cyan", premium:500}},
+    state:worldState({mapId:"portal-ricky", hp:0, x:1700, y:-900})
+  });
+
+  fixture.manager.markPlayerDead(fixture.player);
+  assert.equal(fixture.manager.respawnPlayer(fixture.socket, "spawn"), true);
+
+  assert.equal(fixture.player.state.mapId, "20");
+  assert.equal(fixture.player.state.x, -4300);
+  assert.equal(fixture.player.state.y, -3300);
+  assert.deepEqual(group.instance.abandonedMemberIds, ["player-1"]);
+});
+
 test("a repeated respawn request resends the authoritative live session", ()=>{
   const fixture = createFixture({state:worldState({hp:0})});
   fixture.manager.markPlayerDead(fixture.player);

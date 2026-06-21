@@ -110,15 +110,20 @@ export function findWorldSpawn(map, rnd){
   return {x:0, y:0};
 }
 
-export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = null){
+export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = null, options = {}){
   const kind = forcedKind || pickWeighted(map.enemyTypes, rnd);
   const base = WORLD_ENEMY_TYPES[kind] || WORLD_ENEMY_TYPES.drone_pirate;
-  const level = randomLevel(map, rnd);
+  const forcedLevel = Number(options.level);
+  const level = Number.isFinite(forcedLevel)
+    ? Math.max(1, Math.floor(forcedLevel))
+    : randomLevel(map, rnd);
   const baseLevel = Math.max(1, Math.floor(Number(base.baseLevel || 1)));
   const statSource = WORLD_ENEMY_TYPES[base.statSourceKind] || base;
   const statSourceBaseLevel = Math.max(1, Math.floor(Number(statSource.baseLevel || 1)));
   const statMultiplier = Math.max(0, Number(base.statMultiplier || 1));
-  const {x, y} = findWorldSpawn(map, rnd);
+  const generatedSpawn = findWorldSpawn(map, rnd);
+  const x = Number.isFinite(Number(options.x)) ? Number(options.x) : generatedSpawn.x;
+  const y = Number.isFinite(Number(options.y)) ? Number(options.y) : generatedSpawn.y;
   const hp = Math.round(scaleMonsterStat(statSource.hp(statSourceBaseLevel), statSourceBaseLevel, level) * statMultiplier);
   const shieldGrowthPerLevel = Number(base.shieldGrowthPerLevel);
   const shield = Number.isFinite(shieldGrowthPerLevel)
@@ -141,7 +146,7 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
     scaleMonsterReward(rewardSource.reward(rewardSourceBaseLevel), rewardSourceBaseLevel, level)
   ).map(([key, value])=>[key, Math.round(Number(value || 0) * rewardMultiplier)]));
   return {
-    id:`W-${map.id}-E${index}`,
+    id:options.id || `W-${map.id}-E${index}`,
     serverControlled:true,
     worldMapId:map.id,
     kind:base.kind,
@@ -166,10 +171,16 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
     attackDamage,
     attackDamageMin,
     attackDamageMax,
+    useExactDamageRange:Boolean(base.useExactDamageRange),
     attackCooldown:base.attackCooldown,
     projectileSpeed:base.projectileSpeed || 600,
     particle:base.particle || base.color,
     onHitEffect,
+    requiresPlayerAttack:Boolean(base.requiresPlayerAttack),
+    followBeforeAttacked:Boolean(base.followBeforeAttacked),
+    targetMemoryMs:Math.max(0, Number(base.targetMemoryMs || 0)),
+    deathEffect:base.deathEffect ? {...base.deathEffect} : null,
+    deathSpawn:base.deathSpawn ? {...base.deathSpawn} : null,
     reward,
     nextAttackAt:0,
     color:base.color,
@@ -183,6 +194,8 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
     wanderT:0,
     wanderX:x,
     wanderY:y,
-    respawning:false
+    respawning:false,
+    temporarySpawn:Boolean(options.temporarySpawn),
+    spawnedBy:options.spawnedBy || null
   };
 }

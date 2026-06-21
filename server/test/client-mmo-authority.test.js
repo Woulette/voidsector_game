@@ -9,6 +9,8 @@ function createWeaponFixture(enemy){
   let consumed = 0;
   let saved = 0;
   let resolved = 0;
+  let actionBarRefreshes = 0;
+  let quickPanelRefreshes = 0;
   const ammo = {id:"ammo_x1", name:"M1", weaponClass:"laser", multiplier:1};
   const system = createWeaponSystem({
     getPlayer:()=>({x:0, y:0, damageBonus:0, damageMultiplier:1, extraBonus:{}}),
@@ -48,13 +50,21 @@ function createWeaponFixture(enemy){
     saveState(){
       saved += 1;
     },
-    refreshActionBar(){},
-    refreshQuickPanel(){},
+    refreshActionBar(){ actionBarRefreshes += 1; },
+    refreshQuickPanel(){ quickPanelRefreshes += 1; },
     showToast(){},
     isServerControlledEnemy:target=>Boolean(target.serverControlled),
     playerHitChance:1
   });
-  return {consumed:()=>consumed, resolved:()=>resolved, saved:()=>saved, system, ammo};
+  return {
+    consumed:()=>consumed,
+    resolved:()=>resolved,
+    saved:()=>saved,
+    actionBarRefreshes:()=>actionBarRefreshes,
+    quickPanelRefreshes:()=>quickPanelRefreshes,
+    system,
+    ammo
+  };
 }
 
 test("server-controlled targets never consume MMO ammunition locally", ()=>{
@@ -65,6 +75,8 @@ test("server-controlled targets never consume MMO ammunition locally", ()=>{
   assert.equal(fixture.consumed(), 0);
   assert.equal(fixture.saved(), 0);
   assert.equal(fixture.resolved(), 1);
+  assert.equal(fixture.actionBarRefreshes(), 0);
+  assert.equal(fixture.quickPanelRefreshes(), 0);
 });
 
 test("local targets are rejected in MMO-only combat", ()=>{

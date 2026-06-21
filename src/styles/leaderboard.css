@@ -85,7 +85,7 @@
 .rank-detail-wide{margin-top:10px}
 .rank-detail-empty{color:#8fb9d6;font-size:13px}
 .rank-monster-table{display:grid;gap:7px}
-.rank-monster-table>div{grid-template-columns:minmax(0,1fr) 70px 110px 170px 100px}
+.rank-monster-table>div{grid-template-columns:minmax(0,1fr) 70px 130px 100px}
 .rank-monster-table .rank-monster-head{background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.16)}
 .rank-monster-table .rank-monster-head span{color:#8ee7ff;text-transform:uppercase;letter-spacing:.8px;font-weight:900}
 .rank-monster-table em{color:#bbf7d0;font-style:normal;font-weight:900}

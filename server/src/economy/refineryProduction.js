@@ -42,6 +42,40 @@ function getMaterialStorageCap(profile, id){
   return getMaterialStorageCapAt(id, getRefineryModuleLevel(profile, "storage"));
 }
 
+function produceRawMaterial(profile, materialId, requestedAmount){
+  const current = getMaterialCount(profile, materialId);
+  const cap = getMaterialStorageCap(profile, materialId);
+  const produced = Math.min(Math.max(0, Math.floor(requestedAmount)), Math.max(0, cap - current));
+  if(produced <= 0) return 0;
+  setMaterialCount(profile, materialId, current + produced);
+  return produced;
+}
+
+function produceRecipeMaterial(profile, materialId, requestedAmount){
+  const recipe = refineryRecipes.find(item=>item.outputId === materialId);
+  if(!recipe) return 0;
+  const outputAmount = Math.max(1, Math.floor(Number(recipe.outputAmount || 1)));
+  const current = getMaterialCount(profile, materialId);
+  const cap = getMaterialStorageCap(profile, materialId);
+  const requestedCrafts = Math.floor(Math.max(0, requestedAmount) / outputAmount);
+  const storageCrafts = Math.floor(Math.max(0, cap - current) / outputAmount);
+  let affordableCrafts = Math.min(requestedCrafts, storageCrafts);
+  for(const [inputId, amount] of Object.entries(recipe.costs || {})){
+    const inputPerCraft = Math.max(0, Number(amount || 0));
+    if(inputPerCraft <= 0) continue;
+    affordableCrafts = Math.min(affordableCrafts, Math.floor(getMaterialCount(profile, inputId) / inputPerCraft));
+  }
+  if(affordableCrafts <= 0) return 0;
+  for(const [inputId, amount] of Object.entries(recipe.costs || {})){
+    const consumed = Math.max(0, Number(amount || 0)) * affordableCrafts;
+    if(consumed <= 0) continue;
+    setMaterialCount(profile, inputId, getMaterialCount(profile, inputId) - consumed);
+  }
+  const produced = affordableCrafts * outputAmount;
+  setMaterialCount(profile, materialId, current + produced);
+  return produced;
+}
+
 export function tickServerRefineryProduction(profile, now = Date.now()){
   if(!profile || typeof profile !== "object") return false;
   const lastTick = Math.max(0, Number(profile.refineryLastTick || now));
@@ -65,15 +99,11 @@ export function tickServerRefineryProduction(profile, now = Date.now()){
     const perTick = rate * REFINERY_PRODUCTION_TICK_MS / 3600000;
     const previousRemainder = Math.max(0, Math.min(1, Number(profile.refineryProductionRemainders[material.id] || 0)));
     const accumulated = previousRemainder + perTick * ticks;
-    const produced = Math.floor(accumulated + 1e-9);
-    profile.refineryProductionRemainders[material.id] = Math.max(0, accumulated - produced);
-    if(produced <= 0) continue;
-    const current = getMaterialCount(profile, material.id);
-    const cap = getMaterialStorageCap(profile, material.id);
-    const next = Math.min(cap, current + produced);
-    if(next !== current){
-      setMaterialCount(profile, material.id, next);
-    }
+    const requestedProduction = Math.floor(accumulated + 1e-9);
+    profile.refineryProductionRemainders[material.id] = Math.max(0, accumulated - requestedProduction);
+    if(requestedProduction <= 0) continue;
+    if(material.kind === "raw") produceRawMaterial(profile, material.id, requestedProduction);
+    else produceRecipeMaterial(profile, material.id, requestedProduction);
   }
   profile.refineryLastTick = lastTick + ticks * REFINERY_PRODUCTION_TICK_MS;
   return changed;

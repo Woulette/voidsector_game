@@ -25,7 +25,7 @@ const PORTAL_TRANSFER_POINTS = {
 const ZONE_TWO_FOUR_PORTAL_POINTS = {
   astra:{map2:"bottomRight", map4:"bottomLeft"},
   cyan:{map2:"topRight", map4:"topLeft"},
-  jaune:{map2:"topLeft", map4:"bottomLeft"},
+  jaune:{map2:"topLeft", map4:"topRight"},
   verte:{map2:"bottomLeft", map4:"bottomRight"}
 };
 function buildWorldMapTransitions(){
@@ -38,21 +38,22 @@ function buildWorldMapTransitions(){
     add(getFirmMapId(firm.id, 1), getFirmMapId(firm.id, 2));
     add(getFirmMapId(firm.id, 2), getFirmMapId(firm.id, 3));
     add(getFirmMapId(firm.id, 2), getFirmMapId(firm.id, 4));
+    add(getFirmMapId(firm.id, 3), getFirmMapId(firm.id, 4));
     add(getFirmMapId(firm.id, 3), getFirmMapId(firm.id, 5));
     add(getFirmMapId(firm.id, 4), getFirmMapId(firm.id, 5));
   }
   const byName = new Map(Object.values(WORLD_MAPS).map(map=>[String(map.name || ""), Number(map.id)]));
   for(const [from, to] of [
-    ["ASTRA-03", "CYAN-03"],
-    ["CYAN-04", "JAUNE-04"],
-    ["CYAN-05", "ASTRA-05"],
-    ["JAUNE-03", "VERTE-03"],
-    ["ASTRA-04", "VERTE-04"],
-    ["JAUNE-05", "VERTE-05"],
-    ["ASTRA-05", "CORE"],
-    ["CYAN-05", "CORE"],
-    ["JAUNE-05", "CORE"],
-    ["VERTE-05", "CORE"]
+    ["Helion-03", "Nereid-03"],
+    ["Nereid-04", "Aureon-04"],
+    ["Nereid-05", "Helion-05"],
+    ["Aureon-03", "Sylva-03"],
+    ["Helion-04", "Sylva-04"],
+    ["Aureon-05", "Sylva-05"],
+    ["Helion-05", "CORE"],
+    ["Nereid-05", "CORE"],
+    ["Aureon-05", "CORE"],
+    ["Sylva-05", "CORE"]
   ]){
     if(byName.has(from) && byName.has(to)) add(byName.get(from), byName.get(to));
   }
@@ -298,8 +299,18 @@ function canChangeMap({player, previous, nextMapId, nextPoint, groups, profile})
     && (isNearMapTransferPoint(nextPoint, nextMap) || isPointInWorldSafeArea(nextPoint, nextMap, PORTAL_TRANSFER_PADDING));
 }
 
-function allowedMovementDistance(profile, ship, elapsedSeconds){
-  const speedWithEquipmentAndSkills = (getTrustedMovementSpeed(profile, ship) + 100) * 1.2;
+function getActiveMovementSlow(player, now = Date.now()){
+  const slow = player?.statusEffects?.slow;
+  if(!slow || now >= Number(slow.expiresAt || 0)) return 0;
+  return Math.max(0, Number(slow.amount || 0));
+}
+
+function getEffectiveMovementSpeed(profile, ship, player, now = Date.now()){
+  return Math.max(1, getTrustedMovementSpeed(profile, ship) - getActiveMovementSlow(player, now));
+}
+
+function allowedMovementDistance(profile, ship, elapsedSeconds, player, now){
+  const speedWithEquipmentAndSkills = (getEffectiveMovementSpeed(profile, ship, player, now) + 100) * 1.2;
   return speedWithEquipmentAndSkills * elapsedSeconds + MOVEMENT_JITTER_ALLOWANCE;
 }
 
@@ -437,7 +448,7 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
     : 0.05;
   if(previous && mapId === String(previous.mapId ?? player?.mapId ?? "0")){
     const distance = Math.hypot(point.x - finite(previous.x), point.y - finite(previous.y));
-    const allowed = allowedMovementDistance(profile, ship, elapsedSeconds);
+    const allowed = allowedMovementDistance(profile, ship, elapsedSeconds, player, now);
     if(distance > allowed){
       const ratio = allowed / Math.max(1, distance);
       point = {
@@ -521,7 +532,7 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
       shipId:ship.id,
       shipImg:String(payload?.shipImg || previous?.shipImg || ship.combatImg || ship.img || ""),
       level:Math.max(1, Math.floor(finite(profile?.player?.level, previous?.level || 1))),
-      speed:getTrustedMovementSpeed(profile, ship),
+      speed:getEffectiveMovementSpeed(profile, ship, player, now),
       radius:Math.max(32, Math.min(96, finite(payload?.radius, previous?.radius || 48))),
       droneCount:droneState.droneCount,
       droneUpgrades:droneState.droneUpgrades,

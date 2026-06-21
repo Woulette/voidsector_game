@@ -101,4 +101,10 @@ test("portal instance snapshots are sent only to members that joined the instanc
   assert.equal(events.some(entry=>entry.id === "a" && entry.event === "coop:enemies"), true);
   assert.equal(events.some(entry=>entry.id === "b" && entry.event === "coop:enemies"), false);
   assert.equal(events.some(entry=>entry.id === groupId && entry.event === "coop:enemies"), false);
+
+  events.length = 0;
+  group.instance.objective = {returnedMemberIds:["a"]};
+  manager.emitInstance(group);
+
+  assert.equal(events.some(entry=>entry.event === "coop:enemies"), false);
 });

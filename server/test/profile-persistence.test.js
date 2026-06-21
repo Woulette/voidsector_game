@@ -147,3 +147,78 @@ test("profile manager persists one account at a time with monotonic versions", a
   assert.equal(writes[1][0][1].updatedAt > writes[0][0][1].updatedAt, true);
   assert.equal(writes[1][0][1].player.credits, 20);
 });
+
+test("combat profile mutations coalesce persistence until the next flush", async ()=>{
+  const writes = [];
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:async()=>[],
+    persistProfileEntries:async entries=>writes.push(structuredClone(entries))
+  });
+  const player = {
+    id:"socket-combat",
+    accountId:"combat",
+    name:"Combat",
+    account:{username:"Combat", firmId:"astra"}
+  };
+
+  manager.syncForSocket({emit(){}}, player);
+  await manager.flushPersistence();
+  writes.length = 0;
+
+  manager.updateCombatProfileForPlayer({
+    player,
+    update:profile=>{
+      profile.player.laserShotsFired = 1;
+      return {ok:true};
+    }
+  });
+  manager.updateCombatProfileForPlayer({
+    player,
+    update:profile=>{
+      profile.player.laserShotsFired = 2;
+      return {ok:true};
+    }
+  });
+
+  assert.equal(writes.length, 0);
+  await manager.flushPersistence();
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0][0][1].player.laserShotsFired, 2);
+});
+
+test("combat rewards update progression and defer persistence", async ()=>{
+  const writes = [];
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:async()=>[],
+    persistProfileEntries:async entries=>writes.push(structuredClone(entries))
+  });
+  const player = {
+    id:"socket-combat-reward",
+    accountId:"combat-reward",
+    name:"Combat Reward",
+    account:{username:"Combat Reward", firmId:"astra"}
+  };
+
+  manager.syncForSocket({emit(){}}, player);
+  await manager.flushPersistence();
+  writes.length = 0;
+  const before = manager.getProfileForPlayer(player);
+  const creditsBefore = before.player.credits;
+  const premiumBefore = before.player.premium;
+  const killsBefore = before.player.totalKills;
+  const profile = manager.applyCombatReward({
+    player,
+    reward:{credits:30000, xp:8000, premium:24, enemyKind:"deadly_eclaireur", enemyLevel:20}
+  });
+
+  assert.equal(profile.player.credits, creditsBefore + 30000);
+  assert.equal(profile.player.premium, premiumBefore + 24);
+  assert.equal(profile.player.totalKills, killsBefore + 1);
+  assert.equal(writes.length, 0);
+  await manager.flushPersistence();
+  assert.equal(writes.length, 1);
+});

@@ -18,6 +18,15 @@ export const RICKY_PORTAL_MAP = Object.freeze({
   exitDelaySeconds:15
 });
 
+export const RICKY_PORTAL_ASSETS = Object.freeze({
+  cageIntact:"assets/portals/ricky/cage_prisoner_morty.png",
+  cageDestroyed:"assets/portals/ricky/cage_destroyed.png",
+  leverInactive:"assets/portals/ricky/lever_inactive.png",
+  leverActive:"assets/portals/ricky/lever_active.png",
+  asteroidWallStraight:"assets/portals/ricky/asteroid_wall_straight.png",
+  asteroidWallCorner:"assets/portals/ricky/asteroid_wall_corner.png"
+});
+
 export const RICKY_PORTAL_LEVERS = Object.freeze([
   Object.freeze({id:"south_west", number:1, label:"Balise 1", x:-4300, y:2850}),
   Object.freeze({id:"south_east", number:2, label:"Balise 2", x:4300, y:2850}),

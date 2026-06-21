@@ -7,7 +7,7 @@ export function installCombatDebugCommands({mapList, getMapPortals, isRunning, g
     const token = normalizeMapToken(value);
     const asNumber = Number(token);
     if(Number.isFinite(asNumber)){
-      const astraName = `ASTRA-${String(asNumber).padStart(2, "0")}`;
+      const astraName = `Helion-${String(asNumber).padStart(2, "0")}`;
       return mapList.find(map=>map.name === astraName) || mapList.find(map=>map.id === asNumber) || null;
     }
     return mapList.find(map=>normalizeMapToken(map.name) === token)

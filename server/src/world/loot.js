@@ -13,7 +13,7 @@ const PORTAL_ANCHOR_KEY_DROP = {
 
 function isPortalAnchorKeyDropZone(mapId){
   const mapName = WORLD_MAPS[String(mapId)]?.name || String(mapId || "");
-  return /^(ASTRA|CYAN|JAUNE|VERTE)-0[1-5]$/.test(mapName);
+  return /^(Helion|Nereid|Aureon|Sylva)-0[1-5]$/i.test(mapName);
 }
 
 export function rollPortalAnchorKeyDrop(mapId, {random = Math.random} = {}){

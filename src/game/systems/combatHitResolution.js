@@ -15,6 +15,13 @@ function makeImpactSparks({count, color, speedMin, speedMax, lengthMin, lengthMa
   });
 }
 
+function markEnemyAttacked(enemy){
+  if(!enemy) return;
+  enemy.aggro = true;
+  enemy.attackedByPlayer = true;
+  enemy.targetOutOfRangeT = 0;
+}
+
 function makeImpactSmoke(count){
   return Array.from({length:count}, ()=>({
     angle:Math.random() * Math.PI * 2,
@@ -151,9 +158,9 @@ export function createCombatHitResolutionSystem({
       missileSalvos.delete(salvoId);
       const finalEnemy = enemies.find(e=>e.id === salvo.targetId && e.hp > 0) || enemy;
       if(!finalEnemy || finalEnemy.hp <= 0) return;
+      markEnemyAttacked(finalEnemy);
       if(salvo.damage > 0){
         const applied = damageEnemy(finalEnemy, salvo.damage, {weaponClass:"missile", ammoId:bullet.ammoId, count:bullet.serverFireCount || salvo.total});
-        finalEnemy.aggro = true;
         if(applied !== false){
           pushDamageText({x:finalEnemy.x, y:finalEnemy.y-finalEnemy.radius-16, value:salvo.damage});
           if(finalEnemy.hp <= 0) rewardEnemy(finalEnemy);
@@ -164,9 +171,9 @@ export function createCombatHitResolutionSystem({
       return;
     }
 
+    markEnemyAttacked(enemy);
     if(hit){
       const applied = damageEnemy(enemy, dealt, {weaponClass:"missile", ammoId:bullet.ammoId, count:bullet.serverFireCount || 1});
-      enemy.aggro = true;
       if(applied !== false){
         pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
         if(enemy.hp <= 0) rewardEnemy(enemy);
@@ -221,10 +228,10 @@ export function createCombatHitResolutionSystem({
       damageEnemy(enemy, 1, {weaponClass:bullet.kind === "rocket" ? "rocket" : "laser", ammoId:bullet.ammoId, count:bullet.serverFireCount || 1});
       return;
     }
+    markEnemyAttacked(enemy);
     if(hit){
       const dealt = Math.round(bullet.damage);
       const applied = damageEnemy(enemy, dealt, {weaponClass:bullet.kind === "rocket" ? "rocket" : "laser", ammoId:bullet.ammoId, count:bullet.serverFireCount || 1});
-      enemy.aggro = true;
       if(applied !== false){
         pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});
         if(enemy.hp <= 0) rewardEnemy(enemy);
@@ -245,10 +252,10 @@ export function createCombatHitResolutionSystem({
       return true;
     }
     const hit = Math.random() <= hitChance;
+    markEnemyAttacked(enemy);
     if(hit){
       const dealt = Math.round(damage);
       const applied = damageEnemy(enemy, dealt, {weaponClass:"laser", ammoId:ammo?.id || "ammo_x1", count:1});
-      enemy.aggro = true;
       spawnImpactEffect("laser", {x:enemy.x, y:enemy.y, color:laserColor, angle});
       if(applied !== false){
         pushDamageText({x:enemy.x, y:enemy.y-enemy.radius-16, value:dealt});

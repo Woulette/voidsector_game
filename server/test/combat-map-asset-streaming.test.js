@@ -97,6 +97,7 @@ test("map asset paths include decor, NPCs and tiles without duplicates", ()=>{
       tiles:[{src:"assets/dust.png"}]
     },
     questNpcs:[{npcImg:"assets/npc.png"}],
+    questStations:[{asset:"assets/relay.png"}],
     tileMap:{path:"assets/tiles", prefix:"sector", ext:"webp", rows:1, cols:2}
   });
 
@@ -105,6 +106,7 @@ test("map asset paths include decor, NPCs and tiles without duplicates", ()=>{
     "assets/decor.png",
     "assets/dust.png",
     "assets/npc.png",
+    "assets/relay.png",
     "assets/tiles/sector_0_0.webp",
     "assets/tiles/sector_1_0.webp"
   ]);

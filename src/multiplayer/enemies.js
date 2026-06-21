@@ -30,7 +30,7 @@ const SERVER_ENEMY_MAX_VISUAL_CORRECTION = 55;
 
 function sampleBufferedState(samples, delayMs = SERVER_ENEMY_INTERPOLATION_DELAY_MS){
   if(!Array.isArray(samples) || samples.length <= 0) return null;
-  const ordered = samples.filter(sample=>Number.isFinite(sample?.at)).sort((a, b)=>a.at - b.at);
+  const ordered = samples;
   if(!ordered.length) return null;
   const targetTime = (performance.now?.() || Date.now()) - delayMs;
   if(targetTime <= ordered[0].at) return ordered[0];
@@ -75,57 +75,67 @@ function normalizeServerEnemy(serverEnemy, existing = null){
   const previousAngle = Number(existing?.angle ?? serverAngle);
   const distance = Math.hypot(serverX - previousX, serverY - previousY);
   const smooth = existing && distance < SERVER_ENEMY_SNAP_DISTANCE;
-  return {
-    ...serverEnemy,
-    id,
-    serverId:id,
-    serverControlled:true,
-    hp:Number(serverEnemy.hp || 0),
-    maxHp:Number(serverEnemy.maxHp || serverEnemy.hp || 1),
-    shield:Number(serverEnemy.shield || 0),
-    maxShield:Number(serverEnemy.maxShield || 0),
-    x:smooth ? smoothPosition(previousX, serverX) : serverX,
-    y:smooth ? smoothPosition(previousY, serverY) : serverY,
-    serverX,
-    serverY,
-    angle:smooth ? lerpAngle(previousAngle, serverAngle, .30) : serverAngle,
-    vx:Number(buffered?.vx ?? serverEnemy.vx ?? 0),
-    vy:Number(buffered?.vy ?? serverEnemy.vy ?? 0),
-    aggro:Boolean(serverEnemy.aggro),
-    idle:Boolean(serverEnemy.idle),
-    hitT:Number.POSITIVE_INFINITY,
-    attackCooldown:Number.POSITIVE_INFINITY,
-    moving:Boolean(buffered?.moving || serverEnemy.moving || Math.hypot(Number(serverEnemy.vx || 0), Number(serverEnemy.vy || 0)) > 4),
-    attackT:Math.max(0, Number(serverEnemy.attackT || 0)),
-    recentHitTimer:Math.max(Number(existing?.recentHitTimer || 0), Number(serverEnemy.recentHitTimer || 0))
-  };
+  const target = existing || {};
+  if(target.__serverSnapshot !== serverEnemy) Object.assign(target, serverEnemy);
+  target.__serverSnapshot = serverEnemy;
+  target.id = id;
+  target.serverId = id;
+  target.serverControlled = true;
+  target.hp = Number(serverEnemy.hp || 0);
+  target.maxHp = Number(serverEnemy.maxHp || serverEnemy.hp || 1);
+  target.shield = Number(serverEnemy.shield || 0);
+  target.maxShield = Number(serverEnemy.maxShield || 0);
+  target.x = smooth ? smoothPosition(previousX, serverX) : serverX;
+  target.y = smooth ? smoothPosition(previousY, serverY) : serverY;
+  target.serverX = serverX;
+  target.serverY = serverY;
+  target.angle = smooth ? lerpAngle(previousAngle, serverAngle, .30) : serverAngle;
+  target.vx = Number(buffered?.vx ?? serverEnemy.vx ?? 0);
+  target.vy = Number(buffered?.vy ?? serverEnemy.vy ?? 0);
+  target.aggro = Boolean(serverEnemy.aggro);
+  target.idle = Boolean(serverEnemy.idle);
+  target.hitT = Number.POSITIVE_INFINITY;
+  target.attackCooldown = Number.POSITIVE_INFINITY;
+  target.moving = Boolean(buffered?.moving || serverEnemy.moving || Math.hypot(Number(serverEnemy.vx || 0), Number(serverEnemy.vy || 0)) > 4);
+  target.attackT = Math.max(0, Number(serverEnemy.attackT || 0));
+  target.recentHitTimer = Math.max(Number(existing?.recentHitTimer || 0), Number(serverEnemy.recentHitTimer || 0));
+  return target;
 }
 
 export function syncServerControlledEnemies({enemies, multiplayerState, selectedEnemy, onSelectionLost}){
   if(!Array.isArray(enemies)) return {enemies:[], selectedEnemy:null};
 
-  const serverEnemies = getServerEnemyList(multiplayerState);
-  const serverIds = new Set(serverEnemies.map(enemy=>enemy.id).filter(Boolean));
-  const hasServerEnemies = serverEnemies.length > 0;
+  const serverEnemyMap = multiplayerState?.serverEnemies instanceof Map
+    ? multiplayerState.serverEnemies
+    : new Map(getServerEnemyList(multiplayerState).map(enemy=>[enemy.id, enemy]));
+  const hasServerEnemies = serverEnemyMap.size > 0;
 
-  const nextEnemies = enemies.filter(enemy=>{
-    if(isServerControlledEnemy(enemy)) return serverIds.has(getServerEnemyId(enemy));
-    return !hasServerEnemies;
-  });
-
-  for(const serverEnemy of serverEnemies){
-    if(!serverEnemy?.id) continue;
-    const existing = nextEnemies.find(enemy=>isServerControlledEnemy(enemy) && getServerEnemyId(enemy) === serverEnemy.id);
-    const normalized = normalizeServerEnemy(serverEnemy, existing);
-    if(existing) Object.assign(existing, normalized);
-    else nextEnemies.push(normalized);
+  const existingById = new Map();
+  const nextEnemies = [];
+  for(const enemy of enemies){
+    if(isServerControlledEnemy(enemy)){
+      const id = getServerEnemyId(enemy);
+      if(serverEnemyMap.has(id)) existingById.set(id, enemy);
+    }else if(!hasServerEnemies) nextEnemies.push(enemy);
   }
+
+  for(const serverEnemy of serverEnemyMap.values()){
+    if(!serverEnemy?.id) continue;
+    const existing = existingById.get(serverEnemy.id);
+    const normalized = normalizeServerEnemy(serverEnemy, existing);
+    nextEnemies.push(existing || normalized);
+  }
+
+  const stableEnemies = nextEnemies.length === enemies.length
+    && nextEnemies.every((enemy, index)=>enemy === enemies[index])
+    ? enemies
+    : nextEnemies;
 
   let nextSelectedEnemy = selectedEnemy;
   if(selectedEnemy){
-    if(selectedEnemy.isPlayerTarget) return {enemies:nextEnemies, selectedEnemy};
+    if(selectedEnemy.isPlayerTarget) return {enemies:stableEnemies, selectedEnemy};
     const selectedId = getServerEnemyId(selectedEnemy);
-    const live = nextEnemies.find(enemy=>getServerEnemyId(enemy) === selectedId && enemy.hp > 0) || null;
+    const live = stableEnemies.find(enemy=>getServerEnemyId(enemy) === selectedId && enemy.hp > 0) || null;
     if(live) nextSelectedEnemy = live;
     else{
       nextSelectedEnemy = null;
@@ -133,7 +143,7 @@ export function syncServerControlledEnemies({enemies, multiplayerState, selected
     }
   }
 
-  return {enemies:nextEnemies, selectedEnemy:nextSelectedEnemy};
+  return {enemies:stableEnemies, selectedEnemy:nextSelectedEnemy};
 }
 
 export function getSoloEnemies(enemies){

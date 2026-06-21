@@ -1,14 +1,14 @@
-import { getMapDisplayName } from "../data/firms.js";
+import { getFirmIdFromMapName, getFirmMapName, getMapDisplayName } from "../data/firms.js";
 
 export const MAPS = [
   {
     id:0,
-    name:"ASTRA-01",
+    name:"Helion-01",
     width:10000,
     height:8000,
     // Repère de carte : X gauche/droite, Y haut/bas. Le spawn est maintenant en bas à gauche.
     spawn:{x:-4300,y:3300,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430, safeRect:{minX:-5000, minY:2500, maxX:-3500, maxY:3950}},
-    portal:{x:4300,y:-3300,r:95,safeRadius:230,targetMap:1,targetX:-4300,targetY:3300,label:"VERS ASTRA-02"},
+    portal:{x:4300,y:-3300,r:95,safeRadius:230,targetMap:1,targetX:-4300,targetY:3300,label:"VERS Helion-02"},
     enemyCount:40,
     enemyLevel:[1,4],
     enemySeed:7,
@@ -70,7 +70,7 @@ export const MAPS = [
   },
   {
     id:20,
-    name:"CYAN-01",
+    name:"Nereid-01",
     width:10000,
     height:8000,
     spawn:{x:-2250,y:1450,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430},
@@ -106,13 +106,13 @@ export const MAPS = [
   },
   {
     id:1,
-    name:"ASTRA-02",
+    name:"Helion-02",
     width:10000,
     height:8000,
     portals:[
-      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:0,targetX:4300,targetY:-3300,label:"VERS ASTRA-01"},
-      {x:-4300,y:-3300,r:95,safeRadius:230,targetMap:2,targetX:-4300,targetY:3300,label:"VERS ASTRA-03"},
-      {x:4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:-4300,targetY:3300,label:"VERS ASTRA-04"}
+      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:0,targetX:4300,targetY:-3300,label:"VERS Helion-01"},
+      {x:-4300,y:-3300,r:95,safeRadius:230,targetMap:2,targetX:-4300,targetY:3300,label:"VERS Helion-03"},
+      {x:4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:-4300,targetY:3300,label:"VERS Helion-04"}
     ],
     closedPortals:[
       {x:4300,y:-3300,r:95,safeRadius:230,label:"PORTAIL FERME", damaged:true, closed:true}
@@ -192,13 +192,13 @@ export const MAPS = [
   },
   {
     id:2,
-    name:"ASTRA-03",
+    name:"Helion-03",
     width:10000,
     height:8000,
     portals:[
-      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:1,targetX:-4300,targetY:-3300,label:"VERS ASTRA-02"},
-      {x:4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:-4300,targetY:-3300,label:"VERS ASTRA-04"},
-      {x:4300,y:-3300,r:95,safeRadius:230,targetMap:4,targetX:-4300,targetY:-3300,label:"VERS ASTRA-05"}
+      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:1,targetX:-4300,targetY:-3300,label:"VERS Helion-02"},
+      {x:4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:-4300,targetY:-3300,label:"VERS Helion-04"},
+      {x:4300,y:-3300,r:95,safeRadius:230,targetMap:4,targetX:-4300,targetY:-3300,label:"VERS Helion-05"}
     ],
     enemyCount:50,
     enemyLevel:[10,14],
@@ -251,19 +251,19 @@ export const MAPS = [
       {id:"cuirasse_nebulaire", weight:1}
     ],
     fixedEnemyCounts:{
-      cristal_du_neant:4,
+      eclanite:4,
       boss_raider_astral:4
     }
   },
   {
     id:3,
-    name:"ASTRA-04",
+    name:"Helion-04",
     width:10000,
     height:8000,
     portals:[
-      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:1,targetX:4300,targetY:3300,label:"VERS ASTRA-02"},
-      {x:-4300,y:-3300,r:95,safeRadius:230,targetMap:2,targetX:4300,targetY:3300,label:"VERS ASTRA-03"},
-      {x:4300,y:-3300,r:95,safeRadius:230,targetMap:4,targetX:-4300,targetY:3300,label:"VERS ASTRA-05"}
+      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:1,targetX:4300,targetY:3300,label:"VERS Helion-02"},
+      {x:-4300,y:-3300,r:95,safeRadius:230,targetMap:2,targetX:4300,targetY:3300,label:"VERS Helion-03"},
+      {x:4300,y:-3300,r:95,safeRadius:230,targetMap:4,targetX:-4300,targetY:3300,label:"VERS Helion-05"}
     ],
     enemyCount:50,
     enemyLevel:[15,19],
@@ -312,7 +312,7 @@ export const MAPS = [
       ]
     },
     enemyTypes:[
-      {id:"chasseur_spectral", weight:.56},
+      {id:"pondeuse_astrale", weight:.56},
       {id:"cuirasse_nebulaire", weight:.44}
     ],
     fixedEnemyCounts:{
@@ -321,15 +321,31 @@ export const MAPS = [
   },
   {
     id:4,
-    name:"ASTRA-05",
+    name:"Helion-05",
     width:10000,
     height:8000,
-    spawn:{x:-4300,y:3300,r:320,label:"ZONE DE SPAWN", safeRadius:320, decorRadius:430, hub:false},
+    spawn:{x:-4300,y:3300,r:320,label:"RELAIS HELION-05", safeRadius:440, decorRadius:520, hub:false, safeType:"relay"},
+    questStations:[{
+      id:"quests",
+      x:-4300,
+      y:3300,
+      radius:124,
+      interactionRadius:320,
+      marker:{x:-4300,y:3050,radius:54,text:"!"},
+      asset:"assets/spawn/astra05_quest_relay.png",
+      assetWidth:360,
+      assetHeight:360,
+      color:"192,38,211",
+      dark:"24,5,35",
+      title:"RELAIS HELION-05",
+      subtitle:"Recevoir et rendre des missions",
+      promptLabel:"MISSIONS"
+    }],
     portals:[
-      {x:-4300,y:-3300,r:95,safeRadius:230,targetMap:2,targetX:4300,targetY:-3300,label:"VERS ASTRA-03"},
-      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:4300,targetY:-3300,label:"VERS ASTRA-04"}
+      {x:-4300,y:-3300,r:95,safeRadius:230,targetMap:2,targetX:4300,targetY:-3300,label:"VERS Helion-03"},
+      {x:-4300,y:3300,r:95,safeRadius:230,targetMap:3,targetX:4300,targetY:-3300,label:"VERS Helion-04"}
     ],
-    enemyCount:30,
+    enemyCount:50,
     enemyLevel:[20,24],
     enemySeed:59,
     closeStarCount:1840,
@@ -378,12 +394,15 @@ export const MAPS = [
       ]
     },
     enemyTypes:[
-      {id:"boss_raider_astral", weight:.18},
-      {id:"boss_chasseur_spectral", weight:.20},
-      {id:"boss_cuirasse_nebulaire", weight:.20},
-      {id:"boss_cristal_du_neant", weight:.16},
-      {id:"boss_cuirasse_ambre", weight:.10}
-    ]
+      {id:"eclanite", weight:.60},
+      {id:"cristanite", weight:.32},
+      {id:"astranite", weight:.08}
+    ],
+    fixedEnemyCounts:{
+      eclanite:30,
+      cristanite:16,
+      astranite:4
+    }
   }
 ];
 
@@ -515,6 +534,12 @@ const FIRM_INTERNAL_PORTALS = {
 };
 
 const CORE_MAP_ID = 50;
+const FIRM_ID_BY_INTERNAL_KEY = {
+  ASTRA:"astra",
+  CYAN:"cyan",
+  JAUNE:"jaune",
+  VERTE:"verte"
+};
 
 const FIRM_LIGHT_PALETTES = {
   CYAN:{core:"224,242,254", hot:"125,211,252", mid:"56,189,248", haze:"14,116,144"},
@@ -527,7 +552,16 @@ function cloneData(value){
 }
 
 function getAstraTemplate(num){
-  return MAPS.find(map=>map.name === `ASTRA-${String(num).padStart(2, "0")}`);
+  return MAPS.find(map=>map.name === `Helion-${String(num).padStart(2, "0")}`);
+}
+
+function getInternalFirmMapName(firm, num){
+  return getFirmMapName(FIRM_ID_BY_INTERNAL_KEY[firm] || firm, num);
+}
+
+function getInternalFirmKeyFromMapName(name){
+  const firmId = getFirmIdFromMapName(name);
+  return Object.keys(FIRM_ID_BY_INTERNAL_KEY).find(key=>FIRM_ID_BY_INTERNAL_KEY[key] === firmId) || null;
 }
 
 function firmMapId(firm, num){
@@ -566,7 +600,7 @@ function getFirmPlanetPosition(firm, num){
 function applyFirmVisuals(map, firm, num){
   const visual = FIRM_VISUALS[firm];
   const lights = FIRM_LIGHT_PALETTES[firm];
-  map.name = `${firm}-${String(num).padStart(2, "0")}`;
+  map.name = getInternalFirmMapName(firm, num);
   map.id = firmMapId(firm, num);
   map.enemySeed = Number(map.enemySeed || 0) + visual.seedOffset;
   map.parallaxScene = themeObject(map.parallaxScene || {}, firm);
@@ -625,13 +659,13 @@ function buildFirmMaps(firm){
       from:fromDir,
       toMap:firmMapId(firm, toNum),
       to:toDir,
-      label:`VERS ${firm}-${String(toNum).padStart(2, "0")}`
+      label:`VERS ${getInternalFirmMapName(firm, toNum)}`
     }));
     byNum.get(toNum).portals.push(portalFromDir({
       from:toDir,
       toMap:firmMapId(firm, fromNum),
       to:fromDir,
-      label:`VERS ${firm}-${String(fromNum).padStart(2, "0")}`
+      label:`VERS ${getInternalFirmMapName(firm, fromNum)}`
     }));
   });
   return maps;
@@ -685,12 +719,11 @@ function removePortalAtDir(map, dir){
 }
 
 function resetZoneFourPortals(firm, crossFirm){
-  const prefix = `${firm}-`;
-  const map4 = getMapByName(`${prefix}04`);
-  const map2 = getMapByName(`${prefix}02`);
-  const map3 = getMapByName(`${prefix}03`);
-  const map5 = getMapByName(`${prefix}05`);
-  const cross4 = getMapByName(`${crossFirm}-04`);
+  const map4 = getMapByName(getInternalFirmMapName(firm, 4));
+  const map2 = getMapByName(getInternalFirmMapName(firm, 2));
+  const map3 = getMapByName(getInternalFirmMapName(firm, 3));
+  const map5 = getMapByName(getInternalFirmMapName(firm, 5));
+  const cross4 = getMapByName(getInternalFirmMapName(crossFirm, 4));
   if(!map4 || !map2 || !map3 || !map5 || !cross4) return;
 
   [map2, map3, map5, cross4].forEach(map=>removePortalsTo(map, map4.id));
@@ -719,11 +752,10 @@ const ZONE_TWO_PORTAL_LAYOUT = {
 
 function resetZoneTwoPortals(firm){
   const layout = ZONE_TWO_PORTAL_LAYOUT[firm];
-  const prefix = `${firm}-`;
-  const map1 = getMapByName(`${prefix}01`);
-  const map2 = getMapByName(`${prefix}02`);
-  const map3 = getMapByName(`${prefix}03`);
-  const map4 = getMapByName(`${prefix}04`);
+  const map1 = getMapByName(getInternalFirmMapName(firm, 1));
+  const map2 = getMapByName(getInternalFirmMapName(firm, 2));
+  const map3 = getMapByName(getInternalFirmMapName(firm, 3));
+  const map4 = getMapByName(getInternalFirmMapName(firm, 4));
   if(!layout || !map1 || !map2 || !map3 || !map4) return;
 
   [map1, map3, map4].forEach(map=>removePortalsTo(map, map2.id));
@@ -749,12 +781,11 @@ const ZONE_THREE_PORTAL_LAYOUT = {
 
 function resetZoneThreePortals(firm){
   const layout = ZONE_THREE_PORTAL_LAYOUT[firm];
-  const prefix = `${firm}-`;
-  const map2 = getMapByName(`${prefix}02`);
-  const map3 = getMapByName(`${prefix}03`);
-  const map4 = getMapByName(`${prefix}04`);
-  const map5 = getMapByName(`${prefix}05`);
-  const cross3 = getMapByName(`${layout?.crossFirm || ""}-03`);
+  const map2 = getMapByName(getInternalFirmMapName(firm, 2));
+  const map3 = getMapByName(getInternalFirmMapName(firm, 3));
+  const map4 = getMapByName(getInternalFirmMapName(firm, 4));
+  const map5 = getMapByName(getInternalFirmMapName(firm, 5));
+  const cross3 = getMapByName(getInternalFirmMapName(layout?.crossFirm || "", 3));
   if(!layout || !map2 || !map3 || !map4 || !map5 || !cross3) return;
 
   [map2, map4, map5, cross3].forEach(map=>removePortalsTo(map, map3.id));
@@ -808,12 +839,11 @@ const ZONE_FIVE_PORTAL_LAYOUT = {
 
 function resetZoneFivePortals(firm){
   const layout = ZONE_FIVE_PORTAL_LAYOUT[firm];
-  const prefix = `${firm}-`;
-  const map3 = getMapByName(`${prefix}03`);
-  const map4 = getMapByName(`${prefix}04`);
-  const map5 = getMapByName(`${prefix}05`);
-  const upper5 = getMapByName(`${layout?.upper || ""}-05`);
-  const lower5 = getMapByName(`${layout?.lower || ""}-05`);
+  const map3 = getMapByName(getInternalFirmMapName(firm, 3));
+  const map4 = getMapByName(getInternalFirmMapName(firm, 4));
+  const map5 = getMapByName(getInternalFirmMapName(firm, 5));
+  const upper5 = getMapByName(getInternalFirmMapName(layout?.upper || "", 5));
+  const lower5 = getMapByName(getInternalFirmMapName(layout?.lower || "", 5));
   const core = getMapByName("CORE");
   if(!layout || !map3 || !map4 || !map5 || !upper5 || !lower5 || !core) return;
 
@@ -839,11 +869,11 @@ function resetZoneFivePortals(firm){
 }
 
 function resetCyanFourPortals(){
-  const map2 = getMapByName("CYAN-02");
-  const map3 = getMapByName("CYAN-03");
-  const map4 = getMapByName("CYAN-04");
-  const map5 = getMapByName("CYAN-05");
-  const jaune4 = getMapByName("JAUNE-04");
+  const map2 = getMapByName("Nereid-02");
+  const map3 = getMapByName("Nereid-03");
+  const map4 = getMapByName("Nereid-04");
+  const map5 = getMapByName("Nereid-05");
+  const jaune4 = getMapByName("Aureon-04");
   if(!map2 || !map3 || !map4 || !map5 || !jaune4) return;
 
   [map2, map3, map5, jaune4].forEach(map=>removePortalsTo(map, map4.id));
@@ -853,22 +883,22 @@ function resetCyanFourPortals(){
   removePortalAtDir(jaune4, "topLeft");
 
   map4.portals = [
-    portalFromDir({from:"topLeft", toMap:map2.id, to:"topRight", label:"VERS CYAN-02"}),
-    portalFromDir({from:"bottomLeft", toMap:map3.id, to:"topRight", label:"VERS CYAN-03"}),
-    portalFromDir({from:"topRight", toMap:jaune4.id, to:"topLeft", label:"VERS JAUNE-04"}),
-    portalFromDir({from:"bottomRight", toMap:map5.id, to:"topLeft", label:"VERS CYAN-05"})
+    portalFromDir({from:"topLeft", toMap:map2.id, to:"topRight", label:"VERS Nereid-02"}),
+    portalFromDir({from:"bottomLeft", toMap:map3.id, to:"topRight", label:"VERS Nereid-03"}),
+    portalFromDir({from:"topRight", toMap:jaune4.id, to:"topLeft", label:"VERS Aureon-04"}),
+    portalFromDir({from:"bottomRight", toMap:map5.id, to:"topLeft", label:"VERS Nereid-05"})
   ];
-  addPortalIfMissing(map2, portalFromDir({from:"topRight", toMap:map4.id, to:"topLeft", label:"VERS CYAN-04"}));
-  addPortalIfMissing(map3, portalFromDir({from:"topRight", toMap:map4.id, to:"bottomLeft", label:"VERS CYAN-04"}));
-  addPortalIfMissing(jaune4, portalFromDir({from:"topLeft", toMap:map4.id, to:"topRight", label:"VERS CYAN-04"}));
-  addPortalIfMissing(map5, portalFromDir({from:"topLeft", toMap:map4.id, to:"bottomRight", label:"VERS CYAN-04"}));
+  addPortalIfMissing(map2, portalFromDir({from:"topRight", toMap:map4.id, to:"topLeft", label:"VERS Nereid-04"}));
+  addPortalIfMissing(map3, portalFromDir({from:"topRight", toMap:map4.id, to:"bottomLeft", label:"VERS Nereid-04"}));
+  addPortalIfMissing(jaune4, portalFromDir({from:"topLeft", toMap:map4.id, to:"topRight", label:"VERS Nereid-04"}));
+  addPortalIfMissing(map5, portalFromDir({from:"topLeft", toMap:map4.id, to:"bottomRight", label:"VERS Nereid-04"}));
 }
 
 function resetVerteFourAstraPortal(){
-  const astra4 = getMapByName("ASTRA-04");
-  const verte3 = getMapByName("VERTE-03");
-  const verte4 = getMapByName("VERTE-04");
-  const verte5 = getMapByName("VERTE-05");
+  const astra4 = getMapByName("Helion-04");
+  const verte3 = getMapByName("Sylva-03");
+  const verte4 = getMapByName("Sylva-04");
+  const verte5 = getMapByName("Sylva-05");
   if(!astra4 || !verte3 || !verte4 || !verte5) return;
 
   removePortalsTo(verte4, astra4.id);
@@ -885,19 +915,19 @@ function resetVerteFourAstraPortal(){
   removePortalAtDir(verte4, "bottomLeft");
   removePortalAtDir(astra4, "bottomRight");
 
-  addPortalIfMissing(verte4, portalFromDir({from:"topLeft", toMap:verte5.id, to:"bottomLeft", label:"VERS VERTE-05"}));
-  addPortalIfMissing(verte5, portalFromDir({from:"bottomLeft", toMap:verte4.id, to:"topLeft", label:"VERS VERTE-04"}));
-  addPortalIfMissing(verte4, portalFromDir({from:"topRight", toMap:verte3.id, to:"bottomLeft", label:"VERS VERTE-03"}));
-  addPortalIfMissing(verte3, portalFromDir({from:"bottomLeft", toMap:verte4.id, to:"topRight", label:"VERS VERTE-04"}));
-  addPortalIfMissing(verte4, portalFromDir({from:"bottomLeft", toMap:astra4.id, to:"bottomRight", label:"VERS ASTRA-04"}));
-  addPortalIfMissing(astra4, portalFromDir({from:"bottomRight", toMap:verte4.id, to:"bottomLeft", label:"VERS VERTE-04"}));
+  addPortalIfMissing(verte4, portalFromDir({from:"topLeft", toMap:verte5.id, to:"bottomLeft", label:"VERS Sylva-05"}));
+  addPortalIfMissing(verte5, portalFromDir({from:"bottomLeft", toMap:verte4.id, to:"topLeft", label:"VERS Sylva-04"}));
+  addPortalIfMissing(verte4, portalFromDir({from:"topRight", toMap:verte3.id, to:"bottomLeft", label:"VERS Sylva-03"}));
+  addPortalIfMissing(verte3, portalFromDir({from:"bottomLeft", toMap:verte4.id, to:"topRight", label:"VERS Sylva-04"}));
+  addPortalIfMissing(verte4, portalFromDir({from:"bottomLeft", toMap:astra4.id, to:"bottomRight", label:"VERS Helion-04"}));
+  addPortalIfMissing(astra4, portalFromDir({from:"bottomRight", toMap:verte4.id, to:"bottomLeft", label:"VERS Sylva-04"}));
 }
 
 function resetJauneFiveFourPortal(){
-  const jaune2 = getMapByName("JAUNE-02");
-  const jaune4 = getMapByName("JAUNE-04");
-  const jaune5 = getMapByName("JAUNE-05");
-  const cyan5 = getMapByName("CYAN-05");
+  const jaune2 = getMapByName("Aureon-02");
+  const jaune4 = getMapByName("Aureon-04");
+  const jaune5 = getMapByName("Aureon-05");
+  const cyan5 = getMapByName("Nereid-05");
   if(!jaune2 || !jaune4 || !jaune5 || !cyan5) return;
 
   removePortalsTo(jaune5, cyan5.id);
@@ -910,75 +940,75 @@ function resetJauneFiveFourPortal(){
   removePortalAtDir(jaune4, "bottomLeft");
   removePortalAtDir(cyan5, "topRight");
 
-  addPortalIfMissing(jaune5, portalFromDir({from:"topLeft", toMap:jaune4.id, to:"bottomLeft", label:"VERS JAUNE-04"}));
-  addPortalIfMissing(jaune4, portalFromDir({from:"bottomLeft", toMap:jaune5.id, to:"topLeft", label:"VERS JAUNE-05"}));
-  addPortalIfMissing(jaune4, portalFromDir({from:"topRight", toMap:jaune2.id, to:"topLeft", label:"VERS JAUNE-02"}));
-  addPortalIfMissing(jaune2, portalFromDir({from:"topLeft", toMap:jaune4.id, to:"topRight", label:"VERS JAUNE-04"}));
+  addPortalIfMissing(jaune5, portalFromDir({from:"topLeft", toMap:jaune4.id, to:"bottomLeft", label:"VERS Aureon-04"}));
+  addPortalIfMissing(jaune4, portalFromDir({from:"bottomLeft", toMap:jaune5.id, to:"topLeft", label:"VERS Aureon-05"}));
+  addPortalIfMissing(jaune4, portalFromDir({from:"topRight", toMap:jaune2.id, to:"topLeft", label:"VERS Aureon-02"}));
+  addPortalIfMissing(jaune2, portalFromDir({from:"topLeft", toMap:jaune4.id, to:"topRight", label:"VERS Aureon-04"}));
 }
 
 function removeExtraMapFivePortals(){
-  const cyan4 = getMapByName("CYAN-04");
-  const cyan5 = getMapByName("CYAN-05");
-  const astra4 = getMapByName("ASTRA-04");
-  const astra5 = getMapByName("ASTRA-05");
+  const cyan4 = getMapByName("Nereid-04");
+  const cyan5 = getMapByName("Nereid-05");
+  const astra4 = getMapByName("Helion-04");
+  const astra5 = getMapByName("Helion-05");
   if(cyan4 && cyan5){
     removePortalsTo(cyan5, cyan4.id);
     removePortalsTo(cyan4, cyan5.id);
     removePortalAtDir(cyan5, "topLeft");
     removePortalAtDir(cyan5, "topRight");
     removePortalAtDir(cyan4, "bottomRight");
-    addPortalIfMissing(cyan5, portalFromDir({from:"topRight", toMap:cyan4.id, to:"bottomRight", label:"VERS CYAN-04"}));
-    addPortalIfMissing(cyan4, portalFromDir({from:"bottomRight", toMap:cyan5.id, to:"topRight", label:"VERS CYAN-05"}));
+    addPortalIfMissing(cyan5, portalFromDir({from:"topRight", toMap:cyan4.id, to:"bottomRight", label:"VERS Nereid-04"}));
+    addPortalIfMissing(cyan4, portalFromDir({from:"bottomRight", toMap:cyan5.id, to:"topRight", label:"VERS Nereid-05"}));
   }
   if(astra4 && astra5){
     removePortalsTo(astra5, astra4.id);
     removePortalsTo(astra4, astra5.id);
     removePortalAtDir(astra5, "bottomLeft");
     removePortalAtDir(astra4, "topRight");
-    addPortalIfMissing(astra4, portalFromDir({from:"topRight", toMap:astra5.id, to:"bottomRight", label:"VERS ASTRA-05"}));
-    addPortalIfMissing(astra5, portalFromDir({from:"bottomRight", toMap:astra4.id, to:"topRight", label:"VERS ASTRA-04"}));
+    addPortalIfMissing(astra4, portalFromDir({from:"topRight", toMap:astra5.id, to:"bottomRight", label:"VERS Helion-05"}));
+    addPortalIfMissing(astra5, portalFromDir({from:"bottomRight", toMap:astra4.id, to:"topRight", label:"VERS Helion-04"}));
   }
 }
 
 function applySectorGraphPortals(){
-  const graphMaps = MAPS.filter(map=>["ASTRA", "CYAN", "JAUNE", "VERTE"].includes(map.firm || String(map.name || "").split("-")[0]));
+  const graphMaps = MAPS.filter(map=>Boolean(map.firm || getFirmIdFromMapName(map.name)));
   graphMaps.forEach(map=>{ map.portals = []; delete map.portal; });
 
   const links = [
-    ["CYAN-01", "bottomRight", "CYAN-02", "topLeft"],
-    ["CYAN-02", "bottomLeft", "CYAN-03", "topLeft"],
-    ["CYAN-02", "topRight", "CYAN-04", "topLeft"],
-    ["CYAN-03", "topRight", "CYAN-04", "bottomLeft"],
-    ["CYAN-03", "bottomRight", "CYAN-05", "bottomLeft"],
-    ["CYAN-04", "topRight", "JAUNE-04", "topLeft"],
-    ["CYAN-04", "bottomRight", "CYAN-05", "topRight"],
-    ["CYAN-05", "bottomRight", "ASTRA-05", "topRight"],
+    ["Nereid-01", "bottomRight", "Nereid-02", "topLeft"],
+    ["Nereid-02", "bottomLeft", "Nereid-03", "topLeft"],
+    ["Nereid-02", "topRight", "Nereid-04", "topLeft"],
+    ["Nereid-03", "topRight", "Nereid-04", "bottomLeft"],
+    ["Nereid-03", "bottomRight", "Nereid-05", "bottomLeft"],
+    ["Nereid-04", "topRight", "Aureon-04", "topLeft"],
+    ["Nereid-04", "bottomRight", "Nereid-05", "topRight"],
+    ["Nereid-05", "bottomRight", "Helion-05", "topRight"],
 
-    ["ASTRA-01", "topRight", "ASTRA-02", "bottomLeft"],
-    ["ASTRA-02", "topLeft", "ASTRA-03", "bottomLeft"],
-    ["ASTRA-02", "bottomRight", "ASTRA-04", "bottomLeft"],
-    ["ASTRA-03", "topLeft", "CYAN-03", "bottomLeft"],
-    ["ASTRA-03", "topRight", "ASTRA-05", "topLeft"],
-    ["ASTRA-03", "bottomRight", "ASTRA-04", "topLeft"],
-    ["ASTRA-04", "topRight", "ASTRA-05", "bottomRight"],
-    ["ASTRA-04", "bottomRight", "VERTE-04", "bottomLeft"],
+    ["Helion-01", "topRight", "Helion-02", "bottomLeft"],
+    ["Helion-02", "topLeft", "Helion-03", "bottomLeft"],
+    ["Helion-02", "bottomRight", "Helion-04", "bottomLeft"],
+    ["Helion-03", "topLeft", "Nereid-03", "bottomLeft"],
+    ["Helion-03", "topRight", "Helion-05", "topLeft"],
+    ["Helion-03", "bottomRight", "Helion-04", "topLeft"],
+    ["Helion-04", "topRight", "Helion-05", "bottomRight"],
+    ["Helion-04", "bottomRight", "Sylva-04", "bottomLeft"],
 
-    ["JAUNE-01", "bottomLeft", "JAUNE-02", "topRight"],
-    ["JAUNE-02", "topLeft", "JAUNE-04", "topRight"],
-    ["JAUNE-02", "bottomRight", "JAUNE-03", "topRight"],
-    ["JAUNE-03", "topLeft", "JAUNE-04", "bottomRight"],
-    ["JAUNE-03", "bottomLeft", "JAUNE-05", "bottomRight"],
-    ["JAUNE-03", "bottomRight", "VERTE-03", "topRight"],
-    ["JAUNE-04", "bottomLeft", "JAUNE-05", "topLeft"],
-    ["JAUNE-05", "bottomLeft", "VERTE-05", "topLeft"],
+    ["Aureon-01", "bottomLeft", "Aureon-02", "topRight"],
+    ["Aureon-02", "topLeft", "Aureon-04", "topRight"],
+    ["Aureon-02", "bottomRight", "Aureon-03", "topRight"],
+    ["Aureon-03", "topLeft", "Aureon-04", "bottomRight"],
+    ["Aureon-03", "bottomLeft", "Aureon-05", "bottomRight"],
+    ["Aureon-03", "bottomRight", "Sylva-03", "topRight"],
+    ["Aureon-04", "bottomLeft", "Aureon-05", "topLeft"],
+    ["Aureon-05", "bottomLeft", "Sylva-05", "topLeft"],
 
-    ["VERTE-01", "topLeft", "VERTE-02", "bottomRight"],
-    ["VERTE-02", "topRight", "VERTE-03", "bottomRight"],
-    ["VERTE-02", "bottomLeft", "VERTE-04", "bottomRight"],
-    ["VERTE-03", "topLeft", "VERTE-05", "topRight"],
-    ["VERTE-03", "bottomLeft", "VERTE-04", "topRight"],
-    ["VERTE-04", "topLeft", "VERTE-05", "bottomLeft"],
-    ["VERTE-05", "topLeft", "JAUNE-05", "bottomLeft"]
+    ["Sylva-01", "topLeft", "Sylva-02", "bottomRight"],
+    ["Sylva-02", "topRight", "Sylva-03", "bottomRight"],
+    ["Sylva-02", "bottomLeft", "Sylva-04", "bottomRight"],
+    ["Sylva-03", "topLeft", "Sylva-05", "topRight"],
+    ["Sylva-03", "bottomLeft", "Sylva-04", "topRight"],
+    ["Sylva-04", "topLeft", "Sylva-05", "bottomLeft"],
+    ["Sylva-05", "topLeft", "Aureon-05", "bottomLeft"]
   ];
 
   links.forEach(([fromName, fromDir, toName, toDir])=>{
@@ -991,10 +1021,10 @@ function applySectorGraphPortals(){
 
   const core = getMapByName("CORE");
   const coreLinks = [
-    ["ASTRA-05", "top", "left"],
-    ["CYAN-05", "right", "top"],
-    ["JAUNE-05", "bottom", "right"],
-    ["VERTE-05", "left", "bottom"]
+    ["Helion-05", "top", "left"],
+    ["Nereid-05", "right", "top"],
+    ["Aureon-05", "bottom", "right"],
+    ["Sylva-05", "left", "bottom"]
   ];
   coreLinks.forEach(([mapName, fromDir, coreDir])=>{
     const map = getMapByName(mapName);
@@ -1017,10 +1047,10 @@ function buildCoreMap(){
   core.parallaxScene.background = ["#04010b", "#11051f", "#020104"];
   core.parallaxScene.images = [];
   core.portals = [
-    portalFromDir({from:"left", toMap:4, to:"right", label:"VERS ASTRA-05"}),
-    portalFromDir({from:"top", toMap:firmMapId("CYAN", 5), to:"right", label:"VERS CYAN-05"}),
-    portalFromDir({from:"right", toMap:firmMapId("JAUNE", 5), to:"left", label:"VERS JAUNE-05"}),
-    portalFromDir({from:"bottom", toMap:firmMapId("VERTE", 5), to:"left", label:"VERS VERTE-05"})
+    portalFromDir({from:"left", toMap:4, to:"right", label:"VERS Helion-05"}),
+    portalFromDir({from:"top", toMap:firmMapId("CYAN", 5), to:"right", label:"VERS Nereid-05"}),
+    portalFromDir({from:"right", toMap:firmMapId("JAUNE", 5), to:"left", label:"VERS Aureon-05"}),
+    portalFromDir({from:"bottom", toMap:firmMapId("VERTE", 5), to:"left", label:"VERS Sylva-05"})
   ];
   return core;
 }
@@ -1032,18 +1062,18 @@ upsertMaps([
   buildCoreMap()
 ]);
 
-addPortalIfMissing(getAstraTemplate(3), portalFromDir({from:"topLeft", toMap:firmMapId("CYAN", 3), to:"bottomLeft", label:"VERS CYAN-03"}));
+addPortalIfMissing(getAstraTemplate(3), portalFromDir({from:"topLeft", toMap:firmMapId("CYAN", 3), to:"bottomLeft", label:"VERS Nereid-03"}));
 addPortalIfMissing(getAstraTemplate(5), portalFromDir({from:"right", toMap:CORE_MAP_ID, to:"left", label:"VERS CORE"}));
-addPortalIfMissing(MAPS.find(map=>map.name === "CYAN-03"), portalFromDir({from:"bottomLeft", toMap:2, to:"topLeft", label:"VERS ASTRA-03"}));
-addPortalIfMissing(MAPS.find(map=>map.name === "CYAN-05"), portalFromDir({from:"right", toMap:CORE_MAP_ID, to:"top", label:"VERS CORE"}));
-addPortalIfMissing(MAPS.find(map=>map.name === "JAUNE-05"), portalFromDir({from:"left", toMap:CORE_MAP_ID, to:"right", label:"VERS CORE"}));
-addPortalIfMissing(MAPS.find(map=>map.name === "VERTE-05"), portalFromDir({from:"left", toMap:CORE_MAP_ID, to:"bottom", label:"VERS CORE"}));
+addPortalIfMissing(MAPS.find(map=>map.name === "Nereid-03"), portalFromDir({from:"bottomLeft", toMap:2, to:"topLeft", label:"VERS Helion-03"}));
+addPortalIfMissing(MAPS.find(map=>map.name === "Nereid-05"), portalFromDir({from:"right", toMap:CORE_MAP_ID, to:"top", label:"VERS CORE"}));
+addPortalIfMissing(MAPS.find(map=>map.name === "Aureon-05"), portalFromDir({from:"left", toMap:CORE_MAP_ID, to:"right", label:"VERS CORE"}));
+addPortalIfMissing(MAPS.find(map=>map.name === "Sylva-05"), portalFromDir({from:"left", toMap:CORE_MAP_ID, to:"bottom", label:"VERS CORE"}));
 
-addSectorBridge("CYAN-04", "topRight", "JAUNE-04", "topLeft");
-addSectorBridge("CYAN-05", "bottomRight", "ASTRA-05", "topRight");
-addSectorBridge("JAUNE-05", "bottomLeft", "VERTE-05", "topLeft");
-addSectorBridge("JAUNE-03", "bottomRight", "VERTE-03", "topRight");
-addSectorBridge("ASTRA-04", "bottomRight", "VERTE-04", "bottomLeft");
+addSectorBridge("Nereid-04", "topRight", "Aureon-04", "topLeft");
+addSectorBridge("Nereid-05", "bottomRight", "Helion-05", "topRight");
+addSectorBridge("Aureon-05", "bottomLeft", "Sylva-05", "topLeft");
+addSectorBridge("Aureon-03", "bottomRight", "Sylva-03", "topRight");
+addSectorBridge("Helion-04", "bottomRight", "Sylva-04", "bottomLeft");
 
 resetZoneFourPortals("ASTRA", "VERTE");
 resetZoneFourPortals("VERTE", "ASTRA");
@@ -1068,10 +1098,10 @@ removeExtraMapFivePortals();
 applySectorGraphPortals();
 
 const RICKY_PORTAL_BY_FIRM = {
-  ASTRA:{map:"ASTRA-02", npcId:"astra02_portal_mechanic", portal:{x:4300, y:-3300}, npc:{x:4470, y:-3180}},
-  CYAN:{map:"CYAN-02", npcId:"cyan02_portal_mechanic", portal:{x:4300, y:3300}, npc:{x:4470, y:3180}},
-  JAUNE:{map:"JAUNE-02", npcId:"jaune02_portal_mechanic", portal:{x:-4300, y:3300}, npc:{x:-4470, y:3180}},
-  VERTE:{map:"VERTE-02", npcId:"verte02_portal_mechanic", portal:{x:-4300, y:-3300}, npc:{x:-4470, y:-3180}}
+  ASTRA:{map:"Helion-02", npcId:"astra02_portal_mechanic", portal:{x:4300, y:-3300}, npc:{x:4470, y:-3180}},
+  CYAN:{map:"Nereid-02", npcId:"cyan02_portal_mechanic", portal:{x:4300, y:3300}, npc:{x:4470, y:3180}},
+  JAUNE:{map:"Aureon-02", npcId:"jaune02_portal_mechanic", portal:{x:-4300, y:3300}, npc:{x:-4470, y:3180}},
+  VERTE:{map:"Sylva-02", npcId:"verte02_portal_mechanic", portal:{x:-4300, y:-3300}, npc:{x:-4470, y:-3180}}
 };
 
 const RICKY_PORTAL_UNLOCK_QUEST_BASE_ID = "quest_lv10_maintenance_impossible";
@@ -1083,9 +1113,10 @@ const RICKY_PORTAL_QUEST_SUFFIX_BY_FIRM = {
 };
 
 function getMapFirmAndZone(map){
-  const match = String(map?.name || "").match(/^([A-Z]+)-(\d+)$/);
+  const match = String(map?.name || "").match(/^([A-Z]+)-(\d+)$/i);
   if(!match) return null;
-  return {firm:match[1], zone:Number(match[2])};
+  const firm = getInternalFirmKeyFromMapName(map?.name);
+  return firm ? {firm, zone:Number(match[2])} : null;
 }
 
 function getRickyPortalQuestId(firm){
@@ -1103,8 +1134,8 @@ export function isRickyPortalUnlocked(map, completedQuestClaims = {}, questProgr
 function removeLockedRickyPortalLinks(){
   for(const firm of Object.keys(RICKY_PORTAL_BY_FIRM)){
     const layout = ZONE_TWO_PORTAL_LAYOUT[firm];
-    const map2 = getMapByName(`${firm}-02`);
-    const map4 = getMapByName(`${firm}-04`);
+    const map2 = getMapByName(getInternalFirmMapName(firm, 2));
+    const map4 = getMapByName(getInternalFirmMapName(firm, 4));
     if(!layout || !map2 || !map4) continue;
     removePortalsTo(map2, map4.id);
     removePortalsTo(map4, map2.id);
@@ -1138,7 +1169,7 @@ function installFirmRickyPortals(){
     size:132,
     marker:"!",
     label:"RICKY",
-    ...(MAPS.find(entry=>entry.name === "ASTRA-02")?.questNpcs?.find(npc=>npc.id === "astra02_portal_mechanic") || {})
+    ...(MAPS.find(entry=>entry.name === "Helion-02")?.questNpcs?.find(npc=>npc.id === "astra02_portal_mechanic") || {})
   };
   for(const config of Object.values(RICKY_PORTAL_BY_FIRM)){
     const map = MAPS.find(entry=>entry.name === config.map);
@@ -1292,6 +1323,41 @@ export const ENEMY_TYPES = {
       }
     }
   },
+  pondeuse_astrale:{
+    name:"Pondeuse astrale",
+    img:"assets/enemies/generated/astra4_astral_brood.png",
+    levelRange:[15,19],
+    maxHp:(level)=>Math.round(45_000 * (1 + Math.max(0, level - 15) * .05)),
+    maxShield:(level)=>Math.round(30_000 * (1 + Math.max(0, level - 15) * .05)),
+    speed:()=>230,
+    radius:54,
+    width:132,
+    height:132,
+    attackRange:350,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:600,
+    attackDamageMax:900,
+    attackDamage:(level)=>Math.round(750 * (1 + Math.max(0, level - 15) * .05)),
+    attackCooldown:1,
+    projectileSpeed:620,
+    color:"rgba(132,204,22,.96)",
+    particle:"rgba(192,132,252,.78)",
+    onHitEffect:{type:"poison", damage:350, interval:2, duration:10},
+    loot:{
+      credits:60_000,
+      xp:38_000,
+      premium:50,
+      materials:{
+        cuivre_orbital:80,
+        zinc_spatial:80,
+        nickel_brut:80,
+        titane_fissure:80,
+        silice_conductrice:80,
+        alliage_cuivre_zinc:5,
+        plaque_nickel_titane:5
+      }
+    }
+  },
   cuirasse_nebulaire:{
     name:"Traqueur abyssal",
     img:"assets/enemies/enemy_blue_spider.png",
@@ -1346,7 +1412,7 @@ export const ENEMY_TYPES = {
     loot:{
       credits:100000,
       xp:50000,
-      premium:30,
+      premium:60,
       materials:{
         cuivre_orbital:120,
         zinc_spatial:120,
@@ -1358,29 +1424,29 @@ export const ENEMY_TYPES = {
       }
     }
   },
-  cristal_du_neant:{
-    name:"Cristal du néant",
-    img:"assets/enemies/enemy_purple_crystal.png",
-    levelRange:[14,17],
+  eclanite:{
+    name:"Eclanite",
+    img:"assets/enemies/generated/void-crystals/eclanite.png",
+    levelRange:[10,14],
     maxHp:()=>40000,
     maxShield:()=>20000,
-    speed:()=>170,
-    radius:48,
-    width:112,
-    height:112,
-    attackRange:350,
+    speed:()=>270,
+    radius:35,
+    width:82,
+    height:82,
+    attackRange:330,
     shieldAbsorbRatio:.8,
-    attackDamageMin:800,
-    attackDamageMax:1000,
-    attackDamage:()=>900,
-    attackCooldown:1.85,
+    attackDamageMin:500,
+    attackDamageMax:800,
+    attackDamage:()=>650,
+    attackCooldown:1,
     projectileSpeed:560,
     color:"rgba(168,85,247,.95)",
     particle:"rgba(216,180,254,.72)",
     loot:{
-      credits:60000,
-      xp:35000,
-      premium:20,
+      credits:50000,
+      xp:26000,
+      premium:24,
       materials:{
         cuivre_orbital:80,
         zinc_spatial:80,
@@ -1389,6 +1455,82 @@ export const ENEMY_TYPES = {
         silice_conductrice:80,
         alliage_cuivre_zinc:5,
         plaque_nickel_titane:5
+      }
+    }
+  },
+  cristanite:{
+    name:"Cristanite",
+    img:"assets/enemies/generated/void-crystals/cristanite.png",
+    levelRange:[20,24],
+    maxHp:()=>180000,
+    maxShield:()=>140000,
+    speed:()=>250,
+    radius:47,
+    width:112,
+    height:112,
+    attackRange:350,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:1600,
+    attackDamageMax:2500,
+    attackDamage:()=>2050,
+    attackCooldown:1,
+    projectileSpeed:560,
+    color:"rgba(168,85,247,.95)",
+    particle:"rgba(216,180,254,.72)",
+    requiresPlayerAttack:true,
+    followBeforeAttacked:true,
+    targetMemoryMs:15000,
+    loot:{
+      credits:250000,
+      xp:84000,
+      premium:110,
+      materials:{
+        cuivre_orbital:120,
+        zinc_spatial:120,
+        nickel_brut:120,
+        titane_fissure:120,
+        silice_conductrice:120,
+        alliage_cuivre_zinc:8,
+        plaque_nickel_titane:8
+      }
+    }
+  },
+  astranite:{
+    name:"Astranite",
+    img:"assets/enemies/generated/void-crystals/astranite.png",
+    levelRange:[20,24],
+    maxHp:()=>450000,
+    maxShield:()=>400000,
+    speed:()=>240,
+    radius:72,
+    width:168,
+    height:168,
+    attackRange:360,
+    shieldAbsorbRatio:.8,
+    attackDamageMin:3800,
+    attackDamageMax:5600,
+    attackDamage:()=>4700,
+    attackCooldown:1,
+    projectileSpeed:590,
+    color:"rgba(192,38,211,.98)",
+    particle:"rgba(232,121,249,.78)",
+    requiresPlayerAttack:true,
+    followBeforeAttacked:true,
+    targetMemoryMs:15000,
+    deathEffect:{type:"slow", amount:200, duration:5, radius:150},
+    deathSpawn:{kind:"cristanite", count:1},
+    loot:{
+      credits:1000000,
+      xp:350000,
+      premium:400,
+      materials:{
+        cuivre_orbital:200,
+        zinc_spatial:200,
+        nickel_brut:200,
+        titane_fissure:200,
+        silice_conductrice:200,
+        alliage_cuivre_zinc:15,
+        plaque_nickel_titane:15
       }
     }
   },
@@ -1529,7 +1671,7 @@ export const ENEMY_TYPES = {
     loot:multiplyLoot({
       credits:100000,
       xp:50000,
-      premium:30,
+      premium:60,
       materials:{
         cuivre_orbital:120,
         zinc_spatial:120,
@@ -1541,40 +1683,6 @@ export const ENEMY_TYPES = {
       }
     })
   },
-  boss_cristal_du_neant:{
-    name:"Boss Cristal du neant",
-    img:"assets/enemies/enemy_purple_crystal.png",
-    levelRange:[18,24],
-    maxHp:()=>40000 * BOSS_STAT_MULTIPLIER,
-    maxShield:()=>20000 * BOSS_STAT_MULTIPLIER,
-    speed:()=>170,
-    radius:56,
-    width:128,
-    height:128,
-    attackRange:350,
-    shieldAbsorbRatio:.8,
-    attackDamageMin:800 * BOSS_STAT_MULTIPLIER,
-    attackDamageMax:1000 * BOSS_STAT_MULTIPLIER,
-    attackDamage:()=>900 * BOSS_STAT_MULTIPLIER,
-    attackCooldown:1.85,
-    projectileSpeed:560,
-    color:"rgba(168,85,247,.95)",
-    particle:"rgba(216,180,254,.72)",
-    loot:multiplyLoot({
-      credits:60000,
-      xp:35000,
-      premium:20,
-      materials:{
-        cuivre_orbital:80,
-        zinc_spatial:80,
-        nickel_brut:80,
-        titane_fissure:80,
-        silice_conductrice:80,
-        alliage_cuivre_zinc:5,
-        plaque_nickel_titane:5
-      }
-    })
-  }
 };
 
 export const RADAR_RANGE = 950;
@@ -1595,15 +1703,17 @@ export const ENEMY_HIT_CHANCE = {
   drone_pirate:0.86,
   raider_astral:0.89,
   chasseur_spectral:0.91,
+  pondeuse_astrale:0.92,
   cuirasse_nebulaire:0.93,
   cuirasse_ambre:0.92,
-  cristal_du_neant:0.92,
+  eclanite:0.92,
+  cristanite:0.92,
+  astranite:0.94,
   boss_drone_pirate:0.86,
   boss_raider_astral:0.89,
   boss_chasseur_spectral:0.91,
   boss_cuirasse_nebulaire:0.93,
-  boss_cuirasse_ambre:0.92,
-  boss_cristal_du_neant:0.92
+  boss_cuirasse_ambre:0.92
 };
 
 export const PORTAL_WAVE_TOTAL = 30;

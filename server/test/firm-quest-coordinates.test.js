@@ -3,10 +3,10 @@ import test from "node:test";
 import { getQuest, getQuestObjectives } from "../src/quests/questState.js";
 
 const expectedCoordinates = {
-  astra:{questId:"quest_lv5_call_for_help", x:430, y:-330, zone:"ASTRA-02"},
-  cyan:{questId:"quest_lv5_call_for_help_cyan", x:430, y:330, zone:"CYAN-02"},
-  jaune:{questId:"quest_lv5_call_for_help_jaune", x:-430, y:330, zone:"JAUNE-02"},
-  verte:{questId:"quest_lv5_call_for_help_verte", x:-430, y:-330, zone:"VERTE-02"}
+  astra:{questId:"quest_lv5_call_for_help", x:430, y:-330, zone:"Helion-02"},
+  cyan:{questId:"quest_lv5_call_for_help_cyan", x:430, y:330, zone:"Nereid-02"},
+  jaune:{questId:"quest_lv5_call_for_help_jaune", x:-430, y:330, zone:"Aureon-02"},
+  verte:{questId:"quest_lv5_call_for_help_verte", x:-430, y:-330, zone:"Sylva-02"}
 };
 
 test("Ricky quest coordinates match each firm portal", ()=>{

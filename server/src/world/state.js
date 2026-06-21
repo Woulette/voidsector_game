@@ -19,7 +19,8 @@ export function createWorldStateManager({io, players, presence, progressProfileQ
     for(let i = 0; i < Math.max(0, randomCount); i++) enemies.push(createWorldEnemy(map, enemies.length + 1, rnd));
     const state = {
       id:map.id,
-      enemies
+      enemies,
+      nextEnemySeq:enemies.length + 1
     };
     worldMaps.set(cleanMapId, state);
     return state;
@@ -80,6 +81,49 @@ export function createWorldStateManager({io, players, presence, progressProfileQ
     emitWorldEnemies(mapConfig.id);
   }
 
+  function removeWorldEnemy(mapId, enemyId){
+    const mapConfig = WORLD_MAPS[String(mapId)] || WORLD_MAPS["0"];
+    const map = getWorldMapState(mapConfig.id);
+    const index = map.enemies.findIndex(enemy=>enemy.id === enemyId);
+    if(index < 0) return false;
+    map.enemies.splice(index, 1);
+    emitWorldEnemies(mapConfig.id);
+    return true;
+  }
+
+  function spawnWorldEnemyChildren(mapId, parentEnemy){
+    const deathSpawn = parentEnemy?.deathSpawn;
+    if(!deathSpawn?.kind || Number(deathSpawn.count || 0) <= 0) return [];
+    const mapConfig = WORLD_MAPS[String(mapId)] || WORLD_MAPS["0"];
+    const map = getWorldMapState(mapConfig.id);
+    const count = Math.max(0, Math.floor(Number(deathSpawn.count || 0)));
+    const rnd = seededRandom(Date.now() + Number(mapConfig.seed || 1) + map.nextEnemySeq * 131);
+    const children = [];
+    for(let index = 0; index < count; index += 1){
+      const angle = Math.PI * 2 * index / count + rnd() * .35;
+      const distance = 95 + rnd() * 55;
+      const child = createWorldEnemy(
+        mapConfig,
+        map.nextEnemySeq++,
+        rnd,
+        deathSpawn.kind,
+        {
+          level:parentEnemy.level,
+          x:Math.max(-mapConfig.width / 2 + 70, Math.min(mapConfig.width / 2 - 70, Number(parentEnemy.x || 0) + Math.cos(angle) * distance)),
+          y:Math.max(-mapConfig.height / 2 + 70, Math.min(mapConfig.height / 2 - 70, Number(parentEnemy.y || 0) + Math.sin(angle) * distance)),
+          temporarySpawn:true,
+          spawnedBy:parentEnemy.id
+        }
+      );
+      child.lockedPlayerId = parentEnemy.lockedPlayerId || null;
+      child.lockedPlayerLastSeenAt = parentEnemy.lockedPlayerLastSeenAt || 0;
+      map.enemies.push(child);
+      children.push(child);
+    }
+    emitWorldEnemies(mapConfig.id);
+    return children;
+  }
+
   function playersOnMap(mapId){
     return [...players.values()].filter(player=>player.mapId === String(mapId) && presence.isActiveForWorld(player));
   }
@@ -89,7 +133,9 @@ export function createWorldStateManager({io, players, presence, progressProfileQ
     findWorldEnemyForPlayer,
     getWorldMapState,
     playersOnMap,
+    removeWorldEnemy,
     respawnWorldEnemy,
+    spawnWorldEnemyChildren,
     setPlayerMap
   };
 }

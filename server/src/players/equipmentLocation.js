@@ -9,7 +9,7 @@ export function createEquipmentLocationManager({io, players, profileManager, set
 
   function getHomeMapForFirm(firmId){
     const targetName = getFirmHomeMapName(firmId);
-    return Object.values(WORLD_MAPS).find(map=>String(map.name || "").toUpperCase() === targetName) || WORLD_MAPS["0"];
+    return Object.values(WORLD_MAPS).find(map=>String(map.name || "").toUpperCase() === String(targetName || "").toUpperCase()) || WORLD_MAPS["0"];
   }
 
   function getConnectedGamePlayerForAccount(player){
@@ -37,14 +37,14 @@ export function createEquipmentLocationManager({io, players, profileManager, set
     const gamePlayer = getConnectedGamePlayerForAccount(player);
     const homeMap = getHomeMapForFirm(firmId);
     if(!gamePlayer?.state){
-      return {ok:true, firmId, homeMap:homeMap?.name || "ASTRA-01", homeMapId:String(homeMap?.id || "0"), source:"disconnected"};
+      return {ok:true, firmId, homeMap:homeMap?.name || "Helion-01", homeMapId:String(homeMap?.id || "0"), source:"disconnected"};
     }
     if(isStateAtFirmSpawn(gamePlayer.state, firmId)){
-      return {ok:true, firmId, homeMap:homeMap?.name || "ASTRA-01", homeMapId:String(homeMap?.id || "0"), source:"live-spawn", gamePlayerId:gamePlayer.id};
+      return {ok:true, firmId, homeMap:homeMap?.name || "Helion-01", homeMapId:String(homeMap?.id || "0"), source:"live-spawn", gamePlayerId:gamePlayer.id};
     }
     return {
       ok:false,
-      reason:`Changement de vaisseau possible uniquement au spawn ${homeMap?.name || "ASTRA-01"}, ou une fois deconnecte du jeu.`
+      reason:`Changement de vaisseau possible uniquement au spawn ${homeMap?.name || "Helion-01"}, ou une fois deconnecte du jeu.`
     };
   }
 

@@ -26,7 +26,7 @@ test("Ricky delivery consumes ten teleportation fluids and completes the objecti
     type:"deliver_item",
     itemId:"teleportation_fluid",
     npcId:"astra02_portal_mechanic",
-    zoneName:"ASTRA-02"
+    zoneName:"Helion-02"
   });
 
   assert.equal(result.updates.length, 1);
@@ -81,7 +81,7 @@ test("Ricky delivery auto-claims the completed quest rewards through profile act
   });
   const result = manager.applyQuestAction({
     player:{name:"Pilot"},
-    action:{kind:"progress", type:"deliver_item", itemId:"teleportation_fluid", npcId:"astra02_portal_mechanic", zoneName:"ASTRA-02"}
+    action:{kind:"progress", type:"deliver_item", itemId:"teleportation_fluid", npcId:"astra02_portal_mechanic", zoneName:"Helion-02"}
   });
   const next = profiles.get("Pilot");
 

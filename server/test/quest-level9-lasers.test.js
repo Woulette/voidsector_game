@@ -93,7 +93,7 @@ test("Reflets du néant counts crystals globally, resets on death and has reques
   assert.equal(quest.failConditions.deathResets, true);
   assert.equal(acceptServerQuest(profile, RARE_QUEST_ID).ok, true);
 
-  progressServerQuestKill(profile, {kind:"cristal_du_neant", zoneName:"ANY-MAP"});
+  progressServerQuestKill(profile, {kind:"eclanite", zoneName:"ANY-MAP"});
   assert.equal(getQuestObjectiveProgress(profile, RARE_QUEST_ID, quest.objective, 0), 1);
   const failure = recordServerQuestDeath(profile);
   assert.equal(failure.failed.length, 1);
@@ -102,7 +102,7 @@ test("Reflets du néant counts crystals globally, resets on death and has reques
 
   assert.equal(acceptServerQuest(profile, RARE_QUEST_ID).ok, true);
   for(let index = 0; index < 10; index += 1){
-    progressServerQuestKill(profile, {kind:"cristal_du_neant", zoneName:`CRYSTAL-MAP-${index}`});
+    progressServerQuestKill(profile, {kind:"eclanite", zoneName:`CRYSTAL-MAP-${index}`});
   }
   assert.equal(getQuestObjectiveProgress(profile, RARE_QUEST_ID, quest.objective, 0), 10);
   assert.equal(canClaimQuest(profile, quest), true);

@@ -1,4 +1,5 @@
 import { portals } from "../data/catalog.js";
+import { getDeadlyEnemyDisplay } from "../data/deadlyEnemies.js";
 import { getEnemyAssetRotationStyle } from "../data/enemyVisuals.js";
 import { ENEMY_TYPES, MAPS } from "../game/combatData.js";
 import { fmt } from "../core/utils.js";
@@ -7,7 +8,7 @@ import {
   getCurrentRank,
   getRankForScore,
   getRankById,
-  calculateMonsterKillRankPoints,
+  getMonsterRankPointRule,
   getLeaderboardRows,
   getNextRank,
   getRankBreakdown,
@@ -17,6 +18,7 @@ import {
 import { multiplayer } from "../multiplayer/client.js";
 import { rankIcon, rankInline } from "./renderShared.js";
 import { buildPreviewPilotProfile, installPilotProfileModal, registerPilotProfile } from "./playerProfileModal.js";
+import { getLeaderboardPreviewRows } from "./leaderboardPreview.js";
 
 let rankDetailsOpen = false;
 let rankDetailsEventsInstalled = false;
@@ -107,6 +109,8 @@ function progressForScore(score, rankId = ""){
 }
 
 function getEnemyLevelRange(kind){
+  const deadlyRange = getDeadlyEnemyDisplay(kind)?.levelRange;
+  if(Array.isArray(deadlyRange) && deadlyRange.length >= 2) return [Number(deadlyRange[0]), Number(deadlyRange[1])];
   const typeRange = ENEMY_TYPES[kind]?.levelRange;
   if(Array.isArray(typeRange) && typeRange.length >= 2) return [Number(typeRange[0] || 1), Number(typeRange[1] || typeRange[0] || 1)];
   const levels = [];
@@ -120,16 +124,10 @@ function getEnemyLevelRange(kind){
   return [1, 1];
 }
 
-function getCurrentEnemyLevelForRate(playerLevel, range){
-  const [min, max] = range;
-  return Math.max(min, Math.min(max, Math.floor(Number(playerLevel || 1))));
-}
-
-function getCurrentMonsterRateLabel(playerLevel, range){
-  const enemyLevel = getCurrentEnemyLevelForRate(playerLevel, range);
-  const points = calculateMonsterKillRankPoints(playerLevel, enemyLevel);
-  const denominator = Math.max(1, Math.round(1 / Math.max(points, 0.000001)));
-  return `1 / ${fmt(denominator)}`;
+function getMonsterRateLabel(kind){
+  const rule = getMonsterRankPointRule(kind);
+  if(!rule) return "Aucun point";
+  return `${fmt(rule.points)} / ${fmt(rule.kills)}`;
 }
 
 function monsterImageHtml(row){
@@ -174,7 +172,6 @@ function installRankDetailsEvents(){
 function renderRankDetailsModal(breakdown){
   if(!rankDetailsOpen) return "";
   const player = store.state.player || {};
-  const playerLevel = Math.max(1, Number(player.level || 1));
   const completedPortals = store.state.completedPortals || {};
   const rankKillStats = store.state.rankKillStats || {};
   const xpRow = breakdown.find(row=>row.id === "xp") || {};
@@ -183,16 +180,17 @@ function renderRankDetailsModal(breakdown){
   const levelRow = breakdown.find(row=>row.id === "level") || {};
   const portalRow = breakdown.find(row=>row.id === "portal") || {};
   const monsterRows = Object.entries(rankKillStats)
-    .map(([kind, entry])=>({
-      kind,
-      name:ENEMY_TYPES[kind]?.name || kind,
-      img:ENEMY_TYPES[kind]?.img || "",
-      levelRange:getEnemyLevelRange(kind),
-      kills:Math.max(0, Number(entry?.kills || 0)),
-      points:Math.max(0, Number(entry?.points || 0)),
-      lastPlayerLevel:Math.max(1, Number(entry?.lastPlayerLevel || 1)),
-      lastEnemyLevel:Math.max(1, Number(entry?.lastEnemyLevel || 1))
-    }))
+    .map(([kind, entry])=>{
+      const deadly = getDeadlyEnemyDisplay(kind);
+      return {
+        kind,
+        name:deadly?.name || ENEMY_TYPES[kind]?.name || kind,
+        img:deadly?.img || ENEMY_TYPES[kind]?.img || "",
+        levelRange:getEnemyLevelRange(kind),
+        kills:Math.max(0, Number(entry?.kills || 0)),
+        points:Math.max(0, Number(entry?.points || 0))
+      };
+    })
     .filter(row=>row.kills > 0 || row.points > 0)
     .sort((a,b)=>b.points - a.points || b.kills - a.kills || a.name.localeCompare(b.name));
   const portalRows = Object.entries(completedPortals)
@@ -244,12 +242,11 @@ function renderRankDetailsModal(breakdown){
           <span class="tiny">BESTIAIRE DE GRADE</span>
           <h4>Monstres tues et points gagnes</h4>
           ${monsterRows.length ? `<div class="rank-monster-table">
-            <div class="rank-monster-head"><span>Monstre</span><span>Kills</span><span>Taux actuel</span><span>Dernier niveau</span><span>Points</span></div>
+            <div class="rank-monster-head"><span>Monstre</span><span>Kills</span><span>Barème fixe</span><span>Points</span></div>
             ${monsterRows.map(row=>`<div>
               <span class="rank-monster-name">${monsterImageHtml(row)}<span><b>${row.name}</b><small>Niv. ${fmt(row.levelRange[0])} a ${fmt(row.levelRange[1])}</small></span></span>
               <b>${fmt(row.kills)}</b>
-              <em>${getCurrentMonsterRateLabel(playerLevel, row.levelRange)}</em>
-              <small>Joueur ${fmt(row.lastPlayerLevel)} / ennemi ${fmt(row.lastEnemyLevel)}</small>
+              <em>${getMonsterRateLabel(row.kind)}</em>
               <strong>${fmt(row.points)} pts</strong>
             </div>`).join("")}
           </div>` : `<p class="rank-detail-empty">Aucun monstre comptabilise pour le moment.</p>`}
@@ -379,6 +376,7 @@ export function renderLeaderboard(){
   const panel = document.getElementById("leaderboardPanel");
   if(!panel) return;
   const rows = getVisibleLeaderboardRows();
+  const previewRows = getLeaderboardPreviewRows(rows);
   const serverMode = usesServerLeaderboard();
   const self = rows.find(row=>row.isPlayer) || rows[0];
   const progress = serverMode ? progressForScore(Number(self.points || 0), self.rankId) : getRankProgress();
@@ -438,7 +436,7 @@ export function renderLeaderboard(){
               </tr>
             </thead>
             <tbody>
-              ${rows.map(row=>`<tr class="${row.isPlayer ? "is-player" : ""}">
+              ${previewRows.map(row=>`<tr class="${row.isPlayer ? "is-player" : ""}">
                 <td>${row.position}</td>
                 <td>${renderPilotCell(row)}</td>
                 <td>${rankInline({id:row.rankId, name:row.grade})}</td>

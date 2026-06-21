@@ -30,14 +30,27 @@ function getNearbyMissionControl(player){
   const state = player?.state;
   const spawn = map?.spawn;
   if(!map || !state || !spawn) return {ok:false, reason:"Controleur de mission introuvable."};
+  const configuredStations = Array.isArray(map.questStations) ? map.questStations : [];
   const sideX = Number(spawn.x || 0) > 0 ? -1 : 1;
   const sideY = Number(spawn.y || 0) > 0 ? -1 : 1;
-  const station = {
+  const fallbackStation = {
     id:"quests",
     x:Number(spawn.x || 0) + sideX * 600,
     y:Number(spawn.y || 0) + sideY * 300,
     radius:MISSION_CONTROL_INTERACTION_RADIUS
   };
+  const station = (configuredStations.length ? configuredStations : [fallbackStation])
+    .map(entry=>({
+      ...entry,
+      id:"quests",
+      x:Number(entry.x || 0),
+      y:Number(entry.y || 0),
+      radius:Math.max(80, Number(entry.interactionRadius || entry.radius || MISSION_CONTROL_INTERACTION_RADIUS))
+    }))
+    .sort((left, right)=>
+      Math.hypot(Number(state.x || 0) - left.x, Number(state.y || 0) - left.y)
+      - Math.hypot(Number(state.x || 0) - right.x, Number(state.y || 0) - right.y)
+    )[0];
   const distance = Math.hypot(Number(state.x || 0) - station.x, Number(state.y || 0) - station.y);
   if(distance > station.radius) return {ok:false, reason:"Controleur de mission trop loin."};
   return {ok:true, map, station};

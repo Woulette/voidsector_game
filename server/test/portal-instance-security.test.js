@@ -250,10 +250,15 @@ test("Ricky joins the portal with support stats, prioritizes the player for aggr
     maxShield:0
   };
 
-  assert.equal(instance.ally.hp, 50000);
-  assert.equal(instance.ally.maxHp, 50000);
-  assert.equal(instance.ally.shield, 30000);
-  assert.equal(instance.ally.maxShield, 30000);
+  assert.equal(instance.ally.hp, 100000);
+  assert.equal(instance.ally.maxHp, 100000);
+  assert.equal(instance.ally.shield, 80000);
+  assert.equal(instance.ally.maxShield, 80000);
+  assert.equal(instance.ally.shieldRegenPerSecond, 150);
+  assert.equal(instance.ally.laserDamageMin, 3000);
+  assert.equal(instance.ally.laserDamageMax, 5000);
+  assert.equal(instance.ally.rocketDamageMin, 1500);
+  assert.equal(instance.ally.rocketDamageMax, 3000);
   assert.equal(instance.ally.attackRange, 600);
   assert.equal(instance.ally.speed, 500);
 
@@ -272,6 +277,18 @@ test("Ricky joins the portal with support stats, prioritizes the player for aggr
   assert.equal(enemy.lockedPlayerId, fixture.player.id);
   assert.ok(Number(enemy.damageThreat?.ricky_companion || 0) > 0);
   assert.ok(enemy.hp < enemy.maxHp);
+  const hits = fixture.events.filter(entry=>entry.event === "combat:hit" && entry.payload.attackerId === "ricky_companion");
+  const laserHit = hits.find(entry=>entry.payload.weaponClass === "laser");
+  const rocketHit = hits.find(entry=>entry.payload.weaponClass === "rocket");
+  assert.ok(laserHit.payload.damage >= 3000 && laserHit.payload.damage <= 5000);
+  assert.ok(rocketHit.payload.damage >= 1500 && rocketHit.payload.damage <= 3000);
+
+  instance.ally.shield = 79000;
+  instance.enemies = [];
+  fixture.manager.updateRickyCompanions(2, Date.now() + 12000);
+  assert.equal(instance.ally.shield, 79300);
+  fixture.manager.updateRickyCompanions(10, Date.now() + 22000);
+  assert.equal(instance.ally.shield, 80000);
 
   assert.equal(fixture.manager.activateRickyHealBeacon(fixture.socket), true);
   assert.equal(instance.beacons.length, 1);
@@ -374,19 +391,22 @@ test("Ricky portal enforces four numbered route waves, four beacon waves and the
   assert.equal(fixture.manager.activateRickyLever(fixture.socket, "south_east"), false);
 
   let now = Date.now() + 1000;
-  for(const lever of instance.objective.levers){
-    const route = instance.objective.routeWaves[lever.number - 1];
+  for(const route of [...instance.objective.routeWaves].reverse()){
     fixture.player.state.x = route.centerX;
     fixture.player.state.y = route.centerY;
     fixture.manager.updateRickyCompanions(.05, now);
     assert.equal(route.triggered, true);
-    assert.deepEqual(aliveComposition(`route_${lever.number}`), DEADLY_ROUTE_WAVES[lever.number]);
+    assert.deepEqual(aliveComposition(`route_${route.number}`), DEADLY_ROUTE_WAVES[route.number]);
 
-    killEncounter(`route_${lever.number}`);
+    killEncounter(`route_${route.number}`);
     fixture.manager.updateRickyCompanions(.05, now + 100);
     assert.equal(route.cleared, true);
-    assert.equal(lever.unlocked, true);
+    assert.equal(instance.objective.levers[route.number - 1].unlocked, true);
+    assert.equal(instance.objective.levers.some(lever=>lever.active), false);
+    now += 1000;
+  }
 
+  for(const lever of instance.objective.levers){
     fixture.player.state.x = lever.x;
     fixture.player.state.y = lever.y;
     assert.equal(fixture.manager.activateRickyLever(fixture.socket, lever.id), true);
@@ -461,6 +481,7 @@ test("Ricky portal enforces four numbered route waves, four beacon waves and the
   assert.equal(fixture.player.mapId, "1");
   assert.equal(fixture.player.state.x, 4300);
   assert.equal(fixture.player.state.y, -3300);
+  assert.equal(fixture.events.some(entry=>entry.event === "coop:enemies" && entry.target === fixture.player.id && entry.payload.instanceId === null), true);
   assert.equal(fixture.events.some(entry=>entry.event === "player:respawned"), true);
 });
 

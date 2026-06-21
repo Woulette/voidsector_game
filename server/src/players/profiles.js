@@ -21,6 +21,7 @@ export function createProfileManager({
 }){
   const profiles = new Map();
   const persistenceVersions = new Map();
+  const deferredPersistenceTimers = new Map();
   let persistenceTail = Promise.resolve();
   let identityTail = Promise.resolve();
 
@@ -49,6 +50,11 @@ export function createProfileManager({
   function persist(key = null){
     try{
       const keys = key === null ? [...profiles.keys()] : [String(key || "")];
+      for(const entryKey of keys){
+        const timer = deferredPersistenceTimers.get(entryKey);
+        if(timer) clearTimeout(timer);
+        deferredPersistenceTimers.delete(entryKey);
+      }
       const entries = keys.map(entryKey=>{
         const profile = profiles.get(entryKey);
         if(!profile) return null;
@@ -75,7 +81,24 @@ export function createProfileManager({
     }
   }
 
+  function persistDeferred(key, delayMs = 500){
+    const cleanKey = String(key || "");
+    if(!cleanKey || deferredPersistenceTimers.has(cleanKey)) return;
+    const timer = setTimeout(()=>{
+      deferredPersistenceTimers.delete(cleanKey);
+      persist(cleanKey);
+    }, Math.max(0, Number(delayMs || 0)));
+    timer.unref?.();
+    deferredPersistenceTimers.set(cleanKey, timer);
+  }
+
   async function flushPersistence(){
+    const pendingKeys = [...deferredPersistenceTimers.keys()];
+    for(const key of pendingKeys){
+      clearTimeout(deferredPersistenceTimers.get(key));
+      deferredPersistenceTimers.delete(key);
+      persist(key);
+    }
     await persistenceTail;
   }
 
@@ -332,9 +355,11 @@ export function createProfileManager({
 
   const {
     applyReward,
+    applyCombatReward,
     spendForPlayer,
-    updateProfileForPlayer
-  } = createProfileMutations({profiles, persist, profileKeyForPlayer, getExistingProfile});
+    updateProfileForPlayer,
+    updateCombatProfileForPlayer
+  } = createProfileMutations({profiles, persist, persistDeferred, profileKeyForPlayer, getExistingProfile});
 
   const {
     addAmmoPurchase,
@@ -365,8 +390,10 @@ export function createProfileManager({
     syncForSocket,
     saveFromPayload,
     applyReward,
+    applyCombatReward,
     spendForPlayer,
     updateProfileForPlayer,
+    updateCombatProfileForPlayer,
     addAmmoPurchase,
     addItemPurchase,
     addShipPurchase,
