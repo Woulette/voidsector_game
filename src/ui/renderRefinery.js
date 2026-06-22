@@ -23,6 +23,7 @@ import {
   isRefineryProductionEnabled,
   store
 } from "../core/store.js";
+import { currencyAmountHtml, currencyIconHtml } from "./currencyIcons.js";
 export function renderRefinery(){
   const panel = document.getElementById("refineryPanel");
   if(!panel) return;
@@ -139,7 +140,7 @@ export function renderRefinery(){
       <div class="sky-shipment-meter"><i style="width:${shipmentJob.percent}%"></i></div>
       <div class="sky-shipment-current-meta">
         <span>Temps restant <b>${durationText(shipmentJob.remaining)}</b></span>
-        <span>Terminer <b>${fmt(shipmentRush?.effectiveCost ?? shipmentRush?.cost ?? 0)} NOVA</b></span>
+        <span>Terminer <b>${currencyAmountHtml("premium", shipmentRush?.effectiveCost ?? shipmentRush?.cost ?? 0)}</b></span>
       </div>
       <button class="sky-shipment-btn" ${shipmentRush?.canAfford ? "" : "disabled"} data-rush-refinery-shipment>Terminer maintenant</button>
     </section>` : `<section class="sky-shipment-builder">
@@ -157,7 +158,7 @@ export function renderRefinery(){
         </label>
         <div class="sky-shipment-summary">
           <span>Max possible <b>${fmt(shipmentData?.maxAmount || 0)}</b></span>
-          <span>Cout <b>${fmt(shipmentData?.credits || 0)} CR</b></span>
+          <span>Cout <b>${currencyAmountHtml("credits", shipmentData?.credits || 0)}</b></span>
           <span>Duree <b>${durationText(shipmentData?.duration || 0)}</b></span>
           <span>Soute libre <b>${fmt(shipmentData?.shipFree || 0)}</b></span>
         </div>
@@ -293,7 +294,7 @@ export function renderRefinery(){
       return `<span class="${have >= amount ? "ok" : "missing"}">${material?.name || id} <b>${fmt(have)} / ${fmt(amount)}</b></span>`;
     }).join("");
     return `<div class="sky-upgrade-costs">
-      <span class="${creditOk ? "ok" : "missing"}">Credits <b>${fmt(store.state.player.credits)} / ${fmt(data.credits)}</b></span>
+      <span class="${creditOk ? "ok" : "missing"}">${currencyIconHtml("credits")} <b>${fmt(store.state.player.credits)} / ${fmt(data.credits)}</b></span>
       ${materialRows || `<span class="ok">Materiaux <b>Aucun</b></span>`}
     </div>`;
   };
@@ -325,7 +326,7 @@ export function renderRefinery(){
       ${job ? `<div class="sky-upgrade-timer">
         <div><span>Temps restant</span><b>${durationText(job.remaining)}</b></div>
         <div class="sky-upgrade-meter"><i style="width:${job.percent}%"></i></div>
-        <div><span>Terminer maintenant</span><b>${fmt(rush?.effectiveCost ?? rush?.cost ?? 0)} NOVA</b></div>
+        <div><span>Terminer maintenant</span><b>${currencyAmountHtml("premium", rush?.effectiveCost ?? rush?.cost ?? 0)}</b></div>
         <button class="sky-upgrade-confirm" ${rush?.canAfford ? "" : "disabled"} data-rush-refinery-upgrade="${selectedUpgrade.id}" data-rush-refinery-type="${selectedUpgrade.type}">Terminer</button>
       </div>` : `${costList(data)}
         <div class="sky-upgrade-duration"><span>Duree</span><b>${durationText(data?.duration || 0)}</b></div>
@@ -363,4 +364,3 @@ export function renderRefinery(){
       ${refineryTab === "shipment" ? shipmentPanel : refineryTab === "stats" ? statsPanel : forgeHtml}
     </div>`;
 }
-

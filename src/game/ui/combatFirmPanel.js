@@ -1,4 +1,5 @@
 import { FIRMS, getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
+import { currencyAmountHtml } from "../../ui/currencyIcons.js";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
@@ -28,11 +29,11 @@ function badge(firmId){
   return `assets/firms/${normalizeFirmId(firmId || "astra")}.svg`;
 }
 
-function rewardText(reward = {}){
+function rewardHtml(reward = {}){
   const parts = [];
-  if(reward.premium) parts.push(`${fmt(reward.premium)} NOVA`);
-  for(const [id, amount] of Object.entries(reward.ammo || {})) parts.push(`${fmt(amount)} ${id}`);
-  for(const [rarity, amount] of Object.entries(reward.boxes || {})) parts.push(`${fmt(amount)} coffre(s) ${rarity}`);
+  if(reward.premium) parts.push(currencyAmountHtml("premium", reward.premium));
+  for(const [id, amount] of Object.entries(reward.ammo || {})) parts.push(`${fmt(amount)} ${escapeHtml(id)}`);
+  for(const [rarity, amount] of Object.entries(reward.boxes || {})) parts.push(`${fmt(amount)} coffre(s) ${escapeHtml(rarity)}`);
   if(reward.firmatons) parts.push("gain FIRME visible dans la page FIRME");
   return parts.join(" + ") || "Aucun gain";
 }
@@ -77,10 +78,10 @@ function renderQuests(snapshot){
 function renderRewards(snapshot){
   const pending = snapshot.personal?.pendingRewards || [];
   return `<div class="combat-firm-reward-summary">
-      <article><span>Rang individuel</span><strong>${escapeHtml(snapshot.personal?.rewardLabel || "Non classé")}</strong><small>${escapeHtml(rewardText(snapshot.personal?.expectedReward || {}))}</small></article>
+      <article><span>Rang individuel</span><strong>${escapeHtml(snapshot.personal?.rewardLabel || "Non classé")}</strong><small>${rewardHtml(snapshot.personal?.expectedReward || {})}</small></article>
       <article><span>Récompense collective</span><strong>${snapshot.personal?.collectiveEligible ? "ÉLIGIBLE" : "SEUIL NON ATTEINT"}</strong><small>${fmt(snapshot.personal?.contribution || 0)} / ${fmt(snapshot.collectiveMinimumContribution || 10_000)} points</small></article>
     </div>
-    <div class="combat-firm-pending">${pending.map(entry=>`<article><strong>${escapeHtml(entry.label)}</strong><span>${escapeHtml(rewardText(entry.reward))}</span></article>`).join("") || `<p class="social-empty">Aucune récompense en attente.</p>`}</div>
+    <div class="combat-firm-pending">${pending.map(entry=>`<article><strong>${escapeHtml(entry.label)}</strong><span>${rewardHtml(entry.reward)}</span></article>`).join("") || `<p class="social-empty">Aucune récompense en attente.</p>`}</div>
     <button class="combat-firm-claim" data-social-action="firm-reward-claim" type="button" ${pending.length ? "" : "disabled"}>RÉCUPÉRER LES RÉCOMPENSES</button>`;
 }
 

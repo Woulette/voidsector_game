@@ -16,6 +16,8 @@ import {
   getEquippedLauncher,
   getEquippedExtras,
   getGraphicsQuality,
+  getGraphicsEffects,
+  getGameSettings,
   getEquipmentUpgradeCost,
   getEquipmentUpgradeLevel,
   getEquippedLasers,
@@ -84,6 +86,7 @@ import { createCombatSessionController } from "./systems/combatSession.js";
 import { createCombatStatusEffectSystem } from "./systems/combatStatusEffects.js";
 import { createCombatWorldStateSystem } from "./systems/combatWorldState.js";
 import { createCombatPerfSystem } from "./systems/combatPerf.js";
+import { createCombatSettingsRuntime } from "./systems/combatSettingsRuntime.js";
 import { advanceMapPortalTransition, createMapPortalTransition, findMapPortalAt } from "./systems/mapPortalTransfer.js";
 import { createMiniMapState } from "./systems/minimapState.js";
 import { createPlayerLifecycle } from "./systems/playerLifecycle.js";
@@ -99,8 +102,10 @@ import { installCombatInputHandlers } from "./ui/inputBindings.js";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js";
 import { createCombatPanels } from "./ui/combatPanels.js";
-import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
+import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js";
+import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
+import { getShipAbilityStatuses } from "../shared/shipAbilities.js";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
@@ -328,7 +333,23 @@ export function createCombatGame({renderAll, showToast}){
       if(activateServerRickyHealBeacon()) return true;
       showToast(MMO_REQUIRED_MESSAGE);
       return false;
-    }
+    },
+    getShipAbilityStates:()=>{
+      const shipId = String(store.state.activeShip || "");
+      const storedState = store.state.shipAbilityStates?.[shipId] || {};
+      const liveState = multiplayer.shipAbilityState;
+      let stateValue = storedState;
+      if(String(liveState?.shipId || "") === shipId && liveState?.abilityId){
+        const nestedState = storedState && typeof storedState === "object"
+          && !Object.hasOwn(storedState, "activeUntil")
+          && !Object.hasOwn(storedState, "cooldownUntil")
+          ? storedState
+          : {};
+        stateValue = {...nestedState, [liveState.abilityId]:liveState};
+      }
+      return getShipAbilityStatuses(shipId, stateValue, Date.now());
+    },
+    activateShipAbility:abilityId=>activateServerShipAbility(abilityId)
   });
 
   const {
@@ -348,6 +369,7 @@ export function createCombatGame({renderAll, showToast}){
     upgradeServerEquipment
   });
 
+  let settingsController = null;
   const panels = createCombatPanels({
     store,
     saveState,
@@ -381,7 +403,8 @@ export function createCombatGame({renderAll, showToast}){
     isRefineryComplete,
     formatDuration,
     graphicsQualityPresets:GRAPHICS_QUALITY_PRESETS,
-    getGraphicsQuality
+    getGraphicsQuality,
+    renderSettingsContent:()=>settingsController?.renderContent?.() || ""
   });
   const chat = createCombatChat({
     store,
@@ -392,17 +415,42 @@ export function createCombatGame({renderAll, showToast}){
     fmt,
     showToast
   });
+  const settingsRuntime = createCombatSettingsRuntime({store, resize, chat, saveState});
+  settingsController = createCombatSettingsPanel({
+    store,
+    saveState,
+    applySettings:options=>settingsRuntime.applySettings(options),
+    runtime:settingsRuntime,
+    chat,
+    closePanel:()=>panels.openUtilityPanel("settings"),
+    refreshActionBar:()=>actions.updateGameActionBar(),
+    showToast
+  });
+  settingsRuntime.applySettings({syncChat:true});
   let cargo;
   const rewards = createRewardSystem({
     onLootChanged:()=>updateLootPopup()
   });
   window.addEventListener("voidsector:multiplayer-change", event=>{
-    if(event.detail?.reason !== "group:invite") return;
+    const reason = String(event.detail?.reason || "");
+    if(reason === "firm:snapshot" || reason === "firm:ranking"){
+      if(running && player){
+        refreshPlayerStatsFromLoadout();
+        updateHud();
+      }
+      return;
+    }
+    if(reason !== "group:invite") return;
     const invite = event.detail?.payload || {};
     rewards.showLootNotice({
       message:`${invite.fromName || "Un joueur"} vous invite en groupe`,
       duration:15
     });
+  });
+  window.addEventListener("voidsector:profile-applied", event=>{
+    if(!event.detail?.profile?.boosters || !running || !player) return;
+    refreshPlayerStatsFromLoadout();
+    updateHud();
   });
   cargo = createCombatCargoSystem({
     rewards,
@@ -471,6 +519,7 @@ export function createCombatGame({renderAll, showToast}){
     store,
     getState:getCombatState,
     getGraphicsQuality,
+    getGraphicsEffects,
     getSpawnStations:()=>worldState.getSpawnStations(),
     getSafeAreas:()=>worldState.getSafeAreas(),
     isSafeModeActive,
@@ -605,7 +654,9 @@ export function createCombatGame({renderAll, showToast}){
     tickCombatBoosts,
     isSafeModeActive,
     isPlayerOutsideMap,
-    emitPlayerEngineParticles,
+    emitPlayerEngineParticles:args=>{
+      if(getGraphicsEffects().shipEngineTrail !== false) emitPlayerEngineParticles(args);
+    },
     updateHud,
     syncServerControlledEnemies:multiplayerSync.syncEnemies,
     sendPlayerSnapshot,
@@ -644,7 +695,8 @@ export function createCombatGame({renderAll, showToast}){
     draw:perf.measuredDraw,
     getLastTime:()=>last,
     setLastTime:value=>{ last = value; },
-    onFrameMetrics:perf.recordFrameMetrics
+    onFrameMetrics:perf.recordFrameMetrics,
+    getFpsLimit:()=>getGameSettings().graphics.fpsLimit
   });
   const questNpcDialogue = createQuestNpcDialogue({
     canvas,
@@ -1048,6 +1100,7 @@ export function createCombatGame({renderAll, showToast}){
     canvas,
     isRunning:()=>running,
     isMovementLocked:()=>cargo.isMovementLocked?.() || Boolean(portalCinematic),
+    isSettingsOpen:()=>settingsController?.isOpen?.() || false,
     resize,
     saveState,
     getMouse:()=>mouse,
@@ -1065,6 +1118,7 @@ export function createCombatGame({renderAll, showToast}){
     getCombatMetricModes:()=>combatMetricModes,
     getActionSlots:()=>store.state.actionSlots || [],
     getSlotKeybinds:()=>store.state.slotKeybinds,
+    getAbilityKeybinds:()=>store.state.abilityKeybinds,
     clearSelectedEnemy,
     hasSelectedEnemy:()=>!!selectedEnemy,
     tryUseMapPortal:portalNavigation.tryUseMapPortal,
@@ -1090,6 +1144,7 @@ export function createCombatGame({renderAll, showToast}){
     attackSelectedWithActiveLaser,
     renderSpawnInteractionPanel:panels.renderSpawnInteractionPanel,
     openUtilityPanel:panels.openUtilityPanel,
+    toggleBoosterDetail:panels.toggleBoosterDetail,
     selectPortgunMapTarget:panels.selectPortgunMapTarget,
     closeUtilityPanel:panels.closeUtilityPanel,
     inviteGroupMember:panels.inviteGroupMember,
@@ -1127,6 +1182,7 @@ export function createCombatGame({renderAll, showToast}){
     buyCombatAmmo:actions.buyCombatAmmo,
     activateRepairBot,
     useRickySupportSkill:actions.useRickySupportSkill,
+    useShipAbility:actions.useShipAbility,
     acceptQuest:acceptQuestAction,
     claimQuest:claimQuestAction,
     startRefineryJob:recipeId=>{
@@ -1186,7 +1242,10 @@ export function createCombatGame({renderAll, showToast}){
   });
 
   return {
-    start:session.start,
+    start:(...args)=>{
+      settingsRuntime.applySettings({syncChat:true});
+      return session.start(...args);
+    },
     stop:session.stop,
     requestLogout:logout.request,
     resumeWorldSession:session.resumeWorldSession,

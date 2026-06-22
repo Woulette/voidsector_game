@@ -5,7 +5,10 @@ import { createRewardSystem } from "../../src/game/systems/rewards.js";
 import { createWeaponSystem } from "../../src/game/systems/weapons.js";
 import { syncMultiplayerProfile } from "../../src/multiplayer/profileSync.js";
 
-function createWeaponFixture(enemy){
+function createWeaponFixture(enemy, {
+  shipLasers = [{id:"laser_mk1", weapon:{minDamage:10, maxDamage:10, range:1000, speed:900}}],
+  droneLasers = []
+} = {}){
   let consumed = 0;
   let saved = 0;
   let resolved = 0;
@@ -30,8 +33,8 @@ function createWeaponFixture(enemy){
     setAmmoCooldown(){},
     getEffectiveAmmoCooldown:()=>1,
     tickAmmoCooldowns(){},
-    getEquippedLasers:()=>[{id:"laser_mk1", weapon:{minDamage:10, maxDamage:10, range:1000, speed:900}}],
-    getEquippedDroneLasers:()=>[],
+    getEquippedLasers:()=>shipLasers,
+    getEquippedDroneLasers:()=>droneLasers,
     getEquippedLauncher:()=>null,
     getEquipmentUpgradeLevel:()=>0,
     consumeCombatBoostCharges:()=>0,
@@ -77,6 +80,44 @@ test("server-controlled targets never consume MMO ammunition locally", ()=>{
   assert.equal(fixture.resolved(), 1);
   assert.equal(fixture.actionBarRefreshes(), 0);
   assert.equal(fixture.quickPanelRefreshes(), 0);
+});
+
+test("client laser range uses the shortest equipped ship laser", ()=>{
+  const enemy = {id:"server-enemy", x:525, y:0, hp:100, serverControlled:true};
+  const fixture = createWeaponFixture(enemy, {
+    shipLasers:[
+      {id:"laser_mk1", weapon:{range:500, speed:900}},
+      {id:"laser_mk3", weapon:{range:550, speed:1040}}
+    ]
+  });
+
+  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), false);
+  assert.equal(fixture.resolved(), 0);
+});
+
+test("client drone lasers do not reduce an equipped ship laser range", ()=>{
+  const enemy = {id:"server-enemy", x:525, y:0, hp:100, serverControlled:true};
+  const fixture = createWeaponFixture(enemy, {
+    shipLasers:[{id:"laser_mk3", weapon:{range:550, speed:1040}}],
+    droneLasers:[{id:"laser_mk1", weapon:{range:500, speed:900}}]
+  });
+
+  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), true);
+  assert.equal(fixture.resolved(), 1);
+});
+
+test("client uses the shortest drone laser range when the ship has no laser", ()=>{
+  const enemy = {id:"server-enemy", x:525, y:0, hp:100, serverControlled:true};
+  const fixture = createWeaponFixture(enemy, {
+    shipLasers:[],
+    droneLasers:[
+      {id:"laser_mk1", weapon:{range:500, speed:900}},
+      {id:"laser_mk3", weapon:{range:550, speed:1040}}
+    ]
+  });
+
+  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), false);
+  assert.equal(fixture.resolved(), 0);
 });
 
 test("local targets are rejected in MMO-only combat", ()=>{

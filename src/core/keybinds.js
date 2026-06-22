@@ -1,4 +1,5 @@
 export const DEFAULT_SLOT_KEYBINDS = ["Digit1","Digit2","Digit3","Digit4","Digit5","Digit6","Digit7","Digit8","Digit9"];
+export const DEFAULT_ABILITY_KEYBINDS = ["KeyC", "KeyV", "KeyB"];
 
 export function keyCodeToLabel(code){
   if(!code) return "-";
@@ -32,9 +33,28 @@ export function eventToCode(event){
   return event?.code || (event?.key?.length === 1 ? `Key${event.key.toUpperCase()}` : event?.key || "");
 }
 
+export function normalizeAbilityKeybinds(raw, blockedCodes = []){
+  const result = [];
+  const used = new Set(Array.isArray(blockedCodes) ? blockedCodes.filter(Boolean) : []);
+  const source = Array.isArray(raw) ? raw : [];
+  const fallbacks = [...DEFAULT_ABILITY_KEYBINDS, "KeyX", "KeyN", "KeyM", "KeyL", "KeyK"];
+  for(let i = 0; i < DEFAULT_ABILITY_KEYBINDS.length; i++){
+    const candidate = typeof source[i] === "string" && source[i] ? source[i] : DEFAULT_ABILITY_KEYBINDS[i];
+    const code = !used.has(candidate) ? candidate : fallbacks.find(value=>!used.has(value));
+    result[i] = code || DEFAULT_ABILITY_KEYBINDS[i];
+    used.add(result[i]);
+  }
+  return result;
+}
+
 export function slotIndexFromEvent(event, keybinds){
   const code = eventToCode(event);
   return normalizeSlotKeybinds(keybinds).indexOf(code);
+}
+
+export function abilityIndexFromEvent(event, keybinds, slotKeybinds = []){
+  const code = eventToCode(event);
+  return normalizeAbilityKeybinds(keybinds, slotKeybinds).indexOf(code);
 }
 
 export function isEditableTarget(target){

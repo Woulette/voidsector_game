@@ -1,4 +1,4 @@
 export { renderLeaderboard } from "./renderLeaderboard.js";
-export { renderPortals } from "./renderPortals.js";
-export { renderRefinery } from "./renderRefinery.js";
-export { renderSkills } from "./renderSkills.js";
+export { renderPortals } from "./renderPortals.js?v=currency-icons-1";
+export { renderRefinery } from "./renderRefinery.js?v=currency-icons-1";
+export { renderSkills } from "./renderSkills.js?v=currency-icons-1";

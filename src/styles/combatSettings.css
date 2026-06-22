@@ -1,0 +1,119 @@
+.game-screen{--combat-ui-scale:1}
+.game-screen.settings-hide-target-details #gameTargetPanel{display:none!important}
+.game-screen .combat-status{transform:scale(var(--combat-ui-scale));transform-origin:top left}
+.game-screen .combat-wallet,.game-screen #returnDashboardBtn{transform:scale(var(--combat-ui-scale));transform-origin:top right}
+.game-screen .combat-utility-dock{transform:scale(var(--combat-ui-scale));transform-origin:top left}
+.game-screen .combat-perf-panel{transform:scale(var(--combat-ui-scale));transform-origin:top right}
+.game-screen .target-panel{transform:translateX(-50%) scale(var(--combat-ui-scale));transform-origin:top center}
+.game-screen .action-bar{transform:translateX(-50%) scale(var(--combat-ui-scale));transform-origin:bottom center}
+
+.combat-utility-panel[data-utility-mode="settings"]{
+  z-index:20;
+  left:50%;
+  right:auto;
+  top:50%;
+  width:min(820px,calc(100vw - 36px));
+  height:min(720px,calc(100vh - 36px));
+  max-height:calc(100vh - 36px);
+  padding:0;
+  overflow:hidden;
+  transform:translate(-50%,-50%);
+  border-color:rgba(56,189,248,.58);
+  background:
+    linear-gradient(135deg,rgba(14,165,233,.08),transparent 30%),
+    linear-gradient(180deg,rgba(4,17,32,.985),rgba(1,8,16,.985));
+  box-shadow:0 24px 80px rgba(0,0,0,.72),0 0 28px rgba(56,189,248,.18),inset 0 0 32px rgba(56,189,248,.045);
+  clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+}
+.combat-utility-panel[data-utility-mode="settings"]::before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;
+  background:linear-gradient(rgba(56,189,248,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.04) 1px,transparent 1px);
+  background-size:32px 32px;
+}
+.combat-utility-panel[data-utility-mode="settings"]>.combat-utility-panel-head{
+  position:relative;z-index:2;height:62px;margin:0;padding:10px 14px 9px 18px;border-bottom:1px solid rgba(56,189,248,.30);
+  background:linear-gradient(90deg,rgba(8,47,73,.78),rgba(3,15,29,.92) 54%,rgba(14,165,233,.08));
+}
+.combat-utility-panel[data-utility-mode="settings"]>.combat-utility-panel-head>div{display:grid;gap:2px}
+.combat-utility-panel[data-utility-mode="settings"]>.combat-utility-panel-head span{color:#7dd3fc;font-size:9px;font-weight:800;letter-spacing:1.7px}
+.combat-utility-panel[data-utility-mode="settings"]>.combat-utility-panel-head strong{font-size:20px;letter-spacing:2px;text-shadow:0 0 12px rgba(56,189,248,.35)}
+.combat-settings-close{width:34px;height:34px;display:grid;place-items:center;border:1px solid rgba(248,113,113,.52);background:rgba(69,10,10,.48);color:#fecaca;font:900 24px/1 Arial;cursor:pointer}
+.combat-settings-close:hover{border-color:#fecaca;background:rgba(153,27,27,.78);color:#fff;box-shadow:0 0 16px rgba(239,68,68,.28)}
+.combat-utility-panel[data-utility-mode="settings"]>.combat-utility-content{position:relative;z-index:1;height:calc(100% - 62px);display:grid;grid-template-rows:49px minmax(0,1fr);gap:0;min-height:0}
+.combat-settings-tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid rgba(56,189,248,.22);background:rgba(2,10,19,.82)}
+.combat-settings-tabs button{position:relative;border:0;border-right:1px solid rgba(56,189,248,.14);background:transparent;color:#739bb7;font:900 11px/1 Rajdhani,Arial;letter-spacing:1px;text-transform:uppercase;cursor:pointer}
+.combat-settings-tabs button:last-child{border-right:0}
+.combat-settings-tabs button:hover{background:rgba(14,165,233,.10);color:#dff6ff}
+.combat-settings-tabs button.active{background:linear-gradient(180deg,rgba(14,165,233,.20),rgba(8,47,73,.24));color:#e8f8ff;text-shadow:0 0 9px rgba(125,211,252,.45)}
+.combat-settings-tabs button.active::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:3px;background:#38bdf8;box-shadow:0 0 11px rgba(56,189,248,.9)}
+.combat-settings-body{min-height:0;overflow:auto;padding:16px 18px 22px}
+.combat-settings-page{display:grid;gap:14px}
+.combat-settings-section{display:grid;gap:11px;padding:13px;border:1px solid rgba(56,189,248,.18);background:linear-gradient(160deg,rgba(7,24,42,.66),rgba(2,10,19,.76))}
+.combat-settings-section-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:9px;border-bottom:1px solid rgba(56,189,248,.12)}
+.combat-settings-section-head>div{display:grid;gap:2px}
+.combat-settings-section-head span{color:#38bdf8;font-size:9px;font-weight:900;letter-spacing:1.4px}
+.combat-settings-section-head h3{margin:0;color:#f0f9ff;font-size:17px;letter-spacing:.8px;text-transform:uppercase}
+.combat-settings-section-head>b{color:#facc15;font-size:11px;letter-spacing:.8px;text-transform:uppercase}
+.combat-settings-help{margin:0;color:#789ab4;font-size:11px;line-height:1.45}
+.combat-settings-help.warning{color:#fbbf24}
+.combat-settings-presets{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.combat-settings-presets button{min-height:65px;display:grid;align-content:center;gap:4px;padding:8px;border:1px solid rgba(56,189,248,.18);background:rgba(2,10,19,.68);color:#8fb9d6;text-align:left;cursor:pointer}
+.combat-settings-presets button:hover{border-color:rgba(125,211,252,.55);background:rgba(8,31,54,.76)}
+.combat-settings-presets button.active{border-color:rgba(250,204,21,.76);background:linear-gradient(160deg,rgba(113,63,18,.40),rgba(2,10,19,.76));box-shadow:inset 0 -3px 0 #facc15,0 0 14px rgba(250,204,21,.10)}
+.combat-settings-presets strong{color:#edfaff;font-size:12px;text-transform:uppercase}
+.combat-settings-presets small{color:#789ab4;font-size:9px}
+.combat-settings-tech-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.combat-settings-field{display:grid;grid-template-columns:1fr auto;align-items:center;gap:7px 12px;padding:11px 12px;border:1px solid rgba(56,189,248,.18);background:rgba(2,10,19,.70)}
+.combat-settings-field>span{color:#dff6ff;font-size:12px;font-weight:900;text-transform:uppercase}
+.combat-settings-field select,.combat-settings-fullscreen{min-width:150px;height:34px;border:1px solid rgba(56,189,248,.36);background:#061629;color:#dff6ff;padding:0 10px;font:800 11px Rajdhani,Arial;text-transform:uppercase;cursor:pointer}
+.combat-settings-fullscreen.active{border-color:rgba(74,222,128,.55);color:#86efac}
+.combat-settings-field small{grid-column:1/-1;color:#6689a3;font-size:9px}
+.combat-settings-effects{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:start}
+.combat-settings-effect-group{display:grid;border:1px solid rgba(56,189,248,.18);background:rgba(2,10,19,.70)}
+.combat-settings-effect-group header{display:flex;justify-content:space-between;padding:9px 10px;border-bottom:1px solid rgba(56,189,248,.16);background:rgba(8,47,73,.26);color:#dff6ff;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.7px}
+.combat-settings-effect-group header b{color:#7dd3fc}
+.combat-settings-switch-list{display:grid;gap:7px}
+.combat-settings-switch{position:relative;min-height:48px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid rgba(56,189,248,.09);cursor:pointer}
+.combat-settings-switch:last-child{border-bottom:0}
+.combat-settings-switch:hover{background:rgba(14,165,233,.07)}
+.combat-settings-switch>span{display:grid;gap:2px;padding-right:48px}
+.combat-settings-switch strong{color:#cceafa;font-size:10px;text-transform:uppercase;letter-spacing:.35px}
+.combat-settings-switch small{color:#789ab4;font-size:9px;line-height:1.25}
+.combat-settings-switch input{position:absolute;opacity:0;pointer-events:none}
+.combat-settings-switch i{position:absolute;right:10px;width:38px;height:20px;border:1px solid rgba(100,116,139,.50);background:rgba(15,23,42,.92);box-shadow:inset 0 0 8px rgba(0,0,0,.5)}
+.combat-settings-switch i::after{content:"";position:absolute;left:3px;top:3px;width:12px;height:12px;background:#64748b;transition:.14s ease}
+.combat-settings-switch input:checked+i{border-color:rgba(56,189,248,.72);background:rgba(3,105,161,.34);box-shadow:0 0 10px rgba(56,189,248,.16)}
+.combat-settings-switch input:checked+i::after{left:21px;background:#7dd3fc;box-shadow:0 0 8px rgba(125,211,252,.72)}
+.combat-settings-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.combat-settings-scale button{height:38px;border:1px solid rgba(56,189,248,.20);background:rgba(2,10,19,.72);color:#8fb9d6;font-weight:900;cursor:pointer}
+.combat-settings-scale button.active{border-color:#38bdf8;background:rgba(14,165,233,.20);color:#e0f2fe;box-shadow:inset 0 -3px 0 #38bdf8}
+.combat-settings-volume-list{display:grid;gap:12px}
+.combat-settings-volume{display:grid;gap:8px;padding:10px;border:1px solid rgba(56,189,248,.12);background:rgba(2,10,19,.54)}
+.combat-settings-volume>span{display:flex;justify-content:space-between;gap:10px;color:#dff6ff;font-size:11px;text-transform:uppercase}
+.combat-settings-volume output{color:#7dd3fc;font-weight:900}
+.combat-settings-volume input{width:100%;accent-color:#38bdf8}
+.combat-settings-mute{min-height:50px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 14px;border:1px solid rgba(248,113,113,.36);background:rgba(69,10,10,.22);color:#fecaca;text-align:left;cursor:pointer}
+.combat-settings-mute.active{border-color:#ef4444;background:rgba(127,29,29,.48);box-shadow:inset 4px 0 0 #ef4444}
+.combat-settings-mute span{font-weight:900}
+.combat-settings-mute small{color:#b98b95}
+.combat-settings-reset{height:30px;border:1px solid rgba(248,113,113,.38);background:rgba(69,10,10,.30);color:#fecaca;padding:0 10px;font-size:9px;font-weight:900;cursor:pointer}
+.combat-settings-key-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.combat-settings-key{min-height:73px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 8px;padding:9px 10px;border:1px solid rgba(56,189,248,.18);background:rgba(2,10,19,.72);color:#8fb9d6;text-align:left;cursor:pointer}
+.combat-settings-key:hover{border-color:rgba(125,211,252,.56);background:rgba(8,31,54,.72)}
+.combat-settings-key span{color:#b8d7e8;font-size:10px;text-transform:uppercase}
+.combat-settings-key strong{grid-row:1/3;grid-column:2;min-width:48px;color:#facc15;font-size:16px;text-align:center}
+.combat-settings-key small{font-size:9px;color:#63859d}
+.combat-settings-key.listening{border-color:#facc15;background:rgba(113,63,18,.34);box-shadow:0 0 16px rgba(250,204,21,.15)}
+
+@media(max-width:760px){
+  .game-screen .action-bar{transform:none}
+  .combat-utility-panel[data-utility-mode="settings"]{width:calc(100vw - 16px);height:calc(100vh - 16px);max-height:calc(100vh - 16px)}
+  .combat-settings-presets,.combat-settings-effects{grid-template-columns:1fr 1fr}
+  .combat-settings-tech-grid{grid-template-columns:1fr}
+  .combat-settings-key-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:500px){
+  .combat-settings-tabs button{font-size:9px}
+  .combat-settings-presets,.combat-settings-effects,.combat-settings-key-grid{grid-template-columns:1fr}
+  .combat-settings-body{padding:10px}
+}

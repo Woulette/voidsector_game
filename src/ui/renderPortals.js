@@ -1,15 +1,23 @@
 import { ammoTypes, portals } from "../data/catalog.js";
 import { fmt } from "../core/utils.js";
-import { basePriceLabel, canAfford, getPortalPieces, hasCurrencyDiscount, isPortalUnlocked, priceLabel, store } from "../core/store.js";
+import { canAfford, getCurrencyPrice, getPortalPieces, hasCurrencyDiscount, isPortalUnlocked, store } from "../core/store.js";
+import { currencyAmountHtml } from "./currencyIcons.js";
 
 function getCasterCost(){
   return 100;
 }
 
 function novaPriceHtml(price){
-  const current = `<b class="shop-price premium">${priceLabel("premium", price)}</b>`;
+  const current = `<b class="shop-price premium">${currencyAmountHtml("premium", getCurrencyPrice("premium", price))}</b>`;
   if(!hasCurrencyDiscount("premium", price)) return current;
-  return `<span class="shop-price-discount"><s>${basePriceLabel("premium", price)}</s>${current}</span>`;
+  return `<span class="shop-price-discount"><s>${currencyAmountHtml("premium", price)}</s>${current}</span>`;
+}
+
+function portalRewardHtml(reward){
+  return String(reward || "").split(" · ").map(part=>{
+    const match = part.match(/^([\d\s]+) NOVA(.*)$/i);
+    return match ? `${currencyAmountHtml("premium", Number(match[1].replace(/\s/g, "")))}${match[2] || ""}` : part;
+  }).join(" · ");
 }
 
 function getResultImage(entry, portal){
@@ -96,7 +104,7 @@ export function renderPortals(){
       <div class="portal-piece-row"><span>Pieces</span><strong>${fmt(pieces)} / ${fmt(p.piecesRequired)}</strong></div>
       <div class="stat-track compact"><span style="width:${Math.min(100, pieces / p.piecesRequired * 100)}%"></span></div>
       <p class="portal-copy">Drop : ${p.dropZones.join(", ")} - taux ${p.dropChance ? (p.dropChance * 100).toFixed(2).replace(".", ",") : "0,00"}%</p>
-      <p class="portal-copy reward">Recompense : ${p.reward}</p>
+      <p class="portal-copy reward">Recompense : ${portalRewardHtml(p.reward)}</p>
       ${unlocked ? `<p class="portal-copy">Vies : ${runLives}/3${run?.status === "dead" ? " - reprise disponible" : ""}</p>` : ""}
       <div class="portal-actions">${actionHtml}</div>
       <small class="portal-history">${clearCount ? `${clearCount} nettoyage(s)` : "Jamais termine"}</small>

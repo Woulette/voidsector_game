@@ -1,6 +1,6 @@
 import { ammoTypes, defaultState, droneFormations, equipment, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js";
 import { normalizeFirmId } from "../data/firms.js";
-import { normalizeSlotKeybinds } from "./keybinds.js";
+import { normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./keybinds.js";
 import { getDroneCatalog, getItem, getQuest, getRawMaterial, getShip } from "./catalogStore.js";
 import { enforcePlayerCurrencyMinimums } from "./currencyStore.js";
 import { cleanDroneLoadout, ensureShipLoadout, getDroneLoadout, getInventoryItem, getItemFromInventoryUid } from "./equipmentStore.js";
@@ -12,6 +12,8 @@ import { canShipRefineryMaterial, getDefaultRefineryLevel, REFINERY_MODULES } fr
 import { store } from "./store.js";
 import { clone } from "./utils.js";
 import { getXpNextForLevel, syncSkillPoints, XP_CURVE_VERSION } from "./xpStore.js";
+import { sanitizePlayerBoosterState } from "../shared/firmBoosters.js";
+import { normalizeGameSettings } from "./settingsSchema.js";
 
 const MAX_ACTIVE_QUESTS = 5;
 const RANK_KILL_POINTS_VERSION = 3;
@@ -50,6 +52,7 @@ export function normalizeState(saved){
   merged.player.titleVisible = merged.player.titleVisible !== false;
   merged.player.premiumUntil = Math.max(0, Number(merged.player.premiumUntil || 0));
   merged.player.premiumActive = isPremiumActive(merged.player);
+  merged.boosters = sanitizePlayerBoosterState(saved?.boosters || base.boosters);
   merged.premiumRewardState = normalizePremiumRewardState(saved?.premiumRewardState || base.premiumRewardState);
   merged.starterPackPurchases = normalizeStarterPackPurchases(saved?.starterPackPurchases || base.starterPackPurchases);
   enforcePlayerCurrencyMinimums(merged.player);
@@ -152,7 +155,10 @@ export function normalizeState(saved){
     merged.lastLaserAmmoId = lastLaserAmmo?.id || null;
   }
   merged.slotKeybinds = normalizeSlotKeybinds(saved?.slotKeybinds || base.slotKeybinds);
+  merged.abilityKeybinds = normalizeAbilityKeybinds(saved?.abilityKeybinds || base.abilityKeybinds, merged.slotKeybinds);
   merged.graphicsQuality = normalizeGraphicsQuality(saved?.graphicsQuality || base.graphicsQuality);
+  merged.settings = normalizeGameSettings(saved?.settings, {legacyGraphicsQuality:merged.graphicsQuality});
+  merged.graphicsQuality = merged.settings.graphics.basePreset;
   merged.portalPieces = {...(base.portalPieces || {})};
   if(saved?.portalPieces && typeof saved.portalPieces === "object") for(const key of Object.keys(base.portalPieces || {})) merged.portalPieces[key] = Math.max(0, Number(saved.portalPieces[key] || 0));
   merged.portalRuns = {};
@@ -307,6 +313,13 @@ export function normalizeState(saved){
   if(saved?.uiLayout && typeof saved.uiLayout === "object"){
     merged.uiLayout = {...merged.uiLayout, ...saved.uiLayout};
   }
+  if(!saved?.settings?.interface || !Object.hasOwn(saved.settings.interface, "perfVisible")){
+    merged.settings.interface.perfVisible = merged.uiLayout.perfVisible !== false;
+  }
+  if(!saved?.settings?.interface || !Object.hasOwn(saved.settings.interface, "chatVisible")){
+    merged.settings.interface.chatVisible = merged.uiLayout.combatChatPanel?.open !== false;
+  }
+  merged.uiLayout.perfVisible = merged.settings.interface.perfVisible;
   merged.firmatons = Math.max(0, Math.floor(Number(saved?.firmatons ?? base.firmatons ?? 0)));
   const savedFirmBoxes = saved?.firmBoxes && typeof saved.firmBoxes === "object" ? saved.firmBoxes : {};
   merged.firmBoxes = Object.fromEntries(["common", "rare", "veryRare", "elite", "mythic"].map(rarity=>[

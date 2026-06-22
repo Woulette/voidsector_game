@@ -79,7 +79,7 @@ export function getRankIconDrawY({rankAssetPath, iconSize, nameY, defaultY, visi
 }
 
 export function getFirmIconDrawY({firmIconSize, nameY}){
-  return nameY - firmIconSize / 2 - 1;
+  return nameY - firmIconSize / 2 - 2.5;
 }
 
 function getEngineProfile({ship, defaultProfile, profiles}){
@@ -536,9 +536,10 @@ export function drawPlayerLayer({
   getDronePermanentUpgrade,
   droneFormation,
   defaultProfile,
-  profiles
+  profiles,
+  graphicsEffects = {}
 }){
-  drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles});
+  if(graphicsEffects.shipEngineTrail !== false) drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles});
   drawPlayerStatusBars({ctx, camera, player});
   drawRotatedImage({
     ctx,
@@ -550,7 +551,7 @@ export function drawPlayerLayer({
     h:ship.renderHeight || 96,
     angle:player.angle + Number(ship.renderAngleOffset || 0)
   });
-  drawRepairDrone({ctx, camera, cache, player});
-  drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, getDronePermanentUpgrade, droneFormation});
+  if(graphicsEffects.repairDrone !== false) drawRepairDrone({ctx, camera, cache, player});
+  if(graphicsEffects.combatDrones !== false) drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, getDronePermanentUpgrade, droneFormation});
   drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotFirmAssetPath, pilotName, pilotRole, pilotTitle});
 }

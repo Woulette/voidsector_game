@@ -1,4 +1,4 @@
-import { slotIndexFromEvent } from "../../core/keybinds.js";
+import { abilityIndexFromEvent, isEditableTarget, slotIndexFromEvent } from "../../core/keybinds.js";
 import { installCombatActionBarInputHandlers, setCombatAssetDragImage } from "./combatActionBarInput.js";
 
 export function installCombatInputHandlers({
@@ -7,6 +7,7 @@ export function installCombatInputHandlers({
   canvas,
   isRunning,
   isMovementLocked,
+  isSettingsOpen = ()=>false,
   resize,
   saveState,
   getMouse,
@@ -24,6 +25,7 @@ export function installCombatInputHandlers({
   getCombatMetricModes,
   getActionSlots,
   getSlotKeybinds,
+  getAbilityKeybinds,
   clearSelectedEnemy,
   hasSelectedEnemy,
   tryUseMapPortal,
@@ -44,6 +46,7 @@ export function installCombatInputHandlers({
   setSelectedEnemy,
   renderSpawnInteractionPanel,
   openUtilityPanel,
+  toggleBoosterDetail,
   selectPortgunMapTarget,
   closeUtilityPanel,
   inviteGroupMember,
@@ -81,6 +84,7 @@ export function installCombatInputHandlers({
   buyCombatAmmo,
   activateRepairBot,
   useRickySupportSkill,
+  useShipAbility,
   acceptQuest,
   claimQuest,
   startRefineryJob,
@@ -231,6 +235,7 @@ export function installCombatInputHandlers({
   windowRef.addEventListener("beforeunload", ()=>{ try{ saveState(); }catch(e){} });
   windowRef.addEventListener("keydown", e=>{
     if(!isRunning()) return;
+    if(isSettingsOpen() || isEditableTarget(e.target)) return;
     if(e.key === "Escape" && hasSelectedEnemy()){
       e.preventDefault();
       clearSelectedEnemy();
@@ -242,6 +247,12 @@ export function installCombatInputHandlers({
         return;
       }
       if(tryUseMapPortal()) e.preventDefault();
+      return;
+    }
+    const abilityIndex = abilityIndexFromEvent(e, getAbilityKeybinds?.(), getSlotKeybinds());
+    if(abilityIndex >= 0){
+      e.preventDefault();
+      useShipAbility?.(abilityIndex);
       return;
     }
     const slotIndex = slotIndexFromEvent(e, getSlotKeybinds());
@@ -415,7 +426,17 @@ export function installCombatInputHandlers({
     if(!isRunning()) return;
     useRickySupportSkill?.();
   });
+  documentRef.getElementById("shipAbilityBar")?.addEventListener("click", event=>{
+    if(!isRunning()) return;
+    const slot = event.target.closest("[data-ship-ability-index]");
+    if(slot) useShipAbility?.(Number(slot.dataset.shipAbilityIndex || 0));
+  });
   documentRef.getElementById("combatQuickPanel").addEventListener("click", e=>{
+    if(e.target.closest("[data-use-ship-ability]")){
+      useShipAbility?.(Number(e.target.closest("[data-use-ship-ability]").dataset.useShipAbility || 0));
+      renderCombatQuickPanel();
+      return;
+    }
     const tabShift = e.target.closest("[data-combat-tab-shift]");
     if(tabShift){
       shiftCombatPanelTabs(Number(tabShift.dataset.combatTabShift || 0));
@@ -513,6 +534,7 @@ export function installCombatInputHandlers({
       utilityPanel.style.top = `${rect.top}px`;
       utilityPanel.style.right = "auto";
       utilityPanel.style.bottom = "auto";
+      utilityPanel.style.transform = "none";
 
       const movePanel = moveEvent=>{
         const panelRect = utilityPanel.getBoundingClientRect();
@@ -536,6 +558,11 @@ export function installCombatInputHandlers({
       windowRef.addEventListener("pointercancel", stopDrag);
     });
     utilityPanel.addEventListener("click", e=>{
+      const boosterDetail = e.target.closest("[data-toggle-booster-detail]");
+      if(boosterDetail){
+        toggleBoosterDetail?.(boosterDetail.dataset.toggleBoosterDetail);
+        return;
+      }
       const socialTab = e.target.closest("[data-social-tab]");
       if(socialTab){
         selectSocialTab?.(socialTab.dataset.socialTab);

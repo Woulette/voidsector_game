@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import {
   deleteExpiredSessions,
   deleteSession,
+  deleteSessionsForAccount,
   findAccountById,
   findSessionByTokenHash,
   saveSession
@@ -55,4 +56,8 @@ export async function getSessionAccount(token){
 export async function revokeSessionByToken(token){
   const session = await findSessionByTokenHash(tokenHash(token));
   if(session) await deleteSession(session.id);
+}
+
+export async function revokeSessionsForAccount(accountId){
+  await deleteSessionsForAccount(accountId);
 }

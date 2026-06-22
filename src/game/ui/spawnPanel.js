@@ -312,8 +312,8 @@ function renderQuestDetail({quest, activeQuest, activeQuests = [], getQuestProgr
     ${renderQuestZoneMeta(zoneLabel)}
     <div class="quest-reward-title">Recompenses</div>
     <div class="quest-info-grid compact">
-      <div class="credits"><img src="assets/icons/credits.svg" alt=""><span>Credits</span><b title="${fmt(quest.rewards?.credits || 0)}">${fmtCompact(quest.rewards?.credits || 0)}</b></div>
-      <div class="nova"><img src="assets/icons/premium.svg" alt=""><span>NOVA</span><b title="${fmt(quest.rewards?.premium || 0)}">${fmtCompact(quest.rewards?.premium || 0)}</b></div>
+      <div class="credits" aria-label="Crédits"><img src="assets/icons/credits.svg" alt=""><b title="${fmt(quest.rewards?.credits || 0)}">${fmtCompact(quest.rewards?.credits || 0)}</b></div>
+      <div class="nova" aria-label="NOVA"><img src="assets/icons/premium.svg" alt=""><b title="${fmt(quest.rewards?.premium || 0)}">${fmtCompact(quest.rewards?.premium || 0)}</b></div>
       <div class="xp"><span class="quest-xp-icon">XP</span><b title="${fmt(quest.rewards?.xp || 0)}">${fmtCompact(quest.rewards?.xp || 0)}</b></div>
       ${itemRewards || portalPieceRewards || ammoRewards ? `<div class="quest-material-rewards"><span>Objets</span><b>${itemRewards}${portalPieceRewards}${ammoRewards}</b></div>` : ""}
       ${materialRewards ? `<div class="quest-material-rewards"><span>Materiaux</span><b>${materialRewards}</b></div>` : ""}

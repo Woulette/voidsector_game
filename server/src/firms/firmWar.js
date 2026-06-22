@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { normalizeFirmId } from "../../../src/data/firms.js";
 import { dbEnabled, query } from "../db/client.js";
 import { addFirmPvpKill } from "./firmPvp.js";
-import { buildFirmSeasonObjectiveSnapshot, recordFirmSeasonObjectiveProgress } from "./firmObjectives.js";
+import { buildFirmSeasonObjectiveSnapshot, claimFirmSeasonObjectiveReward, recordFirmSeasonObjectiveProgress } from "./firmObjectives.js";
 import {
   acceptFirmDailyQuest,
   buildFirmQuestSnapshot,
@@ -16,7 +16,6 @@ import {
 } from "./firmQuests.js";
 import {
   FIRM_COLLECTIVE_MIN_CONTRIBUTION,
-  FIRM_RANK_BONUSES,
   FIRM_REWARD_MS,
   FIRM_SEASON_MS,
   FIRM_SHOP_CATALOG,
@@ -31,8 +30,14 @@ import {
   sortIndividualRanking
 } from "./firmSeason.js";
 import { buildInitialFirmState, sanitizeFirmState } from "./firmState.js";
+import {
+  buildCombinedBoosterSnapshot,
+  getActiveFirmBoosterValues,
+  getActivePlayerBoosterValues,
+  mergeBoosterValues
+} from "../../../src/shared/firmBoosters.js";
 
-export { FIRM_COLLECTIVE_MIN_CONTRIBUTION, FIRM_RANK_BONUSES, FIRM_REWARD_MS, FIRM_SEASON_MS };
+export { FIRM_COLLECTIVE_MIN_CONTRIBUTION, FIRM_REWARD_MS, FIRM_SEASON_MS };
 
 const DEFAULT_FILE = fileURLToPath(new URL("../../data/firmWar.json", import.meta.url));
 
@@ -49,6 +54,14 @@ function contributorFrom(value, fallbackFirmId = "astra"){
 
 function activeRewards(rewards = {}, now = Date.now()){
   return Object.fromEntries(Object.entries(rewards || {}).filter(([, reward])=>Number(reward?.endsAt || 0) > now));
+}
+
+function seasonRewardForPlayer(rewards = {}, playerKey = "", preferredFirmId = "astra"){
+  const key = String(playerKey || "");
+  if(!key) return {};
+  const preferred = rewards[normalizeFirmId(preferredFirmId)] || null;
+  if(preferred?.eligiblePlayers?.[key] === true) return preferred;
+  return Object.values(rewards).find(reward=>reward?.eligiblePlayers?.[key] === true) || {};
 }
 
 export function createFirmWarManager({
@@ -205,9 +218,28 @@ export function createFirmWarManager({
     return result;
   }
 
-  function getRewardMultiplier(firmId){
+  function claimSeasonObjectiveReward({objectiveId, contributor, claimedRewardIds = []} = {}){
     ensureSeason(now());
-    return Math.max(0, Number(state.rewards[normalizeFirmId(firmId)]?.multiplier || 0));
+    const result = claimFirmSeasonObjectiveReward(state, {
+      objectiveId,
+      contributor:contributorFrom(contributor),
+      claimedRewardIds,
+      now:now()
+    });
+    if(result.ok) scheduleSave();
+    return result;
+  }
+
+  function getActiveBoosters(firmId, profile = null, player = null, playerKey = ""){
+    ensureSeason(now());
+    const currentTime = now();
+    const connectedElapsedMs = player?.clientMode === "game" && player?.connected !== false
+      ? Math.max(0, currentTime - Number(player?.lastPlaytimeAccountedAt || currentTime))
+      : 0;
+    return mergeBoosterValues(
+      getActivePlayerBoosterValues(profile?.boosters, currentTime, connectedElapsedMs),
+      getActiveFirmBoosterValues(seasonRewardForPlayer(state.rewards, playerKey, firmId), currentTime)
+    );
   }
 
   function getPendingRewards(playerKey){
@@ -226,13 +258,16 @@ export function createFirmWarManager({
     return entries;
   }
 
-  function snapshot({playerKey = "", profile = null, includeShop = false} = {}){
+  function snapshot({playerKey = "", profile = null, player = null, includeShop = false} = {}){
     const currentTime = now();
     ensureSeason(currentTime);
     const individualRanking = sortIndividualRanking(state.contributions);
     const own = state.contributions[String(playerKey || "")] || null;
     const ownRank = own ? individualRanking.findIndex(entry=>entry.key === own.key) + 1 : 0;
     const ownReward = ownRank > 0 ? getFirmIndividualReward(ownRank, individualRanking.length) : null;
+    const personalFirmId = normalizeFirmId(profile?.player?.firmId || own?.firmId || "astra");
+    const hasPersonalContext = Boolean(String(playerKey || ""));
+    const personalBoosterReward = seasonRewardForPlayer(state.rewards, playerKey, personalFirmId);
     return {
       generatedAt:currentTime,
       seasonStartedAt:state.seasonStartedAt,
@@ -241,25 +276,39 @@ export function createFirmWarManager({
       collectiveMinimumContribution:FIRM_COLLECTIVE_MIN_CONTRIBUTION,
       firms:buildFirmPublicRanking(state, currentTime),
       individualRanking:buildIndividualPublicRanking(state),
+      individualPlayerCount:individualRanking.length,
       dailyQuests:buildFirmQuestSnapshot(state, playerKey, profile?.player?.firmId || own?.firmId || "astra", currentTime),
       seasonalQuests:buildFirmSeasonalQuestSnapshot(state, playerKey, profile?.player?.firmId || own?.firmId || "astra", currentTime),
-      seasonObjectives:buildFirmSeasonObjectiveSnapshot(state, playerKey, profile?.player?.firmId || own?.firmId || "astra"),
-      personal:{
+      seasonObjectives:buildFirmSeasonObjectiveSnapshot(
+        state,
+        playerKey,
+        profile?.player?.firmId || own?.firmId || "astra",
+        (profile?.firmRewardHistory || []).map(entry=>entry?.id)
+      ),
+      ...(hasPersonalContext ? {personal:{
         key:String(playerKey || ""),
-        firmId:normalizeFirmId(profile?.player?.firmId || own?.firmId || "astra"),
+        firmId:personalFirmId,
         contribution:Math.max(0, Number(own?.points || 0)),
         rank:ownRank || null,
         rewardLabel:ownReward?.label || "Non classé",
         expectedReward:ownReward?.reward || null,
         collectiveEligible:Math.max(0, Number(own?.points || 0)) >= FIRM_COLLECTIVE_MIN_CONTRIBUTION,
         pendingRewards:getPendingRewards(playerKey),
+        boosters:buildCombinedBoosterSnapshot({
+          playerBoosters:profile?.boosters,
+          seasonReward:personalBoosterReward,
+          now:currentTime,
+          connectedElapsedMs:player?.clientMode === "game" && player?.connected !== false
+            ? Math.max(0, currentTime - Number(player?.lastPlaytimeAccountedAt || currentTime))
+            : 0
+        }),
         ...(includeShop ? {
           firmatons:Math.max(0, Number(profile?.firmatons || 0)),
           boxes:JSON.parse(JSON.stringify(profile?.firmBoxes || {})),
           rewardHistory:JSON.parse(JSON.stringify(profile?.firmRewardHistory || [])).slice(-20).reverse(),
           reputation:Math.max(0, Number(profile?.player?.reputation || 0))
         } : {})
-      },
+      }} : {}),
       ...(includeShop ? {shop:FIRM_SHOP_CATALOG.map(item=>{
         const reputation = Math.max(0, Number(profile?.player?.reputation || 0));
         return {
@@ -279,9 +328,10 @@ export function createFirmWarManager({
     addPlayerKillPoints,
     acceptDailyQuest,
     claimQuestReward,
+    claimSeasonObjectiveReward,
     consumePendingRewards,
     getPendingRewards,
-    getRewardMultiplier,
+    getActiveBoosters,
     load,
     recordPlayerKill,
     recordPortalCompletion,

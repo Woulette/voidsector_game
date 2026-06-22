@@ -1,5 +1,5 @@
 export function registerCombatHandlers(socket, context){
-  const {applyEnemyHit, applyPlayerHit, guard, pickupLoot} = context;
+  const {activateShipAbility, applyEnemyHit, applyPlayerHit, guard, pickupLoot} = context;
 
   function emitCombatMiss(payload){
     socket.emit("combat:hit", {
@@ -31,6 +31,11 @@ export function registerCombatHandlers(socket, context){
       return;
     }
     applyPlayerHit?.(socket, payload);
+  });
+
+  socket.on("ship:ability-use", payload=>{
+    if(!guard("ship:ability-use")) return;
+    activateShipAbility?.(String(payload?.abilityId || ""));
   });
 
   socket.on("loot:pickup", payload=>{

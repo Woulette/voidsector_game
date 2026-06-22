@@ -30,9 +30,21 @@ test("combat socket only accepts server-calculated fire and loot pickup", ()=>{
     pickupLoot(){}
   });
 
-  assert.deepEqual([...socket.handlers.keys()].sort(), ["combat:fire", "combat:fire-player", "loot:pickup"]);
+  assert.deepEqual([...socket.handlers.keys()].sort(), ["combat:fire", "combat:fire-player", "loot:pickup", "ship:ability-use"]);
   assert.equal(socket.handlers.has("enemy:hit"), false);
   assert.equal(socket.handlers.has("coop:enemy-hit"), false);
+});
+
+test("ship ability socket forwards only the requested ability id", ()=>{
+  const socket = createSocket();
+  const requested = [];
+  registerCombatHandlers(socket, {
+    activateShipAbility:abilityId=>requested.push(abilityId),
+    guard:()=>true
+  });
+
+  socket.handlers.get("ship:ability-use")({abilityId:"absorbing_fire", forgedDamage:999_999});
+  assert.deepEqual(requested, ["absorbing_fire"]);
 });
 
 test("client combat command never sends a damage amount", ()=>{
@@ -173,6 +185,66 @@ test("combat:fire rejects an out-of-range target without consuming ammo", ()=>{
   assert.match(result.reason, /portee/i);
   assert.equal(profile.ammoInventory.ammo_x1, ammoBefore);
   assert.equal(profile.player.laserShotsFired, 0);
+});
+
+test("server laser range uses the shortest equipped ship laser", ()=>{
+  const profile = createDefaultProfile();
+  profile.inventoryItems.push({uid:"inv_test_laser_mk3", itemId:"laser_mk3"});
+  profile.shipLoadouts.orion.lasers = ["inv_laser_mk1_1", "inv_test_laser_mk3"];
+  const player = {id:"security-test-shortest-range", state:{x:0, y:0, shipId:"orion"}};
+
+  const result = resolveServerCombatFire({
+    player,
+    profile,
+    enemy:{x:700, y:0},
+    payload:{weaponClass:"laser", ammoId:"ammo_x1"}
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /portee/i);
+});
+
+test("server drone lasers do not reduce an equipped ship laser range", ()=>{
+  const profile = createDefaultProfile();
+  profile.inventoryItems.push(
+    {uid:"inv_test_laser_mk3", itemId:"laser_mk3"},
+    {uid:"inv_test_drone_laser_mk1", itemId:"laser_mk1"}
+  );
+  profile.shipLoadouts.orion.lasers = ["inv_test_laser_mk3"];
+  profile.droneLoadout = ["inv_test_drone_laser_mk1"];
+  const player = {id:"security-test-drone-range", state:{x:0, y:0, shipId:"orion"}};
+
+  const result = resolveServerCombatFire({
+    player,
+    profile,
+    enemy:{x:700, y:0},
+    payload:{weaponClass:"laser", ammoId:"ammo_x1"},
+    random:()=>0
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.range, 550);
+});
+
+test("server uses the shortest drone laser range when the ship has no laser", ()=>{
+  const profile = createDefaultProfile();
+  profile.inventoryItems.push(
+    {uid:"inv_test_drone_laser_mk1", itemId:"laser_mk1"},
+    {uid:"inv_test_drone_laser_mk3", itemId:"laser_mk3"}
+  );
+  profile.shipLoadouts.orion.lasers = [];
+  profile.droneLoadout = ["inv_test_drone_laser_mk1", "inv_test_drone_laser_mk3"];
+  const player = {id:"security-test-drone-only-range", state:{x:0, y:0, shipId:"orion"}};
+
+  const result = resolveServerCombatFire({
+    player,
+    profile,
+    enemy:{x:700, y:0},
+    payload:{weaponClass:"laser", ammoId:"ammo_x1"}
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /portee/i);
 });
 
 test("server combat hit is broadcast to players in the same map room", ()=>{

@@ -598,7 +598,7 @@
 .quest-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;align-content:start;min-height:0;overflow:auto;padding-right:2px}
 .quest-info-grid.compact{grid-template-columns:repeat(3,minmax(0,1fr))}
 .quest-info-grid div{display:grid;gap:2px;padding:5px 7px;border:1px solid rgba(56,189,248,.11);background:rgba(255,255,255,.025);min-width:0}
-.quest-info-grid .credits,.quest-info-grid .nova{grid-template-columns:24px minmax(58px,1fr) auto;align-items:center;gap:7px}
+.quest-info-grid .credits,.quest-info-grid .nova{grid-template-columns:24px auto;align-items:center;justify-content:start;gap:7px}
 .quest-info-grid .credits img,.quest-info-grid .nova img{width:22px;height:22px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(125,211,252,.24))}
 .quest-info-grid span{font-size:10px;color:#7dd3fc;text-transform:uppercase;letter-spacing:.55px}
 .quest-info-grid b{font-size:12px;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

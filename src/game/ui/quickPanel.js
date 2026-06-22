@@ -1,10 +1,15 @@
 import { fmt } from "../../core/utils.js";
-import { basePriceLabel, hasCurrencyDiscount, priceLabel } from "../../core/store.js";
+import { getCurrencyPrice, hasCurrencyDiscount } from "../../core/store.js";
+import { currencyAmountHtml } from "../../ui/currencyIcons.js";
 
 function priceHtml(priceType, price){
-  const current = `<strong class="${priceType === "premium" ? "shop-price premium" : "shop-price credits"}">${priceLabel(priceType, price)}</strong>`;
-  if(!hasCurrencyDiscount(priceType, price)) return current;
-  return `<span class="shop-price-discount"><s>${basePriceLabel(priceType, price)}</s>${current}</span>`;
+  const tone = priceType === "premium" ? "premium" : "credits";
+  const current = `<strong class="combat-shop-price-current ${tone}">${currencyAmountHtml(priceType, getCurrencyPrice(priceType, price))}</strong>`;
+  if(!hasCurrencyDiscount(priceType, price)) return `<span class="combat-shop-price-single">${current}</span>`;
+  return `<span class="combat-shop-price-discount">
+    <del class="combat-shop-price-old">${currencyAmountHtml(priceType, price)}</del>
+    ${current}
+  </span>`;
 }
 
 function renderCpuPanel({missileState}){
@@ -109,8 +114,32 @@ function renderAmmoPanel({ammoTypes, getAmmoCount}){
   }).join("")}</div>`;
 }
 
-export function renderQuickPanelContent({tab, ammoTypes, extras, droneFormations, ownedDroneFormations, activeDroneFormation, repairState, repairBotActive, extraBonus, repairBotDelay, canAfford, getAmmoCount, laserVolleyCount, missileState}){
-  if(tab === "skills") return `<div class="combat-empty">Les compétences de vaisseau seront branchées ici.</div>`;
+function renderShipSkillsPanel({shipAbilityStates}){
+  const states = Array.isArray(shipAbilityStates) ? shipAbilityStates.slice(0, 3) : [];
+  if(!states.length) return `<div class="combat-empty">Ce vaisseau ne possède aucune compétence active.</div>`;
+  return `<div class="combat-panel-grid">${states.map((state, index)=>{
+    const activeSeconds = Math.ceil(Math.max(0, Number(state.activeRemainingMs || 0)) / 1000);
+    const cooldownSeconds = Math.ceil(Math.max(0, Number(state.cooldownRemainingMs || 0)) / 1000);
+    const disabled = activeSeconds > 0 || cooldownSeconds > 0;
+    const status = activeSeconds > 0
+      ? `Active · ${activeSeconds}s restantes`
+      : cooldownSeconds > 0
+        ? `Recharge · ${cooldownSeconds}s`
+        : "Prête";
+    return `<article class="combat-pick-card ${disabled ? "disabled" : "ready"}">
+      <img class="combat-extra-icon" src="${state.icon || "assets/icons/absorbing_fire.svg"}" alt="">
+      <div>
+        <strong>${state.name}</strong>
+        <span>${state.description}</span>
+        <small>${status}</small>
+      </div>
+      <button class="blue-button small" data-use-ship-ability="${index}" type="button" ${disabled ? "disabled" : ""}>${activeSeconds > 0 ? "ACTIVE" : cooldownSeconds > 0 ? "RECHARGE" : "ACTIVER"}</button>
+    </article>`;
+  }).join("")}</div>`;
+}
+
+export function renderQuickPanelContent({tab, ammoTypes, extras, droneFormations, ownedDroneFormations, activeDroneFormation, repairState, repairBotActive, extraBonus, repairBotDelay, canAfford, getAmmoCount, laserVolleyCount, missileState, shipAbilityStates}){
+  if(tab === "skills") return renderShipSkillsPanel({shipAbilityStates});
   if(tab === "cpu") return renderCpuPanel({missileState});
   if(tab === "extras") return renderExtrasPanel({extras, repairState, repairBotActive, extraBonus, repairBotDelay});
   if(tab === "formations") return renderFormationsPanel({droneFormations, ownedDroneFormations, activeDroneFormation});

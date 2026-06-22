@@ -171,7 +171,7 @@ export function updateLootPopup({notices = []}){
       if(loot.piece) parts.push({label:loot.piece, value:""});
       if(loot.materials?.length) parts.push({label:"Cargo", value:loot.materials.join(" · ")});
       line = document.createElement("div");
-      line.className = "loot-line";
+      line.className = loot.questTitle ? "loot-line loot-line-quest" : "loot-line loot-line-combat";
       line.dataset.lootId = String(notice.id);
       const orderedParts = [];
       const takeParts = predicate=>{
@@ -190,13 +190,13 @@ export function updateLootPopup({notices = []}){
       orderedParts.push(...parts);
       const questTone = ["red", "special", "rare"].includes(loot.questTone) ? loot.questTone : "normal";
       if(loot.questTitle) line.classList.add(`quest-tone-${questTone}`);
-      line.innerHTML = orderedParts.map((part, index)=>{
-        const classes = [
-          part.kind === "quest" ? "loot-quest-title" : "",
-          part.value ? "loot-reward-pair" : "loot-reward-single"
-        ].filter(Boolean).join(" ");
-        return `<div class="${classes}" style="animation-delay:${(index * .08).toFixed(2)}s"><span>${escapeHtml(part.label)}</span>${part.value ? `<b>${escapeHtml(part.value)}</b>` : ""}</div>`;
-      }).join("");
+      line.innerHTML = loot.questTitle
+        ? orderedParts.map((part, index)=>{
+            const className = part.kind === "quest" ? "loot-quest-title" : "loot-quest-reward";
+            const text = `${part.label}${part.value ? ` ${part.value}` : ""}`;
+            return `<div class="${className}" style="animation-delay:${(index * .08).toFixed(2)}s"><span>${escapeHtml(text)}</span></div>`;
+          }).join("")
+        : orderedParts.map(part=>`<div><span>${escapeHtml(part.label)}</span>${part.value ? `<b>${escapeHtml(part.value)}</b>` : ""}</div>`).join("");
       el.prepend(line);
     }
     line.style.opacity = opacity.toFixed(3);

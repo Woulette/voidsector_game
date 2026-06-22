@@ -322,9 +322,54 @@ export function createCombatServerEventSystem({
     multiplayer.npcDamageEvents = remaining;
   }
 
+  function spawnAbsorbingFireEffect({particles, player, event}){
+    if(event.sourceId !== "absorbing_fire" || event.weaponClass !== "laser") return;
+    const fromX = Number(event.fromX);
+    const fromY = Number(event.fromY);
+    if(!Number.isFinite(fromX) || !Number.isFinite(fromY)) return;
+    const dx = Number(player.x || 0) - fromX;
+    const dy = Number(player.y || 0) - fromY;
+    const distance = Math.hypot(dx, dy);
+    if(distance < 4) return;
+    for(let index = 0; index < 10; index++){
+      const progress = .08 + index / 12 * .58;
+      const life = .30 + (1 - progress) * .34;
+      const jitter = (index % 2 ? 1 : -1) * (4 + index % 3 * 2);
+      const normalX = -dy / distance;
+      const normalY = dx / distance;
+      const x = fromX + dx * progress + normalX * jitter;
+      const y = fromY + dy * progress + normalY * jitter;
+      particles.push({
+        kind:"absorptionOrb",
+        x,
+        y,
+        vx:(Number(player.x || 0) - x) / life,
+        vy:(Number(player.y || 0) - y) / life,
+        life,
+        max:life,
+        size:3.2 + index % 3 * 1.25,
+        color:index % 3 === 0 ? "rgba(220,252,231,.96)" : "rgba(74,222,128,.88)"
+      });
+    }
+    particles.push({
+      kind:"absorptionPulse",
+      x:Number(player.x || 0),
+      y:Number(player.y || 0),
+      offsetX:0,
+      offsetY:0,
+      vx:0,
+      vy:0,
+      followPlayer:true,
+      life:.48,
+      max:.48,
+      size:46,
+      color:"rgba(74,222,128,.9)"
+    });
+  }
+
   function applyPlayerHealEvents(){
     if(!multiplayer.playerHealEvents?.length) return;
-    const {player, currentMap, portalAlly} = getState();
+    const {player, currentMap, portalAlly, particles} = getState();
     const remaining = [];
     for(const event of multiplayer.playerHealEvents.splice(0)){
       if(String(event.mapId ?? "") !== getCurrentMapToken(currentMap)){
@@ -342,6 +387,7 @@ export function createCombatServerEventSystem({
           color:"rgba(74,222,128,",
           shadowColor:"rgba(34,197,94,.78)"
         });
+        spawnAbsorbingFireEffect({particles, player, event});
       }else if(event.targetId === "ricky_companion" && portalAlly){
         if(Number.isFinite(Number(event.maxHp)) && Number(event.maxHp) > 0) portalAlly.maxHp = Number(event.maxHp);
         if(Number.isFinite(Number(event.hp))) portalAlly.hp = Math.max(0, Math.min(portalAlly.maxHp || Number(event.hp), Number(event.hp)));
@@ -399,7 +445,7 @@ export function createCombatServerEventSystem({
         visualOnly:true
       }));
       activeServerProjectiles += 1;
-      particles.push({x:fromX, y:fromY, life:.16, max:.16, size:16, color:event.particle || enemy?.particle || "rgba(252,165,165,.72)"});
+      particles.push({kind:"enemyAttack",x:fromX, y:fromY, life:.16, max:.16, size:16, color:event.particle || enemy?.particle || "rgba(252,165,165,.72)"});
     }
     multiplayer.enemyAttackEvents = remaining;
   }
@@ -450,7 +496,7 @@ export function createCombatServerEventSystem({
       });
       bullet.fixedTarget = {x:toX, y:toY, hp:1};
       bullets.push(bullet);
-      particles.push({x:muzzle.x, y:muzzle.y, life:.24, max:.24, size:26, color:"rgba(125,211,252,.78)"});
+      particles.push({kind:"muzzle",x:muzzle.x, y:muzzle.y, life:.24, max:.24, size:26, color:"rgba(125,211,252,.78)"});
       return;
     }
     beams.add({
@@ -463,7 +509,7 @@ export function createCombatServerEventSystem({
       canReplay:false,
       blueLaser:true
     });
-    particles.push({x:muzzle.x, y:muzzle.y, life:.16, max:.16, size:18, color:"rgba(125,211,252,.72)"});
+    particles.push({kind:"muzzle",x:muzzle.x, y:muzzle.y, life:.16, max:.16, size:18, color:"rgba(125,211,252,.72)"});
   }
 
   function applyCombatHitEvents(){

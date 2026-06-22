@@ -1,7 +1,7 @@
 import { FIRMS, getFirmDefinition, normalizeFirmId } from "../../../src/data/firms.js";
+import { buildFirmBoosterItems, getActiveFirmBoosterValues, getFirmBoostersForRank } from "../../../src/shared/firmBoosters.js";
 import {
   FIRM_COLLECTIVE_MIN_CONTRIBUTION,
-  FIRM_RANK_BONUSES,
   FIRM_REWARD_MS,
   FIRM_SEASON_MS,
   getFirmCollectiveReward,
@@ -63,13 +63,19 @@ export function queueFirmPendingReward(state, playerKey, entry){
 export function closeFirmSeason(state, currentTime = Date.now()){
   const firmRanking = sortFirmRanking(state.points);
   const individualRanking = sortIndividualRanking(state.contributions);
+  const eligiblePlayersByFirm = Object.fromEntries(FIRMS.map(firm=>[firm.id, {}]));
+  for(const player of individualRanking){
+    if(!player.key || Number(player.points || 0) <= 0) continue;
+    eligiblePlayersByFirm[player.firmId][player.key] = true;
+  }
   const rewards = {};
   firmRanking.forEach((entry, index)=>{
     const rank = index + 1;
     rewards[entry.firm.id] = {
       rank,
-      multiplier:FIRM_RANK_BONUSES[index] || 0,
-      endsAt:currentTime + FIRM_REWARD_MS
+      boosters:getFirmBoostersForRank(rank),
+      endsAt:currentTime + FIRM_REWARD_MS,
+      eligiblePlayers:eligiblePlayersByFirm[entry.firm.id]
     };
   });
   for(const player of individualRanking){
@@ -133,8 +139,9 @@ export function buildFirmPublicRanking(state, currentTime = Date.now()){
       rank:index + 1,
       points:entry.points,
       rewardRank:reward.rank || null,
-      rewardMultiplier:Number(reward.multiplier || 0),
       rewardEndsAt:Number(reward.endsAt || 0),
+      activeBoosters:getActiveFirmBoosterValues(reward, currentTime),
+      boosterItems:buildFirmBoosterItems(reward, currentTime),
       collectiveReward:getFirmCollectiveReward(index + 1)
     };
   });

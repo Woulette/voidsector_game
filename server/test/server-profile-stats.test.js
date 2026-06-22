@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { WORLD_SESSION_SAVE_INTERVAL_MS, createProfileWorldSession } from "../src/players/profileWorldSession.js";
+import { addPlayerBoosterUnits } from "../../src/shared/firmBoosters.js";
 
 function worldState(){
   return {
@@ -57,6 +58,30 @@ test("world session persistence does not count disconnected time", ()=>{
   const next = manager.saveWorldSession({player, state:worldState(), force:true, now:6000});
 
   assert.equal(next.player.totalPlaySeconds, 0);
+});
+
+test("S1 booster time decreases only for the connected game interval", ()=>{
+  const profile = createDefaultProfile();
+  profile.boosters = addPlayerBoosterUnits(profile.boosters, {series:"s1", type:"damage", quantity:1});
+  const profiles = new Map([["account:boost", profile]]);
+  const player = {
+    id:"socket-boost",
+    accountId:"boost",
+    clientMode:"game",
+    connected:false,
+    disconnectedAt:4_000,
+    lastPlaytimeAccountedAt:1_000
+  };
+  const manager = createProfileWorldSession({
+    profiles,
+    persist(){},
+    getExistingProfile:()=>({key:"account:boost", profile:profiles.get("account:boost")})
+  });
+
+  const next = manager.saveWorldSession({player, state:worldState(), force:true, now:9_000});
+
+  assert.equal(next.player.totalPlaySeconds, 3);
+  assert.equal(next.boosters.s1.damage.remainingMs, 5 * 60 * 60 * 1000 - 3_000);
 });
 
 test("world session position saves are throttled to fifteen seconds unless forced", ()=>{

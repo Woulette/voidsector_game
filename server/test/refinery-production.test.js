@@ -54,7 +54,7 @@ test("automatic transformed production consumes its server-side recipe", ()=>{
 
   assert.equal(profile.cargoHold.alliage_cuivre_zinc, 294);
   assert.equal(profile.cargoHold.cuivre_orbital, 2060);
-  assert.equal(profile.cargoHold.zinc_spatial, 2060);
+  assert.equal(profile.cargoHold.zinc_spatial, 3530);
 });
 
 test("automatic transformed production stops when ingredients are missing", ()=>{
@@ -104,7 +104,7 @@ test("automatic transformed production is limited by stock without going negativ
 
   assert.equal(profile.cargoHold.alliage_cuivre_zinc, 2);
   assert.equal(profile.cargoHold.cuivre_orbital, 5);
-  assert.equal(profile.cargoHold.zinc_spatial, 5);
+  assert.equal(profile.cargoHold.zinc_spatial, 15);
 });
 
 test("a full transformed-material storage consumes no recipe ingredients", ()=>{

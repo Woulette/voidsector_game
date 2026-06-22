@@ -1,4 +1,4 @@
-import { getAmmoPurchase, getDroneFormationPurchase, getDronePurchase, getItemPurchase, getPremiumPackPurchase, getShipPurchase } from "../economy/shop.js";
+import { getAmmoPurchase, getBoosterPurchase, getDroneFormationPurchase, getDronePurchase, getItemPurchase, getPremiumPackPurchase, getShipPurchase } from "../economy/shop.js";
 import { premiumRemainingLabel } from "../../../src/data/premium.js";
 
 function emitQuestProgress(socket, result){
@@ -285,7 +285,7 @@ export function registerEconomyHandlers(socket, context){
     if(!guard("shop:buy-item")) return;
     const player = players.get(socket.id);
     if(!player) return;
-    const purchase = getItemPurchase(payload?.id);
+    const purchase = getItemPurchase(payload?.id, payload?.multiplier);
     if(!purchase){
       socket.emit("shop:error", {message:"Objet inconnu."});
       return;
@@ -298,6 +298,36 @@ export function registerEconomyHandlers(socket, context){
     socket.emit("shop:item-bought", {
       id:purchase.id,
       name:purchase.name,
+      quantity:purchase.quantity,
+      multiplier:purchase.multiplier,
+      priceType:purchase.priceType,
+      price:purchase.totalPrice,
+      at:Date.now()
+    });
+    emitProfileSync(player, result.profile);
+  });
+
+  socket.on("shop:buy-booster", payload=>{
+    if(!guard("shop:buy-booster")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const purchase = getBoosterPurchase(payload?.id, payload?.quantity);
+    if(!purchase){
+      socket.emit("shop:error", {message:"Booster S1 inconnu."});
+      return;
+    }
+    const result = profileManager.addBoosterPurchase({player, purchase});
+    if(!result.ok){
+      socket.emit("shop:error", {message:result.reason || "Achat du booster impossible."});
+      return;
+    }
+    socket.emit("shop:booster-bought", {
+      id:purchase.id,
+      type:purchase.type,
+      name:purchase.name,
+      series:"S1",
+      quantity:purchase.quantity,
+      durationMs:purchase.totalDurationMs,
       priceType:purchase.priceType,
       price:purchase.totalPrice,
       at:Date.now()

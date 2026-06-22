@@ -123,7 +123,7 @@ function getImpactSprite(kind){
   return buffer;
 }
 
-export function drawProjectiles({ctx, camera, cache, bullets}){
+export function drawProjectiles({ctx, camera, cache, bullets, showTrails = true}){
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
   for(const bullet of bullets){
@@ -131,7 +131,7 @@ export function drawProjectiles({ctx, camera, cache, bullets}){
       const img = getCachedCombatImage(cache, bullet.sprite || (bullet.kind === "rocket" ? "assets/equipment/rocket_projectile.png" : ""));
       const angle = bullet.angle ?? Math.atan2(bullet.y - bullet.fromY, bullet.x - bullet.fromX);
       const pulse = .75 + Math.sin(performance.now() / 55 + bullet.elapsed * 12) * .25;
-      drawFastProjectileTrail(ctx, bullet, angle);
+      if(showTrails) drawFastProjectileTrail(ctx, bullet, angle);
       ctx.save();
       ctx.translate(bullet.x, bullet.y);
       ctx.rotate(angle);
@@ -265,7 +265,7 @@ export function drawBeams({ctx, camera, beams}){
   ctx.restore();
 }
 
-export function drawImpactEffects({ctx, camera, impactEffects}){
+export function drawImpactEffects({ctx, camera, impactEffects, showExplosions = true, showSparksSmoke = true}){
   if(!impactEffects?.length) return;
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
@@ -280,45 +280,46 @@ export function drawImpactEffects({ctx, camera, impactEffects}){
     const core = effect.core || "rgba(255,255,255,.95)";
 
     if(effect.kind === "laser"){
-      const ring = 7 + easeOutCubic(progress) * radius;
-      ctx.strokeStyle = colorWithAlpha(color, alpha * .78, "rgba(125,211,252,.78)");
-      ctx.shadowColor = colorWithAlpha(color, alpha * .45, "rgba(125,211,252,.45)");
-      ctx.shadowBlur = 5;
-      ctx.lineWidth = 1.7 * alpha;
-      ctx.beginPath();
-      ctx.arc(effect.x, effect.y, ring, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.fillStyle = colorWithAlpha(core, alpha, "rgba(255,255,255,1)");
-      ctx.shadowBlur = 5;
-      ctx.beginPath();
-      ctx.arc(effect.x, effect.y, 2.5 + alpha * 5, 0, Math.PI * 2);
-      ctx.fill();
-      for(const spark of effect.sparks || []) drawImpactSpark(ctx, effect, spark, progress, alpha, 1);
+      if(showExplosions){
+        const ring = 7 + easeOutCubic(progress) * radius;
+        ctx.strokeStyle = colorWithAlpha(color, alpha * .78, "rgba(125,211,252,.78)");
+        ctx.shadowColor = colorWithAlpha(color, alpha * .45, "rgba(125,211,252,.45)");
+        ctx.shadowBlur = 5;
+        ctx.lineWidth = 1.7 * alpha;
+        ctx.beginPath();
+        ctx.arc(effect.x, effect.y, ring, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = colorWithAlpha(core, alpha, "rgba(255,255,255,1)");
+        ctx.beginPath();
+        ctx.arc(effect.x, effect.y, 2.5 + alpha * 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if(showSparksSmoke) for(const spark of effect.sparks || []) drawImpactSpark(ctx, effect, spark, progress, alpha, 1);
       continue;
     }
 
     const isMissile = effect.kind === "missile";
-    const sprite = getImpactSprite(effect.kind);
-    const scale = .54 + easeOutCubic(progress) * (isMissile ? .58 : .42);
-    const size = radius * 2.35 * scale;
-    ctx.save();
-    ctx.globalAlpha = alpha * (isMissile ? 1 : .92);
-    ctx.translate(effect.x, effect.y);
-    ctx.rotate((effect.rotation || 0) + progress * (isMissile ? .20 : .12));
-    ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
-    ctx.restore();
+    if(showExplosions){
+      const sprite = getImpactSprite(effect.kind);
+      const scale = .54 + easeOutCubic(progress) * (isMissile ? .58 : .42);
+      const size = radius * 2.35 * scale;
+      ctx.save();
+      ctx.globalAlpha = alpha * (isMissile ? 1 : .92);
+      ctx.translate(effect.x, effect.y);
+      ctx.rotate((effect.rotation || 0) + progress * (isMissile ? .20 : .12));
+      ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+      ctx.restore();
+      ctx.strokeStyle = colorWithAlpha(color, alpha * (isMissile ? .72 : .58), "rgba(255,180,72,.58)");
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = (isMissile ? 2.3 : 1.8) * alpha;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, 8 + easeOutCubic(progress) * radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
-    ctx.strokeStyle = colorWithAlpha(color, alpha * (isMissile ? .72 : .58), "rgba(255,180,72,.58)");
-    ctx.shadowBlur = 0;
-    ctx.lineWidth = (isMissile ? 2.3 : 1.8) * alpha;
-    ctx.beginPath();
-    ctx.arc(effect.x, effect.y, 8 + easeOutCubic(progress) * radius, 0, Math.PI * 2);
-    ctx.stroke();
+    if(showSparksSmoke) for(const spark of effect.sparks || []) drawImpactSpark(ctx, effect, spark, progress, alpha, isMissile ? 1.15 : .95);
 
-    for(const spark of effect.sparks || []) drawImpactSpark(ctx, effect, spark, progress, alpha, isMissile ? 1.15 : .95);
-
-    if(effect.smoke?.length){
+    if(showSparksSmoke && effect.smoke?.length){
       ctx.globalCompositeOperation = "source-over";
       for(const smoke of effect.smoke || []){
         const drift = smoke.speed * progress;
@@ -337,10 +338,14 @@ export function drawImpactEffects({ctx, camera, impactEffects}){
   ctx.restore();
 }
 
-export function drawParticles({ctx, camera, particles, repairLayer = false}){
+export function drawParticles({ctx, camera, particles, repairLayer = false, graphicsEffects = {}}){
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
   for(const particle of particles){
+    if(particle.kind === "engine" && graphicsEffects.shipEngineTrail === false) continue;
+    if(particle.kind === "enemyAttack" && graphicsEffects.enemyAttackParticles === false) continue;
+    if(particle.kind === "muzzle" && graphicsEffects.muzzleFlashes === false) continue;
+    if(particle.kind === "impact" && graphicsEffects.explosionsImpacts === false) continue;
     const isRepairPlus = particle.kind === "repairPlus";
     if(repairLayer !== isRepairPlus) continue;
     const alpha = Math.max(0, particle.life / particle.max);
@@ -354,6 +359,29 @@ export function drawParticles({ctx, camera, particles, repairLayer = false}){
       ctx.beginPath();
       ctx.ellipse(0, 0, Math.max(1.2, particle.size * .55 * alpha), Math.max(2.4, particle.size * 1.8 * alpha), 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+    }else if(particle.kind === "absorptionOrb"){
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = color;
+      ctx.shadowColor = "rgba(74,222,128,.95)";
+      ctx.shadowBlur = 10 * alpha;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, Math.max(1.4, particle.size * (.45 + alpha * .55)), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }else if(particle.kind === "absorptionPulse"){
+      const progress = 1 - alpha;
+      const radius = 18 + progress * particle.size;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = color;
+      ctx.shadowColor = "rgba(34,197,94,.9)";
+      ctx.shadowBlur = 14 * alpha;
+      ctx.lineWidth = Math.max(1, 4 * alpha);
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.restore();
     }else if(particle.kind === "repairPlus"){
       const size = Math.max(4, particle.size * (.55 + alpha * .45));

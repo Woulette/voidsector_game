@@ -2,7 +2,7 @@ import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatal
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
 import { creditCurrencyPacks, getPremiumRewardStatus, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js";
 import { fmt } from "../core/utils.js";
-import { DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js";
+import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js";
 import {
   RANK_TABLE,
   RANK_POINT_RULES,
@@ -18,6 +18,7 @@ import {
   getDroneLoadout,
   getDronePermanentUpgrade,
   getDronePurchasePrice,
+  getCurrencyPrice,
   getInventoryByCategory,
   getInventoryCount,
   getInventoryItem,
@@ -43,7 +44,6 @@ import {
   isDroneCompatibleEquipment,
   isDronePermanentUpgradeItem,
   isPortalUnlocked,
-  priceLabel,
   saveState,
   setGraphicsQuality,
   store
@@ -52,11 +52,12 @@ import { ENEMY_TYPES } from "../game/combatData.js";
 
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
 import { renderShop } from "./renderShop.js";
-import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js";
+import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=currency-icons-1";
 import { renderRefinery } from "./renderRefinery.js";
 import { renderFirm } from "./renderFirm.js";
 import { multiplayer } from "../multiplayer/client.js";
-import { renderAdminPanel } from "./adminPanel.js";
+import { renderAdminPanel } from "./adminPanel.js?v=currency-icons-2";
+import { currencyAmountHtml, currencyIconHtml } from "./currencyIcons.js";
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g, char=>({
@@ -115,19 +116,17 @@ function renderInventoryFilterTabs(){
   </div>`;
 }
 
-function maxShipStat(key, fallback = 1){
-  return Math.max(fallback, ...ships.map(ship=>Number(ship.stats?.[key] || 0)));
-}
-
 export function renderTop(){
   const { state } = store;
   const rank = getCurrentRank();
   const rankProgress = getRankProgress();
   const nextRank = getNextRank();
   document.getElementById("pilotName").textContent = state.player.name;
-  document.getElementById("levelText").textContent = `NIV. ${state.player.level}`;
+  document.getElementById("levelText").textContent = fmt(state.player.level);
   document.getElementById("xpText").textContent = `XP ${fmt(state.player.xp)} / ${fmt(state.player.xpNext)}`;
   document.getElementById("xpFill").style.width = `${Math.min(100, state.player.xp / state.player.xpNext * 100)}%`;
+  const pilotPlayTime = document.getElementById("pilotPlayTime");
+  if(pilotPlayTime) pilotPlayTime.textContent = formatDuration(state.player.totalPlaySeconds);
   document.getElementById("creditsValue").textContent = fmt(state.player.credits);
   document.getElementById("premiumValue").textContent = fmt(state.player.premium);
   const pilotRankIcon = document.getElementById("pilotRankIcon");
@@ -154,6 +153,20 @@ export function renderTop(){
       <div class="mini-bar"><span style="width:${rankProgress.progress}%"></span></div>
       <small>${nextRank ? `Prochain : ${nextRank.name} · reste ${fmt(rankProgress.remaining)}` : "Grade maximum atteint"}</small>`;
   }
+  renderPremiumHomeStatus();
+}
+
+export function renderPremiumHomeStatus(now = Date.now()){
+  const status = document.getElementById("launcherPremiumStatus");
+  if(!status) return;
+  const active = isPremiumActive(store.state?.player, now);
+  status.classList.toggle("hidden", !active);
+  status.setAttribute("aria-hidden", active ? "false" : "true");
+  if(!active) return;
+  const remainingNode = status.querySelector("[data-premium-home-remaining]");
+  if(!remainingNode) return;
+  const remaining = premiumRemainingLabel(store.state.player, now);
+  remainingNode.textContent = remaining === "Inactif" ? "ACTIF" : remaining;
 }
 
 export function renderShips(){
@@ -182,6 +195,7 @@ export function renderSelectedShip(){
   const ship = getShip(state.selectedShip);
   const active = state.activeShip === ship.id;
   const stats = getShipCombatStats(ship.id);
+  const loadout = getLoadout(ship.id);
   const currentRank = getCurrentRank();
   document.getElementById("selectedShipName").textContent = ship.name;
   document.getElementById("selectedShipImage").src = ship.img;
@@ -194,16 +208,28 @@ export function renderSelectedShip(){
         <strong>${currentRank.name}</strong>
       </div>`;
   }
-  document.getElementById("selectedShipStats").innerHTML = [
-    statLine("Vie", ship.stats.vie, maxShipStat("vie")),
-    statLine("Vitesse réelle", stats.vitesseReelle, Math.max(maxShipStat("vitesse"), stats.vitesseReelle)),
-    statLine("Cargo", ship.stats.cargo, maxShipStat("cargo")),
-    statLine("Slots lasers", ship.stats.maxLasers, maxShipStat("maxLasers")),
-    statLine("Slots générateurs", ship.stats.maxGenerators, maxShipStat("maxGenerators")),
-    statLine("Slots extras", ship.stats.maxExtras || 3, maxShipStat("maxExtras")),
-    `<div class="stat-line special-line"><span>Sort spécial</span><b>Aucun</b></div>`,
-    `<div class="stat-line special-line"><span>Avec équipement</span><b>${fmt(stats.vie)} PV · ${fmt(stats.bouclier)} bouclier · Vitesse ${fmt(stats.vitesseReelle)}</b></div>`
-  ].join("");
+  const statCard = (className, label, value, detail = "")=>`
+    <article class="ship-live-stat ${className}">
+      <span>${label}</span>
+      <strong>${value}</strong>
+      ${detail ? `<small>${detail}</small>` : ""}
+    </article>`;
+  document.getElementById("selectedShipStats").innerHTML = `
+    <div class="ship-live-primary">
+      ${statCard("hull", "Vie actuelle", fmt(Math.round(stats.vie)), "PV")}
+      ${statCard("shield", "Bouclier actuel", fmt(Math.round(stats.bouclier)), stats.bouclier > 0 ? `Régénération ${fmt(Math.round(stats.regen))}/s` : "Aucun bouclier équipé")}
+      ${statCard("speed", "Vitesse actuelle", fmt(Math.round(stats.vitesseReelle)), "Vitesse réelle")}
+      ${statCard("cargo", "Soute actuelle", fmt(Math.round(stats.cargo)), "Capacité cargo")}
+    </div>
+    <div class="ship-live-slots">
+      ${statCard("laser-slots", "Slots lasers", fmt(stats.maxLasers), `${loadout.lasers.filter(Boolean).length} équipé${loadout.lasers.filter(Boolean).length > 1 ? "s" : ""}`)}
+      ${statCard("generator-slots", "Slots générateurs", fmt(stats.maxGenerators), `${loadout.generators.filter(Boolean).length} équipé${loadout.generators.filter(Boolean).length > 1 ? "s" : ""}`)}
+      ${statCard("extra-slots", "Slots extras", fmt(stats.maxExtras), `${loadout.extras.filter(Boolean).length} équipé${loadout.extras.filter(Boolean).length > 1 ? "s" : ""}`)}
+    </div>
+    <article class="ship-special-stat">
+      <span>Sort spécial</span>
+      <strong>${ship.special || "Aucun"}</strong>
+    </article>`;
   const btn = document.getElementById("selectedShipAction");
   btn.textContent = active ? "DÉSÉQUIPER CE VAISSEAU" : "ÉQUIPER CE VAISSEAU";
   btn.classList.toggle("danger", active);
@@ -217,10 +243,11 @@ function renderInventoryCell(entry, shipId = null){
   const equipped = entry.equipped;
   const isHere = shipId ? equipped?.location === "ship" && equipped?.shipId === shipId : equipped?.location === "drone";
   const isElsewhere = equipped && !isHere;
-  const selected = store.selectedInventoryUid === entry.uid;
+  const multiSelected = selectedEquipmentUidSet().has(entry.uid);
+  const selected = multiSelected || store.selectedInventoryUid === entry.uid;
   const resourceLike = isInventoryResourceEntry(entry);
   const badge = resourceLike ? "RES" : equipmentInventoryBadge(entry.item);
-  return `<button class="inventory-cell ${resourceLike ? "inventory-resource-item" : ""} ${selected ? "selected" : ""} ${isHere ? "equipped-here" : ""} ${isElsewhere ? "equipped-elsewhere" : ""}"
+  return `<button class="inventory-cell ${resourceLike ? "inventory-resource-item" : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""} ${isHere ? "equipped-here" : ""} ${isElsewhere ? "equipped-elsewhere" : ""}"
       draggable="${resourceLike ? "false" : "true"}"
       data-inventory-uid="${entry.uid}"
       data-inventory-category="${entry.item.category}"
@@ -268,10 +295,21 @@ function equipmentInventoryBadge(item){
   return "E";
 }
 
+function selectedEquipmentUidSet(){
+  return new Set(Array.isArray(store.selectedInventoryUids) ? store.selectedInventoryUids : []);
+}
+
 function equipmentSlotBadge(item){
   if(item?.category === "canon") return equipmentInventoryBadge(item);
   if(item?.slotType === "missileLauncher") return "LM";
   if(item?.slotType === "rocketLauncher") return "LR";
+  if(item?.category === "generateur"){
+    const shieldTier = String(item.name || "").match(/\bA\s+([IVX]+)$/i)?.[1];
+    if(shieldTier) return `A ${shieldTier.toUpperCase()}`;
+    const speedTier = String(item.name || "").match(/\bMK-([IVX]+)$/i)?.[1];
+    if(speedTier) return `V ${speedTier.toUpperCase()}`;
+    return "G";
+  }
   return item?.short || item?.name || "";
 }
 
@@ -353,7 +391,7 @@ function renderSelectedInventoryDetail(){
   }
   if(!selectedItem){
     store.selectedInventoryUid = null;
-    return `<div class="selected-item-copy"><span class="tiny">Aucun objet sélectionné</span><h3>Sélectionne un équipement</h3><p>Clique sur un laser ou un générateur dans l'inventaire pour afficher ses détails. Double-clique pour l'équiper dans le premier slot libre du panneau actif.</p></div>`;
+    return "";
   }
   const equippedInActivePanel = store.hangarTab === "drone"
     ? selectedEquipped?.location === "drone"
@@ -368,6 +406,7 @@ function renderSelectedInventoryDetail(){
   const saleButton = selectedItem.shop !== false && Number(selectedItem.price || 0) > 0
     ? `<button class="blue-button secondary small" data-inventory-sell="${selectedEntry.uid}">Vendre</button>`
     : "";
+  const bulkSelectionCount = selectedEquipmentUidSet().size;
   return `
     <div class="selected-item-art"><img src="${selectedItem.img}" alt="${selectedItem.name}"></div>
     <div class="selected-item-copy">
@@ -375,6 +414,7 @@ function renderSelectedInventoryDetail(){
       <h3>${selectedItem.name}</h3>
       ${selectedItemStatsHtml(selectedItem)}
       <small>${locationLabel(selectedEquipped)}</small>
+      ${bulkSelectionCount > 1 ? `<small class="bulk-selection-count">${bulkSelectionCount} équipements présélectionnés</small>` : ""}
       <div class="selected-item-actions">
         ${actionButtons}
         ${saleButton}
@@ -391,7 +431,9 @@ export function renderLoadout(){
   const renderSlot = (type, index, uid) => {
     const item = getItemFromInventoryUid(uid);
     const label = type === "laser" ? "L" : type === "generator" ? "G" : type === "missileLauncher" ? "LM" : type === "rocketLauncher" ? "LR" : "E";
-    return `<button class="equip-slot-tile ${type}-slot ${item ? "filled" : ""}" data-drop-part="${type}" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""} title="${item ? item.name : "Slot vide"}">
+    const multiSelected = item && selectedEquipmentUidSet().has(uid);
+    const selected = item && (multiSelected || store.selectedInventoryUid === uid);
+    return `<button class="equip-slot-tile ${type}-slot ${item ? "filled" : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""}" data-drop-part="${type}" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""} title="${item ? item.name : "Slot vide"}">
       ${item ? `<img src="${item.img}" alt="${item.name}"><b>${equipmentSlotBadge(item)}</b>` : `<span>${label}${index+1}</span><i>+</i>`}
     </button>`;
   };
@@ -406,6 +448,7 @@ export function renderLoadout(){
   const {inventoryEntries, resourceEntries} = filterInventoryContent(allInventoryEntries, allResourceEntries);
   const inventoryCount = inventoryEntries.length + resourceEntries.length;
   const emptyCells = Array.from({length:Math.max(0, 48 - inventoryCount)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
+  const selectedDetail = renderSelectedInventoryDetail();
   const panel = document.getElementById("loadoutPanel");
   if(!panel) return;
   panel.innerHTML = `
@@ -427,14 +470,16 @@ export function renderLoadout(){
         ${renderInventoryFilterTabs()}
         <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, ship.id)).join("")}${resourceEntries.map(renderInventoryResourceCell).join("")}${emptyCells}</div>
       </section>
-      <section class="selected-item-panel">${renderSelectedInventoryDetail()}</section>
+      ${selectedDetail ? `<section class="selected-item-panel">${selectedDetail}</section>` : ""}
     </div>`;
 }
 
 function renderDroneSlot(uid, index){
   const item = getItemFromInventoryUid(uid);
   const upgraded = Boolean(getDronePermanentUpgrade(index));
-  return `<article class="drone-slot-card ${upgraded ? "upgraded" : ""}" data-drop-part="drone" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""}>
+  const multiSelected = item && selectedEquipmentUidSet().has(uid);
+  const selected = item && (multiSelected || store.selectedInventoryUid === uid);
+  return `<article class="drone-slot-card ${upgraded ? "upgraded" : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""}" data-drop-part="drone" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""}>
     <div class="drone-slot-head"><span class="badge">Drone ${index+1}</span><span>${upgraded ? "ROUGE +50%" : item ? item.category.toUpperCase() : "VIDE"}</span></div>
     <div class="drone-slot-body" data-drop-part="drone" data-drop-index="${index}">
       <img class="drone-preview" src="assets/drones/drone_test_sprite.webp" alt="Drone ${index+1}">
@@ -458,6 +503,7 @@ export function renderDroneSection(){
   const inventoryCount = inventoryEntries.length + resourceEntries.length;
   const emptyCells = Array.from({length:Math.max(0, 40 - inventoryCount)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
   const nextPrice = drones.length >= droneDef.maxOwned ? null : getDronePurchasePrice(drones.length);
+  const selectedDetail = renderSelectedInventoryDetail();
   section.innerHTML = `
     <div class="drone-layout">
       <aside class="panel frame drone-summary-panel">
@@ -468,7 +514,7 @@ export function renderDroneSection(){
           ${statLine("Max drones", droneDef.maxOwned, droneDef.maxOwned)}
           <div class="stat-line special-line"><span>Emplacements</span><b>1 par drone</b></div>
           <div class="stat-line special-line"><span>Compatibilité</span><b>Laser, bouclier ou overdrive</b></div>
-          <div class="stat-line special-line"><span>Prix suivant</span><b>${nextPrice ? priceLabel(droneDef.priceType, nextPrice) : "MAX"}</b></div>
+          <div class="stat-line special-line"><span>Prix suivant</span><b>${nextPrice ? currencyAmountHtml(droneDef.priceType, getCurrencyPrice(droneDef.priceType, nextPrice)) : "MAX"}</b></div>
         </div>
         <button class="blue-button" data-buy-combat-drone ${(!nextPrice || !canAfford(droneDef.priceType, nextPrice)) ? "disabled" : ""}>${nextPrice ? "ACHETER UN DRONE" : "MAX DRONES"}</button>
         <p class="panel-note">${droneDef.desc}</p>
@@ -485,7 +531,7 @@ export function renderDroneSection(){
             ${renderInventoryFilterTabs()}
             <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, null)).join("")}${resourceEntries.map(renderInventoryResourceCell).join("")}${emptyCells}</div>
           </section>
-          <section class="selected-item-panel">${renderSelectedInventoryDetail()}</section>
+          ${selectedDetail ? `<section class="selected-item-panel">${selectedDetail}</section>` : ""}
         </div>
       </section>
     </div>`;
@@ -520,6 +566,7 @@ function getProfileStatsRows(){
   return [
     profileCompareRow("Vie", stats.vie / safeMultiplier("hullMultiplier"), stats.vie, " PV"),
     profileCompareRow("Bouclier", stats.bouclier / safeMultiplier("shieldMultiplier"), stats.bouclier),
+    profileCompareRow("Absorption bouclier", `${Math.round((Number(stats.shieldAbsorbRatio || 0) - Number(skill.shieldAbsorbBonus || 0)) * 100)}%`, `${Math.round(Number(stats.shieldAbsorbRatio || 0) * 100)}%`),
     profileCompareRow("Régénération", stats.regen / safeMultiplier("regenMultiplier"), stats.regen, "/s"),
     profileCompareRow("Vitesse réelle", beforeSpeed, stats.vitesseReelle),
     profileCompareRow("Soute", stats.cargo / safeMultiplier("cargoMultiplier"), stats.cargo),
@@ -678,6 +725,7 @@ export function renderSettingsSection(){
   const settings = document.getElementById("settingsPanel");
   if(!settings) return;
   const keys = store.state.slotKeybinds || DEFAULT_SLOT_KEYBINDS;
+  const abilityKeys = store.state.abilityKeybinds || DEFAULT_ABILITY_KEYBINDS;
   const quality = getGraphicsQuality();
   settings.innerHTML = `
     <div class="panel-head">
@@ -691,6 +739,19 @@ export function renderSettingsSection(){
           <span>Slot ${i+1}</span>
           <b>${keyCodeToLabel(keys[i])}</b>
           <button class="blue-button small" data-change-slot-key="${i}">Modifier</button>
+        </div>
+      `).join("")}
+    </div>
+    <div class="panel-head compact settings-ability-head">
+      <div><span class="tiny">VAISSEAU</span><h2>Touches des compétences</h2></div>
+      <button class="blue-button small" data-reset-ability-keybinds>Réinitialiser</button>
+    </div>
+    <div class="keybind-grid">
+      ${Array.from({length:3}, (_,i)=>`
+        <div class="keybind-row">
+          <span>Compétence ${i+1}</span>
+          <b>${keyCodeToLabel(abilityKeys[i])}</b>
+          <button class="blue-button small" data-change-ability-key="${i}">Modifier</button>
         </div>
       `).join("")}
     </div>
@@ -723,8 +784,7 @@ const STORE_TAB_IDS = storeTabs.map(tab=>tab.id);
 
 function rewardAmountLabel(id, amount){
   const cleanAmount = Math.max(0, Number(amount || 0));
-  if(id === "credits") return `${fmt(cleanAmount)} CR`;
-  if(id === "premium") return `${fmt(cleanAmount)} NOVA`;
+  if(id === "credits" || id === "premium") return fmt(cleanAmount);
   return `${fmt(cleanAmount)} ${String(id || "").replaceAll("_", " ").toUpperCase()}`;
 }
 
@@ -760,7 +820,7 @@ function renderPremiumStoreCard(pack){
   return `<article class="store-offer-card store-premium-card" data-store-offer-kind="premium" data-store-offer="${escapeHtml(pack.id)}">
     <div class="store-offer-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
     <div class="store-offer-copy">
-      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${fmt(pack.price)} NOVA</span></div>
+      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${currencyAmountHtml("premium", pack.price)}</span></div>
       <p>${escapeHtml(pack.desc)} Clique pour voir les bonus inclus.</p>
       <div class="store-offer-foot"><b>${escapeHtml(pack.realPrice)}</b><button class="gold-button small" type="button">DETAILS</button></div>
     </div>
@@ -769,12 +829,13 @@ function renderPremiumStoreCard(pack){
 
 function renderCurrencyStoreCard(pack){
   const isNova = pack.tag === "NOVA";
+  const currencyType = isNova ? "premium" : "credits";
   return `<article class="store-offer-card ${isNova ? "store-nova-card" : "store-credit-card"}">
     <div class="store-offer-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
     <div class="store-offer-copy">
-      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${escapeHtml(pack.tag || "")}</span></div>
+      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${currencyIconHtml(currencyType)}</span></div>
       <p>${escapeHtml(pack.desc || "")}</p>
-      <div class="store-offer-foot"><b>${pack.amount ? fmt(pack.amount) + ` ${escapeHtml(pack.tag || "")}` : escapeHtml(pack.price || "A definir")}</b><button class="gold-button small" type="button" disabled>${escapeHtml(pack.price || "Bientot")}</button></div>
+      <div class="store-offer-foot"><b>${pack.amount ? currencyAmountHtml(currencyType, pack.amount) : escapeHtml(pack.price || "A definir")}</b><button class="gold-button small" type="button" disabled>${escapeHtml(pack.price || "Bientot")}</button></div>
     </div>
   </article>`;
 }
@@ -860,13 +921,13 @@ function renderStoreModal(){
         <div class="store-modal-body">
           <div class="store-modal-art premium"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
           <div class="store-modal-copy">
-            <p>${escapeHtml(pack.desc)} Peut aussi etre active dans le magasin contre ${fmt(pack.price)} NOVA.</p>
+            <p>${escapeHtml(pack.desc)} Peut aussi etre active dans le magasin contre ${currencyAmountHtml("premium", pack.price)}.</p>
             <div class="store-modal-features">${pack.features.map(feature=>`<span>${escapeHtml(feature)}</span>`).join("")}</div>
           </div>
         </div>
         <div class="store-modal-actions">
           <button class="gold-button" type="button" disabled>PAIEMENT BIENTOT</button>
-          <button class="blue-button small" data-buy-premium-pack="${escapeHtml(pack.id)}" type="button">ACHETER EN NOVA</button>
+          <button class="blue-button small" data-buy-premium-pack="${escapeHtml(pack.id)}" type="button">ACHETER ${currencyIconHtml("premium")}</button>
         </div>
       </section>
     </div>`;
@@ -1037,7 +1098,7 @@ function renderFirmSetupGate(){
 }
 
 export { renderShop } from "./renderShop.js";
-export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js";
+export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=currency-icons-1";
 export { renderRefinery } from "./renderRefinery.js";
 export { renderFirm } from "./renderFirm.js";
 

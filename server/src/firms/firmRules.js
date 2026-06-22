@@ -1,12 +1,15 @@
 import { ELITE_CRAFT_RESOURCES, MYTHIC_CRAFT_RESOURCES, RARE_CRAFT_RESOURCES, VERY_RARE_CRAFT_RESOURCES } from "../../../src/data/resources.js";
+import { FIRM_BOOSTER_DURATION_MS } from "../../../src/shared/firmBoosters.js";
+import { getFirmIndividualReward } from "../../../src/shared/firmSeasonRewards.js";
+
+export { getFirmIndividualReward } from "../../../src/shared/firmSeasonRewards.js";
 
 export const FIRM_SEASON_MS = 30 * 24 * 60 * 60 * 1000;
-export const FIRM_REWARD_MS = 7 * 24 * 60 * 60 * 1000;
+export const FIRM_REWARD_MS = FIRM_BOOSTER_DURATION_MS;
 export const FIRM_COLLECTIVE_MIN_CONTRIBUTION = 10_000;
 export const FIRM_PVP_FULL_REWARD_LIMIT = 5;
 export const FIRM_PVP_FULL_POINTS = 100;
 export const FIRM_PVP_REDUCED_POINTS = 5;
-export const FIRM_RANK_BONUSES = [0.25, 0.15, 0.10, 0.05];
 export const FIRM_REPUTATION_TIERS = [
   {reputation:10_000, discount:0, label:"Commun"},
   {reputation:75_000, discount:0.05, label:"Rare"},
@@ -133,27 +136,6 @@ export const FIRM_COLLECTIVE_REWARDS = {
   3:{boxes:{elite:3}},
   4:{boxes:{elite:1, veryRare:5}}
 };
-
-const TOP_REWARDS = [
-  {premium:200_000, ammo:{ammo_x6:30_000}, firmatons:2_000},
-  {premium:175_000, ammo:{ammo_x6:25_000}, firmatons:1_750},
-  {premium:150_000, ammo:{ammo_x6:20_000}, firmatons:1_500},
-  {premium:100_000, ammo:{ammo_x6:10_000}, firmatons:1_000},
-  {premium:75_000, ammo:{ammo_x4:50_000}, firmatons:850},
-  {premium:70_000, ammo:{ammo_x4:45_000}, firmatons:800},
-  {premium:65_000, ammo:{ammo_x4:40_000}, firmatons:750},
-  {premium:60_000, ammo:{ammo_x4:35_000}, firmatons:700},
-  {premium:55_000, ammo:{ammo_x4:30_000}, firmatons:600},
-  {premium:50_000, ammo:{ammo_x4:25_000}, firmatons:500}
-];
-
-const PERCENT_REWARDS = [
-  {percent:10, reward:{premium:25_000, ammo:{ammo_x4:10_000}, firmatons:400}},
-  {percent:20, reward:{premium:15_000, ammo:{ammo_x4:5_000}, firmatons:350}},
-  {percent:30, reward:{premium:10_000, firmatons:250}},
-  {percent:50, reward:{premium:5_000, firmatons:200}},
-  {percent:80, reward:{premium:2_000, firmatons:150}}
-];
 
 export const FIRM_DAILY_QUEST_DEFINITIONS = [
   {
@@ -344,18 +326,6 @@ export function getFirmShopPrice(itemOrId, reputation = 0){
 
 export function getFirmCollectiveReward(rank){
   return cloneFirmReward(FIRM_COLLECTIVE_REWARDS[Math.max(1, Math.min(4, Number(rank || 4)))] || {});
-}
-
-export function getFirmIndividualReward(rank, totalPlayers){
-  const cleanRank = Math.max(1, Math.floor(Number(rank || 1)));
-  const total = Math.max(1, Math.floor(Number(totalPlayers || 1)));
-  if(cleanRank <= TOP_REWARDS.length){
-    return {label:`Top ${cleanRank}`, reward:cloneFirmReward(TOP_REWARDS[cleanRank - 1])};
-  }
-  const percentile = cleanRank / total * 100;
-  const tier = PERCENT_REWARDS.find(entry=>percentile <= entry.percent);
-  if(tier) return {label:`Top ${tier.percent}%`, reward:cloneFirmReward(tier.reward)};
-  return {label:"Joueur classé", reward:{firmatons:100}};
 }
 
 export function getFirmQuestFirmPoints(basePoints, elapsedMs){

@@ -205,7 +205,7 @@ export function createCombatHitResolutionSystem({
     }else if(bullet.owner === "player" && bullet.kind === "rocket"){
       spawnImpactEffect("rocket", {x:bullet.x, y:bullet.y, color:bullet.particle || bullet.color, visualOnly:bullet.visualOnly});
     }else{
-      particles.push({x:bullet.x, y:bullet.y, life:.22, max:.22, size:12, color:bullet.particle || "rgba(125,211,252,.8)"});
+      particles.push({kind:"impact",x:bullet.x, y:bullet.y, life:.22, max:.22, size:12, color:bullet.particle || "rgba(125,211,252,.8)"});
     }
     const hitChance = bullet.hitChance ?? (bullet.owner === "enemy" ? 0.88 : PLAYER_HIT_CHANCE);
     const hit = Math.random() <= hitChance;

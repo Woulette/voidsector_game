@@ -28,8 +28,18 @@ export function createServerEventController({
     if(reason === "shop:item-bought"){
       for(const event of consume(multiplayer.shopItemEvents)){
         const item = getItem(event.id);
-        if(item) showToast(`${item.name} achete cote serveur. Un exemplaire a ete ajoute a l'inventaire.`);
+        const quantity = Math.max(1, Math.round(Number(event.quantity || 1)));
+        if(item) showToast(`${item.name} achete cote serveur : +${quantity.toLocaleString("fr-FR")}.`);
       }
+      renderAll();
+      return true;
+    }
+    if(reason === "shop:booster-bought"){
+      for(const event of consume(multiplayer.shopBoosterEvents)){
+        const hours = Math.round(Number(event.durationMs || 0) / 3_600_000);
+        showToast(`${event.name || "Booster"} x${event.quantity || 1} activé : +${hours} h.`);
+      }
+      renderAll();
       return true;
     }
     if(reason === "shop:premium-pack-bought"){
@@ -151,7 +161,7 @@ export function createServerEventController({
     if(reason === "refinery:updated") return applyRefineryEvents();
     if(reason === "space-caster:result") return applySpaceCasterEvents();
     if(reason === "auth:success") switchLocalProfileScope(accountProfileScope(event.detail?.payload?.account || multiplayer.auth.account));
-    else if(reason === "auth:logout") switchLocalProfileScope("guest");
+    else if(reason === "auth:logout" || reason === "auth:replaced") switchLocalProfileScope("guest");
     if(!reason.startsWith("auth:") || store.currentView !== "hangar") return;
     renderTop();
     if(store.hangarTab === "profile") renderProfile();

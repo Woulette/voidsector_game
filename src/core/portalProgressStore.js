@@ -25,7 +25,7 @@ export function getShipPurchaseLockReason(ship){
   const portalId = getShipRequiredCompletedPortal(ship);
   if(!portalId || getCompletedPortalCountForId(portalId) > 0) return "";
   const portalName = getPortal(portalId)?.name || portalId;
-  return `Pre requis : ${portalName} termine`;
+  return `Pré requis : ${portalName} terminé`;
 }
 
 export function isShipPurchaseUnlocked(ship){

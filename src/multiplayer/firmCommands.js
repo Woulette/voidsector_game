@@ -16,6 +16,7 @@ export function createFirmCommands({multiplayer, toast}){
     openFirmBox:rarity=>rarity ? emit("firm:box-open", {rarity}) : false,
     claimFirmRewards:()=>emit("firm:reward-claim"),
     claimFirmQuest:id=>id ? emit("firm:quest-claim", {id}) : false,
+    claimFirmSeasonObjective:id=>id ? emit("firm:season-objective-claim", {id}) : false,
     acceptFirmQuest:id=>id ? emit("firm:quest-accept", {id}) : false
   };
 }

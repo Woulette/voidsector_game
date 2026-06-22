@@ -85,7 +85,7 @@ export function createCombatEnemyRuntime({
       onHitEffect:enemy.onHitEffect,
       hitChance:getEnemyHitChance(enemy)
     }));
-    particles.push({x:startX,y:startY,life:.16,max:.16,size:16,color:enemy.particle || "rgba(252,165,165,.72)"});
+    particles.push({kind:"enemyAttack",x:startX,y:startY,life:.16,max:.16,size:16,color:enemy.particle || "rgba(252,165,165,.72)"});
   }
 
   function updateEnemies(dt){

@@ -12,6 +12,7 @@ export function createShopActions({
   getShipPurchaseLockReason,
   buyServerShip,
   buyServerItem,
+  buyServerBooster,
   buyServerAmmo,
   buyServerDrone,
   buyServerDroneFormation,
@@ -33,15 +34,27 @@ export function createShopActions({
     });
   }
 
-  function buyItem(id){
+  function buyItem(id, multiplier = 1){
     const item = getItem(id);
     if(!item) return;
+    const count = item.id === "teleportation_fluid" && [1, 10, 100, 1000].includes(Number(multiplier)) ? Number(multiplier) : 1;
     sendMmoCommand({
       multiplayer,
-      send:()=>buyServerItem?.(id),
+      send:()=>buyServerItem?.(id, count),
       showToast,
       sentMessage:"Achat envoye au serveur.",
       failedMessage:"Achat d'objet impossible."
+    });
+  }
+
+  function buyBooster(id, quantity = 1){
+    const count = [1, 10, 50, 100].includes(Number(quantity)) ? Number(quantity) : 1;
+    sendMmoCommand({
+      multiplayer,
+      send:()=>buyServerBooster?.(id, count),
+      showToast,
+      sentMessage:"Achat du booster S1 envoyé au serveur.",
+      failedMessage:"Achat du booster S1 impossible."
     });
   }
 
@@ -107,5 +120,5 @@ export function createShopActions({
     });
   }
 
-  return {buyShip, buyItem, buyAmmo, buyCombatDrone, buyDroneFormation, buyPremiumPack, claimPremiumReward};
+  return {buyShip, buyItem, buyBooster, buyAmmo, buyCombatDrone, buyDroneFormation, buyPremiumPack, claimPremiumReward};
 }

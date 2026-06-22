@@ -12,12 +12,11 @@ export function createEquipmentLocationManager({io, players, profileManager, set
     return Object.values(WORLD_MAPS).find(map=>String(map.name || "").toUpperCase() === String(targetName || "").toUpperCase()) || WORLD_MAPS["0"];
   }
 
-  function getConnectedGamePlayerForAccount(player){
-    if(!player?.accountId) return player?.clientMode === "game" && player.connected !== false ? player : null;
+  function getWorldPlayerForAccount(player){
+    if(!player?.accountId) return player?.clientMode === "game" && player.state ? player : null;
     return [...players.values()].find(candidate=>
       candidate.accountId === player.accountId
       && candidate.clientMode === "game"
-      && candidate.connected !== false
       && candidate.state
     ) || null;
   }
@@ -34,10 +33,18 @@ export function createEquipmentLocationManager({io, players, profileManager, set
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const profile = profileManager.getProfileForPlayer(player);
     const firmId = getPlayerFirmId(player, profile);
-    const gamePlayer = getConnectedGamePlayerForAccount(player);
+    const gamePlayer = getWorldPlayerForAccount(player);
     const homeMap = getHomeMapForFirm(firmId);
     if(!gamePlayer?.state){
       return {ok:true, firmId, homeMap:homeMap?.name || "Helion-01", homeMapId:String(homeMap?.id || "0"), source:"disconnected"};
+    }
+    if(gamePlayer.connected === false){
+      const remainingMs = Math.max(0, Number(gamePlayer.removeAt || 0) - Date.now());
+      const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+      return {
+        ok:false,
+        reason:`Deconnexion du vaisseau en cours. Attends encore ${remainingSeconds} seconde${remainingSeconds > 1 ? "s" : ""} avant de modifier le hangar.`
+      };
     }
     if(isStateAtFirmSpawn(gamePlayer.state, firmId)){
       return {ok:true, firmId, homeMap:homeMap?.name || "Helion-01", homeMapId:String(homeMap?.id || "0"), source:"live-spawn", gamePlayerId:gamePlayer.id};

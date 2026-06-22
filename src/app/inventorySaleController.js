@@ -1,3 +1,5 @@
+import { currencyAmountHtml } from "../ui/currencyIcons.js";
+
 function getSaleValue(item){
   const price = Math.max(0, Math.round(Number(item?.price || 0)));
   if(!item || item.shop === false || item.category === "quest_item" || price <= 0) return null;
@@ -5,10 +7,6 @@ function getSaleValue(item){
     priceType:item.priceType === "premium" ? "premium" : "credits",
     amount:Math.max(1, Math.floor(price * 0.35))
   };
-}
-
-function currencyLabel(priceType){
-  return priceType === "premium" ? "NOVA" : "credits";
 }
 
 export function createInventorySaleController({
@@ -47,7 +45,7 @@ export function createInventorySaleController({
         </div>
         <div class="inventory-sale-price">
           <span>Prix de vente</span>
-          <strong>${value.amount.toLocaleString("fr-FR")} ${currencyLabel(value.priceType)}</strong>
+          <strong>${currencyAmountHtml(value.priceType, value.amount)}</strong>
         </div>
         ${equipped ? `<p class="inventory-sale-warning">Retire cet objet de son emplacement avant de le vendre.</p>` : ""}
         <div class="inventory-sale-actions">

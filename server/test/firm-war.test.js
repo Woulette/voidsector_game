@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { createFirmWarManager, FIRM_REWARD_MS, FIRM_SEASON_MS } from "../src/firms/firmWar.js";
+import { sanitizeFirmState } from "../src/firms/firmState.js";
 import { createWorldRewardManager } from "../src/world/rewards.js";
 
 function createIoRecorder(){
@@ -18,6 +19,24 @@ function createIoRecorder(){
     }
   };
 }
+
+test("legacy season rewards recover participant eligibility without granting new accounts", ()=>{
+  const now = 50_000;
+  const state = sanitizeFirmState({
+    rewards:{
+      astra:{rank:1, boosters:{damage:.10}, endsAt:now + FIRM_REWARD_MS}
+    },
+    lastClosedSeason:{
+      individualRanking:[
+        {key:"account:legacy-participant", firmId:"astra", points:25}
+      ]
+    }
+  }, now);
+
+  assert.equal(state.version, 5);
+  assert.equal(state.rewards.astra.eligiblePlayers["account:legacy-participant"], true);
+  assert.equal(state.rewards.astra.eligiblePlayers["account:created-later"], undefined);
+});
 
 test("firm season stores monster points only for the first-hit owner", async ()=>{
   const {events, io} = createIoRecorder();
@@ -158,25 +177,69 @@ test("low level monster kills still progress firm quests without direct firm poi
   }
 });
 
-test("firm season closes with weekly reward multipliers", async ()=>{
+test("firm season closes with seven-day faction boosters", async ()=>{
   let now = 10_000;
   const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-war-"));
   try{
     const manager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>now});
     await manager.load();
-    manager.addFirmPoints("astra", 50);
-    manager.addFirmPoints("cyan", 30);
+    manager.addFirmPoints("astra", 50, {key:"account:astra-veteran", name:"Astra Veteran", firmId:"astra"});
+    manager.addFirmPoints("cyan", 30, {key:"account:cyan-veteran", name:"Cyan Veteran", firmId:"cyan"});
     now += FIRM_SEASON_MS + 1;
     const snapshot = manager.snapshot();
     const astra = snapshot.firms.find(firm=>firm.id === "astra");
     const cyan = snapshot.firms.find(firm=>firm.id === "cyan");
-    assert.equal(manager.getRewardMultiplier("astra"), 0.25);
-    assert.equal(manager.getRewardMultiplier("cyan"), 0.15);
+    assert.deepEqual(manager.getActiveBoosters("astra", {}, null, "account:astra-veteran"), {damage:.10, shield:.10, hull:.10, credits:.25, nova:.25});
+    assert.deepEqual(manager.getActiveBoosters("cyan", {}, null, "account:cyan-veteran"), {damage:.10, shield:.10, nova:.25});
+    assert.deepEqual(manager.getActiveBoosters("astra", {}, null, "account:created-after-season"), {});
+    assert.equal(manager.snapshot({playerKey:"account:astra-veteran", profile:{player:{firmId:"astra"}}}).personal.boosters.items.length, 5);
+    assert.equal(manager.snapshot({playerKey:"account:created-after-season", profile:{player:{firmId:"astra"}}}).personal.boosters.items.length, 0);
+    assert.equal(Object.hasOwn(snapshot, "personal"), false);
     assert.equal(astra.rewardEndsAt, now + FIRM_REWARD_MS);
     assert.equal(cyan.rewardRank, 2);
+    assert.deepEqual(cyan.activeBoosters, {damage:.10, shield:.10, nova:.25});
   }finally{
     await rm(dir, {recursive:true, force:true});
   }
+});
+
+test("faction economy boosters affect credits and NOVA but not XP", ()=>{
+  const applied = [];
+  const players = new Map([["a", {
+    id:"a",
+    name:"Alpha",
+    connected:true,
+    clientMode:"game",
+    mapId:"0",
+    profile:{player:{level:10, firmId:"astra"}}
+  }]]);
+  const manager = createWorldRewardManager({
+    io:{emit(){}, to:()=>({emit(){}})},
+    players,
+    groups:new Map(),
+    firmWarManager:{
+      getActiveBoosters:()=>({credits:.25, nova:.25}),
+      addMonsterKillPoints:()=>({})
+    },
+    profileManager:{
+      getProfileForPlayer:player=>player.profile,
+      applyCombatReward({player, reward}){
+        applied.push(reward);
+        return player.profile;
+      }
+    },
+    emitProfileSync(){}
+  });
+
+  manager.emitWorldReward({
+    attackerId:"a",
+    mapId:"0",
+    enemy:{id:"boosted-enemy", kind:"eclanite", type:"Eclanite", level:10, reward:{credits:100, xp:100, premium:100}}
+  });
+
+  assert.equal(applied[0].credits, 125);
+  assert.equal(applied[0].xp, 100);
+  assert.equal(applied[0].premium, 125);
 });
 
 test("firm points persist in the database without touching the JSON fallback", async ()=>{

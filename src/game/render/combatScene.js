@@ -26,6 +26,7 @@ export function createCombatSceneRenderer({
   store,
   getState,
   getGraphicsQuality,
+  getGraphicsEffects = ()=>({}),
   getSpawnStations,
   getSafeAreas,
   isSafeModeActive,
@@ -68,6 +69,7 @@ export function createCombatSceneRenderer({
       spawnProtected:safeAreas.some(area=>area.id === "spawn"),
       stations:getSpawnStations(),
       graphicsQuality:getGraphicsQuality(),
+      graphicsEffects:getGraphicsEffects(),
       getMapPortals,
       getClosedMapPortals
     });
@@ -448,6 +450,7 @@ export function createCombatSceneRenderer({
     const viewW = getCanvasViewWidth();
     const viewH = getCanvasViewHeight();
     const zoom = camera?.zoom || 1;
+    const graphicsEffects = getGraphicsEffects();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, viewW, viewH);
     ctx.imageSmoothingEnabled = true;
@@ -458,14 +461,14 @@ export function createCombatSceneRenderer({
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0);
     drawBackground();
     drawRickyArena();
-    drawProjectiles({ctx, camera, cache, bullets});
-    drawParticles({ctx, camera, particles, repairLayer:false});
+    drawProjectiles({ctx, camera, cache, bullets, showTrails:graphicsEffects.projectileTrails !== false});
+    drawParticles({ctx, camera, particles, repairLayer:false, graphicsEffects});
     drawGroundMaterials({ctx, camera, cache, materials:state.cargo.getGroundMaterials()});
     drawPortalBeacons();
     drawCargoBoxes({ctx, camera, cache, cargoBoxes:state.cargo.getCargoBoxes()});
     drawEnemies({ctx, camera, cache, enemies, selectedEnemy});
-    drawImpactEffects({ctx, camera, impactEffects});
-    drawBeams({ctx, camera, beams:beams.getBeams()});
+    drawImpactEffects({ctx, camera, impactEffects, showExplosions:graphicsEffects.explosionsImpacts !== false, showSparksSmoke:graphicsEffects.impactSparksSmoke !== false});
+    if(graphicsEffects.laserBeams !== false) drawBeams({ctx, camera, beams:beams.getBeams()});
     drawPortalAlly();
     const rank = getCurrentRank();
     drawPlayerLayer({
@@ -485,7 +488,8 @@ export function createCombatSceneRenderer({
       getDronePermanentUpgrade,
       droneFormation:store.state.activeDroneFormation,
       defaultProfile:defaultEngineProfile,
-      profiles:engineProfiles
+      profiles:engineProfiles,
+      graphicsEffects
     });
     drawPortgunChannel();
     drawRemotePlayers({
@@ -498,9 +502,10 @@ export function createCombatSceneRenderer({
       profiles:engineProfiles,
       selectedEnemy,
       player,
-      enemies
+      enemies,
+      graphicsEffects
     });
-    drawParticles({ctx, camera, particles, repairLayer:true});
+    drawParticles({ctx, camera, particles, repairLayer:true, graphicsEffects});
     drawDamageTexts();
     ctx.restore();
     canvas.__renderWidth = null;
@@ -508,7 +513,7 @@ export function createCombatSceneRenderer({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawRadiationOverlay();
     drawMiniMap();
-    drawPortalTransitionOverlay({ctx, transition:portalTransition, maps:mapList, viewW, viewH});
+    if(graphicsEffects.portalWarp !== false) drawPortalTransitionOverlay({ctx, transition:portalTransition, maps:mapList, viewW, viewH});
   }
 
   return {drawBackground, drawRadiationOverlay, drawDamageTexts, drawMiniMap, draw};

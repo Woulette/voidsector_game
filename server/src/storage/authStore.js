@@ -185,6 +185,22 @@ export async function deleteSession(sessionId){
   writeJson(SESSIONS_URL, sessions);
 }
 
+export async function deleteSessionsForAccount(accountId){
+  const cleanAccountId = String(accountId || "");
+  if(!cleanAccountId) return;
+  if(dbEnabled){
+    await query("DELETE FROM sessions WHERE account_id = $1", [cleanAccountId]);
+    return;
+  }
+  let changed = false;
+  for(const [id, session] of Object.entries(sessions)){
+    if(String(session?.accountId || "") !== cleanAccountId) continue;
+    delete sessions[id];
+    changed = true;
+  }
+  if(changed) writeJson(SESSIONS_URL, sessions);
+}
+
 export async function deleteExpiredSessions(now = Date.now()){
   if(dbEnabled){
     await query("DELETE FROM sessions WHERE expires_at <= $1", [Number(now || Date.now())]);

@@ -147,7 +147,8 @@ export function createPresenceManager({io, players, emitPlayers, config, onPlaye
     const hpBeforeDamage = Number(player.state.hp || 0);
     const maxShield = Math.max(0, Number(player.state.maxShield || 0));
     if(maxShield > 0 && Number(player.state.shield || 0) > 0){
-      const shieldPart = incoming * 0.8;
+      const absorbRatio = Math.max(0, Math.min(0.9, Number(player.state.shieldAbsorbRatio ?? 0.5)));
+      const shieldPart = incoming * absorbRatio;
       let hullPart = incoming - shieldPart;
       const absorbed = Math.min(Number(player.state.shield || 0), shieldPart);
       player.state.shield = Math.max(0, Number(player.state.shield || 0) - absorbed);
@@ -215,6 +216,9 @@ export function createPresenceManager({io, players, emitPlayers, config, onPlaye
     if(player.mapRoom) socket.leave(player.mapRoom);
     player.logoutPending = null;
     if(player.gracefulLogout || player.clientMode !== "game" || !player.state){
+      player.connected = false;
+      player.disconnectedAt = Date.now();
+      if(typeof onPlayerRemove === "function") onPlayerRemove(player);
       players.delete(socket.id);
       emitPlayers();
       return;

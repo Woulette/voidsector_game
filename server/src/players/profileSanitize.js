@@ -7,6 +7,7 @@ import { sanitizeActivityLog } from "./activityLog.js";
 import { sanitizeCombatBoosts } from "../economy/combatBoosts.js";
 import { sanitizePilotName } from "./profileIdentity.js";
 import { calculateMonsterRankPointsForKills, calculateRankScore } from "../../../src/data/ranks.js";
+import { sanitizePlayerBoosterState } from "../../../src/shared/firmBoosters.js";
 
 const EMPTY_ACTION_SLOTS = Array(9).fill(null);
 const STARTER_ACTION_SLOTS = ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
@@ -31,6 +32,8 @@ export function sanitizeWorldSession(value){
     maxHp:Math.max(0, Number(value.maxHp || value.hp || 0)),
     shield:Math.max(0, Number(value.shield || 0)),
     maxShield:Math.max(0, Number(value.maxShield || value.shield || 0)),
+    firmHullMultiplier:Math.max(1, Math.min(6, Number(value.firmHullMultiplier || 1) || 1)),
+    firmShieldMultiplier:Math.max(1, Math.min(6, Number(value.firmShieldMultiplier || 1) || 1)),
     shipId:String(value.shipId || "unknown"),
     shipImg:String(value.shipImg || ""),
     updatedAt:Math.max(0, Number(value.updatedAt || Date.now()))
@@ -157,6 +160,8 @@ export function sanitizeProfile(profile = {}){
     cargoHold:sanitizeObject(profile.cargoHold),
     shipCargo:sanitizeObject(profile.shipCargo),
     combatBoosts:sanitizeCombatBoosts(profile.combatBoosts),
+    shipAbilityStates:sanitizeObject(profile.shipAbilityStates),
+    boosters:sanitizePlayerBoosterState(profile.boosters),
     skillRanks:sanitizeObject(profile.skillRanks),
     skillLevels:sanitizeObject(profile.skillLevels),
     unlockedPortals:Array.isArray(profile.unlockedPortals) ? profile.unlockedPortals.map(String) : [],
@@ -225,6 +230,8 @@ export function preserveProtectedOwnership(incoming, existing){
     "firmRewardHistory",
     "activityLog",
     "combatBoosts",
+    "shipAbilityStates",
+    "boosters",
     "premiumRewardState",
     "starterPackPurchases",
     "refineryProductionRemainders",
@@ -236,7 +243,7 @@ export function preserveProtectedOwnership(incoming, existing){
     "dronePermanentUpgrades", "equipmentUpgrades", "ownedDroneFormations",
     "activeDroneFormation", "activeQuestIds", "activeQuestId", "questProgress",
     "questFailProgress", "completedQuestClaims", "worldSession", "shipWorldSessions", "cargoHold",
-    "shipCargo", "combatBoosts", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
+    "shipCargo", "combatBoosts", "shipAbilityStates", "boosters", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
     "portalPieces", "prestigeCount", "premiumRewardState", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
     "refineryProductionDisabled", "refineryProductionRemainders", "refineryLastTick", "killStats", "rankKillStats",

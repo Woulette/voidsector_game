@@ -1,5 +1,6 @@
 import { getFirmHomeMapName } from "../../data/firms.js";
-import { basePriceLabel, hasCurrencyDiscount, priceLabel } from "../../core/store.js";
+import { getCurrencyPrice, hasCurrencyDiscount } from "../../core/store.js";
+import { currencyAmountHtml } from "../../ui/currencyIcons.js";
 
 export function getPortalRespawnActionCopy(deathState = {}){
   const isDeadly = String(deathState.mapId || "") === "portal-ricky";
@@ -30,9 +31,9 @@ export function createCombatDeathRespawnSystem({
   }
 
   function novaCostHtml(cost){
-    const current = `<strong class="shop-price premium">${priceLabel("premium", cost)}</strong>`;
+    const current = `<strong class="shop-price premium">${currencyAmountHtml("premium", getCurrencyPrice("premium", cost))}</strong>`;
     if(!hasCurrencyDiscount("premium", cost)) return current;
-    return `<span class="shop-price-discount"><s>${basePriceLabel("premium", cost)}</s>${current}</span>`;
+    return `<span class="shop-price-discount"><s>${currencyAmountHtml("premium", cost)}</s>${current}</span>`;
   }
 
   function renderPanelContent(){

@@ -8,6 +8,7 @@ import { FIRMS, getFirmMapId } from "../../../src/data/firms.js";
 import { getServerCombatTimedBoostPercent } from "../economy/combatBoosts.js";
 import { resolveRickyPortalPoint, RICKY_PORTAL_MAP } from "../../../src/data/rickyPortal.js";
 import { isPremiumActive, PREMIUM_REPAIR_BOT_MULTIPLIER } from "../../../src/data/premium.js";
+import { calculateShieldAbsorbRatio } from "../../../src/shared/shieldAbsorption.js";
 
 const MAP_OUTSIDE_LIMIT = 1800;
 const PORTAL_TRANSFER_PADDING = 180;
@@ -136,6 +137,27 @@ function getTrustedGeneratorStat(profile, key, upgradeValue){
     + getGeneratorStatTotal(profile, droneUids, key, upgradeValue) * droneMultiplier;
 }
 
+export function getTrustedShieldAbsorbRatio(profile){
+  const activeShipId = getActiveShip(profile)?.id || profile?.activeShip || "orion";
+  const loadout = profile?.shipLoadouts?.[activeShipId] || {};
+  const shipUids = (Array.isArray(loadout.generators) ? loadout.generators : []).filter(Boolean);
+  const droneUids = (Array.isArray(profile?.droneLoadout) ? profile.droneLoadout : []).filter(Boolean);
+  const droneMultiplier = 1 + getServerCombatTimedBoostPercent(profile, "drone");
+  const contributions = (uids, multiplier)=>uids.map(uid=>{
+    const item = getItemFromInventoryUid(profile, uid);
+    const baseShield = Math.max(0, finite(item?.stats?.bouclier));
+    const upgrade = Math.max(0, finite(profile?.equipmentUpgrades?.[item?.id]));
+    return {
+      capacity:(baseShield + (baseShield > 0 ? upgrade * 30 : 0)) * multiplier,
+      ratio:item?.effect?.shieldAbsorbRatio
+    };
+  });
+  return calculateShieldAbsorbRatio([
+    ...contributions(shipUids, 1),
+    ...contributions(droneUids, droneMultiplier)
+  ], getSkillStats(profile).shieldAbsorbBonus);
+}
+
 export function getRepairBotConfig(profile){
   const skill = getSkillStats(profile);
   const activeShipId = getActiveShip(profile)?.id || profile?.activeShip || "orion";
@@ -177,9 +199,11 @@ export function getTrustedShieldRegen(profile){
     * generatorMultiplier);
 }
 
-function getTrustedMaxHp(profile, ship){
+function getTrustedMaxHp(profile, ship, firmBoosters = {}){
   const skill = getSkillStats(profile);
-  return Math.max(1, (finite(ship?.stats?.vie, 5000) + finite(skill.vie)) * finite(skill.hullMultiplier, 1));
+  return Math.max(1, (finite(ship?.stats?.vie, 5000) + finite(skill.vie))
+    * finite(skill.hullMultiplier, 1)
+    * (1 + Math.max(0, finite(firmBoosters.hull))));
 }
 
 function getTrustedShipSession(profile, shipId){
@@ -195,7 +219,7 @@ function getProfileHomeMapId(profile){
   return String(firm.baseMapId);
 }
 
-function getShieldCap(profile, previous){
+function getTrustedMaxShield(profile, firmBoosters = {}){
   const generatedShield = getTrustedGeneratorStat(profile, "bouclier", 30);
   const skill = getSkillStats(profile);
   const formation = getFormationStats(profile);
@@ -203,8 +227,9 @@ function getShieldCap(profile, previous){
   const trustedShield = (generatedShield > 0 ? generatedShield + finite(skill.shieldBonus) : 0)
     * finite(skill.shieldMultiplier, 1)
     * finite(formation.shieldMultiplier, 1)
-    * generatorMultiplier;
-  return Math.max(finite(previous?.maxShield), trustedShield * 1.5);
+    * generatorMultiplier
+    * (1 + Math.max(0, finite(firmBoosters.shield)));
+  return Math.max(0, trustedShield);
 }
 
 function clampPointToMap(point, map){
@@ -326,43 +351,49 @@ export function getTrustedMovementSpeed(profile, ship = getActiveShip(profile)){
     * generatorMultiplier);
 }
 
-function validateVitals({player, previous, payload, profile, ship, elapsedSeconds, mapChanged, nextPoint, nextMap, now}){
-  const shipHp = getTrustedMaxHp(profile, ship);
+function validateVitals({player, previous, payload, profile, ship, firmBoosters, elapsedSeconds, mapChanged, nextPoint, nextMap, now}){
+  const hullMultiplier = 1 + Math.max(0, finite(firmBoosters?.hull));
+  const shieldMultiplier = 1 + Math.max(0, finite(firmBoosters?.shield));
+  const previousHullMultiplier = Math.max(1, finite(previous?.firmHullMultiplier, 1));
   const trustedSession = getTrustedShipSession(profile, ship.id);
+  const sessionHullMultiplier = Math.max(1, finite(trustedSession?.firmHullMultiplier, 1));
+  const shipHp = getTrustedMaxHp(profile, ship, firmBoosters);
   const trustedInitialMaxHp = trustedSession
-    ? clamp(finite(trustedSession.maxHp, shipHp), 1, shipHp * 1.75)
+    ? Math.max(shipHp, finite(trustedSession.maxHp, shipHp) / sessionHullMultiplier * hullMultiplier)
     : shipHp;
-  const maxHpCap = Math.max(shipHp, finite(previous?.maxHp, trustedInitialMaxHp), shipHp * 1.75);
-  const requestedMaxHp = clamp(finite(payload?.maxHp, previous?.maxHp || trustedInitialMaxHp), 1, maxHpCap);
   const maxHp = previous
-    ? Math.max(1, Math.min(requestedMaxHp, Math.max(finite(previous.maxHp, requestedMaxHp), shipHp * 1.75)))
+    ? Math.max(shipHp, finite(previous.maxHp, shipHp) / previousHullMultiplier * hullMultiplier)
     : trustedInitialMaxHp;
-
-  const previousMaxShield = Math.max(0, finite(previous?.maxShield));
-  const requestedMaxShield = Math.max(0, finite(payload?.maxShield, previousMaxShield));
-  const maxShieldCap = getShieldCap(profile, previous);
-  const maxShield = Math.min(requestedMaxShield, maxShieldCap);
+  const maxShield = getTrustedMaxShield(profile, firmBoosters);
 
   if(!previous){
     const trustedInitialHp = trustedSession
-      ? finite(trustedSession.hp, maxHp)
+      ? finite(trustedSession.hp, maxHp) / sessionHullMultiplier * hullMultiplier
       : maxHp;
-    const trustedInitialShield = trustedSession
-      ? finite(trustedSession.shield, maxShield)
-      : maxShield;
+    const savedMaxShield = Math.max(0, finite(trustedSession?.maxShield));
+    const savedShieldRatio = trustedSession && savedMaxShield > 0
+      ? clamp(finite(trustedSession.shield, savedMaxShield) / savedMaxShield, 0, 1)
+      : 1;
+    const trustedInitialShield = maxShield * savedShieldRatio;
     return {
       hp:clamp(trustedInitialHp, 0, maxHp),
       maxHp,
       shield:clamp(trustedInitialShield, 0, maxShield),
-      maxShield
+      maxShield,
+      firmHullMultiplier:hullMultiplier,
+      firmShieldMultiplier:shieldMultiplier
     };
   }
 
-  const previousHp = clamp(finite(previous.hp), 0, maxHp);
-  const previousShield = clamp(finite(previous.shield), 0, maxShield);
+  const previousHp = clamp(finite(previous.hp) * hullMultiplier / previousHullMultiplier, 0, maxHp);
+  const previousMaxShield = Math.max(0, finite(previous.maxShield));
+  const previousShieldRatio = previousMaxShield > 0
+    ? clamp(finite(previous.shield) / previousMaxShield, 0, 1)
+    : 1;
+  const previousShield = maxShield * previousShieldRatio;
   const safeRespawn = false;
   if(previousHp <= 0 && !safeRespawn){
-    return {hp:0, maxHp, shield:0, maxShield};
+    return {hp:0, maxHp, shield:0, maxShield, firmHullMultiplier:hullMultiplier, firmShieldMultiplier:shieldMultiplier};
   }
   const requestedHp = finite(payload?.hp, previousHp);
   const repairHealRate = getRepairBotHealRate(profile);
@@ -376,13 +407,17 @@ function validateVitals({player, previous, payload, profile, ship, elapsedSecond
     : Math.max(maxHp * 0.04 * elapsedSeconds + 5, isRepairTick ? repairTickAllowance : 0);
   const shieldRegenAllowance = safeRespawn ? maxShield : maxShield * 0.18 * elapsedSeconds + 25;
   const hp = clamp(requestedHp, 0, Math.min(maxHp, previousHp + hpHealAllowance));
-  const shield = clamp(finite(payload?.shield, previousShield), 0, Math.min(maxShield, previousShield + shieldRegenAllowance));
+  const shield = clamp(
+    finite(payload?.shield, previousShield),
+    previousShield,
+    Math.min(maxShield, previousShield + shieldRegenAllowance)
+  );
   if(isRepairTick && hp > previousHp) player.lastRepairBotHealAt = now;
 
-  return {hp, maxHp, shield, maxShield};
+  return {hp, maxHp, shield, maxShield, firmHullMultiplier:hullMultiplier, firmShieldMultiplier:shieldMultiplier};
 }
 
-export function validatePlayerState({player, payload, profile, groups, now = Date.now()} = {}){
+export function validatePlayerState({player, payload, profile, groups, firmBoosters = {}, now = Date.now()} = {}){
   const previous = player?.state || null;
   if(previous && player?.deathState){
     return {
@@ -484,16 +519,19 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
     payload,
     profile,
     ship,
+    firmBoosters,
     elapsedSeconds,
     mapChanged,
     nextPoint:point,
     nextMap,
     now
   });
+  const shieldDiffers = Math.abs(finite(payload?.shield, vitals.shield) - vitals.shield) > 1e-6;
+  const maxShieldDiffers = Math.abs(finite(payload?.maxShield, vitals.maxShield) - vitals.maxShield) > 1e-6;
   if(finite(payload?.hp, vitals.hp) !== vitals.hp
     || finite(payload?.maxHp, vitals.maxHp) !== vitals.maxHp
-    || finite(payload?.shield, vitals.shield) !== vitals.shield
-    || finite(payload?.maxShield, vitals.maxShield) !== vitals.maxShield
+    || shieldDiffers
+    || maxShieldDiffers
     || String(payload?.shipId || ship.id) !== ship.id){
     corrected = true;
     reason ||= "etat de combat invalide";
@@ -537,6 +575,7 @@ export function validatePlayerState({player, payload, profile, groups, now = Dat
       droneCount:droneState.droneCount,
       droneUpgrades:droneState.droneUpgrades,
       activeDroneFormation:droneState.activeDroneFormation,
+      shieldAbsorbRatio:getTrustedShieldAbsorbRatio(profile),
       rankName:String(payload?.rankName || previous?.rankName || "").slice(0, 48),
       rankAssetPath:String(payload?.rankAssetPath || previous?.rankAssetPath || "").slice(0, 180),
       moveTarget,

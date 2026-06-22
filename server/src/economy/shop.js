@@ -1,6 +1,7 @@
 ﻿import { ships } from "../../../src/data/catalog.js";
 
 import { premiumShopPacks } from "../../../src/data/premium.js";
+import { S1_BOOSTER_SHOP } from "../../../src/shared/firmBoosters.js";
 
 export const SERVER_AMMO_SHOP = {
   ammo_x1:{id:"ammo_x1", name:"Munition M-1", priceType:"credits", price:10000, amount:1000},
@@ -31,13 +32,18 @@ export const SERVER_ITEM_SHOP = {
   extra_repair_yellow:{id:"extra_repair_yellow", name:"Drone de Reparation Jaune", priceType:"credits", price:850000},
   extra_repair_bot:{id:"extra_repair_bot", name:"Drone de Reparation Rouge", priceType:"premium", price:7000},
   extra_repair_auto:{id:"extra_repair_auto", name:"IA d'Auto-Reparation", priceType:"premium", price:20000},
-  teleportation_fluid:{id:"teleportation_fluid", name:"Fluide de Teleportation", priceType:"premium", price:100},
-  ammo_module:{id:"ammo_module", name:"Module de Munitions", priceType:"credits", price:8000}
+  teleportation_fluid:{id:"teleportation_fluid", name:"Fluide de Teleportation", priceType:"premium", price:100}
 };
 
 export const SERVER_SHIP_SHOP = Object.fromEntries(ships.map(ship=>[
   ship.id,
-  {id:ship.id, name:ship.name, priceType:ship.priceType || "credits", price:Number(ship.price || 0)}
+  {
+    id:ship.id,
+    name:ship.name,
+    priceType:ship.priceType || "credits",
+    price:Number(ship.price || 0),
+    requiresCompletedPortal:ship.requiresCompletedPortal || ship.requiresPortalCompletion || (ship.skillShip ? "violet" : null)
+  }
 ]));
 
 export const SERVER_DRONE_SHOP = {
@@ -63,9 +69,27 @@ export const SERVER_PREMIUM_PACK_SHOP = Object.fromEntries(premiumShopPacks.map(
   }
 ]));
 
+export const SERVER_BOOSTER_SHOP = Object.fromEntries(S1_BOOSTER_SHOP.map(booster=>[
+  booster.id,
+  {
+    id:booster.id,
+    type:booster.type,
+    name:booster.name,
+    priceType:booster.priceType,
+    price:Number(booster.price || 0),
+    durationMs:Number(booster.durationMs || 0),
+    percent:Number(booster.percent || 0)
+  }
+]));
+
 export function normalizeShopMultiplier(value){
   const count = Number(value || 1);
   return [1, 10, 100, 1000].includes(count) ? count : 1;
+}
+
+export function normalizeBoosterQuantity(value){
+  const count = Number(value || 1);
+  return [1, 10, 50, 100].includes(count) ? count : 1;
 }
 
 export function getAmmoPurchase(id, multiplier = 1){
@@ -80,12 +104,27 @@ export function getAmmoPurchase(id, multiplier = 1){
   };
 }
 
-export function getItemPurchase(id){
+export function getItemPurchase(id, multiplier = 1){
   const item = SERVER_ITEM_SHOP[String(id || "")];
   if(!item) return null;
+  const count = item.id === "teleportation_fluid" ? normalizeShopMultiplier(multiplier) : 1;
   return {
     ...item,
-    totalPrice:Math.max(0, Math.round(Number(item.price || 0)))
+    multiplier:count,
+    quantity:count,
+    totalPrice:Math.max(0, Math.round(Number(item.price || 0) * count))
+  };
+}
+
+export function getBoosterPurchase(id, quantity = 1){
+  const booster = SERVER_BOOSTER_SHOP[String(id || "")];
+  if(!booster) return null;
+  const count = normalizeBoosterQuantity(quantity);
+  return {
+    ...booster,
+    quantity:count,
+    totalPrice:Math.max(0, Math.round(Number(booster.price || 0) * count)),
+    totalDurationMs:Math.max(0, Number(booster.durationMs || 0) * count)
   };
 }
 

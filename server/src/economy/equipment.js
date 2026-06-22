@@ -1,6 +1,7 @@
 import {ammoTypes, equipment, droneCatalog} from "../../../src/data/equipment.js";
 import { rawMaterialCatalog } from "../../../src/data/progression.js";
 import {ships} from "../../../src/data/ships.js";
+import { findMatchingExtraGroupIndex, getExtraEquipGroup } from "../../../src/shared/equipmentRules.js";
 
 export function getServerItem(id){
   return equipment.find(item=>item.id === id) || null;
@@ -93,11 +94,27 @@ export function cleanupDuplicateEquippedInventoryUids(profile){
   for(const shipId of shipIds){
     const loadout = shipLoadouts[shipId];
     if(!loadout || typeof loadout !== "object") continue;
-    for(const part of ["lasers", "generators", "extras"]){
+    for(const part of ["lasers", "generators"]){
       if(!Array.isArray(loadout[part])) continue;
       const next = loadout[part].map(keepOnce);
       if(next.some((uid, index)=>uid !== loadout[part][index])) changed = true;
       loadout[part] = next;
+    }
+    if(Array.isArray(loadout.extras)){
+      const usedExtraGroups = new Set();
+      const next = loadout.extras.map(value=>{
+        const uid = keepOnce(value);
+        if(!uid) return null;
+        const group = getExtraEquipGroup(getItemFromInventoryUid(profile, uid));
+        if(group && usedExtraGroups.has(group)){
+          changed = true;
+          return null;
+        }
+        if(group) usedExtraGroups.add(group);
+        return uid;
+      });
+      if(next.some((uid, index)=>uid !== loadout.extras[index])) changed = true;
+      loadout.extras = next;
     }
     for(const part of ["missileLauncher", "rocketLauncher"]){
       const next = keepOnce(loadout[part]);
@@ -170,6 +187,7 @@ export function equipInventoryUid(profile, {type, index = 0, inventoryUid, shipI
   if(!Array.isArray(profile.ownedShips) || !profile.ownedShips.includes(ship.id)) return {ok:false, reason:"Vaisseau non possede."};
   const loadout = ensureProfileLoadout(profile, ship.id);
   if(!loadout) return {ok:false, reason:"Loadout introuvable."};
+  let equippedTargetIndex = targetIndex;
 
   if(type === "laser"){
     if(item.category !== "canon") return {ok:false, reason:"Ce n'est pas un canon."};
@@ -196,14 +214,23 @@ export function equipInventoryUid(profile, {type, index = 0, inventoryUid, shipI
   }else if(type === "extra"){
     if(item.category !== "extra") return {ok:false, reason:"Ce n'est pas un extra."};
     if(targetIndex >= (ship.stats.maxExtras || 3)) return {ok:false, reason:"Slot extra invalide."};
-    if(loadout.extras[targetIndex] && loadout.extras[targetIndex] !== uid) unequipInventoryUid(profile, loadout.extras[targetIndex]);
+    const matchingIndex = findMatchingExtraGroupIndex(
+      loadout.extras,
+      item,
+      equippedUid=>getItemFromInventoryUid(profile, equippedUid),
+      uid
+    );
+    equippedTargetIndex = matchingIndex >= 0 ? matchingIndex : targetIndex;
+    if(loadout.extras[equippedTargetIndex] && loadout.extras[equippedTargetIndex] !== uid){
+      unequipInventoryUid(profile, loadout.extras[equippedTargetIndex]);
+    }
     unequipInventoryUid(profile, uid);
-    loadout.extras[targetIndex] = uid;
+    loadout.extras[equippedTargetIndex] = uid;
   }else{
     return {ok:false, reason:"Type d'equipement invalide."};
   }
 
-  return {ok:true, item, target:{location:"ship", shipId:ship.id, type, index:targetIndex}};
+  return {ok:true, item, target:{location:"ship", shipId:ship.id, type, index:equippedTargetIndex}};
 }
 
 export function unequipSlot(profile, {type, index = 0, shipId} = {}){

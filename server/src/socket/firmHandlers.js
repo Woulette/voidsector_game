@@ -132,5 +132,35 @@ export function registerFirmHandlers(socket, context){
     emitSnapshot({includeShop:true});
   });
 
+  socket.on("firm:season-objective-claim", payload=>{
+    if(!guard("firm:season-objective-claim")) return;
+    const current = getPlayerContext();
+    if(!current) return;
+    const result = firmWarManager.claimSeasonObjectiveReward({
+      objectiveId:payload?.id,
+      claimedRewardIds:(current.profile?.firmRewardHistory || []).map(entry=>entry?.id),
+      contributor:{
+        key:current.playerKey,
+        name:current.profile?.player?.name || current.player.name || "Pilote",
+        firmId:current.profile?.player?.firmId || current.player.account?.firmId || "astra"
+      }
+    });
+    if(!result.ok){
+      socket.emit("firm:error", {message:result.reason || "Réclamation saisonnière impossible."});
+      return;
+    }
+    const applied = profileManager.updateProfileForPlayer({
+      player:current.player,
+      update:profile=>applyFirmQuestClaimReward(profile, result)
+    });
+    if(!applied.ok){
+      socket.emit("firm:error", {message:applied.reason || "Réclamation saisonnière impossible."});
+      return;
+    }
+    emitProfileSync(current.player, applied.profile);
+    socket.emit("firm:updated", {action:"season-objective-claim", objectiveId:result.objectiveId, reward:result.reward, at:Date.now()});
+    emitSnapshot({includeShop:true});
+  });
+
   if(players.get(socket.id)?.accountId) emitSnapshot();
 }

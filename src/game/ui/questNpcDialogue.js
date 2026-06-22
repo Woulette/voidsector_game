@@ -55,7 +55,11 @@ export function createQuestNpcDialogue({
     if(!quest) return null;
     if(!isObjectiveDone(quest, "portal_coord")) return {lines:["Approche du portail ferme, je capte mal ton signal."], progress:false};
     if(!isObjectiveDone(quest, "talk_start")){
-      return {lines:["Mon petit fils !!", "J'ai merder mon petit fils et coince a l'interieur avec mon pistou portgun.", "Arh c'est pas le moment ! ont se fait attaquer."], progress:true};
+      return {
+        lines:["Mon petit fils !!", "J'ai merder mon petit fils et coince a l'interieur avec mon pistou portgun.", "Arh c'est pas le moment ! ont se fait attaquer."],
+        progress:true,
+        progressOnLastLine:true
+      };
     }
     const combatDone = ["traqueurs", "parasites", "vorak", "orbes"].every(id=>isObjectiveDone(quest, id));
     if(combatDone && !isObjectiveDone(quest, "talk_return")){
@@ -208,6 +212,9 @@ export function createQuestNpcDialogue({
       panel.classList.add("visible", "line-swap");
       window.setTimeout(()=>panel.classList.remove("line-swap"), 220);
     });
+    if(dialogueState?.progressOnLastLine && dialogueState.index === dialogueState.lines.length - 1){
+      progressDialogue(dialogueState);
+    }
   }
 
   function close(){
@@ -215,6 +222,24 @@ export function createQuestNpcDialogue({
     panel?.classList.remove("visible", "line-swap");
     panel?.classList.add("hidden");
     dialogueState = null;
+  }
+
+  function progressDialogue(state){
+    if(!state?.progress || state.progressCommitted) return false;
+    const currentMap = getCurrentMap();
+    const progressed = multiplayer.connected && progressServerQuest({
+      type:state.progressType || "talk_npc",
+      itemId:state.itemId || "",
+      npcId:state.npc.id,
+      zoneName:currentMap.name
+    });
+    if(!progressed) return false;
+    state.progressCommitted = true;
+    saveState();
+    const panelMode = getSpawnPanelMode();
+    if(panelMode) renderSpawnInteractionPanel(panelMode);
+    updateHud();
+    return true;
   }
 
   function advance(){
@@ -230,20 +255,9 @@ export function createQuestNpcDialogue({
       render();
       return;
     }
-    const npc = dialogueState.npc;
-    const shouldProgress = dialogueState.progress;
-    const progressType = dialogueState.progressType || "talk_npc";
-    const itemId = dialogueState.itemId || "";
+    const completedDialogue = dialogueState;
     close();
-    const currentMap = getCurrentMap();
-    const progressed = shouldProgress && multiplayer.connected
-      && progressServerQuest({type:progressType, itemId, npcId:npc.id, zoneName:currentMap.name});
-    if(progressed){
-      saveState();
-      const panelMode = getSpawnPanelMode();
-      if(panelMode) renderSpawnInteractionPanel(panelMode);
-      updateHud();
-    }
+    progressDialogue(completedDialogue);
   }
 
   function interact(npc){
@@ -254,6 +268,7 @@ export function createQuestNpcDialogue({
       progress:dialogue.progress,
       progressType:dialogue.progressType,
       itemId:dialogue.itemId,
+      progressOnLastLine:Boolean(dialogue.progressOnLastLine),
       index:0
     };
     stopPlayerMovement();

@@ -7,6 +7,7 @@ export function installEconomySocketListeners({socket, multiplayer, emitChange, 
   [
     ["shop:ammo-bought", "shopAmmoEvents"],
     ["shop:item-bought", "shopItemEvents"],
+    ["shop:booster-bought", "shopBoosterEvents"],
     ["shop:premium-pack-bought", "shopPremiumPackEvents"],
     ["premium:reward-claimed", "premiumRewardEvents"],
     ["inventory:item-sold", "inventorySaleEvents"],

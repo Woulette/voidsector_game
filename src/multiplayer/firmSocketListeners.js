@@ -1,3 +1,5 @@
+import { setPersonalFirmBoosterReward } from "../core/firmBoosterStore.js";
+
 function pushFirmEvent(multiplayer, event){
   if(!Array.isArray(multiplayer.firmEvents)) multiplayer.firmEvents = [];
   multiplayer.firmEvents.push({...event, receivedAt:performance.now()});
@@ -48,12 +50,14 @@ export function installFirmSocketListeners({socket, multiplayer, emitChange, toa
     const merged = mergeFirmProfiles(multiplayer.firmSnapshot, payload);
     multiplayer.firmSnapshot = merged || null;
     multiplayer.firmRanking = merged || null;
+    setPersonalFirmBoosterReward(merged?.personal?.boosters || null);
     emitChange("firm:snapshot", merged);
   });
   socket.on("firm:ranking", payload=>{
     const merged = mergeFirmSnapshot(multiplayer.firmSnapshot || multiplayer.firmRanking, payload);
     multiplayer.firmRanking = merged || null;
     if(multiplayer.firmSnapshot || merged?.personal?.key) multiplayer.firmSnapshot = merged || null;
+    setPersonalFirmBoosterReward(multiplayer.firmSnapshot?.personal?.boosters || null);
     emitChange("firm:ranking", merged);
   });
   socket.on("firm:updated", event=>{
@@ -63,6 +67,7 @@ export function installFirmSocketListeners({socket, multiplayer, emitChange, toa
       "box-open":`Coffre ouvert : ${event?.reward?.label || "recompense obtenue"}.`,
       "reward-claim":"Recompenses de firme recuperees.",
       "quest-claim":"Prime de quete de firme recuperee.",
+      "season-objective-claim":"Récompense d'objectif saisonnier récupérée.",
       "quest-accept":"Quete de firme acceptee."
     };
     if(messages[event?.action]) toast(messages[event.action]);

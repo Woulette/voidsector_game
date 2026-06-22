@@ -65,7 +65,8 @@ export {
   getShipCargoCapacity,
   getShipCargoUsed
 } from "./cargoStore.js";
-export { GRAPHICS_QUALITY_PRESETS, getGraphicsQuality, normalizeGraphicsQuality, setGraphicsQuality } from "./graphicsStore.js";
+export { GRAPHICS_EFFECT_GROUPS, GRAPHICS_PRESET_EFFECTS, GRAPHICS_QUALITY_PRESETS, getGraphicsEffects, getGraphicsPreset, getGraphicsQuality, isGraphicsEffectEnabled, normalizeGraphicsQuality, setGraphicsQuality } from "./graphicsStore.js";
+export { getGameSettings, setAudioSetting, setFpsLimit, setGraphicsEffect, setGraphicsPreset, setInterfaceSetting } from "./settingsStore.js";
 export { normalizeState } from "./stateNormalizer.js";
 export { addReputation, addReputationFromXp, addXP, getEquippedDroneGenerators, getEquippedDroneItems, getEquippedDroneLasers, getEquippedExtras, getEquippedGenerators, getEquippedLasers, getEquippedLauncher, getExtraBonus, getRealSpeedFromStat, getShipCombatStats, recordWeaponUse } from "./combatStatsStore.js";
 export {
@@ -142,8 +143,10 @@ export const store = {
   pendingFirmName:"",
   inventoryFilter:"all",
   selectedInventoryUid:null,
+  selectedInventoryUids:[],
   selectedShopProduct:null,
   selectedShopAmmoMultiplier:1,
+  selectedShopBoosterMultiplier:1,
   selectedRefineryUpgrade:null,
   selectedRefineryTab:"forge",
   selectedRefineryShipmentMaterial:null,

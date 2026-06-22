@@ -82,6 +82,7 @@
 .keybind-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:12px;border:1px solid rgba(56,189,248,.18);background:rgba(7,22,40,.72)}
 .keybind-row span{font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#dff6ff}
 .keybind-row b{min-width:74px;text-align:center;border:1px solid rgba(250,204,21,.24);background:rgba(92,61,8,.18);color:#fde68a;padding:6px 8px}
+.settings-ability-head{margin-top:18px}
 .quality-option-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .quality-option{min-height:74px;display:grid;align-content:center;gap:5px;padding:10px;border:1px solid rgba(56,189,248,.20);background:rgba(3,15,29,.68);color:#b8d7e8;text-align:left;cursor:pointer}
 .quality-option:hover{border-color:rgba(125,211,252,.58);background:rgba(8,31,54,.82)}

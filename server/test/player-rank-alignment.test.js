@@ -3,7 +3,7 @@ import test from "node:test";
 import { getFirmIconDrawY, getRankIconDrawY } from "../../src/game/render/player.js";
 
 test("combat firm icon is vertically centered on the pilot name", ()=>{
-  assert.equal(getFirmIconDrawY({firmIconSize:24, nameY:100}), 87);
+  assert.equal(getFirmIconDrawY({firmIconSize:24, nameY:100}), 85.5);
 });
 
 test("combat rank alignment starts at Soldat d'elite", ()=>{

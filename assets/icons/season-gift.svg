@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Récompense de saison">
+  <defs>
+    <linearGradient id="gift-box" x1="20" y1="33" x2="108" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#42d8ff"/>
+      <stop offset=".55" stop-color="#0879ad"/>
+      <stop offset="1" stop-color="#04334f"/>
+    </linearGradient>
+    <linearGradient id="gift-ribbon" x1="48" y1="18" x2="82" y2="111" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff8aa"/>
+      <stop offset=".45" stop-color="#facc15"/>
+      <stop offset="1" stop-color="#b45309"/>
+    </linearGradient>
+    <filter id="gift-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#38bdf8" flood-opacity=".5"/>
+    </filter>
+  </defs>
+  <g filter="url(#gift-glow)">
+    <path d="M18 52h92v58H18z" fill="url(#gift-box)" stroke="#b9edff" stroke-width="4"/>
+    <path d="M13 39h102v24H13z" fill="#0b6f9d" stroke="#d6f6ff" stroke-width="4"/>
+    <path d="M54 39h20v71H54z" fill="url(#gift-ribbon)"/>
+    <path d="M49 39C31 34 28 17 39 13c12-4 23 10 25 26M79 39c18-5 21-22 10-26-12-4-23 10-25 26" fill="none" stroke="url(#gift-ribbon)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="64" cy="40" r="9" fill="#fff7ad" stroke="#b45309" stroke-width="4"/>
+    <path d="M27 72h18M83 72h18" stroke="#8ee6ff" stroke-width="4" stroke-linecap="round" opacity=".65"/>
+  </g>
+</svg>

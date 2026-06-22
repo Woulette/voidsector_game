@@ -109,6 +109,40 @@ export function registerEquipmentHandlers(socket, context){
     finishEquipmentAction(player, location, result, {action:"equip", target:result.target || null, item:result.item || null, at:Date.now()});
   });
 
+  socket.on("equipment:batch", payload=>{
+    if(!guard("equipment:batch")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const location = canChangeEquipmentAtFirmSpawn(player);
+    if(!location.ok){
+      socket.emit("equipment:error", {message:location.reason || "Modification d'equipement impossible."});
+      return;
+    }
+    const actions = Array.isArray(payload?.actions)
+      ? payload.actions.slice(0, 64).map(action=>({
+        kind:String(action?.kind || ""),
+        type:String(action?.type || ""),
+        index:action?.index,
+        inventoryUid:String(action?.inventoryUid || ""),
+        shipId:String(action?.shipId || "")
+      }))
+      : [];
+    const result = profileManager.applyEquipmentAction({
+      player,
+      action:{kind:"batch", actions}
+    });
+    if(!result.ok){
+      socket.emit("equipment:error", {message:result.reason || "Action groupee impossible."});
+      return;
+    }
+    finishEquipmentAction(player, location, result, {
+      action:"batch",
+      count:result.count || 0,
+      rejected:result.rejected?.length || 0,
+      at:Date.now()
+    });
+  });
+
   socket.on("equipment:unequip-slot", payload=>{
     if(!guard("equipment:unequip-slot")) return;
     const player = players.get(socket.id);

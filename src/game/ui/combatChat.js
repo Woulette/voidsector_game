@@ -1,4 +1,5 @@
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
+import { currencyAmountHtml } from "../../ui/currencyIcons.js";
 
 const CHAT_TABS = [
   {id:"global", label:"Global"},
@@ -43,9 +44,9 @@ function ensureChatLogs(store){
 
 function compactLogParts(entry, fmt){
   const parts = [];
-  if(entry.label) parts.push(String(entry.label));
-  if(Number(entry.credits || 0) > 0) parts.push(`+${fmt(entry.credits)} credits`);
-  if(Number(entry.premium || 0) > 0) parts.push(`+${fmt(entry.premium)} NOVA`);
+  if(entry.label) parts.push(escapeHtml(String(entry.label)));
+  if(Number(entry.credits || 0) > 0) parts.push(currencyAmountHtml("credits", entry.credits, {prefix:"+"}));
+  if(Number(entry.premium || 0) > 0) parts.push(currencyAmountHtml("premium", entry.premium, {prefix:"+"}));
   if(Number(entry.xp || 0) > 0) parts.push(`+${fmt(entry.xp)} XP`);
   if(Number(entry.reputation || 0) > 0) parts.push(`+${fmt(entry.reputation)} reputation`);
   return parts;
@@ -194,7 +195,7 @@ export function createCombatChat({
         <div class="combat-chat-row log">
           <time>${escapeHtml(timeLabel(entry.at))}</time>
           <strong>${escapeHtml(title)}</strong>
-          <span>${escapeHtml(parts.join(" - ") || "Gain sans valeur")}</span>
+          <span>${parts.join(" - ") || "Gain sans valeur"}</span>
         </div>
       `;
     }).join("");
@@ -229,6 +230,7 @@ export function createCombatChat({
 
   function setOpen(open){
     if(!panel) return;
+    if(store.state?.settings?.interface) store.state.settings.interface.chatVisible = Boolean(open);
     panel.classList.toggle("hidden", !open);
     toggleBtn?.classList.toggle("active", open);
     if(open){

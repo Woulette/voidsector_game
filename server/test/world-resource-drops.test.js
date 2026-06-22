@@ -8,6 +8,7 @@ import { getResourceDropChance, rollResourceDrops } from "../src/world/resourceD
 import { createWorldEnemy } from "../src/world/spawn.js";
 import { createWorldStateManager } from "../src/world/state.js";
 import { RESOURCE_DROP_POOLS } from "../../src/data/resources.js";
+import { ENEMY_TYPES } from "../../src/game/combatData.js";
 
 test("world maps use the requested monster level bands", ()=>{
   assert.deepEqual(WORLD_MAPS["0"].level, [1, 4]);
@@ -142,7 +143,7 @@ test("map five void crystals use their requested level twenty base stats", ()=>{
   assert.equal(cristal.radius, 47);
   assert.equal(cristal.width, 112);
   assert.equal(cristal.height, 112);
-  assert.equal(cristal.speed, 250);
+  assert.equal(cristal.speed, 220);
   assert.equal(cristal.attackRange, 350);
   assert.equal(cristal.attackCooldown, 1000);
   assert.equal(cristal.attackDamageMin, 1_600);
@@ -154,7 +155,7 @@ test("map five void crystals use their requested level twenty base stats", ()=>{
 
   assert.equal(etoile.maxHp, 450_000);
   assert.equal(etoile.maxShield, 400_000);
-  assert.equal(etoile.speed, 240);
+  assert.equal(etoile.speed, 210);
   assert.equal(etoile.attackRange, 360);
   assert.equal(etoile.attackCooldown, 1000);
   assert.equal(etoile.attackDamageMin, 3_800);
@@ -176,6 +177,13 @@ test("Eclanite uses its slightly reduced visual dimensions", ()=>{
   assert.equal(eclanite.radius, 35);
   assert.equal(eclanite.width, 82);
   assert.equal(eclanite.height, 82);
+  assert.equal(eclanite.speed, 240);
+});
+
+test("client void crystal speeds match the reduced server speeds", ()=>{
+  assert.equal(ENEMY_TYPES.eclanite.speed(), 240);
+  assert.equal(ENEMY_TYPES.cristanite.speed(), 220);
+  assert.equal(ENEMY_TYPES.astranite.speed(), 210);
 });
 
 test("an Astranite death summons one temporary Cristanite on Helion-05", ()=>{

@@ -58,6 +58,7 @@ export function createRemoteWeaponEventProcessor({
         bullet.fixedTarget = {x:toX, y:toY, hp:1};
         bullets.push(bullet);
         particles.push({
+          kind:"muzzle",
           x:Number(start.x || 0),
           y:Number(start.y || 0),
           life:.24,

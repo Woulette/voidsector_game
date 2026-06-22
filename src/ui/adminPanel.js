@@ -2,6 +2,7 @@ import { fmt } from "../core/utils.js";
 import { ammoTypes, droneCatalog, droneFormations, equipment } from "../data/equipment.js";
 import { portals, rawMaterialCatalog } from "../data/progression.js";
 import { ships } from "../data/ships.js";
+import { currencyIconHtml } from "./currencyIcons.js";
 import {
   adjustAdminPlayer,
   grantAdminPlayer,
@@ -255,8 +256,8 @@ function renderDock(){
   </button>`;
 }
 
-function renderStat(label, value, className = ""){
-  return `<div class="${className}"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`;
+function renderStat(label, value, className = "", allowHtml = false){
+  return `<div class="${className}"><span>${allowHtml ? label : escapeHtml(label)}</span><b>${allowHtml ? value : escapeHtml(value)}</b></div>`;
 }
 
 function renderRows(rows){
@@ -543,8 +544,8 @@ function renderDetails(){
       ${renderStat("Etat", target.status === "online" ? `Connecte${target.sessionCount > 1 ? ` (${target.sessionCount} fenetres)` : ""}` : "Deconnecte")}
       ${renderStat("Map", target.mapId || "--")}
       ${renderStat("HP", target.maxHp ? `${fmt(target.hp || 0)} / ${fmt(target.maxHp)}` : "--")}
-      ${renderStat("Credits", fmt(target.credits || profile?.credits || 0))}
-      ${renderStat("NOVA", fmt(target.premium || profile?.premium || 0))}
+      ${renderStat(currencyIconHtml("credits"), fmt(target.credits || profile?.credits || 0), "", true)}
+      ${renderStat(currencyIconHtml("premium"), fmt(target.premium || profile?.premium || 0), "", true)}
       ${renderStat("XP totale", fmt(target.totalXp || profile?.totalXp || 0))}
       ${renderStat("Temps", formatHours(progression.playSeconds))}
       ${renderStat("Kills", fmt(progression.totalKills || target.totalKills || 0))}

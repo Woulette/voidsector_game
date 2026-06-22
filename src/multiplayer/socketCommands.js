@@ -27,6 +27,9 @@ export function createSocketCommands({multiplayer}){
     activateRickyHealBeacon(){
       return emit(multiplayer, "portal:ricky-heal");
     },
+    activateShipAbility(abilityId = ""){
+      return emit(multiplayer, "ship:ability-use", {abilityId:String(abilityId || "")});
+    },
     requestLeaderboardSync(){
       return emit(multiplayer, "leaderboard:sync");
     },
@@ -120,8 +123,11 @@ export function createSocketCommands({multiplayer}){
     buyServerAmmo(id, multiplier = 1){
       return emit(multiplayer, "shop:buy-ammo", {id, multiplier});
     },
-    buyServerItem(id){
-      return emit(multiplayer, "shop:buy-item", {id});
+    buyServerItem(id, multiplier = 1){
+      return emit(multiplayer, "shop:buy-item", {id, multiplier});
+    },
+    buyServerBooster(id, quantity = 1){
+      return id ? emit(multiplayer, "shop:buy-booster", {id, quantity}) : false;
     },
     buyServerPremiumPack(id){
       return id ? emit(multiplayer, "shop:buy-premium-pack", {id}) : false;
@@ -146,6 +152,9 @@ export function createSocketCommands({multiplayer}){
     },
     equipServerInventoryItem({type, index = 0, inventoryUid, shipId} = {}){
       return emit(multiplayer, "equipment:equip", {type, index, inventoryUid, shipId});
+    },
+    applyServerEquipmentBatch({actions = []} = {}){
+      return emit(multiplayer, "equipment:batch", {actions});
     },
     unequipServerSlot({type, index = 0, shipId} = {}){
       return emit(multiplayer, "equipment:unequip-slot", {type, index, shipId});

@@ -24,28 +24,43 @@ import {
   store,
   XP_CURVE_VERSION
 } from "./core/store.js";
-import { createCombatGame } from "./game/combat.js?v=quest-claim-ui-1";
-import { applyServerDroneUpgrade, buyFirmShopItem, buyServerAmmo, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
+import { createCombatGame } from "./game/combat.js?v=currency-icons-2";
+import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
 import { connectMultiplayer, disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, registerAccount, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js";
-import { renderAll, renderFirm, renderLeaderboard, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js";
-import { showToast } from "./ui/toast.js";
-import { DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeSlotKeybinds } from "./core/keybinds.js";
+import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=currency-icons-2";
+import { showToast } from "./ui/toast.js?v=currency-icons-2";
+import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js";
 import { createProfileController } from "./app/profileController.js";
 import { createServerEventController } from "./app/serverEventController.js";
 import { createShopActions } from "./app/shopActions.js";
 import { createEquipmentActions } from "./app/equipmentActions.js";
+import {
+  createEquipmentDoubleClickTracker,
+  normalizeEquipmentSelection,
+  isEquipmentSelectionClearTarget,
+  planDroneEquipmentBatch,
+  planShipEquipmentBatch,
+  planUnequipEquipmentBatch,
+  rectanglesIntersect,
+  selectionRectangle,
+  toggleEquipmentSelection
+} from "./app/equipmentBulkSelection.js";
 import { createRefineryActions } from "./app/refineryActions.js";
 import { createProgressionActions } from "./app/progressionActions.js";
-import { createInventorySaleController } from "./app/inventorySaleController.js";
+import { createInventorySaleController } from "./app/inventorySaleController.js?v=currency-icons-2";
 import { createUnequipAllController } from "./app/unequipAllController.js";
 import { createAuthGateController, isMmoAuthenticated } from "./app/authGate.js";
 import { createGameConnectionRecoveryController } from "./app/gameConnectionRecovery.js";
 import { requireMmoConnection, sendMmoCommand } from "./app/mmoGate.js";
-import { handleAdminPanelChange, handleAdminPanelClick, handleAdminPanelInput, handleAdminPanelServerChange } from "./ui/adminPanel.js";
+import { handleAdminPanelChange, handleAdminPanelClick, handleAdminPanelInput, handleAdminPanelServerChange } from "./ui/adminPanel.js?v=currency-icons-2";
 
 const Game = createCombatGame({renderAll, showToast});
 let inventoryClickTimer = null;
+const equipmentDoubleClickTracker = createEquipmentDoubleClickTracker({maxDelayMs:500});
+let equipmentSelectionDrag = null;
+let suppressNextEquipmentClick = false;
 let pendingKeybindSlot = null;
+let pendingAbilityKeybindSlot = null;
 let pendingServerResume = null;
 let gameStartConnectRequested = false;
 let lastGameAuthNoticeAt = 0;
@@ -140,6 +155,113 @@ function renderAllPreserveScroll(){
 
 const renderAllPreserveInventoryScroll = renderAllPreserveScroll;
 
+function selectInventoryItemForDetail(inventoryUid){
+  if(!inventoryUid) return;
+  store.selectedInventoryUid = inventoryUid;
+  store.selectedInventoryResourceId = null;
+  clearTimeout(inventoryClickTimer);
+  inventoryClickTimer = setTimeout(()=>{
+    renderAllPreserveInventoryScroll();
+  }, 180);
+}
+
+function selectedEquipmentUids(){
+  const selected = normalizeEquipmentSelection(store.selectedInventoryUids)
+    .filter(inventoryUid=>Boolean(getInventoryItem(inventoryUid)));
+  store.selectedInventoryUids = selected;
+  return selected;
+}
+
+function clearEquipmentMultiSelection(){
+  store.selectedInventoryUids = [];
+}
+
+function updateEquipmentSelectionClasses(){
+  const selected = new Set(selectedEquipmentUids());
+  document.querySelectorAll("[data-inventory-uid], [data-slot-uid][data-drop-part]").forEach(element=>{
+    const uid = element.dataset.inventoryUid || element.dataset.slotUid;
+    element.classList.toggle("multi-selected", selected.has(uid));
+    element.classList.toggle("selected", selected.has(uid) || store.selectedInventoryUid === uid);
+  });
+}
+
+function toggleEquipmentUid(inventoryUid){
+  store.selectedInventoryUids = toggleEquipmentSelection(store.selectedInventoryUids, inventoryUid);
+  const selected = selectedEquipmentUids();
+  store.selectedInventoryUid = selected.includes(inventoryUid) ? inventoryUid : selected.at(-1) || null;
+  store.selectedInventoryResourceId = null;
+}
+
+function bulkEquipmentUidsFor(inventoryUid){
+  const selected = selectedEquipmentUids();
+  return selected.includes(inventoryUid) ? selected : [inventoryUid];
+}
+
+function bulkEquipInventoryItems(inventoryUids){
+  if(!requireMmoConnection(multiplayer, showToast)) return false;
+  const uids = normalizeEquipmentSelection(inventoryUids);
+  const actions = store.hangarTab === "drone"
+    ? planDroneEquipmentBatch({
+      inventoryUids:uids,
+      getItem:getItemFromInventoryUid,
+      findEquipped:findEquippedSlot,
+      drones:getDroneLoadout(),
+      dronePermanentUpgrades:store.state.dronePermanentUpgrades,
+      isDroneCompatibleEquipment,
+      isDronePermanentUpgradeItem
+    })
+    : planShipEquipmentBatch({
+      inventoryUids:uids,
+      getItem:getItemFromInventoryUid,
+      findEquipped:findEquippedSlot,
+      shipId:getShip(store.state.selectedShip)?.id,
+      loadout:getLoadout(store.state.selectedShip)
+    });
+  if(!actions.length){
+    showToast("Aucun emplacement compatible disponible.");
+    return false;
+  }
+  if(!applyServerEquipmentBatch({actions})){
+    showToast("Equipement groupe serveur impossible.");
+    return false;
+  }
+  clearEquipmentMultiSelection();
+  store.selectedInventoryUid = null;
+  renderAllPreserveInventoryScroll();
+  showToast(`${actions.length} equipement${actions.length > 1 ? "s" : ""} envoye${actions.length > 1 ? "s" : ""} au serveur.`);
+  return true;
+}
+
+function bulkUnequipInventoryItems(inventoryUids){
+  if(!requireMmoConnection(multiplayer, showToast)) return false;
+  const actions = planUnequipEquipmentBatch(inventoryUids, findEquippedSlot);
+  if(!actions.length){
+    showToast("Aucun equipement selectionne a retirer.");
+    return false;
+  }
+  if(!applyServerEquipmentBatch({actions})){
+    showToast("Retrait groupe serveur impossible.");
+    return false;
+  }
+  clearEquipmentMultiSelection();
+  store.selectedInventoryUid = null;
+  renderAllPreserveInventoryScroll();
+  showToast(`${actions.length} equipement${actions.length > 1 ? "s" : ""} retire${actions.length > 1 ? "s" : ""}.`);
+  return true;
+}
+
+function finishEquipmentSelectionDrag({render = false} = {}){
+  equipmentSelectionDrag?.marquee?.remove();
+  document.body.classList.remove("equipment-multi-selecting");
+  const dragged = Boolean(equipmentSelectionDrag?.moved);
+  equipmentSelectionDrag = null;
+  if(dragged){
+    suppressNextEquipmentClick = true;
+    setTimeout(()=>{ suppressNextEquipmentClick = false; }, 120);
+  }
+  if(render) renderAllPreserveInventoryScroll();
+}
+
 const profileController = createProfileController({
   store,
   game:Game,
@@ -203,6 +325,7 @@ function equipSelectedShip(){
 const {
   buyShip,
   buyItem,
+  buyBooster,
   buyAmmo,
   buyCombatDrone,
   buyDroneFormation,
@@ -219,6 +342,7 @@ const {
   getShipPurchaseLockReason,
   buyServerShip,
   buyServerItem,
+  buyServerBooster,
   buyServerAmmo,
   buyServerDrone,
   buyServerDroneFormation,
@@ -353,6 +477,7 @@ document.addEventListener("click", (e)=>{
   const resetKeyBtn = e.target.closest("[data-reset-keybinds]");
   if(resetKeyBtn){
     store.state.slotKeybinds = [...DEFAULT_SLOT_KEYBINDS];
+    store.state.abilityKeybinds = normalizeAbilityKeybinds(store.state.abilityKeybinds, store.state.slotKeybinds);
     pendingKeybindSlot = null;
     saveState();
     showToast("Touches des slots réinitialisées.");
@@ -360,9 +485,27 @@ document.addEventListener("click", (e)=>{
     return;
   }
 
+  const changeAbilityKeyBtn = e.target.closest("[data-change-ability-key]");
+  if(changeAbilityKeyBtn){
+    pendingAbilityKeybindSlot = Number(changeAbilityKeyBtn.dataset.changeAbilityKey);
+    pendingKeybindSlot = null;
+    showToast(`Appuie sur la nouvelle touche pour la compétence ${pendingAbilityKeybindSlot + 1}.`);
+    return;
+  }
+
   const profileTab = e.target.closest("[data-profile-tab]");
   if(profileTab){
     store.profileTab = profileTab.dataset.profileTab || "overview";
+    renderAll();
+    return;
+  }
+
+  const resetAbilityKeyBtn = e.target.closest("[data-reset-ability-keybinds]");
+  if(resetAbilityKeyBtn){
+    store.state.abilityKeybinds = normalizeAbilityKeybinds(DEFAULT_ABILITY_KEYBINDS, store.state.slotKeybinds);
+    pendingAbilityKeybindSlot = null;
+    saveState();
+    showToast("Touches des compétences réinitialisées.");
     renderAll();
     return;
   }
@@ -450,7 +593,10 @@ document.addEventListener("click", (e)=>{
   if(premiumRewardBtn){ claimPremiumReward(); return; }
 
   const itemBtn = e.target.closest("[data-buy-item]");
-  if(itemBtn){ buyItem(itemBtn.dataset.buyItem); return; }
+  if(itemBtn){ buyItem(itemBtn.dataset.buyItem, itemBtn.dataset.buyItemMultiplier); return; }
+
+  const boosterBtn = e.target.closest("[data-buy-booster]");
+  if(boosterBtn){ buyBooster(boosterBtn.dataset.buyBooster, boosterBtn.dataset.buyBoosterQuantity); return; }
 
   const premiumPackBtn = e.target.closest("[data-buy-premium-pack]");
   if(premiumPackBtn){ buyPremiumPack(premiumPackBtn.dataset.buyPremiumPack); return; }
@@ -484,6 +630,13 @@ document.addEventListener("click", (e)=>{
     store.firmTab = firmMainTab.dataset.firmMainTab || "overview";
     if(store.firmTab === "shop") requestFirmSync({includeShop:true});
     renderFirm();
+    return;
+  }
+
+  const shopBoosterMultiplier = e.target.closest("[data-shop-booster-multiplier]");
+  if(shopBoosterMultiplier){
+    store.selectedShopBoosterMultiplier = Number(shopBoosterMultiplier.dataset.shopBoosterMultiplier) || 1;
+    renderShop();
     return;
   }
 
@@ -528,10 +681,22 @@ document.addEventListener("click", (e)=>{
   const firmQuestClaim = e.target.closest("[data-firm-quest-claim]");
   if(firmQuestClaim){ claimFirmQuest(firmQuestClaim.dataset.firmQuestClaim); return; }
 
+  const firmSeasonObjectiveClaim = e.target.closest("[data-firm-season-objective-claim]");
+  if(firmSeasonObjectiveClaim){ claimFirmSeasonObjective(firmSeasonObjectiveClaim.dataset.firmSeasonObjectiveClaim); return; }
+
   const inventoryFilter = e.target.closest("[data-inventory-filter]");
   if(inventoryFilter){
     const filter = inventoryFilter.dataset.inventoryFilter || "all";
     store.inventoryFilter = ["all", "equipment", "resources"].includes(filter) ? filter : "all";
+    store.selectedInventoryUid = null;
+    clearEquipmentMultiSelection();
+    store.selectedInventoryResourceId = null;
+    renderAllPreserveInventoryScroll();
+    return;
+  }
+
+  if(selectedEquipmentUids().length && isEquipmentSelectionClearTarget(e.target)){
+    clearEquipmentMultiSelection();
     store.selectedInventoryUid = null;
     store.selectedInventoryResourceId = null;
     renderAllPreserveInventoryScroll();
@@ -589,6 +754,7 @@ document.addEventListener("click", (e)=>{
     store.shopFilter = shopFilterBtn.dataset.filterShop;
     store.selectedShopProduct = null;
     store.selectedShopAmmoMultiplier = 1;
+    store.selectedShopBoosterMultiplier = 1;
     renderShop();
     return;
   }
@@ -597,26 +763,71 @@ document.addEventListener("click", (e)=>{
   if(shopSelect){
     store.selectedShopProduct = shopSelect.dataset.selectShop;
     store.selectedShopAmmoMultiplier = 1;
+    store.selectedShopBoosterMultiplier = 1;
     renderShop();
     return;
   }
 
   const inventoryCard = e.target.closest("[data-inventory-uid]");
   if(inventoryCard){
+    if(suppressNextEquipmentClick){
+      suppressNextEquipmentClick = false;
+      equipmentDoubleClickTracker.reset();
+      return;
+    }
     const uid = inventoryCard.dataset.inventoryUid;
-    store.selectedInventoryUid = uid;
-    store.selectedInventoryResourceId = null;
-    clearTimeout(inventoryClickTimer);
-    if(e.detail > 1) return;
-    inventoryClickTimer = setTimeout(()=>{
+    if(e.ctrlKey){
+      clearTimeout(inventoryClickTimer);
+      equipmentDoubleClickTracker.reset();
+      toggleEquipmentUid(uid);
       renderAllPreserveInventoryScroll();
-    }, 180);
+      return;
+    }
+    if(!selectedEquipmentUids().includes(uid)) clearEquipmentMultiSelection();
+    if(equipmentDoubleClickTracker.register(`inventory:${uid}`, e.timeStamp)){
+      clearTimeout(inventoryClickTimer);
+      e.preventDefault();
+      store.selectedInventoryUid = uid;
+      store.selectedInventoryResourceId = null;
+      bulkEquipInventoryItems(bulkEquipmentUidsFor(uid));
+      return;
+    }
+    selectInventoryItemForDetail(uid);
     return;
   }
+
+  const equippedSlotCard = e.target.closest("[data-slot-uid][data-drop-part]");
+  if(equippedSlotCard && !e.target.closest("[data-unequip-part]")){
+    if(suppressNextEquipmentClick){
+      suppressNextEquipmentClick = false;
+      equipmentDoubleClickTracker.reset();
+      return;
+    }
+    const uid = equippedSlotCard.dataset.slotUid;
+    if(e.ctrlKey){
+      clearTimeout(inventoryClickTimer);
+      equipmentDoubleClickTracker.reset();
+      toggleEquipmentUid(uid);
+      renderAllPreserveInventoryScroll();
+      return;
+    }
+    if(!selectedEquipmentUids().includes(uid)) clearEquipmentMultiSelection();
+    if(equipmentDoubleClickTracker.register(`equipped:${uid}`, e.timeStamp)){
+      clearTimeout(inventoryClickTimer);
+      e.preventDefault();
+      bulkUnequipInventoryItems(bulkEquipmentUidsFor(uid));
+      return;
+    }
+    selectInventoryItemForDetail(uid);
+    return;
+  }
+
+  equipmentDoubleClickTracker.reset();
 
   const inventoryResourceCard = e.target.closest("[data-inventory-resource-id]");
   if(inventoryResourceCard){
     store.selectedInventoryUid = null;
+    clearEquipmentMultiSelection();
     store.selectedInventoryResourceId = inventoryResourceCard.dataset.inventoryResourceId;
     renderAllPreserveInventoryScroll();
     return;
@@ -648,24 +859,59 @@ document.addEventListener("click", (e)=>{
 
 });
 
-document.addEventListener("dblclick", (e)=>{
-  const equippedSlot = e.target.closest("[data-slot-uid][data-drop-part]");
-  if(equippedSlot){
-    clearTimeout(inventoryClickTimer);
-    e.preventDefault();
-    e.stopPropagation();
-    unequipPart(equippedSlot.dataset.dropPart, Number(equippedSlot.dataset.dropIndex));
-    return;
-  }
+document.addEventListener("mousedown", e=>{
+  if(e.button !== 0 || !e.ctrlKey) return;
+  const surface = e.target.closest(".rpg-inventory-grid, .equipped-compact-panel, .drone-bay-grid");
+  const scope = e.target.closest(".ship-equipment-layout");
+  if(!surface || !scope) return;
+  equipmentSelectionDrag = {
+    startX:e.clientX,
+    startY:e.clientY,
+    scope,
+    base:selectedEquipmentUids(),
+    moved:false,
+    lastUid:null,
+    marquee:null
+  };
+}, true);
 
-  const inventoryCard = e.target.closest("[data-inventory-uid]");
-  if(!inventoryCard) return;
-  clearTimeout(inventoryClickTimer);
-  store.selectedInventoryUid = inventoryCard.dataset.inventoryUid;
+document.addEventListener("mousemove", e=>{
+  if(!equipmentSelectionDrag || !(e.buttons & 1)) return;
+  const rect = selectionRectangle(equipmentSelectionDrag.startX, equipmentSelectionDrag.startY, e.clientX, e.clientY);
+  if(!equipmentSelectionDrag.moved && Math.max(rect.width, rect.height) < 5) return;
+  e.preventDefault();
+  if(!equipmentSelectionDrag.marquee){
+    equipmentSelectionDrag.moved = true;
+    equipmentSelectionDrag.marquee = document.createElement("div");
+    equipmentSelectionDrag.marquee.className = "equipment-selection-marquee";
+    document.body.appendChild(equipmentSelectionDrag.marquee);
+    document.body.classList.add("equipment-multi-selecting");
+  }
+  Object.assign(equipmentSelectionDrag.marquee.style, {
+    left:`${rect.left}px`,
+    top:`${rect.top}px`,
+    width:`${rect.width}px`,
+    height:`${rect.height}px`
+  });
+  const intersected = [];
+  equipmentSelectionDrag.scope
+    .querySelectorAll("[data-inventory-uid]:not(.inventory-resource-item), [data-slot-uid][data-drop-part]")
+    .forEach(element=>{
+      if(!rectanglesIntersect(rect, element.getBoundingClientRect())) return;
+      const uid = element.dataset.inventoryUid || element.dataset.slotUid;
+      if(uid && !intersected.includes(uid)) intersected.push(uid);
+    });
+  store.selectedInventoryUids = normalizeEquipmentSelection([...equipmentSelectionDrag.base, ...intersected]);
+  equipmentSelectionDrag.lastUid = intersected.at(-1) || equipmentSelectionDrag.lastUid;
+  if(equipmentSelectionDrag.lastUid) store.selectedInventoryUid = equipmentSelectionDrag.lastUid;
   store.selectedInventoryResourceId = null;
-  autoEquipInventoryItem(inventoryCard.dataset.inventoryUid);
-  store.selectedInventoryUid = null;
+  updateEquipmentSelectionClasses();
 });
+
+document.addEventListener("mouseup", ()=>{
+  if(!equipmentSelectionDrag) return;
+  finishEquipmentSelectionDrag({render:equipmentSelectionDrag.moved});
+}, true);
 
 document.addEventListener("input", e=>{
   if(handleAdminPanelInput(e, {renderAll:renderAllPreserveScroll})) return;
@@ -697,6 +943,10 @@ document.addEventListener("change", e=>{
 });
 
 document.addEventListener("dragstart", (e)=>{
+  if(e.ctrlKey || equipmentSelectionDrag?.moved){
+    e.preventDefault();
+    return;
+  }
   const inventoryCard = e.target.closest("[data-inventory-uid]");
   const equippedSlot = e.target.closest("[data-slot-uid][data-drop-part]");
   const uid = inventoryCard?.dataset.inventoryUid || equippedSlot?.dataset.slotUid;
@@ -716,6 +966,7 @@ document.addEventListener("drop", (e)=>{
   const uid = e.dataTransfer.getData("text/plain");
   equipPart(slot.dataset.dropPart, Number(slot.dataset.dropIndex), uid);
   store.selectedInventoryUid = null;
+  clearEquipmentMultiSelection();
   store.selectedInventoryResourceId = null;
 });
 
@@ -747,24 +998,39 @@ document.getElementById("startGameBtn").addEventListener("click", ()=>{
 });
 document.getElementById("returnDashboardBtn").addEventListener("click", ()=>Game.requestLogout());
 document.addEventListener("keydown", e=>{
-  if(pendingKeybindSlot !== null){
+  if(pendingKeybindSlot !== null || pendingAbilityKeybindSlot !== null){
     e.preventDefault();
     const code = eventToCode(e);
     if(code === "Escape"){
       pendingKeybindSlot = null;
+      pendingAbilityKeybindSlot = null;
       showToast("Modification de touche annulée.");
       return;
     }
-    const next = normalizeSlotKeybinds(store.state.slotKeybinds);
-    const duplicate = next.findIndex((value, index)=>value === code && index !== pendingKeybindSlot);
-    if(duplicate >= 0){
-      showToast(`La touche ${keyCodeToLabel(code)} est déjà utilisée par le slot ${duplicate + 1}.`);
+    const actionKeys = normalizeSlotKeybinds(store.state.slotKeybinds);
+    const abilityKeys = normalizeAbilityKeybinds(store.state.abilityKeybinds, actionKeys);
+    const duplicateAction = actionKeys.findIndex((value, index)=>value === code && index !== pendingKeybindSlot);
+    const duplicateAbility = abilityKeys.findIndex((value, index)=>value === code && index !== pendingAbilityKeybindSlot);
+    if(duplicateAction >= 0){
+      showToast(`La touche ${keyCodeToLabel(code)} est déjà utilisée par le slot ${duplicateAction + 1}.`);
       return;
     }
-    next[pendingKeybindSlot] = code;
-    store.state.slotKeybinds = normalizeSlotKeybinds(next);
-    showToast(`Slot ${pendingKeybindSlot + 1} assigné à ${keyCodeToLabel(code)}.`);
-    pendingKeybindSlot = null;
+    if(duplicateAbility >= 0){
+      showToast(`La touche ${keyCodeToLabel(code)} est déjà utilisée par la compétence ${duplicateAbility + 1}.`);
+      return;
+    }
+    if(pendingAbilityKeybindSlot !== null){
+      abilityKeys[pendingAbilityKeybindSlot] = code;
+      store.state.abilityKeybinds = normalizeAbilityKeybinds(abilityKeys, actionKeys);
+      showToast(`Compétence ${pendingAbilityKeybindSlot + 1} assignée à ${keyCodeToLabel(code)}.`);
+      pendingAbilityKeybindSlot = null;
+    }else{
+      actionKeys[pendingKeybindSlot] = code;
+      store.state.slotKeybinds = normalizeSlotKeybinds(actionKeys);
+      store.state.abilityKeybinds = normalizeAbilityKeybinds(abilityKeys, store.state.slotKeybinds);
+      showToast(`Slot ${pendingKeybindSlot + 1} assigné à ${keyCodeToLabel(code)}.`);
+      pendingKeybindSlot = null;
+    }
     saveState();
     renderAll();
     return;
@@ -816,7 +1082,7 @@ window.addEventListener("voidsector:multiplayer-change", serverEvents.handleChan
 window.addEventListener("voidsector:multiplayer-change", event=>{
   const reason = String(event.detail?.reason || "");
   gameRecovery?.handleChange(event);
-  if(handleAdminPanelServerChange(reason) || reason === "auth:success" || reason === "auth:role" || reason === "auth:logout") renderAllPreserveScroll();
+  if(handleAdminPanelServerChange(reason) || reason === "auth:success" || reason === "auth:role" || reason === "auth:logout" || reason === "auth:replaced") renderAllPreserveScroll();
   if(reason === "firm:updated" && event.detail?.payload?.action === "box-open"){
     store.firmBoxOpening = {...event.detail.payload, revealId:`box_${Date.now()}`};
   }
@@ -917,4 +1183,7 @@ setInterval(()=>{
 setInterval(()=>{
   syncMultiplayerProfile(store.state);
 }, 5000);
+setInterval(()=>{
+  if(appMode === "launcher") renderPremiumHomeStatus();
+}, 30000);
 showToast("Hangar vaisseaux / drones chargé.");

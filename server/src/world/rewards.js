@@ -30,11 +30,11 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
     for(const player of recipients){
       const currentProfile = profileManager.getProfileForPlayer?.(player);
       const firmId = currentProfile?.player?.firmId || player.account?.firmId || "astra";
-      const firmBonus = Math.max(0, Number(firmWarManager?.getRewardMultiplier?.(firmId) || 0));
-      const multiplier = 1 + firmBonus;
-      const credits = Math.max(0, Math.round(Number(reward.credits || 0) * share * multiplier));
-      const xp = Math.max(0, Math.round(Number(reward.xp || 0) * share * multiplier));
-      const premium = Math.max(0, Math.round(Number(reward.premium || 0) * share * multiplier));
+      const playerKey = profileManager.profileKeyForPlayer?.(player) || "";
+      const firmBoosters = firmWarManager?.getActiveBoosters?.(firmId, currentProfile, player, playerKey) || {};
+      const credits = Math.max(0, Math.round(Number(reward.credits || 0) * share * (1 + Math.max(0, Number(firmBoosters.credits || 0)))));
+      const xp = Math.max(0, Math.round(Number(reward.xp || 0) * share));
+      const premium = Math.max(0, Math.round(Number(reward.premium || 0) * share * (1 + Math.max(0, Number(firmBoosters.nova || 0)))));
       const previousMonsterRankPoints = Math.max(0, Number(currentProfile?.player?.monsterRankPoints || 0));
       const reputation = Math.max(0, Math.round(xp * 0.1));
       const profile = (profileManager.applyCombatReward || profileManager.applyReward)({
@@ -64,7 +64,7 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
         premium,
         reputation,
         rankPoints,
-        firmBonus,
+        firmBoosters,
         progression:getProgressionSnapshot(profile?.player),
         rewardAppliedByServer:true,
         at:Date.now()
@@ -87,7 +87,8 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
       io.emit?.("firm:ranking", snapshot);
       if(playerKey) io.to(firmPlayer.id).emit("firm:snapshot", enrichFirmSnapshot(profileManager, firmWarManager.snapshot({
         playerKey,
-        profile:firmProfile
+        profile:firmProfile,
+        player:firmPlayer
       })));
     }
   }

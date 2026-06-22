@@ -12,12 +12,17 @@ export function createWeaponSystem(deps){
     const shipLasers = deps.getEquippedLasers(deps.getActiveShip()).filter(item=>item?.weapon);
     const droneLasers = deps.getEquippedDroneLasers().filter(item=>item?.weapon);
     const lasers = [...shipLasers, ...droneLasers];
+    const shortestRange = entries=>entries.reduce((range, item)=>{
+      const itemRange = Math.max(0, Number(item.weapon.range || 0));
+      if(itemRange <= 0) return range;
+      return range > 0 ? Math.min(range, itemRange) : itemRange;
+    }, 0);
     return {
       lasers,
       shipCount:shipLasers.length,
       droneCount:droneLasers.length,
       count:lasers.length,
-      range:lasers.reduce((max, item)=>Math.max(max, item.weapon.range || 0), 0),
+      range:shipLasers.length > 0 ? shortestRange(shipLasers) : shortestRange(droneLasers),
       speed:lasers.reduce((max, item)=>Math.max(max, item.weapon.speed || 0), 0) || 900
     };
   }
@@ -92,7 +97,7 @@ export function createWeaponSystem(deps){
         toY:enemy.y,
         travelTime:Math.max(.22, Math.min(1.55, dist/(ammo.speed || 620) + .14))
       });
-      particles.push({x:startX,y:startY,life:.24,max:.24,size:26,color:ammo.particle});
+      particles.push({kind:"muzzle",x:startX,y:startY,life:.24,max:.24,size:26,color:ammo.particle});
       return true;
     }
 
@@ -133,7 +138,7 @@ export function createWeaponSystem(deps){
       life:.20
     });
     deps.resolveLaserHit?.(enemy, damage, deps.playerHitChance, ammo);
-    particles.push({x:startX,y:startY,life:.16,max:.16,size:14,color:player.blueLaserBeams && ammo.id !== "ammo_x4" ? "rgba(56,189,248,.65)" : ammo.id === "ammo_x4" ? "rgba(255,132,24,.65)" : "rgba(255,218,72,.62)"});
+    particles.push({kind:"muzzle",x:startX,y:startY,life:.16,max:.16,size:14,color:player.blueLaserBeams && ammo.id !== "ammo_x4" ? "rgba(56,189,248,.65)" : ammo.id === "ammo_x4" ? "rgba(255,132,24,.65)" : "rgba(255,218,72,.62)"});
     return true;
   }
 
@@ -208,7 +213,7 @@ export function createWeaponSystem(deps){
         serverFireCount:needed,
         hitChance:deps.playerHitChance
       }));
-      particles.push({x:startX, y:startY, life:.24, max:.24, size:22, color:ammo.particle});
+      particles.push({kind:"muzzle",x:startX, y:startY, life:.24, max:.24, size:22, color:ammo.particle});
     }
     deps.sendPlayerWeaponEffect?.({
       kind:"missile",

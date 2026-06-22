@@ -2,6 +2,7 @@ import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./ques
 import { renderSpawnPanelContent } from "./spawnPanel.js";
 import { renderCombatFirmPanel } from "./combatFirmPanel.js";
 import { renderCombatMapPanel } from "./combatMapPanel.js";
+import { renderCombatBoostersPanel } from "./combatBoostersPanel.js";
 import { FIRMS, getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
 import { isPremiumActive } from "../../data/premium.js";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
@@ -37,7 +38,7 @@ function clampPercent(value){
   return Math.max(0, Math.min(100, Number(value || 0)));
 }
 
-const UTILITY_PANEL_MODES = ["group", "friends", "firm", "quests", "settings", "map"];
+const UTILITY_PANEL_MODES = ["group", "friends", "firm", "quests", "settings", "map", "boosters"];
 
 export function createCombatPanels({
   store,
@@ -72,7 +73,8 @@ export function createCombatPanels({
   isRefineryComplete,
   formatDuration,
   graphicsQualityPresets = [],
-  getGraphicsQuality
+  getGraphicsQuality,
+  renderSettingsContent
 }){
   hydrateCombatUiLayout(store);
   let spawnPanelMode = null;
@@ -95,6 +97,8 @@ export function createCombatPanels({
   let selectedFirmPanelTab = "overview";
   let socialRefreshT = 0;
   let firmTimerRefreshT = 0;
+  let boosterTimerRefreshT = 0;
+  let expandedBoosterType = "";
   let pendingGroupInviteName = "";
   let pendingSocialAddName = "";
 
@@ -122,6 +126,7 @@ export function createCombatPanels({
       restoreOpenUtilityPanels();
       restoreOpenSpawnPanel();
     }, 0);
+    requestFirmRankingSync();
   }
 
   function getSpawnPanelMode(){
@@ -151,6 +156,7 @@ export function createCombatPanels({
     if(mode === "firm") return document.getElementById("combatUtilityPanelFirm");
     if(mode === "settings") return document.getElementById("combatUtilityPanelSettings");
     if(mode === "map") return document.getElementById("combatUtilityPanelMap");
+    if(mode === "boosters") return document.getElementById("combatUtilityPanelBoosters");
     return null;
   }
 
@@ -161,6 +167,7 @@ export function createCombatPanels({
     if(mode === "firm") return document.getElementById("combatUtilityContentFirm");
     if(mode === "settings") return document.getElementById("combatUtilityContentSettings");
     if(mode === "map") return document.getElementById("combatUtilityContentMap");
+    if(mode === "boosters") return document.getElementById("combatUtilityContentBoosters");
     return null;
   }
 
@@ -174,6 +181,7 @@ export function createCombatPanels({
       if(mode === "quests") syncQuestDockBadge(btn);
       if(mode === "group") syncDockBadge(btn, multiplayer.invites.length, "group");
       if(mode === "friends") syncDockBadge(btn, multiplayer.social?.incoming?.length || 0, "friends");
+      if(mode === "boosters") syncDockBadge(btn, multiplayer.firmSnapshot?.personal?.boosters?.items?.length || 0, "boosters");
     });
   }
 
@@ -225,6 +233,7 @@ export function createCombatPanels({
     panel.style.top = `${Math.max(0, Number(layout.top))}px`;
     panel.style.right = "auto";
     panel.style.bottom = "auto";
+    panel.style.transform = "none";
   }
 
   function applySpawnPanelLayout(panel){
@@ -783,9 +792,11 @@ export function createCombatPanels({
     const forceGroupRefresh = reason.startsWith("group:");
     const panel = getUtilityPanel("group");
     if(panel && !panel.classList.contains("hidden") && (forceGroupRefresh || !isInteractingWithUtilityPanel("group"))) refreshGroupUtilityPanel({show:true});
-    for(const mode of ["friends", "firm"]){
+    for(const mode of ["friends", "firm", "boosters"]){
       const socialPanel = getUtilityPanel(mode);
-      if(socialPanel && !socialPanel.classList.contains("hidden") && !isInteractingWithUtilityPanel(mode)) refreshSocialUtilityPanel(mode);
+      if(!socialPanel || socialPanel.classList.contains("hidden") || isInteractingWithUtilityPanel(mode)) continue;
+      if(mode === "boosters") refreshBoostersUtilityPanel();
+      else refreshSocialUtilityPanel(mode);
     }
     syncUtilityDockButtons();
     refreshGroupFloatingHud();
@@ -802,6 +813,7 @@ export function createCombatPanels({
   function togglePerfPanelVisibility(){
     if(!store.state.uiLayout || typeof store.state.uiLayout !== "object") store.state.uiLayout = {};
     store.state.uiLayout.perfVisible = !isPerfPanelVisible();
+    if(store.state.settings?.interface) store.state.settings.interface.perfVisible = store.state.uiLayout.perfVisible;
     applyPerfPanelVisibility();
     saveState?.();
     refreshSettingsUtilityPanel();
@@ -847,7 +859,7 @@ export function createCombatPanels({
       applyUtilityPanelLayout("settings", panel);
       panel.classList.remove("hidden");
     }
-    content.innerHTML = renderSettingsUtilityContent();
+    content.innerHTML = renderSettingsContent?.() || renderSettingsUtilityContent();
     syncUtilityDockButtons();
   }
 
@@ -872,6 +884,18 @@ export function createCombatPanels({
     syncUtilityDockButtons();
   }
 
+  function refreshBoostersUtilityPanel({show = false} = {}){
+    const panel = getUtilityPanel("boosters");
+    const content = getUtilityContent("boosters");
+    if(!panel || !content) return;
+    if(show){
+      applyUtilityPanelLayout("boosters", panel);
+      panel.classList.remove("hidden");
+    }
+    content.innerHTML = renderCombatBoostersPanel(multiplayer.firmSnapshot, Date.now(), expandedBoosterType);
+    syncUtilityDockButtons();
+  }
+
   function openUtilityPanel(mode){
     if(!UTILITY_PANEL_MODES.includes(mode)) return;
     const panel = getUtilityPanel(mode);
@@ -890,12 +914,18 @@ export function createCombatPanels({
     }
     if(mode === "settings"){
       refreshSettingsUtilityPanel({show:true});
-      saveUtilityPanelOpenState(mode, true);
+      saveUtilityPanelOpenState(mode, false);
       return;
     }
     if(mode === "map"){
       mapPanelMode = "view";
       refreshMapUtilityPanel({show:true});
+      saveUtilityPanelOpenState(mode, true);
+      return;
+    }
+    if(mode === "boosters"){
+      requestFirmRankingSync();
+      refreshBoostersUtilityPanel({show:true});
       saveUtilityPanelOpenState(mode, true);
       return;
     }
@@ -906,6 +936,12 @@ export function createCombatPanels({
     }
     refreshGroupUtilityPanel({show:true, focus:true});
     saveUtilityPanelOpenState(mode, true);
+  }
+
+  function toggleBoosterDetail(type){
+    const cleanType = String(type || "");
+    expandedBoosterType = expandedBoosterType === cleanType ? "" : cleanType;
+    refreshBoostersUtilityPanel({show:true});
   }
 
   function openPortgunMapPanel(){
@@ -935,11 +971,13 @@ export function createCombatPanels({
 
   function restoreOpenUtilityPanels(){
     for(const mode of UTILITY_PANEL_MODES){
+      if(mode === "settings") continue;
       const layout = store.state?.uiLayout?.combatUtilityPanels?.[mode];
       if(!layout?.open) continue;
       if(mode === "quests") refreshQuestUtilityPanel({show:true});
       else if(mode === "settings") refreshSettingsUtilityPanel({show:true});
       else if(mode === "map") refreshMapUtilityPanel({show:true});
+      else if(mode === "boosters") refreshBoostersUtilityPanel({show:true});
       else if(mode === "friends" || mode === "firm") refreshSocialUtilityPanel(mode, {show:true});
       else refreshGroupUtilityPanel({show:true, focus:false});
     }
@@ -953,6 +991,10 @@ export function createCombatPanels({
   }
 
   window.addEventListener("voidsector:profile-applied", event=>{
+    if(event.detail?.profile?.boosters){
+      const boostersPanel = getUtilityPanel("boosters");
+      if(boostersPanel && !boostersPanel.classList.contains("hidden")) requestFirmRankingSync();
+    }
     const uiChanges = event.detail?.uiChanges;
     if(uiChanges && !uiChanges.layoutChanged && !uiChanges.panelsChanged) return;
     setTimeout(()=>{
@@ -1197,7 +1239,7 @@ export function createCombatPanels({
         utilityPanelRefreshT = .75;
       }
     }
-    const socialOpen = ["friends", "firm"].some(mode=>{
+    const socialOpen = ["friends", "firm", "boosters"].some(mode=>{
       const panel = getUtilityPanel(mode);
       return panel && !panel.classList.contains("hidden");
     });
@@ -1210,11 +1252,20 @@ export function createCombatPanels({
         firmTimerRefreshT = 1;
       }
     }
+    const boostersPanel = getUtilityPanel("boosters");
+    if(boostersPanel && !boostersPanel.classList.contains("hidden")){
+      boosterTimerRefreshT -= dt;
+      if(boosterTimerRefreshT <= 0){
+        const content = getUtilityContent("boosters");
+        if(content && !isInteractingWithUtilityPanel("boosters")) content.innerHTML = renderCombatBoostersPanel(multiplayer.firmSnapshot, Date.now(), expandedBoosterType);
+        boosterTimerRefreshT = 1;
+      }
+    }
     if(socialOpen){
       socialRefreshT -= dt;
       if(socialRefreshT <= 0){
         requestSocialSync();
-        if(getUtilityPanel("firm") && !getUtilityPanel("firm").classList.contains("hidden")) requestFirmRankingSync();
+        if(["firm", "boosters"].some(mode=>getUtilityPanel(mode) && !getUtilityPanel(mode).classList.contains("hidden"))) requestFirmRankingSync();
         socialRefreshT = 5;
       }
     }
@@ -1235,6 +1286,7 @@ export function createCombatPanels({
     saveSpawnPanelLayout,
     renderSpawnInteractionPanel,
     openUtilityPanel,
+    toggleBoosterDetail,
     openPortgunMapPanel,
     selectPortgunMapTarget,
     inviteGroupMember,

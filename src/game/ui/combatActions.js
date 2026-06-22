@@ -1,4 +1,5 @@
 import { renderActionBarHtml, updateActionBarDom } from "./actionBar.js";
+import { renderShipAbilityBarHtml } from "./shipAbilityBar.js";
 import { renderQuickPanelContent, updateQuickPanelTabs } from "./quickPanel.js";
 import { describeAmmo, getAmmoCooldown as readAmmoCooldown, setAmmoCooldown as writeAmmoCooldown } from "../systems/projectiles.js";
 import { requireMmoConnection } from "../../app/mmoGate.js";
@@ -32,7 +33,9 @@ export function createCombatActions({
   fireManualMissile,
   openPortgunMap,
   getRickySupportState,
-  activateRickyHealBeacon
+  activateRickyHealBeacon,
+  getShipAbilityStates,
+  activateShipAbility
 }){
   let activeLaserSlot = null;
   let selectedRocketAmmoId = null;
@@ -303,6 +306,7 @@ export function createCombatActions({
     if(!Array.isArray(store.state.actionSlots)) store.state.actionSlots = Array(9).fill(null);
     const slots = Array.from({length:9}, (_,i)=>store.state.actionSlots?.[i] || null);
     el.innerHTML = renderActionBarHtml({slots, slotKeybinds:store.state.slotKeybinds, getAmmo, getExtra:getCombatExtra, getCpu:getCombatCpu, getFormation:getCombatDroneFormation, getAmmoCount, missileState:getMissileLauncherState(), getSlotState:getActionSlotState});
+    renderShipAbilityBar();
     updateGameActionBar();
   }
 
@@ -321,6 +325,53 @@ export function createCombatActions({
       : "Déployer la balise de soin de Ricky";
     const cooldownLabel = button.querySelector(".ricky-support-skill-cooldown");
     if(cooldownLabel) cooldownLabel.textContent = cooldown > 0 ? String(Math.ceil(cooldown)) : "";
+  }
+
+  function renderShipAbilityBar(){
+    const bar = document.getElementById("shipAbilityBar");
+    if(!bar) return;
+    const states = (getShipAbilityStates?.() || []).slice(0, 3);
+    const signature = JSON.stringify([
+      ...states.map(state=>[state.abilityId, state.icon, state.shortName]),
+      ...(store.state.abilityKeybinds || [])
+    ]);
+    if(bar.dataset.signature !== signature){
+      bar.innerHTML = renderShipAbilityBarHtml({states, abilityKeybinds:store.state.abilityKeybinds});
+      bar.dataset.signature = signature;
+    }
+    bar.classList.toggle("hidden", states.length === 0);
+  }
+
+  function updateShipAbilitySkills(){
+    const bar = document.getElementById("shipAbilityBar");
+    if(!bar) return;
+    renderShipAbilityBar();
+    const states = (getShipAbilityStates?.() || []).slice(0, 3);
+    states.forEach((state, index)=>{
+      const button = bar.querySelector(`[data-ship-ability-index="${index}"]`);
+      if(!button) return;
+      const activeRemainingMs = Math.max(0, Number(state.activeRemainingMs || 0));
+      const cooldownRemainingMs = Math.max(0, Number(state.cooldownRemainingMs || 0));
+      const active = activeRemainingMs > 0;
+      const blocked = !active && cooldownRemainingMs > 0;
+      button.classList.toggle("ready", !active && !blocked);
+      button.classList.toggle("active", active);
+      button.classList.toggle("blocked", blocked);
+      button.disabled = active || blocked;
+      button.title = active
+        ? `${state.name || "Compétence"} active : ${Math.ceil(activeRemainingMs / 1000)} s`
+        : blocked
+          ? `${state.name || "Compétence"} en recharge : ${Math.ceil(cooldownRemainingMs / 1000)} s`
+          : state.description || state.name || "Compétence de vaisseau";
+      const label = button.querySelector(".ship-ability-slot-cooldown");
+      if(label){
+        label.textContent = active
+          ? `${Math.ceil(activeRemainingMs / 1000)}s`
+          : blocked
+            ? String(Math.ceil(cooldownRemainingMs / 1000))
+            : "";
+      }
+    });
   }
 
   function updateGameActionBar(){
@@ -342,6 +393,7 @@ export function createCombatActions({
       getAmmoCount
     });
     updateRickySupportSkill();
+    updateShipAbilitySkills();
   }
 
   function renderCombatQuickPanel(){
@@ -367,7 +419,8 @@ export function createCombatActions({
       canAfford,
       getAmmoCount,
       laserVolleyCount:getLaserVolley().count || 1,
-      missileState:getMissileLauncherState()
+      missileState:getMissileLauncherState(),
+      shipAbilityStates:getShipAbilityStates?.() || []
     });
     lastRenderedCombatPanelTab = combatPanelTab;
     if(previousScrollTop !== null){
@@ -437,6 +490,25 @@ export function createCombatActions({
     if(!activateRickyHealBeacon?.()) return false;
     showToast("Balise de soin Ricky demandee.");
     updateRickySupportSkill();
+    return true;
+  }
+
+  function useShipAbility(index = 0){
+    const state = (getShipAbilityStates?.() || [])[Math.max(0, Number(index || 0))] || {};
+    if(!state.abilityId) return false;
+    if(Number(state.activeRemainingMs || 0) > 0){
+      showToast(`${state.name || "Compétence"} est déjà active.`);
+      return false;
+    }
+    if(Number(state.cooldownRemainingMs || 0) > 0){
+      showToast(`${state.name || "Compétence"} en recharge : ${Math.ceil(Number(state.cooldownRemainingMs) / 1000)}s.`);
+      return false;
+    }
+    if(!activateShipAbility?.(state.abilityId)){
+      showToast("Connexion serveur requise pour activer la compétence.");
+      return false;
+    }
+    showToast(`${state.name || "Compétence"} demandée.`);
     return true;
   }
 
@@ -678,6 +750,7 @@ export function createCombatActions({
     renderGameActionBar,
     updateGameActionBar,
     useRickySupportSkill,
+    useShipAbility,
     renderCombatQuickPanel,
     selectActionSlot,
     buyCombatAmmo,

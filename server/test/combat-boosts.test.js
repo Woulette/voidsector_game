@@ -97,7 +97,7 @@ test("client generator speed follows the same total-stat formula", ()=>{
   }
 });
 
-test("server laser damage applies laser and timed drone boosts and consumes laser charges", ()=>{
+test("server laser damage applies laser, drone and faction boosts and consumes laser charges", ()=>{
   const profile = createDefaultProfile();
   profile.activeShip = "orion";
   addInventoryItem(profile, "drone-laser", "laser_mk1");
@@ -114,13 +114,15 @@ test("server laser damage applies laser and timed drone boosts and consumes lase
     profile,
     enemy:{x:100, y:0},
     payload:{weaponClass:"laser", ammoId:"ammo_x1"},
+    firmDamageBonus:0.10,
     random:()=>0
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.damage, 81);
+  assert.equal(result.damage, 89);
   assert.equal(result.boostPercent, 0.10);
   assert.equal(result.droneBoostPercent, 0.10);
+  assert.equal(result.firmDamageBonus, 0.10);
   assert.equal(profile.combatBoosts.laser.alliage_cuivre_zinc.charges, 8);
 });
 

@@ -7,6 +7,7 @@ import { createAdminManager } from "./admin/adminManager.js";
 import { createSocketSessionManager } from "./auth/socketSession.js";
 import { resolveServerCombatFire } from "./combat/damage.js";
 import { getPlayerPvpBlockReason } from "./combat/playerPvp.js";
+import { activateServerShipAbility, applyServerShipLifeSteal } from "./combat/shipAbilities.js";
 import { config } from "./config.js";
 import { checkDatabaseConnection, closeDatabase, dbEnabled, initializeDatabase } from "./db/client.js";
 import { createGroupManager } from "./groups/groups.js";
@@ -458,6 +459,7 @@ const {applyEnemyHit, applyEnemyHitForPlayer} = createEnemyHitHandler({
   players,
   presence,
   profileManager,
+  firmWarManager,
   emitProfileSync:emitProfileSyncForPlayer,
   applyEnemyDeathEffect,
   progressServerQuestsForKill,
@@ -545,7 +547,18 @@ function applyPlayerHit(socket, payload){
   };
   const result = (profileManager.updateCombatProfileForPlayer || profileManager.updateProfileForPlayer)({
     player:attacker,
-    update:profile=>resolveServerCombatFire({player:attacker, profile, enemy:virtualTarget, payload})
+    update:profile=>resolveServerCombatFire({
+      player:attacker,
+      profile,
+      enemy:virtualTarget,
+      payload,
+      firmDamageBonus:Math.max(0, Number(firmWarManager.getActiveBoosters(
+        profile?.player?.firmId || "astra",
+        profile,
+        attacker,
+        profileManager.profileKeyForPlayer(attacker)
+      )?.damage || 0))
+    })
   });
   if(!result.ok){
     emitMiss(result.reason || "Tir joueur non valide.");
@@ -571,9 +584,34 @@ function applyPlayerHit(socket, payload){
   if(incoming <= 0) return;
 
   const hpBefore = Math.max(0, Number(target.state.hp || 0));
+  const durabilityBefore = hpBefore + Math.max(0, Number(target.state.shield || 0));
   markFirmHitOwner(target, attacker);
   presence.applyDamageToPlayerState(target, incoming);
   const hpAfter = Math.max(0, Number(target.state.hp || 0));
+  const durabilityAfter = hpAfter + Math.max(0, Number(target.state.shield || 0));
+  const lifeSteal = applyServerShipLifeSteal({
+    player:attacker,
+    profile:result.profile,
+    damageDealt:durabilityBefore - durabilityAfter,
+    weaponClass:result.weaponClass
+  });
+  if(lifeSteal.healed > 0){
+    profileManager.saveWorldSession({player:attacker, state:attacker.state, force:false});
+    io.to(attacker.id).emit("player:healed", {
+      targetId:attacker.id,
+      sourceId:lifeSteal.status?.abilityId || "absorbing_fire",
+      amount:lifeSteal.healed,
+      hp:Number(attacker.state.hp || 0),
+      maxHp:Number(attacker.state.maxHp || 0),
+      mapId:String(attacker.mapId ?? ""),
+      x:Number(attacker.state.x || 0),
+      y:Number(attacker.state.y || 0),
+      fromX:Number(target.state.x || 0),
+      fromY:Number(target.state.y || 0),
+      weaponClass:String(result.weaponClass || ""),
+      at:Date.now()
+    });
+  }
   profileManager.saveWorldSession({player:target, state:target.state, force:hpAfter <= 0});
   io.to(target.id).emit("player:damage", {
     enemyId:`player:${attacker.id}`,
@@ -621,7 +659,8 @@ function applyPlayerHit(socket, payload){
       emitProfileSyncForPlayer(attacker, pvpReward.profile);
       const firmSnapshot = enrichFirmSnapshot(profileManager, firmWarManager.snapshot({
         playerKey:profileManager.profileKeyForPlayer(firmAttacker),
-        profile:firmAttackerProfile
+        profile:firmAttackerProfile,
+        player:firmAttacker
       }));
       for(const accountPlayer of accountSocketsForPlayer(firmAttacker)){
         io.to(accountPlayer.id).emit("firm:snapshot", firmSnapshot);
@@ -650,6 +689,25 @@ function applyPlayerHit(socket, payload){
     }
   }
   emitPlayers();
+}
+
+function activatePlayerShipAbility(socket, abilityId = ""){
+  const player = players.get(socket.id);
+  if(!player?.state){
+    socket.emit("ship:ability-error", {message:"Vaisseau actif introuvable.", at:Date.now()});
+    return;
+  }
+  const result = profileManager.updateProfileForPlayer({
+    player,
+    update:profile=>activateServerShipAbility({player, profile, abilityId})
+  });
+  if(!result.ok){
+    if(result.status) socket.emit("ship:ability-state", result.status);
+    socket.emit("ship:ability-error", {message:result.reason || "Compétence indisponible.", at:Date.now()});
+    return;
+  }
+  socket.emit("ship:ability-state", {...result.status, at:Date.now()});
+  emitProfileSyncForPlayer(player, result.profile);
 }
 
 function updateQuestTimers(now){
@@ -729,6 +787,7 @@ io.on("connection", socket=>{
   });
   registerPlayerHandlers(socket, {
     ...socketContext,
+    firmWarManager,
     buildFirmSpawnSession,
     cleanName,
     emitPlayers,
@@ -796,6 +855,7 @@ io.on("connection", socket=>{
     ...socketContext,
     applyEnemyHit,
     applyPlayerHit,
+    activateShipAbility:abilityId=>activatePlayerShipAbility(socket, abilityId),
     pickupLoot
   });
   registerDisconnectHandlers(socket, {

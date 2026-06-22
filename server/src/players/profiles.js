@@ -364,6 +364,8 @@ export function createProfileManager({
   const {
     addAmmoPurchase,
     addItemPurchase,
+    addBoosterPurchase,
+    grantBooster,
     addShipPurchase,
     addDronePurchase,
     addDroneFormationPurchase,
@@ -396,6 +398,8 @@ export function createProfileManager({
     updateCombatProfileForPlayer,
     addAmmoPurchase,
     addItemPurchase,
+    addBoosterPurchase,
+    grantBooster,
     addShipPurchase,
     addDronePurchase,
     addDroneFormationPurchase,

@@ -174,7 +174,8 @@ function sumLaserDamage(profile, lasers){
     const multiplier = Math.max(1, Number(item.droneDamageMultiplier || 1));
     acc.min += min * multiplier;
     acc.max += max * multiplier;
-    acc.range = Math.max(acc.range, Number(item.weapon.range || 0));
+    const itemRange = Math.max(0, Number(item.weapon.range || 0));
+    if(itemRange > 0) acc.range = acc.range > 0 ? Math.min(acc.range, itemRange) : itemRange;
     return acc;
   }, {min:0, max:0, range:0});
 }
@@ -186,7 +187,7 @@ function distanceOk(player, enemy, range, tolerance = 180){
   return dist <= Math.max(1, Number(range || 0)) + tolerance;
 }
 
-export function resolveServerCombatFire({player, profile, enemy, payload, random = Math.random} = {}){
+export function resolveServerCombatFire({player, profile, enemy, payload, firmDamageBonus = 0, random = Math.random} = {}){
   if(!player || !profile || !enemy) return {ok:false, reason:"Combat impossible."};
   const ammo = getAmmo(String(payload?.ammoId || "ammo_x1"));
   if(!ammo) return {ok:false, reason:"Munition inconnue."};
@@ -209,7 +210,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, random
     const shipPool = sumLaserDamage(profile, shipLasers);
     const dronePool = sumLaserDamage(profile, droneLasers);
     consumed = lasers.length;
-    range = Math.max(shipPool.range, dronePool.range);
+    range = shipLasers.length > 0 ? shipPool.range : dronePool.range;
     cooldownMs = Math.max(250, Number(ammo.cooldown || 1) * 1000);
     laserDamage = {
       ship:rollBetween(shipPool.min, shipPool.max, random),
@@ -261,6 +262,8 @@ export function resolveServerCombatFire({player, profile, enemy, payload, random
     boostPercent = consumeServerCombatBoostCharges(profile, "rocket", 1);
     damage *= getRocketDamageMultiplier(profile) * (1 + boostPercent);
   }
+  const activeFirmDamageBonus = Math.max(0, Number(firmDamageBonus || 0));
+  damage *= 1 + activeFirmDamageBonus;
   const hit = weaponClass === "missile" ? missileHits > 0 : random() <= hitChance;
   return {
     ok:true,
@@ -274,6 +277,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, random
     missileMisses,
     boostPercent,
     droneBoostPercent,
+    firmDamageBonus:activeFirmDamageBonus,
     range
   };
 }

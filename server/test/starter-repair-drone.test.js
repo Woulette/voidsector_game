@@ -48,6 +48,97 @@ test("moving starter repair drone to another ship does not duplicate it", ()=>{
   assert.equal(countStarterRepair(profile), 1);
 });
 
+test("repair drone variants replace each other in the same extra slot", ()=>{
+  const profile = createDefaultProfile();
+  profile.shipLoadouts.test_runner = {
+    lasers:[],
+    missileLauncher:null,
+    rocketLauncher:null,
+    generators:[],
+    extras:["inv_repair_starter_2", null, null, null, null]
+  };
+  profile.shipLoadouts.orion.extras[0] = null;
+  profile.inventoryItems.push(
+    {uid:"inv_repair_red_test", itemId:"extra_repair_bot"},
+    {uid:"inv_repair_blue_test", itemId:"extra_repair_starter"}
+  );
+
+  const red = equipInventoryUid(profile, {
+    type:"extra",
+    index:2,
+    inventoryUid:"inv_repair_red_test",
+    shipId:"test_runner"
+  });
+  assert.equal(red.ok, true);
+  assert.equal(red.target.index, 0);
+  assert.deepEqual(profile.shipLoadouts.test_runner.extras.slice(0, 3), ["inv_repair_red_test", null, null]);
+
+  const blue = equipInventoryUid(profile, {
+    type:"extra",
+    index:2,
+    inventoryUid:"inv_repair_blue_test",
+    shipId:"test_runner"
+  });
+  assert.equal(blue.ok, true);
+  assert.equal(blue.target.index, 0);
+  assert.deepEqual(profile.shipLoadouts.test_runner.extras.slice(0, 3), ["inv_repair_blue_test", null, null]);
+});
+
+test("a second copy of an extra replaces the equipped copy while different extras coexist", ()=>{
+  const profile = createDefaultProfile();
+  profile.inventoryItems.push(
+    {uid:"inv_auto_rocket_a", itemId:"extra_auto_rocket"},
+    {uid:"inv_auto_rocket_b", itemId:"extra_auto_rocket"},
+    {uid:"inv_auto_missile", itemId:"extra_auto_missile"}
+  );
+  profile.shipLoadouts.test_runner = {
+    lasers:[],
+    missileLauncher:null,
+    rocketLauncher:null,
+    generators:[],
+    extras:["inv_auto_rocket_a", "inv_auto_missile", "inv_repair_starter_2", null, null]
+  };
+  profile.shipLoadouts.orion.extras[0] = null;
+
+  const result = equipInventoryUid(profile, {
+    type:"extra",
+    index:2,
+    inventoryUid:"inv_auto_rocket_b",
+    shipId:"test_runner"
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.target.index, 0);
+  assert.deepEqual(
+    profile.shipLoadouts.test_runner.extras,
+    ["inv_auto_rocket_b", "inv_auto_missile", "inv_repair_starter_2", null, null]
+  );
+});
+
+test("profile sanitization removes legacy duplicate extra families", ()=>{
+  const profile = sanitizeProfile({
+    starterRepairGranted:true,
+    ownedShips:["orion", "test_runner"],
+    inventoryItems:[
+      {uid:"inv_repair_blue", itemId:"extra_repair_starter"},
+      {uid:"inv_repair_red", itemId:"extra_repair_bot"},
+      {uid:"inv_auto_missile", itemId:"extra_auto_missile"}
+    ],
+    shipLoadouts:{
+      test_runner:{
+        lasers:[],
+        generators:[],
+        extras:["inv_repair_blue", "inv_repair_red", "inv_auto_missile"]
+      }
+    }
+  });
+
+  assert.deepEqual(
+    profile.shipLoadouts.test_runner.extras,
+    ["inv_repair_blue", null, "inv_auto_missile"]
+  );
+});
+
 test("duplicate equipped starter uid from old profiles is kept only once", ()=>{
   const profile = sanitizeProfile({
     starterRepairGranted:true,

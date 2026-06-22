@@ -4,6 +4,7 @@ import { fmt } from "../core/utils.js";
 import { multiplayer } from "../multiplayer/client.js";
 import { store } from "../core/store.js";
 import { hasCompactQuestAsset } from "../data/enemyVisuals.js";
+import { getFirmIndividualRewardTiers } from "../shared/firmSeasonRewards.js";
 import { buildFallbackPilotProfile, installPilotProfileModal, registerPilotProfile } from "./playerProfileModal.js";
 
 const FIRM_TABS = [
@@ -74,14 +75,33 @@ function firmatonAmount(value, className = ""){
   return `<span class="firmaton-amount ${className}">${fmt(value)}${firmatonIcon("firmaton-icon firmaton-icon-inline")}</span>`;
 }
 
-function rewardHtml(reward = {}){
-  const parts = [];
-  if(reward.premium) parts.push(`${fmt(reward.premium)} NOVA`);
-  if(reward.firmatons) parts.push(firmatonAmount(reward.firmatons));
-  for(const [id, amount] of Object.entries(reward.ammo || {})) parts.push(`${fmt(amount)} ${escapeHtml(id.replace("ammo_", "M-").replace("rocket_", "R-").replace("missile_", "MS-"))}`);
-  for(const [rarity, amount] of Object.entries(reward.boxes || {})) parts.push(`${fmt(amount)} coffre(s) ${escapeHtml(rarity)}`);
-  for(const [id, amount] of Object.entries(reward.materials || {})) parts.push(`${fmt(amount)} ${escapeHtml(id.replaceAll("_", " "))}`);
-  return parts.join(" + ") || "Aucune récompense";
+function rewardItems(reward = {}){
+  const items = [];
+  if(reward.premium) items.push({id:"premium", label:"NOVA", amount:reward.premium, asset:"assets/icons/premium.svg"});
+  if(reward.firmatons) items.push({id:"firmatons", label:"Firmatons", amount:reward.firmatons, asset:"assets/icons/firmaton.svg"});
+  for(const [id, amount] of Object.entries(reward.ammo || {})){
+    const ammo = ammoTypes.find(entry=>entry.id === id);
+    items.push({id, label:ammo?.short || ammo?.name || id, amount, asset:ammo?.img || "assets/equipment/module_munitions.svg"});
+  }
+  for(const [rarity, amount] of Object.entries(reward.boxes || {})){
+    const rarityMeta = FIRM_SHOP_RARITIES.find(entry=>entry.id === rarity);
+    items.push({id:`box-${rarity}`, label:`Coffre ${rarityMeta?.label || rarity}`, amount, asset:firmChestAsset(rarity)});
+  }
+  for(const [id, amount] of Object.entries(reward.materials || {})){
+    const material = rawMaterialCatalog.find(entry=>entry.id === id);
+    items.push({id, label:material?.name || id.replaceAll("_", " "), amount, asset:material?.img || "assets/materials/cargo_box.svg"});
+  }
+  return items;
+}
+
+function rewardHtml(reward = {}, {compact = false} = {}){
+  const items = rewardItems(reward);
+  if(!items.length) return `<span class="firm-reward-empty">Aucune récompense</span>`;
+  return `<span class="firm-reward-items ${compact ? "compact" : ""}">${items.map(item=>`
+    <span class="firm-reward-item" title="${escapeHtml(item.label)}">
+      <img src="${escapeHtml(item.asset)}" alt="">
+      <span><b>${fmt(item.amount)}</b><small>${escapeHtml(item.label)}</small></span>
+    </span>`).join("")}</span>`;
 }
 
 function firmBoxRewardView(reward = {}){
@@ -105,10 +125,10 @@ function firmBoxRewardView(reward = {}){
   }
   if(reward.kind === "premium"){
     return {
-      title:"NOVA",
+      title:"Monnaie",
       amount:Math.max(0, Number(reward.amount || 0)),
       asset:"assets/icons/premium.svg",
-      detail:`NOVA x ${fmt(reward.amount || 0)}`
+      detail:`x ${fmt(reward.amount || 0)}`
     };
   }
   return {
@@ -551,6 +571,11 @@ function renderSeasonObjectiveCard(objective){
   const goal = Math.max(1, Number(objective.goal || 1));
   const percent = Math.min(100, progress / goal * 100);
   const complete = Boolean(objective.completedAt);
+  const claimControl = objective.claimable
+    ? `<button class="firm-season-objective-claim" data-firm-season-objective-claim="${escapeHtml(objective.id)}" type="button">RÉCLAMER</button>`
+    : objective.claimed
+      ? `<button class="firm-season-objective-claim claimed" type="button" disabled>RÉCOMPENSE RÉCUPÉRÉE</button>`
+      : `<span class="firm-season-objective-waiting">Termine l'objectif pour réclamer le lot</span>`;
   return `<article class="firm-season-objective-card ${complete ? "complete" : ""}">
     <div class="firm-season-objective-head">
       <span>${escapeHtml(objective.targetLabel || "Objectif")}</span>
@@ -567,9 +592,9 @@ function renderSeasonObjectiveCard(objective){
     </div>
     <div class="firm-season-objective-meta">
       <span>Points joueur + firme <b>+${fmt(objective.firmPoints || 0)}</b></span>
-      <span>Récompense <b>${rewardHtml(objective.reward)}</b></span>
+      <span>Récompense ${rewardHtml(objective.reward)}</span>
     </div>
-    ${complete ? `<small class="firm-season-objective-status">Gain ajouté aux récompenses en attente</small>` : ""}
+    <div class="firm-season-objective-actions">${claimControl}</div>
   </article>`;
 }
 
@@ -595,7 +620,7 @@ function renderSeasonObjectives(snapshot, ownFirmId){
     </aside>
     <section class="firm-main-block firm-season-objective-board">
       <div class="firm-main-block-head"><div><span class="tiny">OBJECTIFS SAISONNIERS</span><h3>Défis personnels</h3></div><b>${completed} terminés</b></div>
-      <p class="firm-season-objective-note">Petits objectifs individuels de saison : chaque complétion ajoute ses points à ton classement et à ta firme, puis place la récompense dans l'onglet Récompenses.</p>
+      <p class="firm-season-objective-note">Chaque objectif terminé ajoute ses points à ton classement et à ta firme. Le lot se récupère directement ici avec le bouton Réclamer.</p>
       <div class="firm-season-objective-grid">${objectives.map(renderSeasonObjectiveCard).join("") || `<p class="firm-empty">Aucun objectif saisonnier synchronisé.</p>`}</div>
     </section>
   </div>`;
@@ -669,27 +694,83 @@ function renderRankings(snapshot){
   </div>`;
 }
 
-function renderRewards(snapshot){
-  const pending = snapshot.personal?.pendingRewards || [];
-  const expected = snapshot.personal?.expectedReward || {};
-  return `<div class="firm-main-two-columns">
-    <section class="firm-main-block reward-preview">
-      <div class="firm-main-block-head"><div><span class="tiny">FIN DE SAISON</span><h3>Récompense individuelle prévue</h3></div><b>${escapeHtml(snapshot.personal?.rewardLabel || "Non classé")}</b></div>
-      <strong>${rewardHtml(expected)}</strong>
-      <p>Cette récompense repose uniquement sur ton classement individuel parmi les joueurs des quatre firmes.</p>
+function renderRewardGift(label, reward){
+  return `<span class="firm-reward-gift" tabindex="0" aria-label="Voir le lot ${escapeHtml(label)}">
+    <img src="assets/icons/season-gift.svg" alt="">
+    <span class="firm-reward-tooltip">
+      <strong>${escapeHtml(label)}</strong>
+      ${rewardHtml(reward)}
+      <small>Un seul lot individuel est attribué : celui du meilleur palier atteint.</small>
+    </span>
+  </span>`;
+}
+
+function renderFixedRewardTier(tier, ranking, personalLabel){
+  const player = ranking.find(row=>Number(row.rank) === tier.rankStart) || null;
+  return `<article class="firm-reward-rank-row ${personalLabel === tier.label ? "own" : ""}">
+    <b class="firm-reward-rank-label">${escapeHtml(tier.label)}</b>
+    <div class="firm-reward-rank-player">
+      ${player ? `<img src="${firmBadge(player.firmId)}" alt=""><strong>${escapeHtml(player.name)}</strong>` : `<span class="firm-reward-vacant">Place non occupée</span>`}
+    </div>
+    <span class="firm-reward-rank-points">${player ? `${fmt(player.points)} pts` : "--"}</span>
+    ${renderRewardGift(tier.label, tier.reward)}
+  </article>`;
+}
+
+function renderPercentRewardTier(tier, personalLabel){
+  const range = tier.playerCount > 0
+    ? tier.rankStart === tier.rankEnd
+      ? `Rang ${tier.rankStart}`
+      : `Rangs ${tier.rankStart} à ${tier.rankEnd}`
+    : "Aucun pilote actuellement";
+  return `<article class="firm-reward-percent-row ${personalLabel === tier.label || (tier.kind === "classified" && personalLabel === "Joueur classé") ? "own" : ""}">
+    <div><b>${escapeHtml(tier.label)}</b><span>${escapeHtml(range)}</span></div>
+    <strong>${fmt(tier.playerCount)} pilote${tier.playerCount > 1 ? "s" : ""}</strong>
+    ${renderRewardGift(tier.label, tier.reward)}
+  </article>`;
+}
+
+export function renderRewards(snapshot){
+  const ranking = snapshot.individualRanking || [];
+  const totalPlayers = Math.max(ranking.length, Number(snapshot.individualPlayerCount || 0));
+  const tiers = getFirmIndividualRewardTiers(totalPlayers);
+  const fixedTiers = tiers.filter(tier=>tier.kind === "fixed");
+  const percentTiers = tiers.filter(tier=>tier.kind !== "fixed");
+  const personal = snapshot.personal || {};
+  const personalLabel = personal.rewardLabel || "Non classé";
+  const contribution = Math.max(0, Number(personal.contribution || 0));
+  const threshold = Math.max(1, Number(snapshot.collectiveMinimumContribution || 10_000));
+  const thresholdPercent = Math.min(100, contribution / threshold * 100);
+  const ownFirm = (snapshot.firms || []).find(firm=>firm.id === normalizeFirmId(personal.firmId || "astra"));
+  const seasonPending = (personal.pendingRewards || []).filter(entry=>entry.source === "season-individual" || entry.source === "season-collective");
+  return `<div class="firm-rewards-layout">
+    <section class="firm-main-block firm-reward-threshold ${personal.collectiveEligible ? "eligible" : ""}">
+      <div class="firm-main-block-head"><div><span class="tiny">À ATTEINDRE EN PRIORITÉ</span><h3>Seuil saisonnier collectif</h3></div><b>${personal.collectiveEligible ? "ÉLIGIBLE" : "NON ÉLIGIBLE"}</b></div>
+      <div class="firm-reward-threshold-value"><strong>${fmt(contribution)}</strong><span>/ ${fmt(threshold)} points</span></div>
+      <div class="firm-reward-threshold-track"><span style="width:${thresholdPercent}%"></span></div>
+      <p>Ce seuil personnel débloque le lot collectif correspondant au rang final de ta firme.</p>
+      <div class="firm-reward-collective-preview"><span>Lot collectif actuel · Top ${ownFirm?.rank || "-"}</span>${rewardHtml(ownFirm?.collectiveReward || {}, {compact:true})}</div>
     </section>
-    <section class="firm-main-block reward-preview">
-      <div class="firm-main-block-head"><div><span class="tiny">RÉCOMPENSE COLLECTIVE</span><h3>Seuil saisonnier</h3></div><b>${snapshot.personal?.collectiveEligible ? "ÉLIGIBLE" : "NON ÉLIGIBLE"}</b></div>
-      <strong>${fmt(snapshot.personal?.contribution || 0)} / ${fmt(snapshot.collectiveMinimumContribution || 10_000)} points</strong>
-      <p>La position finale de ta firme donne les coffres collectifs, uniquement si ce seuil personnel est atteint.</p>
+    <section class="firm-main-block firm-reward-personal-card">
+      <div class="firm-main-block-head"><div><span class="tiny">TA POSITION ACTUELLE</span><h3>${escapeHtml(personalLabel)}</h3></div><b>${personal.rank ? `#${personal.rank}` : "--"}</b></div>
+      ${rewardHtml(personal.expectedReward || {})}
+      <p>Le classement est global aux quatre firmes. Les lots ne se cumulent pas : seul ton meilleur palier est versé.</p>
+      ${seasonPending.length ? `<button class="firm-season-pending-claim" data-firm-reward-claim type="button">RÉCLAMER LES GAINS DE LA SAISON PRÉCÉDENTE</button>` : ""}
     </section>
-    <section class="firm-main-block pending-rewards">
-      <div class="firm-main-block-head"><div><span class="tiny">A RÉCUPÉRER</span><h3>Récompenses en attente</h3></div><button data-firm-reward-claim type="button" ${pending.length ? "" : "disabled"}>TOUT RÉCUPÉRER</button></div>
-      <div>${pending.map(entry=>`<article><div><strong>${escapeHtml(entry.label)}</strong><span>${escapeHtml(entry.source)}</span></div><b>${rewardHtml(entry.reward)}</b></article>`).join("") || `<p class="firm-empty">Aucune récompense en attente.</p>`}</div>
-    </section>
-    <section class="firm-main-block pending-rewards">
-      <div class="firm-main-block-head"><div><span class="tiny">JOURNAL</span><h3>Derniers gains</h3></div></div>
-      <div>${(snapshot.personal?.rewardHistory || []).map(entry=>`<article><div><strong>${escapeHtml(entry.label)}</strong><span>${new Date(entry.createdAt || Date.now()).toLocaleDateString("fr-FR")}</span></div><b>${rewardHtml(entry.reward)}</b></article>`).join("") || `<p class="firm-empty">Aucun gain de firme enregistré.</p>`}</div>
+    <section class="firm-main-block firm-reward-ranking-board">
+      <div class="firm-main-block-head"><div><span class="tiny">RÉCOMPENSES INDIVIDUELLES DE FIN DE SAISON</span><h3>Classement et lots</h3></div><b>${fmt(totalPlayers)} joueurs classés</b></div>
+      <p class="firm-reward-ranking-note">Les dix premières places sont fixes. Au-delà, chaque pilote rejoint un seul palier calculé sur le nombre total de joueurs classés.</p>
+      <div class="firm-reward-ranking-grid">
+        <div class="firm-reward-top-list">
+          <div class="firm-reward-list-title"><span>Rang</span><span>Joueur</span><span>Points</span><span>Lot</span></div>
+          ${fixedTiers.map(tier=>renderFixedRewardTier(tier, ranking, personalLabel)).join("")}
+        </div>
+        <div class="firm-reward-percent-list">
+          <div class="firm-reward-percent-head"><span>Paliers après le Top 10</span><small>Survoler le cadeau pour voir le lot</small></div>
+          ${percentTiers.map(tier=>renderPercentRewardTier(tier, personalLabel)).join("")}
+          <div class="firm-reward-noncumul"><strong>Règle de non-cumul</strong><p>Top 1 reçoit uniquement Top 1. Top 7 reçoit uniquement Top 7. Un joueur hors Top 10 reçoit uniquement le meilleur palier en pourcentage atteint.</p></div>
+        </div>
+      </div>
     </section>
   </div>`;
 }

@@ -25,17 +25,22 @@ test("local state persistence stores preferences only", ()=>{
       unlockedPortals:["void"],
       graphicsQuality:"medium",
       slotKeybinds:["KeyA", "KeyB"],
+      abilityKeybinds:["KeyC", "KeyV", "KeyX"],
       uiLayout:{miniMap:{x:12, y:34}}
     };
 
     saveState();
 
-    assert.deepEqual(JSON.parse(storage.read(getStateStorageKey())), {
-      localPreferencesVersion:1,
-      graphicsQuality:"medium",
-      slotKeybinds:["KeyA", "KeyB"],
-      uiLayout:{miniMap:{x:12, y:34}}
-    });
+    const saved = JSON.parse(storage.read(getStateStorageKey()));
+    assert.equal(saved.localPreferencesVersion, 4);
+    assert.equal(saved.graphicsQuality, "medium");
+    assert.equal(saved.settings.graphics.preset, "medium");
+    assert.equal(saved.settings.graphics.effects.cosmicClouds, false);
+    assert.deepEqual(saved.slotKeybinds, ["KeyA", "KeyB"]);
+    assert.deepEqual(saved.abilityKeybinds, ["KeyC", "KeyV", "KeyX"]);
+    assert.deepEqual(saved.uiLayout, {miniMap:{x:12, y:34}});
+    assert.equal(Object.hasOwn(saved, "player"), false);
+    assert.equal(Object.hasOwn(saved, "inventoryItems"), false);
   }finally{
     globalThis.localStorage = previousLocalStorage;
   }
@@ -69,12 +74,44 @@ test("loading a legacy full local state ignores progression and rewrites prefere
     assert.equal(state.graphicsQuality, "low");
     assert.equal(state.slotKeybinds[0], "KeyQ");
     assert.deepEqual(state.uiLayout.miniMap, {x:90, y:45});
-    assert.deepEqual(JSON.parse(storage.read(key)), {
-      localPreferencesVersion:1,
-      graphicsQuality:"low",
-      slotKeybinds:["KeyQ"],
-      uiLayout:{miniMap:{x:90, y:45}}
-    });
+    const saved = JSON.parse(storage.read(key));
+    assert.equal(saved.localPreferencesVersion, 4);
+    assert.equal(saved.graphicsQuality, "low");
+    assert.equal(saved.settings.graphics.preset, "low");
+    assert.equal(saved.settings.graphics.effects.combatDrones, true);
+    assert.equal(saved.settings.graphics.effects.nebulae, false);
+    assert.deepEqual(saved.slotKeybinds, ["KeyQ"]);
+    assert.deepEqual(saved.uiLayout, {miniMap:{x:90, y:45}});
+    assert.equal(Object.hasOwn(saved, "player"), false);
+  }finally{
+    globalThis.localStorage = previousLocalStorage;
+  }
+});
+
+test("version 2 preferences migrate target details and PERF to hidden", ()=>{
+  const previousLocalStorage = globalThis.localStorage;
+  const key = getStateStorageKey();
+  const storage = createStorage({
+    [key]:JSON.stringify({
+      localPreferencesVersion:2,
+      graphicsQuality:"high",
+      settings:{
+        graphics:{preset:"high", basePreset:"high", fpsLimit:60},
+        interface:{uiScale:1, targetDetailsVisible:true, chatVisible:true, perfVisible:true}
+      },
+      uiLayout:{perfVisible:true}
+    })
+  });
+  globalThis.localStorage = storage;
+  try{
+    const state = loadState();
+    assert.equal(state.settings.interface.targetDetailsVisible, false);
+    assert.equal(state.settings.interface.perfVisible, false);
+    assert.equal(state.uiLayout.perfVisible, false);
+    const saved = JSON.parse(storage.read(key));
+    assert.equal(saved.localPreferencesVersion, 4);
+    assert.equal(saved.settings.interface.targetDetailsVisible, false);
+    assert.equal(saved.settings.interface.perfVisible, false);
   }finally{
     globalThis.localStorage = previousLocalStorage;
   }

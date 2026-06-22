@@ -109,6 +109,11 @@ export function createGameConnectionRecoveryController({
       refreshReconnectState();
       return;
     }
+    if(reason === "auth:replaced"){
+      show("account");
+      setStatus("Ce compte a ete connecte ailleurs. Cette session de jeu a ete fermee.", "warning");
+      return;
+    }
     if(reason === "auth:logout" || reason === "auth:external-logout"){
       show("account");
       return;
@@ -119,7 +124,7 @@ export function createGameConnectionRecoveryController({
       return;
     }
     if(reason === "connection:disconnect"){
-      if(["game-logout", "close-game-tab", "afk-timeout"].includes(intent)) return;
+      if(["game-logout", "close-game-tab", "afk-timeout", "session-replaced"].includes(intent)) return;
       if(intent.includes("logout")) show("account");
       else scheduleNetworkRecovery();
       return;

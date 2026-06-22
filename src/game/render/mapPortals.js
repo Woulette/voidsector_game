@@ -103,11 +103,27 @@ function drawPortalVisual({ctx, portal, now}){
   ctx.restore();
 }
 
-export function drawMapPortals({ctx, currentMap, getMapPortals}){
+function drawSimplifiedPortal({ctx, portal}){
+  const radius = portal.r || 95;
+  ctx.save();
+  ctx.translate(portal.x, portal.y);
+  ctx.scale(.78, 1.12);
+  ctx.fillStyle = "rgba(1,8,20,.92)";
+  ctx.strokeStyle = portal.damaged ? "rgba(248,113,113,.82)" : "rgba(125,211,252,.78)";
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+export function drawMapPortals({ctx, currentMap, getMapPortals, simplified = false}){
   const now = performance.now();
   for(const portal of getMapPortals(currentMap)){
     const safeR = portal.safeRadius || Math.max(180, (portal.r || 90) * 2.2);
-    drawPortalVisual({ctx, portal, now});
+    if(simplified) drawSimplifiedPortal({ctx, portal});
+    else drawPortalVisual({ctx, portal, now});
     ctx.fillStyle = "#e9d5ff";
     ctx.font = "700 16px Rajdhani, Arial";
     if(portal.closed){

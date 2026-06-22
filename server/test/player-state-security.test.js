@@ -50,6 +50,91 @@ test("rejects an impossible same-map teleport", ()=>{
   assert.ok(result.state.x < 500);
 });
 
+test("faction hull booster is enforced by the server", ()=>{
+  const previous = baseState({hp:1000, maxHp:5000, firmHullMultiplier:1});
+  const result = validatePlayerState({
+    player:makePlayer(previous),
+    profile:createDefaultProfile(),
+    groups:new Map(),
+    firmBoosters:{hull:.10},
+    now:1050,
+    payload:{...previous, hp:1100, maxHp:5500, updatedAt:1050}
+  });
+
+  assert.equal(result.state.maxHp, 5500);
+  assert.equal(result.state.hp, 1100);
+  assert.equal(result.state.firmHullMultiplier, 1.10);
+});
+
+test("client snapshots cannot lower the server-authoritative shield", ()=>{
+  const profile = createDefaultProfile();
+  profile.inventoryItems.push({uid:"inv_test_shield", itemId:"shield_gen"});
+  profile.shipLoadouts.orion.generators = ["inv_test_shield"];
+  const previous = baseState({shield:400, maxShield:500});
+  const result = validatePlayerState({
+    player:makePlayer(previous),
+    profile,
+    groups:new Map(),
+    now:1050,
+    payload:{...previous, shield:200, updatedAt:1050}
+  });
+
+  assert.equal(result.state.shield, 400);
+  assert.equal(result.state.hp, previous.hp);
+  assert.equal(result.corrected, true);
+});
+
+test("changing formation recalculates shield capacity while preserving its percentage", ()=>{
+  const profile = createDefaultProfile();
+  profile.inventoryItems.push({uid:"inv_test_shield", itemId:"shield_gen"});
+  profile.shipLoadouts.orion.generators = ["inv_test_shield"];
+  profile.ownedDroneFormations = ["base", "tir"];
+  profile.activeDroneFormation = "tir";
+  const previous = baseState({shield:250, maxShield:500});
+  const result = validatePlayerState({
+    player:makePlayer(previous),
+    profile,
+    groups:new Map(),
+    now:1050,
+    payload:{...previous, shield:212.5, maxShield:425, updatedAt:1050}
+  });
+
+  assert.equal(result.state.maxShield, 425);
+  assert.equal(result.state.shield, 212.5);
+  assert.equal(result.corrected, false);
+});
+
+test("equivalent floating-point shield values do not trigger network corrections", ()=>{
+  const profile = createDefaultProfile();
+  const generatorUids = Array.from({length:7}, (_, index)=>`inv_test_omega_${index}`);
+  profile.inventoryItems.push(...generatorUids.map(uid=>({uid, itemId:"shield_omega"})));
+  profile.shipLoadouts.orion.generators = generatorUids;
+  profile.ownedDroneFormations = ["base", "tir"];
+  profile.activeDroneFormation = "tir";
+  profile.combatBoosts.generator.noyau_astra = {
+    materialId:"noyau_astra",
+    percent:0.40,
+    expiresAt:Date.now() + 60_000
+  };
+  const displayedShield = 10995.6;
+  const previous = baseState({
+    shield:displayedShield,
+    maxShield:displayedShield,
+    firmShieldMultiplier:1.1
+  });
+  const result = validatePlayerState({
+    player:makePlayer(previous),
+    profile,
+    groups:new Map(),
+    firmBoosters:{shield:0.10},
+    now:1050,
+    payload:{...previous, updatedAt:1050}
+  });
+
+  assert.ok(Math.abs(result.state.maxShield - displayedShield) < 1e-6);
+  assert.equal(result.corrected, false);
+});
+
 test("rejects an arbitrary map change away from a portal", ()=>{
   const previous = baseState();
   const result = validatePlayerState({

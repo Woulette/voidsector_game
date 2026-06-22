@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AvosomaNox - MMO</title>
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="styles.css?v=auth-boot-1" />
+  <link rel="stylesheet" href="styles.css?v=main-shop-price-1" />
   <script>
     document.documentElement.dataset.appMode = new URLSearchParams(location.search).get("mode") === "game" ? "game" : "launcher";
   </script>
@@ -109,14 +109,27 @@
         <div class="pilot-avatar">
           <img id="pilotRankIcon" src="assets/ranks/01_Recrue.svg" alt="Grade pilote">
         </div>
-        <div>
-          <span id="pilotRankLabel" class="tiny">RECRUE</span>
+        <div class="pilot-identity">
+          <span class="pilot-kicker">IDENTITÉ PILOTE</span>
           <h1 id="pilotName">NOVA-37</h1>
-          <div class="level-line">
-            <span id="levelText">NIV. 1</span>
-            <div class="mini-bar"><span id="xpFill"></span></div>
-            <span id="xpText">0 / 100</span>
+          <div class="pilot-grade-line">
+            <small>GRADE</small>
+            <strong id="pilotRankLabel">RECRUE</strong>
           </div>
+        </div>
+        <div class="pilot-metrics">
+          <div>
+            <small>NIVEAU</small>
+            <strong id="levelText">1</strong>
+          </div>
+          <div>
+            <small>TEMPS DE JEU</small>
+            <strong id="pilotPlayTime">0m 00s</strong>
+          </div>
+        </div>
+        <div class="pilot-xp">
+          <div class="pilot-xp-head"><span>PROGRESSION XP</span><b id="xpText">0 / 100</b></div>
+          <div class="mini-bar"><span id="xpFill"></span></div>
         </div>
       </section>
 
@@ -136,20 +149,29 @@
           <span>LANCER LA MISSION</span>
         </button>
         <div id="adminDock"></div>
+        <aside id="launcherPremiumStatus" class="launcher-premium-status hidden" aria-live="polite" aria-hidden="true">
+          <div class="launcher-premium-emblem" aria-hidden="true"><span>P</span></div>
+          <div class="launcher-premium-copy">
+            <small>ABONNEMENT PILOTE</small>
+            <strong><i aria-hidden="true"></i> PREMIUM ACTIF</strong>
+          </div>
+          <div class="launcher-premium-timer">
+            <small>TEMPS RESTANT</small>
+            <b data-premium-home-remaining>--</b>
+          </div>
+        </aside>
       </div>
 
       <section class="currency-strip frame">
         <div class="currency">
-          <img src="assets/icons/credits.svg" alt="">
+          <img src="assets/icons/credits.svg" alt="Crédits">
           <div>
-            <small>CRÉDITS</small>
             <strong id="creditsValue">0</strong>
           </div>
         </div>
         <div class="currency premium">
-          <img src="assets/icons/premium.svg" alt="">
+          <img src="assets/icons/premium.svg" alt="NOVA">
           <div>
-            <small>NOVA</small>
             <strong id="premiumValue">0</strong>
           </div>
         </div>
@@ -191,7 +213,7 @@
             <button id="backToShipsBtn" class="blue-button secondary">RETOUR AUX VAISSEAUX</button>
             <button id="selectedShipAction" class="blue-button">ÉQUIPER</button>
           </div>
-          <div id="selectedShipStats" class="stats-list"></div>
+          <div id="selectedShipStats" class="ship-live-stats"></div>
         </aside>
 
         <section id="shipLoadoutPanel" class="panel loadout-panel frame hidden">
@@ -232,11 +254,6 @@
             <div>
               <span class="tiny">MAGASIN ORBITAL</span>
               <h2>Marché de bord</h2>
-              <p class="shop-intro">Une boutique mieux rangée : catégories à gauche, catalogue au centre, fiche détaillée à droite.</p>
-            </div>
-            <div class="shop-currency-hint">
-              <span class="badge">CRÉDITS & NOVA</span>
-              <small>Achète plus vite sans mélanger tous les objets.</small>
             </div>
           </div>
           <div class="shop-layout">
@@ -252,7 +269,7 @@
                 <button class="shop-nav-btn" data-filter-shop="generateur">Générateurs</button>
                 <button class="shop-nav-btn" data-filter-shop="drone">Drones</button>
                 <button class="shop-nav-btn" data-filter-shop="extra">Extras</button>
-                <button class="shop-nav-btn" data-filter-shop="module">Modules</button>
+                <button class="shop-nav-btn" data-filter-shop="booster">Boosters</button>
                 <button class="shop-nav-btn accent" data-filter-shop="premium">Premium</button>
                 <button class="shop-nav-btn accent-alt" data-filter-shop="owned">Possédés</button>
               </div>
@@ -262,7 +279,6 @@
                 <div>
                   <span class="tiny">CATALOGUE</span>
                   <h3 id="shopSectionTitle">Vaisseaux</h3>
-                  <p id="shopSectionSubtitle">Choisis ta catégorie pour afficher les articles disponibles.</p>
                 </div>
                 <div class="shop-toolbar-status">
                   <span id="shopResultCount" class="badge">0 ARTICLE</span>
@@ -373,8 +389,8 @@
         </div>
       </div>
       <div class="combat-wallet frame">
-        <span>CRÉDITS <b id="gameCreditsHud">0</b></span>
-        <span>NOVA <b id="gamePremiumHud">0</b></span>
+        <span class="game-currency"><img class="currency-icon currency-icon-credits" src="assets/icons/credits.svg" alt="Crédits"><b id="gameCreditsHud">0</b></span>
+        <span class="game-currency"><img class="currency-icon currency-icon-premium" src="assets/icons/premium.svg" alt="NOVA"><b id="gamePremiumHud">0</b></span>
       </div>
       <button id="returnDashboardBtn" class="blue-button small">DECONNEXION</button>
     </div>
@@ -407,8 +423,8 @@
       </div>
       <div class="death-respawn-actions">
         <button data-respawn-choice="spawn" type="button">ASTRA-01<br><small>Gratuit · 20% PV</small></button>
-        <button data-respawn-choice="portal" type="button">Portail proche<br><small>100 NOVA</small></button>
-        <button data-respawn-choice="death" type="button">Position actuelle<br><small>200 NOVA</small></button>
+        <button data-respawn-choice="portal" type="button">Portail proche<br><small><span class="currency-amount premium" aria-label="100 NOVA"><span>100</span><img class="currency-icon currency-icon-premium" src="assets/icons/premium.svg" alt=""></span></small></button>
+        <button data-respawn-choice="death" type="button">Position actuelle<br><small><span class="currency-amount premium" aria-label="200 NOVA"><span>200</span><img class="currency-icon currency-icon-premium" src="assets/icons/premium.svg" alt=""></span></small></button>
       </div>
     </div>
     <div id="combatBoostDepositLayer" class="combat-boost-deposit-layer hidden" aria-hidden="true">
@@ -480,6 +496,7 @@
       <button data-utility-panel="map" type="button" title="Carte" aria-label="Carte"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5l5-2 8 2 5-2v13l-5 2-8-2-5 2z"></path><path d="M8 4.5v13"></path><path d="M16 6.5v13"></path><path d="M6 13l3-3 3 2 3-4 3 3"></path></svg></button>
       <button data-utility-panel="settings" type="button" title="Reglages" aria-label="Reglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 4.4-2.6 7.4-7 9-4.4-1.6-7-4.6-7-9V7z"></path><path d="M9 12l2 2 4-5"></path></svg></button>
       <button data-chat-toggle type="button" title="Chat" aria-label="Chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H8l-4 4z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></svg></button>
+      <button data-utility-panel="boosters" type="button" title="Boosters" aria-label="Boosters"><img src="assets/boosters/booster_damage.png" alt=""></button>
     </div>
     <div id="combatChatPanel" class="combat-chat-panel frame hidden" aria-label="Chat">
       <div class="combat-chat-head" data-chat-drag-handle>
@@ -520,7 +537,8 @@
     </div>
     <div id="combatUtilityPanelSettings" class="combat-utility-panel frame hidden" data-utility-mode="settings">
       <div class="combat-utility-panel-head">
-        <strong>REGLAGES</strong>
+        <div><span>CONFIGURATION PILOTE</span><strong>PARAMÈTRES</strong></div>
+        <button class="combat-settings-close" data-settings-close type="button" aria-label="Fermer les paramètres">×</button>
       </div>
       <div id="combatUtilityContentSettings" class="combat-utility-content"></div>
     </div>
@@ -530,6 +548,12 @@
       </div>
       <div id="combatUtilityContentMap" class="combat-utility-content"></div>
     </div>
+    <div id="combatUtilityPanelBoosters" class="combat-utility-panel frame hidden" data-utility-mode="boosters">
+      <div class="combat-utility-panel-head">
+        <strong>BOOSTERS</strong>
+      </div>
+      <div id="combatUtilityContentBoosters" class="combat-utility-content"></div>
+    </div>
     <canvas id="gameCanvas"></canvas>
     <button id="rickySupportSkill" class="ricky-support-skill hidden" type="button" title="Balise de soin de Ricky">
       <span class="ricky-support-skill-key">RICKY</span>
@@ -537,6 +561,7 @@
       <span class="ricky-support-skill-name">BALISE</span>
       <span class="ricky-support-skill-cooldown"></span>
     </button>
+    <div id="shipAbilityBar" class="ship-ability-bar hidden" aria-label="Compétences du vaisseau"></div>
     <div id="gameActionBar" class="action-bar frame"></div>
     <button id="combatQuickMenuBtn" class="combat-menu-button" type="button">+</button>
     <div id="combatQuickPanel" class="combat-quick-panel frame hidden">
@@ -561,12 +586,9 @@
       </div>
       <div id="spawnPanelContent" class="spawn-panel-content"></div>
     </div>
-    <div class="game-help frame">
-      <b>Contrôles</b> : clic gauche pour destination · maintenir clic gauche pour suivre la souris · clic gauche sur un ennemi pour le cibler · touches de slots personnalisables dans Paramètres.
-    </div>
   </section>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="game.js?v=connection-recovery-2"></script>
+  <script type="module" src="game.js?v=currency-icons-2"></script>
 </body>
 </html>

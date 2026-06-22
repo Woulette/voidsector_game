@@ -1,14 +1,20 @@
 import { sanitizeProfile, sanitizeWorldSession } from "./profileSanitize.js";
+import { consumeConnectedBoosterTime } from "../../../src/shared/firmBoosters.js";
 
 export const WORLD_SESSION_SAVE_INTERVAL_MS = 15_000;
 
 export function createProfileWorldSession({profiles, persist, getExistingProfile}){
   function accountServerPlaytime(profile, player, now){
     const previous = Number(player.lastPlaytimeAccountedAt || 0);
+    const activeUntil = player.connected === false
+      ? Math.min(now, Math.max(0, Number(player.disconnectedAt || previous)))
+      : now;
     player.lastPlaytimeAccountedAt = now;
-    if(player.clientMode !== "game" || player.connected === false || !previous || now <= previous) return;
+    if(player.clientMode !== "game" || !previous || activeUntil <= previous) return;
     if(!profile.player || typeof profile.player !== "object") profile.player = {};
-    profile.player.totalPlaySeconds = Math.max(0, Number(profile.player.totalPlaySeconds || 0)) + (now - previous) / 1000;
+    const elapsedMs = activeUntil - previous;
+    profile.player.totalPlaySeconds = Math.max(0, Number(profile.player.totalPlaySeconds || 0)) + elapsedMs / 1000;
+    profile.boosters = consumeConnectedBoosterTime(profile.boosters, elapsedMs);
   }
 
   function getWorldSessionForPlayer(player){

@@ -1,5 +1,6 @@
 import { consumeMaterial, consumeShipCargoMaterial, getMaterialCount, getShipCargo } from "./cargoStore.js";
 import { getAmmo, getDroneCatalog, getDroneFormation, getItem, getShip, store } from "./store.js";
+import { getExtraEquipGroup } from "../shared/equipmentRules.js";
 export function getInventoryItem(uid){ return store.state?.inventoryItems?.find(entry=>entry.uid === uid) || null; }
 export function getItemFromInventoryUid(uid){ return getItem(getInventoryItem(uid)?.itemId); }
 function getItemFromInventoryUidIn(uid, inventoryItems = store.state?.inventoryItems || []){
@@ -184,9 +185,15 @@ export function cleanLoadout(shipId, raw){
   });
   const missileLauncher = raw?.missileLauncher && getItemFromInventoryUid(raw.missileLauncher)?.slotType === "missileLauncher" ? raw.missileLauncher : null;
   const rocketLauncher = raw?.rocketLauncher && getItemFromInventoryUid(raw.rocketLauncher)?.slotType === "rocketLauncher" ? raw.rocketLauncher : null;
+  const usedExtraGroups = new Set();
   const extras = Array.from({length:ship.stats.maxExtras || 3}, (_,i)=>{
     const uid = raw?.extras?.[i] ?? null;
-    return uid && getItemFromInventoryUid(uid)?.category === "extra" ? uid : null;
+    const item = uid ? getItemFromInventoryUid(uid) : null;
+    if(item?.category !== "extra") return null;
+    const group = getExtraEquipGroup(item);
+    if(group && usedExtraGroups.has(group)) return null;
+    if(group) usedExtraGroups.add(group);
+    return uid;
   });
   return {lasers, missileLauncher, rocketLauncher, generators, extras};
 }

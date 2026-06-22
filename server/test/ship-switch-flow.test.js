@@ -107,3 +107,61 @@ test("ship switch is refused from an enemy firm base", ()=>{
   assert.equal(location.ok, false);
   assert.match(location.reason, /Helion-01/);
 });
+
+test("ship switch stays locked while a disconnected ship is still present in the world", ()=>{
+  const now = Date.now();
+  const launcher = {
+    id:"launcher-socket",
+    accountId:"account-1",
+    account:{firmId:"astra"},
+    clientMode:"launcher",
+    connected:true,
+    state:null
+  };
+  const disconnectedGame = {
+    id:"game-socket",
+    accountId:"account-1",
+    account:{firmId:"astra"},
+    clientMode:"game",
+    connected:false,
+    disconnecting:true,
+    removeAt:now + 30_000,
+    state:{mapId:"31", x:1200, y:-900, hp:5000, maxHp:15000, shipId:"velox"}
+  };
+  const store = createProfileStore();
+  store.profile.player = {firmId:"astra"};
+  const manager = createEquipmentLocationManager({
+    io:{sockets:{sockets:new Map()}},
+    players:new Map([[launcher.id, launcher], [disconnectedGame.id, disconnectedGame]]),
+    profileManager:store.manager,
+    setPlayerMap(){}
+  });
+
+  const location = manager.canChangeActiveShipAtFirmSpawn(launcher);
+  assert.equal(location.ok, false);
+  assert.match(location.reason, /Deconnexion du vaisseau en cours/);
+  assert.match(location.reason, /30 secondes/);
+});
+
+test("ship switch becomes available only after the disconnected world player is removed", ()=>{
+  const launcher = {
+    id:"launcher-socket",
+    accountId:"account-1",
+    account:{firmId:"astra"},
+    clientMode:"launcher",
+    connected:true,
+    state:null
+  };
+  const store = createProfileStore();
+  store.profile.player = {firmId:"astra"};
+  const manager = createEquipmentLocationManager({
+    io:{sockets:{sockets:new Map()}},
+    players:new Map([[launcher.id, launcher]]),
+    profileManager:store.manager,
+    setPlayerMap(){}
+  });
+
+  const location = manager.canChangeActiveShipAtFirmSpawn(launcher);
+  assert.equal(location.ok, true);
+  assert.equal(location.source, "disconnected");
+});

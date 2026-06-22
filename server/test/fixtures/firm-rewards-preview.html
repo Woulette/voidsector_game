@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="../../../styles.css">
+  <style>body{padding:18px;background:#020914}.preview-shell{width:min(1460px,calc(100vw - 36px));margin:auto}</style>
+</head>
+<body>
+  <main class="preview-shell"><section class="panel firm-main-panel frame"><div id="preview" class="firm-main-content"></div></section></main>
+  <script type="module">
+    import { renderRewards } from "../../../src/ui/renderFirm.js";
+    const ranking = Array.from({length:10}, (_, index)=>({
+      key:`preview-${index + 1}`,
+      name:["NoxPrime","Cygnus","Solaris","Verdantis","Ricky","Deadly","AstraNova","Helion","Nereid","Aureon"][index],
+      firmId:["astra","cyan","jaune","verte"][index % 4],
+      rank:index + 1,
+      points:20339 - index * 713
+    }));
+    document.getElementById("preview").innerHTML = renderRewards({
+      collectiveMinimumContribution:10000,
+      individualPlayerCount:100,
+      individualRanking:ranking,
+      firms:[{id:"astra",rank:1,collectiveReward:{boxes:{mythic:3}}}],
+      personal:{firmId:"astra",contribution:339,rank:1,rewardLabel:"Top 1",expectedReward:{premium:200000,ammo:{ammo_x6:30000},firmatons:2000},collectiveEligible:false,pendingRewards:[]}
+    });
+  </script>
+</body>
+</html>

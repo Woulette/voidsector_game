@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { applyFirmQuestClaimReward, buyFirmShopItem, openFirmBox } from "../src/firms/firmEconomy.js";
 import { FIRM_COLLECTIVE_MIN_CONTRIBUTION, FIRM_SEASON_MS, FIRM_SHOP_CATALOG, getFirmQuestFirmPoints } from "../src/firms/firmRules.js";
-import { buildFirmSeasonObjectiveSnapshot, recordFirmSeasonObjectiveProgress } from "../src/firms/firmObjectives.js";
+import { buildFirmSeasonObjectiveSnapshot, claimFirmSeasonObjectiveReward, recordFirmSeasonObjectiveProgress } from "../src/firms/firmObjectives.js";
 import { buildFirmQuestSnapshot, buildFirmSeasonalQuestSnapshot, claimFirmQuestReward, ensureFirmDailyQuests, ensureFirmSeasonalQuests, recordFirmQuestProgress } from "../src/firms/firmQuests.js";
 import { buildInitialFirmState } from "../src/firms/firmState.js";
 import { createFirmWarManager } from "../src/firms/firmWar.js";
@@ -168,7 +168,7 @@ test("firm weekly quests progress automatically and only award firm points", ()=
   assert.equal(snapshot.player.expectedReward, null);
 });
 
-test("firm seasonal personal objectives award pilot and firm points once", ()=>{
+test("firm seasonal personal objectives award points once and expose a direct claim", ()=>{
   const now = new Date(2026, 5, 12, 7).getTime();
   const state = buildInitialFirmState(now);
   const contributor = {key:"account:solo", name:"Solo", firmId:"astra"};
@@ -183,9 +183,11 @@ test("firm seasonal personal objectives award pilot and firm points once", ()=>{
   assert.equal(updates.length, 1);
   assert.equal(snapshot.completedAt, now);
   assert.equal(snapshot.progress, 100);
+  assert.equal(snapshot.claimable, true);
+  assert.equal(snapshot.claimed, false);
   assert.equal(state.points.astra, 250);
   assert.equal(state.contributions[contributor.key].points, 250);
-  assert.equal(state.pendingRewards[contributor.key][0].source, "season-objective");
+  assert.equal(state.pendingRewards[contributor.key], undefined);
   recordFirmSeasonObjectiveProgress(state, {
     contributor,
     type:"monster",
@@ -194,7 +196,21 @@ test("firm seasonal personal objectives award pilot and firm points once", ()=>{
     now:now + 1_000
   });
   assert.equal(state.points.astra, 250);
-  assert.equal(state.pendingRewards[contributor.key].length, 1);
+  const claimed = claimFirmSeasonObjectiveReward(state, {
+    objectiveId:"season-solo-monsters-100",
+    contributor,
+    now:now + 2_000
+  });
+  assert.equal(claimed.ok, true);
+  assert.equal(claimed.reward.ammo.ammo_x2, 1_000);
+  assert.equal(claimFirmSeasonObjectiveReward(state, {
+    objectiveId:"season-solo-monsters-100",
+    contributor,
+    now:now + 3_000
+  }).ok, false);
+  const claimedSnapshot = buildFirmSeasonObjectiveSnapshot(state, contributor.key, contributor.firmId).find(objective=>objective.id === "season-solo-monsters-100");
+  assert.equal(claimedSnapshot.claimed, true);
+  assert.equal(claimedSnapshot.claimable, false);
 });
 
 test("firm pvp anti-farm reduces repeated daily target rewards", async ()=>{
@@ -211,7 +227,9 @@ test("firm pvp anti-farm reduces repeated daily target rewards", async ()=>{
     }
     assert.deepEqual(points, [100, 100, 100, 100, 100, 5, 5]);
     assert.equal(manager.snapshot({playerKey:"account:a"}).personal.contribution, 1_260);
-    assert.equal(manager.getPendingRewards("account:a").some(entry=>entry.source === "season-objective"), true);
+    const objective = manager.snapshot({playerKey:"account:a", profile:{player:{firmId:"astra"}}}).seasonObjectives
+      .find(entry=>entry.completedAt && entry.claimable);
+    assert.ok(objective);
   }finally{
     await rm(dir, {recursive:true, force:true});
   }

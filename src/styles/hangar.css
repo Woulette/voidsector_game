@@ -68,6 +68,18 @@
 .ricky-support-skill-key{position:absolute;left:6px;top:4px;color:#7dd3fc;font-size:9px;font-weight:900;letter-spacing:.8px}
 .ricky-support-skill-name{position:absolute;left:4px;right:4px;bottom:4px;font-size:9px;font-weight:900;letter-spacing:.6px;text-align:center}
 .ricky-support-skill-cooldown{position:absolute;inset:0;display:grid;place-items:center;background:rgba(2,6,23,.62);color:#e0f2fe;font-size:22px;font-weight:900;text-shadow:0 0 8px #0284c7}
+.ship-ability-bar{position:absolute;left:calc(50% - 361px);bottom:114px;z-index:5;display:flex;align-items:flex-end;gap:6px}
+.ship-ability-bar.hidden{display:none}
+.ship-ability-slot{position:relative;width:58px;height:54px;padding:0;border:1px solid rgba(74,222,128,.54);background:linear-gradient(180deg,rgba(8,32,32,.96),rgba(2,13,24,.98));color:#dcfce7;clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px);box-shadow:0 0 12px rgba(34,197,94,.16),inset 0 0 12px rgba(74,222,128,.08);cursor:pointer;overflow:hidden}
+.ship-ability-slot::before{content:"";position:absolute;inset:3px;background:radial-gradient(circle at 50% 46%,rgba(74,222,128,.22),rgba(5,46,22,.04) 68%);pointer-events:none}
+.ship-ability-slot:hover,.ship-ability-slot.ready{border-color:#86efac;box-shadow:0 0 18px rgba(34,197,94,.34),inset 0 0 14px rgba(74,222,128,.15)}
+.ship-ability-slot.active{border-color:#bbf7d0;animation:shipAbilityPulse .9s ease-in-out infinite alternate}
+.ship-ability-slot.blocked{opacity:.62;cursor:not-allowed;filter:saturate(.62)}
+.ship-ability-slot img{position:absolute;left:12px;top:7px;width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(74,222,128,.72))}
+.ship-ability-slot-key{position:absolute;z-index:3;left:4px;top:2px;color:#fef08a;font-size:11px;font-weight:900;text-shadow:0 1px 3px #020617}
+.ship-ability-slot-name{position:absolute;z-index:3;left:3px;right:3px;bottom:2px;font-size:7px;font-weight:900;letter-spacing:.2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ship-ability-slot-cooldown{position:absolute;z-index:2;inset:0;display:grid;place-items:center;background:rgba(2,6,23,.67);color:#dcfce7;font-size:17px;font-weight:900;text-shadow:0 0 8px #16a34a}
+@keyframes shipAbilityPulse{from{box-shadow:0 0 18px rgba(34,197,94,.32),inset 0 0 14px rgba(74,222,128,.16)}to{box-shadow:0 0 32px rgba(74,222,128,.7),inset 0 0 24px rgba(74,222,128,.28)}}
 .action-slot{position:relative;height:72px;border:1px solid rgba(56,189,248,.28);background:rgba(3,13,25,.88);overflow:hidden;clip-path:polygon(9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px),0 9px)}
 .action-slot:not(.empty){
   background:
@@ -190,6 +202,50 @@
 .combat-shop-copy span,.combat-shop-copy small{display:block;margin-top:2px;white-space:nowrap;font-size:10px;line-height:1.15}
 .combat-shop-copy span{color:#8fc6e4}
 .combat-shop-copy small{color:#facc15}
+.combat-shop-price-single,.combat-shop-price-discount{
+  width:max-content;
+  max-width:100%;
+  margin-top:3px!important;
+}
+.combat-shop-price-single{display:block!important}
+.combat-shop-price-discount{
+  display:grid!important;
+  justify-items:start;
+  align-content:center;
+  gap:2px;
+}
+.combat-shop-price-old{
+  position:relative;
+  display:inline-flex;
+  width:max-content;
+  color:#71869a;
+  font-size:9px;
+  line-height:1;
+  text-decoration:none;
+  opacity:.82;
+}
+.combat-shop-price-old::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:50%;
+  height:1px;
+  background:#e56b73;
+  transform:translateY(-50%);
+  pointer-events:none;
+}
+.combat-shop-price-current{
+  display:inline-flex;
+  width:max-content;
+  font-size:10px!important;
+  line-height:1;
+}
+.combat-shop-price-current.credits{color:#6ee7ff;text-shadow:0 0 7px rgba(56,189,248,.28)}
+.combat-shop-price-current.premium{color:#facc15;text-shadow:0 0 7px rgba(245,158,11,.28)}
+.combat-shop-price-old .currency-amount,.combat-shop-price-current .currency-amount{display:inline-flex;margin:0}
+.combat-shop-price-old .currency-icon{width:10px;height:10px;opacity:.72;filter:none}
+.combat-shop-price-current .currency-icon{width:11px;height:11px}
 .combat-buy-icon{
   width:34px;
   height:34px;
@@ -295,6 +351,7 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
   .shop-grid-full{grid-template-columns:repeat(3,minmax(0,1fr))}
   .action-bar{grid-template-columns:repeat(9,58px)}
   .ricky-support-skill{left:calc(50% - 292px);bottom:96px}
+  .ship-ability-bar{left:calc(50% - 289px);bottom:102px}
   .action-slot{height:60px}.action-slot img{width:48px;height:38px}
 }
 @media (max-width:760px){
@@ -302,7 +359,9 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
   .shop-head{display:block}.shop-filters{justify-content:flex-start;margin-top:10px}
   .action-bar{left:8px;right:8px;bottom:8px;transform:none;grid-template-columns:repeat(9,1fr);gap:4px;padding:6px}
   .ricky-support-skill{left:8px;bottom:70px;width:62px;height:58px}.ricky-support-skill img{left:15px;top:13px;width:32px;height:32px}.ricky-support-skill-key{font-size:7px}.ricky-support-skill-name{font-size:8px}
-  .action-slot{height:50px}.action-slot img{inset:9px 2px 14px;width:100%;height:30px}.action-slot .slot-name{font-size:8px}.game-help{display:none}
+  .ship-ability-bar{left:14px;bottom:76px;gap:4px}
+  .ship-ability-slot{width:52px;height:48px}.ship-ability-slot img{left:11px;top:6px;width:30px;height:30px}.ship-ability-slot-name{font-size:6px}
+  .action-slot{height:50px}.action-slot img{inset:9px 2px 14px;width:100%;height:30px}.action-slot .slot-name{font-size:8px}
   .combat-menu-button{left:auto;right:10px;bottom:70px;width:46px;height:46px}
   .combat-quick-panel{bottom:122px;width:calc(100vw - 16px)}
   .combat-panel-grid{grid-template-columns:1fr}
@@ -485,7 +544,11 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
 .equip-slot-tile b{
   position:absolute;
   left:3px;
+  right:3px;
   top:3px;
+  max-width:calc(100% - 6px);
+  overflow:hidden;
+  text-overflow:ellipsis;
   padding:0;
   border:0;
   background:transparent;
@@ -551,7 +614,35 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
 .inventory-cell.resource-cell.rarity-veryRare .inventory-kind-label{color:#d8b4fe}
 .inventory-cell.resource-cell.rarity-elite .inventory-kind-label{color:#fcd34d}
 .inventory-cell.resource-cell.rarity-mythic .inventory-kind-label{color:#f9a8d4}
-.inventory-cell.selected{border-color:rgba(250,204,21,.95);box-shadow:0 0 14px rgba(250,204,21,.24)}
+.equip-slot-tile.selected,.inventory-cell.selected,.drone-slot-card.selected{border-color:rgba(250,204,21,.95);box-shadow:0 0 14px rgba(250,204,21,.24)}
+.equip-slot-tile.multi-selected,.inventory-cell.multi-selected,.drone-slot-card.multi-selected{border-color:#facc15;box-shadow:0 0 16px rgba(250,204,21,.32),inset 0 0 14px rgba(250,204,21,.08)}
+.equip-slot-tile.multi-selected::after,.inventory-cell.multi-selected::after{
+  content:"✓";
+  position:absolute;
+  z-index:5;
+  right:2px;
+  bottom:2px;
+  width:12px;
+  height:12px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(250,204,21,.85);
+  background:rgba(30,20,2,.92);
+  color:#fde047;
+  font-size:9px;
+  font-weight:900;
+  line-height:1;
+}
+.bulk-selection-count{margin-left:8px!important;padding:3px 6px;border:1px solid rgba(250,204,21,.45);background:rgba(92,61,8,.24);color:#fde68a!important}
+.equipment-selection-marquee{
+  position:fixed;
+  z-index:9999;
+  pointer-events:none;
+  border:1px solid rgba(250,204,21,.95);
+  background:rgba(250,204,21,.13);
+  box-shadow:0 0 14px rgba(250,204,21,.18);
+}
+body.equipment-multi-selecting{user-select:none}
 .inventory-cell.equipped-here{border-color:rgba(86,255,79,.55)}
 .inventory-cell.equipped-elsewhere{opacity:.72;cursor:grab;filter:saturate(.75)}
 .inventory-cell.empty{opacity:.34;cursor:default;background:rgba(2,10,19,.6)}
@@ -649,6 +740,41 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
 .selected-actions{grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .blue-button.secondary{background:linear-gradient(180deg,rgba(15,46,74,.75),rgba(4,15,28,.92))}
 .blue-button.danger{border-color:rgba(239,68,68,.45);background:linear-gradient(180deg,rgba(127,29,29,.82),rgba(45,12,18,.92));color:#fee2e2}
+.ship-live-stats{display:grid;gap:9px}
+.ship-live-primary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ship-live-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.ship-live-stat,.ship-special-stat{
+  position:relative;
+  min-width:0;
+  overflow:hidden;
+  border:1px solid rgba(56,189,248,.18);
+  background:linear-gradient(145deg,rgba(7,25,43,.88),rgba(2,11,22,.94));
+  clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+}
+.ship-live-stat{min-height:76px;padding:10px 11px}
+.ship-live-stat:after{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:2px;
+  background:#38bdf8;
+  box-shadow:0 0 9px rgba(56,189,248,.7);
+}
+.ship-live-stat.hull:after{background:#4ade80;box-shadow:0 0 9px rgba(74,222,128,.7)}
+.ship-live-stat.shield:after{background:#60a5fa;box-shadow:0 0 9px rgba(96,165,250,.7)}
+.ship-live-stat.speed:after{background:#c084fc;box-shadow:0 0 9px rgba(192,132,252,.7)}
+.ship-live-stat.cargo:after{background:#facc15;box-shadow:0 0 9px rgba(250,204,21,.65)}
+.ship-live-stat span,.ship-special-stat span{display:block;color:#70a9c2;font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase}
+.ship-live-stat strong{display:block;margin-top:5px;color:#effbff;font-size:22px;line-height:1}
+.ship-live-stat small{display:block;margin-top:5px;color:#88aabd;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ship-live-slots .ship-live-stat{min-height:70px;padding:9px;text-align:center}
+.ship-live-slots .ship-live-stat:after{left:0;right:0;top:auto;width:auto;height:2px}
+.ship-live-slots .ship-live-stat strong{font-size:20px}
+.ship-live-slots .ship-live-stat small{font-size:9px}
+.ship-special-stat{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:10px 12px;border-color:rgba(250,204,21,.2);background:linear-gradient(100deg,rgba(58,40,5,.3),rgba(2,11,22,.94))}
+.ship-special-stat strong{color:#f8e78d;font-size:14px;text-align:right}
 #shipDetailPanel .selected-ship-art{height:320px}
 #shipDetailPanel .selected-ship-art img{height:292px}
 #shipLoadoutPanel .loadout-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -666,4 +792,7 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
   #shipDetailPanel .selected-ship-art{height:230px}
   #shipDetailPanel .selected-ship-art img{height:205px}
   .selected-actions{grid-template-columns:1fr}
+  .ship-live-primary,.ship-live-slots{grid-template-columns:1fr}
+  .ship-live-slots .ship-live-stat{text-align:left}
+  .ship-live-slots .ship-live-stat:after{left:0;right:auto;top:0;bottom:0;width:2px;height:auto}
 }

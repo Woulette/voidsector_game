@@ -1,4 +1,5 @@
 import { requireMmoConnection } from "./mmoGate.js";
+import { findMatchingExtraGroupIndex } from "../shared/equipmentRules.js";
 
 export function createEquipmentActions({
   multiplayer,
@@ -60,7 +61,10 @@ export function createEquipmentActions({
     if(type === "missileLauncher" || type === "rocketLauncher") return equipPart(type, 0, inventoryUid);
     const slots = type === "laser" ? loadout.lasers : type === "generator" ? loadout.generators : loadout.extras;
     const currentIndex = slots.indexOf(inventoryUid);
-    let index = currentIndex >= 0 ? currentIndex : slots.findIndex(uid=>!uid);
+    const matchingExtraIndex = type === "extra"
+      ? findMatchingExtraGroupIndex(slots, item, getItemFromInventoryUid, inventoryUid)
+      : -1;
+    let index = currentIndex >= 0 ? currentIndex : matchingExtraIndex >= 0 ? matchingExtraIndex : slots.findIndex(uid=>!uid);
     if(index < 0) index = 0;
     equipPart(type, index, inventoryUid);
   }

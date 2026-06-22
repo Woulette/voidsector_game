@@ -1,6 +1,7 @@
 import { skills } from "../data/catalog.js";
 import { getNovaDiscountedPrice, hasNovaDiscount } from "../data/premium.js";
 import { canAfford, spend, store, syncSkillPoints } from "./store.js";
+import { currencyAmountHtml } from "../ui/currencyIcons.js";
 
 const MATERIAL_LABELS = {
   alliage_cuivre_zinc:"Alliage",
@@ -38,17 +39,17 @@ function getSkillCostEntries(step){
 export function skillCostLabel(step){
   const cost = getSkillCostEntries(step);
   const parts = [];
-  if(cost.credits > 0) parts.push(`${cost.credits.toLocaleString("fr-FR")} CR`);
+  if(cost.credits > 0) parts.push(currencyAmountHtml("credits", cost.credits));
   if(cost.premium > 0){
     const discounted = getNovaDiscountedPrice(cost.premium, store.state?.player);
     parts.push(hasNovaDiscount(cost.premium, store.state?.player)
-      ? `${discounted.toLocaleString("fr-FR")} NOVA`
-      : `${cost.premium.toLocaleString("fr-FR")} NOVA`);
+      ? currencyAmountHtml("premium", discounted)
+      : currencyAmountHtml("premium", cost.premium));
   }
   for(const [id, amount] of Object.entries(cost.materials)){
     if(amount > 0) parts.push(`${amount.toLocaleString("fr-FR")} ${MATERIAL_LABELS[id] || id}`);
   }
-  return parts.length ? parts.join(" + ") : "0 CR";
+  return parts.length ? parts.join(" + ") : currencyAmountHtml("credits", 0);
 }
 
 export function canAffordSkillCost(step){

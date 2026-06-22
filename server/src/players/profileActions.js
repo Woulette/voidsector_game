@@ -10,6 +10,7 @@ import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
 import { appendProfileActivity } from "./activityLog.js";
 import { depositServerCombatBoostMaterial } from "../economy/combatBoosts.js";
 import { applyPremiumPackToPlayer, claimPremiumRewardState } from "../../../src/data/premium.js";
+import { BOOSTER_TYPE_IDS, addPlayerBoosterUnits } from "../../../src/shared/firmBoosters.js";
 
 export function createProfileActions({profiles, persist, getExistingProfile}){
   function spendAndUpdate({player, priceType, amount, update, activity} = {}){
@@ -28,7 +29,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     persist(key);
     return {...result, profile:next};
   }
-  
+
   function addAmmoPurchase({player, purchase} = {}){
     return spendAndUpdate({
       player,
@@ -53,35 +54,103 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       priceType:purchase?.priceType,
       amount:purchase?.totalPrice,
       update:profile=>{
-        addInventoryItemAmount(profile, purchase.id, 1);
+        addInventoryItemAmount(profile, purchase.id, Math.max(1, Number(purchase?.quantity || 1)));
       },
       activity:{
         type:"shop_purchase",
         label:"Achat objet",
-        detail:`${purchase?.id || "objet"} pour ${Math.max(0, Number(purchase?.totalPrice || 0))} ${purchase?.priceType || "credits"}.`,
-        data:{itemId:purchase?.id || "", price:Number(purchase?.totalPrice || 0), priceType:purchase?.priceType || "credits"}
+        detail:`${purchase?.id || "objet"} x${Math.max(1, Number(purchase?.quantity || 1))} pour ${Math.max(0, Number(purchase?.totalPrice || 0))} ${purchase?.priceType || "credits"}.`,
+        data:{itemId:purchase?.id || "", amount:Number(purchase?.quantity || 1), price:Number(purchase?.totalPrice || 0), priceType:purchase?.priceType || "credits"}
       }
     });
   }
-  
-  function addShipPurchase({player, purchase} = {}){
+
+  function addBoosterPurchase({player, purchase} = {}){
     return spendAndUpdate({
       player,
       priceType:purchase?.priceType,
       amount:purchase?.totalPrice,
       update:profile=>{
-        if(!Array.isArray(profile.ownedShips)) profile.ownedShips = ["orion", "test_runner"];
-        if(!profile.ownedShips.includes(purchase.id)) profile.ownedShips.push(purchase.id);
-        if(!profile.shipLoadouts || typeof profile.shipLoadouts !== "object") profile.shipLoadouts = {};
-        if(!profile.shipLoadouts[purchase.id]) profile.shipLoadouts[purchase.id] = {lasers:[], generators:[], extras:[]};
+        profile.boosters = addPlayerBoosterUnits(profile.boosters, {
+          series:"s1",
+          type:purchase?.type,
+          quantity:purchase?.quantity,
+          now:Date.now()
+        });
       },
       activity:{
-        type:"ship_purchase",
-        label:"Achat vaisseau",
-        detail:`${purchase?.id || "vaisseau"} pour ${Math.max(0, Number(purchase?.totalPrice || 0))} ${purchase?.priceType || "credits"}.`,
-        data:{shipId:purchase?.id || "", price:Number(purchase?.totalPrice || 0), priceType:purchase?.priceType || "credits"}
+        type:"booster_purchase",
+        label:"Achat booster S1",
+        detail:`${purchase?.name || "Booster S1"} x${Math.max(1, Number(purchase?.quantity || 1))} pour ${Math.max(0, Number(purchase?.totalPrice || 0))} NOVA.`,
+        data:{
+          boosterType:purchase?.type || "",
+          series:"s1",
+          quantity:Number(purchase?.quantity || 1),
+          price:Number(purchase?.totalPrice || 0)
+        }
       }
     });
+  }
+
+  function grantBooster({player, type, series = "s2", quantity = 1, source = "event"} = {}){
+    if(!player) return {ok:false, reason:"Joueur introuvable."};
+    if(!["s1", "s2"].includes(series)) return {ok:false, reason:"Série de booster invalide."};
+    if(!BOOSTER_TYPE_IDS.includes(String(type || ""))) return {ok:false, reason:"Type de booster invalide."};
+    const {key, profile} = getExistingProfile(player);
+    profile.boosters = addPlayerBoosterUnits(profile.boosters, {
+      series,
+      type,
+      quantity,
+      now:Date.now()
+    });
+    appendProfileActivity(profile, {
+      type:"booster_grant",
+      label:`Booster ${series.toUpperCase()}`,
+      detail:`Booster ${type || "inconnu"} x${Math.max(1, Number(quantity || 1))} attribué via ${source}.`,
+      data:{boosterType:type || "", series, quantity:Number(quantity || 1), source:String(source || "event")}
+    });
+    const next = sanitizeProfile({...profile, updatedAt:Date.now()});
+    profiles.set(key, next);
+    persist(key);
+    return {ok:true, profile:next};
+  }
+
+  function addShipPurchase({player, purchase} = {}){
+    if(!player) return {ok:false, reason:"Joueur introuvable."};
+    if(!purchase?.id) return {ok:false, reason:"Vaisseau invalide."};
+    const {key, profile} = getExistingProfile(player);
+    if(Array.isArray(profile.ownedShips) && profile.ownedShips.includes(purchase.id)){
+      return {ok:false, reason:"Vaisseau déjà possédé."};
+    }
+    const requiredPortal = String(purchase.requiresCompletedPortal || "");
+    if(requiredPortal && Math.max(0, Number(profile.completedPortals?.[requiredPortal] || 0)) <= 0){
+      return {ok:false, reason:`Pré requis : portail ${requiredPortal} terminé.`};
+    }
+    const result = spendCurrency(profile.player || {}, purchase.priceType, purchase.totalPrice);
+    if(!result.ok) return result;
+    profile.player = result.player;
+    if(!Array.isArray(profile.ownedShips)) profile.ownedShips = ["orion", "test_runner"];
+    profile.ownedShips.push(purchase.id);
+    if(!profile.shipLoadouts || typeof profile.shipLoadouts !== "object") profile.shipLoadouts = {};
+    if(!profile.shipLoadouts[purchase.id]){
+      profile.shipLoadouts[purchase.id] = {
+        lasers:[],
+        missileLauncher:null,
+        rocketLauncher:null,
+        generators:[],
+        extras:[]
+      };
+    }
+    appendProfileActivity(profile, {
+      type:"ship_purchase",
+      label:"Achat vaisseau",
+      detail:`${purchase.id} pour ${Math.max(0, Number(purchase.totalPrice || 0))} ${purchase.priceType || "credits"}.`,
+      data:{shipId:purchase.id, price:Number(purchase.totalPrice || 0), priceType:purchase.priceType || "credits"}
+    });
+    const next = sanitizeProfile({...profile, updatedAt:Date.now()});
+    profiles.set(key, next);
+    persist(key);
+    return {...result, profile:next};
   }
   
   function addDronePurchase({player, purchase} = {}){
@@ -245,7 +314,30 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
     let result = null;
-    if(action?.kind === "equip"){
+    if(action?.kind === "batch"){
+      const actions = Array.isArray(action.actions) ? action.actions.slice(0, 64) : [];
+      const applied = [];
+      const rejected = [];
+      for(const entry of actions){
+        let entryResult = null;
+        if(entry?.kind === "equip"){
+          entryResult = equipInventoryUid(profile, entry);
+        }else if(entry?.kind === "unequip-inventory"){
+          entryResult = unequipInventoryUid(profile, String(entry.inventoryUid || ""))
+            ? {ok:true}
+            : {ok:false, reason:"Objet deja retire."};
+        }else if(entry?.kind === "drone-upgrade"){
+          entryResult = applyDronePermanentUpgrade(profile, entry);
+        }else{
+          entryResult = {ok:false, reason:"Action groupee invalide."};
+        }
+        if(entryResult.ok) applied.push({action:entry, result:entryResult});
+        else rejected.push({action:entry, reason:entryResult.reason || "Action impossible."});
+      }
+      result = applied.length
+        ? {ok:true, count:applied.length, applied, rejected}
+        : {ok:false, reason:rejected[0]?.reason || "Aucune action groupee applicable."};
+    }else if(action?.kind === "equip"){
       result = equipInventoryUid(profile, action);
     }else if(action?.kind === "unequip-slot"){
       result = unequipSlot(profile, action);
@@ -458,5 +550,5 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     return {...result, profile:next};
   }
   
-  return {addAmmoPurchase, addItemPurchase, addShipPurchase, addDronePurchase, addDroneFormationPurchase, addPremiumPackPurchase, claimPremiumReward, sellInventoryItem, applyEquipmentAction, setActiveShipForPlayer, applyQuestAction, applyEconomyAction, applyProgressionAction};
+  return {addAmmoPurchase, addItemPurchase, addBoosterPurchase, grantBooster, addShipPurchase, addDronePurchase, addDroneFormationPurchase, addPremiumPackPurchase, claimPremiumReward, sellInventoryItem, applyEquipmentAction, setActiveShipForPlayer, applyQuestAction, applyEconomyAction, applyProgressionAction};
 }

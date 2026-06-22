@@ -23,6 +23,8 @@ export function createDefaultProfile(){
     activeDroneFormation:"base",
     shipCargo:{},
     combatBoosts:{laser:{}, rocket:{}, generator:{}, drone:{}},
+    shipAbilityStates:{},
+    boosters:{s1:{}, s2:{}},
     skillRanks:{},
     skillLevels:{},
     unlockedPortals:[],

@@ -1,1 +1,1 @@
-import "./src/app.js?v=connection-recovery-2";
+import "./src/app.js?v=currency-icons-2";

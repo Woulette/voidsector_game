@@ -6,6 +6,8 @@ import { saveState, store } from "./store.js";
 import { getSkillBonus } from "./skillStore.js";
 import { getXpNextForLevel, syncSkillPoints } from "./xpStore.js";
 import { isPremiumActive, PREMIUM_REPAIR_BOT_MULTIPLIER } from "../data/premium.js";
+import { getActivePersonalFirmBoosters } from "./firmBoosterStore.js";
+import { calculateShieldAbsorbRatio } from "../shared/shieldAbsorption.js";
 
 export function recordWeaponUse(type, amount=1){
   const keys = {
@@ -95,6 +97,7 @@ export function getShipCombatStats(shipId = store.state.activeShip){
   const formationBonus = getDroneFormationBonus();
   const generatorBoost = getCombatTimedBoostPercent("generator");
   const droneBoost = getCombatTimedBoostPercent("drone");
+  const firmBoosters = getActivePersonalFirmBoosters();
   const shipGenerators = getEquippedGenerators(shipId);
   const droneGenerators = getEquippedDroneGenerators();
   const statFromGenerator = (item, key, upgradeValue)=>{
@@ -108,6 +111,16 @@ export function getShipCombatStats(shipId = store.state.activeShip){
   const generatorMultiplier = 1 + generatorBoost;
   const shieldFromGenerators = generatorValue(shipGenerators, "bouclier", 30)
     + generatorValue(droneGenerators, "bouclier", 30, droneMultiplier);
+  const shieldAbsorbRatio = calculateShieldAbsorbRatio([
+    ...shipGenerators.map(item=>({
+      capacity:statFromGenerator(item, "bouclier", 30),
+      ratio:item.effect?.shieldAbsorbRatio
+    })),
+    ...droneGenerators.map(item=>({
+      capacity:statFromGenerator(item, "bouclier", 30) * droneMultiplier,
+      ratio:item.effect?.shieldAbsorbRatio
+    }))
+  ], skill.shieldAbsorbBonus);
   const regen = generatorValue(shipGenerators, "regen", 1)
     + generatorValue(droneGenerators, "regen", 1, droneMultiplier);
   const generatorSpeed = generatorValue(shipGenerators, "vitesse", 2)
@@ -119,12 +132,15 @@ export function getShipCombatStats(shipId = store.state.activeShip){
   const bouclier = (shieldFromGenerators > 0 ? shieldFromGenerators + (skill.shieldBonus || 0) : 0)
     * Number(formationBonus.shieldMultiplier || 1)
     * Number(skill.shieldMultiplier || 1)
-    * generatorMultiplier;
+    * generatorMultiplier
+    * (1 + Math.max(0, Number(firmBoosters.shield || 0)));
   const extraBonus = getExtraBonus(shipId);
   extraBonus.rocketDamageMultiplier = Number(formationBonus.rocketDamageMultiplier || 1) * Number(skill.rocketDamageMultiplier || 1);
   extraBonus.missileDamageMultiplier = Number(formationBonus.missileDamageMultiplier || 1) * Number(skill.missileDamageMultiplier || 1);
   return {
-    vie: (ship.stats.vie + (skill.vie || 0)) * Number(skill.hullMultiplier || 1),
+    vie: (ship.stats.vie + (skill.vie || 0))
+      * Number(skill.hullMultiplier || 1)
+      * (1 + Math.max(0, Number(firmBoosters.hull || 0))),
     vitesse,
     vitesseReelle:getRealSpeedFromStat(vitesse),
     cargo: (ship.stats.cargo + (skill.cargo || 0)) * Number(skill.cargoMultiplier || 1),
@@ -137,7 +153,7 @@ export function getShipCombatStats(shipId = store.state.activeShip){
     weaponDamage: skill.weaponDamage || 0,
     weaponDamageMultiplier: Number(skill.weaponDamageMultiplier || 1) * Number(formationBonus.laserDamageMultiplier || 1),
     weaponDamagePercent: Number(skill.weaponDamageMultiplier || 1) * Number(formationBonus.laserDamageMultiplier || 1) - 1,
-    shieldAbsorbRatio: Math.max(0, Math.min(0.9, 0.5 + Number(skill.shieldAbsorbBonus || 0))),
+    shieldAbsorbRatio,
     evasionChance: Math.max(0, Math.min(0.75, Number(skill.evasionChance || 0))),
     damageToHpChance: Math.max(0, Math.min(0.5, Number(skill.damageToHpChance || 0))),
     blueLaserBeams: Number(skill.blueLaserBeams || 0) > 0,

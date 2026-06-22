@@ -1141,3 +1141,24 @@ Checks effectues :
 - `node --check` sur les fichiers JS modifies de cette passe : OK ;
 - `npm test` dans `server/` : 278 tests OK ;
 - `git diff --check` : OK, uniquement des avertissements CRLF.
+
+## Parametres client en jeu
+
+Etat au 22 juin 2026 :
+
+- `src/core/settingsSchema.js` porte le schema local versionne, les presets graphiques et leur normalisation ;
+- `src/core/settingsStore.js` expose les mutations de preferences sans ajouter de logique a la facade `store.js` ;
+- `src/game/ui/combatSettingsPanel.js` gere la fenetre a quatre onglets et la capture des touches ;
+- `src/game/systems/combatSettingsRuntime.js` centralise l'application immediate au HUD, au chat, au panneau PERF et au canvas ;
+- les preferences restent locales au navigateur et ne deviennent pas des donnees MMO autoritaires ;
+- les anciens champs `graphicsQuality`, `slotKeybinds` et `uiLayout` sont conserves et migres ;
+- la boucle de combat accepte un limiteur FPS sans modifier les ticks serveur caches ;
+- les options graphiques ne changent que le rendu client et jamais les degats, collisions, drones ou projectiles autoritaires.
+
+Checks effectues :
+
+- `node --check` sur les modules de parametres et de rendu modifies : OK ;
+- tests cibles parametres, migration et FPS : 9/9 OK ;
+- `npm test` dans `server/` : 433/433 OK ;
+- verification visuelle locale a 1280x720 : OK ;
+- `git diff --check` : OK, uniquement des avertissements CRLF.

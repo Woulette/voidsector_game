@@ -75,6 +75,15 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     pushEvent(multiplayer.playerHealEvents, event, 30);
     emitChange("player:healed", event);
   });
+  socket.on("ship:ability-state", event=>{
+    multiplayer.shipAbilityState = {...event, receivedAt:performance.now()};
+    pushEvent(multiplayer.shipAbilityEvents, event, 10);
+    emitChange("ship:ability-state", event);
+  });
+  socket.on("ship:ability-error", payload=>{
+    toast(payload?.message || "Compétence de vaisseau indisponible.");
+    emitChange("ship:ability-error", payload);
+  });
   socket.on("world:enemies", payload=>{
     if(multiplayer.coopInstanceId) return;
     multiplayer.coopSpawn = null;

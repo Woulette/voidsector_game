@@ -1,4 +1,5 @@
 import { captureProfileUiState, getProfileUiChanges, hasProfileUiChanges } from "./profileSyncChanges.js";
+import { setPersonalPlayerBoosters } from "../core/firmBoosterStore.js";
 
 export function createProfileController({
   store,
@@ -75,6 +76,10 @@ export function createProfileController({
       && typeof localSelectedShip === "string"
       && (incomingOwnedShips ? incomingOwnedShips.includes(localSelectedShip) : store.state.ownedShips.includes(localSelectedShip));
     if(profile.player) store.state.player = {...store.state.player, ...clone(profile.player)};
+    if(profile.boosters && typeof profile.boosters === "object"){
+      store.state.boosters = clone(profile.boosters);
+      setPersonalPlayerBoosters(profile.boosters);
+    }
     if(typeof profile.activeShip === "string") store.state.activeShip = profile.activeShip;
     if(typeof profile.selectedShip === "string") store.state.selectedShip = profile.selectedShip;
     if(Array.isArray(profile.ownedShips)){
@@ -116,7 +121,7 @@ export function createProfileController({
     store.state.player.xpNext = getXpNextForLevel(store.state.player.level);
     store.state.player.xp = Math.min(Math.max(0, Number(store.state.player.xp || 0)), store.state.player.xpNext);
     store.state.xpCurveVersion = xpCurveVersion;
-      for(const key of ["cargoHold","shipCargo","combatBoosts","skillRanks","skillLevels","completedPortals","portalPieces","refineryLevels","refineryModules","refineryUpgradeJobs","refineryProductionDisabled","questProgress","questFailProgress","completedQuestClaims","killStats","rankKillStats","worldSession","shipWorldSessions","firmBoxes"]){
+      for(const key of ["cargoHold","shipCargo","combatBoosts","shipAbilityStates","boosters","skillRanks","skillLevels","completedPortals","portalPieces","refineryLevels","refineryModules","refineryUpgradeJobs","refineryProductionDisabled","questProgress","questFailProgress","completedQuestClaims","killStats","rankKillStats","worldSession","shipWorldSessions","firmBoxes"]){
         if(profile[key] && typeof profile[key] === "object") store.state[key] = clone(profile[key]);
       }
     if(Number.isFinite(Number(profile.firmatons))) store.state.firmatons = Math.max(0, Math.floor(Number(profile.firmatons)));

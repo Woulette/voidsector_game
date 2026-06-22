@@ -143,9 +143,9 @@ export const refineryMaterialCatalog = rawMaterialCatalog.filter(material=>!mate
 export const craftResourceCatalog = rawMaterialCatalog.filter(material=>Boolean(material.rarity));
 
 export const refineryRecipes = [
-  {id:"refine_cuivre_zinc", name:"Fusion cuivre-zinc", outputId:"alliage_cuivre_zinc", outputAmount:1, durationMs:60_000, costs:{cuivre_orbital:10, zinc_spatial:10}, desc:"Fusionne cuivre orbital et zinc spatial en alliage conducteur."},
-  {id:"refine_nickel_titane", name:"Forge plaque", outputId:"plaque_nickel_titane", outputAmount:1, durationMs:75_000, costs:{titane_fissure:10, silice_conductrice:10}, desc:"Compresse titane et silice en plaque renforcée."},
-  {id:"refine_catalyseur", name:"Synthese catalyseur", outputId:"catalyseur_quantique", outputAmount:1, durationMs:90_000, costs:{zinc_spatial:10, nickel_brut:10, titane_fissure:10}, desc:"Stabilise zinc, nickel et titane en catalyseur."},
+  {id:"refine_cuivre_zinc", name:"Fusion cuivre-zinc", outputId:"alliage_cuivre_zinc", outputAmount:1, durationMs:60_000, costs:{cuivre_orbital:10, zinc_spatial:5}, desc:"Fusionne cuivre orbital et zinc spatial en alliage conducteur."},
+  {id:"refine_nickel_titane", name:"Forge plaque", outputId:"plaque_nickel_titane", outputAmount:1, durationMs:75_000, costs:{titane_fissure:5, silice_conductrice:10}, desc:"Compresse titane et silice en plaque renforcée."},
+  {id:"refine_catalyseur", name:"Synthese catalyseur", outputId:"catalyseur_quantique", outputAmount:1, durationMs:90_000, costs:{zinc_spatial:5, nickel_brut:10, titane_fissure:5}, desc:"Stabilise zinc, nickel et titane en catalyseur."},
   {id:"refine_conducteur", name:"Assemblage conducteur renforcé", outputId:"conducteur_renforce", outputAmount:1, durationMs:120_000, costs:{alliage_cuivre_zinc:10, catalyseur_quantique:5}, desc:"Combine alliage et catalyseur en composant conducteur avancé."},
   {id:"refine_blindage", name:"Assemblage blindage composite", outputId:"blindage_composite", outputAmount:1, durationMs:120_000, costs:{plaque_nickel_titane:10, catalyseur_quantique:5}, desc:"Renforce les plaques avec un catalyseur quantique."},
   {id:"refine_noyau_astra", name:"Stabilisation Noyau d'Astra", outputId:"noyau_astra", outputAmount:1, durationMs:240_000, costs:{catalyseur_quantique:10, conducteur_renforce:10, blindage_composite:10}, desc:"Stabilise les composants avancés avec un catalyseur spécial."}

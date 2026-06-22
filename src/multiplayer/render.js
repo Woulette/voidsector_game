@@ -171,7 +171,8 @@ export function drawRemotePlayers({
   profiles = {},
   selectedEnemy = null,
   player = null,
-  enemies = []
+  enemies = [],
+  graphicsEffects = {}
 }){
   const now = Date.now();
   for(const remote of multiplayer.remotePlayers.values()){
@@ -207,7 +208,8 @@ export function drawRemotePlayers({
         getDronePermanentUpgrade:index=>Boolean(sampledState.droneUpgrades?.[index]),
         droneFormation:sampledState.activeDroneFormation || "base",
         defaultProfile,
-        profiles
+        profiles,
+        graphicsEffects
       });
       drawSelectedRemoteOverlay({ctx, camera, remote, state:{...sampledState, x:render.x, y:render.y}, selectedEnemy});
     }else{

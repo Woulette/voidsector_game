@@ -18,6 +18,7 @@ import {
   upsertRemotePlayer as upsertRemotePlayerState
 } from "./socketState.js";
 import { installWorldSocketListeners } from "./worldSocketListeners.js";
+import { setPersonalFirmBoosterReward, setPersonalPlayerBoosters } from "../core/firmBoosterStore.js";
 
 const DEFAULT_SERVER_URL = "http://localhost:3001";
 const SERVER_STORAGE_KEY = "voidsector-multiplayer-server";
@@ -44,6 +45,13 @@ function clearStoredAuthToken(){
   localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   broadcastAuthChange({type:"logout"});
+}
+
+function removeStoredAuthTokenIfMatches(token){
+  const clean = String(token || "");
+  if(!clean) return;
+  if(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) === clean) localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  if(sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY) === clean) sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
 function shouldRememberAuth(){
@@ -105,6 +113,7 @@ export const multiplayer = {
   lootDropEvents:[],
   shopAmmoEvents:[],
   shopItemEvents:[],
+  shopBoosterEvents:[],
   shopPremiumPackEvents:[],
   premiumRewardEvents:[],
   inventorySaleEvents:[],
@@ -127,6 +136,8 @@ export const multiplayer = {
   rickyCinematicEvents:[],
   npcDamageEvents:[],
   playerHealEvents:[],
+  shipAbilityEvents:[],
+  shipAbilityState:null,
   serverEnemies:new Map(),
   serverEnemyScope:null,
   coopInstanceId:null,
@@ -342,6 +353,7 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     });
     multiplayer.socket = socket;
     socket.on("connect", ()=>{
+      multiplayer.disconnectIntent = "";
       multiplayer.connected = true;
       multiplayer.connecting = false;
       multiplayer.authoritativeSession = true;
@@ -364,19 +376,29 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       emitChange("connection:error");
     });
     socket.on("disconnect", socketReason=>{
+      const disconnectIntent = multiplayer.disconnectIntent || "";
       multiplayer.connected = false;
       multiplayer.group = null;
       multiplayer.logout = {pending:false, completeAt:null, reason:""};
       emitChange("connection:disconnect", {
-        intent:multiplayer.disconnectIntent || "",
+        intent:disconnectIntent,
         socketReason:String(socketReason || "")
       });
+      multiplayer.disconnectIntent = "";
     });
     socket.on("server:ready", payload=>{
       multiplayer.playerId = payload?.id || socket.id;
       emitChange("server:ready");
     });
     socket.on("auth:success", payload=>{
+      const previousAccountId = String(multiplayer.auth.account?.id || "");
+      const nextAccountId = String(payload?.account?.id || "");
+      if(previousAccountId !== nextAccountId){
+        multiplayer.firmSnapshot = null;
+        multiplayer.firmRanking = null;
+        setPersonalFirmBoosterReward(null);
+        setPersonalPlayerBoosters(null);
+      }
       auth.setSuccess(payload);
     });
     socket.on("account:role", payload=>{
@@ -403,6 +425,13 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       toast("Compte deconnecte.");
       emitChange("auth:logout");
       setTimeout(()=>disconnectMultiplayer("account-logout"), 0);
+    });
+    socket.on("auth:replaced", payload=>{
+      removeStoredAuthTokenIfMatches(multiplayer.auth.token);
+      multiplayer.auth = {...multiplayer.auth, account:null, token:"", expiresAt:null, pending:false, error:"", profileReady:false};
+      multiplayer.disconnectIntent = "session-replaced";
+      toast(String(payload?.message || "Ce compte a ete connecte depuis une autre session."));
+      emitChange("auth:replaced", payload);
     });
     socket.on("session:logout-started", payload=>{
       multiplayer.logout = {
@@ -525,6 +554,8 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.admin = {snapshot:null, inspect:null, pending:false, error:"", lastSyncAt:0, lastAction:null};
   multiplayer.firmRanking = null;
   multiplayer.firmSnapshot = null;
+  setPersonalFirmBoosterReward(null);
+  setPersonalPlayerBoosters(null);
   multiplayer.firmEvents = [];
   multiplayer.remotePlayers.clear();
   multiplayer.remoteEffects = [];
@@ -540,6 +571,7 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.lootDropEvents = [];
   multiplayer.shopAmmoEvents = [];
   multiplayer.shopItemEvents = [];
+  multiplayer.shopBoosterEvents = [];
   multiplayer.shopPremiumPackEvents = [];
   multiplayer.premiumRewardEvents = [];
   multiplayer.inventorySaleEvents = [];
@@ -561,6 +593,8 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.rickyCinematicEvents = [];
   multiplayer.npcDamageEvents = [];
   multiplayer.playerHealEvents = [];
+  multiplayer.shipAbilityEvents = [];
+  multiplayer.shipAbilityState = null;
   multiplayer.serverEnemies.clear();
   multiplayer.serverEnemyScope = null;
   multiplayer.coopInstanceId = null;
@@ -610,6 +644,7 @@ export const requestPlayerRespawn = socketCommands.requestPlayerRespawn;
 export const startPortgunTeleport = socketCommands.startPortgunTeleport;
 export const activateRickyPortalLever = socketCommands.activateRickyPortalLever;
 export const activateRickyHealBeacon = socketCommands.activateRickyHealBeacon;
+export const activateShipAbility = socketCommands.activateShipAbility;
 export const setupServerProfile = socketCommands.setupServerProfile;
 export const setServerProfileTitle = socketCommands.setServerProfileTitle;
 export const resetServerFirmDebug = socketCommands.resetServerFirmDebug;
@@ -626,6 +661,7 @@ export const buyFirmShopItem = firmCommands.buyFirmShopItem;
 export const openFirmBox = firmCommands.openFirmBox;
 export const claimFirmRewards = firmCommands.claimFirmRewards;
 export const claimFirmQuest = firmCommands.claimFirmQuest;
+export const claimFirmSeasonObjective = firmCommands.claimFirmSeasonObjective;
 export const acceptFirmQuest = firmCommands.acceptFirmQuest;
 export {sendPlayerSnapshot, sendPlayerActivity, sendServerEnemyHit, sendServerPlayerHit, sendPlayerLaserEffect};
 
@@ -651,6 +687,7 @@ export const {
   depositServerCombatBoostMaterial,
   buyServerAmmo,
   buyServerItem,
+  buyServerBooster,
   buyServerPremiumPack,
   claimServerPremiumReward,
   sellServerInventoryItem,
@@ -659,6 +696,7 @@ export const {
   buyServerDrone,
   buyServerDroneFormation,
   equipServerInventoryItem,
+  applyServerEquipmentBatch,
   unequipServerSlot,
   unequipServerShip,
   unequipServerInventoryItem,

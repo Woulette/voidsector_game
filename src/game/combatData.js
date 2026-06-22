@@ -1030,6 +1030,7 @@ function applySectorGraphPortals(){
     const map = getMapByName(mapName);
     if(!map || !core) return;
     addPortalIfMissing(map, portalFromDir({from:fromDir, toMap:core.id, to:coreDir, label:"VERS CORE"}));
+    addPortalIfMissing(core, portalFromDir({from:coreDir, toMap:map.id, to:fromDir, label:`VERS ${map.name}`}));
   });
 }
 
@@ -1430,7 +1431,7 @@ export const ENEMY_TYPES = {
     levelRange:[10,14],
     maxHp:()=>40000,
     maxShield:()=>20000,
-    speed:()=>270,
+    speed:()=>240,
     radius:35,
     width:82,
     height:82,
@@ -1464,7 +1465,7 @@ export const ENEMY_TYPES = {
     levelRange:[20,24],
     maxHp:()=>180000,
     maxShield:()=>140000,
-    speed:()=>250,
+    speed:()=>220,
     radius:47,
     width:112,
     height:112,
@@ -1501,7 +1502,7 @@ export const ENEMY_TYPES = {
     levelRange:[20,24],
     maxHp:()=>450000,
     maxShield:()=>400000,
-    speed:()=>240,
+    speed:()=>210,
     radius:72,
     width:168,
     height:168,

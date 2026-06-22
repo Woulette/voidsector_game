@@ -779,9 +779,10 @@ function drawParallaxBackground({ctx, canvas, cache, currentMap, camera, stars, 
   drawParallaxVignette({ctx, canvas});
 }
 
-function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars, dust, graphicsQuality = "high"}){
+function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars, dust, graphicsQuality = "high", graphicsEffects = null}){
   const w = viewWidth(canvas), h = viewHeight(canvas);
   const quality = currentMap?.parallaxScene?.qualityOverride || graphicsQuality;
+  const effect = (id, fallback)=>graphicsEffects && typeof graphicsEffects[id] === "boolean" ? graphicsEffects[id] : fallback;
   const bg = ctx.createLinearGradient(0,0,w,h);
   const colors = currentMap?.parallaxScene?.background || ["#01040b", "#07182b", "#01040b"];
   bg.addColorStop(0, colors[0] || "#01040b");
@@ -791,18 +792,18 @@ function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars,
   ctx.fillRect(0,0,w,h);
 
   if(currentMap?.parallaxScene?.enabled){
-    if(quality !== "low") drawParallaxNebulae({ctx, canvas, currentMap, camera});
-    if(quality !== "low") drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera});
-    drawParallaxStars({ctx, canvas, camera, stars, dust:quality === "low" ? [] : dust});
-    if(quality === "high") drawParallaxDustSpecks({ctx, canvas, currentMap, camera});
-    if(quality !== "low") drawParallaxTiles({ctx, canvas, cache, currentMap, camera});
-    if(quality !== "low") drawParallaxLightClouds({ctx, canvas, currentMap, camera});
-    if(quality === "high") drawParallaxStarLights({ctx, canvas, currentMap, camera});
+    if(effect("nebulae", quality !== "low")) drawParallaxNebulae({ctx, canvas, currentMap, camera});
+    if(effect("nebulae", quality !== "low")) drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera});
+    drawParallaxStars({ctx, canvas, camera, stars, dust:effect("cosmicClouds", quality !== "low") ? dust : []});
+    if(effect("cosmicClouds", quality === "high")) drawParallaxDustSpecks({ctx, canvas, currentMap, camera});
+    if(effect("cosmicClouds", quality !== "low")) drawParallaxTiles({ctx, canvas, cache, currentMap, camera});
+    if(effect("cosmicClouds", quality !== "low")) drawParallaxLightClouds({ctx, canvas, currentMap, camera});
+    if(effect("starGlow", quality === "high")) drawParallaxStarLights({ctx, canvas, currentMap, camera});
     drawParallaxImages({ctx, canvas, cache, currentMap, camera});
-    if(quality === "high") drawParallaxForegroundClouds({ctx, canvas, currentMap, camera});
-    if(quality !== "low") drawParallaxAsteroids({ctx, canvas, currentMap, camera});
-    if(quality !== "low") drawParallaxGlowSpots({ctx, canvas, currentMap, camera});
-    if(quality !== "low") drawParallaxVignette({ctx, canvas});
+    if(effect("cosmicClouds", quality === "high")) drawParallaxForegroundClouds({ctx, canvas, currentMap, camera});
+    if(effect("backgroundAsteroids", quality !== "low")) drawParallaxAsteroids({ctx, canvas, currentMap, camera});
+    if(effect("starGlow", quality !== "low")) drawParallaxGlowSpots({ctx, canvas, currentMap, camera});
+    if(effect("vignette", quality !== "low")) drawParallaxVignette({ctx, canvas});
     return;
   }
 
@@ -817,7 +818,7 @@ function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars,
   }
 
   if(tileState.complete || tileState.drawn) return;
-  for(const n of nebulae){
+  for(const n of effect("nebulae", quality !== "low") ? nebulae : []){
     const sx = n.x - camera.x*n.p + w/2;
     const sy = n.y - camera.y*n.p + h/2;
     const g = ctx.createRadialGradient(sx,sy,0,sx,sy,n.r);
@@ -844,7 +845,7 @@ function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars,
     ctx.fill();
   }
   ctx.strokeStyle = "rgba(125,211,252,.10)";
-  for(const d of dust){
+  for(const d of effect("cosmicClouds", quality !== "low") ? dust : []){
     const sx = d.x - camera.x*d.p + w/2;
     const sy = d.y - camera.y*d.p + h/2;
     if(sx < -100 || sx > w+100 || sy < -100 || sy > h+100) continue;
@@ -1185,7 +1186,8 @@ function drawWorldMarkers({
   stations,
   cache,
   getMapPortals = getDefaultMapPortals,
-  getClosedMapPortals = getDefaultClosedMapPortals
+  getClosedMapPortals = getDefaultClosedMapPortals,
+  graphicsEffects = null
 }){
   ctx.save();
   ctx.translate(-camera.x,-camera.y);
@@ -1229,13 +1231,14 @@ function drawWorldMarkers({
     }
   }
 
-  drawMapPortals({ctx, currentMap, getMapPortals});
+  drawMapPortals({ctx, currentMap, getMapPortals, simplified:graphicsEffects?.portalEffects === false});
   const closedPortals = getClosedMapPortals(currentMap);
   if(closedPortals.length){
     drawMapPortals({
       ctx,
       currentMap:{...currentMap, portal:null, portals:closedPortals},
-      getMapPortals:map=>map.portals || []
+      getMapPortals:map=>map.portals || [],
+      simplified:graphicsEffects?.portalEffects === false
     });
   }
   drawQuestNpcs({ctx, cache, currentMap});
@@ -1246,5 +1249,5 @@ export function drawWorldLayer(options){
   drawBackground(options);
   if(!options.currentMap?.parallaxScene?.hideGrid) drawGrid(options);
   drawWorldMarkers(options);
-  drawCloseSpeedStars(options);
+  if(options.graphicsEffects?.backgroundAsteroids !== false) drawCloseSpeedStars(options);
 }

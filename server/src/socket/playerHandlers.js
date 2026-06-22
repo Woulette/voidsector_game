@@ -25,6 +25,7 @@ export function registerPlayerHandlers(socket, context){
     players,
     presence,
     profileManager,
+    firmWarManager,
     publicPlayer,
     replaceGroupMemberId,
     respawnPlayer,
@@ -367,11 +368,18 @@ export function registerPlayerHandlers(socket, context){
     }else{
       player.lastClientStateAt = now;
     }
+    const profile = profileManager.getProfileForPlayer(player);
     const validation = validatePlayerState({
       player,
       payload:validationPayload,
-      profile:profileManager.getProfileForPlayer(player),
+      profile,
       groups,
+      firmBoosters:firmWarManager?.getActiveBoosters?.(
+        profile?.player?.firmId || player.account?.firmId || "astra",
+        profile,
+        player,
+        profileManager.profileKeyForPlayer?.(player) || ""
+      ) || {},
       now
     });
     player.state = validation.state;

@@ -1,5 +1,5 @@
 import { loginAccount, registerAccount } from "../auth/accounts.js";
-import { createSession, getSessionAccount, revokeSessionByToken } from "../auth/sessions.js";
+import { createSession, getSessionAccount, revokeSessionByToken, revokeSessionsForAccount } from "../auth/sessions.js";
 
 export function registerAuthHandlers(socket, context){
   const {
@@ -8,8 +8,29 @@ export function registerAuthHandlers(socket, context){
     guard,
     players,
     publicAuthPayload,
-    syncProfileForPlayer
+    syncProfileForPlayer,
+    loginAccount:authenticateAccount = loginAccount,
+    createSession:createAuthSession = createSession,
+    revokeSessionsForAccount:revokeAccountSessions = revokeSessionsForAccount
   } = context;
+
+  function disconnectPreviousAccountSockets(accountId){
+    const previousPlayers = [...players.values()].filter(candidate=>
+      candidate.id !== socket.id
+      && String(candidate.accountId || "") === String(accountId || "")
+    );
+    for(const candidate of previousPlayers){
+      const candidateSocket = socket.nsp?.sockets?.get(candidate.id);
+      if(!candidateSocket) continue;
+      candidate.gracefulLogout = candidate.clientMode !== "game" || !candidate.state;
+      candidateSocket.emit("auth:replaced", {
+        message:"Ce compte vient d'etre connecte depuis une autre session.",
+        at:Date.now()
+      });
+      candidateSocket.disconnect(true);
+    }
+    return previousPlayers.length;
+  }
 
   socket.on("auth:register", async payload=>{
     if(!guard("auth:register")) return;
@@ -27,8 +48,10 @@ export function registerAuthHandlers(socket, context){
   socket.on("auth:login", async payload=>{
     if(!guard("auth:login")) return;
     try{
-      const account = await loginAccount(payload);
-      const session = await createSession(account.id);
+      const account = await authenticateAccount(payload);
+      await revokeAccountSessions(account.id);
+      const session = await createAuthSession(account.id);
+      disconnectPreviousAccountSockets(account.id);
       attachOrResumeAccountSocket(socket, account, session);
       socket.emit("auth:success", publicAuthPayload({account, session}));
       syncProfileForPlayer(socket);

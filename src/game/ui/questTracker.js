@@ -215,8 +215,8 @@ function renderRewardsTab({quest, rawMaterials}){
     }).join("");
   return `<div class="combat-quest-rewards">
     <div class="combat-quest-reward-line two">
-      <div class="combat-quest-reward-row credits"><img src="assets/icons/credits.svg" alt=""><span>Credits</span><b title="${fmt(quest.rewards?.credits || 0)}">${fmtCompact(quest.rewards?.credits || 0)}</b></div>
-      <div class="combat-quest-reward-row nova"><img src="assets/icons/premium.svg" alt=""><span>NOVA</span><b title="${fmt(quest.rewards?.premium || 0)}">${fmtCompact(quest.rewards?.premium || 0)}</b></div>
+      <div class="combat-quest-reward-row credits" aria-label="Crédits"><img src="assets/icons/credits.svg" alt=""><b title="${fmt(quest.rewards?.credits || 0)}">${fmtCompact(quest.rewards?.credits || 0)}</b></div>
+      <div class="combat-quest-reward-row nova" aria-label="NOVA"><img src="assets/icons/premium.svg" alt=""><b title="${fmt(quest.rewards?.premium || 0)}">${fmtCompact(quest.rewards?.premium || 0)}</b></div>
     </div>
     <div class="combat-quest-reward-line">
       <div class="combat-quest-reward-row xp"><span class="combat-quest-reward-icon">XP</span><span>Experience</span><b title="${fmt(quest.rewards?.xp || 0)}">${fmtCompact(quest.rewards?.xp || 0)}</b></div>

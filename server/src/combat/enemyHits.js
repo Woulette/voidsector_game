@@ -1,4 +1,5 @@
 import { resolveServerCombatFire } from "./damage.js";
+import { applyServerShipLifeSteal } from "./shipAbilities.js";
 import { markEnemyAttackedByPlayer } from "../world/aggro.js";
 import { getFirmHitOwner, markFirmHitOwner } from "../firms/firmHitOwnership.js";
 
@@ -16,6 +17,10 @@ function applyDamageToEnemy(enemy, incoming){
   }
   enemy.hp = Math.max(0, enemy.hp);
   enemy.shield = Math.max(0, enemy.shield);
+}
+
+function enemyDurability(enemy){
+  return Math.max(0, Number(enemy?.hp || 0)) + Math.max(0, Number(enemy?.shield || 0));
 }
 
 export function emitCombatHitToAudience({io, socket, player, group, payload}){
@@ -41,6 +46,7 @@ export function createEnemyHitHandler({
   players,
   presence,
   profileManager,
+  firmWarManager,
   emitProfileSync,
   applyEnemyDeathEffect,
   progressServerQuestsForKill,
@@ -50,6 +56,33 @@ export function createEnemyHitHandler({
   updateLootOwner,
   portalWaveTotal
 }){
+  function getFirmDamageBonus(profile, player){
+    const firmId = profile?.player?.firmId || player?.account?.firmId || "astra";
+    const playerKey = profileManager.profileKeyForPlayer?.(player) || "";
+    return Math.max(0, Number(firmWarManager?.getActiveBoosters?.(firmId, profile, player, playerKey)?.damage || 0));
+  }
+
+  function applyLifeSteal(player, profile, damageDealt, weaponClass, source){
+    const result = applyServerShipLifeSteal({player, profile, damageDealt, weaponClass});
+    if(result.healed <= 0) return result;
+    profileManager.saveWorldSession?.({player, state:player.state, force:false});
+    io.to(player.id).emit("player:healed", {
+      targetId:player.id,
+      sourceId:result.status?.abilityId || "absorbing_fire",
+      amount:result.healed,
+      hp:Number(player.state.hp || 0),
+      maxHp:Number(player.state.maxHp || 0),
+      mapId:String(player.mapId ?? player.state.mapId ?? ""),
+      x:Number(player.state.x || 0),
+      y:Number(player.state.y || 0),
+      fromX:Number(source?.x || 0),
+      fromY:Number(source?.y || 0),
+      weaponClass:String(weaponClass || ""),
+      at:Date.now()
+    });
+    return result;
+  }
+
   function emitCombatMissPayload({socket = null, player = null, payload = {}, enemy = null, reason = "", silent = false} = {}){
     if(silent) return {ok:false, reason};
     const emitter = socket || (player?.id ? io.to(player.id) : null);
@@ -104,7 +137,7 @@ export function createEnemyHitHandler({
     if(worldEnemy){
       const result = updateCombatProfile({
         player,
-        update:profile=>resolveServerCombatFire({player, profile, enemy:worldEnemy, payload})
+        update:profile=>resolveServerCombatFire({player, profile, enemy:worldEnemy, payload, firmDamageBonus:getFirmDamageBonus(profile, player)})
       });
       if(!result.ok){
         return emitCombatMiss(worldEnemy, result.reason || "Tir non valide.");
@@ -135,7 +168,9 @@ export function createEnemyHitHandler({
       const wasAlive = worldEnemy.hp > 0;
       updateLootOwner(worldEnemy, attackerId);
       markFirmHitOwner(worldEnemy, player);
+      const durabilityBefore = enemyDurability(worldEnemy);
       applyDamageToEnemy(worldEnemy, incoming);
+      applyLifeSteal(player, result.profile, durabilityBefore - enemyDurability(worldEnemy), result.weaponClass, worldEnemy);
       if(wasAlive && worldEnemy.hp <= 0){
         emitWorldReward({
           enemy:worldEnemy,
@@ -173,7 +208,7 @@ export function createEnemyHitHandler({
     }
     const result = updateCombatProfile({
       player,
-      update:profile=>resolveServerCombatFire({player, profile, enemy, payload})
+      update:profile=>resolveServerCombatFire({player, profile, enemy, payload, firmDamageBonus:getFirmDamageBonus(profile, player)})
     });
     if(!result.ok){
       return emitCombatMiss(enemy, result.reason || "Tir non valide.");
@@ -200,7 +235,9 @@ export function createEnemyHitHandler({
     }
     const wasAlive = enemy.hp > 0;
     markFirmHitOwner(enemy, player);
+    const durabilityBefore = enemyDurability(enemy);
     applyDamageToEnemy(enemy, incoming);
+    applyLifeSteal(player, result.profile, durabilityBefore - enemyDurability(enemy), result.weaponClass, enemy);
     if(instance.type === "portal" && wasAlive && enemy.hp <= 0 && !instance.completed){
       if(handlePortalEnemyDeath) handlePortalEnemyDeath(group, enemy, attackerId);
       else{

@@ -2,25 +2,27 @@ import { ammoTypes, droneCatalog, droneFormations, equipment, ships } from "../d
 import { isPremiumActive, premiumRemainingLabel, premiumShopPacks } from "../data/premium.js";
 import { fmt } from "../core/utils.js";
 import {
-  basePriceLabel,
   canAfford,
   getAmmoCount,
+  getCurrencyPrice,
   getDronePurchasePrice,
   getInventoryCount,
   getShipPurchaseLockReason,
   hasCurrencyDiscount,
-  priceLabel,
   store
 } from "../core/store.js";
 import { statLabelForItem } from "./renderShared.js";
+import { S1_BOOSTER_SHOP } from "../shared/firmBoosters.js";
+import { currencyAmountHtml } from "./currencyIcons.js";
 
 function shopCatalog(){
   return [
     ...ships.map(ship=>({kind:"ship", category:"vaisseau", id:ship.id, data:ship})),
-    ...equipment.filter(item=>item.shop !== false).map(item=>({kind:"item", category:item.shopCategory || item.category, id:item.id, data:item})),
+    ...equipment.filter(item=>item.shop !== false && (item.shopCategory || item.category) !== "module").map(item=>({kind:"item", category:item.shopCategory || item.category, id:item.id, data:item})),
     ...ammoTypes.map(ammo=>({kind:"ammo", category:"munition", id:ammo.id, data:ammo})),
     ...droneCatalog.map(drone=>({kind:"drone", category:"drone", id:drone.id, data:drone})),
     ...droneFormations.map(formation=>({kind:"droneFormation", category:"drone", id:formation.id, data:formation})),
+    ...S1_BOOSTER_SHOP.map(booster=>({kind:"booster", category:"booster", id:booster.id, data:booster})),
     ...premiumShopPacks.map(pack=>({kind:"premiumPack", category:"premium", id:pack.id, data:pack}))
   ];
 }
@@ -31,6 +33,7 @@ function productIsOwned(product){
   if(product.kind === "ammo") return getAmmoCount(product.id) > 0;
   if(product.kind === "drone") return (store.state.ownedDroneCount || 0) > 0;
   if(product.kind === "droneFormation") return store.state.ownedDroneFormations?.includes(product.id);
+  if(product.kind === "booster") return Number(store.state.boosters?.s1?.[product.data.type]?.remainingMs || 0) > 0;
   return getInventoryCount(product.id) > 0;
 }
 
@@ -46,26 +49,27 @@ function productLockLabel(product){
 function productUnlocked(product){ return !productLockLabel(product); }
 
 const SHOP_FILTER_META = {
-  vaisseau:{title:"Vaisseaux", subtitle:"Flotte disponible à l'achat : châssis progressifs sans verrou de niveau.", empty:"Aucun vaisseau à afficher."},
-  canon:{title:"Armes", subtitle:"Générations de lasers disponibles à l'achat.", empty:"Aucune arme disponible."},
-  munition:{title:"Munitions / Roquettes / Missiles", subtitle:"Munitions laser et roquettes pour les slots 1-9, missiles pour le module CPU.", empty:"Aucune munition disponible."},
-  generateur:{title:"Générateurs", subtitle:"Boucliers, régénération et vitesse pour ton vaisseau ou tes drones.", empty:"Aucun générateur disponible."},
-  drone:{title:"Drones", subtitle:"Drones orbitaux : achat progressif, un slot par drone, max 10.", empty:"Aucun drone dans cette catégorie."},
-  extra:{title:"Extras", subtitle:"Modules extra à placer dans les 3 slots extras du vaisseau.", empty:"Aucun extra disponible."},
-  module:{title:"Modules", subtitle:"Modules spéciaux et améliorations de munitions.", empty:"Aucun module disponible."},
-  premium:{title:"Packs Premium", subtitle:"Pass premium achetables en NOVA. Ils prolongent la duree si le statut est deja actif.", empty:"Aucun pack premium."},
-  owned:{title:"Possédé", subtitle:"Retrouve rapidement tout ce que tu as deja acheté.", empty:"Tu ne possèdes encore rien dans ce filtre."}
+  vaisseau:{title:"Vaisseaux", empty:"Aucun vaisseau à afficher."},
+  canon:{title:"Armes", empty:"Aucune arme disponible."},
+  munition:{title:"Munitions / Roquettes / Missiles", empty:"Aucune munition disponible."},
+  generateur:{title:"Générateurs", empty:"Aucun générateur disponible."},
+  drone:{title:"Drones", empty:"Aucun drone dans cette catégorie."},
+  extra:{title:"Extras", empty:"Aucun extra disponible."},
+  booster:{title:"Boosters", empty:"Aucun booster disponible."},
+  premium:{title:"Packs Premium", empty:"Aucun pack premium."},
+  owned:{title:"Possédé", empty:"Tu ne possèdes encore rien dans ce filtre."}
 };
 
 function productKey(product){ return `${product.kind}:${product.id}`; }
 function shopAmmoMultiplier(){ return [1, 10, 100, 1000].includes(Number(store.selectedShopAmmoMultiplier)) ? Number(store.selectedShopAmmoMultiplier) : 1; }
+function shopBoosterMultiplier(){ return [1, 10, 50, 100].includes(Number(store.selectedShopBoosterMultiplier)) ? Number(store.selectedShopBoosterMultiplier) : 1; }
 function shopPriceClass(priceType){
   return priceType === "premium" ? "shop-price premium" : "shop-price credits";
 }
 function shopPriceHtml(priceType, price){
-  const current = `<strong class="${shopPriceClass(priceType)}">${priceLabel(priceType, price)}</strong>`;
+  const current = `<strong class="${shopPriceClass(priceType)}">${currencyAmountHtml(priceType, getCurrencyPrice(priceType, price))}</strong>`;
   if(!hasCurrencyDiscount(priceType, price)) return current;
-  return `<span class="shop-price-discount"><s>${basePriceLabel(priceType, price)}</s>${current}</span>`;
+  return `<span class="shop-price-discount"><s>${currencyAmountHtml(priceType, price)}</s>${current}</span>`;
 }
 function renderAmmoPurchaseControls(ammo){
   const selected = shopAmmoMultiplier();
@@ -74,19 +78,43 @@ function renderAmmoPurchaseControls(ammo){
     <small>${fmt(ammo.amount * selected)} unités</small>
   </div>`;
 }
+function renderItemPurchaseControls(item){
+  if(item.id !== "teleportation_fluid") return "";
+  const selected = shopAmmoMultiplier();
+  return `<div class="shop-ammo-buy-options">
+    ${[1,10,100,1000].map(value=>`<button type="button" class="${selected === value ? "active" : ""}" data-shop-ammo-multiplier="${value}">x${fmt(value)}</button>`).join("")}
+    <small>${fmt(selected)} unité${selected > 1 ? "s" : ""}</small>
+  </div>`;
+}
+function renderBoosterPurchaseControls(){
+  const selected = shopBoosterMultiplier();
+  return `<div class="shop-ammo-buy-options shop-booster-buy-options">
+    ${[1,10,50,100].map(value=>`<button type="button" class="${selected === value ? "active" : ""}" data-shop-booster-multiplier="${value}">x${fmt(value)}</button>`).join("")}
+    <small>${fmt(selected * 5)} h</small>
+  </div>`;
+}
+function boosterRemainingLabel(booster){
+  const milliseconds = Math.max(0, Number(store.state.boosters?.s1?.[booster.type]?.remainingMs || 0));
+  if(milliseconds <= 0) return "Inactif";
+  const hours = Math.floor(milliseconds / 3_600_000);
+  const minutes = Math.floor(milliseconds % 3_600_000 / 60_000);
+  return `${fmt(hours)} h ${minutes} min`;
+}
 function shipStateLabel(ship){ return store.state.activeShip === ship.id ? "ACTIF" : store.state.ownedShips.includes(ship.id) ? "POSSÉDÉ" : "DISPONIBLE"; }
 
 function productDetailStats(product){
   if(product.kind === "ship"){
     const ship = product.data;
     return [
-      `Vie ${ship.stats.vie}`,
-      `Vitesse ${ship.stats.vitesse}`,
-      `Cargo ${ship.stats.cargo}`,
-      `Lasers ${ship.stats.maxLasers}`,
-      `Générateurs ${ship.stats.maxGenerators}`,
-      `Extras ${ship.stats.maxExtras || 3}`,
-      `Spécial Aucun`
+      `VIE ${fmt(ship.stats.vie)}`,
+      `VITESSE ${fmt(ship.stats.vitesse)}`,
+      `CARGO ${fmt(ship.stats.cargo)}`,
+      `LASERS ${fmt(ship.stats.maxLasers)}`,
+      `GÉNÉRATEURS ${fmt(ship.stats.maxGenerators)}`,
+      `EXTRAS ${fmt(ship.stats.maxExtras || 3)}`,
+      `LANCE-ROQUETTES ${fmt(ship.stats.maxRocketLaunchers ?? 1)}`,
+      `LANCE-MISSILES ${fmt(ship.stats.maxMissileLaunchers ?? 1)}`,
+      `SPÉCIAL ${ship.special || "Aucun"}`
     ];
   }
   if(product.kind === "ammo"){
@@ -119,7 +147,7 @@ function productDetailStats(product){
       `Drones possédés ${count}/${drone.maxOwned}`,
       `Emplacements 1 par drone`,
       `Compatibilité laser / générateur`,
-      `Prix suivant ${next ? priceLabel(drone.priceType, next) : "MAX"}`
+      `Prix suivant ${next ? currencyAmountHtml(drone.priceType, getCurrencyPrice(drone.priceType, next)) : "MAX"}`
     ];
   }
   if(product.kind === "premiumPack"){
@@ -131,21 +159,32 @@ function productDetailStats(product){
       ...pack.features
     ];
   }
+  if(product.kind === "booster"){
+    const booster = product.data;
+    return [
+      `BONUS +${Math.round(Number(booster.percent || 0) * 100)}% ${booster.type === "hull" ? "vie" : booster.type}`,
+      `DURÉE ${shopBoosterMultiplier() * 5} h`,
+      `RÉSERVE ${boosterRemainingLabel(booster)}`
+    ];
+  }
   const item = product.data;
+  const stockLine = `Stock ${fmt(getInventoryCount(item.id))}`;
   if(item.category === "canon" && item.weapon){
     const min = item.weapon.minDamage ?? item.weapon.damage ?? 0;
     const max = item.weapon.maxDamage ?? item.weapon.damage ?? min;
     return [
       `DÉGÂTS ${min}-${max}`,
       `PORTÉE ${item.weapon.range}`,
-      `CADENCE ${item.weapon.cooldown.toFixed(2)}s`
+      `CADENCE ${item.weapon.cooldown.toFixed(2)}s`,
+      stockLine
     ];
   }
   if(item.slotType === "rocketLauncher"){
     return [
       `DÉGÂTS ROQUETTE ${item.stats?.degats || "100%"}`,
       `PORTÉE ${item.stats?.portee || 0}`,
-      `CADENCE ${item.stats?.cadence || "0.00s"}`
+      `CADENCE ${item.stats?.cadence || "0.00s"}`,
+      stockLine
     ];
   }
   if(item.slotType === "missileLauncher"){
@@ -154,30 +193,34 @@ function productDetailStats(product){
       `PORTÉE ${item.stats?.portee || 0}`,
       `RECHARGE ${item.stats?.recharge || "0.00s"}`,
       `CAPACITÉ ${item.stats?.missiles || 0}`,
-      `RECHARGE TOTALE ${item.stats?.rechargeTotale || "0.00s"}`
+      `RECHARGE TOTALE ${item.stats?.rechargeTotale || "0.00s"}`,
+      stockLine
     ];
   }
   if(item.category === "generateur"){
     const lines = [];
     if(Number(item.stats?.bouclier || 0) > 0) lines.push(`BOUCLIER +${fmt(item.stats.bouclier)}`);
     if(Number(item.stats?.regen || 0) > 0) lines.push(`REGENERATION +${fmt(item.stats.regen)}/s`);
+    if(item.stats?.absorption) lines.push(`ABSORPTION ${item.stats.absorption}`);
     if(Number(item.stats?.vitesse || 0) > 0) lines.push(`VITESSE +${fmt(item.stats.vitesse)}`);
     lines.push("SLOT VAISSEAU / DRONE");
+    lines.push(stockLine);
     return lines;
   }
   if(item.category === "extra"){
     return [
       `EFFET ${item.stats?.extra || "Bonus passif"}`,
-      "SLOT EXTRA VAISSEAU"
+      "SLOT EXTRA VAISSEAU",
+      stockLine
     ];
   }
   if(item.category === "quest_item"){
     return [
       `EFFET ${item.stats?.extra || "Objet de quete"}`,
-      `Stock ${fmt(getInventoryCount(item.id))}`
+      stockLine
     ];
   }
-  return statLabelForItem(item).split(" · ");
+  return [...statLabelForItem(item).split(" · "), stockLine];
 }
 
 function shopItemStatsHtml(item){
@@ -209,6 +252,7 @@ function shopItemStatsHtml(item){
     const lines = [];
     if(Number(item.stats?.bouclier || 0) > 0) lines.push(`<span><b>Bouclier</b>+${fmt(item.stats.bouclier)}</span>`);
     if(Number(item.stats?.regen || 0) > 0) lines.push(`<span><b>Regen</b>+${fmt(item.stats.regen)}/s</span>`);
+    if(item.stats?.absorption) lines.push(`<span><b>Absorption</b>${item.stats.absorption}</span>`);
     if(Number(item.stats?.vitesse || 0) > 0) lines.push(`<span><b>Vitesse</b>+${fmt(item.stats.vitesse)}</span>`);
     return `<div class="shop-item-stat-lines">${lines.join("")}</div>`;
   }
@@ -248,11 +292,17 @@ function shopShipStatsHtml(ship){
       <span><b>Vie</b>${fmt(ship.stats.vie)}</span>
       <span><b>Vitesse</b>${fmt(ship.stats.vitesse)}</span>
       <span><b>Lasers</b>${fmt(ship.stats.maxLasers)}</span>
+      <span><b>Générateurs</b>${fmt(ship.stats.maxGenerators)}</span>
+      <span><b>Extras</b>${fmt(ship.stats.maxExtras || 3)}</span>
     </div>`;
 }
 
 function renderShopDetailStat(line){
-  const match = String(line).match(/^(BOUCLIER|REGENERATION|VITESSE|PACK|MULTIPLICATEUR|STOCK|EFFET|SLOT)\s+(.+)$/i) || String(line).match(/^(D\S+(?:\s+ROQUETTE|\s+MISSILE)?|PORT\S+[E\u00c9]|CADENCE|RECHARGE|CAPACIT\S+|RECHARGE TOTALE)\s+(.+)$/);
+  const absorptionMatch = String(line).match(/^(ABSORPTION)\s+(.+)$/i);
+  if(absorptionMatch){
+    return `<div class="shop-detail-stat featured"><b>ABSORPTION</b><strong>${absorptionMatch[2]}</strong></div>`;
+  }
+  const match = String(line).match(/^(VIE|BOUCLIER|REGENERATION|VITESSE|CARGO|LASERS|GÉNÉRATEURS|EXTRAS|LANCE-ROQUETTES|LANCE-MISSILES|SPÉCIAL|PACK|MULTIPLICATEUR|STOCK|EFFET|SLOT|BONUS|DURÉE|RÉSERVE)\s+(.+)$/i) || String(line).match(/^(D\S+(?:\s+ROQUETTE|\s+MISSILE)?|PORT\S+[E\u00c9]|CADENCE|RECHARGE|CAPACIT\S+|RECHARGE TOTALE)\s+(.+)$/);
   if(match){
     return `<div class="shop-detail-stat featured"><b>${String(match[1]).toUpperCase()}</b><strong>${match[2]}</strong></div>`;
   }
@@ -265,6 +315,7 @@ function productStatusText(product){
   if(product.kind === "ammo") return `Stock ${fmt(getAmmoCount(product.id))}`;
   if(product.kind === "drone") return `${store.state.ownedDroneCount || 0} possédé(s)`;
   if(product.kind === "droneFormation") return store.state.activeDroneFormation === product.id ? "ACTIVE" : store.state.ownedDroneFormations?.includes(product.id) ? "POSSÉDÉE" : "DISPONIBLE";
+  if(product.kind === "booster") return boosterRemainingLabel(product.data);
   const ownedCount = getInventoryCount(product.id);
   return ownedCount > 0 ? `${ownedCount} possédé${ownedCount > 1 ? "s" : ""}` : "Non possédé";
 }
@@ -275,8 +326,9 @@ function renderShopListCard(product, selected){
   if(product.kind === "ship"){
     const ship = product.data;
     const owned = store.state.ownedShips.includes(ship.id);
-    return `<article class="shop-list-card ${selected ? "selected" : ""} ${owned ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
-      <div class="shop-list-art"><img src="${ship.img}" alt="${ship.name}"></div>
+    const lockReason = productLockLabel(product);
+    return `<article class="shop-list-card ${selected ? "selected" : ""} ${owned ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}" ${lockReason ? `title="${lockReason}"` : ""}>
+      <div class="shop-list-art"><img src="${ship.img}" alt="${ship.name}">${unlocked ? "" : `<span class="shop-ship-lock" aria-hidden="true">🔒</span>`}</div>
       <div class="shop-list-copy">
         <div class="shop-list-head"><h4>${ship.name}</h4><span class="badge">${ship.className}</span></div>
         ${shopShipStatsHtml(ship)}
@@ -337,6 +389,18 @@ function renderShopListCard(product, selected){
       </div>
     </article>`;
   }
+  if(product.kind === "booster"){
+    const booster = product.data;
+    const multiplier = shopBoosterMultiplier();
+    return `<article class="shop-list-card ${selected ? "selected" : ""} ${productIsOwned(product) ? "owned" : ""}" data-select-shop="${productKey(product)}">
+      <div class="shop-list-art"><img src="${booster.img}" alt="${booster.name}"></div>
+      <div class="shop-list-copy">
+        <div class="shop-list-head"><h4>${booster.name}</h4><span class="badge">+${Math.round(booster.percent * 100)}%</span></div>
+        <div class="shop-item-stat-lines"><span><b>Unité</b>5 h</span><span><b>Réserve</b>${boosterRemainingLabel(booster)}</span></div>
+        <div class="shop-list-meta"><span>x${multiplier} · ${multiplier * 5} h</span>${shopPriceHtml(booster.priceType, booster.price * multiplier)}</div>
+      </div>
+    </article>`;
+  }
   const item = product.data;
   const ownedCount = getInventoryCount(item.id);
   const lockLine = lockBadge ? `<div class="shop-list-meta">${lockBadge}</div>` : "";
@@ -345,7 +409,7 @@ function renderShopListCard(product, selected){
     <div class="shop-list-copy">
       <div class="shop-list-head"><h4>${item.name}</h4><span class="badge">${item.rarity}</span></div>
       ${shopItemStatsHtml(item)}
-      <div class="shop-list-meta"><span>${(item.shopCategory || item.category).toUpperCase()}</span>${shopPriceHtml(item.priceType, item.price)}</div>
+      <div class="shop-list-meta"><span>Stock ${fmt(ownedCount)}</span>${shopPriceHtml(item.priceType, item.price)}</div>
       ${lockLine}
     </div>
   </article>`;
@@ -369,7 +433,20 @@ function renderShopDetail(product){
       <p class="shop-detail-copy">${pack.desc} Statut actuel : ${premiumRemainingLabel(store.state.player)}.</p>
       <div class="shop-premium-features">${pack.features.map(feature=>`<span>${feature}</span>`).join("")}</div>
       <div class="shop-detail-stats">${productDetailStats(product).slice(0, 3).map(renderShopDetailStat).join("")}</div>
-      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix Nova</small>${shopPriceHtml(pack.priceType, pack.price)}</div><button class="blue-button" data-buy-premium-pack="${pack.id}" ${(!canAfford(pack.priceType, pack.price)) ? "disabled" : ""}>ACTIVER</button></div>`;
+      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix</small>${shopPriceHtml(pack.priceType, pack.price)}</div><button class="blue-button" data-buy-premium-pack="${pack.id}" ${(!canAfford(pack.priceType, pack.price)) ? "disabled" : ""}>ACTIVER</button></div>`;
+    return;
+  }
+  if(product.kind === "booster"){
+    const booster = product.data;
+    const multiplier = shopBoosterMultiplier();
+    detail.innerHTML = `
+      <div class="shop-detail-top"><span class="badge">BOOSTER</span><span class="badge">5 H</span></div>
+      <div class="shop-detail-art"><img src="${booster.img}" alt="${booster.name}"></div>
+      <h3>${booster.name}</h3>
+      <p class="shop-detail-copy">${booster.desc} Plusieurs achats prolongent la réserve sans augmenter le bonus.</p>
+      ${renderBoosterPurchaseControls()}
+      <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
+      <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix x${multiplier}</small>${shopPriceHtml(booster.priceType, booster.price * multiplier)}</div><button class="blue-button" data-buy-booster="${booster.id}" data-buy-booster-quantity="${multiplier}" ${(!canAfford(booster.priceType, booster.price * multiplier)) ? "disabled" : ""}>ACHETER ${multiplier * 5} H</button></div>`;
     return;
   }
   if(product.kind === "ship"){
@@ -378,9 +455,9 @@ function renderShopDetail(product){
     const active = store.state.activeShip === ship.id;
     detail.innerHTML = `
       <div class="shop-detail-top"><span class="badge">VAISSEAU</span><span class="badge">${ship.className}</span></div>
-      <div class="shop-detail-art"><img src="${ship.img}" alt="${ship.name}"></div>
+      <div class="shop-detail-art ${unlocked ? "" : "locked"}"><img src="${ship.img}" alt="${ship.name}">${unlocked ? "" : `<span class="shop-ship-lock detail" aria-hidden="true">🔒</span>`}</div>
       <h3>${ship.name}</h3>
-      <p class="shop-detail-copy">${ship.className}. ${ship.special ? `Aptitude : ${ship.special}.` : "Aucun sort spécial."}</p>
+      <p class="shop-detail-copy">${ship.desc}</p>
       ${lockHtml}
       <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
       <div class="shop-detail-footer"><div class="shop-detail-price"><small>Statut</small>${active ? "<strong>Actif</strong>" : owned ? "<strong>Possédé</strong>" : shopPriceHtml(ship.priceType, ship.price)}</div><button class="blue-button" data-buy-shop-ship="${ship.id}" ${(owned || !unlocked || !canAfford(ship.priceType, ship.price)) ? "disabled" : ""}>${owned ? "DÉJÀ ACHETÉ" : "ACHETER"}</button></div>`;
@@ -432,26 +509,25 @@ function renderShopDetail(product){
     return;
   }
   const item = product.data;
-  const equipText = item.category === "canon" ? "Peut être équipé dans un slot laser de vaisseau ou de drone." : item.category === "generateur" ? "Peut être équipé dans un slot générateur de vaisseau ou dans un drone." : item.category === "extra" ? "Peut être équipé dans un slot extra du vaisseau." : item.category === "quest_item" ? "Objet de quete a rapporter au PNJ demandeur." : "Prévu pour une future étape de gameplay.";
+  const itemMultiplier = item.id === "teleportation_fluid" ? shopAmmoMultiplier() : 1;
   detail.innerHTML = `
     <div class="shop-detail-top"><span class="badge">${(item.shopCategory || item.category).toUpperCase()}</span><span class="badge">${item.rarity}</span></div>
     <div class="shop-detail-art"><img src="${item.img}" alt="${item.name}"></div>
     <h3>${item.name}</h3>
-    <p class="shop-detail-copy">${equipText}</p>
+    <p class="shop-detail-copy">${item.desc}</p>
     ${lockHtml}
     <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
-    <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix</small>${shopPriceHtml(item.priceType, item.price)}</div><button class="blue-button" data-buy-item="${item.id}" ${(!canAfford(item.priceType, item.price)) ? "disabled" : ""}>ACHETER</button></div>`;
+    ${renderItemPurchaseControls(item)}
+    <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix${itemMultiplier > 1 ? ` x${fmt(itemMultiplier)}` : ""}</small>${shopPriceHtml(item.priceType, item.price * itemMultiplier)}</div><button class="blue-button" data-buy-item="${item.id}" data-buy-item-multiplier="${itemMultiplier}" ${(!canAfford(item.priceType, item.price * itemMultiplier)) ? "disabled" : ""}>ACHETER</button></div>`;
 }
 
 export function renderShop(){
   const grid = document.getElementById("shopGrid");
   const title = document.getElementById("shopSectionTitle");
-  const subtitle = document.getElementById("shopSectionSubtitle");
   const count = document.getElementById("shopResultCount");
   const meta = SHOP_FILTER_META[store.shopFilter] || SHOP_FILTER_META.vaisseau;
   const list = shopCatalog().filter(productMatchesFilter);
   if(title) title.textContent = meta.title;
-  if(subtitle) subtitle.textContent = meta.subtitle;
   if(count) count.textContent = `${list.length} ARTICLE${list.length > 1 ? "S" : ""}`;
   document.querySelectorAll("[data-filter-shop]").forEach(btn=>btn.classList.toggle("active", btn.dataset.filterShop === store.shopFilter));
 
