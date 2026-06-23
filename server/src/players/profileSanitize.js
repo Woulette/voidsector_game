@@ -6,6 +6,7 @@ import { normalizePremiumRewardState, normalizeStarterPackPurchases } from "../.
 import { sanitizeActivityLog } from "./activityLog.js";
 import { sanitizeCombatBoosts } from "../economy/combatBoosts.js";
 import { sanitizePilotName } from "./profileIdentity.js";
+import { sanitizeTutorialState } from "../../../src/shared/tutorial.js";
 import { calculateMonsterRankPointsForKills, calculateRankScore } from "../../../src/data/ranks.js";
 import { sanitizePlayerBoosterState } from "../../../src/shared/firmBoosters.js";
 
@@ -181,6 +182,7 @@ export function sanitizeProfile(profile = {}){
     questProgress:sanitizeObject(profile.questProgress),
     questFailProgress:sanitizeObject(profile.questFailProgress),
     completedQuestClaims:sanitizeObject(profile.completedQuestClaims),
+    tutorial:sanitizeTutorialState(profile.tutorial, {missingStatus:"abandoned"}),
     killStats:sanitizeObject(profile.killStats),
     rankKillStats:sanitizeObject(profile.rankKillStats),
     activityLog:sanitizeActivityLog(profile.activityLog),
@@ -235,7 +237,8 @@ export function preserveProtectedOwnership(incoming, existing){
     "premiumRewardState",
     "starterPackPurchases",
     "refineryProductionRemainders",
-    "starterRepairGranted"
+    "starterRepairGranted",
+    "tutorial"
   ]);
   for(const field of [
     "ownedShips", "activeShip", "selectedShip", "inventoryItems", "nextInventoryUid",
@@ -247,7 +250,7 @@ export function preserveProtectedOwnership(incoming, existing){
     "portalPieces", "prestigeCount", "premiumRewardState", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
     "refineryProductionDisabled", "refineryProductionRemainders", "refineryLastTick", "killStats", "rankKillStats",
-    "activityLog", "social", "firmatons", "firmBoxes", "firmRewardHistory", "starterPackPurchases", "starterRepairGranted"
+    "activityLog", "social", "firmatons", "firmBoxes", "firmRewardHistory", "starterPackPurchases", "starterRepairGranted", "tutorial"
   ]){
     if(alwaysProtected.has(field) || hasProtectedOwnershipValue(existing, field)){
       incoming[field] = cloneProtectedValue(existing[field]);

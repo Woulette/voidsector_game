@@ -83,3 +83,51 @@ test("a refreshed Ricky portal session rebuilds the portal instead of falling ba
   assert.equal(state.player.y, -410);
   assert.equal(state.player.hp, 800);
 });
+
+test("live loadout refresh preserves hull and shield percentages", ()=>{
+  const state = {
+    player:{
+      shipId:"vesperion",
+      hp:150_000,
+      maxHp:300_000,
+      shield:40_000,
+      maxShield:80_000,
+      extraBonus:{repairBot:true}
+    }
+  };
+  const store = {
+    state:{
+      activeShip:"vesperion",
+      shipWorldSessions:{},
+      actionSlotsByShip:{vesperion:Array(9).fill(null)},
+      actionSlots:Array(9).fill(null)
+    }
+  };
+  const controller = createCombatSessionController({
+    store,
+    getRunning:()=>true,
+    getState:()=>state,
+    getShipCombatStats:()=>({
+      vie:240_000,
+      bouclier:60_000,
+      regen:0,
+      vitesseReelle:310,
+      weaponDamage:0,
+      weaponDamageMultiplier:1,
+      shieldAbsorbRatio:.5,
+      extraBonus:{repairBot:true}
+    }),
+    actions:{
+      cleanCombatActionSlots(){},
+      renderGameActionBar(){},
+      renderCombatQuickPanel(){}
+    },
+    updateHud(){}
+  });
+
+  assert.equal(controller.refreshActiveLoadout(), true);
+  assert.equal(state.player.maxHp, 240_000);
+  assert.equal(state.player.hp, 120_000);
+  assert.equal(state.player.maxShield, 60_000);
+  assert.equal(state.player.shield, 30_000);
+});

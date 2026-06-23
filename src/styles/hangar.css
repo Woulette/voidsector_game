@@ -60,14 +60,19 @@
 
 /* BARRE D'ACTION EN JEU */
 .action-bar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:4;display:grid;grid-template-columns:repeat(9,74px);gap:7px;padding:10px;background:rgba(3,12,24,.88)}
-.ricky-support-skill{position:absolute;left:calc(50% - 365px);bottom:108px;z-index:5;width:82px;height:78px;border:1px solid rgba(56,189,248,.72);background:radial-gradient(circle at 50% 46%,rgba(14,165,233,.35),rgba(3,13,25,.96) 68%);color:#dff6ff;clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px);box-shadow:0 0 18px rgba(14,165,233,.26),inset 0 0 16px rgba(56,189,248,.12);cursor:pointer;overflow:hidden}
-.ricky-support-skill.hidden{display:none}
-.ricky-support-skill:hover,.ricky-support-skill.ready{border-color:#7dd3fc;box-shadow:0 0 24px rgba(14,165,233,.42),inset 0 0 18px rgba(56,189,248,.18)}
-.ricky-support-skill.blocked{opacity:.55;cursor:not-allowed;filter:grayscale(.38)}
-.ricky-support-skill img{position:absolute;left:20px;top:19px;width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(56,189,248,.72))}
-.ricky-support-skill-key{position:absolute;left:6px;top:4px;color:#7dd3fc;font-size:9px;font-weight:900;letter-spacing:.8px}
-.ricky-support-skill-name{position:absolute;left:4px;right:4px;bottom:4px;font-size:9px;font-weight:900;letter-spacing:.6px;text-align:center}
-.ricky-support-skill-cooldown{position:absolute;inset:0;display:grid;place-items:center;background:rgba(2,6,23,.62);color:#e0f2fe;font-size:22px;font-weight:900;text-shadow:0 0 8px #0284c7}
+.npc-ability-bar{position:absolute;left:calc(50% - 361px);bottom:114px;z-index:5;display:flex;align-items:flex-end;gap:6px;transition:bottom .16s ease}
+.npc-ability-bar.above-ship-abilities{bottom:174px}
+.npc-ability-bar.hidden{display:none}
+.npc-ability-slot{position:relative;width:58px;height:54px;padding:0;border:1px solid rgba(56,189,248,.58);background:linear-gradient(180deg,rgba(7,31,51,.97),rgba(2,13,24,.98));color:#e0f2fe;clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px);box-shadow:0 0 12px rgba(14,165,233,.18),inset 0 0 12px rgba(56,189,248,.09);cursor:pointer;overflow:hidden}
+.npc-ability-slot::before{content:"";position:absolute;inset:3px;background:radial-gradient(circle at 50% 46%,rgba(56,189,248,.23),rgba(3,32,51,.04) 68%);pointer-events:none}
+.npc-ability-slot:hover,.npc-ability-slot.ready{border-color:#7dd3fc;box-shadow:0 0 18px rgba(14,165,233,.36),inset 0 0 14px rgba(56,189,248,.16)}
+.npc-ability-slot.active{border-color:#bae6fd;animation:npcAbilityPulse .9s ease-in-out infinite alternate}
+.npc-ability-slot.blocked{opacity:.62;cursor:not-allowed;filter:saturate(.65)}
+.npc-ability-slot img{position:absolute;left:12px;top:7px;width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(56,189,248,.76))}
+.npc-ability-slot-owner{position:absolute;z-index:3;left:4px;top:2px;color:#7dd3fc;font-size:7px;font-weight:900;letter-spacing:.35px;text-shadow:0 1px 3px #020617}
+.npc-ability-slot-name{position:absolute;z-index:3;left:3px;right:3px;bottom:2px;font-size:7px;font-weight:900;letter-spacing:.2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.npc-ability-slot-cooldown{position:absolute;z-index:2;inset:0;display:grid;place-items:center;background:rgba(2,6,23,.67);color:#e0f2fe;font-size:17px;font-weight:900;text-shadow:0 0 8px #0284c7}
+@keyframes npcAbilityPulse{from{box-shadow:0 0 16px rgba(14,165,233,.28),inset 0 0 12px rgba(56,189,248,.14)}to{box-shadow:0 0 28px rgba(56,189,248,.62),inset 0 0 22px rgba(125,211,252,.24)}}
 .ship-ability-bar{position:absolute;left:calc(50% - 361px);bottom:114px;z-index:5;display:flex;align-items:flex-end;gap:6px}
 .ship-ability-bar.hidden{display:none}
 .ship-ability-slot{position:relative;width:58px;height:54px;padding:0;border:1px solid rgba(74,222,128,.54);background:linear-gradient(180deg,rgba(8,32,32,.96),rgba(2,13,24,.98));color:#dcfce7;clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px);box-shadow:0 0 12px rgba(34,197,94,.16),inset 0 0 12px rgba(74,222,128,.08);cursor:pointer;overflow:hidden}
@@ -174,8 +179,9 @@
 }
 .combat-panel-tabs button.active{border-color:rgba(56,189,248,.85);color:#fff;background:rgba(56,189,248,.16)}
 .combat-panel-tabs button.hidden{display:none}
+.combat-panel-content{height:130px;overflow:hidden}
 .combat-panel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;max-height:260px;overflow:auto;padding-right:4px}
-.combat-shop-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;max-height:130px}
+.combat-shop-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;height:130px;max-height:130px}
 .combat-pick-card{
   display:grid;
   grid-template-columns:58px 1fr auto;
@@ -209,10 +215,10 @@
 }
 .combat-shop-price-single{display:block!important}
 .combat-shop-price-discount{
-  display:grid!important;
-  justify-items:start;
-  align-content:center;
-  gap:2px;
+  display:inline-flex!important;
+  align-items:center;
+  gap:7px;
+  white-space:nowrap;
 }
 .combat-shop-price-old{
   position:relative;
@@ -260,7 +266,7 @@
 .combat-buy-icon:hover{border-color:rgba(125,211,252,.9);box-shadow:0 0 12px rgba(56,189,248,.22)}
 .combat-buy-icon:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
 .combat-buy-icon svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.combat-ammo-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;max-height:122px}
+.combat-ammo-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;height:130px;max-height:130px}
 button.combat-pick-card.combat-ammo-card{
   grid-template-columns:48px minmax(0,1fr);
   min-height:58px;
@@ -277,7 +283,88 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
 .combat-pick-card .ammo-glyph{margin:0}
 .combat-pick-card strong{display:block;text-transform:uppercase;font-size:13px}
 .combat-pick-card span,.combat-pick-card small{display:block;color:var(--muted);font-size:11px;line-height:1.25}
-.combat-empty{padding:18px;color:var(--muted);border:1px dashed rgba(56,189,248,.24);text-align:center}
+.combat-info-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+  height:130px;
+  max-height:130px;
+  overflow:auto;
+}
+.combat-skill-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.combat-info-card{
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr) 82px;
+  gap:7px;
+  align-items:center;
+  height:62px;
+  min-height:62px;
+  padding:4px 7px;
+  overflow:hidden;
+  box-sizing:border-box;
+  border:1px solid rgba(56,189,248,.24);
+  background:linear-gradient(180deg,rgba(7,22,40,.94),rgba(2,10,19,.97));
+  color:var(--text);
+  text-align:left;
+  cursor:default;
+}
+.combat-info-card[draggable="true"]{cursor:grab}
+.combat-info-card.disabled{opacity:.56}
+.combat-info-card.ready{border-color:rgba(74,222,128,.42);box-shadow:inset 0 0 16px rgba(34,197,94,.05)}
+.combat-info-card .combat-extra-icon{width:38px;height:38px}
+.combat-info-copy{min-width:0;align-self:stretch;display:grid;align-content:center}
+.combat-info-copy>strong{
+  display:block;
+  min-width:0;
+  margin-bottom:2px;
+  overflow:hidden;
+  color:#e8f8ff;
+  font-size:11px;
+  line-height:1.1;
+  letter-spacing:.15px;
+  text-overflow:ellipsis;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.combat-card-facts{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:1px 6px;min-width:0}
+.combat-card-fact-label{color:#69c9f2;font-size:9px;font-weight:800;line-height:1.08}
+.combat-card-fact-value{min-width:0;color:#c9dce9;font-size:10px;line-height:1.05}
+.combat-card-actions{display:grid;grid-template-columns:1fr 1fr;gap:3px;align-content:center}
+.combat-card-actions .blue-button,.combat-formation-action,.combat-skill-action{
+  min-width:0;
+  width:100%;
+  padding:6px 3px;
+  font-size:9px;
+  white-space:nowrap;
+}
+.combat-card-status{
+  justify-self:end;
+  padding:5px 7px;
+  border:1px solid rgba(56,189,248,.22);
+  color:#8fc6e4;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.5px;
+}
+.combat-formation-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.combat-formation-card .combat-info-copy>strong{margin-bottom:0;font-size:10px;line-height:1}
+.combat-card-section{display:grid;grid-template-rows:auto 1fr;gap:0;align-items:start;min-width:0}
+.combat-card-section b{font-size:9px;line-height:1}
+.combat-card-section>div{display:grid;gap:0;min-width:0}
+.combat-card-section span{color:#c9dce9;font-size:9px;line-height:1;white-space:nowrap}
+.combat-card-section.bonus b{color:#4ade80}
+.combat-card-section.malus b{color:#fb7185}
+.combat-formation-card{grid-template-columns:42px minmax(0,1fr) 34px;transition:border-color .15s ease,box-shadow .15s ease,background .15s ease}
+.combat-formation-card.active{border-color:rgba(103,232,249,.86);background:linear-gradient(180deg,rgba(8,42,62,.97),rgba(2,15,27,.98));box-shadow:0 0 15px rgba(34,211,238,.22),inset 0 0 18px rgba(56,189,248,.12)}
+.combat-formation-card.active .combat-extra-icon{filter:brightness(1.22) drop-shadow(0 0 12px rgba(103,232,249,.72))}
+.combat-formation-toggle{display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid rgba(125,211,252,.42);border-radius:50%;background:rgba(5,29,48,.9);color:#8fc6e4;cursor:pointer}
+.combat-formation-toggle:hover{border-color:#7dd3fc;color:#e0f2fe;box-shadow:0 0 12px rgba(56,189,248,.28)}
+.combat-formation-toggle.active{border-color:#67e8f9;background:rgba(8,76,91,.82);color:#d9fbff;box-shadow:0 0 13px rgba(34,211,238,.48)}
+.combat-formation-toggle:disabled{cursor:default;opacity:1}
+.combat-formation-toggle svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.combat-skill-card{grid-template-columns:42px minmax(0,1fr) 72px}
+.combat-skill-card .combat-extra-icon{width:42px;height:42px}
+.combat-skill-action{width:72px}
+.combat-empty{height:130px;box-sizing:border-box;padding:18px;color:var(--muted);border:1px dashed rgba(56,189,248,.24);text-align:center;display:grid;place-items:center}
 .cpu-panel-grid{grid-template-columns:1fr}
 .missile-launcher-card{
   grid-template-columns:64px 1fr auto;
@@ -350,7 +437,8 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
   .portals-view .portals-panel{width:100%}
   .shop-grid-full{grid-template-columns:repeat(3,minmax(0,1fr))}
   .action-bar{grid-template-columns:repeat(9,58px)}
-  .ricky-support-skill{left:calc(50% - 292px);bottom:96px}
+  .npc-ability-bar{left:calc(50% - 289px);bottom:102px}
+  .npc-ability-bar.above-ship-abilities{bottom:162px}
   .ship-ability-bar{left:calc(50% - 289px);bottom:102px}
   .action-slot{height:60px}.action-slot img{width:48px;height:38px}
 }
@@ -358,13 +446,20 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
   .shop-grid-full,.portal-grid-full,.skill-grid-full,.slot-config-grid,.inventory-list-full{grid-template-columns:1fr}
   .shop-head{display:block}.shop-filters{justify-content:flex-start;margin-top:10px}
   .action-bar{left:8px;right:8px;bottom:8px;transform:none;grid-template-columns:repeat(9,1fr);gap:4px;padding:6px}
-  .ricky-support-skill{left:8px;bottom:70px;width:62px;height:58px}.ricky-support-skill img{left:15px;top:13px;width:32px;height:32px}.ricky-support-skill-key{font-size:7px}.ricky-support-skill-name{font-size:8px}
+  .npc-ability-bar{left:14px;bottom:76px;gap:4px}
+  .npc-ability-bar.above-ship-abilities{bottom:128px}
+  .npc-ability-slot{width:52px;height:48px}.npc-ability-slot img{left:11px;top:6px;width:30px;height:30px}.npc-ability-slot-name,.npc-ability-slot-owner{font-size:6px}
   .ship-ability-bar{left:14px;bottom:76px;gap:4px}
   .ship-ability-slot{width:52px;height:48px}.ship-ability-slot img{left:11px;top:6px;width:30px;height:30px}.ship-ability-slot-name{font-size:6px}
   .action-slot{height:50px}.action-slot img{inset:9px 2px 14px;width:100%;height:30px}.action-slot .slot-name{font-size:8px}
   .combat-menu-button{left:auto;right:10px;bottom:70px;width:46px;height:46px}
   .combat-quick-panel{bottom:122px;width:calc(100vw - 16px)}
   .combat-panel-grid{grid-template-columns:1fr}
+  .combat-panel-content{height:130px}
+  .combat-info-card{grid-template-columns:38px minmax(0,1fr) 78px;padding:4px 6px;gap:5px}
+  .combat-info-card .combat-extra-icon{width:34px;height:34px}
+  .combat-skill-card{grid-template-columns:38px minmax(0,1fr) 78px}
+  .combat-skill-card .combat-extra-icon{width:34px;height:34px}
 }
 
 /* V3 - Hangar inventaire */

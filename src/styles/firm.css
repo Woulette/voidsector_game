@@ -1,5 +1,9 @@
-.firm-nav-tab{border-color:rgba(56,189,248,.26);color:#d5f5ff}
+.firm-nav-tab{position:relative;border-color:rgba(56,189,248,.26);color:#d5f5ff}
 .firm-nav-tab.active,.firm-nav-tab:hover{border-color:rgba(56,189,248,.85);box-shadow:0 0 18px rgba(56,189,248,.26),inset 0 0 22px rgba(56,189,248,.10);color:#fff}
+.firm-nav-tab.has-claimable{border-color:rgba(250,204,21,.58);box-shadow:0 0 15px rgba(250,204,21,.14),inset 0 -2px 0 rgba(250,204,21,.62)}
+.firm-notification-badge{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border:1px solid #fde047;border-radius:10px;background:linear-gradient(180deg,#ef4444,#991b1b);color:#fff;font:900 10px/1 Arial,sans-serif;letter-spacing:0;box-shadow:0 0 10px rgba(239,68,68,.62);vertical-align:middle}
+.firm-notification-badge[hidden]{display:none}
+.firm-nav-notification{position:absolute;z-index:3;top:4px;right:4px;pointer-events:none}
 .firm-main-panel{min-height:720px;padding:0;overflow:hidden;background:linear-gradient(160deg,rgba(3,12,24,.98),rgba(4,17,31,.94))}
 .firm-main-hero{
   display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;padding:20px 22px;
@@ -20,6 +24,7 @@
 .firm-main-hero-metrics strong{display:block;color:#fff36a;font-size:25px;margin-top:3px;text-shadow:0 0 10px rgba(250,204,21,.34)}
 .firm-main-tabs{display:flex;gap:5px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid rgba(56,189,248,.15);background:rgba(1,8,16,.76)}
 .firm-main-tabs button,.firm-box-vault button,.pending-rewards button{
+  position:relative;
   border:1px solid rgba(56,189,248,.23);background:linear-gradient(180deg,rgba(12,50,80,.8),rgba(3,15,29,.95));color:#ccefff;
   padding:10px 14px;font-weight:900;text-transform:uppercase;letter-spacing:.7px;cursor:pointer;font-size:13px;
 }
@@ -100,8 +105,10 @@
 .firm-quest-layout.seasonal{grid-template-columns:460px minmax(0,840px);justify-content:start}
 .firm-quest-summary{display:grid;gap:9px}
 .firm-quest-mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
-.firm-quest-mode-tabs button{min-height:34px;padding:0 4px;border:1px solid rgba(56,189,248,.24);background:linear-gradient(180deg,rgba(7,24,42,.86),rgba(2,10,19,.94));color:#dff6ff;font:900 10px/1 var(--font);letter-spacing:.1px;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.firm-quest-mode-tabs button{position:relative;display:flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:0 4px;border:1px solid rgba(56,189,248,.24);background:linear-gradient(180deg,rgba(7,24,42,.86),rgba(2,10,19,.94));color:#dff6ff;font:900 10px/1 var(--font);letter-spacing:.1px;text-transform:uppercase;cursor:pointer;white-space:nowrap}
 .firm-quest-mode-tabs button.active{border-color:rgba(56,189,248,.88);color:#fff;background:linear-gradient(180deg,rgba(14,76,118,.7),rgba(4,20,36,.96));box-shadow:inset 0 -3px 0 rgba(56,189,248,.9),0 0 14px rgba(56,189,248,.14)}
+.firm-main-tabs .firm-notification-badge{margin-left:5px}
+.firm-quest-mode-tabs .firm-notification-badge{position:absolute;z-index:2;top:-7px;right:-4px;min-width:17px;height:17px;padding:0 4px;font-size:9px;pointer-events:none}
 .firm-quest-summary-card,.firm-quest-summary-metrics article{border:1px solid rgba(56,189,248,.17);background:linear-gradient(180deg,rgba(7,24,42,.82),rgba(2,10,19,.92));padding:12px}
 .firm-quest-summary-card h3{margin-top:4px;text-transform:uppercase;color:#f1fbff;font-size:18px}.firm-quest-summary-card>strong{display:block;margin:10px 0 4px;color:#fff36a;font-size:34px;text-shadow:0 0 12px rgba(250,204,21,.22)}.firm-quest-summary-card p{color:#9fc5dc;font-size:12px;line-height:1.35}.firm-quest-summary-card small{display:block;margin-top:7px;color:#aeeaff;font-size:11px}
 .firm-open-session-title{display:block;margin:12px 0 6px;color:#7dd3fc;font-size:10px;font-weight:900;letter-spacing:.55px;text-transform:uppercase}

@@ -12,7 +12,7 @@ import {
   setGraphicsPreset,
   setInterfaceSetting
 } from "../../core/settingsStore.js";
-import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "../../core/keybinds.js";
+import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "../../core/keybinds.js?v=ship-abilities-1";
 
 const TABS = [
   {id:"graphics", label:"Graphisme"},

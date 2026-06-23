@@ -104,11 +104,15 @@ export function createCombatSessionController({
       || (String(store.state.worldSession?.shipId || "") === String(activeShipId) ? store.state.worldSession : null);
     const sameShip = String(player.shipId || "") === activeShipId;
     const stats = getShipCombatStats(store.state.activeShip);
+    const hpRatio = player.maxHp > 0 ? Math.max(0, Math.min(1, Number(player.hp || 0) / Number(player.maxHp))) : 1;
+    const shieldRatio = player.maxShield > 0 ? Math.max(0, Math.min(1, Number(player.shield || 0) / Number(player.maxShield))) : 1;
     player.maxHp = Math.max(1, Number(stats.vie || player.maxHp || 1));
     player.maxShield = Math.max(0, Number(stats.bouclier || 0));
     if(sameShip){
-      player.hp = Math.max(0, Math.min(player.maxHp, Number(player.hp || 0)));
-      player.shield = Math.max(0, Math.min(player.maxShield, Number(player.shield || 0)));
+      player.hp = Math.max(0, Math.min(player.maxHp, hpRatio * player.maxHp));
+      player.shield = player.maxShield > 0
+        ? Math.max(0, Math.min(player.maxShield, shieldRatio * player.maxShield))
+        : 0;
     }else{
       player.hp = Math.max(0, Math.min(player.maxHp, Number(savedSession?.hp ?? player.maxHp)));
       player.shield = Math.max(0, Math.min(player.maxShield, Number(savedSession?.shield ?? player.maxShield)));

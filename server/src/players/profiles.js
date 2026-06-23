@@ -8,6 +8,7 @@ import { createProfileWorldSession } from "./profileWorldSession.js";
 import { claimCompletedServerQuests } from "../quests/quests.js";
 import { getFirmDefinition, getFirmMapId, normalizeFirmId } from "../../../src/data/firms.js";
 import { pilotNameKey, sanitizePilotName } from "./profileIdentity.js";
+import { resetTutorialForNewFirm } from "./tutorialActions.js";
 import { reservePilotIdentity as defaultReservePilotIdentity } from "../storage/pilotIdentityStore.js";
 
 export { sanitizeProfile } from "./profileSanitize.js";
@@ -330,6 +331,7 @@ export function createProfileManager({
       profile.activeQuestId = null;
       profile.questProgress = {};
       profile.questFailProgress = {};
+      resetTutorialForNewFirm(profile);
       const firm = getFirmDefinition(nextFirm);
       const homeMap = String(getFirmMapId(firm.id, 1));
       profile.worldSession = null;

@@ -128,6 +128,7 @@ export function createProfileController({
     if(Array.isArray(profile.firmRewardHistory)) store.state.firmRewardHistory = clone(profile.firmRewardHistory).slice(-60);
     if(Array.isArray(profile.activeQuestIds)) store.state.activeQuestIds = profile.activeQuestIds.map(String).slice(0, 5);
     if(Object.hasOwn(profile, "activeQuestId")) store.state.activeQuestId = typeof profile.activeQuestId === "string" ? profile.activeQuestId : (store.state.activeQuestIds?.[0] || null);
+    if(profile.tutorial && typeof profile.tutorial === "object") store.state.tutorial = clone(profile.tutorial);
     store.state.refineryShipmentJob = profile.refineryShipmentJob ? clone(profile.refineryShipmentJob) : null;
     store.state.refineryJob = profile.refineryJob ? clone(profile.refineryJob) : null;
     if(Number.isFinite(Number(profile.refineryLastTick))) store.state.refineryLastTick = Number(profile.refineryLastTick);

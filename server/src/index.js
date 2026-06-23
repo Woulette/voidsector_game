@@ -7,6 +7,7 @@ import { createAdminManager } from "./admin/adminManager.js";
 import { createSocketSessionManager } from "./auth/socketSession.js";
 import { resolveServerCombatFire } from "./combat/damage.js";
 import { getPlayerPvpBlockReason } from "./combat/playerPvp.js";
+import { createShipAbilityEffectManager } from "./combat/shipAbilityEffects.js";
 import { activateServerShipAbility, applyServerShipLifeSteal } from "./combat/shipAbilities.js";
 import { config } from "./config.js";
 import { checkDatabaseConnection, closeDatabase, dbEnabled, initializeDatabase } from "./db/client.js";
@@ -470,6 +471,28 @@ const {applyEnemyHit, applyEnemyHitForPlayer} = createEnemyHitHandler({
   portalWaveTotal
 });
 
+const {startShipAbilityEffect, updateShipAbilityEffects} = createShipAbilityEffectManager({
+  io,
+  players,
+  groups,
+  profileManager,
+  emitWorldEnemies,
+  emitWorldReward,
+  emitInstance,
+  getWorldMapState,
+  removeWorldEnemy,
+  respawnWorldEnemy,
+  spawnWorldEnemyChildren,
+  updateLootOwner,
+  emitPrivateQuestItemDrop,
+  emitPrivatePortalPieceDrop,
+  emitPrivatePortalAnchorKeyDrop,
+  emitPrivateResourceDrops,
+  applyEnemyDeathEffect,
+  progressServerQuestsForKill,
+  handlePortalEnemyDeath
+});
+
 const {updatePlayerActivity} = createPlayerActivityManager({
   io,
   players,
@@ -707,6 +730,7 @@ function activatePlayerShipAbility(socket, abilityId = ""){
     return;
   }
   socket.emit("ship:ability-state", {...result.status, at:Date.now()});
+  startShipAbilityEffect({player, status:result.status});
   emitProfileSyncForPlayer(player, result.profile);
 }
 
@@ -751,6 +775,7 @@ const serverTick = startServerTick({
   updateStatusEffects,
   updateQuestTimers,
   updateRickyCompanions,
+  updateShipAbilityEffects,
   updateWorldEnemy
 });
 

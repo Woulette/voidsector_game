@@ -37,54 +37,140 @@ function renderCpuPanel({missileState}){
   </div>`;
 }
 
+function formatPercentValue(value){
+  return new Intl.NumberFormat("fr-FR", {maximumFractionDigits:1}).format(Math.max(0, Number(value || 0)));
+}
+
+function formatDurationLabel(milliseconds){
+  const seconds = Math.max(0, Math.round(Number(milliseconds || 0) / 1000));
+  if(seconds >= 60 && seconds % 60 === 0){
+    const minutes = seconds / 60;
+    return `${minutes} minute${minutes > 1 ? "s" : ""}`;
+  }
+  return `${seconds} seconde${seconds > 1 ? "s" : ""}`;
+}
+
+function renderCardFacts(facts = []){
+  return `<div class="combat-card-facts">${facts.map(([label, value])=>`
+    <span class="combat-card-fact-label">${label}</span>
+    <span class="combat-card-fact-value">${value}</span>
+  `).join("")}</div>`;
+}
+
+function renderFormationSections(formation){
+  const labels = {
+    shieldMultiplier:"bouclier",
+    regenMultiplier:"régénération",
+    laserDamageMultiplier:"dégâts laser",
+    speedMultiplier:"vitesse",
+    rocketDamageMultiplier:"dégâts roquettes",
+    missileDamageMultiplier:"dégâts missiles"
+  };
+  const lines = Object.entries(formation?.effect || {})
+    .filter(([key, value])=>labels[key] && Number(value || 1) !== 1)
+    .map(([key, value])=>{
+      const percent = Math.round((Number(value || 1) - 1) * 100);
+      return {
+        tone:percent > 0 ? "bonus" : "malus",
+        text:`${percent > 0 ? "+" : ""}${percent} % ${labels[key]}`
+      };
+    });
+  const section = (label, values, tone)=>`<div class="combat-card-section ${tone}">
+    <b>${label}</b>
+    <div>${values.length ? values.map(value=>`<span>${value.text}</span>`).join("") : "<span>Aucun</span>"}</div>
+  </div>`;
+  return [
+    section("Bonus :", lines.filter(line=>line.tone === "bonus"), "bonus"),
+    section("Malus :", lines.filter(line=>line.tone === "malus"), "malus")
+  ].join("");
+}
+
+function getExtraCardDetails(item, repairBotDelay){
+  const effect = item?.effect || {};
+  if(effect.repairBot){
+    return [
+      ["Effet", `Répare ${formatPercentValue(Number(effect.repairBotHealRate || 0) * 100)} % coque / s`],
+      ["Délai", `${Math.max(1, Number(effect.repairBotDelay || 5))} secondes`]
+    ];
+  }
+  if(effect.repairBotAuto){
+    return [
+      ["Effet", "Active le drone automatiquement"],
+      ["Délai", `${Math.max(1, Number(repairBotDelay || 5))} secondes`]
+    ];
+  }
+  if(effect.autoRocket) return [["Effet", "Tir automatique roquettes"], ["Type", "Passif"]];
+  if(effect.autoMissile) return [["Effet", "Tir automatique missiles"], ["Type", "Passif"]];
+  if(effect.rocketCooldownMultiplier){
+    return [
+      ["Effet", `Recharge roquettes -${Math.round((1 - Number(effect.rocketCooldownMultiplier)) * 100)} %`],
+      ["Type", "Passif"]
+    ];
+  }
+  if(effect.portgun) return [["Effet", "Téléportation de secteur"], ["Coût", "1 fluide"]];
+  return [["Effet", item?.stats?.extra || "Bonus actif"], ["Type", "Passif"]];
+}
+
 function renderExtrasPanel({extras, repairState, repairBotActive, extraBonus, repairBotDelay}){
   if(!extras.length) return `<div class="combat-empty">Aucun extra équipé sur le vaisseau.</div>`;
-  return `<div class="combat-panel-grid">${extras.map(item=>{
+  return `<div class="combat-panel-grid combat-info-grid combat-extras-grid">${extras.map(item=>{
     const effect = item.effect || {};
+    const facts = renderCardFacts(getExtraCardDetails(item, repairBotDelay));
     if(effect.repairBot){
-      const status = repairBotActive ? "Actif" : repairState.ok ? "Prêt à réparer" : repairState.reason;
-      const buttonLabel = repairBotActive ? "En cours" : "Activer";
+      const buttonLabel = repairBotActive ? "EN COURS" : repairState.ok ? "ACTIVER" : "ATTENTE";
       const disabled = repairBotActive || !repairState.ok;
-      return `<article class="combat-pick-card ${disabled ? "disabled" : ""}" draggable="true" data-combat-extra-slot="${item.id}">
+      return `<article class="combat-info-card ${disabled ? "disabled" : ""}" draggable="true" data-combat-extra-slot="${item.id}">
         <img class="combat-extra-icon" src="${item.img}" alt="${item.name}">
-        <div><strong>${item.name}</strong><span>${item.stats?.extra || "Répare la coque"}</span><small>${status}</small></div>
-        <div class="slot-actions"><button class="blue-button small" data-combat-extra-use="${item.id}" ${disabled ? "disabled" : ""}>${buttonLabel}</button><button class="blue-button small secondary" data-combat-extra-slot="${item.id}" type="button">Slot</button></div>
+        <div class="combat-info-copy"><strong title="${item.name}">${item.name}</strong>${facts}</div>
+        <div class="combat-card-actions">
+          <button class="blue-button small" data-combat-extra-use="${item.id}" title="${repairState.reason || ""}" ${disabled ? "disabled" : ""}>${buttonLabel}</button>
+          <button class="blue-button small secondary" data-combat-extra-slot="${item.id}" type="button">SLOT</button>
+        </div>
       </article>`;
     }
     if(effect.repairBotAuto){
-      const status = extraBonus?.repairBot ? `Surveille le Drone de Réparation IA · délai ${repairBotDelay}s` : "Équipe aussi le Drone de Réparation IA pour l'utiliser.";
-      return `<article class="combat-pick-card">
+      return `<article class="combat-info-card ${extraBonus?.repairBot ? "" : "disabled"}">
         <img class="combat-extra-icon" src="${item.img}" alt="${item.name}">
-        <div><strong>${item.name}</strong><span>${item.stats?.extra || "Activation automatique"}</span><small>${status}</small></div>
-        <button class="blue-button small" type="button" disabled>Passif</button>
+        <div class="combat-info-copy"><strong title="${item.name}">${item.name}</strong>${facts}</div>
+        <span class="combat-card-status">PASSIF</span>
       </article>`;
     }
     if(effect.portgun){
-      return `<article class="combat-pick-card" draggable="true" data-combat-extra-slot="${item.id}">
+      return `<article class="combat-info-card" draggable="true" data-combat-extra-slot="${item.id}">
         <img class="combat-extra-icon" src="${item.img}" alt="${item.name}">
-        <div><strong>${item.name}</strong><span>${item.stats?.extra || "Teleportation avec fluide"}</span><small>Ouvre la carte secteur pour choisir une destination.</small></div>
-        <div class="slot-actions"><button class="blue-button small" data-combat-extra-use="${item.id}" type="button">Carte</button><button class="blue-button small secondary" data-combat-extra-slot="${item.id}" type="button">Slot</button></div>
+        <div class="combat-info-copy"><strong title="${item.name}">${item.name}</strong>${facts}</div>
+        <div class="combat-card-actions">
+          <button class="blue-button small" data-combat-extra-use="${item.id}" type="button">CARTE</button>
+          <button class="blue-button small secondary" data-combat-extra-slot="${item.id}" type="button">SLOT</button>
+        </div>
       </article>`;
     }
-    return `<article class="combat-pick-card">
+    return `<article class="combat-info-card">
       <img class="combat-extra-icon" src="${item.img}" alt="${item.name}">
-      <div><strong>${item.name}</strong><span>${item.stats?.extra || "Bonus passif"}</span><small>Effet passif actif.</small></div>
-      <button class="blue-button small" type="button" disabled>Passif</button>
+      <div class="combat-info-copy"><strong title="${item.name}">${item.name}</strong>${facts}</div>
+      <span class="combat-card-status">PASSIF</span>
     </article>`;
   }).join("")}</div>`;
 }
 
 function renderFormationsPanel({droneFormations, ownedDroneFormations, activeDroneFormation}){
-  return `<div class="combat-panel-grid">${droneFormations.map(formation=>{
-    const owned = ownedDroneFormations?.includes(formation.id);
+  const ownedIds = new Set(Array.isArray(ownedDroneFormations) ? ownedDroneFormations : []);
+  const ownedFormations = droneFormations.filter(formation=>ownedIds.has(formation.id));
+  if(!ownedFormations.length) return `<div class="combat-empty">Aucune formation de drones achetée.</div>`;
+  return `<div class="combat-panel-grid combat-info-grid combat-formations-grid">${ownedFormations.map(formation=>{
     const active = activeDroneFormation === formation.id;
-    const disabled = !owned;
-    const status = active ? "Actif" : owned ? "Désactivé" : "À acheter au magasin drones";
-    return `<button class="combat-pick-card ${disabled ? "disabled" : ""}" draggable="${owned ? "true" : "false"}" data-combat-drone-formation="${formation.id}" type="button">
+    return `<article class="combat-info-card combat-formation-card ${active ? "active" : ""}" draggable="true" data-combat-drone-formation="${formation.id}">
       <img class="combat-extra-icon" src="${formation.img}" alt="${formation.name}">
-      <div><strong>${formation.name}</strong><span>${formation.stats?.bonus || "Aucun bonus"}</span><small>${status} · ${formation.stats?.malus || "Aucun malus"}</small></div>
-      <span class="badge">${active ? "ACTIF" : owned ? "DÉSACTIVÉ" : "LOCK"}</span>
-    </button>`;
+      <div class="combat-info-copy">
+        <strong title="${formation.name}">${formation.name}</strong>
+        <div class="combat-formation-stats">${renderFormationSections(formation)}</div>
+      </div>
+      <button class="combat-formation-toggle ${active ? "active" : ""}" ${active ? "" : `data-combat-formation-use="${formation.id}"`} type="button" aria-label="${active ? "Formation active" : `Activer ${formation.name}`}" title="${active ? "Formation active" : "Activer cette formation"}" ${active ? "disabled" : ""}>
+        ${active
+          ? `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m7.8 12.2 2.7 2.7 5.8-6.1"></path></svg>`
+          : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"></path><path d="M7.1 5.8a8 8 0 1 0 9.8 0"></path></svg>`}
+      </button>
+    </article>`;
   }).join("")}</div>`;
 }
 
@@ -117,23 +203,24 @@ function renderAmmoPanel({ammoTypes, getAmmoCount}){
 function renderShipSkillsPanel({shipAbilityStates}){
   const states = Array.isArray(shipAbilityStates) ? shipAbilityStates.slice(0, 3) : [];
   if(!states.length) return `<div class="combat-empty">Ce vaisseau ne possède aucune compétence active.</div>`;
-  return `<div class="combat-panel-grid">${states.map((state, index)=>{
+  return `<div class="combat-panel-grid combat-info-grid combat-skill-grid">${states.map((state, index)=>{
     const activeSeconds = Math.ceil(Math.max(0, Number(state.activeRemainingMs || 0)) / 1000);
     const cooldownSeconds = Math.ceil(Math.max(0, Number(state.cooldownRemainingMs || 0)) / 1000);
     const disabled = activeSeconds > 0 || cooldownSeconds > 0;
-    const status = activeSeconds > 0
-      ? `Active · ${activeSeconds}s restantes`
+    const actionLabel = activeSeconds > 0
+      ? `ACTIF ${activeSeconds} S`
       : cooldownSeconds > 0
-        ? `Recharge · ${cooldownSeconds}s`
-        : "Prête";
-    return `<article class="combat-pick-card ${disabled ? "disabled" : "ready"}">
+        ? `RECHARGE ${cooldownSeconds} S`
+        : "ACTIVER";
+    const facts = renderCardFacts([
+      ["Effet", `${formatPercentValue(Number(state.lifeStealRatio || 0) * 100)} % vol de vie (${state.weaponClass === "laser" ? "laser" : state.weaponClass || "arme"})`],
+      ["Durée", formatDurationLabel(state.durationMs)],
+      ["Recharge", formatDurationLabel(state.cooldownMs)]
+    ]);
+    return `<article class="combat-info-card combat-skill-card ${disabled ? "disabled" : "ready"}">
       <img class="combat-extra-icon" src="${state.icon || "assets/icons/absorbing_fire.svg"}" alt="">
-      <div>
-        <strong>${state.name}</strong>
-        <span>${state.description}</span>
-        <small>${status}</small>
-      </div>
-      <button class="blue-button small" data-use-ship-ability="${index}" type="button" ${disabled ? "disabled" : ""}>${activeSeconds > 0 ? "ACTIVE" : cooldownSeconds > 0 ? "RECHARGE" : "ACTIVER"}</button>
+      <div class="combat-info-copy"><strong title="${state.name}">${state.name}</strong>${facts}</div>
+      <button class="blue-button small combat-skill-action" data-use-ship-ability="${index}" type="button" ${disabled ? "disabled" : ""}>${actionLabel}</button>
     </article>`;
   }).join("")}</div>`;
 }

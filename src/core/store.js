@@ -139,6 +139,7 @@ export const store = {
   firmShopFilter:"global",
   firmRankingFilter:"global",
   firmBoxOpening:null,
+  firmAutoOpenClaimable:false,
   pendingFirmId:null,
   pendingFirmName:"",
   inventoryFilter:"all",

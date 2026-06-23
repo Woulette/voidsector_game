@@ -3,7 +3,7 @@ import { applyServerShipLifeSteal } from "./shipAbilities.js";
 import { markEnemyAttackedByPlayer } from "../world/aggro.js";
 import { getFirmHitOwner, markFirmHitOwner } from "../firms/firmHitOwnership.js";
 
-function applyDamageToEnemy(enemy, incoming){
+export function applyDamageToEnemy(enemy, incoming){
   enemy.recentHitTimer = 4;
   if(enemy.maxShield > 0 && enemy.shield > 0){
     const shieldPart = incoming * Math.max(0, Math.min(1, Number(enemy.shieldAbsorbRatio ?? .8)));
@@ -19,7 +19,7 @@ function applyDamageToEnemy(enemy, incoming){
   enemy.shield = Math.max(0, enemy.shield);
 }
 
-function enemyDurability(enemy){
+export function enemyDurability(enemy){
   return Math.max(0, Number(enemy?.hp || 0)) + Math.max(0, Number(enemy?.shield || 0));
 }
 

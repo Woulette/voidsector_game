@@ -137,6 +137,7 @@ export const multiplayer = {
   npcDamageEvents:[],
   playerHealEvents:[],
   shipAbilityEvents:[],
+  shipAbilityEffectEvents:[],
   shipAbilityState:null,
   serverEnemies:new Map(),
   serverEnemyScope:null,
@@ -594,6 +595,7 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.npcDamageEvents = [];
   multiplayer.playerHealEvents = [];
   multiplayer.shipAbilityEvents = [];
+  multiplayer.shipAbilityEffectEvents = [];
   multiplayer.shipAbilityState = null;
   multiplayer.serverEnemies.clear();
   multiplayer.serverEnemyScope = null;
@@ -646,6 +648,7 @@ export const activateRickyPortalLever = socketCommands.activateRickyPortalLever;
 export const activateRickyHealBeacon = socketCommands.activateRickyHealBeacon;
 export const activateShipAbility = socketCommands.activateShipAbility;
 export const setupServerProfile = socketCommands.setupServerProfile;
+export const updateTutorial = socketCommands.updateTutorial;
 export const setServerProfileTitle = socketCommands.setServerProfileTitle;
 export const resetServerFirmDebug = socketCommands.resetServerFirmDebug;
 export const sendChatMessage = socketCommands.sendChatMessage;

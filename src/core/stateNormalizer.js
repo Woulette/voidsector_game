@@ -1,6 +1,6 @@
 import { ammoTypes, defaultState, droneFormations, equipment, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js";
 import { normalizeFirmId } from "../data/firms.js";
-import { normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./keybinds.js";
+import { normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./keybinds.js?v=ship-abilities-1";
 import { getDroneCatalog, getItem, getQuest, getRawMaterial, getShip } from "./catalogStore.js";
 import { enforcePlayerCurrencyMinimums } from "./currencyStore.js";
 import { cleanDroneLoadout, ensureShipLoadout, getDroneLoadout, getInventoryItem, getItemFromInventoryUid } from "./equipmentStore.js";
@@ -14,6 +14,7 @@ import { clone } from "./utils.js";
 import { getXpNextForLevel, syncSkillPoints, XP_CURVE_VERSION } from "./xpStore.js";
 import { sanitizePlayerBoosterState } from "../shared/firmBoosters.js";
 import { normalizeGameSettings } from "./settingsSchema.js";
+import { sanitizeTutorialState } from "../shared/tutorial.js";
 
 const MAX_ACTIVE_QUESTS = 5;
 const RANK_KILL_POINTS_VERSION = 3;
@@ -309,6 +310,7 @@ export function normalizeState(saved){
   merged.questProgress = saved?.questProgress && typeof saved.questProgress === "object" ? {...saved.questProgress} : {...(base.questProgress || {})};
   merged.questFailProgress = saved?.questFailProgress && typeof saved.questFailProgress === "object" ? {...saved.questFailProgress} : {...(base.questFailProgress || {})};
   merged.completedQuestClaims = saved?.completedQuestClaims && typeof saved.completedQuestClaims === "object" ? {...saved.completedQuestClaims} : {...(base.completedQuestClaims || {})};
+  merged.tutorial = sanitizeTutorialState(saved?.tutorial || base.tutorial, {missingStatus:"abandoned"});
   merged.uiLayout = {...(base.uiLayout || {})};
   if(saved?.uiLayout && typeof saved.uiLayout === "object"){
     merged.uiLayout = {...merged.uiLayout, ...saved.uiLayout};

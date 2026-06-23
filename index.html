@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AvosomaNox - MMO</title>
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="styles.css?v=main-shop-price-1" />
+  <link rel="stylesheet" href="styles.css?v=tutorial-flow-7" />
   <script>
     document.documentElement.dataset.appMode = new URLSearchParams(location.search).get("mode") === "game" ? "game" : "launcher";
   </script>
@@ -138,7 +138,7 @@
         <button class="nav-tab" data-view="shop">MAGASIN</button>
         <button class="nav-tab" data-view="portals">PORTAILS</button>
         <button class="nav-tab" data-view="refinery">RAFFINERIE</button>
-        <button class="nav-tab firm-nav-tab" data-view="firm">FIRME</button>
+        <button class="nav-tab firm-nav-tab" data-view="firm">FIRME <span class="firm-notification-badge firm-nav-notification" data-firm-nav-badge hidden>0</span></button>
         <button class="nav-tab boutique-nav-tab" data-view="store">BOUTIQUE</button>
         <button class="nav-tab" data-view="leaderboard">CLASSEMENT</button>
       </nav>
@@ -555,12 +555,7 @@
       <div id="combatUtilityContentBoosters" class="combat-utility-content"></div>
     </div>
     <canvas id="gameCanvas"></canvas>
-    <button id="rickySupportSkill" class="ricky-support-skill hidden" type="button" title="Balise de soin de Ricky">
-      <span class="ricky-support-skill-key">RICKY</span>
-      <img src="assets/icons/medical_cross.svg" alt="">
-      <span class="ricky-support-skill-name">BALISE</span>
-      <span class="ricky-support-skill-cooldown"></span>
-    </button>
+    <div id="npcAbilityBar" class="npc-ability-bar hidden" aria-label="Compétences de soutien du PNJ"></div>
     <div id="shipAbilityBar" class="ship-ability-bar hidden" aria-label="Compétences du vaisseau"></div>
     <div id="gameActionBar" class="action-bar frame"></div>
     <button id="combatQuickMenuBtn" class="combat-menu-button" type="button">+</button>
@@ -589,6 +584,6 @@
   </section>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="game.js?v=currency-icons-2"></script>
+  <script type="module" src="game.js?v=tutorial-flow-7"></script>
 </body>
 </html>

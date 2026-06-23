@@ -1,4 +1,4 @@
-import { abilityIndexFromEvent, isEditableTarget, slotIndexFromEvent } from "../../core/keybinds.js";
+import { abilityIndexFromEvent, isEditableTarget, slotIndexFromEvent } from "../../core/keybinds.js?v=ship-abilities-1";
 import { installCombatActionBarInputHandlers, setCombatAssetDragImage } from "./combatActionBarInput.js";
 
 export function installCombatInputHandlers({
@@ -73,6 +73,8 @@ export function installCombatInputHandlers({
   clearActionSlot,
   assignExtraToActionSlot,
   assignDroneFormationToActionSlot,
+  getDroneFormation,
+  activateDroneFormation,
   assignAmmoToActionSlot,
   selectMissileAmmo,
   fireMissileLauncher,
@@ -83,7 +85,7 @@ export function installCombatInputHandlers({
   shiftCombatPanelTabs,
   buyCombatAmmo,
   activateRepairBot,
-  useRickySupportSkill,
+  useNpcAbility,
   useShipAbility,
   acceptQuest,
   claimQuest,
@@ -422,9 +424,10 @@ export function installCombatInputHandlers({
     documentRef.getElementById("combatQuickPanel").classList.toggle("hidden");
     renderCombatQuickPanel();
   });
-  documentRef.getElementById("rickySupportSkill")?.addEventListener("click", ()=>{
+  documentRef.getElementById("npcAbilityBar")?.addEventListener("click", event=>{
     if(!isRunning()) return;
-    useRickySupportSkill?.();
+    const slot = event.target.closest("[data-npc-ability-index]");
+    if(slot) useNpcAbility?.(Number(slot.dataset.npcAbilityIndex || 0));
   });
   documentRef.getElementById("shipAbilityBar")?.addEventListener("click", event=>{
     if(!isRunning()) return;
@@ -460,6 +463,13 @@ export function installCombatInputHandlers({
     if(extraSlot){
       const first = getActionSlots().findIndex(id=>!id);
       assignExtraToActionSlot(first >= 0 ? first : 0, extraSlot.dataset.combatExtraSlot);
+      return;
+    }
+    const formationUse = e.target.closest("[data-combat-formation-use]");
+    if(formationUse){
+      const formation = getDroneFormation?.(formationUse.dataset.combatFormationUse);
+      if(formation) activateDroneFormation?.(formation);
+      renderCombatQuickPanel();
       return;
     }
     const ammo = e.target.closest("[data-combat-ammo-id]");

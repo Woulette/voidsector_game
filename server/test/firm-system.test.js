@@ -203,6 +203,12 @@ test("firm seasonal personal objectives award points once and expose a direct cl
   });
   assert.equal(claimed.ok, true);
   assert.equal(claimed.reward.ammo.ammo_x2, 1_000);
+  const claimedProfile = sanitizeProfile({firmatons:0, ammoInventory:{ammo_x2:0}});
+  const appliedSeasonal = applyFirmQuestClaimReward(claimedProfile, claimed);
+  assert.equal(appliedSeasonal.ok, true);
+  assert.equal(claimedProfile.firmatons, 25);
+  assert.equal(claimedProfile.ammoInventory.ammo_x2, 1_000);
+  assert.equal(claimedProfile.firmRewardHistory.at(-1).id, claimed.rewardId);
   assert.equal(claimFirmSeasonObjectiveReward(state, {
     objectiveId:"season-solo-monsters-100",
     contributor,

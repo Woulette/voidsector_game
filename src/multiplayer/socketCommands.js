@@ -60,6 +60,9 @@ export function createSocketCommands({multiplayer}){
     setupServerProfile({name, firmId} = {}){
       return emit(multiplayer, "profile:setup", {name, firmId});
     },
+    updateTutorial({kind, currentStep = ""} = {}){
+      return kind ? emit(multiplayer, "tutorial:update", {kind, currentStep}) : false;
+    },
     setServerProfileTitle(payload = {}){
       return emit(multiplayer, "profile:title-set", payload);
     },

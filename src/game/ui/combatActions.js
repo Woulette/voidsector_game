@@ -1,6 +1,7 @@
 import { renderActionBarHtml, updateActionBarDom } from "./actionBar.js";
-import { renderShipAbilityBarHtml } from "./shipAbilityBar.js";
-import { renderQuickPanelContent, updateQuickPanelTabs } from "./quickPanel.js";
+import { renderShipAbilityBarHtml } from "./shipAbilityBar.js?v=ship-abilities-1";
+import { renderNpcAbilityBarHtml } from "./npcAbilityBar.js?v=npc-abilities-1";
+import { renderQuickPanelContent, updateQuickPanelTabs } from "./quickPanel.js?v=quick-panel-cards-1";
 import { describeAmmo, getAmmoCooldown as readAmmoCooldown, setAmmoCooldown as writeAmmoCooldown } from "../systems/projectiles.js";
 import { requireMmoConnection } from "../../app/mmoGate.js";
 
@@ -32,8 +33,8 @@ export function createCombatActions({
   fireManualRocket,
   fireManualMissile,
   openPortgunMap,
-  getRickySupportState,
-  activateRickyHealBeacon,
+  getNpcAbilityStates,
+  activateNpcAbility,
   getShipAbilityStates,
   activateShipAbility
 }){
@@ -307,24 +308,58 @@ export function createCombatActions({
     const slots = Array.from({length:9}, (_,i)=>store.state.actionSlots?.[i] || null);
     el.innerHTML = renderActionBarHtml({slots, slotKeybinds:store.state.slotKeybinds, getAmmo, getExtra:getCombatExtra, getCpu:getCombatCpu, getFormation:getCombatDroneFormation, getAmmoCount, missileState:getMissileLauncherState(), getSlotState:getActionSlotState});
     renderShipAbilityBar();
+    renderNpcAbilityBar();
     updateGameActionBar();
   }
 
-  function updateRickySupportSkill(){
-    const button = document.getElementById("rickySupportSkill");
-    if(!button) return;
-    const support = getRickySupportState?.() || {};
-    const available = Boolean(support.available);
-    const cooldown = Math.max(0, Number(support.cooldown || 0));
-    button.classList.toggle("hidden", !available);
-    button.classList.toggle("ready", available && cooldown <= 0);
-    button.classList.toggle("blocked", available && cooldown > 0);
-    button.disabled = !available || cooldown > 0;
-    button.title = cooldown > 0
-      ? `Balise de soin de Ricky en recharge : ${Math.ceil(cooldown)}s`
-      : "Déployer la balise de soin de Ricky";
-    const cooldownLabel = button.querySelector(".ricky-support-skill-cooldown");
-    if(cooldownLabel) cooldownLabel.textContent = cooldown > 0 ? String(Math.ceil(cooldown)) : "";
+  function renderNpcAbilityBar(){
+    const bar = document.getElementById("npcAbilityBar");
+    if(!bar) return;
+    const states = (getNpcAbilityStates?.() || []).slice(0, 3);
+    const signature = JSON.stringify(states.map(state=>[
+      state.abilityId,
+      state.ownerName,
+      state.icon,
+      state.shortName
+    ]));
+    if(bar.dataset.signature !== signature){
+      bar.innerHTML = renderNpcAbilityBarHtml({states});
+      bar.dataset.signature = signature;
+    }
+    bar.classList.toggle("hidden", states.length === 0);
+    bar.classList.toggle("above-ship-abilities", (getShipAbilityStates?.() || []).length > 0);
+  }
+
+  function updateNpcAbilitySkills(){
+    const bar = document.getElementById("npcAbilityBar");
+    if(!bar) return;
+    renderNpcAbilityBar();
+    const states = (getNpcAbilityStates?.() || []).slice(0, 3);
+    states.forEach((state, index)=>{
+      const button = bar.querySelector(`[data-npc-ability-index="${index}"]`);
+      if(!button) return;
+      const activeRemainingMs = Math.max(0, Number(state.activeRemainingMs || 0));
+      const cooldownRemainingMs = Math.max(0, Number(state.cooldownRemainingMs || 0));
+      const active = activeRemainingMs > 0;
+      const blocked = !active && cooldownRemainingMs > 0;
+      button.classList.toggle("ready", !active && !blocked);
+      button.classList.toggle("active", active);
+      button.classList.toggle("blocked", blocked);
+      button.disabled = active || blocked;
+      button.title = active
+        ? `${state.name || "Compétence de soutien"} active : ${Math.ceil(activeRemainingMs / 1000)} s`
+        : blocked
+          ? `${state.name || "Compétence de soutien"} en recharge : ${Math.ceil(cooldownRemainingMs / 1000)} s`
+          : `${state.ownerName || "PNJ"} · ${state.description || state.name || "Compétence de soutien"}`;
+      const label = button.querySelector(".npc-ability-slot-cooldown");
+      if(label){
+        label.textContent = active
+          ? `${Math.ceil(activeRemainingMs / 1000)}s`
+          : blocked
+            ? String(Math.ceil(cooldownRemainingMs / 1000))
+            : "";
+      }
+    });
   }
 
   function renderShipAbilityBar(){
@@ -392,7 +427,7 @@ export function createCombatActions({
       getEffectiveAmmoCooldown,
       getAmmoCount
     });
-    updateRickySupportSkill();
+    updateNpcAbilitySkills();
     updateShipAbilitySkills();
   }
 
@@ -480,16 +515,20 @@ export function createCombatActions({
     updateGameActionBar();
   }
 
-  function useRickySupportSkill(){
-    const support = getRickySupportState?.() || {};
-    if(!support.available) return false;
-    if(Number(support.cooldown || 0) > 0){
-      showToast(`Balise Ricky en recharge : ${Math.ceil(Number(support.cooldown || 0))}s.`);
+  function useNpcAbility(index = 0){
+    const state = (getNpcAbilityStates?.() || [])[Math.max(0, Number(index || 0))] || {};
+    if(!state.abilityId) return false;
+    if(Number(state.activeRemainingMs || 0) > 0){
+      showToast(`${state.name || "Compétence de soutien"} est déjà active.`);
       return false;
     }
-    if(!activateRickyHealBeacon?.()) return false;
-    showToast("Balise de soin Ricky demandee.");
-    updateRickySupportSkill();
+    if(Number(state.cooldownRemainingMs || 0) > 0){
+      showToast(`${state.name || "Compétence de soutien"} en recharge : ${Math.ceil(Number(state.cooldownRemainingMs) / 1000)}s.`);
+      return false;
+    }
+    if(!activateNpcAbility?.(state.abilityId)) return false;
+    showToast(`${state.name || "Compétence de soutien"} demandée.`);
+    updateNpcAbilitySkills();
     return true;
   }
 
@@ -749,7 +788,7 @@ export function createCombatActions({
     tickAmmoCooldowns,
     renderGameActionBar,
     updateGameActionBar,
-    useRickySupportSkill,
+    useNpcAbility,
     useShipAbility,
     renderCombatQuickPanel,
     selectActionSlot,
@@ -765,6 +804,7 @@ export function createCombatActions({
     useCombatExtra,
     assignExtraToActionSlot,
     assignDroneFormationToActionSlot,
+    activateDroneFormation,
     setCombatPanelTab:value=>{ combatPanelTab = value; },
     shiftCombatPanelTabs:value=>{
       const maxOffset = Math.max(0, document.querySelectorAll("#combatQuickPanel [data-combat-panel-tab]").length - 5);

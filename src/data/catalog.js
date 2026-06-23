@@ -107,6 +107,7 @@ export const defaultState = {
   questProgress:{},
   questFailProgress:{},
   completedQuestClaims:{},
+  tutorial:{status:"pending",step:"launcher_orion",rewardClaimed:false,updatedAt:Date.now(),completedAt:0},
   firmatons:0,
   firmBoxes:{common:0,rare:0,veryRare:0,elite:0,mythic:0},
   firmRewardHistory:[],

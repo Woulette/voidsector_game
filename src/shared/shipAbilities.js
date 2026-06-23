@@ -12,6 +12,25 @@ export const SHIP_ABILITY_DEFINITIONS = Object.freeze({
       lifeStealRatio:0.5,
       weaponClass:"laser"
     })
+  ]),
+  nyxaris:Object.freeze([
+    Object.freeze({
+      id:"poison_bomb",
+      shipId:"nyxaris",
+      name:"Bombe poison",
+      shortName:"POISON",
+      description:"Projette 3 vagues toxiques autour du vaisseau. Les monstres touches subissent 10 000 HP/s pendant 10 secondes. Une nouvelle touche rafraichit le poison sans le cumuler.",
+      icon:"assets/icons/poison_bomb.svg",
+      durationMs:9_000,
+      cooldownMs:180_000,
+      effectType:"enemy_poison_bomb",
+      radius:300,
+      pulseCount:3,
+      pulseIntervalMs:3_000,
+      poisonDamagePerSecond:10_000,
+      poisonDurationMs:10_000,
+      poisonTickMs:1_000
+    })
   ])
 });
 
@@ -59,7 +78,14 @@ export function getShipAbilityStatus(shipId, value = {}, now = Date.now(), abili
     cooldownRemainingMs:Math.max(0, state.cooldownUntil - now),
     durationMs:Number(definition?.durationMs || 0),
     cooldownMs:Number(definition?.cooldownMs || 0),
-    lifeStealRatio:Number(definition?.lifeStealRatio || 0)
+    lifeStealRatio:Number(definition?.lifeStealRatio || 0),
+    effectType:definition?.effectType || "",
+    radius:Number(definition?.radius || 0),
+    pulseCount:Number(definition?.pulseCount || 0),
+    pulseIntervalMs:Number(definition?.pulseIntervalMs || 0),
+    poisonDamagePerSecond:Number(definition?.poisonDamagePerSecond || 0),
+    poisonDurationMs:Number(definition?.poisonDurationMs || 0),
+    poisonTickMs:Number(definition?.poisonTickMs || 0)
   };
 }
 

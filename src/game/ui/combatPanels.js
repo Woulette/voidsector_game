@@ -3,8 +3,10 @@ import { renderSpawnPanelContent } from "./spawnPanel.js";
 import { renderCombatFirmPanel } from "./combatFirmPanel.js";
 import { renderCombatMapPanel } from "./combatMapPanel.js";
 import { renderCombatBoostersPanel } from "./combatBoostersPanel.js";
+import { createTypewriterTextController } from "./typewriterText.js";
 import { FIRMS, getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
 import { isPremiumActive } from "../../data/premium.js";
+import { getCurrentRank } from "../../core/store.js";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import {
   multiplayer,
@@ -101,6 +103,7 @@ export function createCombatPanels({
   let expandedBoosterType = "";
   let pendingGroupInviteName = "";
   let pendingSocialAddName = "";
+  const questBriefingTypewriter = createTypewriterTextController({charactersPerSecond:32});
 
   function canUseCurrentMapFirmServices(){
     const mapFirmId = getFirmIdFromMapName(getCurrentMap()?.name);
@@ -117,6 +120,7 @@ export function createCombatPanels({
     combatQuestDetailTab = "quest";
     refineryPanelTab = "raffinage";
     selectedShipRefineRecipeId = null;
+    questBriefingTypewriter.reset();
     spawnPanelRefreshT = 0;
     utilityPanelRefreshT = 0;
     groupHudRefreshT = 0;
@@ -137,6 +141,7 @@ export function createCombatPanels({
     const persist = options?.persist !== false;
     spawnPanelMode = null;
     spawnPanelRefreshT = 0;
+    questBriefingTypewriter.reset();
     document.getElementById("spawnInteractionPanel")?.classList.add("hidden");
     if(persist) saveSpawnPanelOpenState(null, false);
     syncUtilityDockButtons();
@@ -1099,6 +1104,9 @@ export function createCombatPanels({
       showLockedQuests,
       quests:getAllQuests().filter(quest=>!quest.firmId || normalizeFirmId(quest.firmId) === normalizeFirmId(store.state.player?.firmId || "astra")),
       playerLevel:store.state.player.level,
+      playerName:store.state.player?.name || "Pilote",
+      playerRank:getCurrentRank(),
+      firmId:normalizeFirmId(store.state.player?.firmId || "astra"),
       premiumActive:isPremiumActive(store.state?.player),
       enemyTypes,
       rawMaterials:getAllRawMaterials(),
@@ -1124,6 +1132,11 @@ export function createCombatPanels({
     });
     title.textContent = rendered.title;
     content.innerHTML = rendered.html;
+    questBriefingTypewriter.sync(content);
+    content.querySelector("[data-quest-briefing-skip]")?.addEventListener("click", event=>{
+      if(event.target.closest("button")) return;
+      questBriefingTypewriter.complete();
+    });
     if(questListScrollTop !== null){
       const questList = content.querySelector(".quest-strip-list");
       if(questList) questList.scrollTop = questListScrollTop;
@@ -1199,6 +1212,7 @@ export function createCombatPanels({
   applyPerfPanelVisibility();
 
   function tick(dt){
+    questBriefingTypewriter.update(dt);
     utilityBadgeRefreshT -= dt;
     if(utilityBadgeRefreshT <= 0){
       syncUtilityDockButtons();

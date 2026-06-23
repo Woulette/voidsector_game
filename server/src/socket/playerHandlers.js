@@ -1,6 +1,7 @@
 import { validatePlayerState } from "../players/playerStateValidation.js";
 import { buildGlobalLeaderboardSnapshotFromManager } from "../players/leaderboard.js";
 import { consumeInventoryItemAmount } from "../economy/inventoryStacks.js";
+import { applyTutorialAction } from "../players/tutorialActions.js";
 import {
   PORTGUN_FLUID_ITEM_ID,
   cancelPendingPortgunTeleport,
@@ -300,6 +301,29 @@ export function registerPlayerHandlers(socket, context){
     emitProfileSync?.(player, result.profile);
     broadcastLeaderboard();
     emitPlayers();
+  });
+
+  socket.on("tutorial:update", payload=>{
+    if(!guard("tutorial:update")) return;
+    const player = players.get(socket.id);
+    const result = profileManager.updateProfileForPlayer({
+      player,
+      update:profile=>applyTutorialAction(profile, {
+        kind:payload?.kind,
+        currentStep:payload?.currentStep
+      })
+    });
+    if(!result?.ok){
+      socket.emit("tutorial:error", {message:result?.reason || "Mise a jour du tutoriel impossible."});
+      if(result?.changed && result?.profile) emitProfileSync?.(player, result.profile);
+      return;
+    }
+    socket.emit("tutorial:updated", {
+      tutorial:result.profile?.tutorial,
+      rewardItemId:result.rewardItemId || null,
+      at:Date.now()
+    });
+    emitProfileSync?.(player, result.profile);
   });
 
   socket.on("profile:debug-reset-firm", ()=>{

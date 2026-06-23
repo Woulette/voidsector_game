@@ -44,6 +44,14 @@ export function installPlayerSocketListeners({
     toast(payload?.message || "Configuration du profil impossible.");
     emitChange("profile:setup-error", payload);
   });
+  socket.on("tutorial:updated", event=>{
+    if(event?.rewardItemId) toast("Cadeau ouvert : Laser MK-III recu.");
+    emitChange("tutorial:updated", event);
+  });
+  socket.on("tutorial:error", payload=>{
+    toast(payload?.message || "Mise a jour du tutoriel impossible.");
+    emitChange("tutorial:error", payload);
+  });
   socket.on("profile:debug-firm-reset", event=>{
     toast("Choix de firme reinitialise pour les tests locaux.");
     emitChange("profile:debug-firm-reset", event);

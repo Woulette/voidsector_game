@@ -1,1 +1,1 @@
-import "./src/app.js?v=currency-icons-2";
+import "./src/app.js?v=tutorial-flow-7";

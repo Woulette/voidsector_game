@@ -102,5 +102,31 @@ export const ships = [
     skillShip:true,
     abilityId:"absorbing_fire",
     special:"Tir absorbant · 50 % vol de vie · 20 s · recharge 180 s"
+  },
+  {
+    id:"nyxaris",
+    name:"Nyxaris",
+    className:"Diffuseur toxique",
+    img:"assets/ships/Nyxaris.png",
+    combatImg:"assets/ships/combat/Nyxaris.png",
+    renderWidth:136,
+    renderHeight:152,
+    priceType:"premium",
+    price:150000,
+    desc:"Un vaisseau leger a noyau toxique qui projette une Bombe poison en vagues concentriques. Les monstres touches subissent un poison direct sur la coque, rafraichi a chaque nouvelle vague.",
+    stats:{
+      vie:210000,
+      vitesse:320,
+      cargo:2000,
+      maxLasers:14,
+      maxGenerators:14,
+      maxExtras:8,
+      maxRocketLaunchers:1,
+      maxMissileLaunchers:1
+    },
+    requiresCompletedPortal:"violet",
+    skillShip:true,
+    abilityId:"poison_bomb",
+    special:"Bombe poison - 3 vagues / 9 s - 10 000 HP/s pendant 10 s - recharge 180 s"
   }
 ];

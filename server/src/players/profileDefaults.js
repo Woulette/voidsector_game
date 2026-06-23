@@ -38,6 +38,7 @@ export function createDefaultProfile(){
     questProgress:{},
     questFailProgress:{},
     completedQuestClaims:{},
+    tutorial:{status:"pending", step:"launcher_orion", rewardClaimed:false, updatedAt:Date.now(), completedAt:0},
     activityLog:[],
     shipWorldSessions:{},
     social:{friends:[], incoming:[], outgoing:[], enemies:[], ignored:[]},

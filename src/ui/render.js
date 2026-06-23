@@ -2,7 +2,7 @@ import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatal
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
 import { creditCurrencyPacks, getPremiumRewardStatus, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js";
 import { fmt } from "../core/utils.js";
-import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js";
+import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js?v=ship-abilities-2";
 import {
   RANK_TABLE,
   RANK_POINT_RULES,
@@ -49,12 +49,14 @@ import {
   store
 } from "../core/store.js";
 import { ENEMY_TYPES } from "../game/combatData.js";
+import { FIRM_REPRESENTATIVES } from "../data/firmRepresentatives.js";
 
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
 import { renderShop } from "./renderShop.js";
 import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=currency-icons-1";
 import { renderRefinery } from "./renderRefinery.js";
 import { renderFirm } from "./renderFirm.js";
+import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
 import { multiplayer } from "../multiplayer/client.js";
 import { renderAdminPanel } from "./adminPanel.js?v=currency-icons-2";
 import { currencyAmountHtml, currencyIconHtml } from "./currencyIcons.js";
@@ -140,6 +142,13 @@ export function renderTop(){
   });
   const pilotRankLabel = document.getElementById("pilotRankLabel");
   if(pilotRankLabel) pilotRankLabel.textContent = rank.name;
+  const firmNotificationBadge = document.querySelector("[data-firm-nav-badge]");
+  if(firmNotificationBadge){
+    const count = getFirmRewardNotificationCounts(multiplayer.firmSnapshot).total;
+    firmNotificationBadge.textContent = formatFirmRewardNotificationCount(count);
+    firmNotificationBadge.hidden = count <= 0;
+    firmNotificationBadge.closest("[data-view='firm']")?.classList.toggle("has-claimable", count > 0);
+  }
   const gradeBox = document.getElementById("gradeCard");
   if(gradeBox){
     gradeBox.innerHTML = `
@@ -1007,36 +1016,7 @@ function renderFirmSetupGate(){
     gate.id = "firmSetupGate";
     document.body.appendChild(gate);
   }
-  const firmPresentations = {
-    astra:{
-      asset:"assets/firms/representatives/astra.png",
-      badge:"assets/firms/astra.svg",
-      role:"Commandement offensif",
-      motto:"Frapper vite. Tenir toujours.",
-      speech:"Astra ne recule devant aucun secteur hostile. Rejoins-nous et transforme chaque bataille en territoire conquis."
-    },
-    cyan:{
-      asset:"assets/firms/representatives/cygnus.png",
-      badge:"assets/firms/cyan.svg",
-      role:"Strategie et maitrise",
-      motto:"Voir plus loin. Agir avec precision.",
-      speech:"Cygnus gagne avant le premier tir. Nos pilotes dominent par la discipline, la technologie et une strategie sans faille."
-    },
-    verte:{
-      asset:"assets/firms/representatives/verdantis.png",
-      badge:"assets/firms/verte.svg",
-      role:"Expansion et resilience",
-      motto:"Grandir. Proteger. Perseverer.",
-      speech:"Verdantis transforme les mondes hostiles en bastions vivants. Ensemble, nous survivons, progressons et ne cedons rien."
-    },
-    jaune:{
-      asset:"assets/firms/representatives/solarys.png",
-      badge:"assets/firms/jaune.svg",
-      role:"Prestige et puissance",
-      motto:"Rayonner au-dessus des autres.",
-      speech:"Solarys rassemble les pilotes qui refusent l'ordinaire. Porte nos couleurs et grave ton nom dans la lumiere des etoiles."
-    }
-  };
+  const firmPresentations = FIRM_REPRESENTATIVES;
   const selectedFirmId = store.pendingFirmId ? normalizeFirmId(store.pendingFirmId) : null;
   const selectedFirm = FIRMS.find(firm=>firm.id === selectedFirmId) || null;
   const selectedPresentation = selectedFirm ? firmPresentations[selectedFirm.id] : null;

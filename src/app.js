@@ -24,15 +24,17 @@ import {
   store,
   XP_CURVE_VERSION
 } from "./core/store.js";
-import { createCombatGame } from "./game/combat.js?v=currency-icons-2";
-import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, upgradeServerSkill } from "./multiplayer/client.js";
+import { createCombatGame } from "./game/combat.js?v=quick-panel-cards-1";
+import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js";
 import { connectMultiplayer, disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, registerAccount, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js";
-import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=currency-icons-2";
+import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=ship-abilities-2";
 import { showToast } from "./ui/toast.js?v=currency-icons-2";
-import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js";
+import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=ship-abilities-1";
 import { createProfileController } from "./app/profileController.js";
+import { createTutorialController } from "./ui/tutorialController.js?v=tutorial-flow-7";
 import { createServerEventController } from "./app/serverEventController.js";
 import { createShopActions } from "./app/shopActions.js";
+import { getFirstFirmRewardDestination } from "./ui/firmRewardNotifications.js";
 import { createEquipmentActions } from "./app/equipmentActions.js";
 import {
   createEquipmentDoubleClickTracker,
@@ -628,6 +630,10 @@ document.addEventListener("click", (e)=>{
   const firmMainTab = e.target.closest("[data-firm-main-tab]");
   if(firmMainTab){
     store.firmTab = firmMainTab.dataset.firmMainTab || "overview";
+    if(store.firmTab === "quests"){
+      const destination = getFirstFirmRewardDestination(multiplayer.firmSnapshot);
+      if(destination?.firmTab === "quests") store.firmQuestTab = destination.questTab;
+    }
     if(store.firmTab === "shop") requestFirmSync({includeShop:true});
     renderFirm();
     return;
@@ -705,6 +711,16 @@ document.addEventListener("click", (e)=>{
 
   const nav = e.target.closest("[data-view]");
   if(nav){
+    if(nav.dataset.view === "firm"){
+      const destination = getFirstFirmRewardDestination(multiplayer.firmSnapshot);
+      if(destination){
+        store.firmTab = destination.firmTab;
+        if(destination.questTab) store.firmQuestTab = destination.questTab;
+        store.firmAutoOpenClaimable = false;
+      }else{
+        store.firmAutoOpenClaimable = true;
+      }
+    }
     setView(nav.dataset.view);
     if(nav.dataset.view === "firm") requestFirmSync({includeShop:true});
     if(nav.dataset.view === "leaderboard") requestLeaderboardSync();
@@ -1086,6 +1102,17 @@ window.addEventListener("voidsector:multiplayer-change", event=>{
   if(reason === "firm:updated" && event.detail?.payload?.action === "box-open"){
     store.firmBoxOpening = {...event.detail.payload, revealId:`box_${Date.now()}`};
   }
+  if(reason.startsWith("firm:")){
+    renderTop();
+    if(store.currentView === "firm" && store.firmAutoOpenClaimable){
+      const destination = getFirstFirmRewardDestination(multiplayer.firmSnapshot);
+      if(destination){
+        store.firmTab = destination.firmTab;
+        if(destination.questTab) store.firmQuestTab = destination.questTab;
+      }
+      store.firmAutoOpenClaimable = false;
+    }
+  }
   if(store.currentView === "firm" && reason.startsWith("firm:")) renderFirm();
   if(store.currentView === "leaderboard" && reason === "leaderboard:ranking"){
     preserveScroll(()=>renderLeaderboard());
@@ -1137,6 +1164,8 @@ window.voidResetFirm = ()=>{
 window.voidResetFirme = window.voidResetFirm;
 setView("hangar");
 renderAll();
+const tutorialController = createTutorialController({store, appMode, game:Game, updateTutorial, multiplayer});
+tutorialController.init();
 function startGameWhenMmoReady(){
   if(appMode !== "game" || Game.running) return;
   if(!isMmoAuthenticated(multiplayer)){

@@ -354,22 +354,16 @@ export function getTrustedMovementSpeed(profile, ship = getActiveShip(profile)){
 function validateVitals({player, previous, payload, profile, ship, firmBoosters, elapsedSeconds, mapChanged, nextPoint, nextMap, now}){
   const hullMultiplier = 1 + Math.max(0, finite(firmBoosters?.hull));
   const shieldMultiplier = 1 + Math.max(0, finite(firmBoosters?.shield));
-  const previousHullMultiplier = Math.max(1, finite(previous?.firmHullMultiplier, 1));
   const trustedSession = getTrustedShipSession(profile, ship.id);
-  const sessionHullMultiplier = Math.max(1, finite(trustedSession?.firmHullMultiplier, 1));
-  const shipHp = getTrustedMaxHp(profile, ship, firmBoosters);
-  const trustedInitialMaxHp = trustedSession
-    ? Math.max(shipHp, finite(trustedSession.maxHp, shipHp) / sessionHullMultiplier * hullMultiplier)
-    : shipHp;
-  const maxHp = previous
-    ? Math.max(shipHp, finite(previous.maxHp, shipHp) / previousHullMultiplier * hullMultiplier)
-    : trustedInitialMaxHp;
+  const maxHp = getTrustedMaxHp(profile, ship, firmBoosters);
   const maxShield = getTrustedMaxShield(profile, firmBoosters);
 
   if(!previous){
-    const trustedInitialHp = trustedSession
-      ? finite(trustedSession.hp, maxHp) / sessionHullMultiplier * hullMultiplier
-      : maxHp;
+    const savedMaxHp = Math.max(1, finite(trustedSession?.maxHp, maxHp));
+    const savedHpRatio = trustedSession
+      ? clamp(finite(trustedSession.hp, savedMaxHp) / savedMaxHp, 0, 1)
+      : 1;
+    const trustedInitialHp = maxHp * savedHpRatio;
     const savedMaxShield = Math.max(0, finite(trustedSession?.maxShield));
     const savedShieldRatio = trustedSession && savedMaxShield > 0
       ? clamp(finite(trustedSession.shield, savedMaxShield) / savedMaxShield, 0, 1)
@@ -385,7 +379,9 @@ function validateVitals({player, previous, payload, profile, ship, firmBoosters,
     };
   }
 
-  const previousHp = clamp(finite(previous.hp) * hullMultiplier / previousHullMultiplier, 0, maxHp);
+  const previousMaxHp = Math.max(1, finite(previous.maxHp, maxHp));
+  const previousHpRatio = clamp(finite(previous.hp) / previousMaxHp, 0, 1);
+  const previousHp = maxHp * previousHpRatio;
   const previousMaxShield = Math.max(0, finite(previous.maxShield));
   const previousShieldRatio = previousMaxShield > 0
     ? clamp(finite(previous.shield) / previousMaxShield, 0, 1)
@@ -406,7 +402,7 @@ function validateVitals({player, previous, payload, profile, ship, firmBoosters,
     ? maxHp
     : Math.max(maxHp * 0.04 * elapsedSeconds + 5, isRepairTick ? repairTickAllowance : 0);
   const shieldRegenAllowance = safeRespawn ? maxShield : maxShield * 0.18 * elapsedSeconds + 25;
-  const hp = clamp(requestedHp, 0, Math.min(maxHp, previousHp + hpHealAllowance));
+  const hp = clamp(requestedHp, previousHp, Math.min(maxHp, previousHp + hpHealAllowance));
   const shield = clamp(
     finite(payload?.shield, previousShield),
     previousShield,

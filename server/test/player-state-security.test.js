@@ -66,6 +66,68 @@ test("faction hull booster is enforced by the server", ()=>{
   assert.equal(result.state.firmHullMultiplier, 1.10);
 });
 
+test("hull capacity is rebuilt from trusted stats without compounding stale Vesperion sessions", ()=>{
+  const profile = createDefaultProfile();
+  profile.activeShip = "vesperion";
+  profile.ownedShips.push("vesperion");
+  profile.skillRanks.shield = [0, 0, 0, 0, 3];
+  profile.worldSession = {
+    mapId:"0",
+    x:0,
+    y:0,
+    hp:165_600,
+    maxHp:331_200,
+    shield:0,
+    maxShield:0,
+    firmHullMultiplier:1.2,
+    shipId:"vesperion",
+    updatedAt:1000
+  };
+  profile.shipWorldSessions.vesperion = {...profile.worldSession};
+
+  const first = validatePlayerState({
+    player:makePlayer(null),
+    profile,
+    groups:new Map(),
+    firmBoosters:{hull:.20},
+    now:1050,
+    payload:baseState({shipId:"vesperion", hp:165_600, maxHp:331_200, updatedAt:1050})
+  });
+
+  assert.equal(first.state.maxHp, 303_600);
+  assert.equal(first.state.hp, 151_800);
+  assert.equal(first.state.firmHullMultiplier, 1.20);
+
+  const player = makePlayer(first.state);
+  const repeated = validatePlayerState({
+    player,
+    profile,
+    groups:new Map(),
+    firmBoosters:{hull:.20},
+    now:1100,
+    payload:{...first.state, updatedAt:1100}
+  });
+
+  assert.equal(repeated.state.maxHp, 303_600);
+  assert.equal(repeated.state.hp, 151_800);
+});
+
+test("activating a hull booster preserves hull percentage despite a stale lower client snapshot", ()=>{
+  const previous = baseState({hp:2500, maxHp:5000, firmHullMultiplier:1});
+  const result = validatePlayerState({
+    player:makePlayer(previous),
+    profile:createDefaultProfile(),
+    groups:new Map(),
+    firmBoosters:{hull:.20},
+    now:1050,
+    payload:{...previous, updatedAt:1050}
+  });
+
+  assert.equal(result.state.maxHp, 6000);
+  assert.equal(result.state.hp, 3000);
+  assert.equal(result.corrected, true);
+});
+
 test("client snapshots cannot lower the server-authoritative shield", ()=>{
   const profile = createDefaultProfile();
   profile.inventoryItems.push({uid:"inv_test_shield", itemId:"shield_gen"});
@@ -281,7 +343,15 @@ test("limits forged healing, shield and ship identity", ()=>{
 
 test("accepts one equipped repair bot heal tick per second", ()=>{
   const profile = createDefaultProfile();
+  profile.activeShip = "velox";
+  profile.ownedShips.push("velox");
+  profile.shipLoadouts.velox = {
+    lasers:[],
+    generators:[],
+    extras:["inv_repair_starter_2", null, null]
+  };
   const previous = baseState({hp:10000, maxHp:15000});
+  previous.shipId = "velox";
   const player = makePlayer(previous);
   const first = validatePlayerState({
     player,

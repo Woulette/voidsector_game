@@ -6,6 +6,7 @@ import { store } from "../core/store.js";
 import { hasCompactQuestAsset } from "../data/enemyVisuals.js";
 import { getFirmIndividualRewardTiers } from "../shared/firmSeasonRewards.js";
 import { buildFallbackPilotProfile, installPilotProfileModal, registerPilotProfile } from "./playerProfileModal.js";
+import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
 
 const FIRM_TABS = [
   {id:"overview", label:"Vue d'ensemble"},
@@ -73,6 +74,12 @@ function firmChestAsset(rarity){
 
 function firmatonAmount(value, className = ""){
   return `<span class="firmaton-amount ${className}">${fmt(value)}${firmatonIcon("firmaton-icon firmaton-icon-inline")}</span>`;
+}
+
+function notificationBadge(count){
+  return count > 0
+    ? `<span class="firm-notification-badge">${formatFirmRewardNotificationCount(count)}</span>`
+    : "";
 }
 
 function rewardItems(reward = {}){
@@ -439,11 +446,12 @@ function questKindLabel(quest){
   return "Journalière";
 }
 
-function renderQuestModeTabs(mode){
+function renderQuestModeTabs(mode, notificationCounts){
+  const counts = notificationCounts || {daily:0, weekly:0, seasonal:0};
   return `<div class="firm-quest-mode-tabs">
-    <button class="${mode === "daily" ? "active" : ""}" data-firm-quest-tab="daily" type="button">JOURNALIERES</button>
-    <button class="${mode === "weekly" ? "active" : ""}" data-firm-quest-tab="weekly" type="button">HEBDOMADAIRES</button>
-    <button class="${mode === "seasonal" ? "active" : ""}" data-firm-quest-tab="seasonal" type="button">SAISONNIERES</button>
+    <button class="${mode === "daily" ? "active" : ""}" data-firm-quest-tab="daily" type="button">JOURNALIERES ${notificationBadge(counts.daily)}</button>
+    <button class="${mode === "weekly" ? "active" : ""}" data-firm-quest-tab="weekly" type="button">HEBDOMADAIRES ${notificationBadge(counts.weekly)}</button>
+    <button class="${mode === "seasonal" ? "active" : ""}" data-firm-quest-tab="seasonal" type="button">SAISONNIERES ${notificationBadge(counts.seasonal)}</button>
   </div>`;
 }
 
@@ -532,7 +540,7 @@ function renderQuestSessions(quests, ownFirmId){
   </div>`;
 }
 
-function renderQuestSummary(snapshot, quests, ownFirmId, mode){
+function renderQuestSummary(snapshot, quests, ownFirmId, mode, notificationCounts){
   const activeQuests = quests.filter(quest=>!quest.locked);
   const lockedQuests = quests
     .filter(quest=>quest.locked)
@@ -544,7 +552,7 @@ function renderQuestSummary(snapshot, quests, ownFirmId, mode){
   const completed = summaryQuests.filter(quest=>quest.firms?.[ownFirmId]?.completedAt).length;
   const nextLocked = lockedQuests[0];
   return `<aside class="firm-quest-summary">
-    ${renderQuestModeTabs(mode)}
+    ${renderQuestModeTabs(mode, notificationCounts)}
     <div class="firm-quest-summary-card">
       <span class="tiny">OBJECTIFS DE FIRME</span>
       <h3>${mode === "weekly" ? "Cycle hebdomadaire" : "Cycle journalier"}</h3>
@@ -566,7 +574,7 @@ function renderSeasonObjectiveVisual(objective){
   </div>`;
 }
 
-function renderSeasonObjectiveCard(objective){
+export function renderSeasonObjectiveCard(objective){
   const progress = Math.max(0, Number(objective.progress || 0));
   const goal = Math.max(1, Number(objective.goal || 1));
   const percent = Math.min(100, progress / goal * 100);
@@ -600,12 +608,13 @@ function renderSeasonObjectiveCard(objective){
 
 function renderSeasonObjectives(snapshot, ownFirmId){
   const objectives = snapshot.seasonObjectives || [];
+  const notificationCounts = getFirmRewardNotificationCounts(snapshot);
   const completed = objectives.filter(objective=>objective.completedAt).length;
   const nextObjective = objectives.find(objective=>!objective.completedAt) || objectives[0];
   const firmPoints = objectives.filter(objective=>objective.completedAt).reduce((sum, objective)=>sum + Number(objective.firmPoints || 0), 0);
   return `<div class="firm-quest-layout seasonal">
     <aside class="firm-quest-summary">
-      ${renderQuestModeTabs("seasonal")}
+      ${renderQuestModeTabs("seasonal", notificationCounts)}
       <div class="firm-quest-summary-card">
         <span class="tiny">OBJECTIFS SOLO</span>
         <h3>Cycle saisonnier</h3>
@@ -628,13 +637,14 @@ function renderSeasonObjectives(snapshot, ownFirmId){
 
 function renderQuests(snapshot){
   const ownFirmId = normalizeFirmId(snapshot.personal?.firmId || "astra");
+  const notificationCounts = getFirmRewardNotificationCounts(snapshot);
   const mode = ["weekly", "seasonal"].includes(store.firmQuestTab) ? store.firmQuestTab : "daily";
   if(mode === "seasonal") return renderSeasonObjectives(snapshot, ownFirmId);
   const quests = mode === "weekly" ? snapshot.seasonalQuests || [] : snapshot.dailyQuests || [];
   const activeCount = quests.filter(quest=>!quest.locked).length;
   const lockedCount = quests.filter(quest=>quest.locked).length;
   return `<div class="firm-quest-layout">
-    ${renderQuestSummary(snapshot, quests, ownFirmId, mode)}
+    ${renderQuestSummary(snapshot, quests, ownFirmId, mode, notificationCounts)}
     <section class="firm-main-block firm-quest-board">
       <div class="firm-main-block-head"><div><span class="tiny">MISSIONS COLLECTIVES</span><h3>${mode === "weekly" ? "Quêtes hebdomadaires" : "Quêtes journalières"}</h3></div><b>${mode === "daily" ? `${activeCount} ouvertes / ${lockedCount} verrouillées` : "Auto-actives"}</b></div>
       <div class="firm-quest-wide-list">${quests.map(quest=>renderQuestRow(snapshot, quest, ownFirmId)).join("") || `<p class="firm-empty">Aucune quête active.</p>`}</div>
@@ -695,14 +705,14 @@ function renderRankings(snapshot){
 }
 
 function renderRewardGift(label, reward){
-  return `<span class="firm-reward-gift" tabindex="0" aria-label="Voir le lot ${escapeHtml(label)}">
+  return `<button class="firm-reward-gift" type="button" aria-label="Voir le lot ${escapeHtml(label)}">
     <img src="assets/icons/season-gift.svg" alt="">
     <span class="firm-reward-tooltip">
       <strong>${escapeHtml(label)}</strong>
       ${rewardHtml(reward)}
       <small>Un seul lot individuel est attribué : celui du meilleur palier atteint.</small>
     </span>
-  </span>`;
+  </button>`;
 }
 
 function renderFixedRewardTier(tier, ranking, personalLabel){
@@ -781,6 +791,7 @@ export function renderFirm(){
   if(!panel) return;
   if(!FIRM_TABS.some(tab=>tab.id === store.firmTab)) store.firmTab = "overview";
   const snapshot = multiplayer.firmSnapshot || fallbackSnapshot();
+  const notificationCounts = getFirmRewardNotificationCounts(snapshot);
   const firmId = normalizeFirmId(snapshot.personal?.firmId || store.state?.player?.firmId || "astra");
   const firm = getFirmDefinition(firmId);
   const content = store.firmTab === "shop"
@@ -801,7 +812,10 @@ export function renderFirm(){
         <article><span>Rang individuel</span><strong>${snapshot.personal?.rank ? `#${snapshot.personal.rank}` : "--"}</strong></article>
       </div>
     </header>
-    <nav class="firm-main-tabs">${FIRM_TABS.map(tab=>`<button class="${store.firmTab === tab.id ? "active" : ""}" data-firm-main-tab="${tab.id}" type="button">${tab.label}</button>`).join("")}</nav>
+    <nav class="firm-main-tabs">${FIRM_TABS.map(tab=>{
+      const count = tab.id === "quests" ? notificationCounts.quests : tab.id === "rewards" ? notificationCounts.rewards : 0;
+      return `<button class="${store.firmTab === tab.id ? "active" : ""}" data-firm-main-tab="${tab.id}" type="button">${tab.label} ${notificationBadge(count)}</button>`;
+    }).join("")}</nav>
     <div class="firm-main-content">${content}</div>
     ${renderFirmBoxOpening()}`;
 }

@@ -11,6 +11,7 @@ import { appendProfileActivity } from "./activityLog.js";
 import { depositServerCombatBoostMaterial } from "../economy/combatBoosts.js";
 import { applyPremiumPackToPlayer, claimPremiumRewardState } from "../../../src/data/premium.js";
 import { BOOSTER_TYPE_IDS, addPlayerBoosterUnits } from "../../../src/shared/firmBoosters.js";
+import { abandonTutorialAfterOutsideQuestAction } from "./tutorialActions.js";
 
 export function createProfileActions({profiles, persist, getExistingProfile}){
   function spendAndUpdate({player, priceType, amount, update, activity} = {}){
@@ -440,6 +441,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
         .filter(Boolean))];
       if(completedIds.length) claimedQuests = claimCompletedServerQuests(profile, completedIds).claimed || [];
     }
+    abandonTutorialAfterOutsideQuestAction(profile);
     if((action?.kind === "timer-check" || action?.kind === "death" || action?.kind === "hp-loss") && !result.changed){
       return {...result, profile};
     }

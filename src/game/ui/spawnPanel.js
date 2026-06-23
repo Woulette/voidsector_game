@@ -1,6 +1,18 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, equipment, portals } from "../../data/catalog.js";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
+import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
+import { getQuestBriefing } from "../../data/questBriefings.js";
+
+function escapeHtml(value = ""){
+  return String(value).replace(/[&<>"']/g, char=>({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    "\"":"&quot;",
+    "'":"&#39;"
+  })[char]);
+}
 
 const QUEST_TABS = [
   {id:"available", label:"Quete"},
@@ -279,7 +291,20 @@ function renderQuestList({quests, selectedQuest, activeQuest, activeQuests = [],
   }).join("");
 }
 
-function renderQuestDetail({quest, activeQuest, activeQuests = [], getQuestProgress, completedQuestClaims, enemyTypes, rawMaterials, playerLevel, premiumActive = false}){
+function renderQuestDetail({
+  quest,
+  activeQuest,
+  activeQuests = [],
+  getQuestProgress,
+  completedQuestClaims,
+  enemyTypes,
+  rawMaterials,
+  playerLevel,
+  playerName,
+  playerRank,
+  firmId,
+  premiumActive = false
+}){
   const state = questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel, premiumActive);
   const active = activeQuests.some(entry=>entry.id === quest.id) || activeQuest?.id === quest.id;
   const claimable = active && state.claimable;
@@ -296,30 +321,63 @@ function renderQuestDetail({quest, activeQuest, activeQuests = [], getQuestProgr
     : state.prereqLocked
       ? "Prerequis requis"
       : `LV ${state.requiredLevel} requis`;
+  const briefingStatus = state.completed ? "completed" : claimable ? "claimable" : active ? "active" : "available";
+  const briefing = getQuestBriefing({quest, playerName, playerRank, firmId, status:briefingStatus});
+  const firm = getFirmDefinition(quest.firmId || firmId);
+  const status = questStatus({completed:state.completed, claimable, active, locked:state.locked});
+  const typewriterKey = `${quest.id}:${briefingStatus}:${playerRank?.id || "recrue"}`;
   return `<article class="quest-detail ${active ? "active" : ""} ${quest.special ? "special" : ""} ${quest.rare ? "rare" : ""} ${quest.red ? "red" : ""} ${claimable ? "claimable" : ""} ${state.locked ? "locked" : ""} ${state.premiumLocked ? "premium-locked" : ""}">
     <div class="quest-detail-hero">
       <div class="quest-detail-copy">
-        <span>${quest.giver || "Relais de Commandement"}</span>
-        <strong>${quest.title}</strong>
+        <span>${escapeHtml(quest.giver || "Relais de Commandement")} · ${escapeHtml(firm.label)}</span>
+        <strong>${escapeHtml(quest.title)}</strong>
       </div>
+      <span class="quest-status-chip">${escapeHtml(status)}</span>
       <div class="quest-level-badge"><span>LV</span><b>${state.requiredLevel}</b></div>
     </div>
-    <div class="quest-section-title objective">Objectif</div>
-    <p class="quest-objective-text">${formatQuestObjective(quest)}</p>
-    ${targetIcons}
-    ${visitObjectives}
-    ${renderQuestFailConditions(quest)}
-    ${renderQuestZoneMeta(zoneLabel)}
-    <div class="quest-reward-title">Recompenses</div>
-    <div class="quest-info-grid compact">
-      <div class="credits" aria-label="Crédits"><img src="assets/icons/credits.svg" alt=""><b title="${fmt(quest.rewards?.credits || 0)}">${fmtCompact(quest.rewards?.credits || 0)}</b></div>
-      <div class="nova" aria-label="NOVA"><img src="assets/icons/premium.svg" alt=""><b title="${fmt(quest.rewards?.premium || 0)}">${fmtCompact(quest.rewards?.premium || 0)}</b></div>
-      <div class="xp"><span class="quest-xp-icon">XP</span><b title="${fmt(quest.rewards?.xp || 0)}">${fmtCompact(quest.rewards?.xp || 0)}</b></div>
-      ${itemRewards || portalPieceRewards || ammoRewards ? `<div class="quest-material-rewards"><span>Objets</span><b>${itemRewards}${portalPieceRewards}${ammoRewards}</b></div>` : ""}
-      ${materialRewards ? `<div class="quest-material-rewards"><span>Materiaux</span><b>${materialRewards}</b></div>` : ""}
-    </div>
-    <div class="spawn-actions quest-actions">
-      ${state.completed ? `<button class="blue-button small" type="button" disabled>Terminee</button>` : state.locked ? `<button class="blue-button small" type="button" disabled>${lockLabel}</button>` : claimable ? `<button class="blue-button small" data-claim-quest="${quest.id}" type="button">Reclamer</button>` : `<button class="blue-button small" data-accept-quest="${quest.id}" type="button" ${active ? "disabled" : ""}>${active ? (tracked ? "Suivie" : "En cours") : "Accepter"}</button>`}
+    <section class="quest-command-briefing" style="--quest-firm-color:${escapeHtml(firm.color)}" data-quest-briefing-skip>
+      <figure class="quest-command-portrait">
+        <img src="${escapeHtml(briefing.representative.asset)}" alt="${escapeHtml(briefing.representative.title)}">
+        <figcaption><strong>${escapeHtml(briefing.representative.name)}</strong><span>${escapeHtml(briefing.representative.title)}</span></figcaption>
+      </figure>
+      <div class="quest-command-transmission">
+        <div class="quest-command-transmission-head">
+          <span>Transmission prioritaire</span>
+          <b>À ${escapeHtml(briefing.addressee)}</b>
+        </div>
+        <p data-typewriter-key="${escapeHtml(typewriterKey)}" data-typewriter-text="${escapeHtml(briefing.message)}"></p>
+        <i class="quest-command-cursor" aria-hidden="true"></i>
+        <small>Cliquer sur le message pour afficher immédiatement la transmission.</small>
+      </div>
+    </section>
+    <div class="quest-detail-columns">
+      <section class="quest-mission-card">
+        <div class="quest-section-title objective">Ordres de mission</div>
+        <p class="quest-objective-text">${escapeHtml(formatQuestObjective(quest))}</p>
+        <div class="quest-progress-row">
+          <div class="quest-progress-label"><span>Progression opérationnelle</span><b>${fmt(state.progress)} / ${fmt(state.target)}</b></div>
+          <div class="quest-progress-track"><span style="width:${state.percent}%"></span></div>
+        </div>
+        ${targetIcons}
+        <div class="quest-objective-metadata">
+          ${visitObjectives}
+          ${renderQuestFailConditions(quest)}
+          ${renderQuestZoneMeta(zoneLabel)}
+        </div>
+      </section>
+      <aside class="quest-reward-card">
+        <div class="quest-reward-title">Dotation de mission</div>
+        <div class="quest-info-grid compact">
+          <div class="credits" aria-label="Crédits"><img src="assets/icons/credits.svg" alt=""><span>Crédits</span><b title="${fmt(quest.rewards?.credits || 0)}">${fmtCompact(quest.rewards?.credits || 0)}</b></div>
+          <div class="nova" aria-label="NOVA"><img src="assets/icons/premium.svg" alt=""><span>NOVA</span><b title="${fmt(quest.rewards?.premium || 0)}">${fmtCompact(quest.rewards?.premium || 0)}</b></div>
+          <div class="xp"><span class="quest-xp-icon">XP</span><span>Expérience</span><b title="${fmt(quest.rewards?.xp || 0)}">${fmtCompact(quest.rewards?.xp || 0)}</b></div>
+          ${itemRewards || portalPieceRewards || ammoRewards ? `<div class="quest-material-rewards"><span>Équipement et objets</span><b>${itemRewards}${portalPieceRewards}${ammoRewards}</b></div>` : ""}
+          ${materialRewards ? `<div class="quest-material-rewards"><span>Matériaux</span><b>${materialRewards}</b></div>` : ""}
+        </div>
+        <div class="spawn-actions quest-actions">
+          ${state.completed ? `<button class="blue-button small" type="button" disabled>Terminée</button>` : state.locked ? `<button class="blue-button small" type="button" disabled>${escapeHtml(lockLabel)}</button>` : claimable ? `<button class="blue-button small" data-claim-quest="${escapeHtml(quest.id)}" type="button">Réclamer</button>` : `<button class="blue-button small" data-accept-quest="${escapeHtml(quest.id)}" type="button" ${active ? "disabled" : ""}>${active ? (tracked ? "Mission suivie" : "En cours") : "Accepter la mission"}</button>`}
+        </div>
+      </aside>
     </div>
   </article>`;
 }
@@ -330,7 +388,24 @@ function getQuestPanelStatus(quest, activeQuests = [], completedQuestClaims = {}
   return "available";
 }
 
-function renderQuestPanel({activeQuest, activeQuests = [], selectedQuestId, selectedQuestCategory = "available", selectedQuestType = "normal", showLockedQuests = false, quests, getQuestProgress, completedQuestClaims, enemyTypes = {}, rawMaterials = [], playerLevel = 1, premiumActive = false}){
+function renderQuestPanel({
+  activeQuest,
+  activeQuests = [],
+  selectedQuestId,
+  selectedQuestCategory = "available",
+  selectedQuestType = "normal",
+  showLockedQuests = false,
+  quests,
+  getQuestProgress,
+  completedQuestClaims,
+  enemyTypes = {},
+  rawMaterials = [],
+  playerLevel = 1,
+  playerName = "Pilote",
+  playerRank = null,
+  firmId = "astra",
+  premiumActive = false
+}){
   const activeCategory = QUEST_TABS.some(tab=>tab.id === selectedQuestCategory) ? selectedQuestCategory : "available";
   const activeType = QUEST_TYPE_TABS.some(tab=>tab.id === selectedQuestType) ? selectedQuestType : "normal";
   const questsWithStatus = quests.map(quest=>({
@@ -360,7 +435,7 @@ function renderQuestPanel({activeQuest, activeQuests = [], selectedQuestId, sele
   const claimableCount = visibleQuests.filter(quest=>activeIds.has(quest.id) && questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel, premiumActive).claimable).length;
   const completedCount = visibleQuests.filter(quest=>completedQuestClaims?.[quest.id]).length;
   return {
-    title:"RELAIS DE QUETES",
+    title:`RELAIS DE QUÊTES — ${getFirmDefinition(normalizeFirmId(firmId)).label}`,
     html:`
       ${renderQuestTabs({activeCategory, quests:displayQuests})}
       ${renderQuestTypeTabs({activeType, quests:displayQuests, activeCategory})}
@@ -374,7 +449,7 @@ function renderQuestPanel({activeQuest, activeQuests = [], selectedQuestId, sele
           <div class="quest-menu-foot"><span>${completedCount}/${visibleQuests.length} terminees</span>${renderQuestLockToggle(showLockedQuests)}</div>
         </aside>
         <section class="quest-detail-wrap">
-          ${selectedQuest ? renderQuestDetail({quest:selectedQuest, activeQuest, activeQuests, getQuestProgress, completedQuestClaims, enemyTypes, rawMaterials, playerLevel, premiumActive}) : `<div class="spawn-panel-note">Aucune mission disponible.</div>`}
+          ${selectedQuest ? renderQuestDetail({quest:selectedQuest, activeQuest, activeQuests, getQuestProgress, completedQuestClaims, enemyTypes, rawMaterials, playerLevel, playerName, playerRank, firmId, premiumActive}) : `<div class="spawn-panel-note">Aucune mission disponible.</div>`}
         </section>
       </div>`
   };

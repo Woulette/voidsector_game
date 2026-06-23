@@ -62,7 +62,7 @@ import {
 import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js";
 import { COMBAT_PROFILE_TITLES } from "./combatProfileTitles.js";
 import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js";
-import { createCombatSceneRenderer } from "./render/combatScene.js";
+import { createCombatSceneRenderer } from "./render/combatScene.js?v=ship-abilities-1";
 import { createCombatLoop } from "./systems/combatLoop.js";
 import { createCombatBeamSystem } from "./systems/combatBeams.js";
 import { createCombatCargoSystem } from "./systems/combatCargo.js";
@@ -76,7 +76,7 @@ import { createCombatRemoteTargetResolver } from "./systems/combatRemoteTargets.
 import { createCombatInteractionSystem } from "./systems/combatInteractions.js";
 import { createCombatMapAssetStreamingSystem } from "./systems/combatMapAssetStreaming.js";
 import { createCombatMultiplayerSyncSystem } from "./systems/combatMultiplayerSync.js";
-import { createCombatServerEventSystem } from "./systems/combatServerEvents.js";
+import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=ship-abilities-1";
 import { createCombatServerActions } from "./systems/combatServerActions.js";
 import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js";
 import { createCombatPortalNavigationSystem } from "./systems/combatPortalNavigation.js";
@@ -98,14 +98,14 @@ import { updatePoisonStatus, updateSlowStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
 import { createCombatChat } from "./ui/combatChat.js";
 import { createCombatLogoutController } from "./ui/combatLogoutController.js";
-import { installCombatInputHandlers } from "./ui/inputBindings.js";
+import { installCombatInputHandlers } from "./ui/inputBindings.js?v=quick-panel-cards-1";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
-import { createCombatActions } from "./ui/combatActions.js";
+import { createCombatActions } from "./ui/combatActions.js?v=quick-panel-cards-1";
 import { createCombatPanels } from "./ui/combatPanels.js";
-import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js";
+import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=ship-abilities-1";
 import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
-import { getShipAbilityStatuses } from "../shared/shipAbilities.js";
+import { getShipAbilityStatuses } from "../shared/shipAbilities.js?v=ship-abilities-1";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
@@ -311,16 +311,27 @@ export function createCombatGame({renderAll, showToast}){
     fireManualRocket,
     fireManualMissile,
     openPortgunMap:()=>window.dispatchEvent(new CustomEvent("voidsector:portgun-open-map")),
-    getRickySupportState:()=>({
-      available:gameMode === "portal"
+    getNpcAbilityStates:()=>{
+      const available = gameMode === "portal"
         && activePortal?.id === "ricky"
         && portalAlly
         && portalAlly.alive !== false
-        && Number(portalAlly.hp || 0) > 0,
-      cooldown:Number(portalAlly?.healCooldown || 0),
-      cooldownTotal:Number(portalAlly?.healCooldownTotal || 60)
-    }),
-    activateRickyHealBeacon:()=>{
+        && Number(portalAlly.hp || 0) > 0;
+      if(!available) return [];
+      return [{
+        abilityId:"ricky_heal_beacon",
+        ownerName:"Ricky",
+        name:"Balise de soin",
+        shortName:"BALISE",
+        description:"Ricky déploie une balise qui restaure la coque.",
+        icon:"assets/icons/medical_cross.svg",
+        activeRemainingMs:0,
+        cooldownRemainingMs:Math.max(0, Number(portalAlly?.healCooldown || 0)) * 1000,
+        cooldownMs:Math.max(0, Number(portalAlly?.healCooldownTotal || 60)) * 1000
+      }];
+    },
+    activateNpcAbility:abilityId=>{
+      if(abilityId !== "ricky_heal_beacon") return false;
       if(gameMode !== "portal" || activePortal?.id !== "ricky") return false;
       if(!portalAlly || portalAlly.alive === false || Number(portalAlly.hp || 0) <= 0){
         showToast("Ricky n'est plus disponible.");
@@ -841,6 +852,66 @@ export function createCombatGame({renderAll, showToast}){
     return false;
   }
 
+  function getTutorialSnapshot(target = {}){
+    if(!running || !player || !camera || !currentMap) return null;
+    const type = String(target.type || "player");
+    let point = null;
+    if(type === "station"){
+      point = worldState.getSpawnStations().find(station=>station.id === target.id) || null;
+    }else if(type === "hq"){
+      point = currentMap.spawn || null;
+    }else if(type === "enemy"){
+      const kinds = new Set((target.kinds || []).map(String));
+      point = enemies
+        .filter(enemy=>enemy.hp > 0 && (!kinds.size || kinds.has(String(enemy.kind || ""))))
+        .sort((a,b)=>Math.hypot(a.x-player.x,a.y-player.y)-Math.hypot(b.x-player.x,b.y-player.y))[0] || null;
+    }else if(type === "map2"){
+      const currentMapName = String(currentMap.name || "");
+      const currentPrefix = currentMapName.replace(/-\d{2}$/,"");
+      const targetMapName = currentPrefix && currentPrefix !== currentMapName ? `${currentPrefix}-02` : "";
+      const targetMap = MAPS.find(map=>String(map.name || "") === targetMapName)
+        || MAPS.find(map=>String(map.name || "").endsWith("-02"));
+      const mapPortals = Array.isArray(currentMap.portals) ? currentMap.portals : currentMap.portal ? [currentMap.portal] : [];
+      point = getAccessibleMapPortals().find(portal=>Number(portal.targetMap) === Number(targetMap?.id))
+        || mapPortals.find(portal=>Number(portal.targetMap) === Number(targetMap?.id))
+        || null;
+    }else{
+      point = player;
+    }
+    if(!point) return {mapName:currentMap.name, player:{x:player.x,y:player.y}, target:null};
+    const canvasRect = canvas.getBoundingClientRect();
+    const zoom = Number(camera.zoom || 1);
+    const playerScreenX = canvasRect.left + (Number(player.x || 0) - camera.x) * zoom;
+    const playerScreenY = canvasRect.top + (Number(player.y || 0) - camera.y) * zoom;
+    const screenX = canvasRect.left + (Number(point.x || 0) - camera.x) * zoom;
+    const screenY = canvasRect.top + (Number(point.y || 0) - camera.y) * zoom;
+    return {
+      mapName:currentMap.name,
+      player:{x:player.x,y:player.y,screenX:playerScreenX,screenY:playerScreenY},
+      target:{
+        x:Number(point.x || 0),
+        y:Number(point.y || 0),
+        screenX,
+        screenY,
+        distance:Math.hypot(Number(point.x || 0)-player.x, Number(point.y || 0)-player.y),
+        kind:String(point.kind || point.id || type)
+      },
+      canvas:{left:canvasRect.left,top:canvasRect.top,right:canvasRect.right,bottom:canvasRect.bottom}
+    };
+  }
+
+  function previewTutorialTarget(target = {}, durationMs = 2600){
+    const snapshot = getTutorialSnapshot(target);
+    if(!snapshot?.target) return false;
+    portalCinematic = {
+      target:{x:snapshot.target.x, y:snapshot.target.y},
+      message:"",
+      durationMs:Math.max(1200, Number(durationMs || 2600)),
+      startedAt:performance.now()
+    };
+    return true;
+  }
+
   function formatDuration(ms){
     const total = Math.max(0, Math.ceil(ms / 1000));
     const m = Math.floor(total / 60);
@@ -1171,6 +1242,8 @@ export function createCombatGame({renderAll, showToast}){
     clearActionSlot:actions.clearActionSlot,
     assignExtraToActionSlot:actions.assignExtraToActionSlot,
     assignDroneFormationToActionSlot:actions.assignDroneFormationToActionSlot,
+    getDroneFormation,
+    activateDroneFormation:actions.activateDroneFormation,
     assignAmmoToActionSlot:actions.assignAmmoToActionSlot,
     selectMissileAmmo:actions.selectMissileAmmo,
     fireMissileLauncher:actions.fireMissileLauncher,
@@ -1181,7 +1254,7 @@ export function createCombatGame({renderAll, showToast}){
     shiftCombatPanelTabs:actions.shiftCombatPanelTabs,
     buyCombatAmmo:actions.buyCombatAmmo,
     activateRepairBot,
-    useRickySupportSkill:actions.useRickySupportSkill,
+    useNpcAbility:actions.useNpcAbility,
     useShipAbility:actions.useShipAbility,
     acceptQuest:acceptQuestAction,
     claimQuest:claimQuestAction,
@@ -1250,6 +1323,9 @@ export function createCombatGame({renderAll, showToast}){
     requestLogout:logout.request,
     resumeWorldSession:session.resumeWorldSession,
     refreshActiveLoadout:session.refreshActiveLoadout,
+    getTutorialSnapshot,
+    previewTutorialTarget,
+    closeTutorialInteractionPanel:()=>panels.closeSpawnPanel(),
     updateHud,
     get running(){return running;}
   };

@@ -23,7 +23,7 @@ test("firm rewards view puts the threshold first and replaces pending/history bl
   globalThis.BroadcastChannel = undefined;
   t.after(()=>Object.assign(globalThis, previous));
 
-  const { renderRewards } = await import("../../src/ui/renderFirm.js");
+  const { renderRewards, renderSeasonObjectiveCard } = await import("../../src/ui/renderFirm.js");
   const ranking = Array.from({length:12}, (_, index)=>({
     key:`player-${index + 1}`,
     name:`Pilote ${index + 1}`,
@@ -59,4 +59,22 @@ test("firm rewards view puts the threshold first and replaces pending/history bl
   assert.match(html, /assets\/equipment\/ammo_laser_x4_same_preview\.png/);
   assert.doesNotMatch(html, /Récompenses en attente/);
   assert.doesNotMatch(html, /Derniers gains/);
+
+  const seasonalCard = renderSeasonObjectiveCard({
+    id:"season-solo-monsters-100",
+    label:"Chasseur de saison",
+    description:"Éliminer 100 monstres.",
+    targetLabel:"Monstres",
+    goal:100,
+    progress:100,
+    completedAt:1,
+    claimable:true,
+    claimed:false,
+    firmPoints:250,
+    reward:{firmatons:25, ammo:{ammo_x2:1_000}}
+  });
+  assert.match(seasonalCard, /data-firm-season-objective-claim="season-solo-monsters-100"/);
+  assert.match(seasonalCard, /assets\/icons\/firmaton\.svg/);
+  assert.match(seasonalCard, /assets\/equipment\/ammo_laser_x2_same_preview\.png/);
+  assert.doesNotMatch(seasonalCard, /récompenses en attente/i);
 });

@@ -16,6 +16,7 @@ export function startServerTick({
   updateStatusEffects,
   updateQuestTimers,
   updateRickyCompanions,
+  updateShipAbilityEffects,
   updateWorldEnemy
 }){
   let worldLastTick = Date.now();
@@ -86,6 +87,7 @@ export function startServerTick({
       }
     }
     updateRickyCompanions?.(dt, now);
+    updateShipAbilityEffects?.(now);
     if(instanceEmitT >= 0.10){
       instanceEmitT = 0;
       for(const group of groups.values()) if(group.instance) emitInstance(group);

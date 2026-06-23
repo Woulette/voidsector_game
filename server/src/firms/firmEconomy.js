@@ -91,7 +91,7 @@ export function applyFirmQuestClaimReward(profile, entry = {}){
   const reward = JSON.parse(JSON.stringify(entry.reward || {}));
   addRewardToProfile(profile, reward);
   const historyEntry = {
-    id:`firm-quest-${String(entry.questId || "unknown")}-${Date.now()}`,
+    id:String(entry.rewardId || `firm-quest-${String(entry.questId || "unknown")}-${Date.now()}`),
     source:"firm-quest",
     label:String(entry.label || "Prime de quête de firme"),
     reward,
