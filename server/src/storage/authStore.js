@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import { dbEnabled, query } from "../db/client.js";
 
@@ -15,13 +16,29 @@ function readJson(url, fallback){
   }
 }
 
-function writeJson(url, value){
+export function writeJsonAtomically(url, value, {dataDirUrl = DATA_DIR_URL, fileSystem = fs} = {}){
+  const fileName = String(url?.pathname || "auth.json").split("/").pop() || "auth.json";
+  const tempUrl = new URL(`${fileName}.${crypto.randomUUID()}.tmp`, dataDirUrl);
+  let handle = null;
   try{
-    fs.mkdirSync(DATA_DIR_URL, {recursive:true});
-    fs.writeFileSync(url, JSON.stringify(value, null, 2));
+    fileSystem.mkdirSync(dataDirUrl, {recursive:true});
+    handle = fileSystem.openSync(tempUrl, "wx");
+    fileSystem.writeFileSync(handle, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    fileSystem.fsyncSync?.(handle);
+    fileSystem.closeSync(handle);
+    handle = null;
+    fileSystem.renameSync(tempUrl, url);
   }catch(error){
-    console.warn(`Unable to write ${url.pathname}:`, error?.message || error);
+    if(handle !== null){
+      try{ fileSystem.closeSync(handle); }catch(closeError){}
+    }
+    try{ fileSystem.rmSync?.(tempUrl, {force:true}); }catch(cleanupError){}
+    throw error;
   }
+}
+
+function writeJson(url, value){
+  writeJsonAtomically(url, value);
 }
 
 let accounts = readJson(ACCOUNTS_URL, {});
@@ -127,8 +144,12 @@ export async function saveAccount(account){
     ]);
     return account;
   }
-  accounts[account.id] = account;
-  writeJson(ACCOUNTS_URL, accounts);
+  const nextAccounts = {
+    ...accounts,
+    [account.id]:account
+  };
+  writeJson(ACCOUNTS_URL, nextAccounts);
+  accounts = nextAccounts;
   return account;
 }
 
@@ -161,8 +182,12 @@ export async function saveSession(session){
     ]);
     return session;
   }
-  sessions[session.id] = session;
-  writeJson(SESSIONS_URL, sessions);
+  const nextSessions = {
+    ...sessions,
+    [session.id]:session
+  };
+  writeJson(SESSIONS_URL, nextSessions);
+  sessions = nextSessions;
   return session;
 }
 
@@ -181,8 +206,12 @@ export async function deleteSession(sessionId){
     await query("DELETE FROM sessions WHERE id = $1", [String(sessionId || "")]);
     return;
   }
-  delete sessions[String(sessionId || "")];
-  writeJson(SESSIONS_URL, sessions);
+  const cleanSessionId = String(sessionId || "");
+  if(!Object.hasOwn(sessions, cleanSessionId)) return;
+  const nextSessions = {...sessions};
+  delete nextSessions[cleanSessionId];
+  writeJson(SESSIONS_URL, nextSessions);
+  sessions = nextSessions;
 }
 
 export async function deleteSessionsForAccount(accountId){
@@ -193,12 +222,16 @@ export async function deleteSessionsForAccount(accountId){
     return;
   }
   let changed = false;
+  const nextSessions = {...sessions};
   for(const [id, session] of Object.entries(sessions)){
     if(String(session?.accountId || "") !== cleanAccountId) continue;
-    delete sessions[id];
+    delete nextSessions[id];
     changed = true;
   }
-  if(changed) writeJson(SESSIONS_URL, sessions);
+  if(changed){
+    writeJson(SESSIONS_URL, nextSessions);
+    sessions = nextSessions;
+  }
 }
 
 export async function deleteExpiredSessions(now = Date.now()){
@@ -207,10 +240,14 @@ export async function deleteExpiredSessions(now = Date.now()){
     return;
   }
   let changed = false;
+  const nextSessions = {...sessions};
   for(const [id, session] of Object.entries(sessions)){
     if(Number(session.expiresAt || 0) > now) continue;
-    delete sessions[id];
+    delete nextSessions[id];
     changed = true;
   }
-  if(changed) writeJson(SESSIONS_URL, sessions);
+  if(changed){
+    writeJson(SESSIONS_URL, nextSessions);
+    sessions = nextSessions;
+  }
 }

@@ -1,50 +1,36 @@
-# Déploiement sur Oracle Cloud Free Tier
+# Deploiement sur VPS Ubuntu/Debian
 
-Ce guide explique comment déployer le serveur VoidSector sur une instance **Oracle Cloud Free Tier** (ARM, 4 cœurs / 24 Go RAM, gratuit à vie).
+Ce guide cible maintenant Netcup ou tout VPS Ubuntu/Debian equivalent. Les scripts utilisent le dossier reel ou le projet est decompresse et l'utilisateur qui lance `install.sh`.
 
----
-
-## 1. Créer un compte Oracle Cloud
-
-1. Va sur https://www.oracle.com/cloud/free/
-2. Clique sur **"Start for free"**
-3. Crée un compte (email + mot de passe Oracle)
-4. Renseigne tes infos personnelles et une carte bancaire (pré-autorisation d'environ 0,93€, remboursée)
-5. Choisis un **home region** proche de toi (ex: `eu-frankfurt-1` pour l'Europe)
+Si ton VPS Netcup est deja installe, commence directement a la connexion SSH et au deploiement du projet.
 
 ---
 
-## 2. Créer l'instance (VM)
+## 1. Préparer le VPS
 
-1. Dans la console Oracle, va dans **Compute → Instances**
-2. Clique sur **"Create instance"**
-3. Nomme-la `voidsector-server`
-4. Image : choisis **Canonical Ubuntu 24.04** (ou 22.04)
-5. Shape : choisis **VM.Standard.A1.Flex** (ARM, gratuit)
-   - OCPU : 4
-   - Memory : 24 Go
-6. SSH keys : génère une nouvelle paire de clés et télécharge la clé privée (`*.key`)
-7. Network : laisse le VCN par défaut
-8. Clique sur **"Create"**
-
-Attends que l'instance soit en statut **RUNNING**.
+1. Installe Ubuntu 24.04 LTS ou 22.04 LTS.
+2. Recupere l'IP publique.
+3. Configure SSH.
+4. Garde un acces administrateur `sudo`.
 
 ---
 
-## 3. Ouvrir les ports (règles de sécurité)
+## 2. Vérifier la machine
 
-Par défaut, seul le SSH (port 22) est ouvert. Il faut ouvrir **3001**.
+Verifie que le VPS est demarre, que SSH fonctionne et que tu connais l'utilisateur distant (`root`, `debian`, `ubuntu` ou autre).
 
-1. Va sur la page de ton instance
-2. Clique sur le **Subnet** (ex: `subnet-...`)
-3. Clique sur le **Security List** par défaut
-4. Ajoute une règle d'entrée (**Ingress rule**) :
-   - Stateless : `No`
-   - Source Type : `CIDR`
-   - Source CIDR : `0.0.0.0/0`
-   - IP Protocol : `TCP`
-   - Destination Port Range : `3001`
-   - Description : `VoidSector game server`
+---
+
+## 3. Ouvrir les ports
+
+Ouvre `22/tcp` pour SSH et `3001/tcp` pour le serveur VoidSector. Si UFW est actif :
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 3001/tcp
+sudo ufw enable
+sudo ufw status
+```
 
 ---
 
@@ -56,7 +42,7 @@ Sur Windows, avec PowerShell (depuis le dossier où tu as mis la clé privée) :
 ssh -i "C:\Chemin\Vers\TaCle.key" ubuntu@<IP_PUBLIQUE>
 ```
 
-Remplace `<IP_PUBLIQUE>` par l'adresse IP publique affichée dans la console Oracle.
+Remplace `<IP_PUBLIQUE>` par l'adresse IP publique du VPS.
 
 Si la clé n'a pas les bonnes permissions, fais :
 
@@ -74,7 +60,7 @@ Depuis ton PC, dans PowerShell (depuis la racine du projet) :
 
 ```powershell
 Compress-Archive -Path "src","server","index.html","game.js","styles.css","assets","favicon.ico" -DestinationPath "voidsector-deploy.zip" -Force
-scp -i "C:\Chemin\Vers\TaCle.key" voidsector-deploy.zip ubuntu@<IP_PUBLIQUE>:/home/ubuntu/
+scp -i "C:\Chemin\Vers\TaCle.key" voidsector-deploy.zip ubuntu@<IP_PUBLIQUE>:~/
 ```
 
 ### 5.2 Installer et lancer sur le serveur
@@ -82,7 +68,7 @@ scp -i "C:\Chemin\Vers\TaCle.key" voidsector-deploy.zip ubuntu@<IP_PUBLIQUE>:/ho
 Sur le serveur (dans le SSH) :
 
 ```bash
-cd /home/ubuntu
+cd ~
 unzip -q voidsector-deploy.zip -d voidsector
 cd voidsector/server/deploy
 chmod +x install.sh
@@ -95,17 +81,18 @@ Le script va :
 - Installer les dépendances npm
 - Créer le fichier `.env`
 - Lancer le serveur avec systemd
+- Configurer systemd pour envoyer `SIGTERM`, laisser 30 secondes au shutdown propre et autoriser plus de sockets ouverts
 
 ---
 
 ## 6. Configurer l'environnement
 
-Le script `install.sh` crée un fichier `/home/ubuntu/voidsector/server/.env` avec des valeurs par défaut.
+Le script `install.sh` cree un fichier `.env` dans le dossier `server` du projet decompresse.
 
 Modifie-le si besoin :
 
 ```bash
-nano /home/ubuntu/voidsector/server/.env
+nano ~/voidsector/server/.env
 ```
 
 Exemple minimal :
@@ -113,13 +100,14 @@ Exemple minimal :
 ```env
 NODE_ENV=production
 PORT=3001
-CLIENT_ORIGIN=*
+CLIENT_ORIGIN=https://voidsector-game.vercel.app
 DATABASE_URL=postgresql://voidsector:mot_de_passe_fort@localhost:5432/voidsector
-LOAD_TEST_ENABLED=true
+MAX_CONCURRENT_GAME_PLAYERS=50
+LOAD_TEST_ENABLED=false
 LOAD_TEST_SECRET=un-secret-de-test-tres-long
 ```
 
-**Important :** en production, change `LOAD_TEST_SECRET` et mets `LOAD_TEST_ENABLED=false` si tu ne fais pas de tests de charge.
+**Important :** en production, `CLIENT_ORIGIN` ne doit jamais etre `*`, `DATABASE_URL` doit pointer vers PostgreSQL, `MAX_CONCURRENT_GAME_PLAYERS` doit rester a `50` pour la beta limitee, et `LOAD_TEST_ENABLED` doit rester `false`.
 
 Après modification :
 
@@ -133,6 +121,7 @@ sudo systemctl restart voidsector
 
 ```bash
 sudo systemctl status voidsector
+systemctl show voidsector -p Restart -p KillSignal -p TimeoutStopUSec -p LimitNOFILE
 ```
 
 Ou teste depuis ton PC avec curl :
@@ -143,9 +132,70 @@ curl http://<IP_PUBLIQUE>:3001/health
 
 Tu devrais recevoir un JSON avec le statut du serveur.
 
+Avant d'ouvrir la beta, verifie aussi que la reponse contient :
+
+```json
+"storage": "postgres"
+```
+
+Si `/health` indique `"storage": "json"`, la beta ne doit pas etre ouverte.
+
+Verifie aussi que la limite beta est visible dans `/health` :
+
+```json
+"limits": {
+  "maxConcurrentGamePlayers": 50
+}
+```
+
+Tu peux faire le controle automatiquement depuis le serveur :
+
+```bash
+cd ~/voidsector/server
+npm run beta:check -- --url http://127.0.0.1:3001/health --expected-storage postgres --expected-max-game-players 50
+```
+
+La commande doit afficher `Beta readiness OK`. Si elle echoue, la beta ne doit pas etre ouverte.
+
 ---
 
-## 8. Jouer depuis le client
+## 8. Preparer le compte owner/admin
+
+Le plus simple : cree ton compte normalement depuis le jeu, puis depuis le serveur SSH :
+
+```bash
+cd ~/voidsector/server
+npm run admin:bootstrap -- --email ton-email@example.com --role owner --yes
+sudo systemctl restart voidsector
+```
+
+Si le compte n'existe pas encore, tu peux le creer depuis SSH :
+
+```bash
+cd ~/voidsector/server
+npm run admin:bootstrap -- --create --email ton-email@example.com --username TonPseudo --password "mot-de-passe-temporaire" --role owner --yes
+```
+
+Cette commande est locale au serveur, elle n'ajoute pas d'endpoint public. Garde un seul compte `owner` et utilise `admin` ou `moderator` pour les autres comptes d'equipe.
+
+---
+
+## 9. Jouer depuis le client
+
+Pour une beta publique, configure d'abord l'URL du serveur dans `index.html` :
+
+```html
+<meta name="voidsector-server-url" content="http://<IP_PUBLIQUE>:3001" />
+```
+
+Si tu mets un domaine/API avec HTTPS plus tard, remplace la valeur par exemple par `https://api.ton-domaine.fr`. Une URL de test peut aussi etre forcee temporairement avec `?serverUrl=http://<IP_PUBLIQUE>:3001`.
+
+Apres modification du client, tu peux verifier que le backend et le `index.html` public sont coherents :
+
+```bash
+cd ~/voidsector/server
+npm run beta:check -- --url http://127.0.0.1:3001/health --expected-storage postgres --expected-max-game-players 50 --client-index ../index.html --expected-client-server-url http://<IP_PUBLIQUE>:3001
+```
 
 Dans un terminal sur ton PC :
 
@@ -158,7 +208,19 @@ Puis ouvre `http://127.0.0.1:8765/index.html`. Le jeu se connectera automatiquem
 
 ---
 
-## 9. Lancer des bots de test (optionnel)
+## 10. Lancer des bots de test (optionnel)
+
+Avant les bots, valide au moins une sauvegarde et une restauration de test PostgreSQL :
+
+```bash
+cd ~/voidsector/server
+npm run db:backup
+sudo -u postgres createdb voidsector_restore_test
+RESTORE_TEST_DATABASE_URL=postgresql://voidsector:mot_de_passe_fort@localhost:5432/voidsector_restore_test \
+  npm run db:restore-test -- --file ~/voidsector/server/backups/<dump>.dump
+```
+
+Le restore doit viser une base separee. Le script refuse la base de production et les noms de base qui ne ressemblent pas a une base de test.
 
 Sur ton PC :
 
@@ -168,22 +230,24 @@ $env:BOT_COUNT="25"
 npm run loadtest:bots
 ```
 
+Les bots de provisionnement demandent `LOAD_TEST_ENABLED=true`, ce qui est refuse en `NODE_ENV=production`. Lance-les seulement sur une fenetre de test/staging controlee, puis repasse le serveur beta en `NODE_ENV=production` avec `LOAD_TEST_ENABLED=false`.
+
 ---
 
-## 10. Mettre à jour le serveur
+## 11. Mettre à jour le serveur
 
 Pour mettre à jour le code après des modifications :
 
 ```powershell
 # Sur ton PC
 Compress-Archive -Path "src","server","index.html","game.js","styles.css","assets","favicon.ico" -DestinationPath "voidsector-deploy.zip" -Force
-scp -i "C:\Chemin\Vers\TaCle.key" voidsector-deploy.zip ubuntu@<IP_PUBLIQUE>:/home/ubuntu/
+scp -i "C:\Chemin\Vers\TaCle.key" voidsector-deploy.zip ubuntu@<IP_PUBLIQUE>:~/
 ```
 
 Puis sur le serveur :
 
 ```bash
-cd /home/ubuntu
+cd ~
 sudo systemctl stop voidsector
 rm -rf voidsector.old
 mv voidsector voidsector.old

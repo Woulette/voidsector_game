@@ -9,6 +9,7 @@ import { sanitizeProfile } from "./profileSanitize.js";
 import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
 import { appendProfileActivity } from "./activityLog.js";
 import { depositServerCombatBoostMaterial } from "../economy/combatBoosts.js";
+import { sellServerCommerceMaterials } from "../economy/materialCommerce.js";
 import { applyPremiumPackToPlayer, claimPremiumRewardState } from "../../../src/data/premium.js";
 import { BOOSTER_TYPE_IDS, addPlayerBoosterUnits } from "../../../src/shared/firmBoosters.js";
 import { abandonTutorialAfterOutsideQuestAction } from "./tutorialActions.js";
@@ -130,7 +131,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     const result = spendCurrency(profile.player || {}, purchase.priceType, purchase.totalPrice);
     if(!result.ok) return result;
     profile.player = result.player;
-    if(!Array.isArray(profile.ownedShips)) profile.ownedShips = ["orion", "test_runner"];
+    if(!Array.isArray(profile.ownedShips)) profile.ownedShips = ["orion"];
     profile.ownedShips.push(purchase.id);
     if(!profile.shipLoadouts || typeof profile.shipLoadouts !== "object") profile.shipLoadouts = {};
     if(!profile.shipLoadouts[purchase.id]){
@@ -499,6 +500,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       result = refineServerShipCargoRecipe(profile, action);
     }else if(action?.kind === "combat-boost-deposit"){
       result = depositServerCombatBoostMaterial(profile, action);
+    }else if(action?.kind === "commerce-material-sell"){
+      result = sellServerCommerceMaterials(profile, action);
     }else{
       result = {ok:false, reason:"Action economie invalide."};
     }

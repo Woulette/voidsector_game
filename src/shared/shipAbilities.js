@@ -19,17 +19,35 @@ export const SHIP_ABILITY_DEFINITIONS = Object.freeze({
       shipId:"nyxaris",
       name:"Bombe poison",
       shortName:"POISON",
-      description:"Projette 3 vagues toxiques autour du vaisseau. Les monstres touches subissent 10 000 HP/s pendant 10 secondes. Une nouvelle touche rafraichit le poison sans le cumuler.",
+      description:"Projette 5 vagues toxiques autour du vaisseau : immediatement, puis a 2,5 s, 5 s, 7,5 s et 10 s. Chaque vague suit le vaisseau pendant 1 seconde. Les monstres touches subissent 10 000 HP/s pendant 10 secondes. Une nouvelle touche rafraichit le poison sans le cumuler.",
       icon:"assets/icons/poison_bomb.svg",
-      durationMs:9_000,
+      durationMs:10_000,
       cooldownMs:180_000,
       effectType:"enemy_poison_bomb",
       radius:300,
-      pulseCount:3,
-      pulseIntervalMs:3_000,
+      pulseCount:5,
+      pulseIntervalMs:2_500,
+      pulseDurationMs:1_000,
       poisonDamagePerSecond:10_000,
       poisonDurationMs:10_000,
       poisonTickMs:1_000
+    })
+  ]),
+  asterion:Object.freeze([
+    Object.freeze({
+      id:"spectral_double_shot",
+      shipId:"asterion",
+      name:"Salve spectrale",
+      shortName:"SALVE",
+      description:"Pendant 30 secondes, une charge spectrale se prepare en 3 secondes. Quand elle est prete, le prochain tir laser declenche un second impact violet plus large et agressif, puis la charge recommence.",
+      icon:"assets/icons/spectral_double_shot.svg",
+      durationMs:30_000,
+      cooldownMs:180_000,
+      effectType:"laser_double_strike",
+      weaponClass:"laser",
+      chargeMs:3_000,
+      chargeSegments:3,
+      bonusHitMultiplier:1
     })
   ])
 });
@@ -48,7 +66,9 @@ export function getShipAbilityDefinition(shipId, abilityId = ""){
 export function normalizeShipAbilityState(value = {}){
   return {
     activeUntil:Math.max(0, Number(value?.activeUntil || 0)),
-    cooldownUntil:Math.max(0, Number(value?.cooldownUntil || 0))
+    cooldownUntil:Math.max(0, Number(value?.cooldownUntil || 0)),
+    chargeStartedAt:Math.max(0, Number(value?.chargeStartedAt || 0)),
+    chargeReadyAt:Math.max(0, Number(value?.chargeReadyAt || 0))
   };
 }
 
@@ -63,6 +83,13 @@ function getAbilityStateValue(value, abilityId){
 export function getShipAbilityStatus(shipId, value = {}, now = Date.now(), abilityId = ""){
   const definition = getShipAbilityDefinition(shipId, abilityId);
   const state = normalizeShipAbilityState(getAbilityStateValue(value, definition?.id || abilityId));
+  const active = Boolean(definition && state.activeUntil > now);
+  const chargeMs = Math.max(0, Number(definition?.chargeMs || 0));
+  const chargeStartedAt = state.chargeStartedAt;
+  const chargeReadyAt = state.chargeReadyAt || (chargeMs > 0 && chargeStartedAt > 0 ? chargeStartedAt + chargeMs : 0);
+  const chargeProgressMs = active && chargeMs > 0 && chargeStartedAt > 0
+    ? Math.max(0, Math.min(chargeMs, now - chargeStartedAt))
+    : 0;
   return {
     shipId:String(shipId || ""),
     abilityId:definition?.id || "",
@@ -73,7 +100,7 @@ export function getShipAbilityStatus(shipId, value = {}, now = Date.now(), abili
     weaponClass:definition?.weaponClass || "",
     activeUntil:state.activeUntil,
     cooldownUntil:state.cooldownUntil,
-    active:Boolean(definition && state.activeUntil > now),
+    active,
     activeRemainingMs:Math.max(0, state.activeUntil - now),
     cooldownRemainingMs:Math.max(0, state.cooldownUntil - now),
     durationMs:Number(definition?.durationMs || 0),
@@ -83,9 +110,18 @@ export function getShipAbilityStatus(shipId, value = {}, now = Date.now(), abili
     radius:Number(definition?.radius || 0),
     pulseCount:Number(definition?.pulseCount || 0),
     pulseIntervalMs:Number(definition?.pulseIntervalMs || 0),
+    pulseDurationMs:Number(definition?.pulseDurationMs || 0),
     poisonDamagePerSecond:Number(definition?.poisonDamagePerSecond || 0),
     poisonDurationMs:Number(definition?.poisonDurationMs || 0),
-    poisonTickMs:Number(definition?.poisonTickMs || 0)
+    poisonTickMs:Number(definition?.poisonTickMs || 0),
+    triggerEvery:Number(definition?.triggerEvery || 0),
+    chargeMs,
+    chargeSegments:Math.max(0, Number(definition?.chargeSegments || 0)),
+    chargeStartedAt,
+    chargeReadyAt,
+    chargeProgressMs,
+    chargeReady:Boolean(active && chargeMs > 0 && chargeReadyAt > 0 && chargeReadyAt <= now),
+    bonusHitMultiplier:Number(definition?.bonusHitMultiplier || 0)
   };
 }
 

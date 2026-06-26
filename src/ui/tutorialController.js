@@ -1,4 +1,5 @@
 import { getCurrentRank, getInventoryCount, getLoadout } from "../core/store.js";
+import { equipment } from "../data/catalog.js";
 import { getFirmRepresentative } from "../data/firmRepresentatives.js";
 import { createTypewriterTextController } from "../game/ui/typewriterText.js";
 import { TUTORIAL_QUEST_IDS } from "../shared/tutorial.js";
@@ -89,6 +90,9 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
   let arrow = null;
   let interactionLock = null;
   let abandonDialog = null;
+  let rewardOverlay = null;
+  let rewardHideTimer = null;
+  let lastRewardAnimationKey = "";
   let pending = false;
   let enteredStep = "";
   let dismissedStep = "";
@@ -120,7 +124,9 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
       <p>Si tu abandonnes maintenant, le tutoriel sera définitivement désactivé pour ce pilote. Tu ne pourras plus le relancer, même après une reconnexion.</p>
       <div><button type="button" data-tutorial-keep>CONTINUER LE TUTORIEL</button><button type="button" data-tutorial-abandon>ABANDONNER DÉFINITIVEMENT</button></div>
     </section>`;
-    document.body.append(launcher, interactionLock, root, arrow, abandonDialog);
+    rewardOverlay = document.createElement("div");
+    rewardOverlay.className = "tutorial-reward-overlay hidden";
+    document.body.append(launcher, interactionLock, root, arrow, abandonDialog, rewardOverlay);
     launcher.addEventListener("click", ()=>send("start"));
     root.addEventListener("click", event=>{
       if(event.target.closest("[data-tutorial-close]")){ abandonDialog.classList.remove("hidden"); return; }
@@ -154,6 +160,30 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
         send("abandon");
       }
     });
+  }
+
+  function showRewardAnimation(itemId){
+    if(!rewardOverlay) return;
+    const item = equipment.find(entry=>entry.id === itemId) || {name:"Récompense", img:"assets/firm/chests/chest_rare.svg", rarity:"RARE"};
+    const key = `${itemId}:${store.state?.tutorial?.completedAt || store.state?.tutorial?.updatedAt || Date.now()}`;
+    if(key === lastRewardAnimationKey) return;
+    lastRewardAnimationKey = key;
+    window.clearTimeout(rewardHideTimer);
+    rewardOverlay.classList.remove("hidden");
+    rewardOverlay.innerHTML = `<section class="tutorial-reward-card" role="status" aria-live="assertive">
+      <div class="tutorial-reward-burst"></div>
+      <div class="tutorial-reward-chest"><img src="assets/firm/chests/chest_rare.svg" alt=""></div>
+      <div class="tutorial-reward-item">
+        <span>CADEAU DU COMMANDEMENT</span>
+        <img src="${escapeHtml(item.img)}" alt="${escapeHtml(item.name)}">
+        <h2>${escapeHtml(item.name)}</h2>
+        <b>${escapeHtml(item.rarity || "RARE")}</b>
+      </div>
+    </section>`;
+    rewardHideTimer = window.setTimeout(()=>{
+      rewardOverlay.classList.add("hidden");
+      rewardOverlay.innerHTML = "";
+    }, 3600);
   }
 
   function send(kind){
@@ -407,6 +437,8 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
         game?.closeTutorialInteractionPanel?.();
         root?.classList.add("hidden");
       }
+      const rewardItemId = String(event.detail?.payload?.rewardItemId || "");
+      if(reason === "tutorial:updated" && rewardItemId === "laser_mk3") showRewardAnimation(rewardItemId);
       if(reason.startsWith("tutorial:")) refresh();
     });
     const observer = new MutationObserver(()=>syncArrow());

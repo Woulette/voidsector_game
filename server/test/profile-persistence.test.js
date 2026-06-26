@@ -148,6 +148,60 @@ test("profile manager persists one account at a time with monotonic versions", a
   assert.equal(writes[1][0][1].player.credits, 20);
 });
 
+test("profile manager records profile load failures in the server error log", async ()=>{
+  const warnings = [];
+  const recorded = [];
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn:(message, meta)=>warnings.push({message, meta})},
+    loadProfileEntries:async()=>{
+      throw new Error("profile store offline");
+    },
+    persistProfileEntries:async()=>{},
+    onError:error=>recorded.push(error)
+  });
+
+  await manager.load();
+
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0].message, "Unable to load profiles");
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].source, "profile");
+  assert.equal(recorded[0].eventName, "profiles:load");
+  assert.equal(recorded[0].error.includes("profile store offline"), true);
+});
+
+test("profile manager records profile persistence failures with the account id", async ()=>{
+  const warnings = [];
+  const recorded = [];
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn:(message, meta)=>warnings.push({message, meta})},
+    loadProfileEntries:async()=>[],
+    persistProfileEntries:async()=>{
+      throw new Error("profile write failed");
+    },
+    onError:error=>recorded.push(error)
+  });
+  const player = {
+    id:"socket-save-failure",
+    accountId:"save-failure",
+    name:"Save Failure",
+    account:{username:"Save Failure", firmId:"astra"}
+  };
+
+  manager.syncForSocket({emit(){}}, player);
+  await assert.rejects(manager.flushPersistence(), /profile write failed/);
+
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0].message, "Unable to save profiles");
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].source, "profile");
+  assert.equal(recorded[0].eventName, "profiles:persist");
+  assert.equal(recorded[0].accountId, "save-failure");
+  assert.equal(recorded[0].error.includes("profile write failed"), true);
+});
+
 test("combat profile mutations coalesce persistence until the next flush", async ()=>{
   const writes = [];
   const manager = createProfileManager({

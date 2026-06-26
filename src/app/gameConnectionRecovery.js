@@ -114,6 +114,11 @@ export function createGameConnectionRecoveryController({
       setStatus("Ce compte a ete connecte ailleurs. Cette session de jeu a ete fermee.", "warning");
       return;
     }
+    if(reason === "auth:banned"){
+      show("account");
+      setStatus("Compte banni temporairement. Reconnexion impossible avec ce token.", "error");
+      return;
+    }
     if(reason === "auth:logout" || reason === "auth:external-logout"){
       show("account");
       return;

@@ -1,16 +1,5 @@
 export const ships = [
   {
-    id:"test_runner",
-    name:"Test Runner",
-    className:"Prototype de déplacement",
-    img:"assets/ships/Orion.png",
-    priceType:"credits",
-    price:0,
-    desc:"Un prototype hors normes construit pour les essais de déplacement et les configurations expérimentales.",
-    stats:{vie:20000, vitesse:1500, cargo:5000, maxLasers:8, maxGenerators:10, maxExtras:5},
-    special:null
-  },
-  {
     id:"orion",
     name:"Orion",
     className:"Chasseur polyvalent",
@@ -37,7 +26,7 @@ export const ships = [
     id:"valkyrie",
     name:"Valkyrie",
     className:"Croiseur d'assaut",
-    img:"assets/ships/Valkyrie.png",
+    img:"assets/ships/Valkyrie.png?v=valkyrie-cutout-2",
     priceType:"credits",
     price:500000,
     desc:"Un croiseur d'assaut équilibré qui offre assez de puissance et de résistance pour affronter des secteurs plus hostiles.",
@@ -56,13 +45,13 @@ export const ships = [
     special:null
   },
   {
-    id:"astra_3d_test",
-    name:"Astra 3D Test",
-    className:"Prototype faux 3D 2D",
-    img:"assets/ships/Astra 3D Test.png",
+    id:"astralis",
+    name:"Astralis",
+    className:"Intercepteur astral",
+    img:"assets/ships/Astralis.png",
     priceType:"credits",
     price:25000000,
-    desc:"Un prototype avancé qui réunit vitesse, capacité d'emport et armement dans une coque particulièrement polyvalente.",
+    desc:"Un intercepteur astral avancé qui réunit vitesse, capacité d'emport et armement dans une coque particulièrement polyvalente.",
     stats:{vie:70000, vitesse:340, cargo:1500, maxLasers:10, maxGenerators:7, maxExtras:5},
     special:null
   },
@@ -109,8 +98,8 @@ export const ships = [
     className:"Diffuseur toxique",
     img:"assets/ships/Nyxaris.png",
     combatImg:"assets/ships/combat/Nyxaris.png",
-    renderWidth:136,
-    renderHeight:152,
+    renderWidth:128,
+    renderHeight:144,
     priceType:"premium",
     price:150000,
     desc:"Un vaisseau leger a noyau toxique qui projette une Bombe poison en vagues concentriques. Les monstres touches subissent un poison direct sur la coque, rafraichi a chaque nouvelle vague.",
@@ -127,6 +116,32 @@ export const ships = [
     requiresCompletedPortal:"violet",
     skillShip:true,
     abilityId:"poison_bomb",
-    special:"Bombe poison - 3 vagues / 9 s - 10 000 HP/s pendant 10 s - recharge 180 s"
+    special:"Bombe poison - 5 vagues / 10 s - 10 000 HP/s pendant 10 s - recharge 180 s"
+  },
+  {
+    id:"asterion",
+    name:"Asterion",
+    className:"Intercepteur spectral",
+    img:"assets/ships/Asterion.png",
+    combatImg:"assets/ships/combat/Asterion.png",
+    renderWidth:122,
+    renderHeight:132,
+    priceType:"premium",
+    price:150000,
+    desc:"Un intercepteur gris a cadence spectrale. Sa Salve spectrale surcharge les lasers pendant un court laps de temps : une charge se prepare en 3 secondes, puis le prochain tir laser declenche un second impact violet amplifie.",
+    stats:{
+      vie:180000,
+      vitesse:330,
+      cargo:2000,
+      maxLasers:10,
+      maxGenerators:14,
+      maxExtras:8,
+      maxRocketLaunchers:1,
+      maxMissileLaunchers:1
+    },
+    requiresCompletedPortal:"violet",
+    skillShip:true,
+    abilityId:"spectral_double_shot",
+    special:"Salve spectrale - charge 3 s puis prochain tir laser double - 30 s - recharge 180 s"
   }
 ];

@@ -4,11 +4,23 @@ import { createAdminManager } from "../src/admin/adminManager.js";
 import { registerAdminHandlers } from "../src/socket/adminHandlers.js";
 import { registerChatHandlers } from "../src/socket/chatHandlers.js";
 
-function createFixture(){
+function createFixture({auditRecord} = {}){
   const events = [];
   const audit = [];
-  const disconnected = [];
+  const revokedSessions = [];
   const fixtureNow = Date.now();
+  const serverErrors = [{
+    id:"err-1",
+    source:"socket",
+    eventName:"combat:fire",
+    socketId:"socket-player",
+    accountId:"player",
+    playerId:"socket-player",
+    mapId:"0",
+    error:"Error: hidden stack",
+    at:fixtureNow
+  }];
+  const disconnected = [];
   const accounts = new Map([
     ["admin", {id:"admin", username:"Admin", role:"admin", bannedUntil:0, banReason:"", mutedUntil:0, muteReason:""}],
     ["mod", {id:"mod", username:"Modo", role:"moderator", bannedUntil:0, banReason:"", mutedUntil:0, muteReason:""}],
@@ -108,6 +120,9 @@ function createFixture(){
     groups,
     profileManager,
     resetGroupInstance,
+    async revokeSessionsForAccount(accountId){
+      revokedSessions.push(accountId);
+    },
     async updateAccountModeration(accountId, patch){
       const account = accounts.get(String(accountId || ""));
       if(!account) return null;
@@ -116,6 +131,7 @@ function createFixture(){
     },
     auditStore:{
       async record(entry){
+        if(auditRecord) return auditRecord(entry, audit);
         audit.push(entry);
         return entry;
       },
@@ -123,9 +139,13 @@ function createFixture(){
         return [...audit].reverse();
       }
     },
+    serverErrorLog:{
+      list:()=>serverErrors,
+      record:error=>serverErrors.push(error)
+    },
     now:()=>fixtureNow
   });
-  return {accounts, adminManager, audit, disconnected, events, groups, now:fixtureNow, players, profiles, socketObjects};
+  return {accounts, adminManager, audit, disconnected, events, groups, now:fixtureNow, players, profiles, revokedSessions, serverErrors, socketObjects};
 }
 
 test("admin manager denies normal players and allows moderator snapshots", async ()=>{
@@ -149,6 +169,7 @@ test("admin manager denies normal players and allows moderator snapshots", async
   assert.equal(allowed.snapshot.totals.game, 1);
   assert.equal(allowed.snapshot.totals.profiles, 3);
   assert.equal(allowed.snapshot.recentProfiles.some(profile=>profile.key === "pilot"), false);
+  assert.deepEqual(allowed.snapshot.serverErrors, fixture.serverErrors);
   const pilot = allowed.snapshot.onlinePlayers.find(player=>player.name === "Pilot");
   assert.equal(pilot.sessionCount, 2);
   assert.deepEqual(new Set(pilot.clientModes), new Set(["game", "launcher"]));
@@ -221,6 +242,14 @@ test("admin inspect returns public profile details, activity logs and suspicion"
 
 test("only admins can adjust player progression and emit a profile sync", async ()=>{
   const fixture = createFixture();
+  fixture.players.set("socket-player-launcher", {
+    id:"socket-player-launcher",
+    accountId:"player",
+    account:fixture.accounts.get("player"),
+    name:"Pilot",
+    clientMode:"launcher",
+    connected:true
+  });
   const refused = await fixture.adminManager.adjustPlayer({id:"socket-mod"}, {
     profileKey:"account:player",
     field:"credits",
@@ -239,8 +268,34 @@ test("only admins can adjust player progression and emit a profile sync", async 
   assert.equal(result.ok, true);
   assert.equal(fixture.profiles.get("account:player").player.premium, 32);
   assert.equal(fixture.events.some(entry=>entry.id === "socket-player" && entry.event === "profile:sync"), true);
+  assert.equal(fixture.events.some(entry=>entry.id === "socket-player-launcher" && entry.event === "profile:sync"), true);
   assert.equal(fixture.audit[0].action, "admin:adjust-player");
+  assert.equal(fixture.audit[0].payload.accountId, "player");
   assert.equal(fixture.audit[0].payload.field, "premium");
+});
+
+test("admin audit failures are visible in server error logs", async ()=>{
+  const fixture = createFixture({
+    auditRecord:async ()=>{
+      throw new Error("audit storage offline");
+    }
+  });
+
+  const result = await fixture.adminManager.adjustPlayer({id:"socket-admin"}, {
+    targetId:"socket-player",
+    field:"credits",
+    amount:1000,
+    reason:"Compensation beta"
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(fixture.profiles.get("account:player").player.credits, 1200);
+  const auditError = fixture.serverErrors.find(entry=>entry.source === "admin-audit");
+  assert.equal(auditError.eventName, "admin:adjust-player");
+  assert.equal(auditError.accountId, "admin");
+  assert.equal(auditError.playerId, "socket-admin");
+  assert.equal(auditError.error.includes("audit storage offline"), true);
+  assert.equal(auditError.at, fixture.now);
 });
 
 test("only admins can grant player assets with audit and profile sync", async ()=>{
@@ -399,9 +454,11 @@ test("admin can ban an account and disconnect all online sockets for it", async 
 
   assert.equal(result.ok, true);
   assert.equal(fixture.accounts.get("player").bannedUntil, fixture.now + 3600000);
+  assert.deepEqual(fixture.revokedSessions, ["player"]);
   assert.deepEqual(fixture.disconnected, [{id:"socket-player", force:true}]);
   assert.equal(fixture.events.some(entry=>entry.id === "socket-player" && entry.event === "admin:banned"), true);
   assert.equal(fixture.audit[0].action, "admin:ban");
+  assert.equal(fixture.audit[0].payload.sessionsRevoked, true);
 });
 
 test("moderator can mute an account and chat send is blocked server side", async ()=>{
@@ -413,6 +470,7 @@ test("moderator can mute an account and chat send is blocked server side", async
     reason:"Spam global"
   });
   assert.equal(result.ok, true);
+  assert.deepEqual(fixture.revokedSessions, []);
   assert.equal(fixture.players.get("socket-player").account.mutedUntil, fixture.now + 1800000);
 
   const listeners = new Map();

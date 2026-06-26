@@ -17,10 +17,11 @@ import {
   replaceServerEnemies as replaceServerEnemiesState,
   upsertRemotePlayer as upsertRemotePlayerState
 } from "./socketState.js";
+import { DEFAULT_MULTIPLAYER_SERVER_URL, normalizeServerUrl, resolveInitialServerUrl } from "./serverUrlConfig.js";
 import { installWorldSocketListeners } from "./worldSocketListeners.js";
 import { setPersonalFirmBoosterReward, setPersonalPlayerBoosters } from "../core/firmBoosterStore.js";
 
-const DEFAULT_SERVER_URL = "http://localhost:3001";
+const DEFAULT_SERVER_URL = DEFAULT_MULTIPLAYER_SERVER_URL;
 const SERVER_STORAGE_KEY = "voidsector-multiplayer-server";
 const NAME_STORAGE_KEY = "voidsector-multiplayer-name";
 const AUTH_TOKEN_STORAGE_KEY = "voidsector-auth-token";
@@ -32,6 +33,18 @@ const LEADERBOARD_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 let authSyncChannel = null;
 let authSyncInstalled = false;
 let authStorageRevision = 0;
+
+function readConfiguredServerUrl(){
+  const values = [
+    window.__VOIDSECTOR_CONFIG__?.serverUrl,
+    typeof document !== "undefined" ? document.querySelector('meta[name="voidsector-server-url"]')?.getAttribute("content") : ""
+  ];
+  for(const value of values){
+    const normalized = normalizeServerUrl(value);
+    if(normalized) return normalized;
+  }
+  return "";
+}
 
 function broadcastAuthChange(message){
   try{ authSyncChannel?.postMessage(message); }catch(error){}
@@ -95,7 +108,12 @@ export const multiplayer = {
     remember:shouldRememberAuth()
   },
   clientId:getClientId(),
-  serverUrl:localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER_URL,
+  serverUrl:resolveInitialServerUrl({
+    locationSearch:window.location?.search || "",
+    configuredUrl:readConfiguredServerUrl(),
+    storedUrl:localStorage.getItem(SERVER_STORAGE_KEY),
+    defaultUrl:DEFAULT_SERVER_URL
+  }),
   clientMode:"launcher",
   name:localStorage.getItem(NAME_STORAGE_KEY) || "",
   players:[],
@@ -117,6 +135,7 @@ export const multiplayer = {
   shopPremiumPackEvents:[],
   premiumRewardEvents:[],
   inventorySaleEvents:[],
+  commerceSaleEvents:[],
   shopShipEvents:[],
   shipEvents:[],
   shopDroneEvents:[],
@@ -301,6 +320,7 @@ export function requestLeaderboardSync({force = false} = {}){
 }
 
 function loadSocketIo(serverUrl = multiplayer.serverUrl){
+  const resolvedServerUrl = normalizeServerUrl(serverUrl) || DEFAULT_SERVER_URL;
   if(window.io) return Promise.resolve(window.io);
   return new Promise((resolve, reject)=>{
     const existing = document.querySelector("script[data-socket-io-client]");
@@ -310,7 +330,7 @@ function loadSocketIo(serverUrl = multiplayer.serverUrl){
       return;
     }
     const script = document.createElement("script");
-    script.src = `${String(serverUrl || DEFAULT_SERVER_URL).replace(/\/$/, "")}/socket.io/socket.io.js`;
+    script.src = `${resolvedServerUrl}/socket.io/socket.io.js`;
     script.async = true;
     script.dataset.socketIoClient = "true";
     script.onload = ()=>resolve(window.io);
@@ -338,7 +358,7 @@ export function initMultiplayer({showToast = null, getDefaultName = null, autoCo
 
 export async function connectMultiplayer({serverUrl, name} = {}){
   if(multiplayer.connected || multiplayer.connecting) return;
-  multiplayer.serverUrl = String(serverUrl || multiplayer.serverUrl || DEFAULT_SERVER_URL).trim() || DEFAULT_SERVER_URL;
+  multiplayer.serverUrl = normalizeServerUrl(serverUrl) || normalizeServerUrl(multiplayer.serverUrl) || DEFAULT_SERVER_URL;
   multiplayer.name = String(name || multiplayer.name || "Pilote").trim().replace(/\s+/g, " ").slice(0, 24) || "Pilote";
   localStorage.setItem(SERVER_STORAGE_KEY, multiplayer.serverUrl);
   localStorage.setItem(NAME_STORAGE_KEY, multiplayer.name);
@@ -412,6 +432,18 @@ export async function connectMultiplayer({serverUrl, name} = {}){
         emitChange("auth:role", payload);
       }
     });
+    socket.on("account:moderation", payload=>{
+      if(multiplayer.auth.account){
+        multiplayer.auth.account = {
+          ...multiplayer.auth.account,
+          bannedUntil:Math.max(0, Number(payload?.bannedUntil || 0)),
+          banReason:String(payload?.banReason || ""),
+          mutedUntil:Math.max(0, Number(payload?.mutedUntil || 0)),
+          muteReason:String(payload?.muteReason || "")
+        };
+      }
+      emitChange("auth:moderation", payload);
+    });
     socket.on("auth:error", payload=>{
       if(multiplayer.auth.token && String(payload?.message || "").toLowerCase().includes("session")){
         clearStoredAuthToken();
@@ -419,6 +451,12 @@ export async function connectMultiplayer({serverUrl, name} = {}){
         multiplayer.auth.account = null;
       }
       auth.setError(payload?.message);
+    });
+    socket.on("server:full", payload=>{
+      const message = String(payload?.message || "Serveur complet. Reviens dans quelques minutes.");
+      auth.setError(message);
+      toast(message);
+      emitChange("server:full", payload);
     });
     socket.on("auth:logout", ()=>{
       clearStoredAuthToken();
@@ -433,6 +471,14 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       multiplayer.disconnectIntent = "session-replaced";
       toast(String(payload?.message || "Ce compte a ete connecte depuis une autre session."));
       emitChange("auth:replaced", payload);
+    });
+    socket.on("admin:banned", payload=>{
+      clearStoredAuthToken();
+      multiplayer.auth = {...multiplayer.auth, account:null, token:"", expiresAt:null, pending:false, error:String(payload?.message || "Compte banni."), profileReady:false};
+      multiplayer.disconnectIntent = "account-banned";
+      toast(String(payload?.message || "Compte banni temporairement."));
+      emitChange("auth:banned", payload);
+      setTimeout(()=>disconnectMultiplayer("account-banned"), 0);
     });
     socket.on("session:logout-started", payload=>{
       multiplayer.logout = {
@@ -576,6 +622,7 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.shopPremiumPackEvents = [];
   multiplayer.premiumRewardEvents = [];
   multiplayer.inventorySaleEvents = [];
+  multiplayer.commerceSaleEvents = [];
   multiplayer.shopShipEvents = [];
   multiplayer.shopDroneEvents = [];
   multiplayer.shopDroneFormationEvents = [];
@@ -694,6 +741,7 @@ export const {
   buyServerPremiumPack,
   claimServerPremiumReward,
   sellServerInventoryItem,
+  sellServerMaterial,
   buyServerShip,
   equipServerActiveShip,
   buyServerDrone,

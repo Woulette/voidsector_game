@@ -22,6 +22,9 @@ Dans `server/.env` :
 ```env
 LOAD_TEST_ENABLED=true
 LOAD_TEST_SECRET=change-moi-avec-au-moins-16-caracteres
+# Pour un test 100 bots en staging, relever temporairement le cap.
+# Remettre 50 avant ouverture beta publique.
+MAX_CONCURRENT_GAME_PLAYERS=100
 ```
 
 Puis lancer le serveur :
@@ -33,14 +36,20 @@ npm start
 
 Ne jamais activer `LOAD_TEST_ENABLED` sur le serveur public. Le serveur refuse d'ailleurs de demarrer avec cette option quand `NODE_ENV=production`.
 
-## 2. Lancer 100 bots
+Pour la beta publique limitee, `MAX_CONCURRENT_GAME_PLAYERS` doit rester a `50`. Les paliers au-dessus de 50 servent uniquement a valider une marge de charge sur un serveur staging/non-public.
+
+## 2. Lancer des paliers beta
 
 Dans un second terminal :
 
 ```powershell
 cd server
 $env:LOAD_TEST_SECRET="change-moi-avec-au-moins-16-caracteres"
-npm run loadtest:bots
+$env:BOT_COUNT="10"; $env:BOT_DURATION_SECONDS="600"; npm run loadtest:bots
+$env:BOT_COUNT="25"; $env:BOT_DURATION_SECONDS="900"; npm run loadtest:bots
+$env:BOT_COUNT="50"; $env:BOT_DURATION_SECONDS="1800"; npm run loadtest:bots
+# Pour ce palier, le serveur staging doit avoir MAX_CONCURRENT_GAME_PLAYERS=100 ou 0.
+$env:BOT_COUNT="100"; $env:BOT_DURATION_SECONDS="1800"; npm run loadtest:bots
 ```
 
 Valeurs par defaut :
@@ -89,6 +98,21 @@ Le script affiche toutes les 10 secondes :
 - corrections serveur et rate limits ;
 - debit d'evenements ;
 - volume reseau approximatif si `BOT_MEASURE_BYTES=true`.
+
+Pendant un test VPS, surveille en parallele :
+
+```bash
+sudo journalctl -u voidsector -f
+```
+
+Points a noter :
+
+- crash ou redemarrage systemd ;
+- erreurs serveur ou PostgreSQL ;
+- CPU et RAM ;
+- latence visible cote bots ;
+- deconnexions ;
+- sauvegardes et progression conservee apres redemarrage.
 
 ## Nettoyage
 

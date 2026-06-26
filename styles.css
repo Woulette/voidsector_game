@@ -7,12 +7,12 @@
 @import url("./src/styles/settings.css?v=ship-abilities-1");
 @import url("./src/styles/combatSettings.css");
 @import url("./src/styles/refinery.css");
-@import url("./src/styles/tutorial.css?v=tutorial-flow-7");
+@import url("./src/styles/tutorial.css?v=tutorial-flow-8");
 @import url("./src/styles/spawnRefinery.css");
 @import url("./src/styles/leaderboard.css");
 @import url("./src/styles/firm.css?v=firm-notifications-1");
 @import url("./src/styles/playerProfile.css");
-@import url("./src/styles/quests.css");
+@import url("./src/styles/quests.css?v=commerce-2");
 @import url("./src/styles/questRelay.css?v=quest-relay-1");
 @import url("./src/styles/admin.css");
 @import url("./src/styles/systems.css");

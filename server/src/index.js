@@ -5,6 +5,7 @@ import { Server } from "socket.io";
 import { createAdminAuditStore } from "./admin/adminAudit.js";
 import { createAdminManager } from "./admin/adminManager.js";
 import { createSocketSessionManager } from "./auth/socketSession.js";
+import { revokeSessionsForAccount } from "./auth/sessions.js";
 import { resolveServerCombatFire } from "./combat/damage.js";
 import { getPlayerPvpBlockReason } from "./combat/playerPvp.js";
 import { createShipAbilityEffectManager } from "./combat/shipAbilityEffects.js";
@@ -27,7 +28,10 @@ import { updateRankScore } from "./players/rankProgression.js";
 import { createPortalInstanceManager } from "./portals/instances.js";
 import { createKillQuestProgress } from "./quests/killProgress.js";
 import { createGracefulShutdown } from "./lifecycle/gracefulShutdown.js";
-import { buildHealthStatus } from "./monitoring/health.js";
+import { installProcessErrorHandlers } from "./lifecycle/processErrorHandlers.js";
+import { buildSafeHealthStatus } from "./monitoring/health.js";
+import { buildAccountActionLimitWarning, buildAuthRequiredWarning, buildSocketRateLimitWarning } from "./monitoring/runtimeWarnings.js";
+import { createServerErrorLog } from "./monitoring/serverErrorLog.js";
 import { createAccountActionLocks } from "./security/accountActionLocks.js";
 import { createGameplayAccountGuard } from "./security/gameplayAccountGuard.js";
 import { pauseServerQuestTimers, resumeServerQuestTimers } from "./quests/questFailures.js";
@@ -48,6 +52,7 @@ import { registerPlayerHandlers } from "./socket/playerHandlers.js";
 import { registerProgressionHandlers } from "./socket/progressionHandlers.js";
 import { registerQuestHandlers } from "./socket/questHandlers.js";
 import { registerSocialHandlers } from "./socket/socialHandlers.js";
+import { installSafeSocketHandlers } from "./socket/safeSocketHandler.js";
 import { createSocialManager } from "./social/social.js";
 import { startServerTick } from "./tick/serverTick.js";
 import { createWorldAiManager } from "./world/ai.js";
@@ -61,13 +66,30 @@ import { isPointInFriendlyWorldSafeArea, publicEnemy } from "./world/spawn.js";
 import { createWorldStateManager } from "./world/state.js";
 
 const PORT = config.port;
+const players = new Map();
+const serverErrorLog = createServerErrorLog();
+
+function recordRuntimeSignal(entry){
+  try{
+    serverErrorLog.record(entry);
+  }catch(error){
+    logger.warn("Unable to record server runtime signal", {
+      source:entry?.source || "server",
+      eventName:entry?.eventName || "",
+      error:error?.message || String(error)
+    });
+  }
+}
 
 const httpServer = http.createServer(async (req, res)=>{
   if(req.url === "/health"){
-    const health = await buildHealthStatus({
+    const health = await buildSafeHealthStatus({
       players,
       databaseEnabled:dbEnabled,
-      checkDatabase:checkDatabaseConnection
+      checkDatabase:checkDatabaseConnection,
+      maxConcurrentGamePlayers:config.maxConcurrentGamePlayers,
+      logger,
+      onError:error=>serverErrorLog.record(error)
     });
     res.writeHead(health.statusCode, {"content-type":"application/json"});
     res.end(JSON.stringify(health.body));
@@ -94,19 +116,44 @@ const allowSocketEvent = createSocketRateLimiter({
       limit,
       windowMs
     });
+    recordRuntimeSignal(buildSocketRateLimitWarning({
+      socket,
+      eventName,
+      count,
+      limit,
+      windowMs,
+      players
+    }));
     socket.emit("rate:limited", {eventName, limit, windowMs});
   }
 });
 
-const players = new Map();
-
-const requireGameplayAccount = createGameplayAccountGuard({players, logger});
+const requireGameplayAccount = createGameplayAccountGuard({
+  players,
+  logger,
+  onReject:({socket, eventName, at})=>recordRuntimeSignal(buildAuthRequiredWarning({
+    socket,
+    eventName,
+    players,
+    now:()=>at
+  }))
+});
 
 const allowAccountAction = createAccountActionLocks({
   rules:config.accountActionLocks,
   players,
   logger,
-  onLimit:({socket, eventName, retryAfterMs})=>{
+  onLimit:({socket, eventName, accountKey, count, limit, windowMs, retryAfterMs})=>{
+    recordRuntimeSignal(buildAccountActionLimitWarning({
+      socket,
+      eventName,
+      accountKey,
+      count,
+      limit,
+      windowMs,
+      retryAfterMs,
+      players
+    }));
     socket.emit("account:action-limited", {eventName, retryAfterMs, at:Date.now()});
   }
 });
@@ -121,7 +168,11 @@ function publicAccountRole(role){
   return ["moderator", "admin", "owner"].includes(clean) ? clean : "player";
 }
 
-const profileManager = createProfileManager({cleanName, logger});
+const profileManager = createProfileManager({
+  cleanName,
+  logger,
+  onError:error=>serverErrorLog.record(error)
+});
 const firmWarManager = createFirmWarManager({logger});
 const adminAuditStore = createAdminAuditStore({logger});
 
@@ -379,7 +430,9 @@ const adminManager = createAdminManager({
   groups,
   profileManager,
   auditStore:adminAuditStore,
+  serverErrorLog,
   resetGroupInstance,
+  revokeSessionsForAccount,
   updateAccountModeration,
   logger
 });
@@ -398,7 +451,8 @@ const {
   resumeQuestTimers:player=>setQuestTimersConnected(player, true),
   setPlayerMap,
   syncPlayerLifecycle,
-  syncPlayerStatusEffects
+  syncPlayerStatusEffects,
+  maxConcurrentGamePlayers:config.maxConcurrentGamePlayers
 });
 
 const {emitWorldReward} = createWorldRewardManager({
@@ -598,7 +652,10 @@ function applyPlayerHit(socket, payload){
     ammoRemaining:result.ammoRemaining,
     hit:result.hit,
     damage:incoming,
+    doubleStrike:result.doubleStrike || null,
     mapId:String(attacker.mapId ?? ""),
+    fromX:Number(attacker.state.x || 0),
+    fromY:Number(attacker.state.y || 0),
     x:Number(target.state.x || 0),
     y:Number(target.state.y || 0),
     radius:Number(target.state.radius || 48),
@@ -776,10 +833,18 @@ const serverTick = startServerTick({
   updateQuestTimers,
   updateRickyCompanions,
   updateShipAbilityEffects,
-  updateWorldEnemy
+  updateWorldEnemy,
+  logger,
+  onError:error=>serverErrorLog.record(error)
 });
 
 io.on("connection", socket=>{
+  installSafeSocketHandlers(socket, {
+    logger,
+    getPlayer:currentSocket=>players.get(currentSocket.id),
+    onError:error=>serverErrorLog.record(error)
+  });
+
   function guard(eventName){
     if(!allowSocketEvent(socket, eventName)) return false;
     if(!requireGameplayAccount(socket, eventName)) return false;
@@ -807,6 +872,8 @@ io.on("connection", socket=>{
     ...socketContext,
     attachOrResumeAccountSocket,
     emitPlayers,
+    logger,
+    onError:error=>serverErrorLog.record(error),
     publicAuthPayload,
     syncProfileForPlayer
   });
@@ -826,6 +893,7 @@ io.on("connection", socket=>{
     resumeQuestTimers:player=>setQuestTimersConnected(player, true),
     syncPlayerLifecycle,
     syncPlayerStatusEffects,
+    maxConcurrentGamePlayers:config.maxConcurrentGamePlayers,
     setPlayerMap,
     syncProfileForPlayer
   });
@@ -903,6 +971,12 @@ const shutdown = createGracefulShutdown({
   profileManager,
   closeDatabase,
   logger
+});
+
+installProcessErrorHandlers({
+  logger,
+  onError:error=>serverErrorLog.record(error),
+  shutdown
 });
 
 for(const signal of ["SIGINT", "SIGTERM"]){

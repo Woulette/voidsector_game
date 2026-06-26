@@ -2,6 +2,7 @@ import {ammoTypes, droneFormations} from "../../../src/data/equipment.js";
 import {skills} from "../../../src/data/progression.js";
 import {getItemFromInventoryUid, getServerItem} from "../economy/equipment.js";
 import {consumeServerCombatBoostCharges, getServerCombatTimedBoostPercent} from "../economy/combatBoosts.js";
+import {applyServerLaserDoubleStrike} from "./shipAbilities.js";
 
 export function createCombatCooldownTracker({
   now = ()=>Date.now(),
@@ -187,7 +188,7 @@ function distanceOk(player, enemy, range, tolerance = 180){
   return dist <= Math.max(1, Number(range || 0)) + tolerance;
 }
 
-export function resolveServerCombatFire({player, profile, enemy, payload, firmDamageBonus = 0, random = Math.random} = {}){
+export function resolveServerCombatFire({player, profile, enemy, payload, firmDamageBonus = 0, random = Math.random, now = Date.now()} = {}){
   if(!player || !profile || !enemy) return {ok:false, reason:"Combat impossible."};
   const ammo = getAmmo(String(payload?.ammoId || "ammo_x1"));
   if(!ammo) return {ok:false, reason:"Munition inconnue."};
@@ -265,10 +266,15 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
   const activeFirmDamageBonus = Math.max(0, Number(firmDamageBonus || 0));
   damage *= 1 + activeFirmDamageBonus;
   const hit = weaponClass === "missile" ? missileHits > 0 : random() <= hitChance;
+  const baseDamage = hit ? Math.max(1, Math.round(damage)) : 0;
+  const doubleStrike = weaponClass === "laser"
+    ? applyServerLaserDoubleStrike({player, profile, weaponClass, hit, damage:baseDamage, now})
+    : {triggered:false, bonusDamage:0};
+  const bonusDamage = Math.max(0, Math.round(Number(doubleStrike?.bonusDamage || 0)));
   return {
     ok:true,
     hit,
-    damage:hit ? Math.max(1, Math.round(damage)) : 0,
+    damage:baseDamage + bonusDamage,
     ammoId:ammo.id,
     consumed,
     ammoRemaining:Math.max(0, Number(profile.ammoInventory?.[ammo.id] || 0)),
@@ -278,6 +284,16 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     boostPercent,
     droneBoostPercent,
     firmDamageBonus:activeFirmDamageBonus,
-    range
+    range,
+    doubleStrike:doubleStrike?.triggered ? {
+      abilityId:doubleStrike.status?.abilityId || "spectral_double_shot",
+      baseDamage,
+      bonusDamage,
+      chargeMs:Number(doubleStrike.chargeMs || doubleStrike.status?.chargeMs || 0),
+      chargeSegments:Number(doubleStrike.chargeSegments || doubleStrike.status?.chargeSegments || 0),
+      chargeStartedAt:Number(doubleStrike.chargeStartedAt || doubleStrike.status?.chargeStartedAt || 0),
+      chargeReadyAt:Number(doubleStrike.chargeReadyAt || doubleStrike.status?.chargeReadyAt || 0),
+      activeUntil:Number(doubleStrike.status?.activeUntil || 0)
+    } : null
   };
 }

@@ -1,4 +1,4 @@
-# Script de déploiement Windows → Oracle Cloud
+# Script de deploiement Windows vers VPS Ubuntu/Debian
 # À exécuter depuis la racine du projet VoidSector
 # Usage : .\server\deploy\deploy.ps1 -KeyPath "C:\chemin\vers\cle.key" -ServerIp "1.2.3.4"
 
@@ -8,6 +8,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$ServerIp,
     [string]$RemoteUser = "ubuntu",
+    [string]$RemoteDir = "~",
     [string]$ArchiveName = "voidsector-deploy.zip"
 )
 
@@ -34,9 +35,9 @@ if (Test-Path $ArchiveName) {
 Compress-Archive -Path $items -DestinationPath $ArchiveName -Force
 
 Write-Host "=== Envoi sur le serveur $ServerIp ===" -ForegroundColor Cyan
-scp -i $KeyPath $ArchiveName "$RemoteUser@${ServerIp}:/home/$RemoteUser/"
+scp -i $KeyPath $ArchiveName "$RemoteUser@${ServerIp}:$RemoteDir/"
 
 Write-Host "=== Déploiement terminé ===" -ForegroundColor Green
 Write-Host "Pour finaliser l'installation, connecte-toi en SSH et exécute :" -ForegroundColor Yellow
 Write-Host "  ssh -i `"$KeyPath`" $RemoteUser@$ServerIp" -ForegroundColor White
-Write-Host "  cd /home/$RemoteUser && unzip -q $ArchiveName -d voidsector && cd voidsector/server/deploy && chmod +x install.sh && ./install.sh" -ForegroundColor White
+Write-Host "  cd $RemoteDir && unzip -q $ArchiveName -d voidsector && cd voidsector/server/deploy && chmod +x install.sh && ./install.sh" -ForegroundColor White

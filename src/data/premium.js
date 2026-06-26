@@ -90,17 +90,17 @@ export const starterPacks = [
     ]
   },
   {
-    id:"starter_astra_3d",
-    name:"Pack Astra 3D Test",
+    id:"starter_astralis",
+    name:"Pack Astralis",
     price:"15,99 EUR",
     tag:"STARTER",
-    img:"assets/ships/Astra 3D Test.png",
-    ship:"Astra 3D Test",
-    desc:"Pack avance avec Astra 3D Test, lasers MK-IV/MK-III et premium 30 jours.",
+    img:"assets/ships/Astralis.png",
+    ship:"Astralis",
+    desc:"Pack avance avec Astralis, lasers MK-IV/MK-III et premium 30 jours.",
     status:"Paiement bientot",
     contents:[
       {label:"Pass Premium 30 jours", quantity:"x1", img:"assets/icons/premium_pass_30.svg", kind:"premium"},
-      {label:"Vaisseau Astra 3D Test", quantity:"x1", img:"assets/ships/Astra 3D Test.png", kind:"ship"},
+      {label:"Vaisseau Astralis", quantity:"x1", img:"assets/ships/Astralis.png", kind:"ship"},
       {label:"Canon Laser MK-IV", quantity:"x3", img:"assets/equipment/laser_mk4_slot_v2.png", kind:"equipment"},
       {label:"Canon Laser MK-III", quantity:"x7", img:"assets/equipment/laser_mk3_slot_v2.png", kind:"equipment"},
       {label:"Munition M-3", quantity:"x80 000", img:"assets/equipment/ammo_laser_x3_same_preview.png", kind:"ammo"}
@@ -112,6 +112,7 @@ export function normalizeStarterPackPurchases(value = []){
   const validIds = new Set(starterPacks.map(pack=>pack.id));
   return [...new Set((Array.isArray(value) ? value : [])
     .map(id=>String(id || ""))
+    .map(id=>id === "starter_astra_3d" ? "starter_astralis" : id)
     .filter(id=>validIds.has(id)))];
 }
 

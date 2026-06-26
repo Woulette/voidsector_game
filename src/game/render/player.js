@@ -256,43 +256,71 @@ function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profi
 
   profile.ports.forEach((port, index)=>{
     const size = port.size || 1;
-    const pulse = .84 + Math.sin(time * 25 + index * 1.7) * .12 + Math.sin(time * 51 + index) * .05;
+    const pulse = .92 + Math.sin(time * 25 + index * 1.7) * .07 + Math.sin(time * 51 + index) * .03;
     const length = ((profile.baseLength || 22) + power * (profile.powerLength || 30)) * size * (port.length || 1) * pulse;
     const width = ((profile.baseWidth || 7.5) + power * (profile.powerWidth || 7)) * size * (port.width || 1);
+    const sway = Math.sin(time * (18 + power * 8) + index * 1.9) * width * .12;
     const pos = localToWorld(player, port.x, port.y, player.angle);
 
     ctx.save();
     ctx.translate(pos.x - camera.x, pos.y - camera.y);
     ctx.rotate(player.angle);
-    ctx.globalAlpha = .34 + power * .54;
+    ctx.globalAlpha = .24 + power * .46;
 
-    const glow = ctx.createRadialGradient(0, length * .32, 1, 0, length * .38, length * .86);
-    glow.addColorStop(0, engineRgba(colors.core, .58 * power));
-    glow.addColorStop(.26, engineRgba(colors.hot, .48 * power));
-    glow.addColorStop(.66, engineRgba(colors.mid, .24 * power));
+    const glow = ctx.createRadialGradient(sway * .18, length * .30, 1, sway * .22, length * .38, length * .62);
+    glow.addColorStop(0, engineRgba(colors.core, .38 * power));
+    glow.addColorStop(.34, engineRgba(colors.hot, .30 * power));
+    glow.addColorStop(.72, engineRgba(colors.mid, .13 * power));
     glow.addColorStop(1, engineRgba(colors.edge, 0));
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.ellipse(0, length * .38, width * 1.75, length * .64, 0, 0, Math.PI * 2);
+    ctx.ellipse(sway * .18, length * .40, width * 1.08, length * .48, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    const flame = ctx.createLinearGradient(0, 0, 0, length);
-    flame.addColorStop(0, engineRgba(colors.core, .90 * power));
-    flame.addColorStop(.22, engineRgba(colors.hot, .84 * power));
-    flame.addColorStop(.70, engineRgba(colors.mid, .38 * power));
-    flame.addColorStop(1, engineRgba(colors.edge, 0));
-    ctx.fillStyle = flame;
+    const outer = ctx.createLinearGradient(0, 0, sway, length);
+    outer.addColorStop(0, engineRgba(colors.core, .78 * power));
+    outer.addColorStop(.18, engineRgba(colors.hot, .70 * power));
+    outer.addColorStop(.62, engineRgba(colors.mid, .34 * power));
+    outer.addColorStop(1, engineRgba(colors.edge, 0));
+    ctx.fillStyle = outer;
     ctx.beginPath();
-    ctx.moveTo(-width * .52, 0);
-    ctx.quadraticCurveTo(-width * .20, length * .44, 0, length);
-    ctx.quadraticCurveTo(width * .20, length * .44, width * .52, 0);
+    ctx.moveTo(-width * .46, 0);
+    ctx.bezierCurveTo(-width * .74, length * .25, sway - width * .20, length * .76, sway, length);
+    ctx.bezierCurveTo(sway + width * .20, length * .76, width * .74, length * .25, width * .46, 0);
     ctx.closePath();
     ctx.fill();
 
-    ctx.globalAlpha = .60 * power;
-    ctx.fillStyle = engineRgba(colors.core, .95);
+    const coreLength = length * (.70 + Math.sin(time * 34 + index) * .05);
+    const core = ctx.createLinearGradient(0, 0, sway * .55, coreLength);
+    core.addColorStop(0, engineRgba(colors.core, .94 * power));
+    core.addColorStop(.42, engineRgba(colors.hot, .70 * power));
+    core.addColorStop(1, engineRgba(colors.mid, 0));
+    ctx.globalAlpha = .48 + power * .34;
+    ctx.fillStyle = core;
     ctx.beginPath();
-    ctx.ellipse(0, length * .18, width * .23, Math.max(4.5, length * .22), 0, 0, Math.PI * 2);
+    ctx.moveTo(-width * .18, 1);
+    ctx.quadraticCurveTo(-width * .10, coreLength * .43, sway * .55, coreLength);
+    ctx.quadraticCurveTo(width * .10, coreLength * .43, width * .18, 1);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.globalAlpha = .50 * power;
+    ctx.strokeStyle = engineRgba(colors.core, .88);
+    ctx.lineWidth = Math.max(.8, width * .12);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(0, Math.max(2, length * .06));
+    ctx.quadraticCurveTo(sway * .25, length * .42, sway * .62, length * .78);
+    ctx.stroke();
+
+    const nozzle = ctx.createRadialGradient(0, 0, 1, 0, 0, width * 1.1);
+    nozzle.addColorStop(0, engineRgba(colors.core, .92 * power));
+    nozzle.addColorStop(.36, engineRgba(colors.hot, .48 * power));
+    nozzle.addColorStop(1, engineRgba(colors.mid, 0));
+    ctx.globalAlpha = .58 * power;
+    ctx.fillStyle = nozzle;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, width * .72, Math.max(2.4, width * .24), 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   });
@@ -519,6 +547,72 @@ function drawPlayerStatusBars({ctx, camera, player}){
   ctx.restore();
 }
 
+function drawSpectralDoubleShotCharge({ctx, camera, player, ship}){
+  const charge = player?.spectralDoubleShotCharge;
+  if(!charge || charge.abilityId !== "spectral_double_shot") return;
+  const now = Date.now();
+  const activeUntil = Math.max(0, Number(charge.activeUntil || 0));
+  if(activeUntil <= now) return;
+  const chargeMs = Math.max(1, Number(charge.chargeMs || 3_000));
+  const segments = Math.max(1, Math.min(6, Math.round(Number(charge.chargeSegments || 3))));
+  const startedAt = Math.max(0, Number(charge.chargeStartedAt || now));
+  const readyAt = Math.max(startedAt + chargeMs, Number(charge.chargeReadyAt || startedAt + chargeMs));
+  const elapsed = Math.max(0, Math.min(chargeMs, now - startedAt));
+  const ready = now >= readyAt;
+  const px = player.x - camera.x;
+  const py = player.y - camera.y;
+  const shipHeight = Math.max(96, Number(ship?.renderHeight || 96));
+  const y = Math.round(py - shipHeight / 2 - 24);
+  const spacing = 14;
+  const radius = 4.5;
+  const plateWidth = Math.max(36, (segments - 1) * spacing + 24);
+  const plateHeight = 18;
+  const pulse = (Math.sin(performance.now() / 90) + 1) / 2;
+
+  ctx.save();
+  ctx.translate(Math.round(px), y);
+  ctx.fillStyle = "rgba(2,6,23,.68)";
+  ctx.strokeStyle = ready ? `rgba(216,180,254,${.58 + pulse * .22})` : "rgba(148,163,184,.28)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(-plateWidth / 2, -plateHeight / 2, plateWidth, plateHeight, 9);
+  ctx.fill();
+  ctx.stroke();
+
+  for(let index = 0; index < segments; index++){
+    const x = (index - (segments - 1) / 2) * spacing;
+    const threshold = ((index + 1) / segments) * chargeMs;
+    const segmentStart = (index / segments) * chargeMs;
+    const filled = ready || elapsed >= threshold;
+    const partial = !filled && elapsed > segmentStart;
+    const partialRatio = partial ? Math.max(.18, Math.min(1, (elapsed - segmentStart) / (chargeMs / segments))) : 0;
+
+    ctx.save();
+    if(filled || ready){
+      ctx.shadowColor = "rgba(168,85,247,.92)";
+      ctx.shadowBlur = ready ? 10 + pulse * 8 : 8;
+      ctx.fillStyle = ready ? `rgba(233,213,255,${.88 + pulse * .12})` : "rgba(196,181,253,.92)";
+      ctx.beginPath();
+      ctx.arc(x, 0, radius + (ready ? pulse * 1.1 : 0), 0, Math.PI * 2);
+      ctx.fill();
+    }else{
+      ctx.strokeStyle = "rgba(148,163,184,.48)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, 0, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      if(partialRatio > 0){
+        ctx.fillStyle = `rgba(168,85,247,${.32 + partialRatio * .44})`;
+        ctx.beginPath();
+        ctx.arc(x, 0, radius * partialRatio, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 export function drawPlayerLayer({
   ctx,
   camera,
@@ -541,6 +635,7 @@ export function drawPlayerLayer({
 }){
   if(graphicsEffects.shipEngineTrail !== false) drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles});
   drawPlayerStatusBars({ctx, camera, player});
+  drawSpectralDoubleShotCharge({ctx, camera, player, ship});
   drawRotatedImage({
     ctx,
     camera,

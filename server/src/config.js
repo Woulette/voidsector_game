@@ -18,6 +18,26 @@ function isValidClientOrigin(origin){
   }
 }
 
+function isValidPostgresDatabaseUrl(value){
+  try{
+    const url = new URL(String(value || ""));
+    const database = decodeURIComponent(url.pathname || "").replace(/^\/+/, "");
+    return ["postgres:", "postgresql:"].includes(url.protocol)
+      && Boolean(url.hostname)
+      && Boolean(database);
+  }catch{
+    return false;
+  }
+}
+
+function integerConfig(value, fallback, {min = 0, max = Number.MAX_SAFE_INTEGER} = {}){
+  const raw = String(value ?? "").trim();
+  if(!raw) return fallback;
+  const parsed = Number(raw);
+  if(!Number.isInteger(parsed)) return Number.NaN;
+  return Math.max(min, Math.min(max, parsed));
+}
+
 export function createRuntimeConfig(environment = process.env){
   const nodeEnv = String(environment.NODE_ENV || "development").trim().toLowerCase();
   const isProduction = nodeEnv === "production";
@@ -26,6 +46,11 @@ export function createRuntimeConfig(environment = process.env){
   const databaseUrl = String(environment.DATABASE_URL || "").trim();
   const loadTestEnabled = String(environment.LOAD_TEST_ENABLED || "").trim().toLowerCase() === "true";
   const loadTestSecret = String(environment.LOAD_TEST_SECRET || "").trim();
+  const maxConcurrentGamePlayers = integerConfig(
+    environment.MAX_CONCURRENT_GAME_PLAYERS ?? environment.BETA_MAX_PLAYERS,
+    isProduction ? 50 : 0,
+    {min:0, max:100000}
+  );
   const origins = clientOrigin === "*" ? [] : clientOrigin;
   const errors = [];
 
@@ -41,11 +66,17 @@ export function createRuntimeConfig(environment = process.env){
   if(isProduction && !databaseUrl){
     errors.push("DATABASE_URL is required in production; JSON storage is development-only.");
   }
+  if(databaseUrl && !isValidPostgresDatabaseUrl(databaseUrl)){
+    errors.push("DATABASE_URL must be a valid postgres:// or postgresql:// URL with a database name.");
+  }
   if(loadTestEnabled && loadTestSecret.length < 16){
     errors.push("LOAD_TEST_SECRET must contain at least 16 characters when load testing is enabled.");
   }
   if(isProduction && loadTestEnabled){
     errors.push("LOAD_TEST_ENABLED cannot be true in production.");
+  }
+  if(!Number.isInteger(maxConcurrentGamePlayers)){
+    errors.push("MAX_CONCURRENT_GAME_PLAYERS must be an integer greater than or equal to 0.");
   }
   if(errors.length){
     throw new Error(`Invalid server configuration:\n- ${errors.join("\n- ")}`);
@@ -57,6 +88,7 @@ export function createRuntimeConfig(environment = process.env){
     port,
     clientOrigin:clientOrigin === "*" || clientOrigin.length === 1 ? clientOrigin === "*" ? "*" : clientOrigin[0] : clientOrigin,
     databaseEnabled:Boolean(databaseUrl),
+    maxConcurrentGamePlayers,
     loadTest:{
       enabled:loadTestEnabled,
       secret:loadTestSecret
@@ -85,6 +117,7 @@ export const config = {
     "shop:buy-drone":{minIntervalMs:600, limit:8, windowMs:10000},
     "shop:buy-drone-formation":{minIntervalMs:600, limit:8, windowMs:10000},
     "inventory:sell-item":{minIntervalMs:400, limit:16, windowMs:10000},
+    "commerce:sell-material":{minIntervalMs:250, limit:20, windowMs:10000},
     "equipment:equip":{minIntervalMs:35, limit:24, windowMs:10000},
     "equipment:batch":{minIntervalMs:250, limit:12, windowMs:10000},
     "equipment:unequip-slot":{minIntervalMs:35, limit:24, windowMs:10000},
@@ -200,6 +233,7 @@ export const config = {
     "shop:buy-drone":{limit:12, windowMs:10000},
     "shop:buy-drone-formation":{limit:12, windowMs:10000},
     "inventory:sell-item":{limit:20, windowMs:10000},
+    "commerce:sell-material":{limit:24, windowMs:10000},
     "equipment:equip":{limit:30, windowMs:10000},
     "equipment:batch":{limit:16, windowMs:10000},
     "equipment:unequip-slot":{limit:30, windowMs:10000},

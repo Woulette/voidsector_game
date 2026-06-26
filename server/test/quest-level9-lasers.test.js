@@ -112,9 +112,10 @@ function makeActiveQuestProfile(laserCount){
   const profile = createDefaultProfile();
   const quest = getQuest(QUEST_ID);
   profile.player.level = 9;
-  profile.activeShip = "test_runner";
-  profile.selectedShip = "test_runner";
-  profile.shipLoadouts.test_runner = {
+  profile.activeShip = "astralis";
+  profile.selectedShip = "astralis";
+  profile.ownedShips.push("astralis");
+  profile.shipLoadouts.astralis = {
     lasers:Array.from({length:laserCount}, (_, index)=>`laser_${index + 1}`),
     generators:[],
     extras:[]
@@ -157,13 +158,14 @@ test("equipping the eighth laser auto-claims the level nine quest", ()=>{
   profile.player.level = 9;
   profile.player.credits = 0;
   profile.player.premium = 0;
-  profile.activeShip = "test_runner";
-  profile.selectedShip = "test_runner";
+  profile.activeShip = "astralis";
+  profile.selectedShip = "astralis";
+  profile.ownedShips.push("astralis");
   profile.inventoryItems.push(...Array.from({length:8}, (_, index)=>({
     uid:`quest_laser_${index + 1}`,
     itemId:"laser_mk1"
   })));
-  profile.shipLoadouts.test_runner = {
+  profile.shipLoadouts.astralis = {
     lasers:Array.from({length:8}, (_, index)=>index < 7 ? `quest_laser_${index + 1}` : null),
     generators:Array(10).fill(null),
     extras:Array(5).fill(null)
@@ -178,7 +180,7 @@ test("equipping the eighth laser auto-claims the level nine quest", ()=>{
   });
   const result = manager.applyEquipmentAction({
     player:{name:"Pilot"},
-    action:{kind:"equip", type:"laser", index:7, inventoryUid:"quest_laser_8", shipId:"test_runner"}
+    action:{kind:"equip", type:"laser", index:7, inventoryUid:"quest_laser_8", shipId:"astralis"}
   });
 
   assert.equal(result.ok, true);

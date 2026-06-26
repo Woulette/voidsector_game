@@ -5,11 +5,14 @@ Wants=postgresql.service
 
 [Service]
 Type=simple
-User=ubuntu
+User=__SERVICE_USER__
 WorkingDirectory=__SERVER_DIR__
 ExecStart=/usr/bin/node __SERVER_DIR__/src/index.js
 Restart=on-failure
 RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+LimitNOFILE=65535
 Environment=NODE_ENV=production
 
 [Install]

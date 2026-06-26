@@ -246,20 +246,21 @@ export function drawBeams({ctx, camera, beams}){
     const headY = beam.fromY + dirY * Math.min(distance, headDistance);
     const tailX = beam.fromX + dirX * tailDistance;
     const tailY = beam.fromY + dirY * tailDistance;
-    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.glow, shadowColor:beam.glow, alpha:fade * .62, width:5.2, blur:4});
-    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.core, shadowColor:beam.glow, alpha:fade, width:2.1, blur:1.5});
+    const widthScale = Math.max(.4, Number(beam.widthScale || 1));
+    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.glow, shadowColor:beam.glow, alpha:fade * .62, width:5.2 * widthScale, blur:4 * widthScale});
+    strokeBeam({fromX:tailX, fromY:tailY, toX:headX, toY:headY, color:beam.core, shadowColor:beam.glow, alpha:fade, width:2.1 * widthScale, blur:1.5 * widthScale});
 
-    drawGlowCircle({x:headX, y:headY, radius:4.5 + fade * 2, color:beam.glow, alpha:fade * .48, blur:4});
+    drawGlowCircle({x:headX, y:headY, radius:(4.5 + fade * 2) * widthScale, color:beam.glow, alpha:fade * .48, blur:4 * widthScale});
 
     if(progress < .22){
       const startAlpha = (1 - progress / .22) * .72;
-      drawGlowCircle({x:beam.fromX, y:beam.fromY, radius:6 + progress * 10, color:beam.glow, alpha:startAlpha * .48, blur:4});
+      drawGlowCircle({x:beam.fromX, y:beam.fromY, radius:(6 + progress * 10) * widthScale, color:beam.glow, alpha:startAlpha * .48, blur:4 * widthScale});
     }
 
     if(progress > .78){
       const impactProgress = Math.min(1, (progress - .78) / .22);
       const impactAlpha = (1 - impactProgress) * .9;
-      drawGlowCircle({x:beam.toX, y:beam.toY, radius:5 + impactProgress * 10, color:beam.glow, alpha:impactAlpha * .55, blur:5});
+      drawGlowCircle({x:beam.toX, y:beam.toY, radius:(5 + impactProgress * 10) * widthScale, color:beam.glow, alpha:impactAlpha * .55, blur:5 * widthScale});
     }
   }
   ctx.restore();
@@ -382,6 +383,28 @@ export function drawParticles({ctx, camera, particles, repairLayer = false, grap
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+    }else if(particle.kind === "poisonWave"){
+      const progress = 1 - alpha;
+      const radius = Math.max(8, progress * particle.size);
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = colorWithAlpha(particle.color, alpha * .86, "rgba(34,197,94,.72)");
+      ctx.fillStyle = colorWithAlpha(particle.color, alpha * .045, "rgba(34,197,94,.06)");
+      ctx.shadowColor = "rgba(22,163,74,.9)";
+      ctx.shadowBlur = 18 * alpha;
+      ctx.lineWidth = Math.max(1.2, 5 * alpha);
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([10, 14]);
+      ctx.lineWidth = Math.max(.8, 2.2 * alpha);
+      ctx.strokeStyle = `rgba(187,247,208,${alpha * .42})`;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, Math.max(4, radius * .72), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
       ctx.restore();
     }else if(particle.kind === "repairPlus"){
       const size = Math.max(4, particle.size * (.55 + alpha * .45));

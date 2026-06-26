@@ -44,6 +44,17 @@ test("tutorial close requires explicit permanent-abandon confirmation", ()=>{
   assert.doesNotMatch(controller,/data-tutorial-close[^\n]+send\("pause"\)/);
 });
 
+test("tutorial final gift plays a centered MK-III reward animation", ()=>{
+  assert.match(controller,/rewardOverlay = document\.createElement\("div"\)/);
+  assert.match(controller,/rewardOverlay\.className = "tutorial-reward-overlay hidden"/);
+  assert.match(controller,/function showRewardAnimation\(itemId\)/);
+  assert.match(controller,/rewardItemId === "laser_mk3"/);
+  assert.match(controller,/CADEAU DU COMMANDEMENT/);
+  assert.match(css,/\.tutorial-reward-overlay/);
+  assert.match(css,/\.tutorial-reward-card/);
+  assert.match(css,/tutorial-reward-item-rise/);
+});
+
 test("world tutorial arrows support fixed stations and player-directed targets", ()=>{
   assert.match(controller,/arrowMode:"world-anchor"/);
   assert.match(controller,/arrowMode:"player-direction"/);

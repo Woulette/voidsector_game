@@ -94,3 +94,72 @@ test("a new password login revokes old account sessions and disconnects the prev
   assert.equal(emitted.some(entry=>entry.socket === "old-game" && entry.event === "auth:replaced"), true);
   assert.equal(emitted.some(entry=>entry.socket === "new" && entry.event === "auth:success"), true);
 });
+
+test("auth handlers expose expected login errors without logging them as server failures", async ()=>{
+  const handlers = new Map();
+  const emitted = [];
+  const runtimeErrors = [];
+  const serverErrors = [];
+  const socket = {
+    id:"login-socket",
+    on:(event, callback)=>handlers.set(event, callback),
+    emit:(event, payload)=>emitted.push({event, payload})
+  };
+  const players = new Map([[socket.id, {id:socket.id, accountId:null, clientMode:"launcher"}]]);
+
+  registerAuthHandlers(socket, {
+    players,
+    guard:()=>true,
+    emitPlayers(){},
+    logger:{error:(message, meta)=>serverErrors.push({message, meta})},
+    onError:error=>runtimeErrors.push(error),
+    loginAccount:async()=>{ throw new Error("Identifiants invalides."); }
+  });
+
+  await handlers.get("auth:login")({login:"Pilot", password:"bad"});
+
+  assert.deepEqual(emitted, [{event:"auth:error", payload:{message:"Identifiants invalides."}}]);
+  assert.deepEqual(serverErrors, []);
+  assert.deepEqual(runtimeErrors, []);
+});
+
+test("auth handlers hide unexpected server errors from the client and record runtime details", async ()=>{
+  const handlers = new Map();
+  const emitted = [];
+  const runtimeErrors = [];
+  const serverErrors = [];
+  const socket = {
+    id:"login-socket",
+    on:(event, callback)=>handlers.set(event, callback),
+    emit:(event, payload)=>emitted.push({event, payload})
+  };
+  const players = new Map([[socket.id, {
+    id:socket.id,
+    accountId:"account-1",
+    clientMode:"launcher",
+    mapId:"0"
+  }]]);
+
+  registerAuthHandlers(socket, {
+    players,
+    guard:()=>true,
+    emitPlayers(){},
+    logger:{error:(message, meta)=>serverErrors.push({message, meta})},
+    onError:error=>runtimeErrors.push(error),
+    loginAccount:async()=>{ throw new Error("connect ECONNREFUSED postgres://secret"); }
+  });
+
+  await handlers.get("auth:login")({login:"Pilot", password:"secret"});
+
+  assert.deepEqual(emitted, [{event:"auth:error", payload:{message:"Connexion impossible."}}]);
+  assert.equal(JSON.stringify(emitted).includes("postgres://secret"), false);
+  assert.equal(serverErrors.length, 1);
+  assert.equal(serverErrors[0].message, "[auth] handler failed");
+  assert.equal(serverErrors[0].meta.eventName, "auth:login");
+  assert.equal(serverErrors[0].meta.socketId, "login-socket");
+  assert.equal(serverErrors[0].meta.accountId, "account-1");
+  assert.match(serverErrors[0].meta.error, /postgres:\/\/secret/);
+  assert.equal(runtimeErrors.length, 1);
+  assert.equal(runtimeErrors[0].source, "auth");
+  assert.equal(runtimeErrors[0].eventName, "auth:login");
+});

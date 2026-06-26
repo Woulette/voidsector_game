@@ -9,9 +9,36 @@ import { sanitizePilotName } from "./profileIdentity.js";
 import { sanitizeTutorialState } from "../../../src/shared/tutorial.js";
 import { calculateMonsterRankPointsForKills, calculateRankScore } from "../../../src/data/ranks.js";
 import { sanitizePlayerBoosterState } from "../../../src/shared/firmBoosters.js";
+import { ships } from "../../../src/data/ships.js";
 
 const EMPTY_ACTION_SLOTS = Array(9).fill(null);
 const STARTER_ACTION_SLOTS = ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
+const SHIP_ID_ALIASES = Object.freeze({
+  astra_3d_test:"astralis"
+});
+const VALID_SHIP_IDS = new Set(ships.map(ship=>ship.id));
+
+function normalizeShipId(id){
+  const clean = String(id || "");
+  return SHIP_ID_ALIASES[clean] || clean;
+}
+
+function sanitizeShipIdList(value){
+  return [...new Set((Array.isArray(value) ? value : [])
+    .map(normalizeShipId)
+    .filter(shipId=>VALID_SHIP_IDS.has(shipId)))];
+}
+
+function sanitizeShipKeyedObject(value){
+  if(!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const normalized = {};
+  for(const [rawShipId, entry] of Object.entries(value)){
+    const shipId = normalizeShipId(rawShipId);
+    if(!VALID_SHIP_IDS.has(shipId)) continue;
+    normalized[shipId] = sanitizeObject(entry);
+  }
+  return normalized;
+}
 
 export function sanitizeObject(value){
   if(!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -20,6 +47,8 @@ export function sanitizeObject(value){
 
 export function sanitizeWorldSession(value){
   if(!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const shipId = normalizeShipId(value.shipId || "unknown");
+  if(!VALID_SHIP_IDS.has(shipId)) return null;
   const mapId = String(value.mapId ?? "0");
   const x = Number(value.x);
   const y = Number(value.y);
@@ -35,7 +64,7 @@ export function sanitizeWorldSession(value){
     maxShield:Math.max(0, Number(value.maxShield || value.shield || 0)),
     firmHullMultiplier:Math.max(1, Math.min(6, Number(value.firmHullMultiplier || 1) || 1)),
     firmShieldMultiplier:Math.max(1, Math.min(6, Number(value.firmShieldMultiplier || 1) || 1)),
-    shipId:String(value.shipId || "unknown"),
+    shipId,
     shipImg:String(value.shipImg || ""),
     updatedAt:Math.max(0, Number(value.updatedAt || Date.now()))
   };
@@ -44,7 +73,7 @@ export function sanitizeWorldSession(value){
 function sanitizeShipWorldSessions(value){
   if(!value || typeof value !== "object" || Array.isArray(value)) return {};
   return Object.fromEntries(Object.entries(value)
-    .map(([shipId, session])=>[String(shipId), sanitizeWorldSession(session)])
+    .map(([shipId, session])=>[normalizeShipId(shipId), sanitizeWorldSession({...session, shipId})])
     .filter(([, session])=>Boolean(session)));
 }
 
@@ -60,10 +89,13 @@ export function sanitizeActionSlots(value, fallback = STARTER_ACTION_SLOTS){
 
 function sanitizeActionSlotsByShip(value){
   if(!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return Object.fromEntries(Object.entries(value).map(([shipId, slots])=>[
-    String(shipId),
-    sanitizeActionSlots(slots, EMPTY_ACTION_SLOTS)
-  ]));
+  return Object.fromEntries(Object.entries(value)
+    .map(([shipId, slots])=>[normalizeShipId(shipId), slots])
+    .filter(([shipId])=>VALID_SHIP_IDS.has(shipId))
+    .map(([shipId, slots])=>[
+      shipId,
+      sanitizeActionSlots(slots, EMPTY_ACTION_SLOTS)
+    ]));
 }
 
 function sanitizeSocial(value){
@@ -142,16 +174,16 @@ export function sanitizeProfile(profile = {}){
     player:normalizeProgressionPlayer(sanitizeObject(profile.player)),
     premiumRewardState:normalizePremiumRewardState(profile.premiumRewardState),
     starterPackPurchases:normalizeStarterPackPurchases(profile.starterPackPurchases),
-    activeShip:typeof profile.activeShip === "string" ? profile.activeShip : null,
-    selectedShip:typeof profile.selectedShip === "string" ? profile.selectedShip : null,
-    ownedShips:Array.isArray(profile.ownedShips) ? profile.ownedShips.map(String) : undefined,
+    activeShip:typeof profile.activeShip === "string" && VALID_SHIP_IDS.has(normalizeShipId(profile.activeShip)) ? normalizeShipId(profile.activeShip) : null,
+    selectedShip:typeof profile.selectedShip === "string" && VALID_SHIP_IDS.has(normalizeShipId(profile.selectedShip)) ? normalizeShipId(profile.selectedShip) : null,
+    ownedShips:Array.isArray(profile.ownedShips) ? sanitizeShipIdList(profile.ownedShips) : undefined,
     inventoryItems,
     nextInventoryUid:Math.max(1, Math.floor(Number(profile.nextInventoryUid || 1))),
     ammoInventory:sanitizeObject(profile.ammoInventory),
     actionSlots:sanitizeActionSlots(profile.actionSlots),
     actionSlotsByShip:sanitizeActionSlotsByShip(profile.actionSlotsByShip),
     lastLaserAmmoId:typeof profile.lastLaserAmmoId === "string" ? profile.lastLaserAmmoId : null,
-    shipLoadouts:sanitizeObject(profile.shipLoadouts),
+    shipLoadouts:sanitizeShipKeyedObject(profile.shipLoadouts),
     ownedDroneCount:Math.max(0, Math.floor(Number(profile.ownedDroneCount || 0))),
     droneLoadout:Array.isArray(profile.droneLoadout) ? profile.droneLoadout.map(value=>value === null ? null : String(value)) : undefined,
     dronePermanentUpgrades:sanitizeObject(profile.dronePermanentUpgrades),
@@ -159,9 +191,9 @@ export function sanitizeProfile(profile = {}){
     ownedDroneFormations:Array.isArray(profile.ownedDroneFormations) ? profile.ownedDroneFormations.map(String) : undefined,
     activeDroneFormation:typeof profile.activeDroneFormation === "string" ? profile.activeDroneFormation : null,
     cargoHold:sanitizeObject(profile.cargoHold),
-    shipCargo:sanitizeObject(profile.shipCargo),
+    shipCargo:sanitizeShipKeyedObject(profile.shipCargo),
     combatBoosts:sanitizeCombatBoosts(profile.combatBoosts),
-    shipAbilityStates:sanitizeObject(profile.shipAbilityStates),
+    shipAbilityStates:sanitizeShipKeyedObject(profile.shipAbilityStates),
     boosters:sanitizePlayerBoosterState(profile.boosters),
     skillRanks:sanitizeObject(profile.skillRanks),
     skillLevels:sanitizeObject(profile.skillLevels),
@@ -197,6 +229,10 @@ export function sanitizeProfile(profile = {}){
   sanitized.player.name = sanitizePilotName(sanitized.player.name, "NOVA-37");
   sanitized.player.firmId = normalizeFirmId(sanitized.player.firmId || sanitized.player.firm || sanitized.player.company || sanitized.player.faction || "astra");
   sanitized.player.firmSelected = Boolean(sanitized.player.firmSelected);
+  if(!Array.isArray(sanitized.ownedShips) || sanitized.ownedShips.length === 0) sanitized.ownedShips = ["orion"];
+  if(!sanitized.ownedShips.includes("orion")) sanitized.ownedShips.unshift("orion");
+  if(sanitized.activeShip && !sanitized.ownedShips.includes(sanitized.activeShip)) sanitized.activeShip = sanitized.ownedShips[0] || "orion";
+  if(sanitized.selectedShip && !sanitized.ownedShips.includes(sanitized.selectedShip)) sanitized.selectedShip = sanitized.activeShip || sanitized.ownedShips[0] || "orion";
   rebuildMonsterRankStats(sanitized);
   cleanupDuplicateEquippedInventoryUids(sanitized);
   return sanitized;

@@ -1,11 +1,34 @@
 import { loginAccount, registerAccount } from "../auth/accounts.js";
 import { createSession, getSessionAccount, revokeSessionByToken, revokeSessionsForAccount } from "../auth/sessions.js";
 
+const EXPECTED_AUTH_ERROR_PATTERNS = [
+  /^Email invalide\.$/,
+  /^Pseudo trop court\.$/,
+  /^Mot de passe trop court\.$/,
+  /^Email deja utilise\.$/,
+  /^Pseudo deja utilise\.$/,
+  /^Identifiants invalides\.$/,
+  /^Compte banni jusqu'au .+\.$/,
+  /^Session expiree\.$/
+];
+
+function isExpectedAuthError(error){
+  if(error?.code === "SERVER_FULL") return true;
+  const message = String(error?.message || "");
+  return EXPECTED_AUTH_ERROR_PATTERNS.some(pattern=>pattern.test(message));
+}
+
+function authErrorMessage(error, fallback){
+  return isExpectedAuthError(error) ? String(error.message) : fallback;
+}
+
 export function registerAuthHandlers(socket, context){
   const {
     attachOrResumeAccountSocket,
     emitPlayers,
     guard,
+    logger,
+    onError,
     players,
     publicAuthPayload,
     syncProfileForPlayer,
@@ -32,6 +55,29 @@ export function registerAuthHandlers(socket, context){
     return previousPlayers.length;
   }
 
+  function recordUnexpectedAuthError(eventName, error){
+    if(isExpectedAuthError(error)) return;
+    const player = players.get(socket.id);
+    const meta = {
+      eventName,
+      socketId:socket.id,
+      accountId:player?.accountId || null,
+      playerId:player?.id || null,
+      mapId:player?.state?.mapId ?? player?.mapId ?? null,
+      error:error?.stack || error?.message || String(error),
+      at:Date.now()
+    };
+    logger?.error?.("[auth] handler failed", meta);
+    try{
+      onError?.({source:"auth", ...meta});
+    }catch(logError){
+      logger?.warn?.("[auth] error log failed", {
+        eventName,
+        error:logError?.message || String(logError)
+      });
+    }
+  }
+
   socket.on("auth:register", async payload=>{
     if(!guard("auth:register")) return;
     try{
@@ -41,7 +87,8 @@ export function registerAuthHandlers(socket, context){
       socket.emit("auth:success", publicAuthPayload({account, session}));
       syncProfileForPlayer(socket);
     }catch(error){
-      socket.emit("auth:error", {message:error?.message || "Inscription impossible."});
+      recordUnexpectedAuthError("auth:register", error);
+      socket.emit("auth:error", {message:authErrorMessage(error, "Inscription impossible.")});
     }
   });
 
@@ -56,7 +103,8 @@ export function registerAuthHandlers(socket, context){
       socket.emit("auth:success", publicAuthPayload({account, session}));
       syncProfileForPlayer(socket);
     }catch(error){
-      socket.emit("auth:error", {message:error?.message || "Connexion impossible."});
+      recordUnexpectedAuthError("auth:login", error);
+      socket.emit("auth:error", {message:authErrorMessage(error, "Connexion impossible.")});
     }
   });
 
@@ -72,7 +120,8 @@ export function registerAuthHandlers(socket, context){
       }));
       syncProfileForPlayer(socket);
     }catch(error){
-      socket.emit("auth:error", {message:error?.message || "Session invalide."});
+      recordUnexpectedAuthError("auth:session", error);
+      socket.emit("auth:error", {message:authErrorMessage(error, "Session invalide.")});
     }
   });
 

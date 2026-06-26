@@ -18,6 +18,7 @@ test("public player profile exposes equipped ship, weapons, drones and progressi
       titleVisible:true
     },
     activeShip:"velox",
+    ownedShips:["orion", "velox"],
     inventoryItems:[
       {uid:"laser_a", itemId:"laser_mk2"},
       {uid:"gen_a", itemId:"shield_omega"},

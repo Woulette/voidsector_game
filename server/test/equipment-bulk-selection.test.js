@@ -78,7 +78,7 @@ test("bulk ship planning fills free compatible slots without replacing equipment
     inventoryUids:["laser_a", "laser_b", "shield", "extra"],
     getItem:uid=>items[uid],
     findEquipped:()=>null,
-    shipId:"test_runner",
+    shipId:"razorion",
     loadout:{
       lasers:["already_equipped", null, null],
       generators:[null],
@@ -106,7 +106,7 @@ test("bulk extra planning replaces the matching unique family before using an em
     inventoryUids:["repair_blue"],
     getItem:uid=>items[uid],
     findEquipped:()=>null,
-    shipId:"test_runner",
+    shipId:"razorion",
     loadout:{
       lasers:[],
       generators:[],
@@ -117,7 +117,7 @@ test("bulk extra planning replaces the matching unique family before using an em
   });
 
   assert.deepEqual(actions, [
-    {kind:"equip", type:"extra", index:0, inventoryUid:"repair_blue", shipId:"test_runner"}
+    {kind:"equip", type:"extra", index:0, inventoryUid:"repair_blue", shipId:"razorion"}
   ]);
 });
 
@@ -136,9 +136,9 @@ test("double-click auto equip targets the already equipped extra family", ()=>{
   };
   const actions = createEquipmentActions({
     multiplayer:{connected:true, socket:{}, auth:{account:{id:"account"}, profileReady:true}},
-    store:{state:{selectedShip:"test_runner", dronePermanentUpgrades:{}}, hangarTab:"vaisseau"},
+    store:{state:{selectedShip:"razorion", dronePermanentUpgrades:{}}, hangarTab:"vaisseau"},
     getItemFromInventoryUid:uid=>items[uid],
-    getShip:()=>({id:"test_runner"}),
+    getShip:()=>({id:"razorion"}),
     getLoadout:()=>loadout,
     getDroneLoadout:()=>[],
     isDronePermanentUpgradeItem:()=>false,
@@ -153,21 +153,21 @@ test("double-click auto equip targets the already equipped extra family", ()=>{
     type:"extra",
     index:0,
     inventoryUid:"repair_blue",
-    shipId:"test_runner"
+    shipId:"razorion"
   }]);
 });
 
 test("server applies a multi-equipment request in one authoritative profile update", ()=>{
   const profile = createDefaultProfile();
-  profile.activeShip = "test_runner";
-  profile.selectedShip = "test_runner";
-  profile.ownedShips = [...new Set([...(profile.ownedShips || []), "test_runner"])];
+  profile.activeShip = "astralis";
+  profile.selectedShip = "astralis";
+  profile.ownedShips = [...new Set([...(profile.ownedShips || []), "astralis"])];
   profile.inventoryItems.push(
     {uid:"bulk_laser_1", itemId:"laser_mk1"},
     {uid:"bulk_laser_2", itemId:"laser_mk2"},
     {uid:"bulk_generator", itemId:"shield_omega"}
   );
-  profile.shipLoadouts.test_runner = {
+  profile.shipLoadouts.astralis = {
     lasers:Array(8).fill(null),
     generators:Array(10).fill(null),
     extras:Array(5).fill(null),
@@ -187,9 +187,9 @@ test("server applies a multi-equipment request in one authoritative profile upda
     action:{
       kind:"batch",
       actions:[
-        {kind:"equip", type:"laser", index:0, inventoryUid:"bulk_laser_1", shipId:"test_runner"},
-        {kind:"equip", type:"laser", index:1, inventoryUid:"bulk_laser_2", shipId:"test_runner"},
-        {kind:"equip", type:"generator", index:0, inventoryUid:"bulk_generator", shipId:"test_runner"}
+        {kind:"equip", type:"laser", index:0, inventoryUid:"bulk_laser_1", shipId:"astralis"},
+        {kind:"equip", type:"laser", index:1, inventoryUid:"bulk_laser_2", shipId:"astralis"},
+        {kind:"equip", type:"generator", index:0, inventoryUid:"bulk_generator", shipId:"astralis"}
       ]
     }
   });
@@ -197,8 +197,8 @@ test("server applies a multi-equipment request in one authoritative profile upda
   assert.equal(equipped.ok, true);
   assert.equal(equipped.count, 3);
   assert.equal(persistCount, 1);
-  assert.deepEqual(equipped.profile.shipLoadouts.test_runner.lasers.slice(0, 2), ["bulk_laser_1", "bulk_laser_2"]);
-  assert.equal(equipped.profile.shipLoadouts.test_runner.generators[0], "bulk_generator");
+  assert.deepEqual(equipped.profile.shipLoadouts.astralis.lasers.slice(0, 2), ["bulk_laser_1", "bulk_laser_2"]);
+  assert.equal(equipped.profile.shipLoadouts.astralis.generators[0], "bulk_generator");
 
   const removed = manager.applyEquipmentAction({
     player:{name:"Pilot"},
@@ -212,8 +212,8 @@ test("server applies a multi-equipment request in one authoritative profile upda
   });
   assert.equal(removed.ok, true);
   assert.equal(removed.count, 2);
-  assert.equal(removed.profile.shipLoadouts.test_runner.lasers[0], null);
-  assert.equal(removed.profile.shipLoadouts.test_runner.generators[0], null);
+  assert.equal(removed.profile.shipLoadouts.astralis.lasers[0], null);
+  assert.equal(removed.profile.shipLoadouts.astralis.generators[0], null);
 });
 
 test("equipment slot labels stay compact and multi-select interactions are wired", ()=>{

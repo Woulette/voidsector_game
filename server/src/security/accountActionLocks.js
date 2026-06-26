@@ -48,6 +48,7 @@ export function createAccountActionLocks({
         resetAt:currentTime + windowMs,
         nextAllowedAt:0,
         warned:false,
+        overLimitWarned:false,
         lastSeenAt:currentTime
       };
       entries.set(key, entry);
@@ -63,8 +64,9 @@ export function createAccountActionLocks({
       return true;
     }
 
-    if(!entry.warned || overLimit){
+    if(!entry.warned || (overLimit && !entry.overLimitWarned)){
       entry.warned = true;
+      if(overLimit) entry.overLimitWarned = true;
       const payload = {
         socketId:socket.id,
         accountKey:key.split(":").slice(0, 2).join(":"),

@@ -1,6 +1,16 @@
 import { abilityIndexFromEvent, isEditableTarget, slotIndexFromEvent } from "../../core/keybinds.js?v=ship-abilities-1";
 import { installCombatActionBarInputHandlers, setCombatAssetDragImage } from "./combatActionBarInput.js";
 
+function escapeHtml(value = ""){
+  return String(value).replace(/[&<>"']/g, char=>({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    "\"":"&quot;",
+    "'":"&#39;"
+  })[char]);
+}
+
 export function installCombatInputHandlers({
   windowRef = window,
   documentRef = document,
@@ -67,6 +77,7 @@ export function installCombatInputHandlers({
   setRefineryPanelTab,
   openShipRefineRecipe,
   closeShipRefineRecipe,
+  sellCommerceMaterial,
   closeSpawnPanel,
   updateHud,
   moveActionSlot,
@@ -102,6 +113,7 @@ export function installCombatInputHandlers({
   let miniMapDrag = null;
   let lastCombatTargetClick = null;
   let pendingBoostDeposit = null;
+  let pendingCommerceSale = null;
 
   function getBoostDepositElements(){
     const layer = documentRef.getElementById("combatBoostDepositLayer");
@@ -142,9 +154,94 @@ export function installCombatInputHandlers({
     pendingBoostDeposit = null;
   }
 
+  function getCommerceSaleLayer(){
+    return documentRef.querySelector("[data-commerce-dialog-layer]");
+  }
+
+  function closeCommerceSaleDialog(){
+    const layer = getCommerceSaleLayer();
+    if(layer){
+      layer.hidden = true;
+      layer.innerHTML = "";
+    }
+    pendingCommerceSale = null;
+  }
+
   function closeSpawnPanelWithDeposit(){
     closeBoostDepositDialog();
+    closeCommerceSaleDialog();
     closeSpawnPanel?.();
+  }
+
+  function clampCommerceSaleAmount(value){
+    const max = Math.max(0, Number(pendingCommerceSale?.maxAmount || 0));
+    return Math.max(0, Math.min(max, Math.floor(Number(value || 0))));
+  }
+
+  function commerceCreditsHtml(amount){
+    const value = Math.max(0, Math.floor(Number(amount || 0))).toLocaleString("fr-FR");
+    return `<span class="commerce-credit-value"><span>${value}</span><img src="assets/icons/credits.svg" alt="" aria-hidden="true"></span>`;
+  }
+
+  function syncCommerceSaleAmount(value){
+    if(!pendingCommerceSale) return;
+    const layer = getCommerceSaleLayer();
+    const amountInput = layer?.querySelector("[data-commerce-sale-amount]");
+    const amountRange = layer?.querySelector("[data-commerce-sale-range]");
+    const totalNode = layer?.querySelector("[data-commerce-sale-total]");
+    const confirmBtn = layer?.querySelector("[data-commerce-sale-confirm]");
+    const next = clampCommerceSaleAmount(value);
+    if(amountInput) amountInput.value = String(next);
+    if(amountRange) amountRange.value = String(next);
+    if(totalNode) totalNode.innerHTML = commerceCreditsHtml(next * pendingCommerceSale.unitPrice);
+    if(confirmBtn) confirmBtn.disabled = next <= 0;
+  }
+
+  function openCommerceSaleDialog(materialId){
+    const row = [...documentRef.querySelectorAll("[data-commerce-material]")]
+      .find(entry=>entry.dataset.commerceMaterial === materialId);
+    const layer = getCommerceSaleLayer();
+    const maxAmount = Math.max(0, Math.floor(Number(row?.dataset.commerceAmount || 0)));
+    const unitPrice = Math.max(0, Math.floor(Number(row?.dataset.commerceUnitPrice || 0)));
+    if(!row || !layer || maxAmount <= 0 || unitPrice <= 0){
+      showToast("Aucun materiau vendable.");
+      return false;
+    }
+    pendingCommerceSale = {
+      materialId,
+      materialName:row.dataset.commerceName || materialId,
+      maxAmount,
+      unitPrice
+    };
+    layer.hidden = false;
+    layer.innerHTML = `<aside class="commerce-sale-dialog" role="dialog" aria-modal="true">
+      <h3>${escapeHtml(pendingCommerceSale.materialName)}</h3>
+      <div class="commerce-sale-meta">
+        <div><span>Stock</span><b>${maxAmount.toLocaleString("fr-FR")}</b></div>
+        <div><span>Prix unite</span><b>${commerceCreditsHtml(unitPrice)}</b></div>
+      </div>
+      <div class="commerce-sale-slider">
+        <div><span>Quantite</span><b><input type="number" min="0" max="${maxAmount}" step="1" value="0" data-commerce-sale-amount></b></div>
+        <input type="range" min="0" max="${maxAmount}" step="1" value="0" data-commerce-sale-range>
+      </div>
+      <div class="commerce-sale-meta">
+        <div><span>Total vente</span><b data-commerce-sale-total>${commerceCreditsHtml(0)}</b></div>
+        <div><span>Maximum</span><b>${commerceCreditsHtml(maxAmount * unitPrice)}</b></div>
+      </div>
+      <div class="commerce-sale-presets">
+        <button class="commerce-sale-preset" type="button" data-commerce-sale-preset="0">0</button>
+        <button class="commerce-sale-preset" type="button" data-commerce-sale-preset="${Math.floor(maxAmount * .5)}">Moitie</button>
+        <button class="commerce-sale-preset" type="button" data-commerce-sale-preset="${maxAmount}">Tout</button>
+      </div>
+      <div class="commerce-sale-actions">
+        <button class="commerce-sale-cancel" type="button" data-commerce-dialog-close>Annuler</button>
+        <button class="commerce-sale-confirm" type="button" data-commerce-sale-confirm="${materialId}" disabled>Vendre</button>
+      </div>
+    </aside>`;
+    const input = layer.querySelector("[data-commerce-sale-amount]");
+    input?.focus({preventScroll:true});
+    input?.select();
+    return true;
   }
 
   function openBoostDepositDialog({target, materialId, materialName, materialImg, maxAmount}){
@@ -682,6 +779,36 @@ export function installCombatInputHandlers({
       setRefineryPanelTab?.(refineryTabBtn.dataset.spawnRefineryTab);
       return;
     }
+    const openCommerceBtn = e.target.closest("[data-commerce-open]");
+    if(openCommerceBtn){
+      openCommerceSaleDialog(openCommerceBtn.dataset.commerceOpen);
+      return;
+    }
+    if(e.target.closest("[data-commerce-dialog-close]") || e.target.closest("[data-commerce-dialog-layer]") === e.target){
+      closeCommerceSaleDialog();
+      return;
+    }
+    const commercePresetBtn = e.target.closest("[data-commerce-sale-preset]");
+    if(commercePresetBtn){
+      syncCommerceSaleAmount(commercePresetBtn.dataset.commerceSalePreset);
+      return;
+    }
+    const commerceConfirmBtn = e.target.closest("[data-commerce-sale-confirm]");
+    if(commerceConfirmBtn){
+      const input = documentRef.querySelector("[data-commerce-sale-amount]");
+      const amount = clampCommerceSaleAmount(input?.value);
+      if(amount <= 0){
+        showToast("Choisis une quantite.");
+        return;
+      }
+      const result = sellCommerceMaterial?.({materialId:commerceConfirmBtn.dataset.commerceSaleConfirm, amount});
+      if(!result?.ok) showToast(result?.reason || "Vente impossible.");
+      else if(result.serverPending) showToast("Vente commerce envoyee au serveur.");
+      closeCommerceSaleDialog();
+      renderSpawnInteractionPanel("commerce");
+      updateHud();
+      return;
+    }
     const openShipRefineBtn = e.target.closest("[data-open-ship-refine]");
     if(openShipRefineBtn){
       openShipRefineRecipe?.(openShipRefineBtn.dataset.openShipRefine);
@@ -775,6 +902,27 @@ export function installCombatInputHandlers({
       renderSpawnInteractionPanel("refinery");
       updateHud();
     }
+  });
+  documentRef.getElementById("spawnInteractionPanel")?.addEventListener("input", e=>{
+    const commerceAmount = e.target.closest("[data-commerce-sale-amount],[data-commerce-sale-range]");
+    if(commerceAmount) syncCommerceSaleAmount(commerceAmount.value);
+  });
+  documentRef.getElementById("spawnInteractionPanel")?.addEventListener("keydown", e=>{
+    if(e.key !== "Enter") return;
+    const commerceAmount = e.target.closest("[data-commerce-sale-amount]");
+    if(!commerceAmount || !pendingCommerceSale) return;
+    e.preventDefault();
+    const amount = clampCommerceSaleAmount(commerceAmount.value);
+    if(amount <= 0){
+      showToast("Choisis une quantite.");
+      return;
+    }
+    const result = sellCommerceMaterial?.({materialId:pendingCommerceSale.materialId, amount});
+    if(!result?.ok) showToast(result?.reason || "Vente impossible.");
+    else if(result.serverPending) showToast("Vente commerce envoyee au serveur.");
+    closeCommerceSaleDialog();
+    renderSpawnInteractionPanel("commerce");
+    updateHud();
   });
   documentRef.getElementById("spawnInteractionPanel")?.addEventListener("dragstart", e=>{
     const material = e.target.closest("[data-boost-material]");

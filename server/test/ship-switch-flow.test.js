@@ -6,7 +6,7 @@ function createProfileStore(){
   let profile = {
     activeShip:"velox",
     selectedShip:"velox",
-    ownedShips:["velox", "test_runner"],
+    ownedShips:["velox", "astralis"],
     shipWorldSessions:{}
   };
   return {
@@ -66,12 +66,12 @@ test("ship switch emits a profile containing the saved source and target ship se
 
   store.manager.saveWorldSession({state:player.state});
   const spawnSession = manager.buildFirmSpawnSession({
-    shipId:"test_runner",
+    shipId:"astralis",
     firmId:location.firmId,
     state:player.state,
-    savedSession:store.manager.getShipWorldSessionForPlayer(player, "test_runner")
+    savedSession:store.manager.getShipWorldSessionForPlayer(player, "astralis")
   });
-  const result = store.manager.setActiveShipForPlayer({player, shipId:"test_runner", worldSession:spawnSession});
+  const result = store.manager.setActiveShipForPlayer({player, shipId:"astralis", worldSession:spawnSession});
   player.state = {...player.state, ...spawnSession, shipId:result.shipId};
   const syncedProfile = store.manager.saveWorldSession({state:player.state});
   socket.emit("player:resume", spawnSession);
@@ -79,8 +79,8 @@ test("ship switch emits a profile containing the saved source and target ship se
 
   assert.equal(syncedProfile.shipWorldSessions.velox.hp, 926);
   assert.equal(syncedProfile.shipWorldSessions.velox.maxHp, 15000);
-  assert.equal(syncedProfile.shipWorldSessions.test_runner.hp, 20000);
-  assert.equal(syncedProfile.shipWorldSessions.test_runner.maxHp, 20000);
+  assert.equal(syncedProfile.shipWorldSessions.astralis.hp, 70000);
+  assert.equal(syncedProfile.shipWorldSessions.astralis.maxHp, 70000);
   assert.equal(emitted.at(-1).payload.shipWorldSessions.velox.hp, 926);
 });
 

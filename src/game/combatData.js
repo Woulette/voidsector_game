@@ -1840,6 +1840,44 @@ export const SHIP_ENGINE_PROFILES = {
     particleSize:1.22,
     particleLife:1.25
   },
+  nyxaris:{
+    // Vaisseau organique blanc/violet : propulsion violette fine centree sur la queue.
+    ports:[
+      {x:0, y:66, size:1.05, length:.96, width:.48},
+      {x:-13, y:57, size:.46, length:.58, width:.38},
+      {x:13, y:57, size:.46, length:.58, width:.38}
+    ],
+    colors:{core:"255,255,255", hot:"233,213,255", mid:"168,85,247", edge:"88,28,135", particle:"216,180,254", spark:"250,245,255"},
+    baseLength:17,
+    powerLength:27,
+    baseWidth:4.6,
+    powerWidth:4.9,
+    particleRate:.64,
+    particleSpeed:.9,
+    particleSpread:.42,
+    particleSize:.58,
+    particleLife:.72
+  },
+  asterion:{
+    // Intercepteur spectral : sorties violettes plus nerveuses sur les blocs arriere.
+    ports:[
+      {x:-21, y:48, size:.72, length:.9, width:.72},
+      {x:21, y:48, size:.72, length:.9, width:.72},
+      {x:0, y:54, size:1.0, length:1.12, width:.92},
+      {x:-35, y:33, size:.38, length:.5, width:.52},
+      {x:35, y:33, size:.38, length:.5, width:.52}
+    ],
+    colors:{core:"250,245,255", hot:"216,180,254", mid:"168,85,247", edge:"76,29,149", particle:"192,132,252", spark:"245,243,255"},
+    baseLength:22,
+    powerLength:36,
+    baseWidth:7.2,
+    powerWidth:8.6,
+    particleRate:1.2,
+    particleSpeed:1.06,
+    particleSpread:.82,
+    particleSize:.95,
+    particleLife:.94
+  },
   ricky_companion:{
     ports:[
       {x:-27, y:36, size:.70, length:.70, width:.88},

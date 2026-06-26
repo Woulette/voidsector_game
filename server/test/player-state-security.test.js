@@ -379,11 +379,11 @@ test("accepts one equipped repair bot heal tick per second", ()=>{
 test("initial combat vitals prefer the saved session for the active ship", ()=>{
   const profile = createDefaultProfile();
   profile.activeShip = "velox";
-  profile.ownedShips = ["orion", "velox", "test_runner"];
-  profile.worldSession = {mapId:"0", x:0, y:0, hp:900, maxHp:20000, shield:0, maxShield:0, shipId:"test_runner", updatedAt:1000};
+  profile.ownedShips = ["orion", "velox", "astralis"];
+  profile.worldSession = {mapId:"0", x:0, y:0, hp:900, maxHp:70000, shield:0, maxShield:0, shipId:"astralis", updatedAt:1000};
   profile.shipWorldSessions = {
     velox:{mapId:"0", x:0, y:0, hp:3000, maxHp:15000, shield:0, maxShield:0, shipId:"velox", updatedAt:1100},
-    test_runner:{mapId:"0", x:0, y:0, hp:900, maxHp:20000, shield:0, maxShield:0, shipId:"test_runner", updatedAt:1000}
+    astralis:{mapId:"0", x:0, y:0, hp:900, maxHp:70000, shield:0, maxShield:0, shipId:"astralis", updatedAt:1000}
   };
 
   const result = validatePlayerState({

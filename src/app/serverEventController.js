@@ -67,6 +67,18 @@ export function createServerEventController({
       window.dispatchEvent(new CustomEvent("voidsector:inventory-updated", {detail:{reason, type:"item-sale"}}));
       return true;
     }
+    if(reason === "commerce:material-sold"){
+      for(const event of consume(multiplayer.commerceSaleEvents)){
+        const amount = Number(event.credits || 0).toLocaleString("fr-FR");
+        const label = event.all
+          ? `${Number(event.amount || 0).toLocaleString("fr-FR")} materiaux`
+          : `${Number(event.amount || 0).toLocaleString("fr-FR")} ${event.material?.name || "materiau"}`;
+        showToast(`Commerce : ${label} vendu(s), +${amount} credits.`);
+      }
+      renderAll();
+      window.dispatchEvent(new CustomEvent("voidsector:inventory-updated", {detail:{reason, type:"material-sale"}}));
+      return true;
+    }
     if(reason === "shop:ship-bought"){
       for(const event of consume(multiplayer.shopShipEvents)){
         const ship = getShip(event.id);
@@ -161,7 +173,7 @@ export function createServerEventController({
     if(reason === "refinery:updated") return applyRefineryEvents();
     if(reason === "space-caster:result") return applySpaceCasterEvents();
     if(reason === "auth:success") switchLocalProfileScope(accountProfileScope(event.detail?.payload?.account || multiplayer.auth.account));
-    else if(reason === "auth:logout" || reason === "auth:replaced") switchLocalProfileScope("guest");
+    else if(reason === "auth:logout" || reason === "auth:replaced" || reason === "auth:banned") switchLocalProfileScope("guest");
     if(!reason.startsWith("auth:") || store.currentView !== "hangar") return;
     renderTop();
     if(store.hangarTab === "profile") renderProfile();

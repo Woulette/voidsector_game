@@ -1,7 +1,14 @@
 const LASER_BEAM_DURATION = 0.20;
 const LASER_BEAM_LENGTH = 130;
 
-function beamPalette(ammoId, blueLaser = false){
+function beamPalette(ammoId, blueLaser = false, variant = ""){
+  if(variant === "spectral_double_shot"){
+    return {
+      core:"rgba(250,245,255,.99)",
+      glow:"rgba(168,85,247,.95)",
+      flare:"rgba(217,70,239,.55)"
+    };
+  }
   if(ammoId === "ammo_x4"){
     return {
       core:"rgba(255,252,220,.98)",
@@ -30,8 +37,8 @@ export function createCombatBeamSystem({getTargetById} = {}){
     beams = [];
   }
 
-  function makeBeam({ammoId, fromX, fromY, toX, toY, targetId = null, canReplay = true, blueLaser = false}){
-    const palette = beamPalette(ammoId, blueLaser);
+  function makeBeam({ammoId, fromX, fromY, toX, toY, targetId = null, canReplay = true, blueLaser = false, variant = "", widthScale = 1, duration = 0, beamLength = 0}){
+    const palette = beamPalette(ammoId, blueLaser, variant);
     const dx = toX - fromX;
     const dy = toY - fromY;
     const distance = Math.hypot(dx, dy) || 1;
@@ -41,13 +48,15 @@ export function createCombatBeamSystem({getTargetById} = {}){
       targetId,
       canReplay,
       blueLaser,
+      variant,
       fromX,
       fromY,
       toX,
       toY,
       age:0,
-      duration:LASER_BEAM_DURATION,
-      beamLength:LASER_BEAM_LENGTH,
+      duration:Math.max(.08, Number(duration || LASER_BEAM_DURATION)),
+      beamLength:Math.max(40, Number(beamLength || LASER_BEAM_LENGTH)),
+      widthScale:Math.max(.4, Number(widthScale || 1)),
       distance,
       ...palette
     };
@@ -72,7 +81,11 @@ export function createCombatBeamSystem({getTargetById} = {}){
         toY:target.y,
         targetId:beam.targetId,
         canReplay:false,
-        blueLaser:beam.blueLaser
+        blueLaser:beam.blueLaser,
+        variant:beam.variant,
+        widthScale:beam.widthScale,
+        duration:beam.duration,
+        beamLength:beam.beamLength
       }));
     }
     beams = beams.filter(beam=>beam.age < beam.duration);

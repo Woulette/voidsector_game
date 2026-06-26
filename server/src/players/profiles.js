@@ -18,13 +18,39 @@ export function createProfileManager({
   logger,
   loadProfileEntries = defaultLoadProfileEntries,
   persistProfileEntries = defaultPersistProfileEntries,
-  reservePilotIdentity = defaultReservePilotIdentity
+  reservePilotIdentity = defaultReservePilotIdentity,
+  onError
 }){
   const profiles = new Map();
   const persistenceVersions = new Map();
   const deferredPersistenceTimers = new Map();
   let persistenceTail = Promise.resolve();
   let identityTail = Promise.resolve();
+
+  function errorText(error){
+    return error?.stack || error?.message || String(error);
+  }
+
+  function accountIdFromProfileKeys(profileKeys = []){
+    const accountKey = profileKeys.find(key=>String(key || "").startsWith("account:"));
+    return accountKey ? String(accountKey).slice("account:".length) : "";
+  }
+
+  function recordProfileError(eventName, error, meta = {}){
+    try{
+      const profileKeys = Array.isArray(meta.profileKeys) ? meta.profileKeys : [];
+      onError?.({
+        source:"profile",
+        eventName,
+        ...meta,
+        accountId:meta.accountId || accountIdFromProfileKeys(profileKeys),
+        error:errorText(error),
+        at:Date.now()
+      });
+    }catch(logError){
+      logger?.warn?.("Unable to record profile error", {error:logError?.message || String(logError)});
+    }
+  }
 
   function profileKey(name){
     return cleanName(name).toLowerCase();
@@ -45,6 +71,7 @@ export function createProfileManager({
       }
     }catch(error){
       logger?.warn?.("Unable to load profiles", {error:error?.message || String(error)});
+      recordProfileError("profiles:load", error);
     }
   }
 
@@ -74,10 +101,12 @@ export function createProfileManager({
       persistenceTail = operation;
       operation.catch(error=>{
         logger?.warn?.("Unable to save profiles", {error:error?.message || String(error)});
+        recordProfileError("profiles:persist", error, {profileKeys:keys});
       });
       return operation;
     }catch(error){
       logger?.warn?.("Unable to save profiles", {error:error?.message || String(error)});
+      recordProfileError("profiles:persist", error, {profileKeys:key === null ? ["*"] : [String(key || "")]});
       return Promise.reject(error);
     }
   }
@@ -133,6 +162,12 @@ export function createProfileManager({
         at
       });
     }
+  }
+
+  function sameClientPreferenceFields(left = {}, right = {}){
+    return JSON.stringify(left.actionSlots ?? null) === JSON.stringify(right.actionSlots ?? null)
+      && JSON.stringify(left.actionSlotsByShip ?? null) === JSON.stringify(right.actionSlotsByShip ?? null)
+      && JSON.stringify(left.lastLaserAmmoId ?? null) === JSON.stringify(right.lastLaserAmmoId ?? null);
   }
 
   function ensureProfileIdentity(profile, player){
@@ -230,8 +265,12 @@ export function createProfileManager({
       lastLaserAmmoId:incoming.lastLaserAmmoId,
       updatedAt:Date.now()
     });
-    ensureProfileIdentity(next, player);
+    const identityChanged = ensureProfileIdentity(next, player);
     const claimedQuests = autoClaimCompletedQuests(next);
+    const preferencesChanged = !sameClientPreferenceFields(base, next);
+    if(!refineryChanged && !identityChanged && !claimedQuests.length && !preferencesChanged){
+      return {profile:base, claimedQuests:[], unchanged:true};
+    }
     profiles.set(key, next);
     persist(key);
     return {profile:next, claimedQuests};

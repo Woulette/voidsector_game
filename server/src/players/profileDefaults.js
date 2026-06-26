@@ -7,7 +7,7 @@ export function createDefaultProfile(){
   return sanitizeProfile({
     updatedAt:Date.now(),
     player:{name:"NOVA-37", firmId:"astra", firmSelected:false, level:1, skillPoints:1},
-    ownedShips:["orion", "test_runner"],
+    ownedShips:["orion"],
     inventoryItems:[{uid:"inv_laser_mk1_1", itemId:"laser_mk1"}, {uid:"inv_repair_starter_2", itemId:"extra_repair_starter"}],
     nextInventoryUid:3,
     ammoInventory:{ammo_x1:2500, missile_m1:30, missile_m2:30},

@@ -255,6 +255,37 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
+  socket.on("commerce:sell-material", payload=>{
+    if(!guard("commerce:sell-material")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const result = profileManager.applyEconomyAction({
+      player,
+      action:{
+        kind:"commerce-material-sell",
+        materialId:payload?.materialId,
+        amount:payload?.amount,
+        all:Boolean(payload?.all),
+        shipId:payload?.shipId
+      }
+    });
+    if(!result.ok){
+      socket.emit("commerce:error", {message:result.reason || "Vente impossible."});
+      return;
+    }
+    socket.emit("commerce:material-sold", {
+      all:Boolean(result.all),
+      entries:result.entries || [],
+      material:result.material || null,
+      amount:result.amount,
+      unitPrice:result.unitPrice,
+      credits:result.credits,
+      shipId:result.shipId,
+      at:Date.now()
+    });
+    emitProfileSync(player, result.profile);
+  });
+
   socket.on("shop:buy-ammo", payload=>{
     if(!guard("shop:buy-ammo")) return;
     const player = players.get(socket.id);

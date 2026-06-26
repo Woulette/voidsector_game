@@ -9,6 +9,19 @@ function closeSocketServer(io){
   });
 }
 
+function errorMessage(error){
+  return error?.stack || error?.message || String(error);
+}
+
+function recordShutdownError({errors, logger, signal, step, error} = {}){
+  errors.push(error);
+  logger?.error?.("Graceful shutdown step failed.", {
+    signal,
+    step,
+    error:errorMessage(error)
+  });
+}
+
 export function createGracefulShutdown({
   io,
   tickHandle,
@@ -24,18 +37,42 @@ export function createGracefulShutdown({
     if(shutdownPromise) return shutdownPromise;
     shutdownPromise = (async()=>{
       logger?.info?.("Graceful shutdown started.", {signal});
+      const errors = [];
       if(tickHandle) clearIntervalFn(tickHandle);
-      await closeSocketServer(io);
+      try{
+        await closeSocketServer(io);
+      }catch(error){
+        recordShutdownError({errors, logger, signal, step:"socket-close", error});
+      }
       for(const player of players?.values?.() || []){
         if(!player?.state) continue;
-        profileManager?.saveWorldSession?.({
-          player,
-          state:player.state,
-          force:true
-        });
+        try{
+          await profileManager?.saveWorldSession?.({
+            player,
+            state:player.state,
+            force:true
+          });
+        }catch(error){
+          recordShutdownError({errors, logger, signal, step:`save-world-session:${player.id || "unknown"}`, error});
+        }
       }
-      await profileManager?.flushPersistence?.();
-      await closeDatabase?.();
+      try{
+        await profileManager?.flushPersistence?.();
+      }catch(error){
+        recordShutdownError({errors, logger, signal, step:"flush-persistence", error});
+      }
+      try{
+        await closeDatabase?.();
+      }catch(error){
+        recordShutdownError({errors, logger, signal, step:"database-close", error});
+      }
+      if(errors.length){
+        logger?.error?.("Graceful shutdown completed with errors.", {
+          signal,
+          errorCount:errors.length
+        });
+        throw new AggregateError(errors, "Graceful shutdown failed.");
+      }
       logger?.info?.("Graceful shutdown complete.", {signal});
     })();
     return shutdownPromise;

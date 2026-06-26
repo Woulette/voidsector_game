@@ -33,8 +33,8 @@ export function createSocketCommands({multiplayer}){
     requestLeaderboardSync(){
       return emit(multiplayer, "leaderboard:sync");
     },
-    requestAdminSync({profileLimit = 0, auditLimit = 50} = {}){
-      return emit(multiplayer, "admin:sync", {profileLimit, auditLimit});
+    requestAdminSync({profileLimit = 0, auditLimit = 50, errorLimit = 30} = {}){
+      return emit(multiplayer, "admin:sync", {profileLimit, auditLimit, errorLimit});
     },
     inspectAdminPlayer(payload = {}){
       return emit(multiplayer, "admin:inspect-player", payload);
@@ -140,6 +140,9 @@ export function createSocketCommands({multiplayer}){
     },
     sellServerInventoryItem(inventoryUid){
       return inventoryUid ? emit(multiplayer, "inventory:sell-item", {inventoryUid}) : false;
+    },
+    sellServerMaterial({materialId, amount = 0, all = false, shipId} = {}){
+      return materialId || all ? emit(multiplayer, "commerce:sell-material", {materialId, amount, all, shipId}) : false;
     },
     buyServerShip(id){
       return emit(multiplayer, "shop:buy-ship", {id});

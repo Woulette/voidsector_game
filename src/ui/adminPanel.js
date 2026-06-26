@@ -125,6 +125,47 @@ function formatDate(value){
   return new Date(timestamp).toLocaleString("fr-FR");
 }
 
+function formatServerErrorIdentity(entry = {}){
+  const parts = [];
+  if(entry.accountId) parts.push(`Compte ${entry.accountId}`);
+  if(entry.playerId) parts.push(`Joueur ${entry.playerId}`);
+  if(entry.socketId) parts.push(`Socket ${entry.socketId}`);
+  if(entry.mapId) parts.push(`Map ${entry.mapId}`);
+  return parts.join(" - ") || "Contexte serveur";
+}
+
+function serverErrorSeverity(entry = {}){
+  const explicit = String(entry.severity || "").toLowerCase();
+  if(["danger", "warning", "info"].includes(explicit)) return explicit;
+  const source = String(entry.source || "").toLowerCase();
+  if(["health", "profile", "tick", "uncaught-exception", "unhandled-rejection"].includes(source)) return "danger";
+  return "warning";
+}
+
+function formatServerErrorContext(entry = {}){
+  const context = entry.context && typeof entry.context === "object" ? entry.context : {};
+  const parts = Object.entries(context)
+    .filter(([, value])=>value !== "" && value !== null && value !== undefined)
+    .slice(0, 5)
+    .map(([key, value])=>`${key}: ${value}`);
+  return parts.join(" - ");
+}
+
+function renderServerErrors(snapshot){
+  const errors = Array.isArray(snapshot?.serverErrors) ? snapshot.serverErrors.slice(0, 30) : [];
+  return `<section class="admin-section admin-server-errors">
+    <div class="admin-section-head"><span class="tiny">SERVEUR</span><h3>Alertes recentes</h3></div>
+    <div class="admin-server-error-list">
+      ${errors.map(entry=>`<article class="${escapeHtml(serverErrorSeverity(entry))}" data-admin-server-error>
+        <strong>${escapeHtml(entry.source || "server")}${entry.eventName ? ` - ${escapeHtml(entry.eventName)}` : ""}</strong>
+        <span>${escapeHtml(String(entry.error || "Erreur serveur").slice(0, 260))}</span>
+        ${formatServerErrorContext(entry) ? `<p>${escapeHtml(formatServerErrorContext(entry))}</p>` : ""}
+        <small>${escapeHtml(formatServerErrorIdentity(entry))}${entry.at ? ` - ${escapeHtml(formatDate(entry.at))}` : ""}</small>
+      </article>`).join("") || `<p>Aucune alerte serveur recente.</p>`}
+    </div>
+  </section>`;
+}
+
 function formatHours(seconds){
   return `${Math.floor(Math.max(0, Number(seconds || 0)) / 3600)}h`;
 }
@@ -136,7 +177,7 @@ function setPending(pending){
 function requestSnapshot(){
   if(!canUseAdminPanel()) return false;
   setPending(true);
-  const sent = requestAdminSync({profileLimit:0, auditLimit:50});
+  const sent = requestAdminSync({profileLimit:0, auditLimit:50, errorLimit:30});
   if(!sent) setPending(false);
   return sent;
 }
@@ -642,6 +683,7 @@ function renderPanel(){
           <input class="admin-search" data-admin-search value="${escapeHtml(adminUi.query)}" placeholder="Chercher pseudo / compte">
           <div class="admin-player-list">${renderRows(rows)}</div>
           ${renderGroups(snapshot)}
+          ${renderServerErrors(snapshot)}
         </aside>
         <main class="admin-detail-panel">${renderDetails()}</main>
       </div>

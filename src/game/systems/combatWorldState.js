@@ -128,16 +128,17 @@ export function createCombatWorldStateSystem({
         subtitle:"Recevoir et rendre des missions"
       },
       {
-        id:"refinery",
+        id:"commerce",
         x:refineryX,
         y:stationY,
         radius:102,
-        marker:{x:refineryX, y:stationY - 188, radius:54, text:"R"},
+        marker:{x:refineryX, y:stationY - 188, radius:54, text:"C"},
         asset:"assets/spawn/spawn_refinery.png",
         assetWidth:282,
         assetHeight:282,
-        title:"RAFFINEUR",
-        subtitle:"Fusionner et ameliorer l'equipement"
+        title:"COMMERCE",
+        subtitle:"Vendre des materiaux",
+        promptLabel:"COMMERCE"
       }
     ];
     const configuredIds = new Set(configuredStations.map(station=>station.id));

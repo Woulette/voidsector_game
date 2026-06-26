@@ -29,9 +29,11 @@ test("gameplay events and unknown future events require an account by default", 
   const socket = makeSocket();
   const players = new Map([[socket.id, {id:socket.id, accountId:null}]]);
   const warnings = [];
+  const rejections = [];
   const guard = createGameplayAccountGuard({
     players,
     logger:{warn:(message, data)=>warnings.push({message, data})},
+    onReject:payload=>rejections.push(payload),
     now:()=>12345
   });
 
@@ -56,6 +58,9 @@ test("gameplay events and unknown future events require an account by default", 
   assert.equal(socket.emitted[0].event, "auth:required");
   assert.equal(socket.emitted[0].payload.eventName, "player:state");
   assert.equal(warnings.length, 1);
+  assert.equal(rejections.length, 1);
+  assert.equal(rejections[0].eventName, "player:state");
+  assert.equal(rejections[0].at, 12345);
 });
 
 test("an authenticated account can use protected gameplay events", ()=>{

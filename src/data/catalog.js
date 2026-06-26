@@ -12,7 +12,7 @@ export const defaultState = {
   starterPackPurchases:[],
   activeShip:"orion",
   selectedShip:"orion",
-  ownedShips:["orion", "test_runner"],
+  ownedShips:["orion"],
   ownedItems:["laser_mk1"],
   inventoryItems:[{uid:"inv_laser_mk1_1", itemId:"laser_mk1"}, {uid:"inv_repair_starter_2", itemId:"extra_repair_starter"}],
   nextInventoryUid:3,

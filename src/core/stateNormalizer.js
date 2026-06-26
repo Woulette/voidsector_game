@@ -18,6 +18,30 @@ import { sanitizeTutorialState } from "../shared/tutorial.js";
 
 const MAX_ACTIVE_QUESTS = 5;
 const RANK_KILL_POINTS_VERSION = 3;
+const SHIP_ID_ALIASES = Object.freeze({
+  astra_3d_test:"astralis"
+});
+
+function normalizeShipId(id){
+  const clean = String(id || "");
+  return SHIP_ID_ALIASES[clean] || clean;
+}
+
+function isKnownShipId(id){
+  const shipId = normalizeShipId(id);
+  return ships.some(ship=>ship.id === shipId);
+}
+
+function normalizeShipKeyedObject(value){
+  if(!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const normalized = {};
+  for(const [rawShipId, entry] of Object.entries(value)){
+    const shipId = normalizeShipId(rawShipId);
+    if(!isKnownShipId(shipId)) continue;
+    normalized[shipId] = entry;
+  }
+  return normalized;
+}
 
 export function normalizeState(saved){
   const base = clone(defaultState);
@@ -57,7 +81,11 @@ export function normalizeState(saved){
   merged.premiumRewardState = normalizePremiumRewardState(saved?.premiumRewardState || base.premiumRewardState);
   merged.starterPackPurchases = normalizeStarterPackPurchases(saved?.starterPackPurchases || base.starterPackPurchases);
   enforcePlayerCurrencyMinimums(merged.player);
-  merged.ownedShips = Array.isArray(saved?.ownedShips) ? saved.ownedShips.filter(id=>ships.some(s=>s.id===id)) : base.ownedShips;
+  merged.ownedShips = Array.isArray(saved?.ownedShips)
+    ? [...new Set(saved.ownedShips.map(normalizeShipId).filter(isKnownShipId))]
+    : base.ownedShips;
+  merged.activeShip = normalizeShipId(merged.activeShip);
+  merged.selectedShip = normalizeShipId(merged.selectedShip);
   merged.ownedItems = Array.isArray(saved?.ownedItems) ? saved.ownedItems.filter(id=>equipment.some(i=>i.id===id)) : base.ownedItems;
   merged.inventoryItems = Array.isArray(saved?.inventoryItems)
     ? saved.inventoryItems.filter(entry=>entry?.uid && equipment.some(i=>i.id===entry.itemId))
@@ -213,8 +241,9 @@ export function normalizeState(saved){
   }
   merged.shipCargo = {};
   if(saved?.shipCargo && typeof saved.shipCargo === "object"){
+    const savedShipCargo = normalizeShipKeyedObject(saved.shipCargo);
     for(const ship of ships){
-      const savedCargo = saved.shipCargo[ship.id];
+      const savedCargo = savedShipCargo[ship.id];
       merged.shipCargo[ship.id] = {};
       for(const material of rawMaterialCatalog){
         merged.shipCargo[ship.id][material.id] = Math.max(0, Number(savedCargo?.[material.id] || 0));
@@ -264,7 +293,7 @@ export function normalizeState(saved){
   if(saved?.refineryShipmentJob && typeof saved.refineryShipmentJob === "object"){
     const job = saved.refineryShipmentJob;
     const material = getRawMaterial(job.materialId);
-    const ship = getShip(job.shipId);
+    const ship = getShip(normalizeShipId(job.shipId));
     if(material && canShipRefineryMaterial(material.id) && ship){
       const startedAt = Number(job.startedAt || Date.now());
       const endsAt = Number(job.endsAt || startedAt);
@@ -344,7 +373,6 @@ export function normalizeState(saved){
     merged.selectedShip = starterShipId;
   }
   if(!merged.ownedShips.includes(starterShipId)) merged.ownedShips.unshift(starterShipId);
-  if(!merged.ownedShips.includes("test_runner")) merged.ownedShips.push("test_runner");
   if(!merged.ownedItems.includes("laser_mk1")) merged.ownedItems.unshift("laser_mk1");
   if(merged.activeShip !== null && (!ships.some(s=>s.id===merged.activeShip) || !merged.ownedShips.includes(merged.activeShip))) merged.activeShip = starterShipId;
   if(!ships.some(s=>s.id===merged.selectedShip) || !merged.ownedShips.includes(merged.selectedShip)) merged.selectedShip = merged.activeShip;
@@ -355,15 +383,16 @@ export function normalizeState(saved){
   });
   const hasSavedActionSlotsByShip = saved?.actionSlotsByShip && typeof saved.actionSlotsByShip === "object";
   if(hasSavedActionSlotsByShip){
+    const savedActionSlotsByShip = normalizeShipKeyedObject(saved.actionSlotsByShip);
     for(const shipId of merged.ownedShips){
-      if(Array.isArray(saved.actionSlotsByShip[shipId])) merged.actionSlotsByShip[shipId] = sanitizeSlots(saved.actionSlotsByShip[shipId]);
+      if(Array.isArray(savedActionSlotsByShip[shipId])) merged.actionSlotsByShip[shipId] = sanitizeSlots(savedActionSlotsByShip[shipId]);
     }
   }
   if(!merged.actionSlotsByShip[merged.activeShip]){
     merged.actionSlotsByShip[merged.activeShip] = hasSavedActionSlotsByShip ? sanitizeSlots([]) : sanitizeSlots(merged.actionSlots);
   }
   merged.actionSlots = [...merged.actionSlotsByShip[merged.activeShip]];
-  merged.shipLoadouts = saved?.shipLoadouts && typeof saved.shipLoadouts === "object" ? saved.shipLoadouts : clone(base.shipLoadouts);
+  merged.shipLoadouts = saved?.shipLoadouts && typeof saved.shipLoadouts === "object" ? normalizeShipKeyedObject(saved.shipLoadouts) : clone(base.shipLoadouts);
   if(accidentalVeloxStarterOnly){
     merged.shipLoadouts[starterShipId] = merged.shipLoadouts.velox || merged.shipLoadouts[starterShipId] || clone(base.shipLoadouts[starterShipId]);
     delete merged.shipLoadouts.velox;

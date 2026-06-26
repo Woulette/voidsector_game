@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Salve spectrale">
+  <defs>
+    <radialGradient id="core" cx="50%" cy="50%" r="58%">
+      <stop offset="0" stop-color="#f5f3ff"/>
+      <stop offset=".38" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#26104d"/>
+    </radialGradient>
+    <linearGradient id="beam" x1="0" x2="1">
+      <stop offset="0" stop-color="#f5f3ff"/>
+      <stop offset=".42" stop-color="#c084fc"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <filter id="glow" x="-45%" y="-45%" width="190%" height="190%">
+      <feGaussianBlur stdDeviation="3.4" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.58 0 0 0 0 0.20 0 0 0 0 1 0 0 0 .85 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="96" height="96" rx="18" fill="#06111f"/>
+  <path d="M16 48h64" stroke="#1e1b4b" stroke-width="18" stroke-linecap="round" opacity=".65"/>
+  <g filter="url(#glow)">
+    <path d="M14 36h42l-9 9H14z" fill="url(#beam)"/>
+    <path d="M14 52h54l-11 10H14z" fill="url(#beam)"/>
+    <path d="M56 25l25 23-25 23 8-18H40l8-10h16z" fill="url(#core)" stroke="#e9d5ff" stroke-width="2.4" stroke-linejoin="round"/>
+    <circle cx="38" cy="48" r="7" fill="#faf5ff" opacity=".92"/>
+    <circle cx="62" cy="48" r="4.6" fill="#f5d0fe" opacity=".84"/>
+  </g>
+  <path d="M18 76c18 8 42 8 60 0" fill="none" stroke="#9333ea" stroke-width="3" stroke-linecap="round" opacity=".45"/>
+</svg>

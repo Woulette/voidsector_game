@@ -28,7 +28,7 @@ export function refreshEnemyPoisonEffect(enemy, {
 } = {}){
   if(!enemy || Number(enemy.hp || 0) <= 0) return null;
   const previous = enemy.shipPoison && typeof enemy.shipPoison === "object" ? enemy.shipPoison : null;
-  const nextTickAt = previous?.nextTickAt > now
+  const nextTickAt = previous?.nextTickAt >= now
     ? Number(previous.nextTickAt)
     : now + Math.max(1, Number(tickIntervalMs || 1_000));
   enemy.shipPoison = {
@@ -108,6 +108,7 @@ export function createShipAbilityEffectManager({
   }
 
   function emitPoisonPulse({player, scope, definition, pulseIndex, now}){
+    const durationMs = Math.max(250, Number(definition.pulseDurationMs || 1_000));
     io?.to?.(scope.room)?.emit("ship:ability-effect", {
       kind:"poison_bomb_pulse",
       abilityId:definition.id,
@@ -118,7 +119,8 @@ export function createShipAbilityEffectManager({
       radius:Math.max(1, Number(definition.radius || 300)),
       pulseIndex,
       pulseCount:Math.max(1, Number(definition.pulseCount || 3)),
-      durationMs:760,
+      durationMs,
+      followSource:true,
       at:now
     });
   }
@@ -159,8 +161,10 @@ export function createShipAbilityEffectManager({
     spawnWorldEnemyChildren?.(mapId, enemy);
     if(!enemy.respawning){
       enemy.respawning = true;
-      if(enemy.temporarySpawn) setTimeout(()=>removeWorldEnemy?.(mapId, enemy.id), 100);
-      else setTimeout(()=>respawnWorldEnemy?.(mapId, enemy.id), 8000);
+      const timeout = enemy.temporarySpawn
+        ? setTimeout(()=>removeWorldEnemy?.(mapId, enemy.id), 100)
+        : setTimeout(()=>respawnWorldEnemy?.(mapId, enemy.id), 8000);
+      timeout.unref?.();
     }
     emitWorldEnemies?.(mapId);
   }
@@ -211,18 +215,37 @@ export function createShipAbilityEffectManager({
     return true;
   }
 
-  function triggerPoisonPulse(entry, now){
+  function resolveActivePulse(entry){
     const player = players?.get(entry.playerId);
-    if(!player?.state || Number(player.state.hp || 0) <= 0) return false;
+    if(!player?.state || Number(player.state.hp || 0) <= 0) return null;
+    const currentMapId = String(player.state.mapId || player.mapId || "");
+    if(entry.mapId && currentMapId !== String(entry.mapId)) return null;
     const definition = getShipAbilityDefinition(entry.shipId, entry.abilityId);
-    if(definition?.effectType !== POISON_BOMB_EFFECT_TYPE) return false;
+    if(definition?.effectType !== POISON_BOMB_EFFECT_TYPE) return null;
     const scope = resolvePlayerScope(player);
-    if(!scope) return false;
-    const pulseIndex = entry.pulsesDone + 1;
-    emitPoisonPulse({player, scope, definition, pulseIndex, now});
+    if(!scope) return null;
+    return {player, definition, scope};
+  }
+
+  function applyPoisonPulseArea(entry, now, resolved = null){
+    const active = resolved || resolveActivePulse(entry);
+    if(!active) return false;
+    const {player, definition, scope} = active;
     for(const enemy of scope.enemies){
       applyPoisonToEnemy({enemy, player, scope, definition, now});
     }
+    return true;
+  }
+
+  function startPoisonPulse(entry, now){
+    const active = resolveActivePulse(entry);
+    if(!active) return false;
+    const {player, definition, scope} = active;
+    const pulseIndex = entry.pulsesDone + 1;
+    emitPoisonPulse({player, scope, definition, pulseIndex, now});
+    entry.activePulseUntil = now + Math.max(250, Number(definition.pulseDurationMs || 1_000));
+    applyPoisonPulseArea(entry, now, active);
+    entry.pulsesDone += 1;
     return true;
   }
 
@@ -231,16 +254,20 @@ export function createShipAbilityEffectManager({
     const definition = getShipAbilityDefinition(status.shipId || player.state.shipId, status.abilityId);
     if(definition?.effectType !== POISON_BOMB_EFFECT_TYPE) return false;
     const id = `${player.id}:${definition.id}:${now}`;
-    activePulses.set(id, {
+    const pulseIntervalMs = Math.max(1, Number(definition.pulseIntervalMs || 3_000));
+    const entry = {
       id,
       playerId:player.id,
       shipId:definition.shipId || status.shipId || player.state.shipId,
       abilityId:definition.id,
-      nextPulseAt:now + Math.max(1, Number(definition.pulseIntervalMs || 3_000)),
+      mapId:String(player.state.mapId || player.mapId || ""),
+      nextPulseAt:now + pulseIntervalMs,
       pulsesDone:0,
       pulseCount:Math.max(1, Number(definition.pulseCount || 3)),
-      pulseIntervalMs:Math.max(1, Number(definition.pulseIntervalMs || 3_000))
-    });
+      pulseIntervalMs
+    };
+    if(!startPoisonPulse(entry, now)) return false;
+    if(entry.pulsesDone < entry.pulseCount) activePulses.set(id, entry);
     return true;
   }
 
@@ -252,7 +279,7 @@ export function createShipAbilityEffectManager({
     }
     const {enemy, mapId, room} = resolved;
     const poison = enemy.shipPoison;
-    if(!poison || poison.sourceId !== "poison_bomb" || Number(enemy.hp || 0) <= 0 || now >= Number(poison.expiresAt || 0)){
+    if(!poison || poison.sourceId !== "poison_bomb" || Number(enemy.hp || 0) <= 0 || now > Number(poison.expiresAt || 0)){
       delete enemy.shipPoison;
       poisonRecords.delete(key);
       return;
@@ -283,12 +310,25 @@ export function createShipAbilityEffectManager({
 
   function updateShipAbilityEffects(now = Date.now()){
     for(const [id, entry] of activePulses){
+      let cancelled = false;
+      if(Number(entry.activePulseUntil || 0) >= now){
+        if(!applyPoisonPulseArea(entry, now)){
+          activePulses.delete(id);
+          cancelled = true;
+        }
+      }
+      if(cancelled) continue;
       while(entry.pulsesDone < entry.pulseCount && now >= entry.nextPulseAt){
-        triggerPoisonPulse(entry, now);
-        entry.pulsesDone += 1;
+        if(!startPoisonPulse(entry, now)){
+          activePulses.delete(id);
+          cancelled = true;
+          break;
+        }
         entry.nextPulseAt += entry.pulseIntervalMs;
       }
-      if(entry.pulsesDone >= entry.pulseCount) activePulses.delete(id);
+      if(!cancelled && entry.pulsesDone >= entry.pulseCount && now > Number(entry.activePulseUntil || 0)){
+        activePulses.delete(id);
+      }
     }
     for(const [key, record] of [...poisonRecords.entries()]){
       tickPoisonRecord(key, record, now);

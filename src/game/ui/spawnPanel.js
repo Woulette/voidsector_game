@@ -3,6 +3,7 @@ import { ammoTypes, equipment, portals } from "../../data/catalog.js";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
 import { getQuestBriefing } from "../../data/questBriefings.js";
+import { MATERIAL_COMMERCE_ORDER, getMaterialCommerceUnitPrice, getMaterialCommerceValue } from "../../shared/materialCommerce.js";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
@@ -12,6 +13,10 @@ function escapeHtml(value = ""){
     "\"":"&quot;",
     "'":"&#39;"
   })[char]);
+}
+
+function commerceCreditsHtml(amount){
+  return `<span class="commerce-credit-value"><span>${fmt(amount)}</span><img src="assets/icons/credits.svg" alt="" aria-hidden="true"></span>`;
 }
 
 const QUEST_TABS = [
@@ -569,8 +574,57 @@ function renderRefineryPanel({materials, recipes = [], shipCargo = {}, shipCargo
   };
 }
 
+function renderCommercePanel({materials = [], shipCargo = {}, shipCargoUsed = 0, shipCargoCapacity = 0}){
+  const materialById = id => materials.find(material=>material.id === id) || null;
+  const getCargoAmount = id => Math.max(0, Math.floor(Number(shipCargo?.[id] || 0)));
+  const orderedMaterials = MATERIAL_COMMERCE_ORDER
+    .map(materialById)
+    .filter(Boolean);
+  const hiddenMaterials = materials
+    .filter(material=>!MATERIAL_COMMERCE_ORDER.includes(material.id) && !material.rarity && getCargoAmount(material.id) > 0);
+  const rows = orderedMaterials.map(material=>{
+    const amount = getCargoAmount(material.id);
+    const unitPrice = getMaterialCommerceUnitPrice(material.id);
+    return `<article class="commerce-material-row ${material.kind || ""} ${amount > 0 ? "has-stock" : "empty"}"
+      data-commerce-material="${material.id}"
+      data-commerce-name="${escapeHtml(material.name)}"
+      data-commerce-amount="${amount}"
+      data-commerce-unit-price="${unitPrice}">
+      <img src="${material.img}" alt="${escapeHtml(material.name)}">
+      <div class="commerce-material-name">
+        <strong>${escapeHtml(material.name)}</strong>
+        <span>${fmt(amount)} en soute</span>
+      </div>
+      <div class="commerce-material-price"><span>Prix unite</span><b>${commerceCreditsHtml(unitPrice)}</b></div>
+      <div class="commerce-material-total"><span>Total soute</span><b>${fmt(amount)}</b></div>
+      <div class="commerce-material-actions">
+        <button class="commerce-open-sale" type="button" data-commerce-open="${material.id}" ${amount > 0 ? "" : "disabled"}>Vendre</button>
+      </div>
+    </article>`;
+  }).join("");
+  const sellableTotal = orderedMaterials.reduce((sum, material)=>sum + getMaterialCommerceValue(material.id, getCargoAmount(material.id)), 0);
+  const cargoPercent = shipCargoCapacity > 0 ? Math.max(0, Math.min(100, Number(shipCargoUsed || 0) / shipCargoCapacity * 100)) : 0;
+  const hiddenNotice = hiddenMaterials.length
+    ? `<div class="commerce-note">${hiddenMaterials.map(material=>escapeHtml(material.name)).join(", ")} : pas de prix de vente defini.</div>`
+    : "";
+  return {
+    title:"COMMERCE",
+    html:`<section class="commerce-console">
+      <header class="commerce-summary">
+        <div><span>Valeur vendable en soute</span><strong>${commerceCreditsHtml(sellableTotal)}</strong></div>
+      </header>
+      <div class="refine-cargo-line"><span>Soute du vaisseau</span><b>${fmt(shipCargoUsed)} / ${fmt(shipCargoCapacity)}</b><i><em style="width:${cargoPercent}%"></em></i></div>
+      <div class="commerce-material-list">${rows}</div>
+      ${hiddenNotice}
+      <div class="commerce-dialog-layer" data-commerce-dialog-layer hidden></div>
+    </section>`
+  };
+}
+
 export function renderSpawnPanelContent(options){
-  return options.mode === "quests" ? renderQuestPanel(options) : renderRefineryPanel(options);
+  if(options.mode === "quests") return renderQuestPanel(options);
+  if(options.mode === "commerce") return renderCommercePanel(options);
+  return renderRefineryPanel(options);
 }
 
 

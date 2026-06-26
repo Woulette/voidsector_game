@@ -85,6 +85,60 @@ test("player hello refuses guest gameplay when no auth token is present", ()=>{
   assert.equal(rejection?.payload?.eventName, "player:hello");
 });
 
+test("player hello refuses an authenticated game entry when the beta player cap is full", ()=>{
+  const socket = makeSocket("game");
+  const players = new Map([
+    ["existing-game", {
+      id:"existing-game",
+      accountId:"account-1",
+      clientMode:"game",
+      connected:true,
+      state:{mapId:"0", hp:5000}
+    }],
+    [socket.id, {
+      id:socket.id,
+      accountId:"account-2",
+      account:{id:"account-2", username:"Pilot 2"},
+      clientMode:"launcher",
+      connected:true,
+      state:null
+    }]
+  ]);
+
+  registerPlayerHandlers(socket, {
+    cleanName:value=>String(value || "Pilote"),
+    emitPlayers(){},
+    groups:new Map(),
+    guard:()=>true,
+    io:{sockets:{sockets:new Map([[socket.id, socket]])}, emit(){}},
+    logger:{warn(){}},
+    maxConcurrentGamePlayers:1,
+    players,
+    presence:{syncMovementLogoutState(){}, markCombat(){}, startLogout(){}},
+    profileManager:{
+      profileKeyForPlayer:()=>"account:2",
+      listProfileEntries:()=>[]
+    },
+    publicPlayer:current=>current,
+    replaceGroupMemberId(){},
+    resumeQuestTimers(){},
+    setPlayerMap(){},
+    syncPlayerLifecycle(){},
+    syncPlayerStatusEffects(){},
+    syncProfileForPlayer(){ throw new Error("profile sync should not run when server is full"); }
+  });
+
+  socket.handlers.get("player:hello")({
+    name:"Pilot 2",
+    clientMode:"game",
+    clientId:"client-2"
+  });
+
+  assert.equal(players.get(socket.id).clientMode, "launcher");
+  assert.equal(socket.emitted.some(event=>event.event === "server:full"), true);
+  assert.equal(socket.emitted.some(event=>event.event === "auth:error"), true);
+});
+
 test("changing firm moves every live game socket to the new firm home map", async ()=>{
   const launcherSocket = makeSocket("launcher");
   const gameSocket = makeSocket("game");

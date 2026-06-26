@@ -19,6 +19,8 @@ server/data/sessions.json
 server/.codex-server.err.log
 server/.codex-server.out.log
 server/*.log
+server/backups/
+.codex-*.log
 
 # Config load test local uniquement (secrets + overrides dev)
 server/loadtest.local.env

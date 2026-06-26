@@ -80,6 +80,10 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     pushEvent(multiplayer.shipAbilityEvents, event, 10);
     emitChange("ship:ability-state", event);
   });
+  socket.on("ship:ability-effect", event=>{
+    pushEvent(multiplayer.shipAbilityEffectEvents, event, 20);
+    emitChange("ship:ability-effect", event);
+  });
   socket.on("ship:ability-error", payload=>{
     toast(payload?.message || "Compétence de vaisseau indisponible.");
     emitChange("ship:ability-error", payload);

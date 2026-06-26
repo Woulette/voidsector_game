@@ -13,7 +13,7 @@ export function isPublicSocketEvent(eventName){
   return PUBLIC_SOCKET_EVENTS.has(String(eventName || ""));
 }
 
-export function createGameplayAccountGuard({players, logger, now = Date.now} = {}){
+export function createGameplayAccountGuard({players, logger, onReject, now = Date.now} = {}){
   const lastNoticeBySocket = new WeakMap();
 
   return function requireGameplayAccount(socket, eventName){
@@ -30,6 +30,15 @@ export function createGameplayAccountGuard({players, logger, now = Date.now} = {
         socketId:socket?.id || null,
         eventName:cleanEventName
       });
+      try{
+        onReject?.({socket, eventName:cleanEventName, at:currentTime});
+      }catch(error){
+        logger?.warn?.("Unauthenticated gameplay rejection log failed", {
+          socketId:socket?.id || null,
+          eventName:cleanEventName,
+          error:error?.message || String(error)
+        });
+      }
       socket?.emit?.("auth:required", {
         eventName:cleanEventName,
         message:"Compte MMO requis pour jouer.",

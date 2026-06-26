@@ -1,15 +1,28 @@
 #!/bin/bash
 set -e
 
-# Déploiement automatique VoidSector sur Ubuntu (Oracle Cloud Free Tier)
-# À exécuter sur le serveur en SSH : ./install.sh
+# Deploiement automatique VoidSector sur VPS Ubuntu/Debian.
+# A executer depuis le dossier server/deploy : ./install.sh
 
-PROJECT_DIR="/home/ubuntu/voidsector"
-SERVER_DIR="$PROJECT_DIR/server"
-DB_NAME="voidsector"
-DB_USER="voidsector"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVER_DIR="${SERVER_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+PROJECT_DIR="${PROJECT_DIR:-$(cd "$SERVER_DIR/.." && pwd)}"
+SERVICE_USER="${SERVICE_USER:-${SUDO_USER:-$(id -un)}}"
+DB_NAME="${DB_NAME:-voidsector}"
+DB_USER="${DB_USER:-voidsector}"
 DB_PASS="$(openssl rand -base64 32)"
+CLIENT_ORIGIN="${CLIENT_ORIGIN:-https://voidsector-game.vercel.app}"
 LOAD_TEST_SECRET="$(openssl rand -base64 32)"
+
+if [[ ! "$DB_NAME" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+  echo "DB_NAME invalide : utilise uniquement lettres, chiffres et underscore." >&2
+  exit 1
+fi
+
+if [[ ! "$DB_USER" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+  echo "DB_USER invalide : utilise uniquement lettres, chiffres et underscore." >&2
+  exit 1
+fi
 
 echo "=== Mise à jour du système ==="
 sudo apt-get update
@@ -31,8 +44,17 @@ sudo systemctl start postgresql
 
 echo "=== Création de la base de données ==="
 sudo -u postgres psql <<EOF
-CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';
-CREATE DATABASE $DB_NAME OWNER $DB_USER;
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
+    CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';
+  ELSE
+    ALTER USER $DB_USER WITH PASSWORD '$DB_PASS';
+  END IF;
+END
+\$\$;
+SELECT 'CREATE DATABASE $DB_NAME OWNER $DB_USER'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
 GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
 \q
 EOF
@@ -45,9 +67,10 @@ echo "=== Création du fichier .env ==="
 cat > "$SERVER_DIR/.env" <<EOF
 NODE_ENV=production
 PORT=3001
-CLIENT_ORIGIN=*
+CLIENT_ORIGIN=$CLIENT_ORIGIN
 DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
-LOAD_TEST_ENABLED=true
+MAX_CONCURRENT_GAME_PLAYERS=50
+LOAD_TEST_ENABLED=false
 LOAD_TEST_SECRET=$LOAD_TEST_SECRET
 EOF
 
@@ -59,9 +82,13 @@ echo "=== Exécution des migrations JSON vers PostgreSQL (si applicable) ==="
 echo "=== Création du service systemd ==="
 sudo cp "$SERVER_DIR/deploy/voidsector.service" /etc/systemd/system/voidsector.service
 sudo sed -i "s|__SERVER_DIR__|$SERVER_DIR|g" /etc/systemd/system/voidsector.service
+sudo sed -i "s|__SERVICE_USER__|$SERVICE_USER|g" /etc/systemd/system/voidsector.service
 sudo systemctl daemon-reload
 sudo systemctl enable voidsector
 sudo systemctl start voidsector
+
+echo "=== Verification readiness beta PostgreSQL ==="
+npm run beta:check -- --url http://127.0.0.1:3001/health --expected-storage postgres --expected-max-game-players 50 --retries 30 --delay-ms 1000
 
 echo ""
 echo "=========================================="

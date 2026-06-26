@@ -203,6 +203,16 @@ function renderAmmoPanel({ammoTypes, getAmmoCount}){
 function renderShipSkillsPanel({shipAbilityStates}){
   const states = Array.isArray(shipAbilityStates) ? shipAbilityStates.slice(0, 3) : [];
   if(!states.length) return `<div class="combat-empty">Ce vaisseau ne possède aucune compétence active.</div>`;
+  const effectLabel = state=>{
+    if(state.effectType === "enemy_poison_bomb"){
+      return `${fmt(Number(state.radius || 0))} portee, ${fmt(Number(state.poisonDamagePerSecond || 0))} HP/s`;
+    }
+    if(state.effectType === "laser_double_strike"){
+      const chargeSeconds = Math.max(1, Number(state.chargeMs || 3_000) / 1000);
+      return `Charge ${fmt(chargeSeconds)} s, prochain tir laser double`;
+    }
+    return `${formatPercentValue(Number(state.lifeStealRatio || 0) * 100)} % vol de vie (${state.weaponClass === "laser" ? "laser" : state.weaponClass || "arme"})`;
+  };
   return `<div class="combat-panel-grid combat-info-grid combat-skill-grid">${states.map((state, index)=>{
     const activeSeconds = Math.ceil(Math.max(0, Number(state.activeRemainingMs || 0)) / 1000);
     const cooldownSeconds = Math.ceil(Math.max(0, Number(state.cooldownRemainingMs || 0)) / 1000);
@@ -213,7 +223,7 @@ function renderShipSkillsPanel({shipAbilityStates}){
         ? `RECHARGE ${cooldownSeconds} S`
         : "ACTIVER";
     const facts = renderCardFacts([
-      ["Effet", `${formatPercentValue(Number(state.lifeStealRatio || 0) * 100)} % vol de vie (${state.weaponClass === "laser" ? "laser" : state.weaponClass || "arme"})`],
+      ["Effet", effectLabel(state)],
       ["Durée", formatDurationLabel(state.durationMs)],
       ["Recharge", formatDurationLabel(state.cooldownMs)]
     ]);

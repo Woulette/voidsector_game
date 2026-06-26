@@ -1,6 +1,7 @@
 import { publicAccount } from "./accounts.js";
+import { assertGameCapacity, publicGameCapacity } from "../players/playerCapacity.js";
 
-export function createSocketSessionManager({io, players, profileManager, cleanName, emitPlayers, replaceGroupMemberId, resumeQuestTimers, setPlayerMap, syncPlayerLifecycle, syncPlayerStatusEffects}){
+export function createSocketSessionManager({io, players, profileManager, cleanName, emitPlayers, replaceGroupMemberId, resumeQuestTimers, setPlayerMap, syncPlayerLifecycle, syncPlayerStatusEffects, maxConcurrentGamePlayers = 0}){
   function publicAuthPayload({account, session = null}){
     return {
       account,
@@ -43,6 +44,19 @@ export function createSocketSessionManager({io, players, profileManager, cleanNa
     if(!current || !account) return null;
     let resumeSession = null;
     const isGameClient = current.clientMode === "game";
+    if(isGameClient){
+      try{
+        assertGameCapacity({
+          players,
+          accountId:account.id,
+          socketId:socket.id,
+          maxConcurrentGamePlayers
+        });
+      }catch(error){
+        if(error?.code === "SERVER_FULL") socket.emit("server:full", publicGameCapacity(error.capacity));
+        throw error;
+      }
+    }
     const duplicates = [...players.values()].filter(player=>player.id !== socket.id && player.accountId === account.id);
     const existing = duplicates.find(player=>player.state) || duplicates[0] || null;
     const transfersExistingState = Boolean(isGameClient && existing?.state);

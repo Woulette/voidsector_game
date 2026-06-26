@@ -1,7 +1,7 @@
 import { renderActionBarHtml, updateActionBarDom } from "./actionBar.js";
-import { renderShipAbilityBarHtml } from "./shipAbilityBar.js?v=ship-abilities-1";
+import { renderShipAbilityBarHtml } from "./shipAbilityBar.js?v=ship-charge-1";
 import { renderNpcAbilityBarHtml } from "./npcAbilityBar.js?v=npc-abilities-1";
-import { renderQuickPanelContent, updateQuickPanelTabs } from "./quickPanel.js?v=quick-panel-cards-1";
+import { renderQuickPanelContent, updateQuickPanelTabs } from "./quickPanel.js?v=ship-charge-1";
 import { describeAmmo, getAmmoCooldown as readAmmoCooldown, setAmmoCooldown as writeAmmoCooldown } from "../systems/projectiles.js";
 import { requireMmoConnection } from "../../app/mmoGate.js";
 

@@ -61,10 +61,10 @@ import {
 } from "./combatData.js";
 import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js";
 import { COMBAT_PROFILE_TITLES } from "./combatProfileTitles.js";
-import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js";
-import { createCombatSceneRenderer } from "./render/combatScene.js?v=ship-abilities-1";
+import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=ship-charge-1";
+import { createCombatSceneRenderer } from "./render/combatScene.js?v=ship-charge-1";
 import { createCombatLoop } from "./systems/combatLoop.js";
-import { createCombatBeamSystem } from "./systems/combatBeams.js";
+import { createCombatBeamSystem } from "./systems/combatBeams.js?v=ship-charge-1";
 import { createCombatCargoSystem } from "./systems/combatCargo.js";
 import { installCombatDebugCommands } from "./systems/combatDebug.js";
 import { createCombatDeathRespawnSystem } from "./systems/combatDeathRespawn.js";
@@ -76,7 +76,7 @@ import { createCombatRemoteTargetResolver } from "./systems/combatRemoteTargets.
 import { createCombatInteractionSystem } from "./systems/combatInteractions.js";
 import { createCombatMapAssetStreamingSystem } from "./systems/combatMapAssetStreaming.js";
 import { createCombatMultiplayerSyncSystem } from "./systems/combatMultiplayerSync.js";
-import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=ship-abilities-1";
+import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=ship-charge-1";
 import { createCombatServerActions } from "./systems/combatServerActions.js";
 import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js";
 import { createCombatPortalNavigationSystem } from "./systems/combatPortalNavigation.js";
@@ -93,19 +93,19 @@ import { createPlayerLifecycle } from "./systems/playerLifecycle.js";
 import { clampPlayerToMap as clampPlayerToMapSystem, updateCamera, updatePlayerMovement, worldFromScreen as screenToWorld } from "./systems/playerMovement.js";
 import { createRepairBotSystem } from "./systems/repairBot.js";
 import { createRewardSystem } from "./systems/rewards.js";
-import { createWeaponSystem } from "./systems/weapons.js";
+import { createWeaponSystem } from "./systems/weapons.js?v=ship-charge-1";
 import { updatePoisonStatus, updateSlowStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
 import { createCombatChat } from "./ui/combatChat.js";
 import { createCombatLogoutController } from "./ui/combatLogoutController.js";
-import { installCombatInputHandlers } from "./ui/inputBindings.js?v=quick-panel-cards-1";
+import { installCombatInputHandlers } from "./ui/inputBindings.js?v=commerce-2";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
-import { createCombatActions } from "./ui/combatActions.js?v=quick-panel-cards-1";
-import { createCombatPanels } from "./ui/combatPanels.js";
+import { createCombatActions } from "./ui/combatActions.js?v=ship-charge-1";
+import { createCombatPanels } from "./ui/combatPanels.js?v=commerce-2";
 import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=ship-abilities-1";
-import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
+import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
-import { getShipAbilityStatuses } from "../shared/shipAbilities.js?v=ship-abilities-1";
+import { getShipAbilityStatuses } from "../shared/shipAbilities.js?v=ship-charge-1";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
@@ -1276,6 +1276,13 @@ export function createCombatGame({renderAll, showToast}){
     depositCombatBoostMaterial:(target, materialId, amount)=>{
       if(isMmoConnected(multiplayer)){
         const sent = depositServerCombatBoostMaterial({target, materialId, amount, shipId:store.state.activeShip});
+        return sent ? {ok:true, serverPending:true} : {ok:false, reason:"Connexion serveur indisponible."};
+      }
+      return {ok:false, reason:MMO_REQUIRED_MESSAGE};
+    },
+    sellCommerceMaterial:({materialId = "", amount = 0, all = false} = {})=>{
+      if(isMmoConnected(multiplayer)){
+        const sent = sellServerMaterial({materialId, amount, all, shipId:store.state.activeShip});
         return sent ? {ok:true, serverPending:true} : {ok:false, reason:"Connexion serveur indisponible."};
       }
       return {ok:false, reason:MMO_REQUIRED_MESSAGE};

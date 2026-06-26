@@ -58,9 +58,9 @@ test("saving a ship session keeps other ships isolated and bumps the profile ver
     updatedAt:1,
     activeShip:"velox",
     selectedShip:"velox",
-    ownedShips:["velox", "test_runner"],
+    ownedShips:["velox", "astralis"],
     shipWorldSessions:{
-      test_runner:{mapId:"0", x:-4300, y:3300, hp:900, maxHp:20000, shield:0, maxShield:0, shipId:"test_runner", updatedAt:1}
+      astralis:{mapId:"0", x:-4300, y:3300, hp:900, maxHp:70000, shield:0, maxShield:0, shipId:"astralis", updatedAt:1}
     }
   })]]);
   const manager = createProfileWorldSession({
@@ -79,6 +79,6 @@ test("saving a ship session keeps other ships isolated and bumps the profile ver
   assert.ok(next.updatedAt > 1);
   assert.equal(next.shipWorldSessions.velox.hp, 3000);
   assert.equal(next.shipWorldSessions.velox.maxHp, 15000);
-  assert.equal(next.shipWorldSessions.test_runner.hp, 900);
-  assert.equal(next.shipWorldSessions.test_runner.maxHp, 20000);
+  assert.equal(next.shipWorldSessions.astralis.hp, 900);
+  assert.equal(next.shipWorldSessions.astralis.maxHp, 70000);
 });

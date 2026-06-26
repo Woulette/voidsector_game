@@ -24,14 +24,14 @@ import {
   store,
   XP_CURVE_VERSION
 } from "./core/store.js";
-import { createCombatGame } from "./game/combat.js?v=quick-panel-cards-1";
+import { createCombatGame } from "./game/combat.js?v=commerce-2";
 import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js";
 import { connectMultiplayer, disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, registerAccount, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js";
 import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=ship-abilities-2";
 import { showToast } from "./ui/toast.js?v=currency-icons-2";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=ship-abilities-1";
 import { createProfileController } from "./app/profileController.js";
-import { createTutorialController } from "./ui/tutorialController.js?v=tutorial-flow-7";
+import { createTutorialController } from "./ui/tutorialController.js?v=tutorial-flow-8";
 import { createServerEventController } from "./app/serverEventController.js";
 import { createShopActions } from "./app/shopActions.js";
 import { getFirstFirmRewardDestination } from "./ui/firmRewardNotifications.js";
@@ -1098,7 +1098,7 @@ window.addEventListener("voidsector:multiplayer-change", serverEvents.handleChan
 window.addEventListener("voidsector:multiplayer-change", event=>{
   const reason = String(event.detail?.reason || "");
   gameRecovery?.handleChange(event);
-  if(handleAdminPanelServerChange(reason) || reason === "auth:success" || reason === "auth:role" || reason === "auth:logout" || reason === "auth:replaced") renderAllPreserveScroll();
+  if(handleAdminPanelServerChange(reason) || reason === "auth:success" || reason === "auth:role" || reason === "auth:moderation" || reason === "auth:logout" || reason === "auth:replaced" || reason === "auth:banned") renderAllPreserveScroll();
   if(reason === "firm:updated" && event.detail?.payload?.action === "box-open"){
     store.firmBoxOpening = {...event.detail.payload, revealId:`box_${Date.now()}`};
   }

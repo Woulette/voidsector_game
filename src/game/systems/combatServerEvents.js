@@ -73,6 +73,36 @@ export function createCombatServerEventSystem({
     return String(map?.id ?? map?.name ?? "");
   }
 
+  function updateSpectralDoubleShotCharge(status = {}){
+    if(String(status?.abilityId || "") !== "spectral_double_shot") return false;
+    const {player, store} = getState();
+    if(!player) return false;
+    const activeShipId = String(store?.state?.activeShip || "");
+    const shipId = String(status.shipId || activeShipId || "");
+    if(activeShipId && shipId && shipId !== activeShipId) return false;
+    const now = Date.now();
+    const activeUntil = Math.max(0, Number(status.activeUntil || 0));
+    if(activeUntil <= now){
+      delete player.spectralDoubleShotCharge;
+      return false;
+    }
+    const chargeMs = Math.max(1, Number(status.chargeMs || 3_000));
+    const chargeSegments = Math.max(1, Number(status.chargeSegments || 3));
+    const chargeReadyAt = Math.max(0, Number(status.chargeReadyAt || now + chargeMs));
+    const chargeStartedAt = Math.max(0, Number(status.chargeStartedAt || chargeReadyAt - chargeMs || now));
+    player.spectralDoubleShotCharge = {
+      abilityId:"spectral_double_shot",
+      shipId,
+      activeUntil,
+      chargeMs,
+      chargeSegments,
+      chargeStartedAt,
+      chargeReadyAt,
+      receivedAt:now
+    };
+    return true;
+  }
+
   const remoteWeaponEvents = createRemoteWeaponEventProcessor({
     multiplayer,
     getState,
@@ -241,6 +271,44 @@ export function createCombatServerEventSystem({
       });
     }
     multiplayer.playerDamageEvents = remaining;
+  }
+
+  function applyShipAbilityEffectEvents(){
+    if(!multiplayer.shipAbilityEffectEvents?.length) return;
+    const {currentMap, particles, player} = getState();
+    const remaining = [];
+    for(const event of multiplayer.shipAbilityEffectEvents.splice(0)){
+      if(String(event.mapId ?? "") !== getCurrentMapToken(currentMap)){
+        remaining.push(event);
+        continue;
+      }
+      if(event.kind === "poison_bomb_pulse"){
+        const duration = Math.max(.25, Number(event.durationMs || 760) / 1000);
+        const followsLocalPlayer = Boolean(event.followSource && player) && String(event.sourceId || "") === String(multiplayer.playerId || "");
+        particles.push({
+          kind:"poisonWave",
+          x:followsLocalPlayer ? player.x : Number(event.x || 0),
+          y:followsLocalPlayer ? player.y : Number(event.y || 0),
+          offsetX:0,
+          offsetY:0,
+          followPlayer:followsLocalPlayer,
+          life:duration,
+          max:duration,
+          size:Math.max(40, Number(event.radius || 300)),
+          color:"rgba(34,197,94,.72)",
+          pulseIndex:Number(event.pulseIndex || 1)
+        });
+      }
+    }
+    multiplayer.shipAbilityEffectEvents = remaining;
+  }
+
+  function applyShipAbilityStateEvents(){
+    if(!multiplayer.shipAbilityEvents?.length) return;
+    for(const event of multiplayer.shipAbilityEvents.splice(0)){
+      updateSpectralDoubleShotCharge(event);
+    }
+    multiplayer.shipAbilityEvents = [];
   }
 
   function applyLifecycleEvents(){
@@ -512,6 +580,42 @@ export function createCombatServerEventSystem({
     particles.push({kind:"muzzle",x:muzzle.x, y:muzzle.y, life:.16, max:.16, size:18, color:"rgba(125,211,252,.72)"});
   }
 
+  function addSpectralDoubleShotVisual(event, enemy = null){
+    if(String(event?.doubleStrike?.abilityId || "") !== "spectral_double_shot") return;
+    if(String(event.weaponClass || "") !== "laser") return;
+    updateSpectralDoubleShotCharge(event.doubleStrike);
+    const {player, particles} = getState();
+    const toX = Number(enemy?.x ?? event.x);
+    const toY = Number(enemy?.y ?? event.y);
+    if(!Number.isFinite(toX) || !Number.isFinite(toY)) return;
+    const fallbackFromX = Number(player?.x || 0);
+    const fallbackFromY = Number(player?.y || 0);
+    const fromX = Number.isFinite(Number(event.fromX)) ? Number(event.fromX) : fallbackFromX;
+    const fromY = Number.isFinite(Number(event.fromY)) ? Number(event.fromY) : fallbackFromY;
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    const distance = Math.hypot(dx, dy) || 1;
+    const normalX = -dy / distance;
+    const normalY = dx / distance;
+    for(const offset of [-5, 5]){
+      beams.add({
+        ammoId:event.ammoId || "ammo_x1",
+        fromX:fromX + normalX * offset,
+        fromY:fromY + normalY * offset,
+        toX:toX + normalX * offset * .35,
+        toY:toY + normalY * offset * .35,
+        targetId:String(event.enemyId || ""),
+        canReplay:false,
+        variant:"spectral_double_shot",
+        widthScale:1.85,
+        duration:.28,
+        beamLength:190
+      });
+    }
+    particles.push({kind:"muzzle",x:fromX, y:fromY, life:.24, max:.24, size:28, color:"rgba(168,85,247,.82)"});
+    particles.push({kind:"impact",x:toX, y:toY, life:.22, max:.22, size:30, color:"rgba(217,70,239,.76)"});
+  }
+
   function applyCombatHitEvents(){
     if(!multiplayer.combatEvents?.length) return;
     const {enemies, store} = getState();
@@ -525,23 +629,33 @@ export function createCombatServerEventSystem({
       });
       addRickyAttackVisual(event);
       const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId));
+      addSpectralDoubleShotVisual(event, enemy);
       if(!enemy){
         const x = Number(event.x);
         const y = Number(event.y);
         if(Number.isFinite(x) && Number.isFinite(y)){
           const damage = Math.max(0, Math.round(Number(event.damage || 0)));
+          const poison = event.damageType === "poison";
           pushDamageText({
             x,
             y:y - Math.max(16, Number(event.radius || 0) + 16),
-            value:damage > 0 ? damage : "MISS",
-            ...(damage > 0 ? {} : {color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"})
+            value:damage > 0 ? (poison ? `-${damage}` : damage) : "MISS",
+            ...(damage > 0
+              ? poison ? {color:"rgba(22,163,74,", shadowColor:"rgba(21,128,61,.82)", life:.92} : {}
+              : {color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"})
           });
         }else if((performance.now() - Number(event.receivedAt || 0)) < 1000) remaining.push(event);
         continue;
       }
       const damage = Math.max(0, Math.round(Number(event.damage || 0)));
       if(damage > 0){
-        pushDamageText({x:enemy.x, y:enemy.y - enemy.radius - 16, value:damage});
+        const poison = event.damageType === "poison";
+        pushDamageText({
+          x:enemy.x,
+          y:enemy.y - enemy.radius - 16,
+          value:poison ? `-${damage}` : damage,
+          ...(poison ? {color:"rgba(22,163,74,", shadowColor:"rgba(21,128,61,.82)", life:.92} : {})
+        });
       }else{
         pushDamageText({x:enemy.x, y:enemy.y - enemy.radius - 16, value:"MISS", color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"});
       }
@@ -649,6 +763,8 @@ export function createCombatServerEventSystem({
   function applyAll(){
     applyRemoteWeaponEvents();
     applyEnemyAttackEvents();
+    applyShipAbilityStateEvents();
+    applyShipAbilityEffectEvents();
     applyStatusEffectEvents();
     applyNpcDamageEvents();
     applyDamageEvents();

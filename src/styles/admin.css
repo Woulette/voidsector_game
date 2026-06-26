@@ -675,6 +675,47 @@
 .admin-log-list small{
   color:#8fb9d6;
 }
+.admin-server-errors{
+  margin-top:10px;
+}
+.admin-server-error-list{
+  display:grid;
+  gap:7px;
+  max-height:230px;
+  overflow:auto;
+  padding-right:4px;
+}
+.admin-server-error-list article{
+  display:grid;
+  gap:3px;
+  border:1px solid rgba(250,204,21,.28);
+  background:rgba(30,24,7,.42);
+  padding:8px;
+}
+.admin-server-error-list article.danger{
+  border-color:rgba(248,113,113,.44);
+  background:rgba(69,10,10,.34);
+}
+.admin-server-error-list article.info{
+  border-color:rgba(56,189,248,.28);
+  background:rgba(8,47,73,.3);
+}
+.admin-server-error-list strong{
+  color:#fef08a;
+  font-size:12px;
+}
+.admin-server-error-list article.danger strong{
+  color:#fecaca;
+}
+.admin-server-error-list article.info strong{
+  color:#bae6fd;
+}
+.admin-server-error-list span,
+.admin-server-error-list small,
+.admin-server-error-list p{
+  color:#9fc5d8;
+  font-size:12px;
+}
 .admin-group-row{
   display:grid;
   grid-template-columns:1fr;

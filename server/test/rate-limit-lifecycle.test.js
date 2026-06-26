@@ -49,6 +49,32 @@ test("account action locks survive reconnects and prune stale accounts", ()=>{
   assert.equal(locks.size(), 0);
 });
 
+test("account action lock warnings are bounded inside one window", ()=>{
+  let currentTime = 1000;
+  const warnings = [];
+  const players = new Map([
+    ["socket-a", {accountId:"account-1"}]
+  ]);
+  const locks = createAccountActionLocks({
+    rules:{
+      "shop:buy":{minIntervalMs:1000, limit:2, windowMs:10000}
+    },
+    players,
+    logger:{warn(){}},
+    onLimit:payload=>warnings.push(payload),
+    now:()=>currentTime
+  });
+
+  assert.equal(locks({id:"socket-a"}, "shop:buy"), true);
+  assert.equal(locks({id:"socket-a"}, "shop:buy"), false);
+  assert.equal(locks({id:"socket-a"}, "shop:buy"), false);
+  assert.equal(locks({id:"socket-a"}, "shop:buy"), false);
+
+  assert.equal(warnings.length, 2);
+  assert.equal(warnings[0].count, 2);
+  assert.equal(warnings[1].count, 3);
+});
+
 test("combat cooldown follows the account across socket reconnects", ()=>{
   let currentTime = 1000;
   const cooldowns = createCombatCooldownTracker({

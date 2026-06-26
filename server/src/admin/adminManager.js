@@ -454,7 +454,9 @@ export function createAdminManager({
   groups,
   profileManager,
   auditStore,
+  serverErrorLog,
   resetGroupInstance,
+  revokeSessionsForAccount,
   updateAccountModeration,
   logger,
   now = ()=>Date.now()
@@ -496,12 +498,30 @@ export function createAdminManager({
         payload
       });
     }catch(error){
-      logger?.warn?.("Admin audit failed", {error:error?.message || String(error), action});
+      const auditError = {
+        source:"admin-audit",
+        eventName:String(action || "admin:unknown"),
+        accountId:String(actor?.public?.accountId || actor?.accountId || ""),
+        playerId:String(actor?.public?.playerId || actor?.playerId || ""),
+        error:error?.stack || error?.message || String(error),
+        at:now()
+      };
+      logger?.warn?.("Admin audit failed", {
+        error:error?.message || String(error),
+        action:auditError.eventName,
+        actorAccountId:auditError.accountId,
+        targetKey:String(target?.key || "")
+      });
+      try{
+        serverErrorLog?.record?.(auditError);
+      }catch(logError){
+        logger?.warn?.("Admin audit error log failed", {error:logError?.message || String(logError)});
+      }
       return null;
     }
   }
 
-  async function snapshot(socket, {profileLimit = 0, auditLimit = 20} = {}){
+  async function snapshot(socket, {profileLimit = 0, auditLimit = 20, errorLimit = 20} = {}){
     const access = requireRole(socket, "moderator");
     if(!access.ok) return access;
     const onlineGroups = groupOnlinePlayers(players);
@@ -542,7 +562,8 @@ export function createAdminManager({
         onlinePlayers,
         groups:groupList,
         recentProfiles:profiles,
-        audit:await auditStore?.list?.({limit:auditLimit}) || []
+        audit:await auditStore?.list?.({limit:auditLimit}) || [],
+        serverErrors:serverErrorLog?.list?.({limit:errorLimit}) || []
       }
     };
   }
@@ -623,7 +644,7 @@ export function createAdminManager({
     return {online:null, key, entry};
   }
 
-  async function adjustPlayer(socket, {targetId, profileKey, field, amount, mode = "add", reason} = {}){
+  async function adjustPlayer(socket, {targetId, accountId, profileKey, field, amount, mode = "add", reason} = {}){
     const access = requireRole(socket, "admin");
     if(!access.ok) return access;
     const cleanField = String(field || "");
@@ -633,7 +654,7 @@ export function createAdminManager({
     if(!Number.isFinite(cleanAmount)) return {ok:false, reason:"Montant invalide."};
     const message = cleanReason(reason);
     if(message.length < 4) return {ok:false, reason:"Raison admin obligatoire."};
-    const target = resolveProfileTarget({targetId, profileKey});
+    const target = resolveProfileTarget({targetId, accountId, profileKey});
     if(!target.key || !target.entry) return {ok:false, reason:"Profil cible introuvable."};
     const before = publicProfileEntry(target.entry);
     const nextProfile = profileManager.updateProfileByKey?.(target.key, profile=>{
@@ -657,6 +678,7 @@ export function createAdminManager({
     });
     if(!nextProfile) return {ok:false, reason:"Modification impossible."};
     const after = publicProfileEntry({key:target.key, profile:nextProfile});
+    const targetAccountId = String(accountId || target.online?.accountId || (target.key.startsWith("account:") ? target.key.slice("account:".length) : ""));
     await recordAudit({
       actor:access.actor,
       action:"admin:adjust-player",
@@ -666,9 +688,10 @@ export function createAdminManager({
         playerId:target.online?.id || "",
         name:after?.name || before?.name || ""
       },
-      payload:{field:cleanField, amount:cleanAmount, mode:cleanMode, before, after}
+      payload:{accountId:targetAccountId, field:cleanField, amount:cleanAmount, mode:cleanMode, before, after}
     });
-    if(target.online) io?.to?.(target.online.id)?.emit?.("profile:sync", nextProfile);
+    const onlineTargets = targetAccountId ? onlinePlayersForAccount(targetAccountId) : (target.online ? [target.online] : []);
+    for(const player of onlineTargets) io?.to?.(player.id)?.emit?.("profile:sync", nextProfile);
     return {ok:true, before, after};
   }
 
@@ -868,6 +891,11 @@ export function createAdminManager({
 
     const updatedAccount = await updateAccountModeration(target.accountId, patch);
     if(!updatedAccount) return {ok:false, reason:"Compte cible introuvable."};
+    let sessionsRevoked = false;
+    if(cleanAction === "ban" && typeof revokeSessionsForAccount === "function"){
+      await revokeSessionsForAccount(target.accountId);
+      sessionsRevoked = true;
+    }
     const moderation = moderationFields(updatedAccount);
     const affectedPlayers = onlinePlayersForAccount(target.accountId);
     for(const player of affectedPlayers){
@@ -898,7 +926,7 @@ export function createAdminManager({
         playerId:target.online?.id || targetId || "",
         name:target.online?.name || target.online?.account?.username || ""
       },
-      payload:{accountId:target.accountId, durationMinutes:Number(durationMinutes || 0), patch}
+      payload:{accountId:target.accountId, durationMinutes:Number(durationMinutes || 0), patch, sessionsRevoked}
     });
     return {ok:true, action:cleanAction, accountId:target.accountId, moderation};
   }

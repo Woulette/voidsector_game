@@ -13,7 +13,7 @@ test("starter repair drone is created once and equipped only on Orion", ()=>{
 
   assert.equal(countStarterRepair(profile), 1);
   assert.equal(profile.shipLoadouts.orion.extras[0], "inv_repair_starter_2");
-  assert.equal(profile.shipLoadouts.test_runner, undefined);
+  assert.equal(profile.shipLoadouts.razorion, undefined);
   assert.equal(profile.starterRepairGranted, true);
 });
 
@@ -50,7 +50,8 @@ test("moving starter repair drone to another ship does not duplicate it", ()=>{
 
 test("repair drone variants replace each other in the same extra slot", ()=>{
   const profile = createDefaultProfile();
-  profile.shipLoadouts.test_runner = {
+  profile.ownedShips.push("astralis");
+  profile.shipLoadouts.astralis = {
     lasers:[],
     missileLauncher:null,
     rocketLauncher:null,
@@ -67,21 +68,21 @@ test("repair drone variants replace each other in the same extra slot", ()=>{
     type:"extra",
     index:2,
     inventoryUid:"inv_repair_red_test",
-    shipId:"test_runner"
+    shipId:"astralis"
   });
   assert.equal(red.ok, true);
   assert.equal(red.target.index, 0);
-  assert.deepEqual(profile.shipLoadouts.test_runner.extras.slice(0, 3), ["inv_repair_red_test", null, null]);
+  assert.deepEqual(profile.shipLoadouts.astralis.extras.slice(0, 3), ["inv_repair_red_test", null, null]);
 
   const blue = equipInventoryUid(profile, {
     type:"extra",
     index:2,
     inventoryUid:"inv_repair_blue_test",
-    shipId:"test_runner"
+    shipId:"astralis"
   });
   assert.equal(blue.ok, true);
   assert.equal(blue.target.index, 0);
-  assert.deepEqual(profile.shipLoadouts.test_runner.extras.slice(0, 3), ["inv_repair_blue_test", null, null]);
+  assert.deepEqual(profile.shipLoadouts.astralis.extras.slice(0, 3), ["inv_repair_blue_test", null, null]);
 });
 
 test("a second copy of an extra replaces the equipped copy while different extras coexist", ()=>{
@@ -91,7 +92,8 @@ test("a second copy of an extra replaces the equipped copy while different extra
     {uid:"inv_auto_rocket_b", itemId:"extra_auto_rocket"},
     {uid:"inv_auto_missile", itemId:"extra_auto_missile"}
   );
-  profile.shipLoadouts.test_runner = {
+  profile.ownedShips.push("astralis");
+  profile.shipLoadouts.astralis = {
     lasers:[],
     missileLauncher:null,
     rocketLauncher:null,
@@ -104,13 +106,13 @@ test("a second copy of an extra replaces the equipped copy while different extra
     type:"extra",
     index:2,
     inventoryUid:"inv_auto_rocket_b",
-    shipId:"test_runner"
+    shipId:"astralis"
   });
 
   assert.equal(result.ok, true);
   assert.equal(result.target.index, 0);
   assert.deepEqual(
-    profile.shipLoadouts.test_runner.extras,
+    profile.shipLoadouts.astralis.extras,
     ["inv_auto_rocket_b", "inv_auto_missile", "inv_repair_starter_2", null, null]
   );
 });
@@ -118,14 +120,14 @@ test("a second copy of an extra replaces the equipped copy while different extra
 test("profile sanitization removes legacy duplicate extra families", ()=>{
   const profile = sanitizeProfile({
     starterRepairGranted:true,
-    ownedShips:["orion", "test_runner"],
+    ownedShips:["orion", "astralis"],
     inventoryItems:[
       {uid:"inv_repair_blue", itemId:"extra_repair_starter"},
       {uid:"inv_repair_red", itemId:"extra_repair_bot"},
       {uid:"inv_auto_missile", itemId:"extra_auto_missile"}
     ],
     shipLoadouts:{
-      test_runner:{
+      astralis:{
         lasers:[],
         generators:[],
         extras:["inv_repair_blue", "inv_repair_red", "inv_auto_missile"]
@@ -134,7 +136,7 @@ test("profile sanitization removes legacy duplicate extra families", ()=>{
   });
 
   assert.deepEqual(
-    profile.shipLoadouts.test_runner.extras,
+    profile.shipLoadouts.astralis.extras,
     ["inv_repair_blue", null, "inv_auto_missile"]
   );
 });

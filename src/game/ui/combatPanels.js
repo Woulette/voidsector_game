@@ -1,5 +1,5 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
-import { renderSpawnPanelContent } from "./spawnPanel.js";
+import { renderSpawnPanelContent } from "./spawnPanel.js?v=commerce-2";
 import { renderCombatFirmPanel } from "./combatFirmPanel.js";
 import { renderCombatMapPanel } from "./combatMapPanel.js";
 import { renderCombatBoostersPanel } from "./combatBoostersPanel.js";
@@ -991,7 +991,7 @@ export function createCombatPanels({
   function restoreOpenSpawnPanel(){
     const layout = store.state?.uiLayout?.spawnInteractionPanel;
     const mode = layout?.open ? String(layout.mode || "") : "";
-    if(!["refinery", "quests"].includes(mode)) return;
+    if(!["refinery", "quests", "commerce"].includes(mode)) return;
     renderSpawnInteractionPanel(mode);
   }
 
@@ -1072,6 +1072,7 @@ export function createCombatPanels({
     spawnPanelMode = mode;
     spawnPanelRefreshT = 1;
     panel.classList.toggle("refinery-mode", mode === "refinery");
+    panel.classList.toggle("commerce-mode", mode === "commerce");
     panel.classList.toggle("quest-mode", mode === "quests");
     if(!mode){
       panel.classList.add("hidden");

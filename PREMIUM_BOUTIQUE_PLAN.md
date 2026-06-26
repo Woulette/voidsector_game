@@ -29,7 +29,7 @@
 ## Starter packs boutique
 
 - Pack Razorion a 5,99 EUR : 7 jours premium, vaisseau Razorion x1, Canon Laser MK-III x8, munitions M-3 x30 000.
-- Pack Astra 3D Test a 15,99 EUR : 30 jours premium, vaisseau Astra 3D Test x1, Canon Laser MK-IV x3, Canon Laser MK-III x7, munitions M-3 x80 000.
+- Pack Astralis a 15,99 EUR : 30 jours premium, vaisseau Astralis x1, Canon Laser MK-IV x3, Canon Laser MK-III x7, munitions M-3 x80 000.
 
 ## Maps futures
 

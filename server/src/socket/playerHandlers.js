@@ -1,6 +1,7 @@
 import { validatePlayerState } from "../players/playerStateValidation.js";
 import { buildGlobalLeaderboardSnapshotFromManager } from "../players/leaderboard.js";
 import { consumeInventoryItemAmount } from "../economy/inventoryStacks.js";
+import { checkGameCapacity, publicGameCapacity } from "../players/playerCapacity.js";
 import { applyTutorialAction } from "../players/tutorialActions.js";
 import {
   PORTGUN_FLUID_ITEM_ID,
@@ -34,7 +35,8 @@ export function registerPlayerHandlers(socket, context){
     setPlayerMap,
     syncPlayerLifecycle,
     syncPlayerStatusEffects,
-    syncProfileForPlayer
+    syncProfileForPlayer,
+    maxConcurrentGamePlayers = 0
   } = context;
 
   function cleanClientId(value){
@@ -179,7 +181,24 @@ export function registerPlayerHandlers(socket, context){
     if(!guard("player:hello")) return;
     let player = players.get(socket.id);
     if(!player) return;
-    player.clientMode = payload?.clientMode === "game" ? "game" : "launcher";
+    const requestedClientMode = payload?.clientMode === "game" ? "game" : "launcher";
+    if(requestedClientMode === "game" && player.accountId){
+      const capacity = checkGameCapacity({
+        players,
+        accountId:player.accountId,
+        socketId:player.id,
+        maxConcurrentGamePlayers
+      });
+      if(!capacity.ok){
+        player.clientMode = "launcher";
+        socket.emit("server:full", publicGameCapacity(capacity));
+        socket.emit("auth:error", {message:capacity.message});
+        emitLeaderboard();
+        emitPlayers();
+        return;
+      }
+    }
+    player.clientMode = requestedClientMode;
     player.clientId = cleanClientId(payload?.clientId);
     if(!player.accountId) player.name = cleanName(payload?.name);
     player = takeoverGuestSocket(player, player.clientId);

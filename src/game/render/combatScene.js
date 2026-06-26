@@ -1,6 +1,6 @@
 import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./canvasHud.js";
-import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=ship-abilities-1";
-import { drawPlayerLayer } from "./player.js";
+import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=ship-charge-1";
+import { drawPlayerLayer } from "./player.js?v=ship-charge-1";
 import { drawPortalTransitionOverlay } from "./portalTransition.js";
 import { drawWorldLayer } from "./world.js";
 import { drawRemotePlayers } from "../../multiplayer/render.js";

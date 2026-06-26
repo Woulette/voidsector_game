@@ -114,7 +114,7 @@ test("profile save cannot forge critical account progression or ownership", ()=>
   assert.equal(profile.player.missileShotsFired, 0);
   assert.equal(profile.player.firmId, "astra");
   assert.equal(profile.player.firmSelected, false);
-  assert.deepEqual(profile.ownedShips, ["orion", "test_runner"]);
+  assert.deepEqual(profile.ownedShips, ["orion"]);
   assert.equal(profile.activeShip, null);
   assert.equal(profile.selectedShip, null);
   assert.equal(profile.inventoryItems.some(entry=>entry.uid === "hack_laser"), false);
@@ -152,6 +152,32 @@ test("profile save only keeps non-critical client preferences", ()=>{
   assert.equal(result.profile.actionSlots[0], "ammo_x6");
   assert.equal(result.profile.actionSlotsByShip.orion[0], "ammo_x6");
   assert.equal(result.profile.lastLaserAmmoId, "ammo_x6");
+});
+
+test("unchanged profile save acknowledges without writing another profile row", async ()=>{
+  const {manager, persisted} = createTestProfileManager();
+  const player = {id:"account-socket", name:"Normal", accountId:45, account:{username:"Normal", firmId:"astra"}};
+  manager.syncForSocket({emit(){}}, player);
+  await manager.flushPersistence();
+  persisted.length = 0;
+
+  const profile = manager.getProfileForPlayer(player);
+  const result = manager.saveFromPayload({
+    player,
+    payload:{
+      profile:{
+        updatedAt:Date.now() + 10_000,
+        actionSlots:profile.actionSlots,
+        actionSlotsByShip:profile.actionSlotsByShip,
+        lastLaserAmmoId:profile.lastLaserAmmoId
+      }
+    }
+  });
+  await manager.flushPersistence();
+
+  assert.equal(result.unchanged, true);
+  assert.equal(result.profile.updatedAt, profile.updatedAt);
+  assert.equal(persisted.length, 0);
 });
 
 test("drone formation activation is charged from server ownership, not client flags", ()=>{
