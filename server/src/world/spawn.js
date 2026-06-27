@@ -2,7 +2,7 @@ import { WORLD_ENEMY_TYPES } from "./definitions.js";
 import { getFirmIdFromMapName, normalizeFirmId } from "../../../src/data/firms.js";
 import { scaleMonsterReward, scaleMonsterStat } from "./enemyProgression.js";
 
-export function publicEnemy(enemy){
+export function publicEnemyDefinition(enemy){
   return {
     id:enemy.id,
     serverControlled:true,
@@ -10,29 +10,42 @@ export function publicEnemy(enemy){
     type:enemy.type,
     img:enemy.img,
     level:enemy.level,
+    maxHp:enemy.maxHp,
+    maxShield:enemy.maxShield,
+    radius:enemy.radius,
+    width:enemy.width,
+    height:enemy.height,
+    speed:enemy.speed || 0,
+    color:enemy.color,
+    particle:enemy.particle,
+    projectileSpeed:enemy.projectileSpeed || 600,
+    renderMode:enemy.renderMode || "",
+    static:Boolean(enemy.static)
+  };
+}
+
+export function publicEnemyDelta(enemy){
+  return {
+    id:enemy.id,
     x:enemy.x,
     y:enemy.y,
     vx:enemy.vx || 0,
     vy:enemy.vy || 0,
     angle:enemy.angle || 0,
     hp:enemy.hp,
-    maxHp:enemy.maxHp,
     shield:enemy.shield,
-    maxShield:enemy.maxShield,
-    radius:enemy.radius,
-    width:enemy.width,
-    height:enemy.height,
-    speed:enemy.speed || 0,
     moving:Boolean(enemy.moving),
     aggro:Boolean(enemy.lockedPlayerId),
     idle:!enemy.lockedPlayerId && !enemy.moving && Math.hypot(Number(enemy.vx || 0), Number(enemy.vy || 0)) < 4,
-    color:enemy.color,
-    particle:enemy.particle,
-    projectileSpeed:enemy.projectileSpeed || 600,
     attackT:Math.max(0, Number(enemy.attackAnimUntil || 0) - Date.now()) / 1000,
-    recentHitTimer:enemy.recentHitTimer || 0,
-    renderMode:enemy.renderMode || "",
-    static:Boolean(enemy.static)
+    recentHitTimer:enemy.recentHitTimer || 0
+  };
+}
+
+export function publicEnemy(enemy){
+  return {
+    ...publicEnemyDefinition(enemy),
+    ...publicEnemyDelta(enemy)
   };
 }
 

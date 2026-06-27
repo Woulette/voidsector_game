@@ -3,9 +3,10 @@ import { access, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
-import { createFirmWarManager, FIRM_REWARD_MS, FIRM_SEASON_MS } from "../src/firms/firmWar.js";
+import { createFirmWarManager, FIRM_COLLECTIVE_MIN_CONTRIBUTION, FIRM_REWARD_MS, FIRM_SEASON_MS } from "../src/firms/firmWar.js";
 import { sanitizeFirmState } from "../src/firms/firmState.js";
 import { createWorldRewardManager } from "../src/world/rewards.js";
+import { resetFirmRankingBroadcastThrottle } from "../src/firms/firmBroadcasts.js";
 
 function createIoRecorder(){
   const events = [];
@@ -28,17 +29,20 @@ test("legacy season rewards recover participant eligibility without granting new
     },
     lastClosedSeason:{
       individualRanking:[
-        {key:"account:legacy-participant", firmId:"astra", points:25}
+        {key:"account:legacy-participant", firmId:"astra", points:FIRM_COLLECTIVE_MIN_CONTRIBUTION},
+        {key:"account:legacy-short", firmId:"astra", points:FIRM_COLLECTIVE_MIN_CONTRIBUTION - 1}
       ]
     }
   }, now);
 
   assert.equal(state.version, 5);
   assert.equal(state.rewards.astra.eligiblePlayers["account:legacy-participant"], true);
+  assert.equal(state.rewards.astra.eligiblePlayers["account:legacy-short"], undefined);
   assert.equal(state.rewards.astra.eligiblePlayers["account:created-later"], undefined);
 });
 
 test("firm season stores monster points only for the first-hit owner", async ()=>{
+  resetFirmRankingBroadcastThrottle();
   const {events, io} = createIoRecorder();
   const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-war-"));
   const players = new Map([
@@ -77,6 +81,49 @@ test("firm season stores monster points only for the first-hit owner", async ()=
     assert.equal(firmWarManager.snapshot({playerKey:"account:a"}).personal.contribution, 1);
     assert.equal(firmWarManager.snapshot({playerKey:"account:b"}).personal.contribution, 0);
     assert.equal(events.some(entry=>entry.event === "firm:ranking" && entry.id === "*"), true);
+  }finally{
+    await rm(dir, {recursive:true, force:true});
+  }
+});
+
+test("firm monster kills throttle global ranking but keep personal season objectives fresh", async ()=>{
+  resetFirmRankingBroadcastThrottle();
+  const {events, io} = createIoRecorder();
+  const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-war-"));
+  const player = {id:"a", name:"Alpha", connected:true, clientMode:"game", mapId:"0", profile:{player:{level:10, firmId:"astra"}}};
+  const players = new Map([["a", player]]);
+  try{
+    const firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1000});
+    await firmWarManager.load();
+    const manager = createWorldRewardManager({
+      io,
+      players,
+      groups:new Map(),
+      firmWarManager,
+      profileManager:{
+        getProfileForPlayer:entry=>entry.profile,
+        profileKeyForPlayer:entry=>`account:${entry.id}`,
+        applyReward({player:entry}){ return entry.profile; }
+      },
+      emitProfileSync(){}
+    });
+
+    manager.emitWorldReward({
+      attackerId:"a",
+      mapId:"0",
+      enemy:{id:"e1", kind:"sentinel_orb", type:"Orbe", level:10, reward:{credits:100, xp:100, premium:0}}
+    });
+    manager.emitWorldReward({
+      attackerId:"a",
+      mapId:"0",
+      enemy:{id:"e2", kind:"sentinel_orb", type:"Orbe", level:10, reward:{credits:100, xp:100, premium:0}}
+    });
+
+    assert.equal(events.filter(entry=>entry.event === "firm:ranking" && entry.id === "*").length, 1);
+    const personalSnapshots = events.filter(entry=>entry.event === "firm:snapshot" && entry.id === "a");
+    assert.equal(personalSnapshots.length, 2);
+    assert.equal(Array.isArray(personalSnapshots[1].payload.seasonObjectives), true);
+    assert.equal(Object.hasOwn(personalSnapshots[1].payload, "individualRanking"), false);
   }finally{
     await rm(dir, {recursive:true, force:true});
   }
@@ -183,21 +230,24 @@ test("firm season closes with seven-day faction boosters", async ()=>{
   try{
     const manager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>now});
     await manager.load();
-    manager.addFirmPoints("astra", 50, {key:"account:astra-veteran", name:"Astra Veteran", firmId:"astra"});
-    manager.addFirmPoints("cyan", 30, {key:"account:cyan-veteran", name:"Cyan Veteran", firmId:"cyan"});
+    manager.addFirmPoints("astra", FIRM_COLLECTIVE_MIN_CONTRIBUTION, {key:"account:astra-veteran", name:"Astra Veteran", firmId:"astra"});
+    manager.addFirmPoints("astra", FIRM_COLLECTIVE_MIN_CONTRIBUTION - 1, {key:"account:astra-short", name:"Astra Short", firmId:"astra"});
+    manager.addFirmPoints("cyan", FIRM_COLLECTIVE_MIN_CONTRIBUTION, {key:"account:cyan-veteran", name:"Cyan Veteran", firmId:"cyan"});
     now += FIRM_SEASON_MS + 1;
     const snapshot = manager.snapshot();
     const astra = snapshot.firms.find(firm=>firm.id === "astra");
     const cyan = snapshot.firms.find(firm=>firm.id === "cyan");
-    assert.deepEqual(manager.getActiveBoosters("astra", {}, null, "account:astra-veteran"), {damage:.10, shield:.10, hull:.10, credits:.25, nova:.25});
-    assert.deepEqual(manager.getActiveBoosters("cyan", {}, null, "account:cyan-veteran"), {damage:.10, shield:.10, nova:.25});
+    assert.deepEqual(manager.getActiveBoosters("astra", {}, null, "account:astra-veteran"), {damage:.10, shield:.10, hull:.10, credits:.25, nova:.10});
+    assert.deepEqual(manager.getActiveBoosters("astra", {}, null, "account:astra-short"), {});
+    assert.deepEqual(manager.getActiveBoosters("cyan", {}, null, "account:cyan-veteran"), {damage:.10, shield:.10, nova:.10});
     assert.deepEqual(manager.getActiveBoosters("astra", {}, null, "account:created-after-season"), {});
     assert.equal(manager.snapshot({playerKey:"account:astra-veteran", profile:{player:{firmId:"astra"}}}).personal.boosters.items.length, 5);
+    assert.equal(manager.snapshot({playerKey:"account:astra-short", profile:{player:{firmId:"astra"}}}).personal.boosters.items.length, 0);
     assert.equal(manager.snapshot({playerKey:"account:created-after-season", profile:{player:{firmId:"astra"}}}).personal.boosters.items.length, 0);
     assert.equal(Object.hasOwn(snapshot, "personal"), false);
     assert.equal(astra.rewardEndsAt, now + FIRM_REWARD_MS);
     assert.equal(cyan.rewardRank, 2);
-    assert.deepEqual(cyan.activeBoosters, {damage:.10, shield:.10, nova:.25});
+    assert.deepEqual(cyan.activeBoosters, {damage:.10, shield:.10, nova:.10});
   }finally{
     await rm(dir, {recursive:true, force:true});
   }
@@ -218,7 +268,7 @@ test("faction economy boosters affect credits and NOVA but not XP", ()=>{
     players,
     groups:new Map(),
     firmWarManager:{
-      getActiveBoosters:()=>({credits:.25, nova:.25}),
+      getActiveBoosters:()=>({credits:.25, nova:.10}),
       addMonsterKillPoints:()=>({})
     },
     profileManager:{
@@ -239,7 +289,7 @@ test("faction economy boosters affect credits and NOVA but not XP", ()=>{
 
   assert.equal(applied[0].credits, 125);
   assert.equal(applied[0].xp, 100);
-  assert.equal(applied[0].premium, 125);
+  assert.equal(applied[0].premium, 110);
 });
 
 test("firm points persist in the database without touching the JSON fallback", async ()=>{

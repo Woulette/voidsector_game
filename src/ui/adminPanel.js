@@ -13,7 +13,7 @@ import {
   removeAdminInventoryItem,
   requestAdminSync,
   resetAdminInstance
-} from "../multiplayer/client.js";
+} from "../multiplayer/client.js?v=firm-shop-sync-1";
 
 const STAFF_ROLES = new Set(["moderator", "admin", "owner"]);
 const ADMIN_ACTIONS = new Set(["kick", "mute", "ban", "unmute", "unban", "adjust", "grant"]);

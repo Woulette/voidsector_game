@@ -2,7 +2,7 @@ import { COOP_ENEMY_TYPES } from "../world/definitions.js";
 
 export const MAX_GROUP_MEMBERS = 4;
 
-export function createGroupManager({io, players, publicPlayer, publicEnemy, emitPlayers}){
+export function createGroupManager({io, players, publicPlayer, publicEnemy, publicEnemyDelta = publicEnemy, emitPlayers}){
   const groups = new Map();
   let groupSeq = 1;
   let instanceSeq = 1;
@@ -16,15 +16,18 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
     };
   }
 
-  function emitInstance(group){
+  function emitInstance(group, options = {}){
     if(!group?.instance) return;
+    const useDelta = Boolean(options.delta);
     const payload = {
       instanceId:group.instance.id,
       spawn:group.instance.spawn,
       portal:group.instance.portal || null,
       wave:group.instance.wave || 0,
       completed:Boolean(group.instance.completed),
-      enemies:group.instance.enemies.filter(enemy=>enemy.hp > 0).map(publicEnemy),
+      delta:useDelta,
+      full:!useDelta,
+      enemies:group.instance.enemies.filter(enemy=>enemy.hp > 0).map(useDelta ? publicEnemyDelta : publicEnemy),
       ally:publicInstanceAlly(group.instance),
       beacons:publicInstanceBeacons(group.instance),
       objective:publicInstanceObjective(group.instance)
@@ -33,11 +36,15 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, emit
       for(const memberId of group.instance.joinedMemberIds){
         if(group.instance.abandonedMemberIds?.includes(memberId)) continue;
         if(group.instance.objective?.returnedMemberIds?.includes(memberId)) continue;
-        io.to(memberId).emit("coop:enemies", payload);
+        const channel = io.to(memberId);
+        const emitter = options.volatile && channel.volatile ? channel.volatile : channel;
+        emitter.emit("coop:enemies", payload);
       }
       return;
     }
-    io.to(group.id).emit("coop:enemies", payload);
+    const channel = io.to(group.id);
+    const emitter = options.volatile && channel.volatile ? channel.volatile : channel;
+    emitter.emit("coop:enemies", payload);
   }
 
   function publicInstanceAlly(instance){

@@ -127,6 +127,8 @@
 .store-tab-nav button{min-height:48px;padding:0 13px;border:1px solid rgba(250,204,21,.22);background:linear-gradient(180deg,rgba(60,41,7,.54),rgba(3,13,24,.92));color:#fde68a;font:900 14px/1 var(--font);text-align:left;text-transform:uppercase;letter-spacing:.65px;cursor:pointer}
 .store-tab-nav button:hover{border-color:rgba(250,204,21,.62);background:linear-gradient(180deg,rgba(92,61,8,.62),rgba(5,18,34,.94))}
 .store-tab-nav button.active{border-color:rgba(250,204,21,.92);box-shadow:inset 4px 0 0 rgba(250,204,21,.92),0 0 18px rgba(250,204,21,.12);color:#fff7b0}
+.store-tab-nav button[data-store-tab="beta"]{border-color:rgba(34,197,94,.42);background:linear-gradient(180deg,rgba(18,88,52,.62),rgba(3,13,24,.92));color:#bbf7d0}
+.store-tab-nav button[data-store-tab="beta"].active{border-color:rgba(34,197,94,.92);box-shadow:inset 4px 0 0 rgba(34,197,94,.92),0 0 20px rgba(34,197,94,.16);color:#ecfdf5}
 .store-tab-panel{min-height:600px;padding:14px;border:1px solid rgba(56,189,248,.18);background:rgba(2,10,19,.45)}
 .store-section-head{display:grid;grid-template-columns:auto 1fr minmax(260px,520px);align-items:end;gap:14px;margin-bottom:12px;border-bottom:1px solid rgba(56,189,248,.12);padding-bottom:10px}
 .store-section-head h3{font-size:26px;text-transform:uppercase;letter-spacing:.8px;text-align:center}
@@ -139,15 +141,20 @@
 .store-premium-card,.store-nova-card{border-color:rgba(250,204,21,.22);background:linear-gradient(180deg,rgba(41,28,7,.74),rgba(2,10,19,.94))}
 .store-credit-card{border-color:rgba(56,189,248,.25)}
 .store-starter-card{border-color:rgba(34,197,94,.22)}
+.store-beta-card{border-color:rgba(34,197,94,.35);background:linear-gradient(180deg,rgba(12,53,34,.70),rgba(2,10,19,.94))}
+.store-beta-card:hover{border-color:rgba(34,197,94,.78);box-shadow:0 0 18px rgba(34,197,94,.14)}
+.store-beta-card.purchased{opacity:.72;border-color:rgba(148,163,184,.34);background:linear-gradient(180deg,rgba(15,23,42,.70),rgba(2,10,19,.94))}
 .store-starter-card.purchased{opacity:.68;border-color:rgba(148,163,184,.28);background:linear-gradient(180deg,rgba(15,23,42,.70),rgba(2,10,19,.94))}
 .store-starter-card.purchased .store-offer-art,.store-starter-card.purchased .store-starter-content-chip{filter:grayscale(.55)}
 .store-starter-card.purchased .store-offer-foot b{color:#94a3b8;text-shadow:none}
 .store-offer-art{width:96px;height:96px;display:grid;place-items:center;border:1px solid rgba(250,204,21,.18);background:radial-gradient(circle,rgba(250,204,21,.12),rgba(2,10,19,.72) 68%)}
 .store-credit-card .store-offer-art{border-color:rgba(56,189,248,.22);background:radial-gradient(circle,rgba(56,189,248,.13),rgba(2,10,19,.72) 68%)}
 .store-starter-card .store-offer-art{border-color:rgba(34,197,94,.22);background:radial-gradient(circle,rgba(34,197,94,.12),rgba(2,10,19,.72) 68%)}
+.store-offer-art.beta{border-color:rgba(34,197,94,.34);background:radial-gradient(circle,rgba(34,197,94,.16),rgba(2,10,19,.72) 68%)}
 .store-offer-art img{max-width:82px;max-height:82px;object-fit:contain;filter:drop-shadow(0 0 14px rgba(250,204,21,.3))}
 .store-credit-card .store-offer-art img{filter:drop-shadow(0 0 14px rgba(56,189,248,.3))}
 .store-starter-card .store-offer-art img{filter:drop-shadow(0 0 14px rgba(34,197,94,.3))}
+.store-beta-card .store-offer-art img{filter:drop-shadow(0 0 14px rgba(34,197,94,.32))}
 .store-offer-copy{display:grid;gap:8px;min-width:0}
 .store-offer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .store-offer-head strong{color:#f1fbff;font-size:17px;text-transform:uppercase;line-height:1.15;overflow-wrap:anywhere}
@@ -167,7 +174,10 @@
 .store-starter-content-chip:hover::after,.store-starter-content-chip:hover::before{opacity:1}
 .store-starter-content-chip:hover::after{transform:translateX(-50%) translateY(0)}
 .store-offer-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.store-offer-foot b{color:#facc15;font-size:22px;text-shadow:0 0 12px rgba(250,204,21,.24)}
+.store-offer-foot b{display:inline-flex;align-items:center;min-width:0;color:#facc15;font-size:22px;text-shadow:0 0 12px rgba(250,204,21,.24);line-height:1.05}
+.store-beta-card .store-offer-foot b{color:#bbf7d0;font-size:12px;line-height:1.25;text-shadow:none}
+.store-real-price{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:72px;min-height:34px;padding:0 11px;border:1px solid rgba(250,204,21,.42);background:linear-gradient(180deg,rgba(104,64,10,.86),rgba(46,28,5,.94));box-shadow:inset 0 0 0 1px rgba(255,255,255,.035),0 0 12px rgba(250,204,21,.08);color:#d8c39a;font-size:11px;font-weight:800;line-height:1;text-align:center;text-transform:uppercase;letter-spacing:.35px;white-space:nowrap}
+.store-real-price.muted{border-color:rgba(148,163,184,.28);background:linear-gradient(180deg,rgba(51,65,85,.52),rgba(15,23,42,.82));color:#aeb7c4;box-shadow:none}
 .gold-button{min-height:40px;padding:0 14px;border:1px solid rgba(250,204,21,.55);background:linear-gradient(180deg,rgba(161,98,7,.9),rgba(69,39,4,.92));color:#fff7b0;font:900 13px/1 var(--font);text-transform:uppercase;letter-spacing:.7px;cursor:pointer}
 .gold-button.small{min-height:34px;padding:8px 10px;font-size:11px}
 .gold-button:disabled{opacity:.58;cursor:not-allowed;filter:grayscale(.2)}
@@ -187,7 +197,22 @@
 .store-reward-pills{display:flex;flex-wrap:wrap;gap:5px}
 .store-reward-pill{display:inline-flex;align-items:center;gap:5px;min-height:25px;padding:4px 6px;border:1px solid rgba(56,189,248,.18);background:rgba(2,10,19,.58);font-size:10px;color:#dff6ff}
 .store-reward-pill.nova{border-color:rgba(250,204,21,.3);color:#fde68a}
+.store-reward-pill.special,.store-reward-pill.ship{border-color:rgba(34,197,94,.34);color:#bbf7d0}
 .store-reward-pill img{width:18px;height:18px;object-fit:contain}
+.beta-store-shell{display:grid;gap:14px}
+.beta-store-message{padding:14px;border:1px solid rgba(34,197,94,.34);background:linear-gradient(180deg,rgba(15,70,43,.56),rgba(2,10,19,.82));box-shadow:inset 0 0 24px rgba(34,197,94,.05)}
+.beta-store-message h3{margin-top:4px;color:#ecfdf5;font-size:22px;text-transform:uppercase}
+.beta-store-message p{margin-top:6px;color:#c6f6d5;font-size:13px;line-height:1.45}
+.store-offer-grid.beta-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.beta-rewards-panel{margin-top:2px}
+.beta-reward-summary{border-color:rgba(34,197,94,.32);background:linear-gradient(180deg,rgba(15,70,43,.45),rgba(2,10,19,.76))}
+.beta-reward-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+.beta-ship-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.beta-ship-choice{display:grid;place-items:center;gap:6px;min-height:110px;padding:8px;border:1px solid rgba(34,197,94,.24);background:rgba(2,10,19,.48);cursor:pointer}
+.beta-ship-choice.active{border-color:rgba(250,204,21,.78);background:linear-gradient(180deg,rgba(92,61,8,.36),rgba(2,10,19,.72));box-shadow:0 0 16px rgba(250,204,21,.12)}
+.beta-ship-choice img{max-width:78px;max-height:68px;object-fit:contain;filter:drop-shadow(0 0 12px rgba(34,197,94,.26))}
+.beta-ship-choice b{color:#bbf7d0;font-size:12px;text-transform:uppercase}
+.beta-official-reward{grid-template-columns:1fr}
 .store-modal-backdrop{position:absolute;inset:0;z-index:20;display:grid;place-items:center;padding:22px;background:rgba(1,7,16,.72)}
 .store-modal{position:relative;width:min(760px,calc(100% - 32px));max-height:calc(100vh - 120px);overflow:auto;display:grid;gap:14px;padding:16px;border:1px solid rgba(250,204,21,.45);background:linear-gradient(180deg,rgba(7,24,42,.98),rgba(2,10,19,.98));box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 32px rgba(250,204,21,.14)}
 .store-modal-close{position:absolute;right:10px;top:10px;width:28px;height:28px;border:1px solid rgba(250,204,21,.42);background:rgba(2,10,19,.86);color:#fde68a;font:900 18px/1 var(--font);cursor:pointer}
@@ -195,6 +220,7 @@
 .store-modal-head .tiny{grid-column:1/-1}
 .store-modal-head h3{font-size:27px;text-transform:uppercase;color:#f8fafc}
 .store-modal-head b{align-self:center;color:#facc15;font-size:22px}
+.store-modal-head .store-real-price{align-self:center}
 .store-modal-body{display:grid;grid-template-columns:180px minmax(0,1fr);gap:14px}
 .store-modal-art{min-height:178px;display:grid;place-items:center;border:1px solid rgba(56,189,248,.18);background:radial-gradient(circle,rgba(56,189,248,.12),rgba(2,10,19,.76) 68%)}
 .store-modal-art.premium{border-color:rgba(250,204,21,.28);background:radial-gradient(circle,rgba(250,204,21,.14),rgba(2,10,19,.76) 68%)}
@@ -211,13 +237,15 @@
 
 @media (max-width:1280px){
   .store-offer-grid.currency-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .store-offer-grid.beta-grid{grid-template-columns:1fr}
   .store-reward-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .beta-reward-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media (max-width:1120px){
   .store-layout{grid-template-columns:1fr}
   .store-tab-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
   .store-tab-panel{min-height:0}
-  .store-offer-grid,.store-offer-grid.currency-grid{grid-template-columns:1fr}
+  .store-offer-grid,.store-offer-grid.currency-grid,.store-offer-grid.beta-grid{grid-template-columns:1fr}
   .store-section-head,.store-head{display:block}
   .store-section-head p,.store-premium-status{text-align:left;margin-top:10px}
 }
@@ -228,7 +256,9 @@
   .store-offer-art img{max-width:68px;max-height:68px}
   .store-reward-summary{display:grid}
   .store-reward-grid{grid-template-columns:1fr}
+  .beta-reward-grid{grid-template-columns:1fr}
   .store-modal-body{grid-template-columns:1fr}
   .store-modal-features,.store-starter-contents{grid-template-columns:1fr}
+  .beta-ship-choice-grid{grid-template-columns:1fr}
   .store-modal-head{grid-template-columns:1fr}
 }

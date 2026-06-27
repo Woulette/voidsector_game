@@ -13,7 +13,7 @@ import {
 } from "../core/store.js";
 import { statLabelForItem } from "./renderShared.js";
 import { S1_BOOSTER_SHOP } from "../shared/firmBoosters.js";
-import { currencyAmountHtml } from "./currencyIcons.js";
+import { currencyAmountHtml, realMoneyPriceHtml } from "./currencyIcons.js?v=store-real-prices-1";
 
 function shopCatalog(){
   return [
@@ -154,7 +154,7 @@ function productDetailStats(product){
     const pack = product.data;
     return [
       `Duree ${pack.days} jours`,
-      `Prix boutique ${pack.realPrice}`,
+      `Prix boutique ${realMoneyPriceHtml(pack.realPrice)}`,
       `Statut ${isPremiumActive(store.state?.player) ? premiumRemainingLabel(store.state.player) : "Inactif"}`,
       ...pack.features
     ];

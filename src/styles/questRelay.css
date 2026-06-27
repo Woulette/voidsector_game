@@ -45,6 +45,11 @@
 .spawn-panel.quest-mode .quest-strip.red::before{background:#ef4444;box-shadow:0 0 12px rgba(239,68,68,.62)}
 .spawn-panel.quest-mode .quest-strip.red .quest-strip-title,.spawn-panel.quest-mode .quest-strip.red .quest-strip-meta b{color:#ff7a85}
 .spawn-panel.quest-mode .quest-strip.red.selected{border-color:rgba(248,113,113,.9)}.spawn-panel.quest-mode .quest-strip.red.selected::before{background:#ef4444}
+.spawn-panel.quest-mode .quest-strip[data-view-quest="quest_drone_cleanup"],.spawn-panel.quest-mode .quest-strip[data-view-quest^="quest_drone_cleanup_"]{border-color:rgba(239,68,68,.58);background:linear-gradient(100deg,rgba(90,15,24,.5),rgba(19,3,8,.95))}
+.spawn-panel.quest-mode .quest-strip[data-view-quest="quest_drone_cleanup"]::before,.spawn-panel.quest-mode .quest-strip[data-view-quest^="quest_drone_cleanup_"]::before{background:#ef4444;box-shadow:0 0 12px rgba(239,68,68,.62)}
+.spawn-panel.quest-mode .quest-strip[data-view-quest="quest_drone_cleanup"] .quest-strip-title,.spawn-panel.quest-mode .quest-strip[data-view-quest^="quest_drone_cleanup_"] .quest-strip-title,.spawn-panel.quest-mode .quest-strip[data-view-quest="quest_drone_cleanup"] .quest-strip-meta b,.spawn-panel.quest-mode .quest-strip[data-view-quest^="quest_drone_cleanup_"] .quest-strip-meta b{color:#ff7a85}
+.spawn-panel.quest-mode .quest-strip[data-view-quest="quest_drone_cleanup"].selected,.spawn-panel.quest-mode .quest-strip[data-view-quest^="quest_drone_cleanup_"].selected{border-color:rgba(248,113,113,.9)}
+.spawn-panel.quest-mode .quest-strip[data-view-quest="quest_drone_cleanup"].selected::before,.spawn-panel.quest-mode .quest-strip[data-view-quest^="quest_drone_cleanup_"].selected::before{background:#ef4444}
 .spawn-panel.quest-mode .quest-strip.claimable::before{background:#22c55e}
 .spawn-panel.quest-mode .quest-strip-title{align-self:end;color:#eefaff;font-size:11px;font-weight:900;line-height:1.15;letter-spacing:.35px;text-transform:uppercase}
 .spawn-panel.quest-mode .quest-strip-meta{align-self:start}.spawn-panel.quest-mode .quest-strip-meta b{color:#9bdcf7;font-size:10px}
@@ -89,9 +94,6 @@
 .spawn-panel.quest-mode .quest-section-title,.spawn-panel.quest-mode .quest-reward-title{min-height:25px;margin:0;padding:0 8px;border-color:rgba(56,189,248,.2);background:linear-gradient(90deg,rgba(8,47,73,.22),transparent);color:#7dd3fc;font-size:9px;letter-spacing:.75px}
 .spawn-panel.quest-mode .quest-reward-title{border-color:rgba(250,204,21,.22);background:linear-gradient(90deg,rgba(91,57,5,.2),transparent);color:#fff36a}
 .spawn-panel.quest-mode .quest-objective-text{display:block;margin:0;padding:0 2px;overflow:visible;color:#c7e1ee;font-size:11px;line-height:1.4;-webkit-line-clamp:unset}
-.spawn-panel.quest-mode .quest-progress-row{display:grid;gap:5px;padding:7px;border:1px solid rgba(56,189,248,.11);background:rgba(255,255,255,.018)}
-.spawn-panel.quest-mode .quest-progress-label{display:flex;justify-content:space-between;gap:8px}.spawn-panel.quest-mode .quest-progress-label span{color:#789eb3;font-size:8px;font-weight:900;letter-spacing:.45px;text-transform:uppercase}.spawn-panel.quest-mode .quest-progress-label b{color:#fff;font-size:10px}
-.spawn-panel.quest-mode .quest-progress-track{height:7px;overflow:hidden;background:#01070d}.spawn-panel.quest-mode .quest-progress-track span{display:block;height:100%;background:linear-gradient(90deg,#0ea5e9,#22d3ee,#facc15);box-shadow:0 0 9px rgba(56,189,248,.35)}
 .spawn-panel.quest-mode .quest-target-icons{display:flex;gap:6px;flex-wrap:wrap}.spawn-panel.quest-mode .quest-target-icon{width:48px;height:48px;background:radial-gradient(circle,rgba(56,189,248,.11),rgba(1,8,15,.72))}.spawn-panel.quest-mode .quest-target-icon img{width:40px;height:40px}
 .spawn-panel.quest-mode .quest-objective-metadata{display:flex;gap:6px;flex-wrap:wrap}.spawn-panel.quest-mode .quest-objective-meta{min-width:0;width:auto;padding:5px 7px}.spawn-panel.quest-mode .quest-objective-meta span{font-size:8px}.spawn-panel.quest-mode .quest-objective-meta b{font-size:9px}
 

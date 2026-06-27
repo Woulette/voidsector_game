@@ -49,10 +49,27 @@ export function createServerEventController({
       renderAll();
       return true;
     }
+    if(reason === "shop:beta-pack-bought"){
+      for(const event of consume(multiplayer.shopBetaPackEvents)){
+        const suffix = event.shipChoice ? ` (${event.shipChoice})` : "";
+        showToast(`${event.name || "Pack beta"} attribue cote serveur${suffix}.`);
+      }
+      renderAll();
+      return true;
+    }
     if(reason === "premium:reward-claimed"){
       for(const event of consume(multiplayer.premiumRewardEvents)){
         const day = Number(event.day || 0);
         showToast(`Recompense premium jour ${day || "?"} recue cote serveur.`);
+      }
+      renderAll();
+      return true;
+    }
+    if(reason === "beta:reward-claimed"){
+      for(const event of consume(multiplayer.betaRewardEvents)){
+        const day = Number(event.day || 0);
+        const randomShip = event.randomShip ? ` Vaisseau obtenu : ${event.randomShip}.` : "";
+        showToast(`Recompense beta jour ${day || "?"} recue cote serveur.${randomShip}`);
       }
       renderAll();
       return true;

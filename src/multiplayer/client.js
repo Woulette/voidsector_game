@@ -2,14 +2,14 @@ import { createCombatCommands } from "./combatCommands.js";
 import { installChatSocketListeners } from "./chatSocketListeners.js";
 import { createMultiplayerAuthController } from "./authController.js";
 import { installMultiplayerDomHandlers as installDomHandlers } from "./domHandlers.js";
-import { installEconomySocketListeners } from "./economySocketListeners.js";
+import { installEconomySocketListeners } from "./economySocketListeners.js?v=beta-store-1";
 import { createFirmCommands } from "./firmCommands.js";
-import { installFirmSocketListeners } from "./firmSocketListeners.js";
+import { installFirmSocketListeners } from "./firmSocketListeners.js?v=firm-shop-sync-1";
 import { createGroupCommands } from "./groupCommands.js";
-import { syncMultiplayerProfile as syncProfile } from "./profileSync.js";
+import { syncMultiplayerProfile as syncProfile } from "./profileSync.js?v=profile-sync-dedupe-1";
 import { installPlayerSocketListeners } from "./playerSocketListeners.js";
 import { installProgressionSocketListeners } from "./progressionSocketListeners.js";
-import { createSocketCommands } from "./socketCommands.js";
+import { createSocketCommands } from "./socketCommands.js?v=beta-store-1";
 import { createSocialCommands } from "./socialCommands.js";
 import { installSocialSocketListeners } from "./socialSocketListeners.js";
 import {
@@ -25,10 +25,12 @@ const DEFAULT_SERVER_URL = DEFAULT_MULTIPLAYER_SERVER_URL;
 const SERVER_STORAGE_KEY = "voidsector-multiplayer-server";
 const NAME_STORAGE_KEY = "voidsector-multiplayer-name";
 const AUTH_TOKEN_STORAGE_KEY = "voidsector-auth-token";
-const AUTH_REMEMBER_STORAGE_KEY = "avosomanox-auth-remember";
-const AUTH_SYNC_CHANNEL_NAME = "avosomanox-auth-sync";
+const AUTH_REMEMBER_STORAGE_KEY = "avosoma-auth-remember";
+const LEGACY_AUTH_REMEMBER_STORAGE_KEY = "avosomanox-auth-remember";
+const AUTH_SYNC_CHANNEL_NAME = "avosoma-auth-sync";
 const CLIENT_ID_STORAGE_KEY = "voidsector-client-id";
 const LEADERBOARD_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+const MULTIPLAYER_STATE_KEY = "__voidsectorMultiplayerState";
 
 let authSyncChannel = null;
 let authSyncInstalled = false;
@@ -60,6 +62,20 @@ function clearStoredAuthToken(){
   broadcastAuthChange({type:"logout"});
 }
 
+function migrateAuthRememberPreference(){
+  const current = localStorage.getItem(AUTH_REMEMBER_STORAGE_KEY);
+  if(current !== null){
+    localStorage.removeItem(LEGACY_AUTH_REMEMBER_STORAGE_KEY);
+    return current;
+  }
+  const legacy = localStorage.getItem(LEGACY_AUTH_REMEMBER_STORAGE_KEY);
+  if(legacy !== null){
+    localStorage.setItem(AUTH_REMEMBER_STORAGE_KEY, legacy);
+    localStorage.removeItem(LEGACY_AUTH_REMEMBER_STORAGE_KEY);
+  }
+  return legacy;
+}
+
 function removeStoredAuthTokenIfMatches(token){
   const clean = String(token || "");
   if(!clean) return;
@@ -68,7 +84,7 @@ function removeStoredAuthTokenIfMatches(token){
 }
 
 function shouldRememberAuth(){
-  return localStorage.getItem(AUTH_REMEMBER_STORAGE_KEY) !== "0";
+  return migrateAuthRememberPreference() !== "0";
 }
 
 function storeAuthToken(token, remember = shouldRememberAuth()){
@@ -92,7 +108,8 @@ function getClientId(){
   return id;
 }
 
-export const multiplayer = {
+function createMultiplayerState(){
+  return {
   socket:null,
   connected:false,
   connecting:false,
@@ -133,7 +150,9 @@ export const multiplayer = {
   shopItemEvents:[],
   shopBoosterEvents:[],
   shopPremiumPackEvents:[],
+  shopBetaPackEvents:[],
   premiumRewardEvents:[],
+  betaRewardEvents:[],
   inventorySaleEvents:[],
   commerceSaleEvents:[],
   shopShipEvents:[],
@@ -159,7 +178,9 @@ export const multiplayer = {
   shipAbilityEffectEvents:[],
   shipAbilityState:null,
   serverEnemies:new Map(),
+  serverEnemyDefinitions:new Map(),
   serverEnemyScope:null,
+  serverEnemyScopeKey:null,
   coopInstanceId:null,
   coopSpawn:null,
   portalInstance:null,
@@ -195,13 +216,16 @@ export const multiplayer = {
   lastSent:0,
   showToast:null
 };
+}
+
+export const multiplayer = globalThis[MULTIPLAYER_STATE_KEY] || (globalThis[MULTIPLAYER_STATE_KEY] = createMultiplayerState());
 
 function emitChange(reason = "state", payload = null){
   window.dispatchEvent(new CustomEvent("voidsector:multiplayer-change", {detail:{reason, payload}}));
 }
 
-function toast(message){
-  if(typeof multiplayer.showToast === "function") multiplayer.showToast(message);
+function toast(message, options){
+  if(typeof multiplayer.showToast === "function") multiplayer.showToast(message, options);
 }
 
 function applyExternalAuthToken(token){
@@ -298,6 +322,7 @@ const auth = createMultiplayerAuthController({
 export function setAuthRememberEnabled(remember = true){
   multiplayer.auth.remember = remember !== false;
   localStorage.setItem(AUTH_REMEMBER_STORAGE_KEY, multiplayer.auth.remember ? "1" : "0");
+  localStorage.removeItem(LEGACY_AUTH_REMEMBER_STORAGE_KEY);
   if(multiplayer.auth.token) storeAuthToken(multiplayer.auth.token, multiplayer.auth.remember);
   else if(!multiplayer.auth.remember) localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   emitChange("auth:remember");
@@ -620,7 +645,9 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.shopItemEvents = [];
   multiplayer.shopBoosterEvents = [];
   multiplayer.shopPremiumPackEvents = [];
+  multiplayer.shopBetaPackEvents = [];
   multiplayer.premiumRewardEvents = [];
+  multiplayer.betaRewardEvents = [];
   multiplayer.inventorySaleEvents = [];
   multiplayer.commerceSaleEvents = [];
   multiplayer.shopShipEvents = [];
@@ -645,7 +672,9 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.shipAbilityEffectEvents = [];
   multiplayer.shipAbilityState = null;
   multiplayer.serverEnemies.clear();
+  multiplayer.serverEnemyDefinitions.clear();
   multiplayer.serverEnemyScope = null;
+  multiplayer.serverEnemyScopeKey = null;
   multiplayer.coopInstanceId = null;
   multiplayer.coopSpawn = null;
   multiplayer.portalInstance = null;
@@ -739,7 +768,9 @@ export const {
   buyServerItem,
   buyServerBooster,
   buyServerPremiumPack,
+  buyServerBetaPack,
   claimServerPremiumReward,
+  claimServerBetaReward,
   sellServerInventoryItem,
   sellServerMaterial,
   buyServerShip,

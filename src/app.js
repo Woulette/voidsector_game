@@ -24,16 +24,16 @@ import {
   store,
   XP_CURVE_VERSION
 } from "./core/store.js";
-import { createCombatGame } from "./game/combat.js?v=commerce-2";
-import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js";
-import { connectMultiplayer, disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, registerAccount, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js";
-import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=ship-abilities-2";
-import { showToast } from "./ui/toast.js?v=currency-icons-2";
+import { createCombatGame } from "./game/combat.js?v=engine-trail-40-quest-detail-clean-4-refine-boost-assets-1-firm-panel-gift-3";
+import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=firm-shop-sync-1";
+import { connectMultiplayer, disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, registerAccount, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=firm-shop-sync-1";
+import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=beta-store-3-firm-collective-1-firm-nova-10-1";
+import { showToast } from "./ui/toast.js?v=portal-toast-1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=ship-abilities-1";
-import { createProfileController } from "./app/profileController.js";
+import { createProfileController } from "./app/profileController.js?v=beta-store-1";
 import { createTutorialController } from "./ui/tutorialController.js?v=tutorial-flow-8";
-import { createServerEventController } from "./app/serverEventController.js";
-import { createShopActions } from "./app/shopActions.js";
+import { createServerEventController } from "./app/serverEventController.js?v=beta-store-1";
+import { createShopActions } from "./app/shopActions.js?v=beta-store-1";
 import { getFirstFirmRewardDestination } from "./ui/firmRewardNotifications.js";
 import { createEquipmentActions } from "./app/equipmentActions.js";
 import {
@@ -68,6 +68,7 @@ let gameStartConnectRequested = false;
 let lastGameAuthNoticeAt = 0;
 const urlParams = new URLSearchParams(window.location.search);
 const appMode = urlParams.get("mode") === "game" ? "game" : "launcher";
+if(store.storeTab === "premium") store.storeTab = "beta";
 const PROFILE_SCOPE_STORAGE_KEY = "voidsector-active-profile-scope";
 const SCROLL_PRESERVE_SELECTORS = [
   ".rpg-inventory-grid",
@@ -289,7 +290,7 @@ const accountProfileScope = profileController.accountProfileScope;
 let authGate = null;
 let gameRecovery = null;
 
-function promptAuthGate(message = "Connecte ton compte AvosomaNox avant d'entrer en jeu."){
+function promptAuthGate(message = "Connecte ton compte Avosoma avant d'entrer en jeu."){
   if(appMode === "game"){
     if(multiplayer.auth?.token && (multiplayer.connecting || multiplayer.auth?.pending)) return;
     gameRecovery?.show?.("account");
@@ -332,7 +333,9 @@ const {
   buyCombatDrone,
   buyDroneFormation,
   buyPremiumPack,
-  claimPremiumReward
+  buyBetaPack,
+  claimPremiumReward,
+  claimBetaReward
 } = createShopActions({
   multiplayer,
   store,
@@ -349,7 +352,9 @@ const {
   buyServerDrone,
   buyServerDroneFormation,
   buyServerPremiumPack,
+  buyServerBetaPack,
   claimServerPremiumReward,
+  claimServerBetaReward,
   showToast
 });
 
@@ -588,6 +593,25 @@ document.addEventListener("click", (e)=>{
       id:storeOffer.dataset.storeOffer || ""
     };
     renderAll();
+    return;
+  }
+
+  const betaShipChoice = e.target.closest("[data-beta-ship-choice]");
+  if(betaShipChoice && store.storeModal?.kind === "beta"){
+    store.storeModal.shipChoice = betaShipChoice.dataset.betaShipChoice || "";
+    renderAll();
+    return;
+  }
+
+  const betaPackBtn = e.target.closest("[data-buy-beta-pack]");
+  if(betaPackBtn){
+    buyBetaPack(betaPackBtn.dataset.buyBetaPack, betaPackBtn.dataset.betaPackShipChoice || "");
+    return;
+  }
+
+  const betaRewardBtn = e.target.closest("[data-claim-beta-reward]");
+  if(betaRewardBtn){
+    claimBetaReward();
     return;
   }
 
@@ -1067,6 +1091,7 @@ window.addEventListener("voidsector:profile-sync", event=>{
     || (Object.hasOwn(player, "firmId") && beforeFirmId !== store.state?.player?.firmId)
   );
   if(appMode === "game" && firmSetupChanged) renderAllPreserveScroll();
+  if(store.currentView === "firm") requestFirmSync({includeShop:true});
   if(appMode === "game") window.setTimeout(startGameWhenMmoReady, 0);
   gameRecovery?.handleProfileSync();
 });
@@ -1099,10 +1124,15 @@ window.addEventListener("voidsector:multiplayer-change", event=>{
   const reason = String(event.detail?.reason || "");
   gameRecovery?.handleChange(event);
   if(handleAdminPanelServerChange(reason) || reason === "auth:success" || reason === "auth:role" || reason === "auth:moderation" || reason === "auth:logout" || reason === "auth:replaced" || reason === "auth:banned") renderAllPreserveScroll();
+  if(reason === "auth:success" && store.currentView === "firm") window.setTimeout(()=>requestFirmSync({includeShop:true}), 100);
   if(reason === "firm:updated" && event.detail?.payload?.action === "box-open"){
     store.firmBoxOpening = {...event.detail.payload, revealId:`box_${Date.now()}`};
   }
   if(reason.startsWith("firm:")){
+    if(reason === "firm:snapshot" && store.currentView === "firm" && store.firmTab === "shop"){
+      const shop = multiplayer.firmSnapshot?.shop;
+      if(!Array.isArray(shop) || !shop.length) requestFirmSync({includeShop:true});
+    }
     renderTop();
     if(store.currentView === "firm" && store.firmAutoOpenClaimable){
       const destination = getFirstFirmRewardDestination(multiplayer.firmSnapshot);
@@ -1173,7 +1203,7 @@ function startGameWhenMmoReady(){
       gameStartConnectRequested = true;
       connectMultiplayer({name:multiplayer.name});
     }
-    promptAuthGate("Connecte ton compte AvosomaNox pour lancer la session.");
+    promptAuthGate("Connecte ton compte Avosoma pour lancer la session.");
     return;
   }
   if(store.state.player?.firmSelected !== true){

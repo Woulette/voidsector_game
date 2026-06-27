@@ -40,9 +40,19 @@ body:not(.app-booting) .app-boot-screen{
   gap:8px;
   text-align:center;
 }
-.app-boot-core img{
-  width:min(210px,52vw);
-  filter:drop-shadow(0 0 30px rgba(56,189,248,.42));
+.app-brand-logo{
+  display:block;
+  width:118px;
+  height:118px;
+  object-fit:contain;
+  filter:drop-shadow(0 0 24px rgba(56,189,248,.38));
+  pointer-events:none;
+  user-select:none;
+}
+.app-brand-logo--boot{
+  width:150px;
+  height:150px;
+  margin-bottom:8px;
 }
 .app-boot-kicker{
   color:#facc15;
@@ -295,10 +305,18 @@ body.auth-ready #authGate{
   gap:12px;
   padding:42px 18px;
 }
-.auth-logo{
-  width:min(360px,74vw);
-  height:auto;
-  filter:drop-shadow(0 0 32px rgba(56,189,248,.38));
+.auth-brand-lockup{
+  position:relative;
+  width:max-content;
+  max-width:100%;
+  padding-top:98px;
+}
+.auth-logo-image{
+  position:absolute;
+  top:-34px;
+  left:min(340px,calc(100% - 118px));
+  width:118px;
+  height:118px;
 }
 .auth-hero h1{
   font-size:clamp(44px,8vw,92px);
@@ -335,7 +353,7 @@ body.auth-ready #authGate{
 }
 .auth-signal-grid b{
   color:#facc15;
-  font-size:18px;
+  font-size:17px;
   letter-spacing:1px;
 }
 .auth-signal-grid small{
@@ -484,6 +502,15 @@ body.auth-ready #authGate{
   .auth-panel{
     min-height:0;
   }
+  .auth-brand-lockup{
+    padding-top:72px;
+  }
+  .auth-logo-image{
+    top:-14px;
+    width:92px;
+    height:92px;
+    left:min(300px,calc(100% - 92px));
+  }
   .auth-station{
     width:70vw;
     opacity:.42;
@@ -512,6 +539,12 @@ body.auth-ready #authGate{
   }
   .auth-hero h1{
     font-size:42px;
+  }
+  .auth-brand-lockup{
+    padding-top:0;
+  }
+  .auth-logo-image{
+    display:none;
   }
   .auth-hero p{
     font-size:16px;

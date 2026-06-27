@@ -108,7 +108,7 @@ test("every season booster type is presented as S2 in its details", ()=>{
     seasonReward:{
       rank:1,
       endsAt:now + S2_BOOSTER_DURATION_MS,
-      boosters:{damage:.10, shield:.10, hull:.10, credits:.25, nova:.25}
+      boosters:{damage:.10, shield:.10, hull:.10, credits:.25, nova:.10}
     },
     now
   });

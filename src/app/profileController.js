@@ -118,6 +118,10 @@ export function createProfileController({
     if(profile.equipmentUpgrades && typeof profile.equipmentUpgrades === "object") store.state.equipmentUpgrades = clone(profile.equipmentUpgrades);
     if(Array.isArray(profile.ownedDroneFormations)) store.state.ownedDroneFormations = [...new Set(profile.ownedDroneFormations.map(String))];
     if(Object.hasOwn(profile, "activeDroneFormation")) store.state.activeDroneFormation = typeof profile.activeDroneFormation === "string" ? profile.activeDroneFormation : "base";
+    if(profile.betaRewardState && typeof profile.betaRewardState === "object") store.state.betaRewardState = clone(profile.betaRewardState);
+    if(Array.isArray(profile.betaPackPurchases)) store.state.betaPackPurchases = [...new Set(profile.betaPackPurchases.map(String))];
+    if(Array.isArray(profile.betaLaunchEntitlements)) store.state.betaLaunchEntitlements = [...new Set(profile.betaLaunchEntitlements.map(String))];
+    if(profile.betaShipChoices && typeof profile.betaShipChoices === "object") store.state.betaShipChoices = clone(profile.betaShipChoices);
     store.state.player.xpNext = getXpNextForLevel(store.state.player.level);
     store.state.player.xp = Math.min(Math.max(0, Number(store.state.player.xp || 0)), store.state.player.xpNext);
     store.state.xpCurveVersion = xpCurveVersion;

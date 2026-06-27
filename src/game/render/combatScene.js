@@ -1,9 +1,9 @@
 import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./canvasHud.js";
 import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=ship-charge-1";
-import { drawPlayerLayer } from "./player.js?v=ship-charge-1";
+import { drawPlayerLayer } from "./player.js?v=engine-trail-40";
 import { drawPortalTransitionOverlay } from "./portalTransition.js";
 import { drawWorldLayer } from "./world.js";
-import { drawRemotePlayers } from "../../multiplayer/render.js";
+import { drawRemotePlayers } from "../../multiplayer/render.js?v=engine-trail-40";
 import { getFirmBadgeAsset } from "../../data/firms.js";
 import { RICKY_PORTAL_ASSETS, getRickyPortalWalls, RICKY_PORTAL_MAP } from "../../data/rickyPortal.js";
 import { getCachedCombatImage } from "../combatAssets.js";

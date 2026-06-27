@@ -74,6 +74,8 @@ test("quest relay renders the firm portrait, recipient and progressive transmiss
   assert.match(rendered.html, /data-typewriter-key=/);
   assert.match(rendered.html, /data-typewriter-text=/);
   assert.match(rendered.html, /Accepter la mission/);
+  assert.doesNotMatch(rendered.html, /quest-progress-row/);
+  assert.doesNotMatch(rendered.html, /Progression op/);
 });
 
 test("shared typewriter preserves progress across rerenders and can be completed", ()=>{

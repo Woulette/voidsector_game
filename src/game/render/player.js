@@ -107,9 +107,31 @@ function localToWorld(player, x, y, angle = player.angle){
 
 function lerp(a, b, t){ return a + (b - a) * t; }
 function smoothstep(t){ return t * t * (3 - 2 * t); }
+function clamp(value, min, max){ return Math.max(min, Math.min(max, value)); }
 function lerpAngle(current, target, amount){
   const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
   return current + delta * amount;
+}
+
+function getEngineTrailVisual({player, time, power, profile = {}}){
+  const targetAngle = Number.isFinite(player.engineAngle) ? player.engineAngle : player.angle;
+  const previousTime = Number.isFinite(player.engineTrailVisualTime) ? player.engineTrailVisualTime : time;
+  const dt = clamp(time - previousTime, 0, .08);
+  const previousAngle = Number.isFinite(player.engineTrailVisualAngle) ? player.engineTrailVisualAngle : targetAngle;
+  const response = 5.8 + power * 3.2;
+  const angle = lerpAngle(previousAngle, targetAngle, Math.min(1, dt * response));
+  const delta = Math.atan2(Math.sin(angle - player.angle), Math.cos(angle - player.angle));
+  const turnAngleScale = Number.isFinite(profile.turnAngleScale) ? profile.turnAngleScale : 1;
+  const turnAngleMax = Number.isFinite(profile.turnAngleMax) ? profile.turnAngleMax : .22;
+  const turnBendScale = Number.isFinite(profile.turnBendScale) ? profile.turnBendScale : 1;
+  const turnDelta = -delta;
+  const angleOffset = clamp(turnDelta * .34 * turnAngleScale, -turnAngleMax, turnAngleMax);
+  player.engineTrailVisualTime = time;
+  player.engineTrailVisualAngle = angle;
+  return {
+    angle:player.angle + angleOffset,
+    bend:clamp(turnDelta / .40 * turnBendScale, -1, 1)
+  };
 }
 
 function triadPoint(points, memberIndex, time, phase = 0, movePortion = .52){
@@ -223,7 +245,8 @@ export function spawnPlayerEngineParticles({dt, player, ship, particles, default
     player.engineParticleT -= 1;
     const port = layout[Math.floor(Math.random() * layout.length)] || defaultProfile.ports[0];
     const portWidth = port.width || 1;
-    const origin = localToWorld(player, port.x + (Math.random() - .5) * 5 * portWidth, port.y + 4, angle);
+    const particleOriginOffset = Number.isFinite(profile.particleOriginOffset) ? profile.particleOriginOffset : 2;
+    const origin = localToWorld(player, port.x + (Math.random() - .5) * 5 * portWidth, port.y + particleOriginOffset, player.angle);
     const speed = (58 + Math.random() * 115 + power * 90) * (profile.particleSpeed || 1);
     const jitter = (Math.random() - .5) * (38 + power * 28) * (profile.particleSpread || 1) * portWidth;
     const size = (2.4 + Math.random() * 5.8) * (port.size || 1) * (profile.particleSize || 1);
@@ -238,7 +261,9 @@ export function spawnPlayerEngineParticles({dt, player, ship, particles, default
       life,
       max:life,
       size,
-      color:Math.random() > .22 ? engineRgba(colors.particle, .74) : engineRgba(colors.spark, .72)
+      color:Math.random() > .22
+        ? engineRgba(colors.particle, profile.particleAlpha ?? .74)
+        : engineRgba(colors.spark, profile.particleSparkAlpha ?? .72)
     });
   }
 }
@@ -251,6 +276,7 @@ function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profi
   const profile = getEngineProfile({ship, defaultProfile, profiles});
   const colors = profile.colors;
   const time = performance.now() / 1000;
+  const visual = getEngineTrailVisual({player, time, power, profile});
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
 
@@ -260,47 +286,60 @@ function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profi
     const length = ((profile.baseLength || 22) + power * (profile.powerLength || 30)) * size * (port.length || 1) * pulse;
     const width = ((profile.baseWidth || 7.5) + power * (profile.powerWidth || 7)) * size * (port.width || 1);
     const sway = Math.sin(time * (18 + power * 8) + index * 1.9) * width * .12;
+    const turnBend = visual.bend * length * (.40 + Math.min(1, width / 5) * .34);
+    const throatWidth = width * (profile.throatWidth || .18);
+    const plumeWidth = width * (profile.plumeWidth || 1.02);
+    const tailWidth = width * (profile.tailWidth || .34);
+    const tipX = sway + turnBend;
+    const midX = sway * .38 + turnBend * .42;
+    const coreTipX = sway * .55 + turnBend * .72;
     const pos = localToWorld(player, port.x, port.y, player.angle);
+    const trailAlpha = Number.isFinite(profile.trailAlpha) ? profile.trailAlpha : 1;
+    const coreAlpha = Number.isFinite(profile.coreAlpha) ? profile.coreAlpha : trailAlpha;
 
     ctx.save();
     ctx.translate(pos.x - camera.x, pos.y - camera.y);
-    ctx.rotate(player.angle);
-    ctx.globalAlpha = .24 + power * .46;
+    ctx.rotate(visual.angle);
+    ctx.globalAlpha = Math.min(1, (.24 + power * .46) * trailAlpha);
 
-    const glow = ctx.createRadialGradient(sway * .18, length * .30, 1, sway * .22, length * .38, length * .62);
-    glow.addColorStop(0, engineRgba(colors.core, .38 * power));
-    glow.addColorStop(.34, engineRgba(colors.hot, .30 * power));
-    glow.addColorStop(.72, engineRgba(colors.mid, .13 * power));
-    glow.addColorStop(1, engineRgba(colors.edge, 0));
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.ellipse(sway * .18, length * .40, width * 1.08, length * .48, 0, 0, Math.PI * 2);
-    ctx.fill();
+    if(profile.engineGlow !== false){
+      const glow = ctx.createRadialGradient(midX * .18, length * .30, 1, midX * .38, length * .38, length * .62);
+      glow.addColorStop(0, engineRgba(colors.core, .38 * power));
+      glow.addColorStop(.34, engineRgba(colors.hot, .30 * power));
+      glow.addColorStop(.72, engineRgba(colors.mid, .13 * power));
+      glow.addColorStop(1, engineRgba(colors.edge, 0));
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.ellipse(midX * .36, length * .40, width * 1.08, length * .48, turnBend * .006, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    const outer = ctx.createLinearGradient(0, 0, sway, length);
+    const outer = ctx.createLinearGradient(0, 0, tipX, length);
     outer.addColorStop(0, engineRgba(colors.core, .78 * power));
     outer.addColorStop(.18, engineRgba(colors.hot, .70 * power));
     outer.addColorStop(.62, engineRgba(colors.mid, .34 * power));
     outer.addColorStop(1, engineRgba(colors.edge, 0));
     ctx.fillStyle = outer;
     ctx.beginPath();
-    ctx.moveTo(-width * .46, 0);
-    ctx.bezierCurveTo(-width * .74, length * .25, sway - width * .20, length * .76, sway, length);
-    ctx.bezierCurveTo(sway + width * .20, length * .76, width * .74, length * .25, width * .46, 0);
+    ctx.moveTo(-throatWidth, 0);
+    ctx.bezierCurveTo(-throatWidth * .92, length * .12, midX - plumeWidth, length * .42, tipX - tailWidth, length);
+    ctx.quadraticCurveTo(tipX, length * 1.04, tipX + tailWidth, length);
+    ctx.bezierCurveTo(midX + plumeWidth, length * .42, throatWidth * .92, length * .12, throatWidth, 0);
     ctx.closePath();
     ctx.fill();
 
     const coreLength = length * (.70 + Math.sin(time * 34 + index) * .05);
-    const core = ctx.createLinearGradient(0, 0, sway * .55, coreLength);
+    const core = ctx.createLinearGradient(0, 0, coreTipX, coreLength);
     core.addColorStop(0, engineRgba(colors.core, .94 * power));
     core.addColorStop(.42, engineRgba(colors.hot, .70 * power));
     core.addColorStop(1, engineRgba(colors.mid, 0));
-    ctx.globalAlpha = .48 + power * .34;
+    ctx.globalAlpha = Math.min(1, (.48 + power * .34) * coreAlpha);
     ctx.fillStyle = core;
     ctx.beginPath();
-    ctx.moveTo(-width * .18, 1);
-    ctx.quadraticCurveTo(-width * .10, coreLength * .43, sway * .55, coreLength);
-    ctx.quadraticCurveTo(width * .10, coreLength * .43, width * .18, 1);
+    ctx.moveTo(-width * .08, 1);
+    ctx.quadraticCurveTo(turnBend * .18 - width * .24, coreLength * .42, coreTipX - width * .12, coreLength);
+    ctx.quadraticCurveTo(coreTipX + width * .12, coreLength, turnBend * .16 + width * .24, coreLength * .42);
+    ctx.quadraticCurveTo(width * .08, coreLength * .12, width * .08, 1);
     ctx.closePath();
     ctx.fill();
 
@@ -310,7 +349,7 @@ function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profi
     ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(0, Math.max(2, length * .06));
-    ctx.quadraticCurveTo(sway * .25, length * .42, sway * .62, length * .78);
+    ctx.quadraticCurveTo(midX * .42, length * .42, tipX * .72, length * .78);
     ctx.stroke();
 
     const nozzle = ctx.createRadialGradient(0, 0, 1, 0, 0, width * 1.1);
@@ -320,7 +359,7 @@ function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profi
     ctx.globalAlpha = .58 * power;
     ctx.fillStyle = nozzle;
     ctx.beginPath();
-    ctx.ellipse(0, 0, width * .72, Math.max(2.4, width * .24), 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, width * .42, Math.max(1.8, width * .16), 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   });

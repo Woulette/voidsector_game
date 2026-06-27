@@ -9,7 +9,9 @@ export function installEconomySocketListeners({socket, multiplayer, emitChange, 
     ["shop:item-bought", "shopItemEvents"],
     ["shop:booster-bought", "shopBoosterEvents"],
     ["shop:premium-pack-bought", "shopPremiumPackEvents"],
+    ["shop:beta-pack-bought", "shopBetaPackEvents"],
     ["premium:reward-claimed", "premiumRewardEvents"],
+    ["beta:reward-claimed", "betaRewardEvents"],
     ["inventory:item-sold", "inventorySaleEvents"],
     ["commerce:material-sold", "commerceSaleEvents"],
     ["shop:ship-bought", "shopShipEvents"],
@@ -28,6 +30,10 @@ export function installEconomySocketListeners({socket, multiplayer, emitChange, 
   socket.on("premium:reward-error", payload=>{
     toast(payload?.message || "Recompense premium impossible.");
     emitChange("premium:reward-error", payload);
+  });
+  socket.on("beta:reward-error", payload=>{
+    toast(payload?.message || "Recompense beta impossible.");
+    emitChange("beta:reward-error", payload);
   });
   socket.on("inventory:error", payload=>{
     toast(payload?.message || "Action inventaire impossible.");

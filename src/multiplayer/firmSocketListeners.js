@@ -47,7 +47,7 @@ function mergeFirmSnapshot(previous, payload){
 
 export function installFirmSocketListeners({socket, multiplayer, emitChange, toast}){
   socket.on("firm:snapshot", payload=>{
-    const merged = mergeFirmProfiles(multiplayer.firmSnapshot, payload);
+    const merged = mergeFirmSnapshot(multiplayer.firmSnapshot, payload);
     multiplayer.firmSnapshot = merged || null;
     multiplayer.firmRanking = merged || null;
     setPersonalFirmBoosterReward(merged?.personal?.boosters || null);

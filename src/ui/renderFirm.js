@@ -1,9 +1,10 @@
 import { FIRMS, getFirmDefinition, normalizeFirmId } from "../data/firms.js";
 import { ammoTypes, rawMaterialCatalog } from "../data/catalog.js";
 import { fmt } from "../core/utils.js";
-import { multiplayer } from "../multiplayer/client.js";
+import { multiplayer } from "../multiplayer/client.js?v=firm-shop-sync-1";
 import { store } from "../core/store.js";
 import { hasCompactQuestAsset } from "../data/enemyVisuals.js";
+import { FIRM_BOOSTER_DEFINITIONS, getFirmBoostersForRank } from "../shared/firmBoosters.js?v=firm-nova-10-1";
 import { getFirmIndividualRewardTiers } from "../shared/firmSeasonRewards.js";
 import { buildFallbackPilotProfile, installPilotProfileModal, registerPilotProfile } from "./playerProfileModal.js";
 import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
@@ -715,6 +716,29 @@ function renderRewardGift(label, reward){
   </button>`;
 }
 
+function renderSeasonBoosterPreview(rank){
+  const boosters = Object.entries(getFirmBoostersForRank(rank));
+  if(!boosters.length) return `<span class="firm-reward-booster-empty">Aucun booster</span>`;
+  return `<span class="firm-reward-booster-list">${boosters.map(([type, percent])=>{
+    const booster = FIRM_BOOSTER_DEFINITIONS[type] || {};
+    return `<span class="firm-reward-booster" title="${escapeHtml(booster.label || type)}">
+      <img src="${escapeHtml(booster.asset || "assets/icons/firmaton.svg")}" alt="">
+      <b>+${Math.round(Number(percent || 0) * 100)}%</b>
+      <small>${escapeHtml(booster.label || type)}</small>
+    </span>`;
+  }).join("")}</span>`;
+}
+
+function renderCollectiveRewardTier(firm, personalFirmId){
+  const rank = Math.max(1, Math.min(4, Math.floor(Number(firm?.rank || 4))));
+  return `<article class="firm-reward-collective-row ${normalizeFirmId(firm?.id || "") === normalizeFirmId(personalFirmId || "") ? "own" : ""}">
+    <div class="firm-reward-collective-rank"><b>TOP ${rank}</b><span>${escapeHtml(firm?.label || getFirmDefinition(firm?.id).label)}</span></div>
+    <img class="firm-reward-collective-badge" src="${firmBadge(firm?.id)}" alt="">
+    <div class="firm-reward-collective-boosters"><span>Boosters saison</span>${renderSeasonBoosterPreview(rank)}</div>
+    <div class="firm-reward-collective-lot"><span>Lot collectif</span>${rewardHtml(firm?.collectiveReward || {}, {compact:true})}</div>
+  </article>`;
+}
+
 function renderFixedRewardTier(tier, ranking, personalLabel){
   const player = ranking.find(row=>Number(row.rank) === tier.rankStart) || null;
   return `<article class="firm-reward-rank-row ${personalLabel === tier.label ? "own" : ""}">
@@ -752,6 +776,7 @@ export function renderRewards(snapshot){
   const threshold = Math.max(1, Number(snapshot.collectiveMinimumContribution || 10_000));
   const thresholdPercent = Math.min(100, contribution / threshold * 100);
   const ownFirm = (snapshot.firms || []).find(firm=>firm.id === normalizeFirmId(personal.firmId || "astra"));
+  const firmRewardRows = [...(snapshot.firms || [])].sort((a, b)=>Number(a.rank || 99) - Number(b.rank || 99)).slice(0, 4);
   const seasonPending = (personal.pendingRewards || []).filter(entry=>entry.source === "season-individual" || entry.source === "season-collective");
   return `<div class="firm-rewards-layout">
     <section class="firm-main-block firm-reward-threshold ${personal.collectiveEligible ? "eligible" : ""}">
@@ -766,6 +791,11 @@ export function renderRewards(snapshot){
       ${rewardHtml(personal.expectedReward || {})}
       <p>Le classement est global aux quatre firmes. Les lots ne se cumulent pas : seul ton meilleur palier est versé.</p>
       ${seasonPending.length ? `<button class="firm-season-pending-claim" data-firm-reward-claim type="button">RÉCLAMER LES GAINS DE LA SAISON PRÉCÉDENTE</button>` : ""}
+    </section>
+    <section class="firm-main-block firm-reward-collective-board">
+      <div class="firm-main-block-head"><div><span class="tiny">RÃ‰COMPENSES DE FIRME</span><h3>Top 1 Ã  Top 4</h3></div><b>Seuil ${fmt(threshold)} pts</b></div>
+      <p class="firm-reward-ranking-note">Ces boosters et lots collectifs sont dÃ©bloquÃ©s uniquement si tu atteins le seuil personnel avant la fin de saison.</p>
+      <div class="firm-reward-collective-grid">${firmRewardRows.map(firm=>renderCollectiveRewardTier(firm, personal.firmId)).join("")}</div>
     </section>
     <section class="firm-main-block firm-reward-ranking-board">
       <div class="firm-main-block-head"><div><span class="tiny">RÉCOMPENSES INDIVIDUELLES DE FIN DE SAISON</span><h3>Classement et lots</h3></div><b>${fmt(totalPlayers)} joueurs classés</b></div>

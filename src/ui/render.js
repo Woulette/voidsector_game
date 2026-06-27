@@ -1,6 +1,6 @@
 import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js";
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
-import { creditCurrencyPacks, getPremiumRewardStatus, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js";
+import { betaLaunchMessage, betaPacks, betaRewardCalendar, creditCurrencyPacks, getBetaRewardStatus, getPremiumRewardStatus, hasBetaPackPurchase, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js?v=beta-store-3";
 import { fmt } from "../core/utils.js";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js?v=ship-abilities-2";
 import {
@@ -52,14 +52,14 @@ import { ENEMY_TYPES } from "../game/combatData.js";
 import { FIRM_REPRESENTATIVES } from "../data/firmRepresentatives.js";
 
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
-import { renderShop } from "./renderShop.js";
+import { renderShop } from "./renderShop.js?v=store-real-prices-1";
 import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=currency-icons-1";
 import { renderRefinery } from "./renderRefinery.js";
-import { renderFirm } from "./renderFirm.js";
+import { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
 import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
-import { multiplayer } from "../multiplayer/client.js";
+import { multiplayer } from "../multiplayer/client.js?v=firm-shop-sync-1";
 import { renderAdminPanel } from "./adminPanel.js?v=currency-icons-2";
-import { currencyAmountHtml, currencyIconHtml } from "./currencyIcons.js";
+import { currencyAmountHtml, currencyIconHtml, realMoneyPriceHtml } from "./currencyIcons.js?v=store-real-prices-1";
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g, char=>({
@@ -801,6 +801,14 @@ function rewardLines(reward = {}){
   const lines = [];
   if(reward.credits) lines.push({kind:"credits", label:rewardAmountLabel("credits", reward.credits), img:"assets/icons/credits.svg"});
   if(reward.premium) lines.push({kind:"nova", label:rewardAmountLabel("premium", reward.premium), img:"assets/icons/premium.svg"});
+  for(const rewardLine of reward.specialRewards || []){
+    lines.push({kind:"special", label:rewardLine.label || "Recompense speciale", img:rewardLine.img || "assets/icons/premium.svg"});
+  }
+  if(reward.shipRandom){
+    const shipIds = Array.isArray(reward.shipRandom.shipIds) ? reward.shipRandom.shipIds : [];
+    const firstShip = ships.find(ship=>shipIds.includes(ship.id));
+    lines.push({kind:"ship", label:reward.shipRandom.label || "Vaisseau aleatoire", img:firstShip?.img || "assets/ships/Vesperion.png"});
+  }
   for(const [id, amount] of Object.entries(reward.ammo || {})){
     const ammo = ammoTypes.find(entry=>entry.id === id);
     lines.push({kind:"ammo", label:rewardAmountLabel(id, amount), img:ammo?.img || "assets/equipment/ammo_laser_x2_same_preview.png"});
@@ -831,9 +839,57 @@ function renderPremiumStoreCard(pack){
     <div class="store-offer-copy">
       <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${currencyAmountHtml("premium", pack.price)}</span></div>
       <p>${escapeHtml(pack.desc)} Clique pour voir les bonus inclus.</p>
-      <div class="store-offer-foot"><b>${escapeHtml(pack.realPrice)}</b><button class="gold-button small" type="button">DETAILS</button></div>
+      <div class="store-offer-foot"><b>${pack.days} jours premium</b>${realMoneyPriceHtml(pack.realPrice)}</div>
     </div>
   </article>`;
+}
+
+function renderBetaPackCard(pack){
+  const purchased = hasBetaPackPurchase(store.state, pack.id);
+  return `<article class="store-offer-card store-beta-card ${purchased ? "purchased" : ""}" data-store-offer-kind="beta" data-store-offer="${escapeHtml(pack.id)}">
+    <div class="store-offer-art beta"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
+    <div class="store-offer-copy">
+      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${purchased ? "DEJA ACHETE" : escapeHtml(pack.tag || "BETA")}</span></div>
+      <p>${escapeHtml(pack.desc || "")}</p>
+      ${renderStarterContentStrip(pack)}
+      <div class="store-offer-foot"><b>${escapeHtml(pack.officialReward || "Bonus officiel inclus")}</b>${realMoneyPriceHtml(purchased ? "DEJA ACHETE" : pack.price, {className:purchased ? "muted" : ""})}</div>
+    </div>
+  </article>`;
+}
+
+function renderBetaRewards(){
+  const status = getBetaRewardStatus(store.state || {});
+  const claimed = new Set(status.claimedDays || []);
+  return `<section class="store-rewards-panel beta-rewards-panel">
+    <div class="store-reward-summary beta-reward-summary">
+      <div><span class="tiny">CALENDRIER BETA</span><h3>${fmt(status.claimedCount)} / 25 jours</h3><p>${status.canClaim ? "Une recompense beta est disponible aujourd'hui." : escapeHtml(status.reason || "Reviens demain pour la suite.")}</p></div>
+      <button class="gold-button" data-claim-beta-reward type="button" ${status.canClaim ? "" : "disabled"}>${status.canClaim ? `RECLAMER JOUR ${status.nextDay}` : "BLOQUE"}</button>
+    </div>
+    <div class="store-reward-grid beta-reward-grid">
+      ${betaRewardCalendar.map(entry=>{
+        const isClaimed = claimed.has(entry.day);
+        const isNext = !isClaimed && entry.day === status.nextDay && !status.completed;
+        const locked = !isClaimed && entry.day > status.nextDay;
+        return `<article class="store-reward-day ${isClaimed ? "claimed" : ""} ${isNext ? "next" : ""} ${locked ? "locked" : ""}">
+          <div class="store-reward-day-head"><span>Jour ${entry.day}</span><b>${isClaimed ? "RECU" : isNext ? "A RECLAMER" : "A VENIR"}</b></div>
+          <strong>${escapeHtml(entry.label)}</strong>
+          <div class="store-reward-pills">${rewardPills(entry.reward)}</div>
+        </article>`;
+      }).join("")}
+    </div>
+  </section>`;
+}
+
+function renderBetaStore(){
+  return `<div class="beta-store-shell">
+    <section class="beta-store-message">
+      <span class="tiny">ACCES BETA</span>
+      <h3>Packs beta a prix reduit</h3>
+      <p>${escapeHtml(betaLaunchMessage)}</p>
+    </section>
+    <div class="store-offer-grid beta-grid">${betaPacks.map(renderBetaPackCard).join("")}</div>
+    ${renderBetaRewards()}
+  </div>`;
 }
 
 function renderCurrencyStoreCard(pack){
@@ -844,7 +900,7 @@ function renderCurrencyStoreCard(pack){
     <div class="store-offer-copy">
       <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${currencyIconHtml(currencyType)}</span></div>
       <p>${escapeHtml(pack.desc || "")}</p>
-      <div class="store-offer-foot"><b>${pack.amount ? currencyAmountHtml(currencyType, pack.amount) : escapeHtml(pack.price || "A definir")}</b><button class="gold-button small" type="button" disabled>${escapeHtml(pack.price || "Bientot")}</button></div>
+      <div class="store-offer-foot"><b>${pack.amount ? currencyAmountHtml(currencyType, pack.amount) : escapeHtml(pack.price || "A definir")}</b>${realMoneyPriceHtml(pack.price)}</div>
     </div>
   </article>`;
 }
@@ -875,7 +931,7 @@ function renderStarterStoreCard(pack){
       <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${purchased ? "DEJA ACHETE" : escapeHtml(pack.tag || "STARTER")}</span></div>
       <p>${escapeHtml(pack.desc || "")}</p>
       ${renderStarterContentStrip(pack)}
-      <div class="store-offer-foot"><b>${purchased ? "Achat unique utilise" : escapeHtml(pack.price || "A definir")}</b><button class="gold-button small" type="button">${purchased ? "VOIR" : "DETAILS"}</button></div>
+      <div class="store-offer-foot"><b>${purchased ? "Achat unique utilise" : "Contenu inclus"}</b>${realMoneyPriceHtml(purchased ? "DEJA ACHETE" : pack.price, {className:purchased ? "muted" : ""})}</div>
     </div>
   </article>`;
 }
@@ -905,6 +961,9 @@ function renderPremiumRewards(){
 }
 
 function renderStoreTabContent(activeTab){
+  if(activeTab === "beta"){
+    return renderBetaStore();
+  }
   if(activeTab === "premium"){
     return `<div class="store-offer-grid premium-grid">${premiumShopPacks.map(renderPremiumStoreCard).join("")}</div>`;
   }
@@ -920,13 +979,42 @@ function renderStoreTabContent(activeTab){
 function renderStoreModal(){
   const modal = store.storeModal || null;
   if(!modal?.id) return "";
+  if(modal.kind === "beta"){
+    const pack = betaPacks.find(entry=>entry.id === modal.id);
+    if(!pack) return "";
+    const purchased = hasBetaPackPurchase(store.state, pack.id);
+    const selectedChoice = pack.choices?.some(choice=>choice.id === modal.shipChoice)
+      ? modal.shipChoice
+      : (pack.choices?.[0]?.id || "");
+    return `<div class="store-modal-backdrop" data-store-modal-backdrop>
+      <section class="store-modal beta-modal">
+        <button class="store-modal-close" data-store-modal-close type="button">x</button>
+        <div class="store-modal-head"><span class="tiny">PACK BETA</span><h3>${escapeHtml(pack.name)}</h3>${realMoneyPriceHtml(purchased ? "DEJA ACHETE" : pack.price, {className:purchased ? "muted" : ""})}</div>
+        <div class="store-modal-body">
+          <div class="store-modal-art premium"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
+          <div class="store-modal-copy">
+            <p>${escapeHtml(pack.desc || "")}</p>
+            <div class="store-modal-features beta-official-reward"><span>${escapeHtml(pack.officialReward || "")}</span></div>
+            ${pack.choices ? `<div class="beta-ship-choice-grid">${pack.choices.map(choice=>`
+              <button class="beta-ship-choice ${selectedChoice === choice.id ? "active" : ""}" data-beta-ship-choice="${escapeHtml(choice.id)}" type="button">
+                <img src="${escapeHtml(choice.img)}" alt="${escapeHtml(choice.label)}">
+                <b>${escapeHtml(choice.label)}</b>
+              </button>
+            `).join("")}</div>` : ""}
+            <div class="store-starter-contents">${(pack.contents || []).map(renderStarterContentIcon).join("")}</div>
+          </div>
+        </div>
+        <div class="store-modal-actions"><button class="gold-button" data-buy-beta-pack="${escapeHtml(pack.id)}" data-beta-pack-ship-choice="${escapeHtml(selectedChoice)}" type="button" ${purchased ? "disabled" : ""}>${purchased ? "DEJA ACHETE" : "ACTIVER PACK BETA"}</button></div>
+      </section>
+    </div>`;
+  }
   if(modal.kind === "premium"){
     const pack = premiumShopPacks.find(entry=>entry.id === modal.id);
     if(!pack) return "";
     return `<div class="store-modal-backdrop" data-store-modal-backdrop>
       <section class="store-modal">
         <button class="store-modal-close" data-store-modal-close type="button">x</button>
-        <div class="store-modal-head"><span class="tiny">PACK PREMIUM</span><h3>${escapeHtml(pack.name)}</h3><b>${escapeHtml(pack.realPrice)}</b></div>
+        <div class="store-modal-head"><span class="tiny">PACK PREMIUM</span><h3>${escapeHtml(pack.name)}</h3>${realMoneyPriceHtml(pack.realPrice)}</div>
         <div class="store-modal-body">
           <div class="store-modal-art premium"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
           <div class="store-modal-copy">
@@ -948,7 +1036,7 @@ function renderStoreModal(){
     return `<div class="store-modal-backdrop" data-store-modal-backdrop>
       <section class="store-modal">
         <button class="store-modal-close" data-store-modal-close type="button">x</button>
-        <div class="store-modal-head"><span class="tiny">STARTER PACK</span><h3>${escapeHtml(pack.name)}</h3><b>${purchased ? "DEJA ACHETE" : escapeHtml(pack.price)}</b></div>
+        <div class="store-modal-head"><span class="tiny">STARTER PACK</span><h3>${escapeHtml(pack.name)}</h3>${realMoneyPriceHtml(purchased ? "DEJA ACHETE" : pack.price, {className:purchased ? "muted" : ""})}</div>
         <div class="store-modal-body">
           <div class="store-modal-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
           <div class="store-modal-copy">
@@ -967,14 +1055,14 @@ export function renderStoreSection(){
   const panel = document.getElementById("premiumStorePanel");
   if(!panel) return;
   const premiumActive = isPremiumActive(store.state?.player);
-  const activeTab = STORE_TAB_IDS.includes(store.storeTab) ? store.storeTab : "premium";
+  const activeTab = STORE_TAB_IDS.includes(store.storeTab) ? store.storeTab : "beta";
   const tabMeta = storeTabs.find(tab=>tab.id === activeTab) || storeTabs[0];
   panel.innerHTML = `
     <div class="panel-head store-head">
       <div>
         <span class="tiny">BOUTIQUE</span>
         <h2>Packs de soutien</h2>
-        <p class="shop-intro">Achats en euros pour soutenir le jeu : premium, NOVA, credits, starters et recompenses premium.</p>
+        <p class="shop-intro">Achats en euros pour soutenir le jeu : beta, premium, NOVA, credits, starters et recompenses premium.</p>
       </div>
       <div class="store-premium-status ${premiumActive ? "active" : ""}">
         <span>Premium</span>
@@ -1080,7 +1168,7 @@ function renderFirmSetupGate(){
 export { renderShop } from "./renderShop.js";
 export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=currency-icons-1";
 export { renderRefinery } from "./renderRefinery.js";
-export { renderFirm } from "./renderFirm.js";
+export { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
 
 export function renderAll(){
   if(store.currentView !== "hangar") store.hangarDetailOpen = false;

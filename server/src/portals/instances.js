@@ -1,6 +1,6 @@
 import { applyProgressionReward, getProgressionSnapshot } from "../players/progression.js";
 import { applyServerReputationFromXp, updateRankScore } from "../players/rankProgression.js";
-import { enrichFirmSnapshot } from "../firms/firmSnapshots.js";
+import { buildPersonalFirmSeasonSnapshot, emitThrottledFirmRanking } from "../firms/firmBroadcasts.js";
 import { consumeInventoryItemAmount, getInventoryItemCount } from "../economy/inventoryStacks.js";
 import { PORTAL_CONFIGS, WORLD_ENEMY_TYPES } from "../world/definitions.js";
 import { ENEMY_THREAT_RECALC_MS, markEnemyAttackedByPlayer } from "../world/aggro.js";
@@ -27,6 +27,8 @@ import {
 
 const RICKY_PORTAL_ID = "ricky";
 const RICKY_PORTAL_KEY_ITEM_ID = "portal_anchor_key";
+const RICKY_PORTAL_KEY_ITEM_NAME = "Clé du portail Deadly";
+const RICKY_PORTAL_KEY_REQUIRED_MESSAGE = `0/1 ${RICKY_PORTAL_KEY_ITEM_NAME}`;
 const RICKY_PORTAL_QUEST_BASE_ID = "quest_lv10_maintenance_impossible";
 const RICKY_MAX_GROUP_MEMBERS = 4;
 const RICKY_ALLY_ID = "ricky_companion";
@@ -52,7 +54,7 @@ const RICKY_PORTAL_DEFINITION = {
   id:RICKY_PORTAL_ID,
   name:"Portail de Ricky",
   requirement:{level:10},
-  accessItem:{itemId:RICKY_PORTAL_KEY_ITEM_ID, amount:1, name:"Clé d'ancrage dimensionnel"}
+  accessItem:{itemId:RICKY_PORTAL_KEY_ITEM_ID, amount:1, name:RICKY_PORTAL_KEY_ITEM_NAME}
 };
 
 function getRickyPortalQuestId(profile){
@@ -395,7 +397,7 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       return {ok:false, reason:`Niveau ${portalDefinition.requirement.level} requis.`};
     }
     if(getInventoryItemCount(profile, RICKY_PORTAL_KEY_ITEM_ID) < 1){
-      return {ok:false, reason:"Cle d'ancrage dimensionnel requise."};
+      return {ok:false, reason:RICKY_PORTAL_KEY_REQUIRED_MESSAGE};
     }
     return {ok:true};
   }
@@ -409,7 +411,7 @@ export function createPortalInstanceManager({io, players, groups, profileManager
         const draftAccess = validateRickyAccess(draft, portalDefinition);
         if(!draftAccess.ok) return draftAccess;
         if(!consumeInventoryItemAmount(draft, RICKY_PORTAL_KEY_ITEM_ID, 1)){
-          return {ok:false, reason:"Cle d'ancrage dimensionnel requise."};
+          return {ok:false, reason:RICKY_PORTAL_KEY_REQUIRED_MESSAGE};
         }
         return {ok:true};
       }
@@ -451,7 +453,7 @@ export function createPortalInstanceManager({io, players, groups, profileManager
     }
     const keyResult = consumeRickyPortalKey(player, profile, portalDefinition);
     if(!keyResult.ok){
-      socket.emit("portal:error", {message:keyResult.reason || "Cle d'ancrage dimensionnel requise."});
+      socket.emit("portal:error", {message:keyResult.reason || RICKY_PORTAL_KEY_REQUIRED_MESSAGE});
       return false;
     }
     joined.push(player.id);
@@ -497,7 +499,7 @@ export function createPortalInstanceManager({io, players, groups, profileManager
         return;
       }
       if(getInventoryItemCount(profile, RICKY_PORTAL_KEY_ITEM_ID) < 1){
-        socket.emit("portal:error", {message:"Clé d'ancrage dimensionnel requise."});
+        socket.emit("portal:error", {message:RICKY_PORTAL_KEY_REQUIRED_MESSAGE});
         return;
       }
       const keyResult = profileManager.updateProfileForPlayer({
@@ -508,13 +510,13 @@ export function createPortalInstanceManager({io, players, groups, profileManager
             return {ok:false, reason:"Ricky n'a pas encore stabilise ce portail."};
           }
           if(!consumeInventoryItemAmount(draft, RICKY_PORTAL_KEY_ITEM_ID, 1)){
-            return {ok:false, reason:"Clé d'ancrage dimensionnel requise."};
+            return {ok:false, reason:RICKY_PORTAL_KEY_REQUIRED_MESSAGE};
           }
           return {ok:true};
         }
       });
       if(!keyResult.ok){
-        socket.emit("portal:error", {message:keyResult.reason || "Clé d'ancrage dimensionnel requise."});
+        socket.emit("portal:error", {message:keyResult.reason || RICKY_PORTAL_KEY_REQUIRED_MESSAGE});
         return;
       }
       profile = keyResult.profile || profile;
@@ -586,7 +588,7 @@ export function createPortalInstanceManager({io, players, groups, profileManager
     if(isRickyPortal){
       const keyResult = consumeRickyPortalKey(player, profile, portalDefinition);
       if(!keyResult.ok){
-        socket.emit("portal:error", {message:keyResult.reason || "Cle d'ancrage dimensionnel requise."});
+        socket.emit("portal:error", {message:keyResult.reason || RICKY_PORTAL_KEY_REQUIRED_MESSAGE});
         return;
       }
       profile = keyResult.profile || profile;
@@ -699,14 +701,17 @@ export function createPortalInstanceManager({io, players, groups, profileManager
     }
     if(firmWarManager && firmContributors.length){
       const result = firmWarManager.recordPortalCompletion(firmContributors);
-      io.emit?.("firm:ranking", enrichFirmSnapshot(profileManager, result.snapshot));
+      emitThrottledFirmRanking({io, profileManager, snapshot:result.snapshot});
       for(const entry of personalFirmSnapshots){
         if(!entry.playerKey) continue;
-        io.to(entry.player.id).emit("firm:snapshot", enrichFirmSnapshot(profileManager, firmWarManager.snapshot({
+        const personalSnapshot = buildPersonalFirmSeasonSnapshot({
+          firmWarManager,
+          profileManager,
           playerKey:entry.playerKey,
           profile:entry.profile,
           player:entry.player
-        })));
+        });
+        if(personalSnapshot) io.to(entry.player.id).emit("firm:snapshot", personalSnapshot);
       }
     }
     emitInstance(group);

@@ -65,7 +65,7 @@ export function closeFirmSeason(state, currentTime = Date.now()){
   const individualRanking = sortIndividualRanking(state.contributions);
   const eligiblePlayersByFirm = Object.fromEntries(FIRMS.map(firm=>[firm.id, {}]));
   for(const player of individualRanking){
-    if(!player.key || Number(player.points || 0) <= 0) continue;
+    if(!player.key || Number(player.points || 0) < FIRM_COLLECTIVE_MIN_CONTRIBUTION) continue;
     eligiblePlayersByFirm[player.firmId][player.key] = true;
   }
   const rewards = {};

@@ -48,11 +48,163 @@ export const premiumShopPacks = [
 ];
 
 export const storeTabs = [
+  {id:"beta", label:"Beta", title:"Beta", subtitle:"Packs beta a prix reduit, calendrier de connexion 25 jours et bonus de remerciement pour le lancement officiel."},
   {id:"premium", label:"Pack Premium", title:"Packs Premium", subtitle:"Pass premium achetables en euros ou en NOVA dans le magasin."},
   {id:"currencies", label:"Nova / Credit", title:"Nova et Credits", subtitle:"Packs de monnaie a brancher au prestataire de paiement."},
   {id:"starters", label:"Starter Pack", title:"Starter Packs", subtitle:"Packs de depart a definir avec vaisseau, lasers et extras."},
   {id:"rewards", label:"Recompense Premium", title:"Recompenses Premium", subtitle:"Calendrier mensuel de 28 jours reserve aux comptes premium."}
 ];
+
+export const betaLaunchMessage = "Pendant la beta, ces packs a prix reduit servent a tester vite le contenu. Tous les joueurs qui contribuent recevront un pack gratuit lors du lancement officiel, adapte au pack beta achete.";
+
+export const betaPacks = [
+  {
+    id:"beta_valkyrie",
+    name:"Pack Beta Valkyrie",
+    price:"0,99 EUR",
+    tag:"BETA I",
+    img:"assets/ships/Valkyrie.png?v=valkyrie-cutout-2",
+    desc:"Pack beta abordable pour demarrer les tests avec un vrai vaisseau de progression.",
+    officialReward:"Lancement officiel : 1 semaine Premium offerte.",
+    contents:[
+      {label:"Vaisseau Valkyrie", quantity:"x1", img:"assets/ships/Valkyrie.png?v=valkyrie-cutout-2", kind:"ship"},
+      {label:"Canon Laser MK-III", quantity:"x5", img:"assets/equipment/laser_mk3_slot_v2.png", kind:"equipment"},
+      {label:"Munition M-3", quantity:"x50 000", img:"assets/equipment/ammo_laser_x3_same_preview.png", kind:"ammo"},
+      {label:"Generateur A II", quantity:"x3", img:"assets/equipment/generator_shield_omega.png", kind:"equipment"}
+    ]
+  },
+  {
+    id:"beta_astralis",
+    name:"Pack Beta Astralis",
+    price:"2,99 EUR",
+    tag:"BETA II",
+    img:"assets/ships/Astralis.png",
+    desc:"Pack beta avance pour tester un Astralis bien equipe et une reserve NOVA de depart.",
+    officialReward:"Lancement officiel : 1 mois Premium offert.",
+    contents:[
+      {label:"Vaisseau Astralis", quantity:"x1", img:"assets/ships/Astralis.png", kind:"ship"},
+      {label:"Canon Laser MK-IV", quantity:"x5", img:"assets/equipment/laser_mk4_slot_v2.png", kind:"equipment"},
+      {label:"Canon Laser MK-III", quantity:"x3", img:"assets/equipment/laser_mk3_slot_v2.png", kind:"equipment"},
+      {label:"Generateur A II", quantity:"x5", img:"assets/equipment/generator_shield_omega.png", kind:"equipment"},
+      {label:"Generateur Vitesse II", quantity:"x5", img:"assets/equipment/generator_speed_mk2.png", kind:"equipment"},
+      {label:"Munition M-4", quantity:"x20 000", img:"assets/equipment/ammo_laser_x4_same_preview.png", kind:"ammo"},
+      {label:"NOVA", quantity:"25 000", img:"assets/icons/premium.svg", kind:"premium"}
+    ]
+  },
+  {
+    id:"beta_commander",
+    name:"Pack Beta Commandant",
+    price:"9,99 EUR",
+    tag:"BETA III",
+    img:"assets/ships/Vesperion.png",
+    desc:"Pack beta complet avec vaisseau premium au choix et de quoi tester le contenu haut niveau.",
+    officialReward:"Lancement officiel : 1 mois Premium + pack equivalent a 9,99 EUR sur version officielle.",
+    choices:[
+      {id:"vesperion", label:"Vesperion", img:"assets/ships/Vesperion.png"},
+      {id:"nyxaris", label:"Nyxaris", img:"assets/ships/Nyxaris.png"},
+      {id:"asterion", label:"Asterion", img:"assets/ships/Asterion.png"}
+    ],
+    contents:[
+      {label:"Vaisseau premium au choix", quantity:"x1", img:"assets/ships/Vesperion.png", kind:"ship"},
+      {label:"Munition M-4", quantity:"x80 000", img:"assets/equipment/ammo_laser_x4_same_preview.png", kind:"ammo"},
+      {label:"NOVA", quantity:"80 000", img:"assets/icons/premium.svg", kind:"premium"},
+      {label:"Canon Laser MK-IV", quantity:"x10", img:"assets/equipment/laser_mk4_slot_v2.png", kind:"equipment"},
+      {label:"Generateur Vitesse II", quantity:"x10", img:"assets/equipment/generator_speed_mk2.png", kind:"equipment"},
+      {label:"Generateur A II", quantity:"x10", img:"assets/equipment/generator_shield_omega.png", kind:"equipment"},
+      {label:"Drone de Reparation Rouge", quantity:"x1", img:"assets/equipment/drone_repair_red.png", kind:"equipment"}
+    ]
+  }
+];
+
+const betaSpecialRewardByDay = {
+  5:{day:5, label:"3 cles du portail Deadly", reward:{itemCounts:{portal_anchor_key:3}}},
+  10:{day:10, label:"50 000 munitions M-4", reward:{ammo:{ammo_x4:50000}}},
+  15:{day:15, label:"Vaisseau premium aleatoire", reward:{shipRandom:{label:"1 vaisseau aleatoire : Vesperion, Nyxaris ou Asterion", shipIds:["vesperion", "nyxaris", "asterion"]}}},
+  20:{day:20, label:"100 000 NOVA", reward:{premium:100000}},
+  25:{day:25, label:"10 Laser MK-IV", reward:{itemCounts:{laser_mk4:10}}}
+};
+
+export const betaRewardCalendar = Array.from({length:25}, (_, index)=>{
+  const day = index + 1;
+  return betaSpecialRewardByDay[day] || {day, label:"5 000 NOVA", reward:{premium:5000}};
+}).map(entry=>({
+  day:entry.day,
+  label:entry.label,
+  reward:entry.reward
+}));
+
+export function normalizeBetaPackPurchases(value = []){
+  const validIds = new Set(betaPacks.map(pack=>pack.id));
+  return [...new Set((Array.isArray(value) ? value : [])
+    .map(id=>String(id || ""))
+    .filter(id=>validIds.has(id)))];
+}
+
+export function hasBetaPackPurchase(profile = {}, id = ""){
+  return normalizeBetaPackPurchases(profile?.betaPackPurchases).includes(String(id || ""));
+}
+
+export function normalizeBetaRewardState(value = {}){
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const claimedDays = [...new Set((Array.isArray(source.claimedDays) ? source.claimedDays : [])
+    .map(day=>Math.floor(Number(day || 0)))
+    .filter(day=>day >= 1 && day <= betaRewardCalendar.length))]
+    .sort((a, b)=>a - b);
+  return {
+    claimedDays,
+    lastClaimDate:String(source.lastClaimDate || ""),
+    randomShipRewards:source.randomShipRewards && typeof source.randomShipRewards === "object" && !Array.isArray(source.randomShipRewards)
+      ? {...source.randomShipRewards}
+      : {}
+  };
+}
+
+export function getBetaRewardDateKey(now = Date.now()){
+  const date = new Date(Number(now || Date.now()));
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+export function getBetaRewardStatus(profile = {}, now = Date.now()){
+  const state = normalizeBetaRewardState(profile?.betaRewardState);
+  const claimedCount = state.claimedDays.length;
+  const completed = claimedCount >= betaRewardCalendar.length;
+  const nextDay = completed ? betaRewardCalendar.length : claimedCount + 1;
+  const todayKey = getBetaRewardDateKey(now);
+  const claimedToday = state.lastClaimDate === todayKey;
+  const canClaim = !completed && !claimedToday;
+  let reason = "";
+  if(completed) reason = "Calendrier beta termine.";
+  else if(claimedToday) reason = "Recompense beta deja reclamee aujourd'hui.";
+  return {
+    state,
+    claimedDays:state.claimedDays,
+    claimedCount,
+    nextDay,
+    reward:betaRewardCalendar[nextDay - 1] || null,
+    claimedToday,
+    canClaim,
+    completed,
+    reason
+  };
+}
+
+export function claimBetaRewardState(profile = {}, now = Date.now()){
+  const status = getBetaRewardStatus(profile, now);
+  if(!status.canClaim) return {ok:false, reason:status.reason || "Recompense beta indisponible.", status};
+  const nextState = {
+    ...status.state,
+    claimedDays:[...status.claimedDays, status.nextDay],
+    lastClaimDate:getBetaRewardDateKey(now)
+  };
+  profile.betaRewardState = nextState;
+  return {
+    ok:true,
+    day:status.nextDay,
+    reward:status.reward,
+    state:nextState,
+    status:{...status, state:nextState, claimedDays:nextState.claimedDays, claimedCount:nextState.claimedDays.length, canClaim:false, claimedToday:true}
+  };
+}
 
 export const novaCurrencyPacks = [
   {id:"nova_5000", name:"Pack Nova I", price:"1,99 EUR", amount:5000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Petit pack Nova pour soutenir le jeu."},
@@ -153,7 +305,7 @@ export const premiumRewardCalendar = [
   {day:21, label:"Coffre premium", reward:{premium:1500, credits:200000}},
   {day:22, label:"Roquettes R-3", reward:{ammo:{rocket_r3:40}}},
   {day:23, label:"Credits", reward:{credits:250000}},
-  {day:24, label:"Cle d'ancrage", reward:{itemCounts:{portal_anchor_key:1}}},
+  {day:24, label:"Cle portail Deadly", reward:{itemCounts:{portal_anchor_key:1}}},
   {day:25, label:"Nova bonus", reward:{premium:1200}},
   {day:26, label:"Munitions avancees", reward:{ammo:{ammo_x4:1200, missile_m2:40}}},
   {day:27, label:"Credits", reward:{credits:350000}},

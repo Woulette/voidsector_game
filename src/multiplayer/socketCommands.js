@@ -135,8 +135,14 @@ export function createSocketCommands({multiplayer}){
     buyServerPremiumPack(id){
       return id ? emit(multiplayer, "shop:buy-premium-pack", {id}) : false;
     },
+    buyServerBetaPack(id, shipChoice = ""){
+      return id ? emit(multiplayer, "shop:buy-beta-pack", {id, shipChoice}) : false;
+    },
     claimServerPremiumReward(){
       return emit(multiplayer, "premium:reward-claim");
+    },
+    claimServerBetaReward(){
+      return emit(multiplayer, "beta:reward-claim");
     },
     sellServerInventoryItem(inventoryUid){
       return inventoryUid ? emit(multiplayer, "inventory:sell-item", {inventoryUid}) : false;

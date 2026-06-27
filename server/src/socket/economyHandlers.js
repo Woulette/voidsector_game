@@ -1,4 +1,4 @@
-import { getAmmoPurchase, getBoosterPurchase, getDroneFormationPurchase, getDronePurchase, getItemPurchase, getPremiumPackPurchase, getShipPurchase } from "../economy/shop.js";
+import { getAmmoPurchase, getBetaPackPurchase, getBoosterPurchase, getDroneFormationPurchase, getDronePurchase, getItemPurchase, getPremiumPackPurchase, getShipPurchase } from "../economy/shop.js";
 import { premiumRemainingLabel } from "../../../src/data/premium.js";
 
 function emitQuestProgress(socket, result){
@@ -394,6 +394,31 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
+  socket.on("shop:buy-beta-pack", payload=>{
+    if(!guard("shop:buy-beta-pack")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const purchase = getBetaPackPurchase(payload?.id, payload?.shipChoice);
+    if(!purchase){
+      socket.emit("shop:error", {message:"Pack beta inconnu."});
+      return;
+    }
+    const result = profileManager.addBetaPackPurchase({player, purchase});
+    if(!result.ok){
+      socket.emit("shop:error", {message:result.reason || "Achat beta impossible."});
+      return;
+    }
+    socket.emit("shop:beta-pack-bought", {
+      id:purchase.id,
+      name:purchase.name,
+      realPrice:purchase.realPrice || "",
+      shipChoice:purchase.shipChoice || "",
+      launchEntitlements:purchase.launchEntitlements || [],
+      at:Date.now()
+    });
+    emitProfileSync(player, result.profile);
+  });
+
   socket.on("premium:reward-claim", ()=>{
     if(!guard("premium:reward-claim")) return;
     const player = players.get(socket.id);
@@ -407,6 +432,25 @@ export function registerEconomyHandlers(socket, context){
       day:result.day,
       reward:result.reward,
       state:result.state,
+      at:Date.now()
+    });
+    emitProfileSync(player, result.profile);
+  });
+
+  socket.on("beta:reward-claim", ()=>{
+    if(!guard("beta:reward-claim")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const result = profileManager.claimBetaReward({player});
+    if(!result.ok){
+      socket.emit("beta:reward-error", {message:result.reason || "Recompense beta impossible."});
+      return;
+    }
+    socket.emit("beta:reward-claimed", {
+      day:result.day,
+      reward:result.reward,
+      state:result.state,
+      randomShip:result.randomShip || "",
       at:Date.now()
     });
     emitProfileSync(player, result.profile);

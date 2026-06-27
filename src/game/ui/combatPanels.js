@@ -1,6 +1,6 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
-import { renderSpawnPanelContent } from "./spawnPanel.js?v=commerce-2";
-import { renderCombatFirmPanel } from "./combatFirmPanel.js";
+import { renderSpawnPanelContent } from "./spawnPanel.js?v=quest-detail-clean-4-refine-boost-assets-1";
+import { renderCombatFirmPanel } from "./combatFirmPanel.js?v=firm-panel-gift-3";
 import { renderCombatMapPanel } from "./combatMapPanel.js";
 import { renderCombatBoostersPanel } from "./combatBoostersPanel.js";
 import { createTypewriterTextController } from "./typewriterText.js";
@@ -10,7 +10,9 @@ import { getCurrentRank } from "../../core/store.js";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import {
   multiplayer,
+  claimFirmQuest,
   claimFirmRewards,
+  claimFirmSeasonObjective,
   inviteMultiplayerPlayer,
   inviteMultiplayerPlayerByName,
   kickMultiplayerGroupMember,
@@ -24,7 +26,7 @@ import {
   sendFriendRequest,
   setSocialCategory,
   startPortgunTeleport
-} from "../../multiplayer/client.js";
+} from "../../multiplayer/client.js?v=firm-shop-sync-1";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
@@ -724,7 +726,20 @@ export function createCombatPanels({
     });
   }
 
-  function refreshSocialUtilityPanel(mode, {show = false} = {}){
+  function refreshFirmUtilityContent({preserveScroll = false} = {}){
+    const panel = getUtilityPanel("firm");
+    const content = getUtilityContent("firm");
+    if(!content) return;
+    const panelScrollTop = preserveScroll ? panel?.scrollTop || 0 : 0;
+    const contentScrollTop = preserveScroll ? content.scrollTop : 0;
+    content.innerHTML = renderFirmUtilityContent();
+    if(preserveScroll){
+      if(panel) panel.scrollTop = Math.min(panelScrollTop, Math.max(0, panel.scrollHeight - panel.clientHeight));
+      content.scrollTop = Math.min(contentScrollTop, Math.max(0, content.scrollHeight - content.clientHeight));
+    }
+  }
+
+  function refreshSocialUtilityPanel(mode, {show = false, preserveScroll = false} = {}){
     const panel = getUtilityPanel(mode);
     const content = getUtilityContent(mode);
     if(!panel || !content) return;
@@ -734,7 +749,8 @@ export function createCombatPanels({
       requestSocialSync();
       if(mode === "firm") requestFirmRankingSync();
     }
-    content.innerHTML = mode === "firm" ? renderFirmUtilityContent() : renderFriendsUtilityContent();
+    if(mode === "firm") refreshFirmUtilityContent({preserveScroll:preserveScroll || !show});
+    else content.innerHTML = renderFriendsUtilityContent();
     syncUtilityDockButtons();
   }
 
@@ -759,6 +775,10 @@ export function createCombatPanels({
       if(contact) window.dispatchEvent(new CustomEvent("voidsector:open-private-chat", {detail:{contact}}));
     }else if(action === "firm-reward-claim"){
       claimFirmRewards();
+    }else if(action === "firm-quest-claim"){
+      claimFirmQuest(element.dataset.firmQuestClaim);
+    }else if(action === "firm-season-objective-claim"){
+      claimFirmSeasonObjective(element.dataset.firmSeasonObjectiveClaim);
     }
   }
 
@@ -775,7 +795,7 @@ export function createCombatPanels({
   }
 
   function selectFirmPanelTab(tab){
-    selectedFirmPanelTab = ["overview", "firms", "players", "quests", "rewards"].includes(tab) ? tab : "overview";
+    selectedFirmPanelTab = ["overview", "firms", "players", "rankings", "quests", "weekly-quests", "seasonal-objectives", "rewards"].includes(tab) ? tab : "overview";
     selectedSocialKey = null;
     requestFirmRankingSync();
     refreshSocialUtilityPanel("firm");
@@ -801,7 +821,7 @@ export function createCombatPanels({
       const socialPanel = getUtilityPanel(mode);
       if(!socialPanel || socialPanel.classList.contains("hidden") || isInteractingWithUtilityPanel(mode)) continue;
       if(mode === "boosters") refreshBoostersUtilityPanel();
-      else refreshSocialUtilityPanel(mode);
+      else refreshSocialUtilityPanel(mode, {preserveScroll:mode === "firm"});
     }
     syncUtilityDockButtons();
     refreshGroupFloatingHud();
@@ -1263,7 +1283,7 @@ export function createCombatPanels({
       firmTimerRefreshT -= dt;
       if(firmTimerRefreshT <= 0){
         const content = getUtilityContent("firm");
-        if(content && !isInteractingWithUtilityPanel("firm")) content.innerHTML = renderFirmUtilityContent();
+        if(content && !isInteractingWithUtilityPanel("firm")) refreshFirmUtilityContent({preserveScroll:true});
         firmTimerRefreshT = 1;
       }
     }

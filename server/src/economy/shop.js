@@ -1,6 +1,6 @@
 ﻿import { ships } from "../../../src/data/catalog.js";
 
-import { premiumShopPacks } from "../../../src/data/premium.js";
+import { betaPacks, premiumShopPacks } from "../../../src/data/premium.js";
 import { S1_BOOSTER_SHOP } from "../../../src/shared/firmBoosters.js";
 
 export const SERVER_AMMO_SHOP = {
@@ -66,6 +66,46 @@ export const SERVER_PREMIUM_PACK_SHOP = Object.fromEntries(premiumShopPacks.map(
     price:Number(pack.price || 0),
     days:Number(pack.days || 0),
     realPrice:pack.realPrice || ""
+  }
+]));
+
+export const SERVER_BETA_PACK_SHOP = Object.fromEntries(betaPacks.map(pack=>[
+  pack.id,
+  {
+    id:pack.id,
+    name:pack.name,
+    realPrice:pack.price || "",
+    officialReward:pack.officialReward || "",
+    allowedShipChoices:(pack.choices || []).map(choice=>String(choice.id || "")).filter(Boolean),
+    launchEntitlements:pack.id === "beta_valkyrie"
+      ? ["official_premium_week"]
+      : pack.id === "beta_astralis"
+        ? ["official_premium_month"]
+        : pack.id === "beta_commander"
+          ? ["official_premium_month", "official_thanks_pack_999"]
+          : [],
+    launchPremiumDays:pack.id === "beta_valkyrie" ? 7 : (pack.id === "beta_astralis" || pack.id === "beta_commander" ? 30 : 0),
+        grants:pack.id === "beta_valkyrie"
+      ? {
+          ships:["valkyrie"],
+          itemCounts:{laser_mk3:5, shield_omega:3},
+          ammo:{ammo_x3:50000}
+        }
+      : pack.id === "beta_astralis"
+        ? {
+            ships:["astralis"],
+            itemCounts:{laser_mk4:5, laser_mk3:3, shield_omega:5, reactor_ion:5},
+            ammo:{ammo_x4:20000},
+            premium:25000
+          }
+        : pack.id === "beta_commander"
+          ? {
+              chooseShip:true,
+              itemCounts:{laser_mk4:10, reactor_ion:10, shield_omega:10, extra_repair_bot:1},
+              ammo:{ammo_x4:80000},
+              premium:80000
+            }
+          : {}
   }
 ]));
 
@@ -166,5 +206,21 @@ export function getPremiumPackPurchase(id){
   return {
     ...pack,
     totalPrice:Math.max(0, Math.round(Number(pack.price || 0)))
+  };
+}
+
+export function getBetaPackPurchase(id, shipChoice = ""){
+  const pack = SERVER_BETA_PACK_SHOP[String(id || "")];
+  if(!pack) return null;
+  const choices = Array.isArray(pack.allowedShipChoices) ? pack.allowedShipChoices : [];
+  const cleanChoice = String(shipChoice || "");
+  if(pack.grants?.chooseShip && !choices.includes(cleanChoice)){
+    return {...pack, locked:true, reason:"Choisis un vaisseau beta valide."};
+  }
+  return {
+    ...pack,
+    shipChoice:pack.grants?.chooseShip ? cleanChoice : "",
+    totalPrice:0,
+    priceType:"real"
   };
 }

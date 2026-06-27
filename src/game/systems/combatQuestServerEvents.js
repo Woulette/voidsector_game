@@ -36,6 +36,7 @@ export function compactQuestRewardLabels(reward = {}, {
 }
 
 export function getQuestRewardTone(quest = {}){
+  if(["red", "special", "rare", "normal"].includes(quest.rewardTone)) return quest.rewardTone;
   if(quest.red) return "red";
   if(quest.special) return "special";
   if(quest.rare) return "rare";

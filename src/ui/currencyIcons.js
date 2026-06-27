@@ -9,10 +9,25 @@ function normalizedCurrency(type){
   return type === "premium" ? "premium" : "credits";
 }
 
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g, char=>({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  })[char]);
+}
+
 export function currencyIconHtml(type, className = ""){
   const currency = normalizedCurrency(type);
   const meta = CURRENCY_META[currency];
   return `<img class="currency-icon currency-icon-${currency}${className ? ` ${className}` : ""}" src="${meta.icon}" alt="" aria-hidden="true">`;
+}
+
+export function realMoneyPriceHtml(price, {className = "", fallback = "Bientot"} = {}){
+  const label = String(price || fallback);
+  return `<span class="store-real-price${className ? ` ${className}` : ""}">${escapeHtml(label)}</span>`;
 }
 
 export function currencyAmountHtml(type, amount, {className = "", prefix = ""} = {}){

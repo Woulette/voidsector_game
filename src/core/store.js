@@ -128,7 +128,7 @@ import { loadLocalPreferences, saveLocalPreferences } from "./localPreferencesSt
 export const store = {
   state:null,
   shopFilter:"vaisseau",
-  storeTab:"premium",
+  storeTab:"beta",
   storeModal:null,
   currentView:"hangar",
   hangarDetailOpen:false,

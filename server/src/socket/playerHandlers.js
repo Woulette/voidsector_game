@@ -444,7 +444,8 @@ export function registerPlayerHandlers(socket, context){
       logger?.warn?.("Player state corrected", {
         playerId:player.id,
         accountId:player.accountId || null,
-        reason:validation.reason
+        reason:validation.reason,
+        details:validation.correctionDetails || []
       });
       socket.emit("player:state-correction", {...validation.state, source:"state-correction"});
     }

@@ -58,6 +58,13 @@ function questStatus({completed, claimable, active, locked}){
   return "DISPONIBLE";
 }
 
+function questToneClass(quest = {}){
+  if(quest.red) return "red";
+  if(quest.rare) return "rare";
+  if(quest.special) return "special";
+  return "";
+}
+
 function formatQuestObjective(quest){
   const objective = quest.objective || {};
   const firstObjective = Array.isArray(quest.objectives) ? quest.objectives[0] || {} : objective;
@@ -288,7 +295,7 @@ function renderQuestList({quests, selectedQuest, activeQuest, activeQuests = [],
     const active = activeIds.has(quest.id) || activeQuest?.id === quest.id;
     const selected = selectedQuest?.id === quest.id;
     const claimable = active && state.claimable;
-    return `<button class="quest-strip ${selected ? "selected" : ""} ${active ? "active" : ""} ${quest.special ? "special" : ""} ${quest.rare ? "rare" : ""} ${quest.red ? "red" : ""} ${claimable ? "claimable" : ""} ${state.locked ? "locked" : ""} ${state.premiumLocked ? "premium-locked" : ""}" type="button" data-view-quest="${quest.id}">
+    return `<button class="quest-strip ${selected ? "selected" : ""} ${active ? "active" : ""} ${questToneClass(quest)} ${claimable ? "claimable" : ""} ${state.locked ? "locked" : ""} ${state.premiumLocked ? "premium-locked" : ""}" type="button" data-view-quest="${quest.id}">
       <span class="quest-strip-title">${quest.title}</span>
       <span class="quest-strip-meta"><b>${state.premiumLocked ? "PREMIUM" : `LV ${state.requiredLevel}`}</b></span>
       <span class="quest-strip-bar"><i style="width:${state.percent}%"></i></span>
@@ -331,7 +338,7 @@ function renderQuestDetail({
   const firm = getFirmDefinition(quest.firmId || firmId);
   const status = questStatus({completed:state.completed, claimable, active, locked:state.locked});
   const typewriterKey = `${quest.id}:${briefingStatus}:${playerRank?.id || "recrue"}`;
-  return `<article class="quest-detail ${active ? "active" : ""} ${quest.special ? "special" : ""} ${quest.rare ? "rare" : ""} ${quest.red ? "red" : ""} ${claimable ? "claimable" : ""} ${state.locked ? "locked" : ""} ${state.premiumLocked ? "premium-locked" : ""}">
+  return `<article class="quest-detail ${active ? "active" : ""} ${questToneClass(quest)} ${claimable ? "claimable" : ""} ${state.locked ? "locked" : ""} ${state.premiumLocked ? "premium-locked" : ""}">
     <div class="quest-detail-hero">
       <div class="quest-detail-copy">
         <span>${escapeHtml(quest.giver || "Relais de Commandement")} · ${escapeHtml(firm.label)}</span>
@@ -359,10 +366,6 @@ function renderQuestDetail({
       <section class="quest-mission-card">
         <div class="quest-section-title objective">Ordres de mission</div>
         <p class="quest-objective-text">${escapeHtml(formatQuestObjective(quest))}</p>
-        <div class="quest-progress-row">
-          <div class="quest-progress-label"><span>Progression opérationnelle</span><b>${fmt(state.progress)} / ${fmt(state.target)}</b></div>
-          <div class="quest-progress-track"><span style="width:${state.percent}%"></span></div>
-        </div>
         ${targetIcons}
         <div class="quest-objective-metadata">
           ${visitObjectives}
@@ -521,9 +524,9 @@ function renderRefineryPanel({materials, recipes = [], shipCargo = {}, shipCargo
   </div>` : "";
   const boostTargets = [
     {type:"Laser", name:"Boost laser", img:"assets/equipment/laser_mk1_mk1_slot_v2.png", hint:"1 materiau = 10 tirs"},
-    {type:"Roquettes", name:"Boost roquettes", img:"assets/equipment/pod_missiles.svg", hint:"1 materiau = 1 tir"},
+    {type:"Roquettes", name:"Boost roquettes", img:"assets/equipment/launcher_rocket_mk1_slot.png?v=refine-boost-assets-1", hint:"1 materiau = 1 tir"},
     {type:"Generateurs", name:"Boost generateurs", img:"assets/equipment/generator_shield_mk1.png", hint:"1 materiau = 1 min"},
-    {type:"Drones", name:"Boost drones", img:"assets/equipment/drone_combat.svg", hint:"1 materiau = 1 min"}
+    {type:"Drones", name:"Boost drones", img:"assets/drones/drone_test_sprite.webp?v=refine-boost-assets-1", hint:"1 materiau = 1 min"}
   ];
   const boostTargetCards = boostTargets.map(target=>{
     const summary = getCombatBoostSummary?.(target.type) || {};

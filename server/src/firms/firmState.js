@@ -1,6 +1,6 @@
 import { FIRMS, normalizeFirmId } from "../../../src/data/firms.js";
 import { getFirmBoostersForRank, sanitizeFirmBoosters } from "../../../src/shared/firmBoosters.js";
-import { FIRM_SEASON_MS } from "./firmRules.js";
+import { FIRM_COLLECTIVE_MIN_CONTRIBUTION, FIRM_SEASON_MS } from "./firmRules.js";
 
 export function emptyFirmPoints(){
   return Object.fromEntries(FIRMS.map(firm=>[firm.id, 0]));
@@ -56,9 +56,20 @@ function sanitizeSeasonEligiblePlayers(value = {}){
     .filter(([key, eligible])=>Boolean(key) && eligible));
 }
 
-function legacySeasonEligiblePlayers(lastClosedSeason, firmId){
-  return Object.fromEntries((Array.isArray(lastClosedSeason?.individualRanking) ? lastClosedSeason.individualRanking : [])
-    .filter(entry=>normalizeFirmId(entry?.firmId || "astra") === normalizeFirmId(firmId) && entry?.key)
+function closedSeasonEntriesForFirm(lastClosedSeason, firmId){
+  return (Array.isArray(lastClosedSeason?.individualRanking) ? lastClosedSeason.individualRanking : [])
+    .filter(entry=>normalizeFirmId(entry?.firmId || "astra") === normalizeFirmId(firmId) && entry?.key);
+}
+
+function isCollectiveEligibleSeasonEntry(entry = {}){
+  if(entry.collectiveEligible === true) return true;
+  if(entry.collectiveEligible === false) return false;
+  return Math.max(0, Number(entry.points || 0)) >= FIRM_COLLECTIVE_MIN_CONTRIBUTION;
+}
+
+function closedSeasonEligiblePlayers(lastClosedSeason, firmId){
+  return Object.fromEntries(closedSeasonEntriesForFirm(lastClosedSeason, firmId)
+    .filter(isCollectiveEligibleSeasonEntry)
     .map(entry=>[String(entry.key), true]));
 }
 
@@ -67,9 +78,14 @@ function sanitizeFirmSeasonRewards(value = {}, lastClosedSeason = null){
   return Object.fromEntries(Object.entries(value).map(([firmId, reward])=>{
     const rank = Math.max(1, Math.min(4, Math.floor(Number(reward?.rank || 4))));
     const storedBoosters = sanitizeFirmBoosters(reward?.boosters);
-    const eligiblePlayers = Object.hasOwn(reward || {}, "eligiblePlayers")
+    const storedEligiblePlayers = Object.hasOwn(reward || {}, "eligiblePlayers")
       ? sanitizeSeasonEligiblePlayers(reward?.eligiblePlayers)
-      : legacySeasonEligiblePlayers(lastClosedSeason, firmId);
+      : null;
+    const closedFirmEntries = closedSeasonEntriesForFirm(lastClosedSeason, firmId);
+    const closedEligiblePlayers = closedSeasonEligiblePlayers(lastClosedSeason, firmId);
+    const eligiblePlayers = storedEligiblePlayers && closedFirmEntries.length
+      ? Object.fromEntries(Object.keys(storedEligiblePlayers).filter(key=>closedEligiblePlayers[key]).map(key=>[key, true]))
+      : storedEligiblePlayers || closedEligiblePlayers;
     return [normalizeFirmId(firmId), {
       rank,
       boosters:Object.keys(storedBoosters).length ? storedBoosters : getFirmBoostersForRank(rank),

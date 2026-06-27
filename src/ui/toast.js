@@ -21,9 +21,11 @@ function setToastContent(element, message){
   element.replaceChildren(...nodes);
 }
 
-export function showToast(msg){
+export function showToast(msg, {position = ""} = {}){
   const el = document.getElementById("toast");
   setToastContent(el, msg);
+  el.classList.remove("toast-top-center");
+  if(position === "top-center") el.classList.add("toast-top-center");
   el.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>el.classList.remove("show"), 2600);

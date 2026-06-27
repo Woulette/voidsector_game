@@ -5,7 +5,7 @@ import { rollResourceDrops } from "./resourceDrops.js";
 
 const PORTAL_ANCHOR_KEY_DROP = {
   itemId:"portal_anchor_key",
-  name:"Clé d'ancrage dimensionnel",
+  name:"Clé du portail Deadly",
   img:"assets/quest_items/portal_anchor_key.png",
   amount:1,
   dropChance:0.001

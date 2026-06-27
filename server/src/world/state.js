@@ -1,5 +1,5 @@
 import { WORLD_MAPS } from "./definitions.js";
-import { createWorldEnemy, publicEnemy, seededRandom } from "./spawn.js";
+import { createWorldEnemy, publicEnemy, publicEnemyDelta, seededRandom } from "./spawn.js";
 import { getPlayerMapRoom } from "../players/visibility.js";
 
 export function createWorldStateManager({io, players, presence, progressProfileQuestAction, getGroups}){
@@ -26,11 +26,15 @@ export function createWorldStateManager({io, players, presence, progressProfileQ
     return state;
   }
 
-  function emitWorldEnemies(mapId){
+  function emitWorldEnemies(mapId, options = {}){
     const map = getWorldMapState(mapId);
-    io.to(`map:${map.id}`).emit("world:enemies", {
+    const channel = io.to(`map:${map.id}`);
+    const emitter = options.volatile && channel.volatile ? channel.volatile : channel;
+    const useDelta = Boolean(options.delta);
+    emitter.emit("world:enemies", {
       mapId:map.id,
-      enemies:map.enemies.filter(enemy=>enemy.hp > 0).map(publicEnemy)
+      delta:useDelta,
+      enemies:map.enemies.filter(enemy=>enemy.hp > 0).map(useDelta ? publicEnemyDelta : publicEnemy)
     });
   }
 
@@ -38,6 +42,7 @@ export function createWorldStateManager({io, players, presence, progressProfileQ
     const map = getWorldMapState(mapId);
     socket.emit("world:enemies", {
       mapId:map.id,
+      full:true,
       enemies:map.enemies.filter(enemy=>enemy.hp > 0).map(publicEnemy)
     });
   }

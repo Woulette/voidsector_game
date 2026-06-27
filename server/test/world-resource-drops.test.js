@@ -340,7 +340,7 @@ test("resource drop pools expose eight optimized assets per rarity", ()=>{
   }
 });
 
-test("dimensional anchor key drops at 0.1 percent on firm zones one to five", ()=>{
+test("Deadly portal key drops at 0.1 percent on firm zones one to five", ()=>{
   const drop = rollPortalAnchorKeyDrop("Helion-05", {random:()=>0.001});
   assert.equal(drop.itemId, "portal_anchor_key");
   assert.equal(drop.amount, 1);
@@ -350,7 +350,7 @@ test("dimensional anchor key drops at 0.1 percent on firm zones one to five", ()
   assert.equal(rollPortalAnchorKeyDrop("Nereid-01", {random:()=>0})?.itemId, "portal_anchor_key");
 });
 
-test("server emits and validates dimensional anchor key pickup", ()=>{
+test("server emits and validates Deadly portal key pickup", ()=>{
   const previousRandom = Math.random;
   Math.random = ()=>0;
   try{

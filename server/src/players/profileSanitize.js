@@ -2,7 +2,7 @@ import { normalizeProgressionPlayer } from "./progression.js";
 import { getInventoryEntryQuantity, isStackableInventoryItem } from "../economy/inventoryStacks.js";
 import { cleanupDuplicateEquippedInventoryUids } from "../economy/equipment.js";
 import { normalizeFirmId } from "../../../src/data/firms.js";
-import { normalizePremiumRewardState, normalizeStarterPackPurchases } from "../../../src/data/premium.js";
+import { normalizeBetaPackPurchases, normalizeBetaRewardState, normalizePremiumRewardState, normalizeStarterPackPurchases } from "../../../src/data/premium.js";
 import { sanitizeActivityLog } from "./activityLog.js";
 import { sanitizeCombatBoosts } from "../economy/combatBoosts.js";
 import { sanitizePilotName } from "./profileIdentity.js";
@@ -173,6 +173,11 @@ export function sanitizeProfile(profile = {}){
     updatedAt:Math.max(0, Number(profile.updatedAt || Date.now())),
     player:normalizeProgressionPlayer(sanitizeObject(profile.player)),
     premiumRewardState:normalizePremiumRewardState(profile.premiumRewardState),
+    betaRewardState:normalizeBetaRewardState(profile.betaRewardState),
+    betaPackPurchases:normalizeBetaPackPurchases(profile.betaPackPurchases),
+    betaLaunchEntitlements:Array.isArray(profile.betaLaunchEntitlements) ? [...new Set(profile.betaLaunchEntitlements.map(String).filter(Boolean))] : [],
+    betaLaunchPremiumDays:Math.max(0, Math.floor(Number(profile.betaLaunchPremiumDays || 0))),
+    betaShipChoices:sanitizeObject(profile.betaShipChoices),
     starterPackPurchases:normalizeStarterPackPurchases(profile.starterPackPurchases),
     activeShip:typeof profile.activeShip === "string" && VALID_SHIP_IDS.has(normalizeShipId(profile.activeShip)) ? normalizeShipId(profile.activeShip) : null,
     selectedShip:typeof profile.selectedShip === "string" && VALID_SHIP_IDS.has(normalizeShipId(profile.selectedShip)) ? normalizeShipId(profile.selectedShip) : null,
@@ -271,6 +276,11 @@ export function preserveProtectedOwnership(incoming, existing){
     "shipAbilityStates",
     "boosters",
     "premiumRewardState",
+    "betaRewardState",
+    "betaPackPurchases",
+    "betaLaunchEntitlements",
+    "betaLaunchPremiumDays",
+    "betaShipChoices",
     "starterPackPurchases",
     "refineryProductionRemainders",
     "starterRepairGranted",
@@ -283,7 +293,7 @@ export function preserveProtectedOwnership(incoming, existing){
     "activeDroneFormation", "activeQuestIds", "activeQuestId", "questProgress",
     "questFailProgress", "completedQuestClaims", "worldSession", "shipWorldSessions", "cargoHold",
     "shipCargo", "combatBoosts", "shipAbilityStates", "boosters", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
-    "portalPieces", "prestigeCount", "premiumRewardState", "refineryLevels", "refineryModules",
+    "portalPieces", "prestigeCount", "premiumRewardState", "betaRewardState", "betaPackPurchases", "betaLaunchEntitlements", "betaLaunchPremiumDays", "betaShipChoices", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
     "refineryProductionDisabled", "refineryProductionRemainders", "refineryLastTick", "killStats", "rankKillStats",
     "activityLog", "social", "firmatons", "firmBoxes", "firmRewardHistory", "starterPackPurchases", "starterRepairGranted", "tutorial"

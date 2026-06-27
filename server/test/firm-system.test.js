@@ -256,6 +256,8 @@ test("collective season reward requires ten thousand personal points", async ()=
     assert.equal(eligible.some(entry=>entry.source === "season-collective"), true);
     assert.equal(short.some(entry=>entry.source === "season-collective"), false);
     assert.equal(short.some(entry=>entry.source === "season-individual"), true);
+    assert.notDeepEqual(manager.getActiveBoosters("astra", {}, null, "account:eligible"), {});
+    assert.deepEqual(manager.getActiveBoosters("astra", {}, null, "account:short"), {});
   }finally{
     await rm(dir, {recursive:true, force:true});
   }

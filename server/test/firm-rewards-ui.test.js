@@ -35,7 +35,12 @@ test("firm rewards view puts the threshold first and replaces pending/history bl
     collectiveMinimumContribution:10_000,
     individualPlayerCount:100,
     individualRanking:ranking,
-    firms:[{id:"astra", rank:1, collectiveReward:{boxes:{mythic:3}}}],
+    firms:[
+      {id:"astra", label:"Astra", rank:1, collectiveReward:{boxes:{mythic:3}}},
+      {id:"cyan", label:"Cygnus", rank:2, collectiveReward:{boxes:{mythic:1, elite:2}}},
+      {id:"jaune", label:"Solarys", rank:3, collectiveReward:{boxes:{elite:3}}},
+      {id:"verte", label:"Verdantis", rank:4, collectiveReward:{boxes:{elite:1, veryRare:5}}}
+    ],
     personal:{
       firmId:"astra",
       contribution:7_500,
@@ -49,6 +54,11 @@ test("firm rewards view puts the threshold first and replaces pending/history bl
   });
 
   assert.ok(html.indexOf("Seuil saisonnier collectif") < html.indexOf("Classement et lots"));
+  assert.ok(html.indexOf("RÃ‰COMPENSES DE FIRME") < html.indexOf("Classement et lots"));
+  assert.match(html, /Top 1 Ã  Top 4/);
+  assert.match(html, /TOP 4/);
+  assert.match(html, /Boosters saison/);
+  assert.match(html, /assets\/boosters\/booster_damage\.png/);
   assert.match(html, /Pilote 1/);
   assert.match(html, /20\D000 pts/);
   assert.match(html, /Top 10%/);

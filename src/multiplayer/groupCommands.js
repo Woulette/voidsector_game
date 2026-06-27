@@ -39,7 +39,9 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
     if(!canPlay()) return;
     multiplayer.socket.emit("group:leave");
     multiplayer.serverEnemies.clear();
+    multiplayer.serverEnemyDefinitions?.clear?.();
     multiplayer.serverEnemyScope = null;
+    multiplayer.serverEnemyScopeKey = null;
     multiplayer.coopInstanceId = null;
     multiplayer.coopSpawn = null;
     multiplayer.portalInstance = null;

@@ -114,6 +114,52 @@ export function installCombatInputHandlers({
   let lastCombatTargetClick = null;
   let pendingBoostDeposit = null;
   let pendingCommerceSale = null;
+  let firmRewardTooltip = null;
+
+  function getFirmRewardTooltip(){
+    if(firmRewardTooltip?.isConnected) return firmRewardTooltip;
+    if(!documentRef.body) return null;
+    firmRewardTooltip = documentRef.createElement("div");
+    firmRewardTooltip.className = "combat-firm-reward-tooltip";
+    firmRewardTooltip.setAttribute("role", "tooltip");
+    documentRef.body.appendChild(firmRewardTooltip);
+    return firmRewardTooltip;
+  }
+
+  function positionFirmRewardTooltip(trigger, tooltip){
+    const triggerRect = trigger.getBoundingClientRect();
+    tooltip.style.left = "0px";
+    tooltip.style.top = "0px";
+    tooltip.style.right = "auto";
+    tooltip.style.bottom = "auto";
+    tooltip.classList.add("visible");
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const gap = 10;
+    const margin = 8;
+    let left = triggerRect.left - tooltipRect.width - gap;
+    if(left < margin) left = triggerRect.right + gap;
+    if(left + tooltipRect.width > windowRef.innerWidth - margin){
+      left = Math.max(margin, windowRef.innerWidth - tooltipRect.width - margin);
+    }
+    let top = triggerRect.top + triggerRect.height / 2 - tooltipRect.height / 2;
+    top = Math.max(margin, Math.min(windowRef.innerHeight - tooltipRect.height - margin, top));
+    tooltip.style.left = `${Math.round(left)}px`;
+    tooltip.style.top = `${Math.round(top)}px`;
+  }
+
+  function showFirmRewardTooltip(trigger){
+    const source = trigger?.querySelector?.(".combat-firm-reward-tooltip-source");
+    const tooltip = source ? getFirmRewardTooltip() : null;
+    if(!tooltip) return;
+    tooltip.innerHTML = source.innerHTML;
+    positionFirmRewardTooltip(trigger, tooltip);
+  }
+
+  function hideFirmRewardTooltip(){
+    if(!firmRewardTooltip) return;
+    firmRewardTooltip.classList.remove("visible");
+    firmRewardTooltip.innerHTML = "";
+  }
 
   function getBoostDepositElements(){
     const layer = documentRef.getElementById("combatBoostDepositLayer");
@@ -664,6 +710,25 @@ export function installCombatInputHandlers({
       windowRef.addEventListener("pointerup", stopDrag);
       windowRef.addEventListener("pointercancel", stopDrag);
     });
+    utilityPanel.addEventListener("pointerover", e=>{
+      const gift = e.target.closest("[data-firm-reward-gift]");
+      if(gift && utilityPanel.contains(gift)) showFirmRewardTooltip(gift);
+    });
+    utilityPanel.addEventListener("pointerout", e=>{
+      const gift = e.target.closest("[data-firm-reward-gift]");
+      if(!gift) return;
+      const next = e.relatedTarget;
+      if(next && gift.contains(next)) return;
+      hideFirmRewardTooltip();
+    });
+    utilityPanel.addEventListener("focusin", e=>{
+      const gift = e.target.closest("[data-firm-reward-gift]");
+      if(gift) showFirmRewardTooltip(gift);
+    });
+    utilityPanel.addEventListener("focusout", e=>{
+      if(e.target.closest("[data-firm-reward-gift]")) hideFirmRewardTooltip();
+    });
+    utilityPanel.addEventListener("scroll", hideFirmRewardTooltip, true);
     utilityPanel.addEventListener("click", e=>{
       const boosterDetail = e.target.closest("[data-toggle-booster-detail]");
       if(boosterDetail){

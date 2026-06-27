@@ -323,7 +323,8 @@
 .combat-utility-panel[data-utility-mode="firm"]{
   left:306px;
   right:auto;
-  width:430px;
+  width:min(680px,calc(100vw - 340px));
+  min-width:430px;
   max-height:calc(100vh - 88px);
   overflow:auto;
 }
@@ -553,6 +554,113 @@
 .combat-firm-pending article{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);align-items:center}
 .combat-firm-pending strong{color:#fff;font-size:11px;text-transform:uppercase}
 .combat-firm-claim{width:100%;min-height:32px}
+.combat-firm-subtabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.combat-firm-subtabs button{
+  min-height:28px;
+  border:1px solid rgba(56,189,248,.22);
+  background:rgba(7,24,42,.68);
+  color:#9eddf6;
+  font:900 9px/1 var(--font);
+  letter-spacing:.4px;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.combat-firm-subtabs button.active{border-color:rgba(250,204,21,.72);color:#fff8bd;background:rgba(113,63,18,.30);box-shadow:inset 0 -2px 0 rgba(250,204,21,.72)}
+.combat-firm-focus{display:grid;gap:6px}
+.combat-firm-quest-card{
+  display:grid!important;
+  grid-template-columns:82px minmax(0,1fr);
+  gap:9px!important;
+  align-items:stretch;
+  min-height:134px;
+  padding:9px!important;
+  border:1px solid rgba(56,189,248,.17)!important;
+  background:linear-gradient(110deg,rgba(7,24,42,.82),rgba(2,10,19,.84))!important;
+  box-shadow:inset 3px 0 0 rgba(56,189,248,.44);
+}
+.combat-firm-quest-card.complete{border-color:rgba(34,197,94,.4)!important;box-shadow:inset 3px 0 0 rgba(34,197,94,.72),0 0 14px rgba(34,197,94,.08)}
+.combat-firm-quest-card.locked{opacity:.72;filter:grayscale(.72)}
+.combat-firm-objective{
+  position:relative;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:4px;
+  min-height:112px;
+  border:1px solid rgba(56,189,248,.20);
+  background:radial-gradient(circle,rgba(56,189,248,.16),rgba(2,10,19,.72));
+  overflow:hidden;
+}
+.combat-firm-objective.multi{grid-template-columns:repeat(2,minmax(0,1fr));padding:6px}
+.combat-firm-objective img{max-width:64px;max-height:64px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(56,189,248,.35))}
+.combat-firm-objective img.large{scale:1.55}
+.combat-firm-objective.multi img{max-width:34px;max-height:34px}
+.combat-firm-objective>span{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:3px;background:rgba(2,10,19,.78);color:#dff6ff;font-size:9px;text-align:center;text-transform:uppercase}
+.combat-firm-objective>span b{color:#fff36a}
+.combat-firm-quest-main{display:grid;gap:7px;min-width:0}
+.combat-firm-quest-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.combat-firm-quest-stats span{
+  min-width:0;
+  padding:6px;
+  border:1px solid rgba(56,189,248,.12);
+  background:rgba(2,10,19,.50);
+  color:#9fc5dc;
+  font-size:9px;
+  text-transform:uppercase;
+}
+.combat-firm-quest-stats b{display:block;margin-top:2px;color:#f1fbff;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combat-firm-rivals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.combat-firm-rivals>span{display:grid;grid-template-columns:18px minmax(0,1fr);gap:4px;align-items:center;padding:4px;border:1px solid color-mix(in srgb,var(--firm-color) 30%,rgba(56,189,248,.12));background:rgba(2,10,19,.48)}
+.combat-firm-rivals img{width:18px;height:18px;object-fit:contain}
+.combat-firm-rivals b{color:#dff6ff;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combat-firm-rivals i{grid-column:1 / -1;height:4px;background:#020a13;overflow:hidden}
+.combat-firm-rivals em{display:block;height:100%;background:var(--firm-color)}
+.combat-firm-actions{display:flex;justify-content:flex-end;align-items:center;gap:6px;min-height:27px}
+.combat-firm-claim.small,.combat-firm-status{width:auto;min-height:27px;padding:0 9px}
+.combat-firm-status{display:grid;place-items:center;border:1px solid rgba(56,189,248,.24);background:rgba(7,24,42,.70);color:#b9d9e8;font:900 9px/1 var(--font);letter-spacing:.45px;text-transform:uppercase}
+.combat-firm-status.done{border-color:rgba(34,197,94,.35);color:#86efac}
+.combat-firmaton-amount{display:inline-flex;align-items:center;gap:4px;color:inherit;white-space:nowrap}
+.combat-firmaton-icon{width:18px;height:18px;object-fit:contain;filter:drop-shadow(0 0 7px rgba(250,204,21,.42))}
+.combat-firmaton-icon.inline{width:1.25em;height:1.25em;flex:0 0 auto}
+.combat-firm-season-list{display:grid;gap:7px}
+.combat-firm-season-card{display:grid;grid-template-columns:78px minmax(0,1fr);gap:9px;padding:9px;border:1px solid rgba(56,189,248,.16);background:linear-gradient(110deg,rgba(7,24,42,.80),rgba(2,10,19,.84));box-shadow:inset 3px 0 0 rgba(56,189,248,.44)}
+.combat-firm-season-card.complete{border-color:rgba(34,197,94,.4);box-shadow:inset 3px 0 0 rgba(34,197,94,.72)}
+.combat-firm-season-card>div:last-child{display:grid;gap:6px;min-width:0}
+.combat-firm-season-card strong,.combat-firm-season-card span,.combat-firm-season-card small{display:block;overflow:hidden;text-overflow:ellipsis}
+.combat-firm-season-card strong{color:#f1fbff;font-size:12px;text-transform:uppercase;white-space:nowrap}
+.combat-firm-season-card span{color:#7dd3fc;font-size:10px;text-transform:uppercase;white-space:nowrap}
+.combat-firm-season-card small{color:#d7f3ff;font-size:10px}
+.combat-firm-season-reward{min-width:0}
+.combat-firm-reward-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
+.combat-firm-reward-summary article i{display:block;height:6px;margin-top:5px;border:1px solid rgba(56,189,248,.22);background:#020a13;overflow:hidden}
+.combat-firm-reward-summary article i em{display:block;height:100%;background:linear-gradient(90deg,#0284c7,#facc15)}
+.combat-firm-reward-items{display:flex;gap:4px;flex-wrap:wrap;text-transform:none}
+.combat-firm-reward-item{display:inline-grid;grid-template-columns:24px auto;gap:5px;align-items:center;min-width:76px;padding:4px 5px;border:1px solid rgba(56,189,248,.16);background:rgba(1,8,16,.70);text-align:left}
+.combat-firm-reward-item img{width:24px;height:24px;object-fit:contain;filter:drop-shadow(0 0 7px rgba(250,204,21,.24))}
+.combat-firm-reward-item b,.combat-firm-reward-item small{display:block;line-height:1.05}
+.combat-firm-reward-item b{color:#fff36a;font-size:10px}.combat-firm-reward-item small{margin-top:2px;color:#b9d9e8;font-size:7px;text-transform:uppercase;white-space:nowrap}
+.combat-firm-reward-empty{color:#7895a6;font-size:10px}
+.combat-firm-reward-board,.combat-firm-percent-board{display:grid;gap:4px}
+.combat-firm-reward-title,.combat-firm-reward-board article{display:grid;grid-template-columns:58px minmax(110px,1fr) 48px;gap:6px;align-items:center}
+.combat-firm-reward-title{padding:5px 7px;color:#7dd3fc;font-size:9px;text-transform:uppercase}
+.combat-firm-reward-board article,.combat-firm-percent-board article{padding:6px 7px;border:1px solid rgba(56,189,248,.14);background:rgba(2,10,19,.62)}
+.combat-firm-reward-board article.own,.combat-firm-percent-board article.own{border-color:rgba(250,204,21,.55);background:rgba(113,63,18,.22)}
+.combat-firm-reward-board article>b{color:#fff36a;font-size:11px;text-transform:uppercase}
+.combat-firm-reward-board article>span{color:#d7f3ff;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combat-firm-reward-gift{position:relative;display:grid;place-items:center;justify-self:center;width:35px;height:35px;border:1px solid rgba(250,204,21,.34);background:radial-gradient(circle,rgba(250,204,21,.16),rgba(2,10,19,.74));cursor:help}
+.combat-firm-reward-gift>img{width:25px;height:25px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(250,204,21,.35));transition:transform .15s ease}
+.combat-firm-reward-gift:hover>img,.combat-firm-reward-gift:focus>img{transform:scale(1.12)}
+.combat-firm-reward-tooltip-source{display:none!important}
+.combat-firm-reward-tooltip{position:fixed;z-index:6000;display:none;width:218px;padding:8px;border:1px solid rgba(250,204,21,.58);background:linear-gradient(180deg,rgba(9,26,42,.99),rgba(2,8,15,.99));box-shadow:0 10px 28px rgba(0,0,0,.72),0 0 16px rgba(250,204,21,.10);text-align:left;pointer-events:none}
+.combat-firm-reward-tooltip.visible{display:grid;gap:7px}
+.combat-firm-reward-tooltip>strong{color:#fff36a;font-size:12px;text-transform:uppercase}
+.combat-firm-reward-tooltip>small{color:#8fb2c7;font-size:8px;line-height:1.35}
+.combat-firm-reward-tooltip .combat-firm-reward-items{display:grid;grid-template-columns:1fr;gap:3px}
+.combat-firm-reward-tooltip .combat-firm-reward-item{display:grid;grid-template-columns:22px minmax(0,1fr);min-width:0;padding:4px 5px}
+.combat-firm-reward-tooltip .combat-firm-reward-item img{width:22px;height:22px}
+.combat-firm-reward-tooltip .combat-firm-reward-item small{overflow:hidden;text-overflow:ellipsis}
+.combat-firm-percent-board article{display:grid;grid-template-columns:minmax(120px,1fr) 48px;gap:6px;align-items:center}
+.combat-firm-percent-board b,.combat-firm-percent-board span{display:block}.combat-firm-percent-board b{color:#f1fbff;font-size:11px;text-transform:uppercase}.combat-firm-percent-board span{margin-top:2px;color:#8fb2c7;font-size:9px}
 .social-empty{margin:12px 0;color:#789ab4;font-size:11px;text-align:center}
 .combat-utility-panel.hidden{display:none}
 .combat-utility-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;cursor:move;user-select:none}
@@ -1057,7 +1165,10 @@
   .combat-perf-panel{top:auto;right:10px;bottom:188px}
   .combat-utility-dock{top:auto;left:auto;right:10px;bottom:124px}
   .combat-utility-panel{top:auto;right:10px;bottom:174px;width:calc(100vw - 20px)}
+  .combat-utility-panel[data-utility-mode="firm"]{left:10px;right:auto;width:calc(100vw - 20px);min-width:0}
   .combat-utility-panel[data-utility-mode="map"]{left:10px;right:auto;width:calc(100vw - 20px)}
+  .combat-firm-overview,.combat-firm-quest-stats,.combat-firm-rivals,.combat-firm-reward-summary{grid-template-columns:1fr}
+  .combat-firm-quest-card,.combat-firm-season-card,.combat-firm-reward-title,.combat-firm-reward-board article,.combat-firm-percent-board article{grid-template-columns:1fr}
   .sector-map-board{--cell:46px;min-height:390px}
   .sector-map-routes{grid-template-columns:1fr}
 }

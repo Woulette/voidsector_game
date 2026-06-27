@@ -758,6 +758,8 @@ h2{font-size:23px;letter-spacing:.8px;text-transform:uppercase}
   clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);
 }
 .toast.show{transform:translateY(0);opacity:1}
+.toast.toast-top-center{left:50%;right:auto;top:84px;bottom:auto;transform:translate(-50%,-130%);text-align:center}
+.toast.toast-top-center.show{transform:translate(-50%,0);opacity:1}
 .hidden{display:none!important}
 @media (max-width:1180px){
   .profile-layout,.profile-overview-grid{grid-template-columns:1fr}

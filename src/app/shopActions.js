@@ -17,7 +17,9 @@ export function createShopActions({
   buyServerDrone,
   buyServerDroneFormation,
   buyServerPremiumPack,
+  buyServerBetaPack,
   claimServerPremiumReward,
+  claimServerBetaReward,
   showToast
 }){
   function buyShip(id){
@@ -110,6 +112,16 @@ export function createShopActions({
     });
   }
 
+  function buyBetaPack(id, shipChoice = ""){
+    sendMmoCommand({
+      multiplayer,
+      send:()=>buyServerBetaPack?.(id, shipChoice),
+      showToast,
+      sentMessage:"Achat beta envoye au serveur.",
+      failedMessage:"Achat beta impossible."
+    });
+  }
+
   function claimPremiumReward(){
     sendMmoCommand({
       multiplayer,
@@ -120,5 +132,15 @@ export function createShopActions({
     });
   }
 
-  return {buyShip, buyItem, buyBooster, buyAmmo, buyCombatDrone, buyDroneFormation, buyPremiumPack, claimPremiumReward};
+  function claimBetaReward(){
+    sendMmoCommand({
+      multiplayer,
+      send:()=>claimServerBetaReward?.(),
+      showToast,
+      sentMessage:"Reclamation beta envoyee au serveur.",
+      failedMessage:"Recompense beta impossible."
+    });
+  }
+
+  return {buyShip, buyItem, buyBooster, buyAmmo, buyCombatDrone, buyDroneFormation, buyPremiumPack, buyBetaPack, claimPremiumReward, claimBetaReward};
 }

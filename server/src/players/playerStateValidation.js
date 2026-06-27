@@ -413,6 +413,13 @@ function validateVitals({player, previous, payload, profile, ship, firmBoosters,
   return {hp, maxHp, shield, maxShield, firmHullMultiplier:hullMultiplier, firmShieldMultiplier:shieldMultiplier};
 }
 
+function addCombatCorrectionDetail(details, field, clientValue, serverValue, tolerance = 0){
+  const client = finite(clientValue, serverValue);
+  const server = finite(serverValue);
+  if(Math.abs(client - server) <= tolerance) return;
+  details.push({field, client, server});
+}
+
 export function validatePlayerState({player, payload, profile, groups, firmBoosters = {}, now = Date.now()} = {}){
   const previous = player?.state || null;
   if(previous && player?.deathState){
@@ -522,6 +529,18 @@ export function validatePlayerState({player, payload, profile, groups, firmBoost
     nextMap,
     now
   });
+  const correctionDetails = [];
+  addCombatCorrectionDetail(correctionDetails, "hp", payload?.hp, vitals.hp);
+  addCombatCorrectionDetail(correctionDetails, "maxHp", payload?.maxHp, vitals.maxHp);
+  addCombatCorrectionDetail(correctionDetails, "shield", payload?.shield, vitals.shield, 1e-6);
+  addCombatCorrectionDetail(correctionDetails, "maxShield", payload?.maxShield, vitals.maxShield, 1e-6);
+  if(String(payload?.shipId || ship.id) !== ship.id){
+    correctionDetails.push({
+      field:"shipId",
+      client:String(payload?.shipId || ""),
+      server:ship.id
+    });
+  }
   const shieldDiffers = Math.abs(finite(payload?.shield, vitals.shield) - vitals.shield) > 1e-6;
   const maxShieldDiffers = Math.abs(finite(payload?.maxShield, vitals.maxShield) - vitals.maxShield) > 1e-6;
   if(finite(payload?.hp, vitals.hp) !== vitals.hp
@@ -553,6 +572,7 @@ export function validatePlayerState({player, payload, profile, groups, firmBoost
   return {
     corrected,
     reason,
+    correctionDetails,
     state:{
       x:point.x,
       y:point.y,

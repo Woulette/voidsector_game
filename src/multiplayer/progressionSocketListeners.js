@@ -57,7 +57,7 @@ export function installProgressionSocketListeners({socket, multiplayer, emitChan
     emitChange("portal:unlocked", event);
   });
   socket.on("portal:error", payload=>{
-    toast(payload?.message || "Portail impossible.");
+    toast(payload?.message || "Portail impossible.", {position:"top-center"});
     emitChange("portal:error", payload);
   });
   socket.on("prestige:performed", event=>{

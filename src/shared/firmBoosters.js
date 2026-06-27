@@ -43,8 +43,8 @@ export const FIRM_BOOSTER_DEFINITIONS = Object.freeze({
 export const BOOSTER_TYPE_IDS = Object.freeze(Object.keys(FIRM_BOOSTER_DEFINITIONS));
 
 export const FIRM_RANK_BOOSTERS = Object.freeze({
-  1:Object.freeze({damage:.10, shield:.10, hull:.10, credits:.25, nova:.25}),
-  2:Object.freeze({damage:.10, shield:.10, nova:.25}),
+  1:Object.freeze({damage:.10, shield:.10, hull:.10, credits:.25, nova:.10}),
+  2:Object.freeze({damage:.10, shield:.10, nova:.10}),
   3:Object.freeze({damage:.10, shield:.10}),
   4:Object.freeze({damage:.10})
 });

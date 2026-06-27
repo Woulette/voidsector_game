@@ -1,4 +1,5 @@
-const REMEMBERED_EMAIL_KEY = "avosomanox-login-email";
+const REMEMBERED_EMAIL_KEY = "avosoma-login-email";
+const LEGACY_REMEMBERED_EMAIL_KEY = "avosomanox-login-email";
 
 function cleanText(value){
   return String(value || "").trim();
@@ -9,6 +10,17 @@ function setStatus(element, message, state = ""){
   element.textContent = message;
   element.classList.toggle("error", state === "error");
   element.classList.toggle("success", state === "success");
+}
+
+function getRememberedEmail(){
+  const rememberedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY) || "";
+  if(rememberedEmail) return rememberedEmail;
+  const legacyEmail = localStorage.getItem(LEGACY_REMEMBERED_EMAIL_KEY) || "";
+  if(legacyEmail){
+    localStorage.setItem(REMEMBERED_EMAIL_KEY, legacyEmail);
+    localStorage.removeItem(LEGACY_REMEMBERED_EMAIL_KEY);
+  }
+  return legacyEmail;
 }
 
 export function isMmoAuthenticated(multiplayer){
@@ -47,7 +59,7 @@ export function createAuthGateController({
   const registerConfirmInput = root.querySelector("#authGateRegisterConfirm");
   const submitButtons = [...root.querySelectorAll("[data-auth-submit]")];
 
-  const rememberedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY) || "";
+  const rememberedEmail = getRememberedEmail();
   if(emailInput && rememberedEmail) emailInput.value = rememberedEmail;
   if(registerEmailInput && rememberedEmail) registerEmailInput.value = rememberedEmail;
   if(rememberInput) rememberInput.checked = multiplayer?.auth?.remember !== false;
@@ -65,8 +77,13 @@ export function createAuthGateController({
   }
 
   function rememberEmail(email, remember){
-    if(remember && email) localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
-    else if(!remember) localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+    if(remember && email){
+      localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+      localStorage.removeItem(LEGACY_REMEMBERED_EMAIL_KEY);
+    }else if(!remember){
+      localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+      localStorage.removeItem(LEGACY_REMEMBERED_EMAIL_KEY);
+    }
   }
 
   function show(){

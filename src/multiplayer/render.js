@@ -1,5 +1,5 @@
-import { multiplayer } from "./client.js";
-import { drawPlayerLayer } from "../game/render/player.js";
+import { multiplayer } from "./client.js?v=firm-shop-sync-1";
+import { drawPlayerLayer } from "../game/render/player.js?v=engine-trail-40";
 import { getFirmBadgeAsset } from "../data/firms.js";
 import { getCachedCombatImage } from "../game/combatAssets.js";
 import { drawTargetSelectionOverlay } from "../game/render/targetOverlay.js";
@@ -29,6 +29,7 @@ function sampleBufferedState(samples, delayMs = 115){
       x:lerp(Number(from.x || 0), Number(to.x || 0), t),
       y:lerp(Number(from.y || 0), Number(to.y || 0), t),
       angle:lerpAngle(Number(from.angle || 0), Number(to.angle || 0), t),
+      engineAngle:lerpAngle(Number(from.engineAngle ?? from.angle ?? 0), Number(to.engineAngle ?? to.angle ?? 0), t),
       vx:lerp(Number(from.vx || 0), Number(to.vx || 0), t),
       vy:lerp(Number(from.vy || 0), Number(to.vy || 0), t),
       enginePower:lerp(Number(from.enginePower || 0), Number(to.enginePower || 0), t),
@@ -77,6 +78,7 @@ function getRemoteRenderState(remote, state){
       x:Number(buffered.x || 0),
       y:Number(buffered.y || 0),
       angle:Number(buffered.angle || 0),
+      engineAngle:Number(buffered.engineAngle ?? buffered.angle ?? 0),
       enginePower:Number(buffered.enginePower || 0)
     };
     return remote.renderState;
@@ -85,6 +87,7 @@ function getRemoteRenderState(remote, state){
   render.x = lerp(render.x, Number(buffered.x || 0), .55);
   render.y = lerp(render.y, Number(buffered.y || 0), .55);
   render.angle = lerpAngle(render.angle, Number(buffered.angle || 0), .55);
+  render.engineAngle = lerpAngle(render.engineAngle ?? render.angle, Number(buffered.engineAngle ?? buffered.angle ?? 0), .55);
   const speed = Math.hypot(Number(buffered.vx || 0), Number(buffered.vy || 0));
   const targetPower = Math.max(Number(buffered.enginePower || 0), Math.min(1, speed / 120));
   render.enginePower = lerp(render.enginePower || 0, targetPower, .50);
@@ -127,6 +130,7 @@ function buildRemotePlayer(render, state){
     x:render.x,
     y:render.y,
     angle:render.angle,
+    engineAngle:Number(render.engineAngle ?? state.engineAngle ?? render.angle),
     vx:Number(state.vx || 0),
     vy:Number(state.vy || 0),
     speed:Number(state.speed || 0),

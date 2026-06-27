@@ -645,6 +645,8 @@
 .quest-strip.rare .quest-strip-title{color:#facc15;text-shadow:0 0 10px rgba(250,204,21,.20)}
 .quest-strip.red .quest-strip-title{color:#ff4d5f;text-shadow:0 0 11px rgba(239,68,68,.28)}
 .quest-strip.red.selected{border-color:rgba(239,68,68,.65);box-shadow:inset 3px 0 0 rgba(239,68,68,.95)}
+.quest-strip[data-view-quest="quest_drone_cleanup"] .quest-strip-title,.quest-strip[data-view-quest^="quest_drone_cleanup_"] .quest-strip-title{color:#ff4d5f;text-shadow:0 0 11px rgba(239,68,68,.28)}
+.quest-strip[data-view-quest="quest_drone_cleanup"].selected,.quest-strip[data-view-quest^="quest_drone_cleanup_"].selected{border-color:rgba(239,68,68,.65);box-shadow:inset 3px 0 0 rgba(239,68,68,.95)}
 .quest-strip.claimable{border-color:rgba(34,197,94,.36)}
 .quest-strip.locked{opacity:.62}
 .quest-strip.premium-locked{opacity:.78;border-color:rgba(250,204,21,.32);background:linear-gradient(90deg,rgba(60,41,7,.42),rgba(3,12,24,.84));filter:grayscale(.28)}
@@ -759,10 +761,6 @@
 .quest-reward-title{margin-top:12px}
 .quest-reward-title::after{content:"";height:1px;flex:1;background:rgba(250,204,21,.18)}
 .quest-objective-text{padding:0 2px}
-.quest-progress-row{display:grid;gap:5px}
-.quest-progress-label{display:flex;justify-content:space-between;gap:10px;align-items:center}
-.quest-progress-label span{font-size:11px;color:#8fb9d6;text-transform:uppercase;letter-spacing:.55px}
-.quest-progress-label b{font-size:13px;color:#f8fafc}
 .quest-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;align-content:start;min-height:0;overflow:auto;padding-right:2px}
 .quest-info-grid.compact{grid-template-columns:repeat(3,minmax(0,1fr))}
 .quest-info-grid div{display:grid;gap:2px;padding:5px 7px;border:1px solid rgba(56,189,248,.11);background:rgba(255,255,255,.025);min-width:0}

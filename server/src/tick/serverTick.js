@@ -52,7 +52,7 @@ export function startServerTick({
       }
       if(worldEmitT >= 0.10){
         worldEmitT = 0;
-        for(const mapId of activeMapIds) emitWorldEnemies(mapId);
+        for(const mapId of activeMapIds) emitWorldEnemies(mapId, {volatile:true, delta:true});
       }
       for(const group of groups.values()){
         const instance = group.instance;
@@ -97,7 +97,7 @@ export function startServerTick({
       updateShipAbilityEffects?.(now);
       if(instanceEmitT >= 0.10){
         instanceEmitT = 0;
-        for(const group of groups.values()) if(group.instance) emitInstance(group);
+        for(const group of groups.values()) if(group.instance) emitInstance(group, {volatile:true, delta:true});
       }
       cleanupExpiredLootDrops(now);
       updatePendingEnemyAttacks?.(now);

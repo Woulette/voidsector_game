@@ -5,7 +5,7 @@ import { replaceServerEnemies } from "../../src/multiplayer/socketState.js";
 import { installWorldSocketListeners } from "../../src/multiplayer/worldSocketListeners.js";
 
 function makeEnemy(id, x = 0){
-  return {id:`enemy-${id}`, x, y:id, angle:0, vx:10, vy:0, moving:true, hp:100, maxHp:100};
+  return {id:`enemy-${id}`, kind:"drone_pirate", type:"Drone", img:"drone.png", x, y:id, angle:0, vx:10, vy:0, moving:true, hp:100, maxHp:100};
 }
 
 test("enemy snapshot history stays bounded during sustained MMO updates", ()=>{
@@ -15,6 +15,28 @@ test("enemy snapshot history stays bounded during sustained MMO updates", ()=>{
   }
 
   assert.equal(multiplayer.serverEnemies.get("enemy-1").samples.length, 6);
+});
+
+test("enemy delta snapshots reuse the last full enemy definition", ()=>{
+  const multiplayer = {serverEnemies:new Map(), serverEnemyDefinitions:new Map()};
+  replaceServerEnemies(multiplayer, {
+    mapId:"0",
+    full:true,
+    enemies:[makeEnemy(1, 10)]
+  }, "world");
+  replaceServerEnemies(multiplayer, {
+    mapId:"0",
+    delta:true,
+    enemies:[{id:"enemy-1", x:55, y:80, hp:75, shield:12, angle:.5, vx:20, vy:0, moving:true}]
+  }, "world");
+
+  const enemy = multiplayer.serverEnemies.get("enemy-1");
+  assert.equal(enemy.kind, "drone_pirate");
+  assert.equal(enemy.img, "drone.png");
+  assert.equal(enemy.maxHp, 100);
+  assert.equal(enemy.hp, 75);
+  assert.equal(enemy.x, 55);
+  assert.equal(enemy.samples.length, 2);
 });
 
 test("high-frequency enemy snapshots bypass the global application event bus", ()=>{

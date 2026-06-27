@@ -143,7 +143,7 @@ test("server portal start refuses dead players and duplicate active instances", 
   assert.match(lastError(fixture.events), /deja actif/i);
 });
 
-test("Ricky portal consumes one dimensional anchor key on entry", ()=>{
+test("Ricky portal consumes one Deadly portal key on entry", ()=>{
   const fixture = createFixture();
   let profile = createDefaultProfile();
   profile.player.level = 10;
@@ -151,7 +151,7 @@ test("Ricky portal consumes one dimensional anchor key on entry", ()=>{
   fixture.setProfile(profile);
 
   fixture.manager.startPortalInstance(fixture.socket, "ricky");
-  assert.match(lastError(fixture.events), /cle d'ancrage dimensionnel/i);
+  assert.match(lastError(fixture.events), /0\/1 clé du portail deadly/i);
   assert.equal(fixture.groups.get("group-1").instance, null);
 
   profile = fixture.getProfile();

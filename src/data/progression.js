@@ -285,6 +285,8 @@ const baseQuestCatalog = [
     requiredLevel:1,
     title:"Un passe droit ?",
     special:true,
+    red:true,
+    rewardTone:"special",
     giver:"Relais de Commandement",
     desc:"Sécurise la zone et reviens me voir, je t'offrirai ton passe droit.",
     objective:{type:"kill", target:"drone_pirate", label:"Orbe sentinelle", count:3, zones:["Helion-01","Helion-02"]},

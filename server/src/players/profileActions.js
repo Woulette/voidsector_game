@@ -1,3 +1,4 @@
+import { appendFileSync, mkdirSync } from "node:fs";
 import { applyDronePermanentUpgrade, applyEquipmentUpgrade, equipInventoryUid, findEquippedSlot, getServerItem, unequipInventoryUid, unequipShipLoadout, unequipSlot } from "../economy/equipment.js";
 import { claimServerRefineryJob, completeServerRefineryShipment, completeServerRefineryUpgrades, refineServerShipCargoRecipe, rushServerRefineryShipment, rushServerRefineryUpgrade, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, toggleServerRefineryProduction } from "../economy/refinery.js";
 import { runServerSpaceCaster } from "../economy/spaceCaster.js";
@@ -6,13 +7,25 @@ import { checkServerQuestTimers, recordServerQuestDeath, recordServerQuestHpLoss
 import { spendCurrency } from "./progression.js";
 import { performServerPrestige, unlockServerPortal, upgradeServerSkill } from "./progressionActions.js";
 import { sanitizeProfile } from "./profileSanitize.js";
-import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
+import { addInventoryItemAmount, isStackableInventoryItem } from "../economy/inventoryStacks.js";
 import { appendProfileActivity } from "./activityLog.js";
 import { depositServerCombatBoostMaterial } from "../economy/combatBoosts.js";
 import { sellServerCommerceMaterials } from "../economy/materialCommerce.js";
-import { applyPremiumPackToPlayer, claimPremiumRewardState } from "../../../src/data/premium.js";
+import { applyPremiumPackToPlayer, claimBetaRewardState, claimPremiumRewardState } from "../../../src/data/premium.js";
 import { BOOSTER_TYPE_IDS, addPlayerBoosterUnits } from "../../../src/shared/firmBoosters.js";
 import { abandonTutorialAfterOutsideQuestAction } from "./tutorialActions.js";
+
+const BETA_PURCHASE_LOG_DIR = new URL("../../data/", import.meta.url);
+const BETA_PURCHASE_LOG_FILE = new URL("../../data/betaPurchases.jsonl", import.meta.url);
+
+function appendBetaPurchaseLog(record){
+  try{
+    mkdirSync(BETA_PURCHASE_LOG_DIR, {recursive:true});
+    appendFileSync(BETA_PURCHASE_LOG_FILE, `${JSON.stringify(record)}\n`, "utf8");
+  }catch(error){
+    console.warn("[beta] Impossible d'ecrire le journal d'achat beta:", error?.message || error);
+  }
+}
 
 export function createProfileActions({profiles, persist, getExistingProfile}){
   function spendAndUpdate({player, priceType, amount, update, activity} = {}){
@@ -219,6 +232,35 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     });
   }
 
+  function ensureShipOwned(profile, shipId){
+    const cleanShipId = String(shipId || "");
+    if(!cleanShipId) return false;
+    if(!Array.isArray(profile.ownedShips)) profile.ownedShips = ["orion"];
+    if(profile.ownedShips.includes(cleanShipId)) return false;
+    profile.ownedShips.push(cleanShipId);
+    if(!profile.shipLoadouts || typeof profile.shipLoadouts !== "object") profile.shipLoadouts = {};
+    if(!profile.shipLoadouts[cleanShipId]){
+      profile.shipLoadouts[cleanShipId] = {
+        lasers:[],
+        missileLauncher:null,
+        rocketLauncher:null,
+        generators:[],
+        extras:[]
+      };
+    }
+    return true;
+  }
+
+  function grantInventoryItemCount(profile, itemId, amount = 1){
+    const count = Math.max(0, Math.floor(Number(amount || 0)));
+    if(count <= 0) return;
+    if(isStackableInventoryItem(itemId)){
+      addInventoryItemAmount(profile, itemId, count);
+      return;
+    }
+    for(let i = 0; i < count; i += 1) addInventoryItemAmount(profile, itemId, 1);
+  }
+
   function rewardSummary(reward = {}){
     const parts = [];
     if(reward.credits) parts.push(`${Math.max(0, Number(reward.credits || 0))} credits`);
@@ -226,10 +268,12 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     for(const [id, amount] of Object.entries(reward.ammo || {})) parts.push(`${Math.max(0, Number(amount || 0))} ${id}`);
     for(const [id, amount] of Object.entries(reward.itemCounts || {})) parts.push(`${Math.max(0, Number(amount || 0))} ${id}`);
     for(const id of reward.items || []) parts.push(`1 ${id}`);
+    for(const id of reward.ships || []) parts.push(`1 vaisseau ${id}`);
+    if(reward.shipRandom) parts.push(reward.shipRandom.label || "1 vaisseau aleatoire");
     return parts.join(" + ") || "recompense";
   }
 
-  function applyPremiumRewardPayload(profile, reward = {}){
+  function applyRewardPayload(profile, reward = {}, {randomShipKey = ""} = {}){
     if(!profile.player || typeof profile.player !== "object") profile.player = {};
     profile.player.credits = Math.max(0, Number(profile.player.credits || 0)) + Math.max(0, Number(reward.credits || 0));
     profile.player.premium = Math.max(0, Number(profile.player.premium || 0)) + Math.max(0, Number(reward.premium || 0));
@@ -237,8 +281,83 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     for(const [id, amount] of Object.entries(reward.ammo || {})){
       profile.ammoInventory[id] = Math.max(0, Number(profile.ammoInventory[id] || 0)) + Math.max(0, Number(amount || 0));
     }
-    for(const [id, amount] of Object.entries(reward.itemCounts || {})) addInventoryItemAmount(profile, id, amount);
-    for(const id of reward.items || []) addInventoryItemAmount(profile, id, 1);
+    for(const [id, amount] of Object.entries(reward.itemCounts || {})) grantInventoryItemCount(profile, id, amount);
+    for(const id of reward.items || []) grantInventoryItemCount(profile, id, 1);
+    for(const id of reward.ships || []) ensureShipOwned(profile, id);
+    let randomShip = "";
+    const randomIds = Array.isArray(reward.shipRandom?.shipIds) ? reward.shipRandom.shipIds.map(String).filter(Boolean) : [];
+    if(randomIds.length){
+      const owned = new Set(Array.isArray(profile.ownedShips) ? profile.ownedShips.map(String) : []);
+      const pool = randomIds.filter(id=>!owned.has(id));
+      const candidates = pool.length ? pool : randomIds;
+      randomShip = candidates[Math.floor(Math.random() * candidates.length)] || "";
+      if(randomShip) ensureShipOwned(profile, randomShip);
+      if(randomShipKey){
+        if(!profile.betaRewardState || typeof profile.betaRewardState !== "object") profile.betaRewardState = {};
+        if(!profile.betaRewardState.randomShipRewards || typeof profile.betaRewardState.randomShipRewards !== "object"){
+          profile.betaRewardState.randomShipRewards = {};
+        }
+        profile.betaRewardState.randomShipRewards[randomShipKey] = randomShip;
+      }
+    }
+    return {randomShip};
+  }
+
+  function addBetaPackPurchase({player, purchase} = {}){
+    if(!player) return {ok:false, reason:"Joueur introuvable."};
+    if(!purchase?.id) return {ok:false, reason:"Pack beta invalide."};
+    if(purchase.locked) return {ok:false, reason:purchase.reason || "Pack beta indisponible."};
+    const {key, profile} = getExistingProfile(player);
+    const bought = Array.isArray(profile.betaPackPurchases) ? profile.betaPackPurchases.map(String) : [];
+    if(bought.includes(purchase.id)) return {ok:false, reason:"Pack beta deja achete."};
+    if(!Array.isArray(profile.betaPackPurchases)) profile.betaPackPurchases = [];
+    profile.betaPackPurchases.push(purchase.id);
+    if(!Array.isArray(profile.betaLaunchEntitlements)) profile.betaLaunchEntitlements = [];
+    profile.betaLaunchEntitlements = [...new Set([
+      ...profile.betaLaunchEntitlements.map(String),
+      ...(purchase.launchEntitlements || []).map(String)
+    ].filter(Boolean))];
+    const launchPremiumDays = Math.max(0, Math.floor(Number(purchase.launchPremiumDays || 0)));
+    profile.betaLaunchPremiumDays = Math.max(0, Math.floor(Number(profile.betaLaunchPremiumDays || 0))) + launchPremiumDays;
+    if(!profile.betaShipChoices || typeof profile.betaShipChoices !== "object") profile.betaShipChoices = {};
+    const grants = {...(purchase.grants || {})};
+    if(purchase.shipChoice){
+      profile.betaShipChoices[purchase.id] = purchase.shipChoice;
+      grants.ships = [...(Array.isArray(grants.ships) ? grants.ships : []), purchase.shipChoice];
+    }
+    applyRewardPayload(profile, grants);
+    appendProfileActivity(profile, {
+      type:"beta_pack",
+      label:"Pack beta",
+      detail:`${purchase.name || purchase.id} attribue cote serveur${purchase.shipChoice ? ` avec ${purchase.shipChoice}` : ""}.`,
+      data:{
+        packId:purchase.id,
+        realPrice:purchase.realPrice || "",
+        shipChoice:purchase.shipChoice || "",
+        launchEntitlements:purchase.launchEntitlements || [],
+        launchPremiumDays
+      }
+    });
+    const next = sanitizeProfile({...profile, updatedAt:Date.now()});
+    profiles.set(key, next);
+    persist(key);
+    appendBetaPurchaseLog({
+      type:"beta_pack_purchase",
+      accountKey:String(key || ""),
+      playerId:String(player?.id || player?.accountId || ""),
+      pilotName:String(next.player?.name || player?.name || ""),
+      packId:purchase.id,
+      packName:purchase.name || "",
+      realPrice:purchase.realPrice || "",
+      shipChoice:purchase.shipChoice || "",
+      launchEntitlements:purchase.launchEntitlements || [],
+      launchPremiumDays,
+      totalLaunchPremiumDays:next.betaLaunchPremiumDays || 0,
+      betaPackPurchases:next.betaPackPurchases || [],
+      recordedAt:Date.now(),
+      recordedAtIso:new Date().toISOString()
+    });
+    return {ok:true, profile:next};
   }
 
   function claimPremiumReward({player} = {}){
@@ -246,7 +365,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     const {key, profile} = getExistingProfile(player);
     const result = claimPremiumRewardState(profile);
     if(!result.ok) return result;
-    applyPremiumRewardPayload(profile, result.reward?.reward || {});
+    applyRewardPayload(profile, result.reward?.reward || {});
     appendProfileActivity(profile, {
       type:"premium_reward",
       label:"Recompense premium",
@@ -260,6 +379,27 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     profiles.set(key, next);
     persist(key);
     return {...result, profile:next};
+  }
+
+  function claimBetaReward({player} = {}){
+    if(!player) return {ok:false, reason:"Joueur introuvable."};
+    const {key, profile} = getExistingProfile(player);
+    const result = claimBetaRewardState(profile);
+    if(!result.ok) return result;
+    const applied = applyRewardPayload(profile, result.reward?.reward || {}, {randomShipKey:`day_${result.day}`});
+    appendProfileActivity(profile, {
+      type:"beta_reward",
+      label:"Recompense beta",
+      detail:`Jour ${result.day} : ${rewardSummary(result.reward?.reward || {})}.`,
+      data:{day:result.day, reward:result.reward?.reward || {}, randomShip:applied.randomShip || ""}
+    });
+    const next = sanitizeProfile({
+      ...profile,
+      updatedAt:Date.now()
+    });
+    profiles.set(key, next);
+    persist(key);
+    return {...result, randomShip:applied.randomShip || "", profile:next};
   }
 
   function getSaleValue(item){
@@ -555,5 +695,5 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     return {...result, profile:next};
   }
   
-  return {addAmmoPurchase, addItemPurchase, addBoosterPurchase, grantBooster, addShipPurchase, addDronePurchase, addDroneFormationPurchase, addPremiumPackPurchase, claimPremiumReward, sellInventoryItem, applyEquipmentAction, setActiveShipForPlayer, applyQuestAction, applyEconomyAction, applyProgressionAction};
+  return {addAmmoPurchase, addItemPurchase, addBoosterPurchase, grantBooster, addShipPurchase, addDronePurchase, addDroneFormationPurchase, addPremiumPackPurchase, addBetaPackPurchase, claimPremiumReward, claimBetaReward, sellInventoryItem, applyEquipmentAction, setActiveShipForPlayer, applyQuestAction, applyEconomyAction, applyProgressionAction};
 }

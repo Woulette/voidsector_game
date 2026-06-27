@@ -14,7 +14,7 @@ import { config } from "./config.js";
 import { checkDatabaseConnection, closeDatabase, dbEnabled, initializeDatabase } from "./db/client.js";
 import { createGroupManager } from "./groups/groups.js";
 import { createFirmWarManager } from "./firms/firmWar.js";
-import { enrichFirmSnapshot } from "./firms/firmSnapshots.js";
+import { buildPersonalFirmSeasonSnapshot, emitThrottledFirmRanking } from "./firms/firmBroadcasts.js";
 import { getFirmHitOwner, markFirmHitOwner } from "./firms/firmHitOwnership.js";
 import { logger } from "./logger.js";
 import { normalizeFirmId } from "../../src/data/firms.js";
@@ -62,7 +62,7 @@ import { createPlayerActivityManager } from "./world/playerActivity.js";
 import { createWorldRewardManager } from "./world/rewards.js";
 import { createWorldStatusEffectManager } from "./world/statusEffects.js";
 import { WORLD_MAPS } from "./world/definitions.js";
-import { isPointInFriendlyWorldSafeArea, publicEnemy } from "./world/spawn.js";
+import { isPointInFriendlyWorldSafeArea, publicEnemy, publicEnemyDelta } from "./world/spawn.js";
 import { createWorldStateManager } from "./world/state.js";
 
 const PORT = config.port;
@@ -403,6 +403,7 @@ const {
   players,
   publicPlayer,
   publicEnemy,
+  publicEnemyDelta,
   emitPlayers
 });
 playerGroups = groups;
@@ -723,7 +724,7 @@ function applyPlayerHit(socket, payload){
       },
       targetKey:profileManager.profileKeyForPlayer(target)
     });
-    io.emit("firm:ranking", enrichFirmSnapshot(profileManager, firmKill.snapshot));
+    emitThrottledFirmRanking({io, profileManager, snapshot:firmKill.snapshot});
     const reputation = Math.max(0, targetLevel * 1000);
     const pvpReward = profileManager.updateProfileForPlayer({
       player:attacker,
@@ -737,13 +738,15 @@ function applyPlayerHit(socket, payload){
     });
     if(pvpReward.ok){
       emitProfileSyncForPlayer(attacker, pvpReward.profile);
-      const firmSnapshot = enrichFirmSnapshot(profileManager, firmWarManager.snapshot({
+      const firmSnapshot = buildPersonalFirmSeasonSnapshot({
+        firmWarManager,
+        profileManager,
         playerKey:profileManager.profileKeyForPlayer(firmAttacker),
         profile:firmAttackerProfile,
         player:firmAttacker
-      }));
+      });
       for(const accountPlayer of accountSocketsForPlayer(firmAttacker)){
-        io.to(accountPlayer.id).emit("firm:snapshot", firmSnapshot);
+        if(firmSnapshot) io.to(accountPlayer.id).emit("firm:snapshot", firmSnapshot);
       }
       const rewardEvent = {
         rewardId:`pvp:${target.id}:${attacker.id}:${Date.now()}`,
