@@ -314,7 +314,7 @@ body.auth-ready #authGate{
 .auth-logo-image{
   position:absolute;
   top:-34px;
-  left:min(340px,calc(100% - 118px));
+  left:min(196px,calc(100% - 118px));
   width:118px;
   height:118px;
 }
@@ -509,7 +509,7 @@ body.auth-ready #authGate{
     top:-14px;
     width:92px;
     height:92px;
-    left:min(300px,calc(100% - 92px));
+    left:min(190px,calc(100% - 92px));
   }
   .auth-station{
     width:70vw;
