@@ -57,6 +57,21 @@ test("runtime config rejects invalid database URLs", ()=>{
   );
 });
 
+test("runtime config accepts a platform auth API base URL", ()=>{
+  const config = createRuntimeConfig({
+    NODE_ENV:"production",
+    CLIENT_ORIGIN:"https://avosoma.absyrion.com",
+    DATABASE_URL:"postgresql://voidsector:secret@localhost:5432/voidsector",
+    PLATFORM_AUTH_API_URL:"https://api.absyrion.com/"
+  });
+  assert.equal(config.platformAuthApiUrl, "https://api.absyrion.com");
+
+  assert.throws(
+    ()=>createRuntimeConfig({PLATFORM_AUTH_API_URL:"https://api.absyrion.com/session?token=x"}),
+    /PLATFORM_AUTH_API_URL/
+  );
+});
+
 test("load testing requires a strong secret and stays disabled in production", ()=>{
   assert.throws(
     ()=>createRuntimeConfig({LOAD_TEST_ENABLED:"true", LOAD_TEST_SECRET:"short"}),

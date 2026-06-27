@@ -95,6 +95,57 @@ test("a new password login revokes old account sessions and disconnects the prev
   assert.equal(emitted.some(entry=>entry.socket === "new" && entry.event === "auth:success"), true);
 });
 
+test("auth handlers can use the Absyrion platform provider instead of local sessions", async ()=>{
+  const handlers = new Map();
+  const calls = [];
+  const emitted = [];
+  const socket = {
+    id:"game-socket",
+    on:(event, callback)=>handlers.set(event, callback),
+    emit:(event, payload)=>emitted.push({event, payload})
+  };
+  const players = new Map([[socket.id, {id:socket.id, accountId:null, clientMode:"game"}]]);
+  const authProvider = {
+    async session(token){
+      calls.push(`session:${token}`);
+      return {
+        account:{id:"abs-account-1", username:"AbsyrionPilot", email:"pilot@absyrion.com"},
+        token,
+        expiresAt:123,
+        session:{token, expiresAt:123}
+      };
+    }
+  };
+
+  registerAuthHandlers(socket, {
+    players,
+    guard:()=>true,
+    emitPlayers(){},
+    authProvider,
+    attachOrResumeAccountSocket:(targetSocket, account, session)=>{
+      calls.push(`attach:${targetSocket.id}:${account.id}:${session.expiresAt}`);
+    },
+    publicAuthPayload:({account, session})=>({account, token:session.token, expiresAt:session.expiresAt}),
+    syncProfileForPlayer:()=>calls.push("sync-profile")
+  });
+
+  await handlers.get("auth:session")({token:"abs-token"});
+
+  assert.deepEqual(calls, [
+    "session:abs-token",
+    "attach:game-socket:abs-account-1:123",
+    "sync-profile"
+  ]);
+  assert.deepEqual(emitted, [{
+    event:"auth:success",
+    payload:{
+      account:{id:"abs-account-1", username:"AbsyrionPilot", email:"pilot@absyrion.com"},
+      token:"abs-token",
+      expiresAt:123
+    }
+  }]);
+});
+
 test("auth handlers expose expected login errors without logging them as server failures", async ()=>{
   const handlers = new Map();
   const emitted = [];

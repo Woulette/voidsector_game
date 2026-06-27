@@ -6,6 +6,7 @@ import { createAdminAuditStore } from "./admin/adminAudit.js";
 import { createAdminManager } from "./admin/adminManager.js";
 import { loginAccount, registerAccount } from "./auth/accounts.js";
 import { createPlatformAuthHttpHandler } from "./auth/platformHttpApi.js";
+import { createPlatformAuthClient } from "./auth/platformAuthClient.js";
 import { createSocketSessionManager } from "./auth/socketSession.js";
 import { createSession, getSessionAccount, revokeSessionByToken, revokeSessionsForAccount } from "./auth/sessions.js";
 import { resolveServerCombatFire } from "./combat/damage.js";
@@ -93,6 +94,9 @@ const platformAuthHttpHandler = createPlatformAuthHttpHandler({
   revokeSessionsForAccount,
   logger,
   onError:error=>serverErrorLog.record(error)
+});
+const platformAuthProvider = createPlatformAuthClient({
+  baseUrl:config.platformAuthApiUrl
 });
 
 const httpServer = http.createServer(async (req, res)=>{
@@ -890,6 +894,7 @@ io.on("connection", socket=>{
     ...socketContext,
     attachOrResumeAccountSocket,
     emitPlayers,
+    authProvider:platformAuthProvider,
     logger,
     onError:error=>serverErrorLog.record(error),
     publicAuthPayload,

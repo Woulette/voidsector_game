@@ -30,6 +30,24 @@ function isValidPostgresDatabaseUrl(value){
   }
 }
 
+function normalizeBaseUrl(value){
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+function isValidBaseUrl(value){
+  try{
+    const url = new URL(String(value || ""));
+    return ["http:", "https:"].includes(url.protocol)
+      && Boolean(url.hostname)
+      && !url.username
+      && !url.password
+      && !url.search
+      && !url.hash;
+  }catch{
+    return false;
+  }
+}
+
 function integerConfig(value, fallback, {min = 0, max = Number.MAX_SAFE_INTEGER} = {}){
   const raw = String(value ?? "").trim();
   if(!raw) return fallback;
@@ -44,6 +62,7 @@ export function createRuntimeConfig(environment = process.env){
   const port = Number(environment.PORT || 3001);
   const clientOrigin = normalizeClientOrigins(environment.CLIENT_ORIGIN || "*");
   const databaseUrl = String(environment.DATABASE_URL || "").trim();
+  const platformAuthApiUrl = normalizeBaseUrl(environment.PLATFORM_AUTH_API_URL || "");
   const loadTestEnabled = String(environment.LOAD_TEST_ENABLED || "").trim().toLowerCase() === "true";
   const loadTestSecret = String(environment.LOAD_TEST_SECRET || "").trim();
   const maxConcurrentGamePlayers = integerConfig(
@@ -69,6 +88,9 @@ export function createRuntimeConfig(environment = process.env){
   if(databaseUrl && !isValidPostgresDatabaseUrl(databaseUrl)){
     errors.push("DATABASE_URL must be a valid postgres:// or postgresql:// URL with a database name.");
   }
+  if(platformAuthApiUrl && !isValidBaseUrl(platformAuthApiUrl)){
+    errors.push("PLATFORM_AUTH_API_URL must be a valid http(s) base URL without query or hash.");
+  }
   if(loadTestEnabled && loadTestSecret.length < 16){
     errors.push("LOAD_TEST_SECRET must contain at least 16 characters when load testing is enabled.");
   }
@@ -88,6 +110,7 @@ export function createRuntimeConfig(environment = process.env){
     port,
     clientOrigin:clientOrigin === "*" || clientOrigin.length === 1 ? clientOrigin === "*" ? "*" : clientOrigin[0] : clientOrigin,
     databaseEnabled:Boolean(databaseUrl),
+    platformAuthApiUrl,
     maxConcurrentGamePlayers,
     loadTest:{
       enabled:loadTestEnabled,

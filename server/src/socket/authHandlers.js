@@ -33,9 +33,51 @@ export function registerAuthHandlers(socket, context){
     publicAuthPayload,
     syncProfileForPlayer,
     loginAccount:authenticateAccount = loginAccount,
+    registerAccount:registerNewAccount = registerAccount,
+    getSessionAccount:getAuthSessionAccount = getSessionAccount,
     createSession:createAuthSession = createSession,
-    revokeSessionsForAccount:revokeAccountSessions = revokeSessionsForAccount
+    revokeSessionsForAccount:revokeAccountSessions = revokeSessionsForAccount,
+    revokeSessionByToken:revokeAuthSessionByToken = revokeSessionByToken,
+    authProvider = null
   } = context;
+
+  const provider = authProvider || {
+    async register(payload){
+      const account = await registerNewAccount(payload);
+      const session = await createAuthSession(account.id);
+      return {
+        account,
+        token:session?.token || "",
+        expiresAt:session?.expiresAt || null,
+        session
+      };
+    },
+    async login(payload){
+      const account = await authenticateAccount(payload);
+      await revokeAccountSessions(account.id);
+      const session = await createAuthSession(account.id);
+      return {
+        account,
+        token:session?.token || "",
+        expiresAt:session?.expiresAt || null,
+        session
+      };
+    },
+    async session(token){
+      const result = await getAuthSessionAccount(token);
+      if(!result?.account) throw new Error("Session expiree.");
+      return {
+        account:result.account,
+        token,
+        expiresAt:result.expiresAt || null,
+        session:{token, expiresAt:result.expiresAt || null}
+      };
+    },
+    async logout(token){
+      if(token) await revokeAuthSessionByToken(token);
+      return {ok:true};
+    }
+  };
 
   function disconnectPreviousAccountSockets(accountId){
     const previousPlayers = [...players.values()].filter(candidate=>
@@ -81,8 +123,9 @@ export function registerAuthHandlers(socket, context){
   socket.on("auth:register", async payload=>{
     if(!guard("auth:register")) return;
     try{
-      const account = await registerAccount(payload);
-      const session = await createSession(account.id);
+      const result = await provider.register(payload);
+      const account = result.account;
+      const session = result.session || {token:result.token, expiresAt:result.expiresAt};
       attachOrResumeAccountSocket(socket, account, session);
       socket.emit("auth:success", publicAuthPayload({account, session}));
       syncProfileForPlayer(socket);
@@ -95,9 +138,9 @@ export function registerAuthHandlers(socket, context){
   socket.on("auth:login", async payload=>{
     if(!guard("auth:login")) return;
     try{
-      const account = await authenticateAccount(payload);
-      await revokeAccountSessions(account.id);
-      const session = await createAuthSession(account.id);
+      const result = await provider.login(payload);
+      const account = result.account;
+      const session = result.session || {token:result.token, expiresAt:result.expiresAt};
       disconnectPreviousAccountSockets(account.id);
       attachOrResumeAccountSocket(socket, account, session);
       socket.emit("auth:success", publicAuthPayload({account, session}));
@@ -111,12 +154,12 @@ export function registerAuthHandlers(socket, context){
   socket.on("auth:session", async payload=>{
     if(!guard("auth:session")) return;
     try{
-      const result = await getSessionAccount(payload?.token);
-      if(!result?.account) throw new Error("Session expiree.");
+      const token = String(payload?.token || "");
+      const result = await provider.session(token);
       attachOrResumeAccountSocket(socket, result.account, result);
       socket.emit("auth:success", publicAuthPayload({
         account:result.account,
-        session:{token:payload?.token, expiresAt:result.expiresAt}
+        session:{token:result.token || token, expiresAt:result.expiresAt}
       }));
       syncProfileForPlayer(socket);
     }catch(error){
@@ -127,7 +170,7 @@ export function registerAuthHandlers(socket, context){
 
   socket.on("auth:logout", async payload=>{
     if(!guard("auth:logout")) return;
-    if(payload?.token) await revokeSessionByToken(payload.token);
+    if(payload?.token) await provider.logout(payload.token);
     const player = players.get(socket.id);
     const accountId = player?.accountId || null;
     const accountPlayers = accountId
