@@ -4,8 +4,10 @@ import http from "node:http";
 import { Server } from "socket.io";
 import { createAdminAuditStore } from "./admin/adminAudit.js";
 import { createAdminManager } from "./admin/adminManager.js";
+import { loginAccount, registerAccount } from "./auth/accounts.js";
+import { createPlatformAuthHttpHandler } from "./auth/platformHttpApi.js";
 import { createSocketSessionManager } from "./auth/socketSession.js";
-import { revokeSessionsForAccount } from "./auth/sessions.js";
+import { createSession, getSessionAccount, revokeSessionByToken, revokeSessionsForAccount } from "./auth/sessions.js";
 import { resolveServerCombatFire } from "./combat/damage.js";
 import { getPlayerPvpBlockReason } from "./combat/playerPvp.js";
 import { createShipAbilityEffectManager } from "./combat/shipAbilityEffects.js";
@@ -81,7 +83,20 @@ function recordRuntimeSignal(entry){
   }
 }
 
+const platformAuthHttpHandler = createPlatformAuthHttpHandler({
+  allowedOrigin:config.clientOrigin,
+  registerAccount,
+  loginAccount,
+  createSession,
+  getSessionAccount,
+  revokeSessionByToken,
+  revokeSessionsForAccount,
+  logger,
+  onError:error=>serverErrorLog.record(error)
+});
+
 const httpServer = http.createServer(async (req, res)=>{
+  if(await platformAuthHttpHandler(req, res)) return;
   if(req.url === "/health"){
     const health = await buildSafeHealthStatus({
       players,
