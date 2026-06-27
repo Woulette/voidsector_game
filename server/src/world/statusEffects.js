@@ -23,7 +23,7 @@ export function createWorldStatusEffectManager({io, players, presence, profileMa
       player,
       action:{kind:"hp-loss", amount:hpLost}
     });
-    emitProfileSync?.(player, questResult.profile);
+    if(questResult?.failed?.length) emitProfileSync?.(player, questResult.profile);
     if(questResult.updates?.length || questResult.failed?.length){
       io.to(player.id).emit("quest:fail-progress", {
         updates:questResult.updates || [],

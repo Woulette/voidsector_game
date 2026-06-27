@@ -45,6 +45,52 @@ test("Astranite death slows only living players within 150 units for five second
   assert.equal(events.filter(entry=>entry.payload.active === false).length, 2);
 });
 
+test("server poison damage does not emit a full profile sync when quest state is unchanged", ()=>{
+  const player = {
+    id:"poisoned",
+    mapId:"4",
+    state:{mapId:"4", x:0, y:0, hp:100, maxHp:100, shield:0, maxShield:0},
+    statusEffects:{}
+  };
+  const players = new Map([[player.id, player]]);
+  const events = [];
+  const saves = [];
+  const profileSyncs = [];
+  const manager = createWorldStatusEffectManager({
+    io:{to:id=>({emit:(event, payload)=>events.push({id, event, payload})})},
+    players,
+    presence:{
+      markDamage(){},
+      markCombat(){}
+    },
+    profileManager:{
+      applyQuestAction(){
+        return {profile:{}, changed:false, updates:[], failed:[]};
+      },
+      saveWorldSession(payload){
+        saves.push(payload);
+      }
+    },
+    emitProfileSync(player, profile){
+      profileSyncs.push({player, profile});
+    }
+  });
+  const enemy = {
+    id:"parasite-1",
+    onHitEffect:{type:"poison", damage:10, interval:1, duration:3}
+  };
+
+  assert.equal(manager.applyEnemyOnHitEffect(enemy, player, 1000), true);
+  manager.updateStatusEffects(2000);
+
+  assert.equal(player.state.hp, 90);
+  assert.equal(saves.length, 1);
+  assert.equal(profileSyncs.length, 0);
+  const damageEvents = events.filter(entry=>entry.event === "player:damage");
+  assert.equal(damageEvents.length, 1);
+  assert.equal(damageEvents[0].payload.damageType, "poison");
+});
+
 test("the client movement step applies the flat 200 speed reduction", ()=>{
   const player = {
     x:0,

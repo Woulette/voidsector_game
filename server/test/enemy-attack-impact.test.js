@@ -116,6 +116,44 @@ test("a pending enemy projectile is cancelled when the target leaves the map", (
   assert.equal(fixture.emitted.some(event=>event.eventName === "player:damage"), false);
 });
 
+test("simultaneous enemy impacts are batched into one player damage event", ()=>{
+  const fixture = createFixture();
+  const now = 25_000;
+  const secondEnemy = {
+    ...fixture.enemy,
+    id:"enemy-2",
+    onHitEffect:{type:"poison", damage:8}
+  };
+
+  fixture.manager.launchEnemyAttack({
+    enemy:fixture.enemy,
+    map:{id:"1", room:"map:1"},
+    target:fixture.target,
+    amount:20,
+    now,
+    attackStyle:"parasite"
+  });
+  fixture.manager.launchEnemyAttack({
+    enemy:secondEnemy,
+    map:{id:"1", room:"map:1"},
+    target:fixture.target,
+    amount:25,
+    now,
+    attackStyle:"parasite"
+  });
+  fixture.manager.updatePendingEnemyAttacks(now + 2_000);
+
+  assert.equal(fixture.target.state.hp, 55);
+  assert.equal(fixture.saves.length, 1);
+  assert.equal(fixture.poisonApplications.length, 1);
+  assert.equal(fixture.poisonApplications[0].enemy.id, "enemy-2");
+  const damageEvents = fixture.emitted.filter(event=>event.eventName === "player:damage");
+  assert.equal(damageEvents.length, 1);
+  assert.equal(damageEvents[0].payload.amount, 45);
+  assert.equal(damageEvents[0].payload.attackCount, 2);
+  assert.deepEqual(damageEvents[0].payload.sourceEnemyIds.sort(), ["enemy-1", "enemy-2"]);
+});
+
 test("Ricky receives the same shield split as a player while exposing the complete hit amount", ()=>{
   const fixture = createFixture();
   const now = 30_000;

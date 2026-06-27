@@ -91,37 +91,23 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
     });
   }
 
-  function resolveEnemyAttack(attack, now){
-    const target = players.get(attack.targetId) || attack.targetRef;
+  function targetIsValidForPlayerAttack(attack, target, now){
     const targetIsActive = typeof presence.isActiveForWorld === "function"
       ? presence.isActiveForWorld(target, now)
       : target?.connected !== false;
-    if(!target?.state || (!target.npcTarget && !targetIsActive)) return;
-    if(!target.npcTarget && String(target.mapId ?? "") !== String(attack.mapId ?? "")) return;
-    if(Number(target.state.hp || 0) <= 0) return;
+    return Boolean(
+      target?.state
+      && targetIsActive
+      && String(target.mapId ?? "") === String(attack.mapId ?? "")
+      && Number(target.state.hp || 0) > 0
+    );
+  }
 
-    if(target.npcTarget){
-      const hpLost = applyDamageToNpcState(target.state, attack.amount);
-      io.to(attack.room || `map:${attack.mapId}`).emit("npc:damage", {
-        targetId:target.id,
-        enemyId:attack.enemy.id,
-        mapId:attack.mapId,
-        amount:attack.amount,
-        hp:Number(target.state.hp || 0),
-        maxHp:Number(target.state.maxHp || 0),
-        shield:Number(target.state.shield || 0),
-        maxShield:Number(target.state.maxShield || 0),
-        hpLost,
-        at:now
-      });
-      return;
-    }
-
-    presence.markCombat(target, "impact ennemi");
-    const hpLost = presence.applyDamageToPlayerState(target, attack.amount, now);
-    emitQuestHpLoss(target, hpLost, now);
-    profileManager.saveWorldSession({player:target, state:target.state, force:Number(target.state.hp || 0) <= 0});
-    io.to(target.id).emit("player:damage", {
+  function resolveNpcAttack(attack, target, now){
+    if(!target?.state || Number(target.state.hp || 0) <= 0) return;
+    const hpLost = applyDamageToNpcState(target.state, attack.amount);
+    io.to(attack.room || `map:${attack.mapId}`).emit("npc:damage", {
+      targetId:target.id,
       enemyId:attack.enemy.id,
       mapId:attack.mapId,
       amount:attack.amount,
@@ -129,21 +115,80 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
       maxHp:Number(target.state.maxHp || 0),
       shield:Number(target.state.shield || 0),
       maxShield:Number(target.state.maxShield || 0),
-      fromX:attack.fromX,
-      fromY:attack.fromY,
-      toX:attack.toX,
-      toY:attack.toY,
+      hpLost,
       at:now
     });
-    applyEnemyOnHitEffect?.(attack.enemy, target, now);
+  }
+
+  function strongestOnHitEnemy(attacks){
+    let strongest = null;
+    for(const attack of attacks){
+      const effect = attack?.enemy?.onHitEffect;
+      if(!effect) continue;
+      if(!strongest || Number(effect.damage || 0) > Number(strongest.onHitEffect?.damage || 0)){
+        strongest = attack.enemy;
+      }
+    }
+    return strongest;
+  }
+
+  function resolvePlayerAttackBatch(target, attacks, now){
+    if(!targetIsValidForPlayerAttack(attacks[0], target, now)) return;
+    const amount = attacks.reduce((sum, attack)=>sum + Math.max(0, Number(attack.amount || 0)), 0);
+    if(amount <= 0) return;
+    presence.markCombat(target, "impact ennemi");
+    const hpLost = presence.applyDamageToPlayerState(target, amount, now);
+    emitQuestHpLoss(target, hpLost, now);
+    profileManager.saveWorldSession({player:target, state:target.state, force:Number(target.state.hp || 0) <= 0});
+    io.to(target.id).emit("player:damage", {
+      enemyId:attacks.length === 1 ? attacks[0].enemy.id : "enemy:batch",
+      sourceEnemyIds:attacks.map(attack=>attack.enemy.id),
+      attackCount:attacks.length,
+      mapId:attacks[0].mapId,
+      amount,
+      hp:Number(target.state.hp || 0),
+      maxHp:Number(target.state.maxHp || 0),
+      shield:Number(target.state.shield || 0),
+      maxShield:Number(target.state.maxShield || 0),
+      fromX:attacks[0].fromX,
+      fromY:attacks[0].fromY,
+      toX:target.state?.x ?? attacks[0].toX,
+      toY:target.state?.y ?? attacks[0].toY,
+      at:now
+    });
+    const onHitEnemy = strongestOnHitEnemy(attacks);
+    if(onHitEnemy) applyEnemyOnHitEffect?.(onHitEnemy, target, now);
+  }
+
+  function resolveEnemyAttack(attack, now){
+    const target = players.get(attack.targetId) || attack.targetRef;
+    if(target?.npcTarget){
+      resolveNpcAttack(attack, target, now);
+      return;
+    }
+    if(!targetIsValidForPlayerAttack(attack, target, now)) return;
+    resolvePlayerAttackBatch(target, [attack], now);
   }
 
   function updatePendingEnemyAttacks(now = Date.now()){
+    const playerBatches = new Map();
     for(let index = pendingAttacks.length - 1; index >= 0; index -= 1){
       const attack = pendingAttacks[index];
       if(now < attack.impactAt) continue;
       pendingAttacks.splice(index, 1);
-      resolveEnemyAttack(attack, now);
+      const target = players.get(attack.targetId) || attack.targetRef;
+      if(target?.npcTarget){
+        resolveNpcAttack(attack, target, now);
+        continue;
+      }
+      if(!targetIsValidForPlayerAttack(attack, target, now)) continue;
+      const key = `${attack.targetId}:${attack.mapId}`;
+      const batch = playerBatches.get(key) || {target, attacks:[]};
+      batch.attacks.push(attack);
+      playerBatches.set(key, batch);
+    }
+    for(const batch of playerBatches.values()){
+      resolvePlayerAttackBatch(batch.target, batch.attacks, now);
     }
   }
 
