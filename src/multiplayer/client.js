@@ -25,10 +25,12 @@ const DEFAULT_SERVER_URL = DEFAULT_MULTIPLAYER_SERVER_URL;
 const SERVER_STORAGE_KEY = "voidsector-multiplayer-server";
 const NAME_STORAGE_KEY = "voidsector-multiplayer-name";
 const AUTH_TOKEN_STORAGE_KEY = "voidsector-auth-token";
+const ABSYRION_AUTH_TOKEN_COOKIE = "absyrion_auth_token";
 const AUTH_REMEMBER_STORAGE_KEY = "avosoma-auth-remember";
 const LEGACY_AUTH_REMEMBER_STORAGE_KEY = "avosomanox-auth-remember";
 const AUTH_SYNC_CHANNEL_NAME = "avosoma-auth-sync";
 const CLIENT_ID_STORAGE_KEY = "voidsector-client-id";
+const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const LEADERBOARD_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const MULTIPLAYER_STATE_KEY = "__voidsectorMultiplayerState";
 
@@ -52,13 +54,47 @@ function broadcastAuthChange(message){
   try{ authSyncChannel?.postMessage(message); }catch(error){}
 }
 
+function authCookieDomainAttribute(){
+  const hostname = String(window.location?.hostname || "").toLowerCase();
+  return hostname === "absyrion.com" || hostname.endsWith(".absyrion.com") ? "; Domain=.absyrion.com" : "";
+}
+
+function authCookieSecurityAttribute(){
+  return window.location?.protocol === "https:" ? "; Secure" : "";
+}
+
+function getCookieValue(name){
+  if(typeof document === "undefined") return "";
+  const prefix = `${encodeURIComponent(name)}=`;
+  const cookies = String(document.cookie || "").split(";").map(value=>value.trim());
+  const match = cookies.find(value=>value.startsWith(prefix));
+  return match ? decodeURIComponent(match.slice(prefix.length)) : "";
+}
+
+function storeAbsyrionAuthCookie(token, remember = shouldRememberAuth()){
+  if(typeof document === "undefined") return;
+  const clean = String(token || "");
+  if(!clean) return clearAbsyrionAuthCookie();
+  const maxAge = remember ? `; Max-Age=${AUTH_COOKIE_MAX_AGE_SECONDS}` : "";
+  document.cookie = `${encodeURIComponent(ABSYRION_AUTH_TOKEN_COOKIE)}=${encodeURIComponent(clean)}; Path=/; SameSite=Lax${authCookieSecurityAttribute()}${authCookieDomainAttribute()}${maxAge}`;
+}
+
+function clearAbsyrionAuthCookie(){
+  if(typeof document === "undefined") return;
+  const base = `${encodeURIComponent(ABSYRION_AUTH_TOKEN_COOKIE)}=; Path=/; SameSite=Lax; Max-Age=0${authCookieSecurityAttribute()}`;
+  document.cookie = base;
+  const domain = authCookieDomainAttribute();
+  if(domain) document.cookie = `${base}${domain}`;
+}
+
 function getStoredAuthToken(){
-  return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "";
+  return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || getCookieValue(ABSYRION_AUTH_TOKEN_COOKIE) || "";
 }
 
 function clearStoredAuthToken(){
   localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  clearAbsyrionAuthCookie();
   broadcastAuthChange({type:"logout"});
 }
 
@@ -81,6 +117,7 @@ function removeStoredAuthTokenIfMatches(token){
   if(!clean) return;
   if(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) === clean) localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   if(sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY) === clean) sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  if(getCookieValue(ABSYRION_AUTH_TOKEN_COOKIE) === clean) clearAbsyrionAuthCookie();
 }
 
 function shouldRememberAuth(){
@@ -96,6 +133,7 @@ function storeAuthToken(token, remember = shouldRememberAuth()){
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
   }
+  storeAbsyrionAuthCookie(token, remember);
   broadcastAuthChange({type:"token", token:String(token)});
 }
 

@@ -24,7 +24,7 @@ import {
   store,
   XP_CURVE_VERSION
 } from "./core/store.js";
-import { createCombatGame } from "./game/combat.js?v=engine-trail-40-quest-detail-clean-4-refine-boost-assets-1-firm-panel-gift-3";
+import { createCombatGame } from "./game/combat.js?v=engine-trail-41-quest-detail-clean-4-refine-boost-assets-1-firm-panel-gift-3";
 import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=firm-shop-sync-1";
 import { connectMultiplayer, disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, registerAccount, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=firm-shop-sync-1";
 import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=beta-store-3-firm-collective-1-firm-nova-10-1";
@@ -290,7 +290,7 @@ const accountProfileScope = profileController.accountProfileScope;
 let authGate = null;
 let gameRecovery = null;
 
-function promptAuthGate(message = "Connecte ton compte Avosoma avant d'entrer en jeu."){
+function promptAuthGate(message = "Connecte ton compte Absyrion avant d'entrer en jeu."){
   if(appMode === "game"){
     if(multiplayer.auth?.token && (multiplayer.connecting || multiplayer.auth?.pending)) return;
     gameRecovery?.show?.("account");
@@ -1203,7 +1203,7 @@ function startGameWhenMmoReady(){
       gameStartConnectRequested = true;
       connectMultiplayer({name:multiplayer.name});
     }
-    promptAuthGate("Connecte ton compte Avosoma pour lancer la session.");
+    promptAuthGate("Connecte ton compte Absyrion pour lancer la session.");
     return;
   }
   if(store.state.player?.firmSelected !== true){

@@ -129,7 +129,7 @@ export function createAuthGateController({
     }else if(multiplayer?.auth?.token){
       setStatus(statusEl, "Session sauvegardee detectee.");
     }else{
-      setStatus(statusEl, "Connecte ton compte pour entrer.");
+      setStatus(statusEl, "Connecte ton compte Absyrion pour entrer.");
     }
     return false;
   }
@@ -156,7 +156,7 @@ export function createAuthGateController({
     }
     setAuthRememberEnabled?.(remember);
     rememberEmail(email, remember);
-    setStatus(statusEl, "Connexion au compte...");
+    setStatus(statusEl, "Connexion au compte Absyrion...");
     loginAccount?.({login:email, password, serverUrl:multiplayer?.serverUrl});
     sync();
   });
@@ -186,7 +186,7 @@ export function createAuthGateController({
     }
     setAuthRememberEnabled?.(remember);
     rememberEmail(email, remember);
-    setStatus(statusEl, "Creation du compte...");
+    setStatus(statusEl, "Creation du compte Absyrion...");
     registerAccount?.({email, username, password, serverUrl:multiplayer?.serverUrl});
     sync();
   });
