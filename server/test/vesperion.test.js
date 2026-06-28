@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ships } from "../../src/data/ships.js";
+import { applyServerEliteLaserLifeSteal } from "../src/combat/damage.js";
 import { getShipPurchase } from "../src/economy/shop.js";
 import { activateServerShipAbility, applyServerShipLifeSteal } from "../src/combat/shipAbilities.js";
 import { createProfileActions } from "../src/players/profileActions.js";
@@ -86,4 +87,34 @@ test("Tir absorbant restores 50 percent of real damage for 20 seconds and cools 
 
   const ready = activateServerShipAbility({player, profile, now:181_000});
   assert.equal(ready.ok, true);
+});
+
+test("Tir absorbant can stack with elite green laser lifesteal", ()=>{
+  const profile = createDefaultProfile();
+  profile.ownedShips.push("vesperion");
+  profile.activeShip = "vesperion";
+  const player = {
+    id:"socket-vesperion-elite-lifesteal",
+    state:{shipId:"vesperion", hp:1_000, maxHp:230_000}
+  };
+
+  assert.equal(activateServerShipAbility({player, profile, now:1_000}).ok, true);
+  const shipHeal = applyServerShipLifeSteal({
+    player,
+    profile,
+    damageDealt:10_000,
+    weaponClass:"laser",
+    now:2_000
+  });
+  const eliteHeal = applyServerEliteLaserLifeSteal({
+    player,
+    eliteLaser:{green:{triggered:true, lifestealPercent:0.25}},
+    damageDealt:10_000,
+    weaponClass:"laser",
+    now:2_000
+  });
+
+  assert.equal(shipHeal.healed, 5_000);
+  assert.equal(eliteHeal.healed, 2_500);
+  assert.equal(player.state.hp, 8_500);
 });
