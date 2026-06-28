@@ -1,1 +1,1 @@
-import "./src/app.js?v=level-up-1";
+import "./src/app.js?v=loot-rarity-1";

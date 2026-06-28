@@ -1,3 +1,5 @@
+import { lootNameWithRarityHtml, lootNameWithRarityText } from "../../ui/lootRarityDisplay.js";
+
 export function createCombatCargoSystem({
   rewards,
   requestServerLootPickup,
@@ -65,6 +67,7 @@ export function createCombatCargoSystem({
       ammoId:event.ammoId || null,
       itemId:event.itemId || null,
       portalId:event.portalId || null,
+      rarity:event.rarity || "",
       name:event.name || event.portalName || "Butin serveur",
       label:event.label || (kind === "questItem" ? "QUETE" : kind === "ammo" ? "AMMO" : kind === "item" ? "ITEM" : kind === "material" ? "MAT" : "LOOT"),
       img:event.img || (kind === "questItem" ? "assets/quest_items/contaminated_sample.png" : "assets/equipment/ammo_laser_x2_same_preview.png"),
@@ -119,9 +122,10 @@ export function createCombatCargoSystem({
       if(requestServerLootPickup?.(node.uid)){
         groundMaterials.splice(index, 1);
         particles().push({x:node.x, y:node.y, life:.42, max:.42, size:28, color:node.glowCore || "rgba(216,180,254,.58)"});
-        const amountLabel = Number(node.amount || 1) > 1 ? ` x${node.amount}` : "";
-        showToast(`Ramassage serveur : ${node.name}${amountLabel}.`);
-        rewards.showLootNotice({piece:`${node.name}${amountLabel} envoye au serveur`});
+        const labelText = lootNameWithRarityText(node);
+        const labelHtml = lootNameWithRarityHtml(node);
+        showToast(`Ramassage serveur : ${labelHtml}.`, {trustedHtml:true});
+        rewards.showLootNotice({piece:`${labelText} envoye au serveur`});
         pendingGroundMaterial = null;
         onCargoChanged?.();
         return true;

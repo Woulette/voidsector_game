@@ -1,5 +1,6 @@
 import { portals } from "../../data/catalog.js";
 import { fmt } from "../../core/utils.js";
+import { lootNameWithRarityHtml } from "../../ui/lootRarityDisplay.js";
 import { SAFE_ZONE_DELAY } from "../combatData.js";
 import { createProjectile } from "./projectiles.js?v=action-slots-save-1-fps-burst-1";
 import { buildPortalEnvironment, createPortalMap } from "./portalState.js";
@@ -933,8 +934,7 @@ export function createCombatServerEventSystem({
         expiresAt:Number(event.expiresAt || Date.now() + 60000),
         serverControlled:Boolean(event.serverControlled)
       });
-      const amountLabel = Number(event.amount || 1) > 1 ? ` x${event.amount}` : "";
-      showToast(`${event.name || "Butin serveur"}${amountLabel} detecte au sol.`);
+      showToast(`${lootNameWithRarityHtml(event)} detecte au sol.`, {trustedHtml:true});
     }
     multiplayer.lootDropEvents = remaining;
   }

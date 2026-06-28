@@ -777,6 +777,12 @@ h2{font-size:23px;letter-spacing:.8px;text-transform:uppercase}
   color:var(--text);padding:14px 16px;box-shadow:var(--shadow);min-width:250px;transform:translateY(130%);opacity:0;transition:.22s ease;
   clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);
 }
+.loot-rarity-token{font-weight:900;text-transform:uppercase;text-shadow:0 0 10px currentColor}
+.loot-rarity-token.rarity-common{color:#94a3b8}
+.loot-rarity-token.rarity-rare{color:#38bdf8}
+.loot-rarity-token.rarity-veryRare{color:#a78bfa}
+.loot-rarity-token.rarity-elite{color:#fb923c}
+.loot-rarity-token.rarity-mythic{color:#facc15}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.toast-top-center{left:50%;right:auto;top:84px;bottom:auto;transform:translate(-50%,-130%);text-align:center}
 .toast.toast-top-center.show{transform:translate(-50%,0);opacity:1}

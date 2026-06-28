@@ -1,5 +1,6 @@
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import { currencyAmountHtml } from "../../ui/currencyIcons.js";
+import { lootNameWithRarityHtml, lootNameWithRarityText } from "../../ui/lootRarityDisplay.js";
 
 const CHAT_TABS = [
   {id:"global", label:"Global"},
@@ -44,7 +45,14 @@ function ensureChatLogs(store){
 
 function compactLogParts(entry, fmt){
   const parts = [];
-  if(entry.label) parts.push(escapeHtml(String(entry.label)));
+  if(entry.kind === "loot" && entry.lootName){
+    parts.push(lootNameWithRarityHtml({
+      name:entry.lootName,
+      amount:entry.lootAmount,
+      rarity:entry.rarity,
+      rarityTier:entry.rarityTier
+    }, fmt));
+  }else if(entry.label) parts.push(escapeHtml(String(entry.label)));
   if(Number(entry.credits || 0) > 0) parts.push(currencyAmountHtml("credits", entry.credits, {prefix:"+"}));
   if(Number(entry.premium || 0) > 0) parts.push(currencyAmountHtml("premium", entry.premium, {prefix:"+"}));
   if(Number(entry.xp || 0) > 0) parts.push(`+${fmt(entry.xp)} XP`);
@@ -53,9 +61,7 @@ function compactLogParts(entry, fmt){
 }
 
 function lootPickedLabel(payload, fmt){
-  const amount = Math.max(1, Math.round(Number(payload.amount || 1)));
-  const name = payload.name || payload.portalName || payload.itemId || payload.ammoId || payload.materialId || "Butin";
-  return `${name}${amount > 1 ? ` x${fmt(amount)}` : ""}`;
+  return lootNameWithRarityText(payload, fmt);
 }
 
 export function createCombatChat({
@@ -352,6 +358,10 @@ export function createCombatChat({
       appendLog({
         kind:"loot",
         enemyName:"Ramassage",
+        lootName:payload.name || payload.portalName || payload.itemId || payload.ammoId || payload.materialId || "Butin",
+        lootAmount:Math.max(1, Math.round(Number(payload.amount || 1))),
+        rarity:payload.rarity || "",
+        rarityTier:payload.rarityTier || "",
         label:lootPickedLabel(payload, fmt),
         at:payload.at || Date.now()
       });

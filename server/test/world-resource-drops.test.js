@@ -421,7 +421,9 @@ test("server emits a private material drop and validates its pickup", ()=>{
     player.state = {mapId:"0", x:event.x, y:event.y};
     manager.pickupLoot({id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, {id:event.id});
     assert.equal(profile.cargoHold[event.materialId], 1);
-    assert.equal(socketEvents.some(entry=>entry.name === "loot:picked"), true);
+    const picked = socketEvents.find(entry=>entry.name === "loot:picked");
+    assert.ok(picked);
+    assert.equal(picked.payload.rarity, event.rarity);
   }finally{
     Math.random = previousRandom;
   }

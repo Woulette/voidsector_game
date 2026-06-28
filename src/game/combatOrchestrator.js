@@ -67,7 +67,7 @@ import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./rende
 import { createCombatSceneRenderer } from "./render/combatScene.js?v=level-up-1";
 import { createCombatLoop } from "./systems/combatLoop.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatBeamSystem } from "./systems/combatBeams.js?v=ship-charge-1";
-import { createCombatCargoSystem } from "./systems/combatCargo.js";
+import { createCombatCargoSystem } from "./systems/combatCargo.js?v=loot-rarity-1";
 import { installCombatDebugCommands } from "./systems/combatDebug.js";
 import { createCombatDeathRespawnSystem } from "./systems/combatDeathRespawn.js";
 import { createCombatFrameUpdateSystem } from "./systems/combatFrameUpdate.js?v=level-up-1";
@@ -78,7 +78,7 @@ import { createCombatRemoteTargetResolver } from "./systems/combatRemoteTargets.
 import { createCombatInteractionSystem } from "./systems/combatInteractions.js";
 import { createCombatMapAssetStreamingSystem } from "./systems/combatMapAssetStreaming.js";
 import { createCombatMultiplayerSyncSystem } from "./systems/combatMultiplayerSync.js";
-import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=level-up-1";
+import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=loot-rarity-1";
 import { createCombatServerActions } from "./systems/combatServerActions.js";
 import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js";
 import { createCombatPortalNavigationSystem } from "./systems/combatPortalNavigation.js";
@@ -100,7 +100,7 @@ import { createRewardSystem } from "./systems/rewards.js";
 import { createWeaponSystem } from "./systems/weapons.js?v=action-slots-save-1-fps-burst-1";
 import { updatePoisonStatus, updateSlowStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
-import { createCombatChat } from "./ui/combatChat.js";
+import { createCombatChat } from "./ui/combatChat.js?v=loot-rarity-1";
 import { createCombatLogoutController } from "./ui/combatLogoutController.js";
 import { installCombatInputHandlers } from "./ui/inputBindings.js?v=craft-ui-6";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";

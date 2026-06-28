@@ -21,9 +21,10 @@ function setToastContent(element, message){
   element.replaceChildren(...nodes);
 }
 
-export function showToast(msg, {position = ""} = {}){
+export function showToast(msg, {position = "", trustedHtml = false} = {}){
   const el = document.getElementById("toast");
-  setToastContent(el, msg);
+  if(trustedHtml) el.innerHTML = String(msg ?? "");
+  else setToastContent(el, msg);
   el.classList.remove("toast-top-center");
   if(position === "top-center") el.classList.add("toast-top-center");
   el.classList.add("show");

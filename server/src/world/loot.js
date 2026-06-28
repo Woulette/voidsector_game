@@ -252,6 +252,7 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
       socket.emit("loot:picked", {
         id,
         kind:drop.kind,
+        rarity:drop.rarity || "",
         itemId:drop.itemId,
         name:drop.name,
         amount:drop.amount,
@@ -324,6 +325,7 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
       kind:drop.kind,
       portalId:drop.portalId,
       portalName:drop.portalName,
+      rarity:drop.rarity || "",
       materialId:drop.materialId,
       ammoId:drop.ammoId,
       itemId:drop.itemId,

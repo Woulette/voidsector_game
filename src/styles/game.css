@@ -814,6 +814,7 @@
 }
 .combat-chat-row.log strong{color:#fef08a}
 .combat-chat-row span{word-break:break-word;color:#dff6ff}
+.combat-chat-row.log .loot-rarity-token{letter-spacing:.45px}
 .combat-chat-empty{
   margin:auto;
   color:#7f9db7;

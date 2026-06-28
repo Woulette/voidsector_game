@@ -147,13 +147,15 @@ test("local enemy rewards are blocked while connected to the MMO", ()=>{
 
 test("only server-controlled ground loot can request a pickup", ()=>{
   let requests = 0;
+  const toasts = [];
+  const lootNotices = [];
   const cargo = createCombatCargoSystem({
-    rewards:{showLootNotice(){}},
+    rewards:{showLootNotice:notice=>lootNotices.push(notice)},
     requestServerLootPickup(){
       requests += 1;
       return true;
     },
-    showToast(){},
+    showToast:(message, options)=>toasts.push({message, options}),
     onCargoChanged(){},
     particles:()=>[]
   });
@@ -167,6 +169,7 @@ test("only server-controlled ground loot can request a pickup", ()=>{
     id:"server-loot",
     kind:"material",
     name:"Butin serveur",
+    rarity:"rare",
     serverControlled:true
   });
 
@@ -174,6 +177,10 @@ test("only server-controlled ground loot can request a pickup", ()=>{
   assert.equal(requests, 0);
   assert.equal(cargo.collectGroundMaterial(serverLoot), true);
   assert.equal(requests, 1);
+  assert.equal(toasts.at(-1)?.options?.trustedHtml, true);
+  assert.match(toasts.at(-1)?.message || "", /loot-rarity-token rarity-rare/);
+  assert.match(toasts.at(-1)?.message || "", /Rare<\/span> : Butin serveur/);
+  assert.equal(lootNotices.at(-1)?.piece, "Rare : Butin serveur envoye au serveur");
 });
 
 test("profile sync sends preferences only, never critical MMO progression", ()=>{
