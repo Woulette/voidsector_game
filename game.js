@@ -1,1 +1,1 @@
-import "./src/app.js?v=craft-ui-4";
+import "./src/app.js?v=craft-ui-5";

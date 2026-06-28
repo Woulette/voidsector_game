@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { craftResourceCatalog, rawMaterialCatalog } from "../../src/data/progression.js";
-import { getCraftRecipe, getCraftRecipes, getVisibleCraftRecipes } from "../../src/data/craftingRecipes.js";
+import { CRAFT_CATEGORY_TABS, getCraftRecipe, getCraftRecipes, getVisibleCraftRecipes } from "../../src/data/craftingRecipes.js";
 import { claimServerCraftingJob, startServerCraftingJob } from "../src/economy/crafting.js";
 import { getInventoryItemCount } from "../src/economy/inventoryStacks.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
@@ -50,6 +50,13 @@ test("crafting recipes only reference known craft resources", ()=>{
       assert.equal(knownCraftResources.has(id), true, `${recipe.id} references unknown material ${id}`);
     }
   }
+});
+
+test("crafting separates generators from extras in recipe categories", ()=>{
+  assert.equal(CRAFT_CATEGORY_TABS.some(tab=>tab.id === "generator" && tab.label === "Générateurs"), true);
+  assert.equal(getCraftRecipe("craft_generator_shield_gen")?.category, "generator");
+  assert.equal(getCraftRecipe("craft_generator_engine_ion")?.category, "generator");
+  assert.equal(getCraftRecipe("craft_extra_extra_repair_starter")?.category, "extra");
 });
 
 test("server crafting rejects queues and owned ship or formation duplicates", ()=>{

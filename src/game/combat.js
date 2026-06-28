@@ -1,1 +1,1 @@
-export { createCombatGame } from "./combatOrchestrator.js?v=craft-ui-4";
+export { createCombatGame } from "./combatOrchestrator.js?v=craft-ui-5";

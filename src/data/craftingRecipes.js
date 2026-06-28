@@ -15,6 +15,7 @@ export const CRAFT_CATEGORY_TABS = Object.freeze([
   {id:"all", label:"Tout"},
   {id:"ship", label:"Vaisseaux"},
   {id:"weapon", label:"Armes"},
+  {id:"generator", label:"Générateurs"},
   {id:"extra", label:"Extras"},
   {id:"drone", label:"Drones"},
   {id:"formation", label:"Formations"},
@@ -42,6 +43,7 @@ const RARITY_POOLS = Object.freeze({
 const TYPE_WEIGHTS = Object.freeze({
   ship:8,
   weapon:3,
+  generator:3,
   extra:3,
   drone:4,
   formation:5,
@@ -129,6 +131,9 @@ function buildCosts(source, category, rarityTier){
 function classifyEquipment(item){
   if(item.category === "canon" || item.slotType === "weapon" || item.slotType === "missileLauncher" || item.slotType === "rocketLauncher"){
     return "weapon";
+  }
+  if(item.category === "generateur" || item.slotType === "generator"){
+    return "generator";
   }
   return "extra";
 }

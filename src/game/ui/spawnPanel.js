@@ -1,6 +1,6 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, craftResourceCatalog, equipment, portals } from "../../data/catalog.js";
-import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-ui-4";
+import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-ui-5";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
 import { getQuestBriefing } from "../../data/questBriefings.js";
@@ -709,11 +709,10 @@ function renderCraftMaterialCosts(recipe, materials = [], profile = {}){
     const stock = Math.max(0, Number(cargoHold[id] || 0));
     const missing = stock < need;
     const materialName = material?.name || humanizeIdentifier(id);
-    const materialCode = material?.short && material.short !== materialName ? material.short : "";
     const amountText = `${fmt(stock)} / ${fmt(need)}`;
     return `<div class="craft-material-cost ${missing ? "missing" : ""}">
       <img src="${material?.img || "assets/materials/cargo_box.svg"}" alt="${escapeHtml(materialName)}">
-      <span class="craft-material-copy"><strong title="${escapeHtml(materialName)}">${escapeHtml(materialName)}</strong>${materialCode ? `<small>${escapeHtml(materialCode)}</small>` : ""}</span>
+      <span class="craft-material-copy"><strong title="${escapeHtml(materialName)}">${escapeHtml(materialName)}</strong></span>
       <b title="${escapeHtml(amountText)}">${escapeHtml(amountText)}</b>
     </div>`;
   }).join("");
@@ -745,15 +744,10 @@ function renderCraftingPanel({
 }){
   const visibleRecipes = getVisibleCraftRecipes(profile);
   const activeCategory = CRAFT_CATEGORY_TABS.some(tab=>tab.id === selectedCraftCategory) ? selectedCraftCategory : "all";
-  const tabPageSize = 4;
-  const tabPageCount = Math.max(1, Math.ceil(CRAFT_CATEGORY_TABS.length / tabPageSize));
-  const requestedTabPage = Math.max(0, Math.min(tabPageCount - 1, Math.floor(Number(selectedCraftTabPage || 0))));
-  const activeCategoryIndex = Math.max(0, CRAFT_CATEGORY_TABS.findIndex(tab=>tab.id === activeCategory));
-  const activeCategoryPage = Math.floor(activeCategoryIndex / tabPageSize);
-  const pageHasActiveCategory = activeCategoryIndex >= requestedTabPage * tabPageSize && activeCategoryIndex < (requestedTabPage + 1) * tabPageSize;
-  const activeTabPage = activeCategory !== "all" && !pageHasActiveCategory ? activeCategoryPage : requestedTabPage;
-  const tabStart = activeTabPage * tabPageSize;
-  const visibleCategoryTabs = CRAFT_CATEGORY_TABS.slice(tabStart, tabStart + tabPageSize);
+  const tabWindowSize = 4;
+  const maxTabOffset = Math.max(0, CRAFT_CATEGORY_TABS.length - tabWindowSize);
+  const activeTabOffset = Math.max(0, Math.min(maxTabOffset, Math.floor(Number(selectedCraftTabPage || 0))));
+  const visibleCategoryTabs = CRAFT_CATEGORY_TABS.slice(activeTabOffset, activeTabOffset + tabWindowSize);
   const categoryRecipes = activeCategory === "all"
     ? visibleRecipes
     : visibleRecipes.filter(recipe=>recipe.category === activeCategory);
@@ -789,9 +783,9 @@ function renderCraftingPanel({
     title:"FABRICATION",
     html:`<section class="craft-console">
       <div class="craft-category-tabs">
-        <button class="craft-category-shift" type="button" data-craft-tab-page="${activeTabPage - 1}" aria-label="Voir les categories precedentes" ${activeTabPage <= 0 ? "disabled" : ""}><span aria-hidden="true">&#8249;</span></button>
+        <button class="craft-category-shift" type="button" data-craft-tab-page="${activeTabOffset - 1}" aria-label="Voir les categories precedentes" ${activeTabOffset <= 0 ? "disabled" : ""}><span aria-hidden="true">&#8249;</span></button>
         <div class="craft-category-track" data-craft-category-track>${categoryTabs}</div>
-        <button class="craft-category-shift" type="button" data-craft-tab-page="${activeTabPage + 1}" aria-label="Voir les categories suivantes" ${activeTabPage >= tabPageCount - 1 ? "disabled" : ""}><span aria-hidden="true">&#8250;</span></button>
+        <button class="craft-category-shift" type="button" data-craft-tab-page="${activeTabOffset + 1}" aria-label="Voir les categories suivantes" ${activeTabOffset >= maxTabOffset ? "disabled" : ""}><span aria-hidden="true">&#8250;</span></button>
       </div>
       <div class="craft-layout">
         <aside class="craft-recipe-list">
