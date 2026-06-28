@@ -29,7 +29,7 @@ function fireLaser({profile, now = 2_000, playerId = `elite-player-${Math.random
   });
 }
 
-test("elite laser items are temporary premium shop weapons above MK-IV", ()=>{
+test("elite laser items stay defined while hidden from the temporary shop", ()=>{
   const expected = [
     ["laser_elite_green", "assets/equipment/laser_elite_emerald.webp?v=green-cut-2", "green"],
     ["laser_elite_blue", "assets/equipment/laser_elite_azure.webp", "blue"],
@@ -40,6 +40,7 @@ test("elite laser items are temporary premium shop weapons above MK-IV", ()=>{
     assert.ok(item, `${id} should exist`);
     assert.equal(item.rarity, "ÉLITE");
     assert.equal(item.rarityTier, "elite");
+    assert.equal(item.shop, false);
     assert.equal(item.priceType, "premium");
     assert.equal(item.price, 100000);
     assert.equal(item.category, "canon");

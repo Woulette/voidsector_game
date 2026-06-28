@@ -1,4 +1,4 @@
-import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js?v=elite-lasers-3";
+import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js?v=elite-lasers-4";
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
 import { betaLaunchMessage, betaPacks, betaRewardCalendar, creditCurrencyPacks, getBetaRewardStatus, getPremiumRewardStatus, hasBetaPackPurchase, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js?v=beta-store-3";
 import { fmt } from "../core/utils.js";
@@ -52,7 +52,7 @@ import { ENEMY_TYPES } from "../game/combatData.js";
 import { FIRM_REPRESENTATIVES } from "../data/firmRepresentatives.js";
 
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
-import { renderShop } from "./renderShop.js?v=elite-lasers-3";
+import { renderShop } from "./renderShop.js?v=elite-lasers-4";
 import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=portal-prepare-1";
 import { renderRefinery } from "./renderRefinery.js?v=tutorial-refinery-lock-1";
 import { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
@@ -1159,7 +1159,7 @@ function renderFirmSetupGate(){
     </main>`;
 }
 
-export { renderShop } from "./renderShop.js?v=elite-lasers-3";
+export { renderShop } from "./renderShop.js?v=elite-lasers-4";
 export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=portal-prepare-1";
 export { renderRefinery } from "./renderRefinery.js?v=tutorial-refinery-lock-1";
 export { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
