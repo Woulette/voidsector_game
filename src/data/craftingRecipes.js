@@ -1,13 +1,13 @@
-import { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=craft-balance-1";
-import { ships } from "./ships.js?v=craft-balance-1";
+import { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=craft-balance-2";
+import { ships } from "./ships.js?v=craft-balance-2";
 import {
   COMMON_CRAFT_RESOURCES,
   ELITE_CRAFT_RESOURCES,
   MYTHIC_CRAFT_RESOURCES,
   RARE_CRAFT_RESOURCES,
   VERY_RARE_CRAFT_RESOURCES
-} from "./resources.js?v=craft-balance-1";
-import { S1_BOOSTER_DURATION_MS, S1_BOOSTER_SHOP } from "../shared/firmBoosters.js?v=craft-balance-1";
+} from "./resources.js?v=craft-balance-2";
+import { S1_BOOSTER_DURATION_MS, S1_BOOSTER_SHOP } from "../shared/firmBoosters.js?v=craft-balance-2";
 
 export const CRAFT_DURATION_MS = 60_000;
 
