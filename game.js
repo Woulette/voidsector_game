@@ -1,1 +1,1 @@
-import "./src/app.js?v=elite-lasers-4";
+import "./src/app.js?v=crafting-1";

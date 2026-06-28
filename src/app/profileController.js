@@ -165,6 +165,7 @@ export function createProfileController({
     if(profile.tutorial && typeof profile.tutorial === "object") store.state.tutorial = clone(profile.tutorial);
     store.state.refineryShipmentJob = profile.refineryShipmentJob ? clone(profile.refineryShipmentJob) : null;
     store.state.refineryJob = profile.refineryJob ? clone(profile.refineryJob) : null;
+    store.state.craftingJob = profile.craftingJob ? clone(profile.craftingJob) : null;
     if(Number.isFinite(Number(profile.refineryLastTick))) store.state.refineryLastTick = Number(profile.refineryLastTick);
     if(keepLocalSelectedShip) store.state.selectedShip = localSelectedShip;
     store.state.mmoProfileUpdatedAt = keepLocalPreferences

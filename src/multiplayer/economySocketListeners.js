@@ -71,6 +71,14 @@ export function installEconomySocketListeners({socket, multiplayer, emitChange, 
     toast(payload?.message || "Action raffinerie impossible.");
     emitChange("refinery:error", payload);
   });
+  socket.on("craft:updated", event=>{
+    pushEvent(multiplayer.craftEvents, event, 40);
+    emitChange("craft:updated", event);
+  });
+  socket.on("craft:error", payload=>{
+    toast(payload?.message || "Fabrication impossible.");
+    emitChange("craft:error", payload);
+  });
   socket.on("space-caster:result", event=>{
     pushEvent(multiplayer.spaceCasterEvents, event, 20);
     emitChange("space-caster:result", event);

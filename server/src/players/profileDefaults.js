@@ -30,6 +30,7 @@ export function createDefaultProfile(){
     combatBoosts:{laser:{}, rocket:{}, generator:{}, drone:{}},
     shipAbilityStates:{},
     eliteLaserStates:{},
+    craftingJob:null,
     boosters:{s1:{}, s2:{}},
     skillRanks:{},
     skillLevels:{},

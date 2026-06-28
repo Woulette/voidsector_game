@@ -1,5 +1,6 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, equipment, portals } from "../../data/catalog.js";
+import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
 import { getQuestBriefing } from "../../data/questBriefings.js";
@@ -18,6 +19,13 @@ function escapeHtml(value = ""){
 
 function commerceCreditsHtml(amount){
   return `<span class="commerce-credit-value"><span>${fmt(amount)}</span><img src="assets/icons/credits.svg" alt="" aria-hidden="true"></span>`;
+}
+
+function currencyCostHtml(amount, type = "credits"){
+  const value = Math.max(0, Math.floor(Number(amount || 0)));
+  const icon = type === "premium" ? "assets/icons/premium.svg" : "assets/icons/credits.svg";
+  const label = type === "premium" ? "NOVA" : "Credits";
+  return `<span class="craft-currency ${type}"><img src="${icon}" alt="" aria-hidden="true"><b>${fmt(value)}</b><small>${label}</small></span>`;
 }
 
 const QUEST_TABS = [
@@ -640,9 +648,140 @@ function renderCommercePanel({materials = [], shipCargo = {}, shipCargoUsed = 0,
   };
 }
 
+function craftOutputLabel(recipe){
+  const output = recipe?.output || {};
+  const amount = Math.max(1, Math.floor(Number(output.amount || 1)));
+  if(output.type === "ammo") return `${fmt(amount)} munitions`;
+  if(output.type === "ship") return "Hangar";
+  if(output.type === "drone") return "+1 drone";
+  if(output.type === "formation") return "Formation drone";
+  if(output.type === "booster") return "Booster S1";
+  return amount > 1 ? `x${fmt(amount)} inventaire` : "Inventaire";
+}
+
+function craftStatusText(availability){
+  if(availability?.ok) return "Pret";
+  return availability?.reason || "Indisponible";
+}
+
+function renderCraftMaterialCosts(recipe, materials = [], profile = {}){
+  const cargoHold = profile.cargoHold && typeof profile.cargoHold === "object" ? profile.cargoHold : {};
+  const entries = Object.entries(recipe?.costs?.materials || {});
+  if(!entries.length) return `<div class="craft-empty-cost">Aucune ressource</div>`;
+  return entries.map(([id, amount])=>{
+    const material = materials.find(entry=>entry.id === id) || null;
+    const need = Math.max(0, Number(amount || 0));
+    const stock = Math.max(0, Number(cargoHold[id] || 0));
+    const missing = stock < need;
+    return `<div class="craft-material-cost ${missing ? "missing" : ""}">
+      <img src="${material?.img || "assets/materials/cargo_box.svg"}" alt="${escapeHtml(material?.name || id)}">
+      <span>${escapeHtml(material?.short || material?.name || id)}</span>
+      <b>${fmt(stock)} / ${fmt(need)}</b>
+    </div>`;
+  }).join("");
+}
+
+function renderCraftActiveJob({job, recipe, formatDuration}){
+  if(!job || !recipe) return "";
+  const progress = getCraftJobProgress(job, Date.now());
+  const percent = Math.round(progress.progress * 100);
+  const remaining = progress.done ? "Termine" : (formatDuration?.(progress.remainingMs) || `${Math.ceil(progress.remainingMs / 1000)}s`);
+  return `<section class="craft-active-job ${progress.done ? "done" : ""}">
+    <div class="craft-active-head">
+      <img src="${recipe.img}" alt="${escapeHtml(recipe.name)}">
+      <div><span>Fabrication en cours</span><strong>${escapeHtml(recipe.name)}</strong></div>
+      <b>${remaining}</b>
+    </div>
+    <div class="craft-progress"><span style="width:${percent}%"></span></div>
+    <button class="blue-button small" type="button" data-claim-craft ${progress.done ? "" : "disabled"}>${progress.done ? "Recuperer" : "En fabrication"}</button>
+  </section>`;
+}
+
+function renderCraftingPanel({
+  materials = [],
+  profile = {},
+  selectedCraftCategory = "all",
+  selectedCraftRecipeId = "",
+  formatDuration
+}){
+  const visibleRecipes = getVisibleCraftRecipes(profile);
+  const activeCategory = CRAFT_CATEGORY_TABS.some(tab=>tab.id === selectedCraftCategory) ? selectedCraftCategory : "all";
+  const categoryRecipes = activeCategory === "all"
+    ? visibleRecipes
+    : visibleRecipes.filter(recipe=>recipe.category === activeCategory);
+  const selectedRecipe = categoryRecipes.find(recipe=>recipe.id === selectedCraftRecipeId)
+    || visibleRecipes.find(recipe=>recipe.id === selectedCraftRecipeId)
+    || categoryRecipes[0]
+    || visibleRecipes[0]
+    || null;
+  const activeJob = profile.craftingJob || null;
+  const activeJobRecipe = activeJob ? getCraftRecipe(activeJob.recipeId) || selectedRecipe : null;
+  const selectedAvailability = getCraftRecipeAvailability(selectedRecipe, profile, Date.now());
+  const categoryTabs = CRAFT_CATEGORY_TABS.map(tab=>{
+    const count = tab.id === "all" ? visibleRecipes.length : visibleRecipes.filter(recipe=>recipe.category === tab.id).length;
+    return `<button class="craft-category-tab ${activeCategory === tab.id ? "active" : ""}" type="button" data-craft-category="${tab.id}">
+      <span>${escapeHtml(tab.label)}</span><b>${count}</b>
+    </button>`;
+  }).join("");
+  const recipeRows = categoryRecipes.map(recipe=>{
+    const availability = getCraftRecipeAvailability(recipe, profile, Date.now());
+    const selected = selectedRecipe?.id === recipe.id;
+    return `<button class="craft-recipe-strip ${selected ? "selected" : ""} ${availability.ok ? "ready" : "locked"}" type="button" data-select-craft="${recipe.id}">
+      <img src="${recipe.img}" alt="${escapeHtml(recipe.name)}">
+      <span><strong>${escapeHtml(recipe.name)}</strong><small>${escapeHtml(recipe.rarity || recipe.rarityTier || "")}</small></span>
+      <b>${escapeHtml(recipe.category.toUpperCase())}</b>
+    </button>`;
+  }).join("");
+  const selectedCost = selectedRecipe ? selectedRecipe.costs || {} : {};
+  const selectedOutput = selectedRecipe ? craftOutputLabel(selectedRecipe) : "";
+  const activeJobHtml = activeJob ? renderCraftActiveJob({job:activeJob, recipe:activeJobRecipe, formatDuration}) : "";
+  const startDisabled = !selectedAvailability.ok || Boolean(activeJob);
+  const statusLabel = activeJob ? "Une fabrication est deja en cours" : craftStatusText(selectedAvailability);
+  return {
+    title:"FABRICATION",
+    html:`<section class="craft-console">
+      <div class="craft-category-tabs">${categoryTabs}</div>
+      <div class="craft-layout">
+        <aside class="craft-recipe-list">
+          <div class="craft-list-head"><span>Recettes</span><b>${categoryRecipes.length}</b></div>
+          <div class="craft-recipe-scroll">${recipeRows || `<div class="spawn-panel-note">Aucune recette dans cette categorie.</div>`}</div>
+        </aside>
+        <article class="craft-detail">
+          ${activeJobHtml}
+          ${selectedRecipe ? `
+            <header class="craft-detail-head">
+              <img src="${selectedRecipe.img}" alt="${escapeHtml(selectedRecipe.name)}">
+              <div><span>${escapeHtml(selectedRecipe.rarity || selectedRecipe.rarityTier || "")}</span><strong>${escapeHtml(selectedRecipe.name)}</strong><small>${escapeHtml(selectedOutput)}</small></div>
+            </header>
+            <div class="craft-detail-grid">
+              <section class="craft-cost-card">
+                <h4>Ressources</h4>
+                <div class="craft-material-costs">${renderCraftMaterialCosts(selectedRecipe, materials, profile)}</div>
+              </section>
+              <section class="craft-cost-card">
+                <h4>Paiement</h4>
+                <div class="craft-currency-row">
+                  ${currencyCostHtml(selectedCost.credits || 0, "credits")}
+                  ${currencyCostHtml(selectedCost.premium || 0, "premium")}
+                </div>
+                <div class="craft-time"><span>Duree</span><b>${formatDuration?.(selectedRecipe.durationMs) || "1:00"}</b></div>
+              </section>
+            </div>
+            <div class="craft-action-row">
+              <span class="${selectedAvailability.ok && !activeJob ? "ready" : "blocked"}">${escapeHtml(statusLabel)}</span>
+              <button class="blue-button small" type="button" data-start-craft="${selectedRecipe.id}" ${startDisabled ? "disabled" : ""}>Demarrer</button>
+            </div>
+          ` : `<div class="spawn-panel-note">Aucune recette disponible.</div>`}
+        </article>
+      </div>
+    </section>`
+  };
+}
+
 export function renderSpawnPanelContent(options){
   if(options.mode === "quests") return renderQuestPanel(options);
   if(options.mode === "commerce") return renderCommercePanel(options);
+  if(options.mode === "crafting") return renderCraftingPanel(options);
   return renderRefineryPanel(options);
 }
 

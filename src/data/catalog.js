@@ -108,6 +108,7 @@ export const defaultState = {
   refineryShipmentJob:null,
   refineryLastTick:Date.now(),
   refineryJob:null,
+  craftingJob:null,
   equipmentUpgrades:{},
   activeQuestIds:[],
   activeQuestId:null,

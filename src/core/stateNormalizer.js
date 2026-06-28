@@ -8,6 +8,7 @@ import { normalizeGraphicsQuality } from "./graphicsStore.js";
 import { isPremiumActive, normalizePremiumRewardState, normalizeStarterPackPurchases } from "../data/premium.js";
 import { calculateMonsterRankPointsForKills } from "../data/ranks.js";
 import { getRankScore } from "./rankStore.js";
+import { getCraftRecipe } from "../data/craftingRecipes.js";
 import { canShipRefineryMaterial, getDefaultRefineryLevel, REFINERY_MODULES } from "./refineryStore.js";
 import { store } from "./store.js";
 import { clone } from "./utils.js";
@@ -21,6 +22,16 @@ const RANK_KILL_POINTS_VERSION = 3;
 const SHIP_ID_ALIASES = Object.freeze({
   astra_3d_test:"astralis"
 });
+
+function normalizeCraftingJob(value){
+  if(!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const recipe = getCraftRecipe(value.recipeId);
+  if(!recipe) return null;
+  const startedAt = Math.max(0, Number(value.startedAt || Date.now()));
+  const durationMs = Math.max(1, Number(value.durationMs || recipe.durationMs || 60_000));
+  const endsAt = Math.max(startedAt, Number(value.endsAt || value.finishAt || startedAt + durationMs));
+  return {recipeId:recipe.id, startedAt, endsAt, durationMs};
+}
 
 function normalizeShipId(id){
   const clean = String(id || "");
@@ -311,6 +322,7 @@ export function normalizeState(saved){
     }
   }
   merged.refineryJob = saved?.refineryJob && typeof saved.refineryJob === "object" ? {...saved.refineryJob} : base.refineryJob;
+  merged.craftingJob = normalizeCraftingJob(saved?.craftingJob || base.craftingJob);
   merged.combatBoosts = {};
   for(const target of ["laser", "rocket", "generator", "drone"]){
     merged.combatBoosts[target] = {};

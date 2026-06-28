@@ -74,6 +74,8 @@ export function installCombatInputHandlers({
   selectQuestCategoryForPanel,
   selectQuestTypeForPanel,
   toggleLockedQuestsForPanel,
+  selectCraftCategory,
+  selectCraftRecipe,
   setRefineryPanelTab,
   openShipRefineRecipe,
   closeShipRefineRecipe,
@@ -100,6 +102,8 @@ export function installCombatInputHandlers({
   useShipAbility,
   acceptQuest,
   claimQuest,
+  startCraft,
+  claimCraft,
   startRefineryJob,
   claimRefineryJob,
   refineShipCargoRecipe,
@@ -659,12 +663,12 @@ export function installCombatInputHandlers({
     const btn = e.target.closest("[data-utility-panel]");
     if(!btn || btn.disabled) return;
     const panel = btn.dataset.utilityPanel;
-    if(panel === "refinery"){
-      if(getSpawnPanelMode?.() === "refinery"){
+    if(panel === "refinery" || panel === "crafting"){
+      if(getSpawnPanelMode?.() === panel){
         closeSpawnPanelWithDeposit();
         return;
       }
-      renderSpawnInteractionPanel("refinery");
+      renderSpawnInteractionPanel(panel);
       return;
     }
     if(panel === "quests"){
@@ -934,6 +938,36 @@ export function installCombatInputHandlers({
       else if(claimIsServerPending) showToast(`Reclamation envoyee : ${result.quest.title}`);
       else showToast("Recompense locale refusee : validation serveur requise.");
       renderSpawnInteractionPanel("quests");
+      updateHud();
+      return;
+    }
+    const craftCategoryBtn = e.target.closest("[data-craft-category]");
+    if(craftCategoryBtn){
+      selectCraftCategory?.(craftCategoryBtn.dataset.craftCategory);
+      return;
+    }
+    const craftRecipeBtn = e.target.closest("[data-select-craft]");
+    if(craftRecipeBtn){
+      selectCraftRecipe?.(craftRecipeBtn.dataset.selectCraft);
+      return;
+    }
+    const startCraftBtn = e.target.closest("[data-start-craft]");
+    if(startCraftBtn){
+      const result = startCraft?.(startCraftBtn.dataset.startCraft);
+      if(!result?.ok) showToast(result?.reason || "Fabrication impossible.");
+      else if(result.serverPending) showToast(`Fabrication envoyee : ${result.recipe?.name || "recette"}.`);
+      else showToast("Fabrication locale refusee : validation serveur requise.");
+      renderSpawnInteractionPanel("crafting");
+      updateHud();
+      return;
+    }
+    const claimCraftBtn = e.target.closest("[data-claim-craft]");
+    if(claimCraftBtn){
+      const result = claimCraft?.();
+      if(!result?.ok) showToast(result?.reason || "Recuperation impossible.");
+      else if(result.serverPending) showToast("Recuperation de fabrication envoyee.");
+      else showToast("Recuperation locale refusee : validation serveur requise.");
+      renderSpawnInteractionPanel("crafting");
       updateHud();
       return;
     }

@@ -159,6 +159,18 @@ export function createServerEventController({
     renderAll();
   }
 
+  function applyCraftEvents(){
+    for(const event of consume(multiplayer.craftEvents)){
+      if(event.action === "job-start"){
+        showToast(`Fabrication lancee : ${event.recipe?.name || "recette"}.`);
+      }else if(event.action === "job-claim"){
+        showToast(`Fabrication recuperee : ${event.recipe?.name || "recette"}.`);
+      }
+    }
+    renderAll();
+    window.dispatchEvent(new CustomEvent("voidsector:inventory-updated", {detail:{reason:"craft:updated", type:"craft"}}));
+  }
+
   function applySpaceCasterEvents(){
     for(const event of consume(multiplayer.spaceCasterEvents)){
       store.state.portalCasterResults = Array.isArray(event.rewards) ? event.rewards.map(reward=>({label:reward.label, amount:reward.amount, img:reward.img})) : [];
@@ -188,6 +200,7 @@ export function createServerEventController({
     if(reason === "quest:progress") return combatOwnsQuestEvents ? undefined : applyQuestProgress();
     if(reason === "quest:fail-progress") return combatOwnsQuestEvents ? undefined : applyQuestFailureProgress();
     if(reason === "refinery:updated") return applyRefineryEvents();
+    if(reason === "craft:updated") return applyCraftEvents();
     if(reason === "space-caster:result") return applySpaceCasterEvents();
     if(reason === "auth:success") switchLocalProfileScope(accountProfileScope(event.detail?.payload?.account || multiplayer.auth.account));
     else if(reason === "auth:logout" || reason === "auth:replaced" || reason === "auth:banned") switchLocalProfileScope("guest");

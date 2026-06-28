@@ -49,6 +49,12 @@ export function createCombatCooldownTracker({
 const fireCooldowns = createCombatCooldownTracker();
 const ELITE_LASER_CHARGE_MAX = 5;
 const ELITE_LASER_RESET_MS = 10_000;
+const ELITE_GREEN_LIFESTEAL_PER_LASER = 0.01;
+const ELITE_GREEN_LIFESTEAL_MAX = 0.25;
+const ELITE_BLUE_CADENCE_PER_LASER = 0.005;
+const ELITE_BLUE_CADENCE_MAX = 0.15;
+const ELITE_RED_DAMAGE_PER_LASER = 0.01;
+const ELITE_RED_DAMAGE_MAX = 0.20;
 const ELITE_LASER_COLORS = ["green", "blue", "red"];
 const ELITE_LASER_IDS = new Map([
   ["laser_elite_green", "green"],
@@ -165,39 +171,29 @@ function advanceBlueGauge(blue, elapsedSeconds){
   let charge = clampEliteCharge(blue?.charge);
   let phase = blue?.phase === "discharge" ? "discharge" : "charge";
   let remaining = Math.max(0, Number(elapsedSeconds || 0));
-  let guard = 0;
-  while(remaining > 0 && guard < 8){
-    guard += 1;
-    if(phase === "charge"){
-      const needed = ELITE_LASER_CHARGE_MAX - charge;
-      if(remaining < needed){
-        charge += remaining;
-        remaining = 0;
-      }else{
-        remaining -= needed;
-        charge = ELITE_LASER_CHARGE_MAX;
-        phase = "discharge";
-      }
-    }else{
-      const needed = charge;
-      if(remaining < needed){
-        charge -= remaining;
-        remaining = 0;
-      }else{
-        remaining -= needed;
-        charge = 0;
-        phase = "charge";
-      }
+
+  if(phase === "discharge"){
+    const activeRemaining = charge;
+    if(remaining < activeRemaining){
+      return {charge:clampEliteCharge(charge - remaining), phase:"discharge"};
     }
+    remaining -= activeRemaining;
+    charge = 0;
+    phase = "charge";
   }
+
+  charge = clampEliteCharge(charge + remaining);
   return {charge:clampEliteCharge(charge), phase};
 }
 
 function serializeEliteLaserState({state, counts, triggers = {}, now = Date.now()}){
   if(totalEliteLaserCount(counts) <= 0) return null;
-  const greenPercent = Math.min(Math.max(0, Number(counts.green || 0)) * 0.01, 0.25);
-  const redBonus = Math.min(Math.max(0, Number(counts.red || 0)) * 0.01, 0.25);
-  const cadenceBonus = Math.min(Math.max(0, Number(counts.blue || 0)) * 0.005, 0.15);
+  const greenPercent = Math.min(Math.max(0, Number(counts.green || 0)) * ELITE_GREEN_LIFESTEAL_PER_LASER, ELITE_GREEN_LIFESTEAL_MAX);
+  const redBonus = Math.min(Math.max(0, Number(counts.red || 0)) * ELITE_RED_DAMAGE_PER_LASER, ELITE_RED_DAMAGE_MAX);
+  const blueActive = state.blue?.phase === "discharge";
+  const cadenceBonus = blueActive
+    ? Math.min(Math.max(0, Number(counts.blue || 0)) * ELITE_BLUE_CADENCE_PER_LASER, ELITE_BLUE_CADENCE_MAX)
+    : 0;
   const cooldownMultiplier = getEliteBlueCooldownMultiplier(cadenceBonus);
   return {
     maxCharge:ELITE_LASER_CHARGE_MAX,
@@ -213,8 +209,8 @@ function serializeEliteLaserState({state, counts, triggers = {}, now = Date.now(
     blue:{
       count:Math.max(0, Number(counts.blue || 0)),
       charge:clampEliteCharge(state.blue?.charge),
-      phase:state.blue?.phase === "discharge" ? "discharge" : "charge",
-      active:state.blue?.phase === "discharge",
+      phase:blueActive ? "discharge" : "charge",
+      active:blueActive,
       cadenceBonus,
       cooldownMultiplier,
       cadenceEnabled:ELITE_BLUE_CADENCE_ENABLED
@@ -247,17 +243,23 @@ function prepareEliteLaserShot(profile, counts, now = Date.now()){
       next[color].charge = 0;
     }
   }
-  next.blue = Number(counts.blue || 0) > 0
+  const blueCount = Number(counts.blue || 0);
+  next.blue = blueCount > 0
     ? advanceBlueGauge(next.blue, elapsedSeconds)
     : {charge:0, phase:"charge"};
+  const blueTriggered = blueCount > 0 && next.blue.phase !== "discharge" && next.blue.charge >= ELITE_LASER_CHARGE_MAX;
+  if(blueTriggered){
+    next.blue = {charge:ELITE_LASER_CHARGE_MAX, phase:"discharge"};
+  }
 
   const triggers = {
     green:Number(counts.green || 0) > 0 && next.green.charge >= ELITE_LASER_CHARGE_MAX,
-    red:Number(counts.red || 0) > 0 && next.red.charge >= ELITE_LASER_CHARGE_MAX
+    red:Number(counts.red || 0) > 0 && next.red.charge >= ELITE_LASER_CHARGE_MAX,
+    blue:blueTriggered
   };
-  const greenLifestealPercent = triggers.green ? Math.min(Number(counts.green || 0) * 0.01, 0.25) : 0;
-  const redDamageBonus = triggers.red ? Math.min(Number(counts.red || 0) * 0.01, 0.25) : 0;
-  const blueCadenceBonus = next.blue.phase === "discharge" ? Math.min(Number(counts.blue || 0) * 0.005, 0.15) : 0;
+  const greenLifestealPercent = triggers.green ? Math.min(Number(counts.green || 0) * ELITE_GREEN_LIFESTEAL_PER_LASER, ELITE_GREEN_LIFESTEAL_MAX) : 0;
+  const redDamageBonus = triggers.red ? Math.min(Number(counts.red || 0) * ELITE_RED_DAMAGE_PER_LASER, ELITE_RED_DAMAGE_MAX) : 0;
+  const blueCadenceBonus = next.blue.phase === "discharge" ? Math.min(blueCount * ELITE_BLUE_CADENCE_PER_LASER, ELITE_BLUE_CADENCE_MAX) : 0;
   const blueCooldownMultiplier = getEliteBlueCooldownMultiplier(blueCadenceBonus);
 
   return {

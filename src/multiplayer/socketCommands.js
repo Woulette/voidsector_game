@@ -137,6 +137,12 @@ export function createSocketCommands({multiplayer}){
     depositServerCombatBoostMaterial({target, materialId, amount = 1, shipId} = {}){
       return target && materialId ? emit(multiplayer, "refinery:combat-boost-deposit", {target, materialId, amount, shipId}) : false;
     },
+    startServerCraft(recipeId){
+      return recipeId ? emit(multiplayer, "craft:start", {recipeId}) : false;
+    },
+    claimServerCraft(){
+      return emit(multiplayer, "craft:claim");
+    },
     buyServerAmmo(id, multiplier = 1){
       return emit(multiplayer, "shop:buy-ammo", {id, multiplier});
     },

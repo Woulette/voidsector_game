@@ -57,7 +57,7 @@ import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgress
 import { renderRefinery } from "./renderRefinery.js?v=tutorial-refinery-lock-1";
 import { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
 import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
-import { multiplayer } from "../multiplayer/client.js?v=action-slots-save-1-fps-burst-1";
+import { multiplayer } from "../multiplayer/client.js?v=crafting-1";
 import { renderAdminPanel } from "./adminPanel.js?v=currency-icons-2";
 import { currencyAmountHtml, currencyIconHtml, realMoneyPriceHtml } from "./currencyIcons.js?v=store-real-prices-1";
 import { getRarityLabel, getRarityOrder, getRarityShort, getRarityTier, rarityClass } from "../shared/rarities.js";
@@ -315,14 +315,44 @@ function equipmentSlotBadge(item){
   return item?.short || item?.name || "";
 }
 
+function eliteLaserEffectStats(item){
+  const color = String(item?.effect?.eliteLaserColor || "");
+  if(color === "green"){
+    return [
+      ["Bonus", "+1% vol de vie / laser"],
+      ["Max", "25%"],
+      ["Effet", "Toutes les 5 secondes"]
+    ];
+  }
+  if(color === "blue"){
+    return [
+      ["Bonus", "+0,5% cadence / laser"],
+      ["Max", "15%"],
+      ["Effet", "Toutes les 5 secondes"]
+    ];
+  }
+  if(color === "red"){
+    return [
+      ["Bonus", "+1% dégâts / laser"],
+      ["Max", "20%"],
+      ["Effet", "Toutes les 5 secondes"]
+    ];
+  }
+  return [];
+}
+
 function selectedItemStatsHtml(item){
   if(item?.category === "canon" && item.weapon){
     const min = item.weapon.minDamage ?? item.weapon.damage ?? 0;
     const max = item.weapon.maxDamage ?? item.weapon.damage ?? min;
+    const effectStats = eliteLaserEffectStats(item)
+      .map(([label, value])=>`<span><b>${label}</b><strong>${value}</strong></span>`)
+      .join("");
     return `<div class="selected-item-stat-lines">
       <span><b>Dégâts</b><strong>${min}-${max}</strong></span>
       <span><b>Portée</b><strong>${item.weapon.range}</strong></span>
       <span><b>Cadence</b><strong>${item.weapon.cooldown.toFixed(2)}s</strong></span>
+      ${effectStats}
     </div>`;
   }
   if(item?.slotType === "rocketLauncher"){

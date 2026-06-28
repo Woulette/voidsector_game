@@ -1,1 +1,1 @@
-export { createCombatGame } from "./combatOrchestrator.js?v=action-slots-save-1-fps-burst-1";
+export { createCombatGame } from "./combatOrchestrator.js?v=crafting-1";

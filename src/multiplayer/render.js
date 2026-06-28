@@ -1,4 +1,4 @@
-import { multiplayer } from "./client.js?v=action-slots-save-1-fps-burst-1";
+import { multiplayer } from "./client.js?v=crafting-1";
 import { drawPlayerLayer } from "../game/render/player.js?v=elite-lasers-1";
 import { getFirmBadgeAsset } from "../data/firms.js";
 import { getCachedCombatImage } from "../game/combatAssets.js";

@@ -10,6 +10,7 @@ import { sanitizeTutorialState } from "../../../src/shared/tutorial.js";
 import { calculateMonsterRankPointsForKills, calculateRankScore } from "../../../src/data/ranks.js";
 import { sanitizePlayerBoosterState } from "../../../src/shared/firmBoosters.js";
 import { ships } from "../../../src/data/ships.js";
+import { getCraftRecipe } from "../../../src/data/craftingRecipes.js";
 
 const EMPTY_ACTION_SLOTS = Array(9).fill(null);
 const STARTER_ACTION_SLOTS = ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
@@ -132,6 +133,16 @@ function sanitizeFirmRewardHistory(value){
   }));
 }
 
+function sanitizeCraftingJob(value){
+  if(!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const recipe = getCraftRecipe(value.recipeId);
+  if(!recipe) return null;
+  const startedAt = Math.max(0, Number(value.startedAt || Date.now()));
+  const durationMs = Math.max(1, Number(value.durationMs || recipe.durationMs || 60_000));
+  const endsAt = Math.max(startedAt, Number(value.endsAt || value.finishAt || startedAt + durationMs));
+  return {recipeId:recipe.id, startedAt, endsAt, durationMs};
+}
+
 function rebuildMonsterRankStats(profile){
   const killStats = profile.killStats || {};
   const rankKillStats = profile.rankKillStats || {};
@@ -213,6 +224,7 @@ export function sanitizeProfile(profile = {}){
     refineryUpgradeJobs:sanitizeObject(profile.refineryUpgradeJobs),
     refineryShipmentJob:profile.refineryShipmentJob && typeof profile.refineryShipmentJob === "object" ? sanitizeObject(profile.refineryShipmentJob) : null,
     refineryJob:profile.refineryJob && typeof profile.refineryJob === "object" ? sanitizeObject(profile.refineryJob) : null,
+    craftingJob:sanitizeCraftingJob(profile.craftingJob),
     refineryProductionDisabled:sanitizeObject(profile.refineryProductionDisabled),
     refineryProductionRemainders:sanitizeObject(profile.refineryProductionRemainders),
     refineryLastTick:Math.max(0, Number(profile.refineryLastTick || Date.now())),
@@ -286,6 +298,7 @@ export function preserveProtectedOwnership(incoming, existing){
     "betaShipChoices",
     "starterPackPurchases",
     "refineryProductionRemainders",
+    "craftingJob",
     "starterRepairGranted",
     "tutorial"
   ]);
@@ -298,6 +311,7 @@ export function preserveProtectedOwnership(incoming, existing){
     "shipCargo", "combatBoosts", "shipAbilityStates", "eliteLaserStates", "boosters", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
     "portalPieces", "prestigeCount", "premiumRewardState", "betaRewardState", "betaPackPurchases", "betaLaunchEntitlements", "betaLaunchPremiumDays", "betaShipChoices", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
+    "craftingJob",
     "refineryProductionDisabled", "refineryProductionRemainders", "refineryLastTick", "killStats", "rankKillStats",
     "activityLog", "social", "firmatons", "firmBoxes", "firmRewardHistory", "starterPackPurchases", "starterRepairGranted", "tutorial"
   ]){

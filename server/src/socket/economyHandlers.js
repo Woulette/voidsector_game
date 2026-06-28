@@ -271,6 +271,51 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
+  socket.on("craft:start", async payload=>{
+    if(!guard("craft:start")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const result = profileManager.applyEconomyAction({
+      player,
+      action:{kind:"craft-start", recipeId:payload?.recipeId}
+    });
+    if(!result.ok){
+      socket.emit("craft:error", {message:result.reason || "Fabrication impossible."});
+      return;
+    }
+    if(!await ensureSaved(socket, result, "craft:error")) return;
+    socket.emit("craft:updated", {
+      action:"job-start",
+      recipe:result.recipe,
+      job:result.job,
+      costs:result.costs,
+      at:Date.now()
+    });
+    emitProfileSync(player, result.profile);
+  });
+
+  socket.on("craft:claim", async ()=>{
+    if(!guard("craft:claim")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const result = profileManager.applyEconomyAction({
+      player,
+      action:{kind:"craft-claim"}
+    });
+    if(!result.ok){
+      socket.emit("craft:error", {message:result.reason || "Recuperation impossible."});
+      return;
+    }
+    if(!await ensureSaved(socket, result, "craft:error")) return;
+    socket.emit("craft:updated", {
+      action:"job-claim",
+      recipe:result.recipe,
+      output:result.output,
+      at:Date.now()
+    });
+    emitProfileSync(player, result.profile);
+  });
+
   socket.on("commerce:sell-material", async payload=>{
     if(!guard("commerce:sell-material")) return;
     const player = players.get(socket.id);

@@ -1,5 +1,5 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
-import { renderSpawnPanelContent } from "./spawnPanel.js?v=tutorial-quest-lock-1";
+import { renderSpawnPanelContent } from "./spawnPanel.js?v=crafting-1";
 import { renderCombatFirmPanel } from "./combatFirmPanel.js?v=firm-panel-gift-3";
 import { renderCombatMapPanel } from "./combatMapPanel.js";
 import { renderCombatBoostersPanel } from "./combatBoostersPanel.js";
@@ -26,7 +26,7 @@ import {
   sendFriendRequest,
   setSocialCategory,
   startPortgunTeleport
-} from "../../multiplayer/client.js?v=action-slots-save-1-fps-burst-1";
+} from "../../multiplayer/client.js?v=crafting-1";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
@@ -90,6 +90,8 @@ export function createCombatPanels({
   let selectedQuestCategory = "available";
   let selectedQuestType = "normal";
   let showLockedQuests = false;
+  let selectedCraftCategory = "all";
+  let selectedCraftRecipeId = null;
   let combatQuestDetailTab = "quest";
   let refineryPanelTab = "raffinage";
   let selectedShipRefineRecipeId = null;
@@ -119,6 +121,8 @@ export function createCombatPanels({
     selectedQuestCategory = activeQuest ? "active" : "available";
     selectedQuestType = activeQuest?.category || "normal";
     selectedQuestId = activeQuest?.id || getAllQuests().find(quest=>!store.state.completedQuestClaims?.[quest.id])?.id || null;
+    selectedCraftCategory = "all";
+    selectedCraftRecipeId = null;
     combatQuestDetailTab = "quest";
     refineryPanelTab = "raffinage";
     selectedShipRefineRecipeId = null;
@@ -183,8 +187,8 @@ export function createCombatPanels({
       const mode = btn.dataset.utilityPanel;
       const panel = getUtilityPanel(mode);
       const utilityOpen = !!panel && !panel.classList.contains("hidden");
-      const refineryOpen = mode === "refinery" && spawnPanelMode === "refinery" && !document.getElementById("spawnInteractionPanel")?.classList.contains("hidden");
-      btn.classList.toggle("active", utilityOpen || refineryOpen);
+      const spawnOpen = (mode === "refinery" || mode === "crafting") && spawnPanelMode === mode && !document.getElementById("spawnInteractionPanel")?.classList.contains("hidden");
+      btn.classList.toggle("active", utilityOpen || spawnOpen);
       if(mode === "quests") syncQuestDockBadge(btn);
       if(mode === "group") syncDockBadge(btn, multiplayer.invites.length, "group");
       if(mode === "friends") syncDockBadge(btn, multiplayer.social?.incoming?.length || 0, "friends");
@@ -1011,7 +1015,7 @@ export function createCombatPanels({
   function restoreOpenSpawnPanel(){
     const layout = store.state?.uiLayout?.spawnInteractionPanel;
     const mode = layout?.open ? String(layout.mode || "") : "";
-    if(!["refinery", "quests", "commerce"].includes(mode)) return;
+    if(!["refinery", "quests", "commerce", "crafting"].includes(mode)) return;
     renderSpawnInteractionPanel(mode);
   }
 
@@ -1080,7 +1084,7 @@ export function createCombatPanels({
       spawnPanelMode = null;
       return;
     }
-    if(mode && !canUseCurrentMapFirmServices()){
+    if(mode && mode !== "crafting" && !canUseCurrentMapFirmServices()){
       spawnPanelMode = null;
       panel.classList.add("hidden");
       saveSpawnPanelOpenState(null, false);
@@ -1093,6 +1097,7 @@ export function createCombatPanels({
     spawnPanelRefreshT = 1;
     panel.classList.toggle("refinery-mode", mode === "refinery");
     panel.classList.toggle("commerce-mode", mode === "commerce");
+    panel.classList.toggle("crafting-mode", mode === "crafting");
     panel.classList.toggle("quest-mode", mode === "quests");
     if(!mode){
       panel.classList.add("hidden");
@@ -1134,6 +1139,9 @@ export function createCombatPanels({
       rawMaterials:getAllRawMaterials(),
       getQuestProgress,
       completedQuestClaims:store.state.completedQuestClaims,
+      profile:store.state,
+      selectedCraftCategory,
+      selectedCraftRecipeId,
       job:getRefineryJob(),
       recipes:getRefineryRecipes(),
       materials:getAllRawMaterials(),
@@ -1212,6 +1220,17 @@ export function createCombatPanels({
     });
     if(!quests.some(quest=>quest.id === selectedQuestId)) selectedQuestId = quests[0]?.id || null;
     renderSpawnInteractionPanel("quests");
+  }
+
+  function selectCraftCategory(category){
+    selectedCraftCategory = category || "all";
+    selectedCraftRecipeId = null;
+    renderSpawnInteractionPanel("crafting");
+  }
+
+  function selectCraftRecipe(recipeId){
+    selectedCraftRecipeId = recipeId || null;
+    renderSpawnInteractionPanel("crafting");
   }
 
   function setRefineryPanelTab(tab){
@@ -1340,6 +1359,8 @@ export function createCombatPanels({
     selectQuestCategoryForPanel,
     selectQuestTypeForPanel,
     toggleLockedQuestsForPanel,
+    selectCraftCategory,
+    selectCraftRecipe,
     setRefineryPanelTab,
     openShipRefineRecipe,
     closeShipRefineRecipe

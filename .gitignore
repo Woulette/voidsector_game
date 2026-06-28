@@ -21,6 +21,8 @@ server/.codex-server.out.log
 server/*.log
 server/backups/
 .codex-*.log
+.codex/
+outputs/elite-lasers-2026-06-28/
 
 # Config load test local uniquement (secrets + overrides dev)
 server/loadtest.local.env

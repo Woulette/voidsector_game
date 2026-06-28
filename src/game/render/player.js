@@ -674,32 +674,15 @@ function advanceEliteBlueGauge(blue, elapsedSeconds, maxCharge){
   let charge = Math.max(0, Math.min(maxCharge, Number(blue?.charge || 0)));
   let phase = blue?.phase === "discharge" ? "discharge" : "charge";
   let remaining = Math.max(0, Number(elapsedSeconds || 0));
-  let guard = 0;
-  while(remaining > 0 && guard < 8){
-    guard += 1;
-    if(phase === "charge"){
-      const needed = maxCharge - charge;
-      if(remaining < needed){
-        charge += remaining;
-        remaining = 0;
-      }else{
-        remaining -= needed;
-        charge = maxCharge;
-        phase = "discharge";
-      }
-    }else{
-      const needed = charge;
-      if(remaining < needed){
-        charge -= remaining;
-        remaining = 0;
-      }else{
-        remaining -= needed;
-        charge = 0;
-        phase = "charge";
-      }
+  if(phase === "discharge"){
+    if(remaining < charge){
+      return {charge:Math.max(0, Math.min(maxCharge, charge - remaining)), phase};
     }
+    remaining -= charge;
+    charge = 0;
+    phase = "charge";
   }
-  return {charge:Math.max(0, Math.min(maxCharge, charge)), phase};
+  return {charge:Math.max(0, Math.min(maxCharge, charge + remaining)), phase};
 }
 
 function drawEliteLaserCharges({ctx, camera, player, ship}){

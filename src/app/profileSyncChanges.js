@@ -46,6 +46,8 @@ export function captureProfileUiState(state = {}){
       "refineryProductionDisabled",
       "refineryShipmentJob",
       "refineryJob",
+      "craftingJob",
+      "cargoHold",
       "shipCargo",
       "combatBoosts",
       "inventoryItems"

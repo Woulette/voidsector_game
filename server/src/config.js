@@ -182,6 +182,8 @@ export const config = {
     "refinery:shipment-rush":{minIntervalMs:350, limit:10, windowMs:10000},
     "refinery:ship-cargo-refine":{minIntervalMs:220, limit:20, windowMs:10000},
     "refinery:combat-boost-deposit":{minIntervalMs:220, limit:20, windowMs:10000},
+    "craft:start":{minIntervalMs:350, limit:10, windowMs:10000},
+    "craft:claim":{minIntervalMs:350, limit:10, windowMs:10000},
     "loot:pickup":{minIntervalMs:80, limit:30, windowMs:10000},
     "portal:start":{minIntervalMs:1000, limit:5, windowMs:10000},
     "portal:ricky-heal":{minIntervalMs:500, limit:6, windowMs:10000},
@@ -286,6 +288,8 @@ export const config = {
     "refinery:shipment-start":{limit:12, windowMs:10000},
     "refinery:shipment-rush":{limit:12, windowMs:10000},
     "refinery:ship-cargo-refine":{limit:20, windowMs:10000},
-    "refinery:combat-boost-deposit":{limit:20, windowMs:10000}
+    "refinery:combat-boost-deposit":{limit:20, windowMs:10000},
+    "craft:start":{limit:12, windowMs:10000},
+    "craft:claim":{limit:12, windowMs:10000}
   }
 };

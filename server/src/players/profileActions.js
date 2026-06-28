@@ -1,5 +1,6 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { applyDronePermanentUpgrade, applyEquipmentUpgrade, equipInventoryUid, findEquippedSlot, getServerItem, unequipInventoryUid, unequipShipLoadout, unequipSlot } from "../economy/equipment.js";
+import { claimServerCraftingJob, startServerCraftingJob } from "../economy/crafting.js";
 import { claimServerRefineryJob, completeServerRefineryShipment, completeServerRefineryUpgrades, refineServerShipCargoRecipe, rushServerRefineryShipment, rushServerRefineryUpgrade, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, toggleServerRefineryProduction } from "../economy/refinery.js";
 import { runServerSpaceCaster } from "../economy/spaceCaster.js";
 import { acceptServerQuest, claimCompletedServerQuests, claimServerQuest, progressServerQuestAction, progressServerQuestKill, trackServerQuest } from "../quests/quests.js";
@@ -720,6 +721,10 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       result = depositServerCombatBoostMaterial(profile, action);
     }else if(action?.kind === "commerce-material-sell"){
       result = sellServerCommerceMaterials(profile, action);
+    }else if(action?.kind === "craft-start"){
+      result = startServerCraftingJob(profile, action);
+    }else if(action?.kind === "craft-claim"){
+      result = claimServerCraftingJob(profile, action);
     }else{
       result = {ok:false, reason:"Action economie invalide."};
     }

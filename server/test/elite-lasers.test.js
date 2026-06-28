@@ -82,6 +82,26 @@ test("charged red elite lasers add burst damage and consume their gauge", ()=>{
   assert.equal(profile.eliteLaserStates.current.red.charge, 0);
 });
 
+test("red elite damage bonus is capped at twenty percent", ()=>{
+  const profile = createDefaultProfile();
+  equipShipLasers(profile, Array.from({length:30}, ()=>"laser_elite_red"));
+  profile.ammoInventory.ammo_x1 = 100;
+  profile.eliteLaserStates = {
+    current:{
+      lastLaserAt:1_000,
+      green:{charge:0},
+      blue:{charge:0, phase:"charge"},
+      red:{charge:4}
+    }
+  };
+
+  const result = fireLaser({profile, now:2_000, playerId:"elite-red-cap"});
+
+  assert.equal(result.ok, true);
+  assert.equal(result.eliteLaser.red.triggered, true);
+  assert.equal(result.eliteLaser.red.damageBonus, 0.20);
+});
+
 test("green elite lifesteal counts ship and drone lasers", ()=>{
   const profile = createDefaultProfile();
   equipShipLasers(profile, ["laser_elite_green"]);
@@ -139,6 +159,50 @@ test("blue elite cadence uses frequency scaling during discharge", ()=>{
   assert.equal(result.eliteLaser.blue.cadenceBonus, 0.15);
   assert.equal(result.eliteLaser.blue.cadenceEnabled, true);
   assert.ok(Math.abs(result.eliteLaser.blue.cooldownMultiplier - (1 / 1.15)) < 0.000001);
+});
+
+test("blue elite gauge waits for a laser shot before discharging", ()=>{
+  const profile = createDefaultProfile();
+  equipShipLasers(profile, Array.from({length:30}, ()=>"laser_elite_blue"));
+  profile.ammoInventory.ammo_x1 = 100;
+  profile.eliteLaserStates = {
+    current:{
+      lastLaserAt:1_000,
+      green:{charge:0},
+      blue:{charge:4, phase:"charge"},
+      red:{charge:0}
+    }
+  };
+
+  const result = fireLaser({profile, now:9_000, playerId:"elite-blue-wait-for-shot"});
+
+  assert.equal(result.ok, true);
+  assert.equal(result.eliteLaser.blue.active, true);
+  assert.equal(result.eliteLaser.blue.charge, 5);
+  assert.equal(profile.eliteLaserStates.current.blue.phase, "discharge");
+  assert.equal(profile.eliteLaserStates.current.blue.charge, 5);
+});
+
+test("blue elite gauge resets fully after ten seconds without a laser shot", ()=>{
+  const profile = createDefaultProfile();
+  equipShipLasers(profile, Array.from({length:30}, ()=>"laser_elite_blue"));
+  profile.ammoInventory.ammo_x1 = 100;
+  profile.eliteLaserStates = {
+    current:{
+      lastLaserAt:1_000,
+      green:{charge:0},
+      blue:{charge:5, phase:"charge"},
+      red:{charge:0}
+    }
+  };
+
+  const result = fireLaser({profile, now:12_000, playerId:"elite-blue-timeout-reset"});
+
+  assert.equal(result.ok, true);
+  assert.equal(result.eliteLaser.blue.active, false);
+  assert.equal(result.eliteLaser.blue.cadenceBonus, 0);
+  assert.equal(profile.eliteLaserStates.current.blue.phase, "charge");
+  assert.equal(profile.eliteLaserStates.current.blue.charge, 0);
 });
 
 test("profile sanitizer preserves elite laser combat state", ()=>{

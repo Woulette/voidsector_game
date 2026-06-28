@@ -1,4 +1,5 @@
 import { ammoTypes, droneFormations, equipment, portals, ships } from "../data/catalog.js";
+import { getCraftRecipe } from "../data/craftingRecipes.js";
 import { fmt } from "../core/utils.js";
 import {
   canAfford,
@@ -100,12 +101,12 @@ import { updatePoisonStatus, updateSlowStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
 import { createCombatChat } from "./ui/combatChat.js";
 import { createCombatLogoutController } from "./ui/combatLogoutController.js";
-import { installCombatInputHandlers } from "./ui/inputBindings.js?v=firm-panel-gift-3";
+import { installCombatInputHandlers } from "./ui/inputBindings.js?v=crafting-1";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js?v=action-slots-save-1-fps-burst-1";
-import { createCombatPanels } from "./ui/combatPanels.js?v=action-slots-save-1-fps-burst-1";
+import { createCombatPanels } from "./ui/combatPanels.js?v=crafting-1";
 import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=ship-abilities-1";
-import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=action-slots-save-1-fps-burst-1";
+import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerCraft, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerCraft, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=crafting-1";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
 import { getShipAbilityStatuses } from "../shared/shipAbilities.js?v=ship-charge-1";
 import {
@@ -1273,6 +1274,8 @@ export function createCombatGame({renderAll, showToast}){
     selectQuestCategoryForPanel:panels.selectQuestCategoryForPanel,
     selectQuestTypeForPanel:panels.selectQuestTypeForPanel,
     toggleLockedQuestsForPanel:panels.toggleLockedQuestsForPanel,
+    selectCraftCategory:panels.selectCraftCategory,
+    selectCraftRecipe:panels.selectCraftRecipe,
     setRefineryPanelTab:panels.setRefineryPanelTab,
     openShipRefineRecipe:panels.openShipRefineRecipe,
     closeShipRefineRecipe:panels.closeShipRefineRecipe,
@@ -1298,6 +1301,19 @@ export function createCombatGame({renderAll, showToast}){
     useShipAbility:actions.useShipAbility,
     acceptQuest:acceptQuestAction,
     claimQuest:claimQuestAction,
+    startCraft:recipeId=>{
+      if(isMmoConnected(multiplayer) && startServerCraft?.(recipeId)){
+        const recipe = getCraftRecipe(recipeId) || {id:recipeId, name:"recette serveur"};
+        return {ok:true, recipe, serverPending:true};
+      }
+      return {ok:false, reason:MMO_REQUIRED_MESSAGE};
+    },
+    claimCraft:()=>{
+      if(isMmoConnected(multiplayer) && claimServerCraft?.()){
+        return {ok:true, serverPending:true};
+      }
+      return {ok:false, reason:MMO_REQUIRED_MESSAGE};
+    },
     startRefineryJob:recipeId=>{
       if(isMmoConnected(multiplayer) && startServerRefineryJob?.(recipeId)){
         const recipe = getRefineryRecipes().find(entry=>entry.id === recipeId) || {id:recipeId, name:"recette serveur"};

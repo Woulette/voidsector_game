@@ -2,14 +2,14 @@ import { createCombatCommands } from "./combatCommands.js";
 import { installChatSocketListeners } from "./chatSocketListeners.js";
 import { createMultiplayerAuthController } from "./authController.js";
 import { installMultiplayerDomHandlers as installDomHandlers } from "./domHandlers.js";
-import { installEconomySocketListeners } from "./economySocketListeners.js?v=beta-store-1";
+import { installEconomySocketListeners } from "./economySocketListeners.js?v=crafting-1";
 import { createFirmCommands } from "./firmCommands.js";
 import { installFirmSocketListeners } from "./firmSocketListeners.js?v=firm-shop-sync-1";
 import { createGroupCommands } from "./groupCommands.js?v=portal-prepare-1";
 import { syncMultiplayerProfile as syncProfile } from "./profileSync.js?v=action-slots-save-1-fps-burst-1";
 import { installPlayerSocketListeners } from "./playerSocketListeners.js?v=action-slots-save-1-fps-burst-1";
 import { installProgressionSocketListeners } from "./progressionSocketListeners.js";
-import { createSocketCommands } from "./socketCommands.js?v=firm-setup-1";
+import { createSocketCommands } from "./socketCommands.js?v=crafting-1";
 import { createSocialCommands } from "./socialCommands.js";
 import { installSocialSocketListeners } from "./socialSocketListeners.js";
 import {
@@ -228,6 +228,7 @@ function createMultiplayerState(){
   questFailureEvents:[],
   questEvents:[],
   refineryEvents:[],
+  craftEvents:[],
   spaceCasterEvents:[],
   portalStartEvents:[],
   portalCompleteEvents:[],
@@ -748,6 +749,7 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.questFailureEvents = [];
   multiplayer.questEvents = [];
   multiplayer.refineryEvents = [];
+  multiplayer.craftEvents = [];
   multiplayer.spaceCasterEvents = [];
   multiplayer.portalStartEvents = [];
   multiplayer.portalCompleteEvents = [];
@@ -856,6 +858,8 @@ export const {
   rushServerRefineryShipment,
   refineServerShipCargo,
   depositServerCombatBoostMaterial,
+  startServerCraft,
+  claimServerCraft,
   buyServerAmmo,
   buyServerItem,
   buyServerBooster,
