@@ -62,15 +62,15 @@ import {
 } from "./combatData.js?v=engine-trail-41";
 import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js";
 import { COMBAT_PROFILE_TITLES } from "./combatProfileTitles.js";
-import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=action-slots-save-1-fps-burst-1";
+import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=level-up-1";
 import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=elite-lasers-1";
-import { createCombatSceneRenderer } from "./render/combatScene.js?v=action-slots-save-1-fps-burst-1";
+import { createCombatSceneRenderer } from "./render/combatScene.js?v=level-up-1";
 import { createCombatLoop } from "./systems/combatLoop.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatBeamSystem } from "./systems/combatBeams.js?v=ship-charge-1";
 import { createCombatCargoSystem } from "./systems/combatCargo.js";
 import { installCombatDebugCommands } from "./systems/combatDebug.js";
 import { createCombatDeathRespawnSystem } from "./systems/combatDeathRespawn.js";
-import { createCombatFrameUpdateSystem } from "./systems/combatFrameUpdate.js?v=action-slots-save-1-fps-burst-1";
+import { createCombatFrameUpdateSystem } from "./systems/combatFrameUpdate.js?v=level-up-1";
 import { createCombatHitResolutionSystem } from "./systems/combatHitResolution.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatEnemyRuntime } from "./systems/combatEnemyRuntime.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatEnemyDamageSystem } from "./systems/combatEnemyDamage.js";
@@ -78,10 +78,11 @@ import { createCombatRemoteTargetResolver } from "./systems/combatRemoteTargets.
 import { createCombatInteractionSystem } from "./systems/combatInteractions.js";
 import { createCombatMapAssetStreamingSystem } from "./systems/combatMapAssetStreaming.js";
 import { createCombatMultiplayerSyncSystem } from "./systems/combatMultiplayerSync.js";
-import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=ship-clock-sync-1";
+import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=level-up-1";
 import { createCombatServerActions } from "./systems/combatServerActions.js";
 import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js";
 import { createCombatPortalNavigationSystem } from "./systems/combatPortalNavigation.js";
+import { createLevelUpEffectSystem } from "./systems/levelUpEffects.js?v=level-up-1";
 import { applyCombatStatFields } from "./systems/combatPlayerStats.js";
 import { createCombatQuestProgressSystem } from "./systems/combatQuestProgress.js";
 import { createCombatSessionController } from "./systems/combatSession.js?v=action-slots-save-1-fps-burst-1";
@@ -101,10 +102,10 @@ import { updatePoisonStatus, updateSlowStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
 import { createCombatChat } from "./ui/combatChat.js";
 import { createCombatLogoutController } from "./ui/combatLogoutController.js";
-import { installCombatInputHandlers } from "./ui/inputBindings.js?v=craft-ui-5";
+import { installCombatInputHandlers } from "./ui/inputBindings.js?v=craft-ui-6";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js?v=action-slots-save-1-fps-burst-1";
-import { createCombatPanels } from "./ui/combatPanels.js?v=craft-ui-5";
+import { createCombatPanels } from "./ui/combatPanels.js?v=craft-ui-6";
 import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=ship-abilities-1";
 import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerCraft, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerCraft, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=crafting-1";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
@@ -445,6 +446,9 @@ export function createCombatGame({renderAll, showToast}){
   const rewards = createRewardSystem({
     onLootChanged:()=>updateLootPopup()
   });
+  const levelUpEffects = createLevelUpEffectSystem({
+    getState:getCombatState
+  });
   window.addEventListener("voidsector:multiplayer-change", event=>{
     const reason = String(event.detail?.reason || "");
     if(reason === "firm:snapshot" || reason === "firm:ranking"){
@@ -696,6 +700,7 @@ export function createCombatGame({renderAll, showToast}){
     rewards,
     cargo,
     beams,
+    levelUpEffects,
     worldFromScreen,
     defaultEngineProfile:DEFAULT_ENGINE_PROFILE,
     engineProfiles:SHIP_ENGINE_PROFILES
@@ -1381,6 +1386,7 @@ export function createCombatGame({renderAll, showToast}){
   return {
     start:(...args)=>{
       settingsRuntime.applySettings({syncChat:true});
+      levelUpEffects.reset();
       return session.start(...args);
     },
     stop:session.stop,

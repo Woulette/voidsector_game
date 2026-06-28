@@ -42,6 +42,7 @@ export function createCombatFrameUpdateSystem({
   rewards,
   cargo,
   beams,
+  levelUpEffects,
   worldFromScreen,
   defaultEngineProfile,
   engineProfiles
@@ -109,6 +110,7 @@ export function createCombatFrameUpdateSystem({
     updateLootPopup();
     if(player.isDead){
       timeCombatProfiler("events.applyAll", ()=>serverEvents.applyAll());
+      levelUpEffects?.update?.(dt);
       const refreshed = getState();
       updateCamera({
         camera:refreshed.camera || camera,
@@ -199,6 +201,7 @@ export function createCombatFrameUpdateSystem({
     }));
     updateRadiation(dt);
     timeCombatProfiler("events.applyAll", ()=>serverEvents.applyAll());
+    levelUpEffects?.update?.(dt);
     state = getState();
     if(state.gameMode === "portal" && multiplayer.portalInstance?.portal){
       setState({

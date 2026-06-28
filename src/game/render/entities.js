@@ -390,7 +390,7 @@ export function drawParticles({ctx, camera, particles, repairLayer = false, grap
     if(particle.kind === "impact" && graphicsEffects.explosionsImpacts === false) continue;
     const isRepairPlus = particle.kind === "repairPlus";
     if(repairLayer !== isRepairPlus) continue;
-    const particleMargin = particle.kind === "poisonWave"
+    const particleMargin = particle.kind === "poisonWave" || particle.kind === "levelUpPulse"
       ? Number(particle.size || 0) + 120
       : Math.max(80, Number(particle.size || 0) * 4 + 80);
     if(!isWorldPointVisible({x:particle.x, y:particle.y, camera, width, height, margin:particleMargin})) continue;
@@ -450,6 +450,55 @@ export function drawParticles({ctx, camera, particles, repairLayer = false, grap
       ctx.arc(particle.x, particle.y, Math.max(4, radius * .72), 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.restore();
+    }else if(particle.kind === "levelUpPulse"){
+      const progress = 1 - alpha;
+      const radius = Math.max(12, 20 + easeOutCubic(progress) * particle.size);
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = colorWithAlpha(particle.color, alpha * .9, "rgba(125,211,252,.75)");
+      ctx.fillStyle = `rgba(56,189,248,${alpha * .045})`;
+      ctx.shadowColor = "rgba(125,211,252,.98)";
+      ctx.shadowBlur = 24 * alpha;
+      ctx.lineWidth = Math.max(1.2, 6 * alpha);
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([7, 11]);
+      ctx.lineWidth = Math.max(.8, 2.2 * alpha);
+      ctx.strokeStyle = `rgba(255,255,255,${alpha * .42})`;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, Math.max(6, radius * .62), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }else if(particle.kind === "levelUpAura"){
+      const progress = 1 - alpha;
+      const radius = Math.max(8, particle.size * (.8 + progress * .45));
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      const gradient = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, radius);
+      gradient.addColorStop(0, `rgba(255,255,255,${alpha * .22})`);
+      gradient.addColorStop(.48, `rgba(125,211,252,${alpha * .18})`);
+      gradient.addColorStop(1, "rgba(56,189,248,0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }else if(particle.kind === "levelUpSpark"){
+      const size = Math.max(1.5, particle.size * (.55 + alpha * .65));
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.translate(particle.x, particle.y);
+      ctx.rotate(particle.angle || Math.atan2(particle.vy || -1, particle.vx || 0));
+      ctx.fillStyle = color;
+      ctx.shadowColor = "rgba(125,211,252,.98)";
+      ctx.shadowBlur = 10 * alpha;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, size * .45, size * 1.55, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }else if(particle.kind === "repairPlus"){
       const size = Math.max(4, particle.size * (.55 + alpha * .45));

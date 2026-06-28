@@ -10,12 +10,15 @@ export function drawDamageTexts({ctx, camera, damageTexts}){
     const progress = Math.max(0, Math.min(1, 1 - a));
     const label = typeof t.value === "string" ? t.value : `-${t.value}`;
     const isMiss = label === "MISS";
+    const isLevelUp = t.kind === "levelUp";
     const isNumber = !Number.isNaN(Number(t.value));
     const pop = Math.sin(Math.min(1, progress / .28) * Math.PI);
     const grow = 1 - Math.pow(1 - progress, 2.2);
-    const jitter = Math.sin(progress * Math.PI * 8 + (t.wobble || 0)) * (1 - progress) * (isMiss ? .6 : 1.2);
+    const jitter = isLevelUp ? 0 : Math.sin(progress * Math.PI * 8 + (t.wobble || 0)) * (1 - progress) * (isMiss ? .6 : 1.2);
     const fade = Math.min(1, a * 1.65);
-    const size = isMiss ? 15 + grow * 3 + pop * 2 : 16 + grow * 8 + pop * 4;
+    const size = isLevelUp
+      ? 28 + grow * 9 + pop * 5
+      : isMiss ? 15 + grow * 3 + pop * 2 : 16 + grow * 8 + pop * 4;
     const x = t.x - camera.x + jitter;
     const y = t.y - camera.y;
     const fill = t.color ? `${t.color}${fade})` : `rgba(255,78,64,${fade})`;
@@ -24,14 +27,21 @@ export function drawDamageTexts({ctx, camera, damageTexts}){
     ctx.font = `900 ${size}px Rajdhani, Arial`;
     ctx.lineJoin = "round";
     ctx.shadowColor = glow;
-    ctx.shadowBlur = detailedText ? (isMiss ? 8 + pop * 5 : 11 + pop * 22 + grow * 6) : (isMiss ? 5 : 7);
-    ctx.strokeStyle = `rgba(22,2,5,${fade})`;
-    ctx.lineWidth = detailedText ? (isMiss ? 3 : 3.5 + pop * 1.5) : (isMiss ? 2.5 : 3);
+    ctx.shadowBlur = isLevelUp ? 22 + pop * 18 : detailedText ? (isMiss ? 8 + pop * 5 : 11 + pop * 22 + grow * 6) : (isMiss ? 5 : 7);
+    ctx.strokeStyle = isLevelUp ? `rgba(1,8,18,${fade})` : `rgba(22,2,5,${fade})`;
+    ctx.lineWidth = isLevelUp ? 5.5 : detailedText ? (isMiss ? 3 : 3.5 + pop * 1.5) : (isMiss ? 2.5 : 3);
     ctx.strokeText(label, x, y);
     ctx.fillStyle = fill;
     ctx.fillText(label, x, y);
 
-    if(detailedText && !isMiss){
+    if(isLevelUp){
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = fade * .72;
+      ctx.strokeStyle = `rgba(125,211,252,${fade * .78})`;
+      ctx.lineWidth = 1.6;
+      ctx.strokeText(label, x, y + 1);
+      ctx.globalAlpha = 1;
+    }else if(detailedText && !isMiss){
       ctx.shadowBlur = 0;
       ctx.globalAlpha = fade * (0.22 + grow * 0.18);
       ctx.strokeStyle = t.shadowColor || "rgba(255,112,67,.72)";
