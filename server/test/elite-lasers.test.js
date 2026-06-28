@@ -116,7 +116,7 @@ test("green elite lifesteal counts ship and drone lasers", ()=>{
   assert.equal(player.state.hp, 1_200);
 });
 
-test("blue elite gauge can enter discharge without enabling cadence yet", ()=>{
+test("blue elite cadence uses frequency scaling during discharge", ()=>{
   const profile = createDefaultProfile();
   equipShipLasers(profile, Array.from({length:30}, ()=>"laser_elite_blue"));
   profile.ammoInventory.ammo_x1 = 100;
@@ -129,13 +129,15 @@ test("blue elite gauge can enter discharge without enabling cadence yet", ()=>{
     }
   };
 
-  const result = fireLaser({profile, now:2_000, playerId:"elite-blue-gauge"});
+  const playerId = "elite-blue-gauge";
+  const result = fireLaser({profile, now:2_000, playerId});
 
   assert.equal(result.ok, true);
   assert.equal(result.eliteLaser.blue.count, 30);
   assert.equal(result.eliteLaser.blue.active, true);
   assert.equal(result.eliteLaser.blue.cadenceBonus, 0.15);
-  assert.equal(result.eliteLaser.blue.cadenceEnabled, false);
+  assert.equal(result.eliteLaser.blue.cadenceEnabled, true);
+  assert.ok(Math.abs(result.eliteLaser.blue.cooldownMultiplier - (1 / 1.15)) < 0.000001);
 });
 
 test("profile sanitizer preserves elite laser combat state", ()=>{

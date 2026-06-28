@@ -55,7 +55,13 @@ const ELITE_LASER_IDS = new Map([
   ["laser_elite_blue", "blue"],
   ["laser_elite_red", "red"]
 ]);
-const ELITE_BLUE_CADENCE_ENABLED = false;
+const ELITE_BLUE_CADENCE_ENABLED = true;
+
+function getEliteBlueCooldownMultiplier(cadenceBonus){
+  return ELITE_BLUE_CADENCE_ENABLED && Number(cadenceBonus || 0) > 0
+    ? 1 / (1 + Number(cadenceBonus || 0))
+    : 1;
+}
 
 function rollBetween(min, max, random = Math.random){
   const lo = Number(min ?? max ?? 0);
@@ -192,6 +198,7 @@ function serializeEliteLaserState({state, counts, triggers = {}, now = Date.now(
   const greenPercent = Math.min(Math.max(0, Number(counts.green || 0)) * 0.01, 0.25);
   const redBonus = Math.min(Math.max(0, Number(counts.red || 0)) * 0.01, 0.25);
   const cadenceBonus = Math.min(Math.max(0, Number(counts.blue || 0)) * 0.005, 0.15);
+  const cooldownMultiplier = getEliteBlueCooldownMultiplier(cadenceBonus);
   return {
     maxCharge:ELITE_LASER_CHARGE_MAX,
     resetAfterMs:ELITE_LASER_RESET_MS,
@@ -209,6 +216,7 @@ function serializeEliteLaserState({state, counts, triggers = {}, now = Date.now(
       phase:state.blue?.phase === "discharge" ? "discharge" : "charge",
       active:state.blue?.phase === "discharge",
       cadenceBonus,
+      cooldownMultiplier,
       cadenceEnabled:ELITE_BLUE_CADENCE_ENABLED
     },
     red:{
@@ -250,9 +258,7 @@ function prepareEliteLaserShot(profile, counts, now = Date.now()){
   const greenLifestealPercent = triggers.green ? Math.min(Number(counts.green || 0) * 0.01, 0.25) : 0;
   const redDamageBonus = triggers.red ? Math.min(Number(counts.red || 0) * 0.01, 0.25) : 0;
   const blueCadenceBonus = next.blue.phase === "discharge" ? Math.min(Number(counts.blue || 0) * 0.005, 0.15) : 0;
-  const blueCooldownMultiplier = ELITE_BLUE_CADENCE_ENABLED && blueCadenceBonus > 0
-    ? 1 / (1 + blueCadenceBonus)
-    : 1;
+  const blueCooldownMultiplier = getEliteBlueCooldownMultiplier(blueCadenceBonus);
 
   return {
     redDamageBonus,
