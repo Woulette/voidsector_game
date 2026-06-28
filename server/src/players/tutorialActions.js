@@ -7,6 +7,7 @@ import {
   hasTutorialQuestActivity,
   sanitizeTutorialState
 } from "../../../src/shared/tutorial.js";
+import { getProfileFirmQuestId } from "../quests/questState.js";
 
 export const TUTORIAL_REWARD_ITEM_ID = "laser_mk3";
 
@@ -14,12 +15,19 @@ function tutorialStepIndex(step){
   return TUTORIAL_STEPS.indexOf(step);
 }
 
+function tutorialQuestIds(profile, sourceQuestId){
+  const sourceId = String(sourceQuestId || "");
+  const firmQuestId = getProfileFirmQuestId(profile, sourceId);
+  return [...new Set([sourceId, firmQuestId].filter(Boolean))];
+}
+
 function questStarted(profile, questId){
-  return Array.isArray(profile?.activeQuestIds) && profile.activeQuestIds.includes(questId);
+  const expectedIds = tutorialQuestIds(profile, questId);
+  return Array.isArray(profile?.activeQuestIds) && profile.activeQuestIds.some(id=>expectedIds.includes(String(id || "")));
 }
 
 function questCompleted(profile, questId){
-  return Boolean(profile?.completedQuestClaims?.[questId]);
+  return tutorialQuestIds(profile, questId).some(id=>Boolean(profile?.completedQuestClaims?.[id]));
 }
 
 export function reconcileTutorialProgress(profile){
@@ -100,7 +108,7 @@ export function applyTutorialAction(profile, action = {}){
     if(tutorial.status !== "active" || tutorial.step !== "game_open_gift"){
       return {ok:false, reason:"Cadeau de tutoriel indisponible."};
     }
-    if(!TUTORIAL_QUEST_IDS.every(id=>profile.completedQuestClaims?.[id])){
+    if(!TUTORIAL_QUEST_IDS.every(id=>questCompleted(profile, id))){
       return {ok:false, reason:"Termine les quatre missions du tutoriel avant d'ouvrir le cadeau."};
     }
     if(!tutorial.rewardClaimed) addInventoryItemAmount(profile, TUTORIAL_REWARD_ITEM_ID, 1);

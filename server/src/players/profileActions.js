@@ -13,9 +13,10 @@ import { depositServerCombatBoostMaterial } from "../economy/combatBoosts.js";
 import { sellServerCommerceMaterials } from "../economy/materialCommerce.js";
 import { applyPremiumPackToPlayer, claimBetaRewardState, claimPremiumRewardState } from "../../../src/data/premium.js";
 import { BOOSTER_TYPE_IDS, addPlayerBoosterUnits } from "../../../src/shared/firmBoosters.js";
-import { canAcceptQuestDuringTutorial } from "../../../src/shared/tutorial.js";
+import { getTutorialExpectedQuestId } from "../../../src/shared/tutorial.js";
 import { abandonTutorialAfterOutsideQuestAction } from "./tutorialActions.js";
 import { attachProfileSave, cloneProfileSnapshot, restoreProfileSnapshot } from "./profilePersistenceResult.js";
+import { getProfileFirmQuestId } from "../quests/questState.js";
 
 const BETA_PURCHASE_LOG_DIR = new URL("../../data/", import.meta.url);
 const BETA_PURCHASE_LOG_FILE = new URL("../../data/betaPurchases.jsonl", import.meta.url);
@@ -72,6 +73,14 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       && action?.id === "storage";
     if(isExpectedStorageLaunch) return null;
     return {ok:false, reason:"Tutoriel actif : lance uniquement l'amelioration du stockage."};
+  }
+
+  function canAcceptQuestDuringActiveTutorial(profile, questId){
+    if(profile?.tutorial?.status !== "active") return true;
+    const expectedSourceId = getTutorialExpectedQuestId(profile.tutorial);
+    const expectedFirmId = getProfileFirmQuestId(profile, expectedSourceId);
+    const candidate = String(questId || "");
+    return Boolean(expectedSourceId && (candidate === expectedSourceId || candidate === expectedFirmId));
   }
 
   function spendAndUpdate({player, priceType, amount, update, activity} = {}){
@@ -599,7 +608,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
   function applyQuestAction({player, action} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
-    if(action?.kind === "accept" && !canAcceptQuestDuringTutorial(profile?.tutorial, action.questId)){
+    if(action?.kind === "accept" && !canAcceptQuestDuringActiveTutorial(profile, action.questId)){
       return {ok:false, reason:"Tutoriel actif : accepte uniquement la mission indiquee."};
     }
     const previous = cloneProfileSnapshot(profile);

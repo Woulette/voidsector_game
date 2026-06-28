@@ -25,7 +25,7 @@ export function questMatchesProfileFirm(profile, quest){
   return normalizeFirmId(quest.firmId) === normalizeFirmId(profile?.player?.firmId || "astra");
 }
 
-function getProfileFirmQuestId(profile, questId){
+export function getProfileFirmQuestId(profile, questId){
   const id = String(questId || "");
   const quest = getQuest(id);
   if(!quest) return id;

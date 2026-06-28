@@ -137,6 +137,38 @@ test("active tutorial gates the refinery storage upgrade sequence", ()=>{
   assert.equal(Boolean(allowed.profile.completedQuestClaims?.[TUTORIAL_QUEST_IDS[1]]), true);
 });
 
+test("tutorial recovery resolves firm-specific quest ids", ()=>{
+  const profile = createDefaultProfile();
+  profile.player.firmId = "cyan";
+  profile.tutorial = {...profile.tutorial, status:"active", step:"launcher_launch_storage_upgrade"};
+  profile.completedQuestClaims[`${TUTORIAL_QUEST_IDS[0]}_cyan`] = true;
+  profile.completedQuestClaims[`${TUTORIAL_QUEST_IDS[1]}_cyan`] = true;
+
+  assert.equal(reconcileTutorialProgress(profile), true);
+  assert.equal(profile.tutorial.step, "game_open_quests_3");
+});
+
+test("active tutorial accepts the expected firm-specific quest id", ()=>{
+  const profile = createDefaultProfile();
+  profile.player.firmId = "cyan";
+  profile.tutorial = {...profile.tutorial, status:"active", step:"game_select_storage"};
+  profile.completedQuestClaims[`${TUTORIAL_QUEST_IDS[0]}_cyan`] = true;
+  const profiles = new Map([["Pilot", profile]]);
+  const manager = createProfileActions({
+    profiles,
+    persist(){ return Promise.resolve(); },
+    getExistingProfile(){ return {key:"Pilot", profile:profiles.get("Pilot")}; }
+  });
+
+  const result = manager.applyQuestAction({
+    player:{name:"Pilot"},
+    action:{kind:"accept", questId:`${TUTORIAL_QUEST_IDS[1]}_cyan`}
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(profiles.get("Pilot").activeQuestIds.includes(`${TUTORIAL_QUEST_IDS[1]}_cyan`), true);
+});
+
 test("tutorial recovery ignores future quests until previous tutorial quests are complete", ()=>{
   const profile = createDefaultProfile();
   profile.tutorial = {...profile.tutorial, status:"active", step:"game_open_quests_2"};
