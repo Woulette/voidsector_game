@@ -1,4 +1,4 @@
-import { resolveServerCombatFire } from "./damage.js";
+import { applyServerEliteLaserLifeSteal, resolveServerCombatFire } from "./damage.js";
 import { applyServerShipLifeSteal } from "./shipAbilities.js";
 import { markEnemyAttackedByPlayer } from "../world/aggro.js";
 import { getFirmHitOwner, markFirmHitOwner } from "../firms/firmHitOwnership.js";
@@ -63,12 +63,24 @@ export function createEnemyHitHandler({
   }
 
   function applyLifeSteal(player, profile, damageDealt, weaponClass, source){
-    const result = applyServerShipLifeSteal({player, profile, damageDealt, weaponClass});
+    return emitLifeStealHeal(player, applyServerShipLifeSteal({player, profile, damageDealt, weaponClass}), weaponClass, source);
+  }
+
+  function applyEliteLifeSteal(player, result, damageDealt, source){
+    return emitLifeStealHeal(
+      player,
+      applyServerEliteLaserLifeSteal({player, eliteLaser:result?.eliteLaser, damageDealt, weaponClass:result?.weaponClass}),
+      result?.weaponClass,
+      source
+    );
+  }
+
+  function emitLifeStealHeal(player, result, weaponClass, source){
     if(result.healed <= 0) return result;
     profileManager.saveWorldSession?.({player, state:player.state, force:false});
     io.to(player.id).emit("player:healed", {
       targetId:player.id,
-      sourceId:result.status?.abilityId || "absorbing_fire",
+      sourceId:result.sourceId || result.status?.abilityId || "absorbing_fire",
       amount:result.healed,
       hp:Number(player.state.hp || 0),
       maxHp:Number(player.state.maxHp || 0),
@@ -155,6 +167,7 @@ export function createEnemyHitHandler({
         missileHits:result.missileHits || 0,
         missileMisses:result.missileMisses || 0,
         doubleStrike:result.doubleStrike || null,
+        eliteLaser:result.eliteLaser || null,
         mapId:String(player.mapId ?? ""),
         fromX:Number(player.state?.x || 0),
         fromY:Number(player.state?.y || 0),
@@ -175,7 +188,9 @@ export function createEnemyHitHandler({
       markFirmHitOwner(worldEnemy, player);
       const durabilityBefore = enemyDurability(worldEnemy);
       applyDamageToEnemy(worldEnemy, incoming);
-      applyLifeSteal(player, result.profile, durabilityBefore - enemyDurability(worldEnemy), result.weaponClass, worldEnemy);
+      const damageDealt = durabilityBefore - enemyDurability(worldEnemy);
+      applyLifeSteal(player, result.profile, damageDealt, result.weaponClass, worldEnemy);
+      applyEliteLifeSteal(player, result, damageDealt, worldEnemy);
       if(wasAlive && worldEnemy.hp <= 0){
         emitWorldReward({
           enemy:worldEnemy,
@@ -231,6 +246,7 @@ export function createEnemyHitHandler({
       missileHits:result.missileHits || 0,
       missileMisses:result.missileMisses || 0,
       doubleStrike:result.doubleStrike || null,
+      eliteLaser:result.eliteLaser || null,
       mapId:String(player.mapId ?? ""),
       fromX:Number(player.state?.x || 0),
       fromY:Number(player.state?.y || 0),
@@ -247,7 +263,9 @@ export function createEnemyHitHandler({
     markFirmHitOwner(enemy, player);
     const durabilityBefore = enemyDurability(enemy);
     applyDamageToEnemy(enemy, incoming);
-    applyLifeSteal(player, result.profile, durabilityBefore - enemyDurability(enemy), result.weaponClass, enemy);
+    const damageDealt = durabilityBefore - enemyDurability(enemy);
+    applyLifeSteal(player, result.profile, damageDealt, result.weaponClass, enemy);
+    applyEliteLifeSteal(player, result, damageDealt, enemy);
     if(instance.type === "portal" && wasAlive && enemy.hp <= 0 && !instance.completed){
       if(handlePortalEnemyDeath) handlePortalEnemyDeath(group, enemy, attackerId);
       else{

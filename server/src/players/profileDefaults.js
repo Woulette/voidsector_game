@@ -5,8 +5,9 @@ const REPAIR_EXTRA_ITEM_IDS = new Set(["extra_repair_starter", "extra_repair_yel
 const STARTER_SHIP_ID = "orion";
 
 export function createDefaultProfile(){
+  const now = Date.now();
   return sanitizeProfile({
-    updatedAt:Date.now(),
+    updatedAt:now,
     player:{name:"NOVA-37", firmId:"astra", firmSelected:false, level:1, skillPoints:1},
     ownedShips:[STARTER_SHIP_ID],
     activeShip:STARTER_SHIP_ID,
@@ -16,6 +17,7 @@ export function createDefaultProfile(){
     ammoInventory:{ammo_x1:2500, missile_m1:30, missile_m2:30},
     actionSlots:["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"],
     actionSlotsByShip:{orion:["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"]},
+    actionSlotsUpdatedAt:now,
     lastLaserAmmoId:"ammo_x1",
     shipLoadouts:{orion:{lasers:["inv_laser_mk1_1"], generators:[], extras:["inv_repair_starter_2", null, null]}},
     ownedDroneCount:0,
@@ -27,6 +29,7 @@ export function createDefaultProfile(){
     shipCargo:{},
     combatBoosts:{laser:{}, rocket:{}, generator:{}, drone:{}},
     shipAbilityStates:{},
+    eliteLaserStates:{},
     boosters:{s1:{}, s2:{}},
     skillRanks:{},
     skillLevels:{},
@@ -41,7 +44,7 @@ export function createDefaultProfile(){
     questProgress:{},
     questFailProgress:{},
     completedQuestClaims:{},
-    tutorial:{status:"pending", step:"launcher_orion", rewardClaimed:false, updatedAt:Date.now(), completedAt:0},
+    tutorial:{status:"pending", step:"launcher_orion", rewardClaimed:false, updatedAt:now, completedAt:0},
     activityLog:[],
     shipWorldSessions:{},
     social:{friends:[], incoming:[], outgoing:[], enemies:[], ignored:[]},

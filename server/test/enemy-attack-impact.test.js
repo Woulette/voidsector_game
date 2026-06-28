@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createEnemyAttackManager, getEnemyProjectileTravelTime } from "../src/world/enemyAttacks.js";
+import { consumeEnemyAttackVisualBudget, createEnemyAttackManager, getEnemyProjectileTravelTime } from "../src/world/enemyAttacks.js";
 
 function createFixture(){
   const emitted = [];
@@ -152,6 +152,40 @@ test("simultaneous enemy impacts are batched into one player damage event", ()=>
   assert.equal(damageEvents[0].payload.amount, 45);
   assert.equal(damageEvents[0].payload.attackCount, 2);
   assert.deepEqual(damageEvents[0].payload.sourceEnemyIds.sort(), ["enemy-1", "enemy-2"]);
+});
+
+test("enemy attack visuals are rate-limited without dropping pending damage", ()=>{
+  const fixture = createFixture();
+  const now = 28_000;
+  fixture.target.state.hp = 100;
+
+  for(let index = 0; index < 12; index += 1){
+    fixture.manager.launchEnemyAttack({
+      enemy:{...fixture.enemy, id:`enemy-${index}`, onHitEffect:null},
+      map:{id:"1", room:"map:1"},
+      target:fixture.target,
+      amount:1,
+      now,
+      attackStyle:"drone_pirate"
+    });
+  }
+  fixture.manager.updatePendingEnemyAttacks(now + 2_000);
+
+  const visualEvents = fixture.emitted.filter(event=>event.eventName === "enemy:attack");
+  const damageEvents = fixture.emitted.filter(event=>event.eventName === "player:damage");
+  assert.equal(visualEvents.length, 8);
+  assert.equal(damageEvents.length, 1);
+  assert.equal(damageEvents[0].payload.amount, 12);
+  assert.equal(fixture.target.state.hp, 88);
+});
+
+test("enemy attack visual budget resets after the short window", ()=>{
+  const target = {};
+  for(let index = 0; index < 8; index += 1){
+    assert.equal(consumeEnemyAttackVisualBudget(target, 10_000), true);
+  }
+  assert.equal(consumeEnemyAttackVisualBudget(target, 10_010), false);
+  assert.equal(consumeEnemyAttackVisualBudget(target, 10_100), true);
 });
 
 test("Ricky receives the same shield split as a player while exposing the complete hit amount", ()=>{

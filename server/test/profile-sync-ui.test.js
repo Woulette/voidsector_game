@@ -462,3 +462,143 @@ test("game profile sync keeps a new active ship action bar empty when no slots w
     globalThis.CustomEvent = previousCustomEvent;
   }
 });
+
+test("profile sync keeps newer local action slots when stale server profile arrives before game starts", ()=>{
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousCustomEvent = globalThis.CustomEvent;
+  globalThis.localStorage = {getItem:()=>null, setItem(){}};
+  globalThis.CustomEvent = class {
+    constructor(type, options = {}){
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+  globalThis.window = {dispatchEvent(){}};
+  const localSlots = ["ammo_x2", null, null, null, null, null, null, null, "extra_repair_starter"];
+  const staleSlots = [null, null, null, null, null, null, null, null, null];
+  const store = {
+    state:{
+      ...baseState(),
+      activeShip:"razorion",
+      ownedShips:["orion", "razorion"],
+      actionSlots:[...localSlots],
+      actionSlotsByShip:{razorion:[...localSlots]},
+      lastLaserAmmoId:"ammo_x2",
+      mmoProfileUpdatedAt:2000
+    },
+    currentView:"game",
+    hangarTab:"vaisseau",
+    hangarDetailOpen:false
+  };
+  const syncedProfiles = [];
+  const controller = createProfileController({
+    store,
+    game:{running:false, refreshActiveLoadout(){}, updateHud(){}},
+    appMode:"game",
+    profileScopeStorageKey:"test-profile-scope",
+    getXpNextForLevel:()=>3000,
+    xpCurveVersion:1,
+    ensureShipLoadout(){},
+    setStateStorageScope(){},
+    loadState(){},
+    saveState(){},
+    syncMultiplayerProfile:state=>syncedProfiles.push(structuredClone(state)),
+    renderAll(){},
+    showToast(){}
+  });
+  try{
+    controller.applyServerProfile({
+      updatedAt:1000,
+      activeShip:"razorion",
+      ownedShips:["orion", "razorion"],
+      ammoInventory:{ammo_x2:500},
+      actionSlots:[...staleSlots],
+      actionSlotsByShip:{razorion:[...staleSlots]},
+      lastLaserAmmoId:null
+    });
+
+    assert.deepEqual(store.state.actionSlots, localSlots);
+    assert.deepEqual(store.state.actionSlotsByShip.razorion, localSlots);
+    assert.equal(store.state.actionSlotsUpdatedAt, 2000);
+    assert.equal(store.state.lastLaserAmmoId, "ammo_x2");
+    assert.equal(store.state.mmoProfileUpdatedAt, 2000);
+    assert.equal(syncedProfiles.length, 1);
+    assert.deepEqual(syncedProfiles[0].actionSlotsByShip.razorion, localSlots);
+  }finally{
+    globalThis.window = previousWindow;
+    globalThis.localStorage = previousLocalStorage;
+    globalThis.CustomEvent = previousCustomEvent;
+  }
+});
+
+test("profile sync keeps newer local action slots when only the server profile timestamp is newer", ()=>{
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousCustomEvent = globalThis.CustomEvent;
+  globalThis.localStorage = {getItem:()=>null, setItem(){}};
+  globalThis.CustomEvent = class {
+    constructor(type, options = {}){
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+  globalThis.window = {dispatchEvent(){}};
+  const localSlots = ["ammo_x2", null, null, null, null, null, null, null, "extra_repair_starter"];
+  const staleSlots = [null, null, null, null, null, null, null, null, null];
+  const store = {
+    state:{
+      ...baseState(),
+      activeShip:"razorion",
+      ownedShips:["orion", "razorion"],
+      actionSlots:[...localSlots],
+      actionSlotsByShip:{razorion:[...localSlots]},
+      actionSlotsUpdatedAt:2000,
+      mmoProfileUpdatedAt:2000,
+      lastLaserAmmoId:"ammo_x2"
+    },
+    currentView:"game",
+    hangarTab:"vaisseau",
+    hangarDetailOpen:false
+  };
+  const syncedProfiles = [];
+  const controller = createProfileController({
+    store,
+    game:{running:false, refreshActiveLoadout(){}, updateHud(){}},
+    appMode:"game",
+    profileScopeStorageKey:"test-profile-scope",
+    getXpNextForLevel:()=>3000,
+    xpCurveVersion:1,
+    ensureShipLoadout(){},
+    setStateStorageScope(){},
+    loadState(){},
+    saveState(){},
+    syncMultiplayerProfile:state=>syncedProfiles.push(structuredClone(state)),
+    renderAll(){},
+    showToast(){}
+  });
+  try{
+    controller.applyServerProfile({
+      updatedAt:5000,
+      actionSlotsUpdatedAt:1000,
+      activeShip:"razorion",
+      ownedShips:["orion", "razorion"],
+      ammoInventory:{ammo_x2:500},
+      actionSlots:[...staleSlots],
+      actionSlotsByShip:{razorion:[...staleSlots]},
+      lastLaserAmmoId:null
+    });
+
+    assert.deepEqual(store.state.actionSlots, localSlots);
+    assert.deepEqual(store.state.actionSlotsByShip.razorion, localSlots);
+    assert.equal(store.state.actionSlotsUpdatedAt, 2000);
+    assert.equal(store.state.lastLaserAmmoId, "ammo_x2");
+    assert.equal(store.state.mmoProfileUpdatedAt, 2000);
+    assert.equal(syncedProfiles.length, 1);
+    assert.deepEqual(syncedProfiles[0].actionSlotsByShip.razorion, localSlots);
+  }finally{
+    globalThis.window = previousWindow;
+    globalThis.localStorage = previousLocalStorage;
+    globalThis.CustomEvent = previousCustomEvent;
+  }
+});

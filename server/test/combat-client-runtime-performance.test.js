@@ -88,6 +88,33 @@ test("projectile updates compact completed bullets in place", ()=>{
   assert.equal(result[0].travelTime, 10);
 });
 
+test("rocket and missile trails are sampled instead of allocating every frame", ()=>{
+  const bullet = createProjectile({
+    owner:"player",
+    startX:0,
+    startY:0,
+    targetId:"enemy",
+    damage:1,
+    travelTime:1,
+    radius:7,
+    kind:"missile"
+  });
+  const bullets = [bullet];
+
+  for(let index = 0; index < 20; index += 1){
+    updateProjectiles({
+      bullets,
+      dt:1 / 240,
+      getTarget:()=>({x:600, y:0}),
+      onImpact(){}
+    });
+  }
+
+  assert.equal(bullets.length, 1);
+  assert.ok(bullet.trail.length < 20);
+  assert.ok(bullet.trail.length <= 6);
+});
+
 test("inactive status effects do not write HUD state every frame", ()=>{
   const poisonUpdates = [];
   const slowUpdates = [];

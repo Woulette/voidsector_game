@@ -5,6 +5,7 @@ import { emitCombatHitToAudience } from "../src/combat/enemyHits.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { registerCombatHandlers } from "../src/socket/combatHandlers.js";
 import { createCombatCommands } from "../../src/multiplayer/combatCommands.js";
+import { ammoTypes, equipment } from "../../src/data/equipment.js";
 
 function createSocket(){
   const handlers = new Map();
@@ -310,6 +311,59 @@ test("server missile salvo rolls accuracy independently per missile", ()=>{
   assert.equal(result.damage, 5000);
   assert.equal(profile.ammoInventory.missile_m1, 7);
   assert.equal(profile.player.missileShotsFired, 3);
+});
+
+test("server rocket range is owned by the launcher, not stale ammo metadata", ()=>{
+  const profile = createDefaultProfile();
+  profile.activeShip = "orion";
+  profile.inventoryItems.push({uid:"inv_test_rocket_launcher", itemId:"launcher_rocket_mk1"});
+  profile.shipLoadouts.orion.rocketLauncher = "inv_test_rocket_launcher";
+  profile.ammoInventory.rocket_r1 = 1;
+  const rocket = ammoTypes.find(ammo=>ammo.id === "rocket_r1");
+  const launcher = equipment.find(item=>item.id === "launcher_rocket_mk1");
+  const originalAmmoRange = rocket.range;
+  const originalLauncherRange = launcher.effect.rocketRange;
+  try{
+    rocket.range = 5000;
+    launcher.effect.rocketRange = 200;
+    const result = resolveServerCombatFire({
+      player:{id:"security-test-rocket-range", state:{x:0, y:0, shipId:"orion"}},
+      profile,
+      enemy:{x:390, y:0},
+      payload:{weaponClass:"rocket", ammoId:"rocket_r1"},
+      random:()=>0
+    });
+
+    assert.equal(result.ok, false);
+    assert.match(result.reason, /portee/i);
+    assert.equal(profile.ammoInventory.rocket_r1, 1);
+  }finally{
+    if(originalAmmoRange === undefined) delete rocket.range;
+    else rocket.range = originalAmmoRange;
+    launcher.effect.rocketRange = originalLauncherRange;
+  }
+});
+
+test("server missile damage applies drone formation missile multipliers", ()=>{
+  const profile = createDefaultProfile();
+  profile.activeShip = "orion";
+  profile.activeDroneFormation = "cuirasse";
+  profile.inventoryItems.push({uid:"inv_test_missile_launcher", itemId:"launcher_missile_mk1"});
+  profile.shipLoadouts.orion.missileLauncher = "inv_test_missile_launcher";
+  profile.ammoInventory.missile_m1 = 1;
+
+  const result = resolveServerCombatFire({
+    player:{id:"security-test-missile-formation", state:{x:0, y:0, shipId:"orion"}},
+    profile,
+    enemy:{x:100, y:0},
+    payload:{weaponClass:"missile", ammoId:"missile_m1", count:1},
+    random:()=>0
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.damage, 1350);
+  assert.equal(result.missileHits, 1);
+  assert.equal(profile.ammoInventory.missile_m1, 0);
 });
 
 test("server combat hit is broadcast to players in the same map room", ()=>{

@@ -1,5 +1,5 @@
 import { ammoTypes } from "../../data/catalog.js";
-import { createProjectile } from "./projectiles.js";
+import { createProjectile } from "./projectiles.js?v=action-slots-save-1-fps-burst-1";
 
 export function createRemoteWeaponEventProcessor({
   multiplayer,

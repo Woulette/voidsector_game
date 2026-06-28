@@ -28,6 +28,11 @@ export function setAmmoCooldown(ammoCooldowns, ammo, seconds, getCooldown){
   ammoCooldowns[key] = Math.max(getCooldown(ammo), seconds || ammo.cooldown || 1);
 }
 
+const PROJECTILE_TRAIL_SAMPLE_INTERVAL = 1 / 45;
+const PROJECTILE_TRAIL_MAX_POINTS = 6;
+const PROJECTILE_TRAIL_MIN_DISTANCE = 13;
+const PROJECTILE_TRAIL_LIFE = .34;
+
 export function createProjectile({owner, startX, startY, targetId, damage, travelTime, radius, color, particle, slotIndex, hitChance, sourceId, kind, sprite, curveSide = 0, curveStrength = 0, visualOnly = false, onHitEffect = null, salvoId = null, salvoSize = 1, ammoId = null, serverFireCount = 1}){
   return {
     owner,
@@ -55,6 +60,7 @@ export function createProjectile({owner, startX, startY, targetId, damage, trave
     curveSide,
     curveStrength,
     trail:kind === "rocket" || kind === "missile" ? [] : null,
+    trailSampleT:0,
     angle:0,
     hitChance
   };
@@ -72,6 +78,34 @@ function compactLivingTrail(trail, maxLength){
   trail.length = write;
   if(trail.length > maxLength) trail.splice(0, trail.length - maxLength);
   return trail;
+}
+
+function recycleOldestTrailPoint(trail){
+  if(trail.length < PROJECTILE_TRAIL_MAX_POINTS) return {};
+  return trail.shift() || {};
+}
+
+function updateProjectileTrail(bullet, dt){
+  if(!Array.isArray(bullet.trail)) return;
+  for(const point of bullet.trail) point.life -= dt;
+  compactLivingTrail(bullet.trail, PROJECTILE_TRAIL_MAX_POINTS);
+  bullet.trailSampleT = Number(bullet.trailSampleT || 0) + dt;
+  const last = bullet.trail[bullet.trail.length - 1];
+  const distanceFromLast = last
+    ? Math.hypot(Number(bullet.x || 0) - Number(last.x || 0), Number(bullet.y || 0) - Number(last.y || 0))
+    : Infinity;
+  if(bullet.trail.length
+    && bullet.trailSampleT < PROJECTILE_TRAIL_SAMPLE_INTERVAL
+    && distanceFromLast < PROJECTILE_TRAIL_MIN_DISTANCE){
+    return;
+  }
+  bullet.trailSampleT = 0;
+  const point = recycleOldestTrailPoint(bullet.trail);
+  point.x = bullet.x;
+  point.y = bullet.y;
+  point.life = PROJECTILE_TRAIL_LIFE;
+  point.max = PROJECTILE_TRAIL_LIFE;
+  bullet.trail.push(point);
 }
 
 function compactActiveProjectiles(bullets){
@@ -109,9 +143,7 @@ export function updateProjectiles({bullets, dt, getTarget, onImpact}){
     bullet.y = baseY + sideY * curve;
     bullet.angle = Math.atan2(bullet.y - prevY, bullet.x - prevX);
     if((bullet.kind === "rocket" || bullet.kind === "missile") && bullet.trail){
-      bullet.trail.push({x:bullet.x, y:bullet.y, life:.42, max:.42});
-      for(const point of bullet.trail) point.life -= dt;
-      compactLivingTrail(bullet.trail, 8);
+      updateProjectileTrail(bullet, dt);
     }
     if(progress >= 1){
       onImpact(bullet);

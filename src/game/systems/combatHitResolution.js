@@ -83,7 +83,7 @@ export function createCombatHitResolutionSystem({
         delay,
         radius:16,
         rotation:Math.random() * Math.PI * 2,
-        sparks:makeImpactSparks({count:3, color:baseColor, speedMin:18, speedMax:36, lengthMin:5, lengthMax:11, width:.9, arc:Math.PI * 1.15, angle:angle + Math.PI})
+        sparks:makeImpactSparks({count:2, color:baseColor, speedMin:18, speedMax:36, lengthMin:5, lengthMax:11, width:.9, arc:Math.PI * 1.15, angle:angle + Math.PI})
       });
       return;
     }
@@ -99,8 +99,8 @@ export function createCombatHitResolutionSystem({
         delay,
         radius:visualOnly ? 36 : 72,
         rotation:Math.random() * Math.PI * 2,
-        sparks:makeImpactSparks({count:visualOnly ? 3 : 6, color:baseColor, speedMin:22, speedMax:visualOnly ? 58 : 92, lengthMin:7, lengthMax:visualOnly ? 16 : 26, width:1.15}),
-        smoke:makeImpactSmoke(visualOnly ? 0 : 2)
+        sparks:makeImpactSparks({count:visualOnly ? 2 : 4, color:baseColor, speedMin:22, speedMax:visualOnly ? 58 : 92, lengthMin:7, lengthMax:visualOnly ? 16 : 26, width:1.15}),
+        smoke:makeImpactSmoke(visualOnly ? 0 : 1)
       });
       return;
     }
@@ -115,7 +115,7 @@ export function createCombatHitResolutionSystem({
       delay,
       radius:48,
       rotation:Math.random() * Math.PI * 2,
-      sparks:makeImpactSparks({count:5, color:baseColor, speedMin:24, speedMax:76, lengthMin:7, lengthMax:20, width:1.15}),
+      sparks:makeImpactSparks({count:4, color:baseColor, speedMin:24, speedMax:76, lengthMin:7, lengthMax:20, width:1.15}),
       smoke:makeImpactSmoke(1)
     });
   }
@@ -188,7 +188,7 @@ export function createCombatHitResolutionSystem({
     if(!target) return;
     if(bullet.owner === "player" && bullet.kind === "missile"){
       const baseAngle = bullet.angle || Math.random() * Math.PI * 2;
-      const count = bullet.visualOnly ? 1 : 2;
+      const count = bullet.visualOnly || Number(bullet.salvoSize || 1) > 1 ? 1 : 2;
       for(let i = 0; i < count; i++){
         const angle = baseAngle + (i - 1) * 1.9 + (Math.random() - .5) * .55;
         const distance = (bullet.visualOnly ? 10 : 0) + i * 11 + Math.random() * 9;

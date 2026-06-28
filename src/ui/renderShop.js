@@ -14,6 +14,7 @@ import {
 import { statLabelForItem } from "./renderShared.js";
 import { S1_BOOSTER_SHOP } from "../shared/firmBoosters.js";
 import { currencyAmountHtml, realMoneyPriceHtml } from "./currencyIcons.js?v=store-real-prices-1";
+import { getRarityLabel, rarityClass } from "../shared/rarities.js";
 
 function shopCatalog(){
   return [
@@ -61,6 +62,8 @@ const SHOP_FILTER_META = {
 };
 
 function productKey(product){ return `${product.kind}:${product.id}`; }
+function productRarityClass(product){ return rarityClass(product?.data); }
+function rarityBadge(item){ return `<span class="badge rarity-badge">${getRarityLabel(item)}</span>`; }
 function shopAmmoMultiplier(){ return [1, 10, 100, 1000].includes(Number(store.selectedShopAmmoMultiplier)) ? Number(store.selectedShopAmmoMultiplier) : 1; }
 function shopBoosterMultiplier(){ return [1, 10, 50, 100].includes(Number(store.selectedShopBoosterMultiplier)) ? Number(store.selectedShopBoosterMultiplier) : 1; }
 function isTutorialStep(step){
@@ -128,14 +131,14 @@ function productDetailStats(product){
     if(ammo.weaponClass === "missile"){
       return [
         `DÉGÂTS ${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)}`,
-        `PORTÉE ${ammo.range}`,
+        "PORTÉE Lanceur",
         `Stock ${fmt(getAmmoCount(ammo.id))}`
       ];
     }
     if(ammo.weaponClass === "rocket"){
       return [
         `DÉGÂTS ${ammo.damageMin}-${ammo.damageMax}`,
-        `PORTÉE ${ammo.range}`,
+        "PORTÉE Lanceur",
         `Stock ${fmt(getAmmoCount(ammo.id))}`
       ];
     }
@@ -281,7 +284,7 @@ function shopAmmoStatsHtml(ammo){
   if(ammo.weaponClass === "rocket" || ammo.weaponClass === "missile"){
     return `<div class="shop-item-stat-lines">
       <span><b>Dégâts</b>${fmt(ammo.damageMin)}-${fmt(ammo.damageMax)}</span>
-      <span><b>Portée</b>${fmt(ammo.range)}</span>
+      <span><b>Portée</b>Lanceur</span>
       <span><b>Stock</b>${fmt(getAmmoCount(ammo.id))}</span>
     </div>`;
   }
@@ -333,10 +336,11 @@ function renderShopListCard(product, selected){
     const ship = product.data;
     const owned = store.state.ownedShips.includes(ship.id);
     const lockReason = productLockLabel(product);
-    return `<article class="shop-list-card ${selected ? "selected" : ""} ${owned ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}" ${lockReason ? `title="${lockReason}"` : ""}>
+    return `<article class="shop-list-card ${productRarityClass(product)} ${selected ? "selected" : ""} ${owned ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}" ${lockReason ? `title="${lockReason}"` : ""}>
       <div class="shop-list-art"><img src="${ship.img}" alt="${ship.name}">${unlocked ? "" : `<span class="shop-ship-lock" aria-hidden="true">🔒</span>`}</div>
       <div class="shop-list-copy">
-        <div class="shop-list-head"><h4>${ship.name}</h4><span class="badge">${ship.className}</span></div>
+        <div class="shop-list-head"><h4>${ship.name}</h4>${rarityBadge(ship)}</div>
+        <p>${ship.className}</p>
         ${shopShipStatsHtml(ship)}
         <div class="shop-list-meta"><span>${productStatusText(product)}</span>${owned ? "<strong>OK</strong>" : shopPriceHtml(ship.priceType, ship.price)}</div>
         ${lockBadge ? `<div class="shop-list-meta">${lockBadge}</div>` : ""}
@@ -347,10 +351,10 @@ function renderShopListCard(product, selected){
     const ammo = product.data;
     const ammoTag = ammo.weaponClass === "missile" ? "MIS" : ammo.weaponClass === "rocket" ? "RKT" : `x${ammo.multiplier}`;
     const ammoStats = shopAmmoStatsHtml(ammo);
-    return `<article class="shop-list-card ${selected ? "selected" : ""} ${getAmmoCount(ammo.id) ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
+    return `<article class="shop-list-card ${productRarityClass(product)} ${selected ? "selected" : ""} ${getAmmoCount(ammo.id) ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
       <div class="shop-list-art ammo">${ammo.img ? `<img class="ammo-product-img" src="${ammo.img}" alt="${ammo.name}">` : `<div class="ammo-product-art" style="--ammo-color:${ammo.color}"><b>${ammo.short}</b><span>${ammoTag}</span></div>`}</div>
       <div class="shop-list-copy">
-        <div class="shop-list-head"><h4>${ammo.name}</h4><span class="badge">${ammo.rarity}</span></div>
+        <div class="shop-list-head"><h4>${ammo.name}</h4>${rarityBadge(ammo)}</div>
         ${ammoStats}
         <div class="shop-list-meta"><span>${productStatusText(product)}</span>${shopPriceHtml(ammo.priceType, ammo.price)}</div>
         <div class="shop-list-meta"><span>Pack ${fmt(ammo.amount)}</span>${lockBadge}</div>
@@ -361,10 +365,10 @@ function renderShopListCard(product, selected){
     const drone = product.data;
     const count = store.state.ownedDroneCount || 0;
     const next = count < drone.maxOwned ? getDronePurchasePrice(count) : null;
-    return `<article class="shop-list-card ${selected ? "selected" : ""} ${(count>0) ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
+    return `<article class="shop-list-card ${productRarityClass(product)} ${selected ? "selected" : ""} ${(count>0) ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
       <div class="shop-list-art"><img src="${drone.img}" alt="${drone.name}"></div>
       <div class="shop-list-copy">
-        <div class="shop-list-head"><h4>${drone.name}</h4><span class="badge">${drone.rarity}</span></div>
+        <div class="shop-list-head"><h4>${drone.name}</h4>${rarityBadge(drone)}</div>
         <p>1 slot par drone · max ${drone.maxOwned}</p>
         <div class="shop-list-meta"><span>${productStatusText(product)}</span>${next ? shopPriceHtml(drone.priceType, next) : "<strong>MAX</strong>"}</div>
         <div class="shop-list-meta"><span>Prix x2 à chaque achat</span>${lockBadge}</div>
@@ -374,10 +378,10 @@ function renderShopListCard(product, selected){
   if(product.kind === "droneFormation"){
     const formation = product.data;
     const owned = store.state.ownedDroneFormations?.includes(formation.id);
-    return `<article class="shop-list-card ${selected ? "selected" : ""} ${owned ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
+    return `<article class="shop-list-card ${productRarityClass(product)} ${selected ? "selected" : ""} ${owned ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
       <div class="shop-list-art"><img src="${formation.img}" alt="${formation.name}"></div>
       <div class="shop-list-copy">
-        <div class="shop-list-head"><h4>${formation.name}</h4><span class="badge">${formation.rarity}</span></div>
+        <div class="shop-list-head"><h4>${formation.name}</h4>${rarityBadge(formation)}</div>
         <div class="shop-item-stat-lines"><span><b>Bonus</b>${formation.stats.bonus}</span><span><b>Malus</b>${formation.stats.malus}</span></div>
         <div class="shop-list-meta"><span>${productStatusText(product)}</span>${owned ? "<strong>OK</strong>" : shopPriceHtml(formation.priceType, formation.price)}</div>
       </div>
@@ -410,10 +414,10 @@ function renderShopListCard(product, selected){
   const item = product.data;
   const ownedCount = getInventoryCount(item.id);
   const lockLine = lockBadge ? `<div class="shop-list-meta">${lockBadge}</div>` : "";
-  return `<article class="shop-list-card ${selected ? "selected" : ""} ${ownedCount ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
+  return `<article class="shop-list-card ${productRarityClass(product)} ${selected ? "selected" : ""} ${ownedCount ? "owned" : ""} ${unlocked ? "" : "locked"}" data-select-shop="${productKey(product)}">
     <div class="shop-list-art"><img src="${item.img}" alt="${item.name}"></div>
     <div class="shop-list-copy">
-      <div class="shop-list-head"><h4>${item.name}</h4><span class="badge">${item.rarity}</span></div>
+      <div class="shop-list-head"><h4>${item.name}</h4>${rarityBadge(item)}</div>
       ${shopItemStatsHtml(item)}
       <div class="shop-list-meta"><span>Stock ${fmt(ownedCount)}</span>${shopPriceHtml(item.priceType, item.price)}</div>
       ${lockLine}
@@ -460,8 +464,8 @@ function renderShopDetail(product){
     const owned = store.state.ownedShips.includes(ship.id);
     const active = store.state.activeShip === ship.id;
     detail.innerHTML = `
-      <div class="shop-detail-top"><span class="badge">VAISSEAU</span><span class="badge">${ship.className}</span></div>
-      <div class="shop-detail-art ${unlocked ? "" : "locked"}"><img src="${ship.img}" alt="${ship.name}">${unlocked ? "" : `<span class="shop-ship-lock detail" aria-hidden="true">🔒</span>`}</div>
+      <div class="shop-detail-top"><span class="badge">VAISSEAU</span>${rarityBadge(ship)}<span class="badge">${ship.className}</span></div>
+      <div class="shop-detail-art ${rarityClass(ship)} ${unlocked ? "" : "locked"}"><img src="${ship.img}" alt="${ship.name}">${unlocked ? "" : `<span class="shop-ship-lock detail" aria-hidden="true">🔒</span>`}</div>
       <h3>${ship.name}</h3>
       <p class="shop-detail-copy">${ship.desc}</p>
       ${lockHtml}
@@ -474,8 +478,8 @@ function renderShopDetail(product){
     const ammoBadge = ammo.weaponClass === "missile" ? "MISSILE" : ammo.weaponClass === "rocket" ? "ROQUETTE" : "MUNITION LASER";
     const ammoTag = ammo.weaponClass === "missile" ? "MIS" : ammo.weaponClass === "rocket" ? "RKT" : `x${ammo.multiplier}`;
     detail.innerHTML = `
-      <div class="shop-detail-top"><span class="badge">${ammoBadge}</span><span class="badge">${ammo.rarity}</span></div>
-      <div class="shop-detail-art compact">${ammo.img ? `<img class="ammo-detail-img" src="${ammo.img}" alt="${ammo.name}">` : `<div class="ammo-product-art" style="--ammo-color:${ammo.color}"><b>${ammo.short}</b><span>${ammoTag}</span></div>`}</div>
+      <div class="shop-detail-top"><span class="badge">${ammoBadge}</span>${rarityBadge(ammo)}</div>
+      <div class="shop-detail-art compact ${rarityClass(ammo)}">${ammo.img ? `<img class="ammo-detail-img" src="${ammo.img}" alt="${ammo.name}">` : `<div class="ammo-product-art" style="--ammo-color:${ammo.color}"><b>${ammo.short}</b><span>${ammoTag}</span></div>`}</div>
       <h3>${ammo.name}</h3>
       <p class="shop-detail-copy">${ammo.desc}</p>
       ${lockHtml}
@@ -489,8 +493,8 @@ function renderShopDetail(product){
     const count = store.state.ownedDroneCount || 0;
     const next = count < drone.maxOwned ? getDronePurchasePrice(count) : null;
     detail.innerHTML = `
-      <div class="shop-detail-top"><span class="badge">DRONE</span><span class="badge">${drone.rarity}</span></div>
-      <div class="shop-detail-art"><img src="${drone.img}" alt="${drone.name}"></div>
+      <div class="shop-detail-top"><span class="badge">DRONE</span>${rarityBadge(drone)}</div>
+      <div class="shop-detail-art ${rarityClass(drone)}"><img src="${drone.img}" alt="${drone.name}"></div>
       <h3>${drone.name}</h3>
       <p class="shop-detail-copy">${drone.desc}</p>
       ${lockHtml}
@@ -503,8 +507,8 @@ function renderShopDetail(product){
     const owned = store.state.ownedDroneFormations?.includes(formation.id);
     const active = store.state.activeDroneFormation === formation.id;
     detail.innerHTML = `
-      <div class="shop-detail-top"><span class="badge">FORMATION DRONE</span><span class="badge">${formation.rarity}</span></div>
-      <div class="shop-detail-art"><img src="${formation.img}" alt="${formation.name}"></div>
+      <div class="shop-detail-top"><span class="badge">FORMATION DRONE</span>${rarityBadge(formation)}</div>
+      <div class="shop-detail-art ${rarityClass(formation)}"><img src="${formation.img}" alt="${formation.name}"></div>
       <h3>${formation.name}</h3>
       <p class="shop-detail-copy">${formation.desc}</p>
       <div class="shop-detail-stats">
@@ -518,8 +522,8 @@ function renderShopDetail(product){
   const itemMultiplier = item.id === "teleportation_fluid" ? shopAmmoMultiplier() : 1;
   const tutorialPurchaseBlocked = tutorialBlocksLaserPurchase(product);
   detail.innerHTML = `
-    <div class="shop-detail-top"><span class="badge">${(item.shopCategory || item.category).toUpperCase()}</span><span class="badge">${item.rarity}</span></div>
-    <div class="shop-detail-art"><img src="${item.img}" alt="${item.name}"></div>
+    <div class="shop-detail-top"><span class="badge">${(item.shopCategory || item.category).toUpperCase()}</span>${rarityBadge(item)}</div>
+    <div class="shop-detail-art ${rarityClass(item)}"><img src="${item.img}" alt="${item.name}"></div>
     <h3>${item.name}</h3>
     <p class="shop-detail-copy">${item.desc}</p>
     ${lockHtml}

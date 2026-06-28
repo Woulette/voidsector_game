@@ -57,7 +57,8 @@ Valeurs par defaut :
 - 100 bots ;
 - montee progressive de 80 ms entre connexions ;
 - test de 10 minutes ;
-- snapshot joueur toutes les 200 ms ;
+- decision IA toutes les 200 ms ;
+- mode trafic `realistic`, qui evite les snapshots joueur inutiles quand un bot est immobile ;
 - changement de carte environ toutes les 55 secondes.
 
 ## Options
@@ -68,6 +69,7 @@ $env:BOT_DURATION_SECONDS="900"
 $env:BOT_RAMP_MS="100"
 $env:BOT_TICK_MS="200"
 $env:BOT_MAP_CHANGE_SECONDS="55"
+$env:BOT_TRAFFIC_MODE="realistic"
 $env:BOT_RUN_ID="beta01"
 $env:BOT_SERVER_URL="http://127.0.0.1:3001"
 $env:BOT_MEASURE_BYTES="true"
@@ -76,6 +78,8 @@ npm run loadtest:bots
 ```
 
 `BOT_RUN_ID` permet de reutiliser les memes comptes entre deux executions. Changer cette valeur cree une nouvelle population de bots.
+
+`BOT_TRAFFIC_MODE=realistic` sert a estimer une beta avec des joueurs humains : un bot en AFK, repos ou micro-deplacement ne spamme plus `player:state` a chaque tick. `BOT_TRAFFIC_MODE=stress` reactive l'ancien comportement pour volontairement charger Socket.IO et le tick serveur.
 
 ## Commencer petit
 

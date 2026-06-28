@@ -43,10 +43,14 @@ test("drone formations render structured effects and maluses", ()=>{
   assert.match(html, /Bonus :/);
   assert.match(html, /Malus :/);
   assert.match(html, /Formation Cuirassé/);
-  assert.match(html, /\+30 % bouclier/);
-  assert.match(html, /\+30 % régénération/);
-  assert.match(html, /-15 % dégâts laser/);
-  assert.match(html, /-20 % dégâts roquettes/);
+  assert.match(html, /\+15 % bouclier/);
+  assert.match(html, /\+15 % régénération/);
+  assert.match(html, /-10 % dégâts laser/);
+  assert.match(html, /-10 % dégâts roquettes/);
+  assert.match(html, /-10 % dégâts missiles/);
+  assert.match(html, /\+5 % vitesse/);
+  assert.match(html, /-15 % dégâts roquettes/);
+  assert.match(html, /-15 % dégâts missiles/);
   assert.match(html, /data-combat-formation-use="cuirasse"/);
   assert.match(html, /combat-formation-card active/);
   assert.doesNotMatch(html, /À acheter au magasin drones/);

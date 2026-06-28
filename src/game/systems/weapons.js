@@ -1,4 +1,4 @@
-import { createProjectile } from "./projectiles.js";
+import { createProjectile } from "./projectiles.js?v=action-slots-save-1-fps-burst-1";
 
 export function createWeaponSystem(deps){
   let rocketSide = -1;
@@ -53,7 +53,7 @@ export function createWeaponSystem(deps){
         deps.showToast("Aucun lance roquette equipe.");
         return false;
       }
-      if(dist > (launcher.effect?.rocketRange || ammo.range || 800)) return false;
+      if(dist > (launcher.effect?.rocketRange || 550)) return false;
       if(deps.getAmmoCount(ammo.id) <= 0){
         deps.showToast(`${ammo.name} epuisee.`);
         deps.refreshActionBar();
@@ -165,7 +165,7 @@ export function createWeaponSystem(deps){
     const dx = enemy.x - player.x;
     const dy = enemy.y - player.y;
     const dist = Math.hypot(dx, dy) || 1;
-    if(dist > (launcher.effect?.missileRange || ammo.range || 500)) return false;
+    if(dist > (launcher.effect?.missileRange || 600)) return false;
     const needed = Math.max(1, Number(count || launcher.effect?.missileCapacity || 3));
     if(deps.getAmmoCount(ammo.id) < needed){
       deps.showToast(`${ammo.name} insuffisant : il faut ${needed} missile(s).`);

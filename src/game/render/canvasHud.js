@@ -1,7 +1,10 @@
+const DAMAGE_TEXT_DETAIL_LIMIT = 8;
+
 export function drawDamageTexts({ctx, camera, damageTexts}){
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  const detailedText = damageTexts.length <= DAMAGE_TEXT_DETAIL_LIMIT;
   for(const t of damageTexts){
     const a = Math.max(0, t.life / t.max);
     const progress = Math.max(0, Math.min(1, 1 - a));
@@ -21,14 +24,14 @@ export function drawDamageTexts({ctx, camera, damageTexts}){
     ctx.font = `900 ${size}px Rajdhani, Arial`;
     ctx.lineJoin = "round";
     ctx.shadowColor = glow;
-    ctx.shadowBlur = isMiss ? 8 + pop * 5 : 11 + pop * 22 + grow * 6;
+    ctx.shadowBlur = detailedText ? (isMiss ? 8 + pop * 5 : 11 + pop * 22 + grow * 6) : (isMiss ? 5 : 7);
     ctx.strokeStyle = `rgba(22,2,5,${fade})`;
-    ctx.lineWidth = isMiss ? 3 : 3.5 + pop * 1.5;
+    ctx.lineWidth = detailedText ? (isMiss ? 3 : 3.5 + pop * 1.5) : (isMiss ? 2.5 : 3);
     ctx.strokeText(label, x, y);
     ctx.fillStyle = fill;
     ctx.fillText(label, x, y);
 
-    if(!isMiss){
+    if(detailedText && !isMiss){
       ctx.shadowBlur = 0;
       ctx.globalAlpha = fade * (0.22 + grow * 0.18);
       ctx.strokeStyle = t.shadowColor || "rgba(255,112,67,.72)";
@@ -38,6 +41,70 @@ export function drawDamageTexts({ctx, camera, damageTexts}){
     }
   }
   ctx.restore();
+}
+
+let combatHudTextWarmupStarted = false;
+
+function drawCombatHudTextWarmup(){
+  if(typeof document === "undefined") return false;
+  const canvas = document.createElement("canvas");
+  canvas.width = 220;
+  canvas.height = 96;
+  const ctx = canvas.getContext("2d");
+  if(!ctx) return false;
+  drawDamageTexts({
+    ctx,
+    camera:{x:0, y:0},
+    damageTexts:[
+      {
+        x:62,
+        y:34,
+        value:1234,
+        life:.82,
+        max:.82,
+        color:"rgba(248,113,113,",
+        shadowColor:"rgba(248,113,113,.78)",
+        wobble:0
+      },
+      {
+        x:154,
+        y:34,
+        value:"MISS",
+        life:.82,
+        max:.82,
+        color:"rgba(226,232,240,",
+        shadowColor:"rgba(148,163,184,.78)",
+        wobble:1.7
+      },
+      {
+        x:112,
+        y:70,
+        value:"+88 HP",
+        life:.82,
+        max:.82,
+        color:"rgba(134,239,172,",
+        shadowColor:"rgba(34,197,94,.85)",
+        wobble:.8
+      }
+    ]
+  });
+  return true;
+}
+
+export function warmCombatHudTextRendering(){
+  if(combatHudTextWarmupStarted) return true;
+  combatHudTextWarmupStarted = true;
+  const warmed = drawCombatHudTextWarmup();
+  const fonts = typeof document !== "undefined" ? document.fonts : null;
+  if(fonts?.load){
+    Promise.all([
+      fonts.load("900 24px Rajdhani"),
+      fonts.load("900 18px Rajdhani")
+    ])
+      .then(()=>drawCombatHudTextWarmup())
+      .catch(()=>{});
+  }
+  return warmed;
 }
 
 function getDefaultMapPortals(map){

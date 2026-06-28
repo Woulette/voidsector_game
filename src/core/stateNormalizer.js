@@ -392,6 +392,8 @@ export function normalizeState(saved){
     merged.actionSlotsByShip[merged.activeShip] = hasSavedActionSlotsByShip ? sanitizeSlots([]) : sanitizeSlots(merged.actionSlots);
   }
   merged.actionSlots = [...merged.actionSlotsByShip[merged.activeShip]];
+  merged.actionSlotsUpdatedAt = Math.max(0, Number(saved?.actionSlotsUpdatedAt || saved?.mmoProfileUpdatedAt || 0));
+  merged.mmoProfileUpdatedAt = Math.max(0, Number(saved?.mmoProfileUpdatedAt || 0));
   merged.shipLoadouts = saved?.shipLoadouts && typeof saved.shipLoadouts === "object" ? normalizeShipKeyedObject(saved.shipLoadouts) : clone(base.shipLoadouts);
   if(accidentalVeloxStarterOnly){
     merged.shipLoadouts[starterShipId] = merged.shipLoadouts.velox || merged.shipLoadouts[starterShipId] || clone(base.shipLoadouts[starterShipId]);

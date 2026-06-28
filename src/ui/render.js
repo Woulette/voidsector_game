@@ -57,9 +57,10 @@ import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgress
 import { renderRefinery } from "./renderRefinery.js?v=tutorial-refinery-lock-1";
 import { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
 import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
-import { multiplayer } from "../multiplayer/client.js?v=portal-prepare-1";
+import { multiplayer } from "../multiplayer/client.js?v=action-slots-save-1-fps-burst-1";
 import { renderAdminPanel } from "./adminPanel.js?v=currency-icons-2";
 import { currencyAmountHtml, currencyIconHtml, realMoneyPriceHtml } from "./currencyIcons.js?v=store-real-prices-1";
+import { getRarityLabel, getRarityOrder, getRarityShort, getRarityTier, rarityClass } from "../shared/rarities.js";
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g, char=>({
@@ -70,14 +71,6 @@ function escapeHtml(value){
     "'":"&#39;"
   }[char]));
 }
-
-const RESOURCE_RARITY_META = {
-  common:{label:"Commune", short:"COM"},
-  rare:{label:"Rare", short:"RAR"},
-  veryRare:{label:"Tres rare", short:"T-R"},
-  elite:{label:"Elite", short:"ELI"},
-  mythic:{label:"Mythique", short:"MYT"}
-};
 
 const INVENTORY_FILTERS = [
   {id:"all", label:"TOUT"},
@@ -187,8 +180,9 @@ export function renderShips(){
     const active = state.activeShip === ship.id;
     const selected = state.selectedShip === ship.id;
     const loadout = getLoadout(ship.id);
-    return `<article class="ship-card ${selected ? "selected" : ""} ${active ? "active" : ""}" data-ship-id="${ship.id}">
+    return `<article class="ship-card ${rarityClass(ship)} ${selected ? "selected" : ""} ${active ? "active" : ""}" data-ship-id="${ship.id}">
       <span class="badge">${active ? "ACTIF" : selected ? "SÉLECTIONNÉ" : "POSSÉDÉ"}</span>
+      <span class="badge rarity-badge">${escapeHtml(getRarityLabel(ship))}</span>
       <img src="${ship.img}" alt="${ship.name}">
       <div class="ship-meta">
         <div><h3>${ship.name}</h3></div>
@@ -256,7 +250,7 @@ function renderInventoryCell(entry, shipId = null){
   const selected = multiSelected || store.selectedInventoryUid === entry.uid;
   const resourceLike = isInventoryResourceEntry(entry);
   const badge = resourceLike ? "RES" : equipmentInventoryBadge(entry.item);
-  return `<button class="inventory-cell ${resourceLike ? "inventory-resource-item" : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""} ${isHere ? "equipped-here" : ""} ${isElsewhere ? "equipped-elsewhere" : ""}"
+  return `<button class="inventory-cell ${rarityClass(entry.item)} ${resourceLike ? "inventory-resource-item" : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""} ${isHere ? "equipped-here" : ""} ${isElsewhere ? "equipped-elsewhere" : ""}"
       draggable="${resourceLike ? "false" : "true"}"
       data-inventory-uid="${entry.uid}"
       data-inventory-category="${entry.item.category}"
@@ -268,25 +262,24 @@ function renderInventoryCell(entry, shipId = null){
 }
 
 function getInventoryResourceEntries(){
-  const order = {common:1, rare:2, veryRare:3, elite:4, mythic:5};
   return rawMaterialCatalog
     .filter(material=>material.rarity)
     .map(material=>({material, quantity:getMaterialCount(material.id)}))
     .filter(entry=>entry.quantity > 0)
-    .sort((a, b)=>(order[a.material.rarity] || 99) - (order[b.material.rarity] || 99) || a.material.name.localeCompare(b.material.name));
+    .sort((a, b)=>getRarityOrder(a.material) - getRarityOrder(b.material) || a.material.name.localeCompare(b.material.name));
 }
 
 function renderInventoryResourceCell(entry){
   const {material, quantity} = entry;
-  const rarity = RESOURCE_RARITY_META[material.rarity] || {label:material.rarity || "Ressource", short:"RES"};
+  const rarityTier = getRarityTier(material);
   const selected = store.selectedInventoryResourceId === material.id;
-  return `<button class="inventory-cell resource-cell rarity-${escapeHtml(material.rarity)} ${selected ? "selected" : ""}"
+  return `<button class="inventory-cell resource-cell rarity-${escapeHtml(rarityTier)} ${selected ? "selected" : ""}"
       type="button"
       draggable="false"
       data-inventory-resource-id="${escapeHtml(material.id)}"
-      title="${escapeHtml(material.name)} - ${escapeHtml(rarity.label)} - x${fmt(quantity)}">
+      title="${escapeHtml(material.name)} - ${escapeHtml(getRarityLabel(material, "Ressource"))} - x${fmt(quantity)}">
       <img src="${escapeHtml(material.img)}" alt="${escapeHtml(material.name)}">
-      <span class="inventory-kind-label">${escapeHtml(rarity.short)}</span>
+      <span class="inventory-kind-label">${escapeHtml(getRarityShort(material))}</span>
       <b class="inventory-quantity">x${fmt(quantity)}</b>
     </button>`;
 }
@@ -363,14 +356,14 @@ function renderSelectedInventoryDetail(){
   if(selectedResource){
     const quantity = getMaterialCount(selectedResource.id);
     if(quantity > 0){
-      const rarity = RESOURCE_RARITY_META[selectedResource.rarity] || {label:selectedResource.rarity || "Ressource", short:"RES"};
+      const rarityLabel = getRarityLabel(selectedResource, "Ressource");
       return `
-    <div class="selected-item-art resource-art rarity-${escapeHtml(selectedResource.rarity)}"><img src="${escapeHtml(selectedResource.img)}" alt="${escapeHtml(selectedResource.name)}"></div>
+    <div class="selected-item-art resource-art ${rarityClass(selectedResource)}"><img src="${escapeHtml(selectedResource.img)}" alt="${escapeHtml(selectedResource.name)}"></div>
     <div class="selected-item-copy">
-      <span class="tiny">RESSOURCE ${escapeHtml(rarity.label)}</span>
+      <span class="tiny">RESSOURCE ${escapeHtml(rarityLabel)}</span>
       <h3>${escapeHtml(selectedResource.name)}</h3>
       <div class="selected-item-stat-lines">
-        <span><b>Rarete</b><strong>${escapeHtml(rarity.label)}</strong></span>
+        <span><b>Rarete</b><strong>${escapeHtml(rarityLabel)}</strong></span>
         <span><b>Stack</b><strong>x${fmt(quantity)}</strong></span>
         <span><b>Usage</b><strong>Fabrication</strong></span>
       </div>
@@ -384,10 +377,11 @@ function renderSelectedInventoryDetail(){
   const selectedItem = selectedEntry ? getItem(selectedEntry.itemId) : null;
   const selectedEquipped = selectedEntry ? findEquippedSlot(selectedEntry.uid) : null;
   if(selectedEntry && selectedItem && isInventoryResourceEntry({...selectedEntry, item:selectedItem})){
+    const rarityLabel = getRarityLabel(selectedItem, "Ressource");
     return `
-    <div class="selected-item-art resource-art"><img src="${escapeHtml(selectedItem.img)}" alt="${escapeHtml(selectedItem.name)}"></div>
+    <div class="selected-item-art resource-art ${rarityClass(selectedItem)}"><img src="${escapeHtml(selectedItem.img)}" alt="${escapeHtml(selectedItem.name)}"></div>
     <div class="selected-item-copy">
-      <span class="tiny">RESSOURCE</span>
+      <span class="tiny">RESSOURCE ${escapeHtml(rarityLabel)}</span>
       <h3>${escapeHtml(selectedItem.name)}</h3>
       <div class="selected-item-stat-lines">
         <span><b>Stack</b><strong>x${fmt(Number(selectedEntry.quantity || 1))}</strong></span>
@@ -417,9 +411,9 @@ function renderSelectedInventoryDetail(){
     : "";
   const bulkSelectionCount = selectedEquipmentUidSet().size;
   return `
-    <div class="selected-item-art"><img src="${selectedItem.img}" alt="${selectedItem.name}"></div>
+    <div class="selected-item-art ${rarityClass(selectedItem)}"><img src="${selectedItem.img}" alt="${selectedItem.name}"></div>
     <div class="selected-item-copy">
-      <span class="tiny">${selectedItem.category}</span>
+      <span class="tiny">${selectedItem.category} · ${escapeHtml(getRarityLabel(selectedItem))}</span>
       <h3>${selectedItem.name}</h3>
       ${selectedItemStatsHtml(selectedItem)}
       <small>${locationLabel(selectedEquipped)}</small>
@@ -442,7 +436,7 @@ export function renderLoadout(){
     const label = type === "laser" ? "L" : type === "generator" ? "G" : type === "missileLauncher" ? "LM" : type === "rocketLauncher" ? "LR" : "E";
     const multiSelected = item && selectedEquipmentUidSet().has(uid);
     const selected = item && (multiSelected || store.selectedInventoryUid === uid);
-    return `<button class="equip-slot-tile ${type}-slot ${item ? "filled" : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""}" data-drop-part="${type}" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""} title="${item ? item.name : "Slot vide"}">
+    return `<button class="equip-slot-tile ${type}-slot ${item ? `filled ${rarityClass(item)}` : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""}" data-drop-part="${type}" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""} title="${item ? item.name : "Slot vide"}">
       ${item ? `<img src="${item.img}" alt="${item.name}"><b>${equipmentSlotBadge(item)}</b>` : `<span>${label}${index+1}</span><i>+</i>`}
     </button>`;
   };
@@ -492,7 +486,7 @@ function renderDroneSlot(uid, index){
     <div class="drone-slot-head"><span class="badge">Drone ${index+1}</span><span>${upgraded ? "ROUGE +50%" : item ? item.category.toUpperCase() : "VIDE"}</span></div>
     <div class="drone-slot-body" data-drop-part="drone" data-drop-index="${index}">
       <img class="drone-preview" src="assets/drones/drone_test_sprite.webp" alt="Drone ${index+1}">
-      <div class="drone-module ${item ? "filled" : ""}">
+      <div class="drone-module ${item ? `filled ${rarityClass(item)}` : ""}">
         ${item ? `<img src="${item.img}" alt="${item.name}"><b>${equipmentSlotBadge(item)}</b><em data-unequip-part="drone" data-unequip-index="${index}">x</em>` : `<i>+</i><span>Ajouter un laser ou un générateur</span>`}
       </div>
     </div>

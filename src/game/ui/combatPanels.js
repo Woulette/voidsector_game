@@ -26,7 +26,7 @@ import {
   sendFriendRequest,
   setSocialCategory,
   startPortgunTeleport
-} from "../../multiplayer/client.js?v=portal-prepare-1";
+} from "../../multiplayer/client.js?v=action-slots-save-1-fps-burst-1";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({

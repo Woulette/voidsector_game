@@ -1,10 +1,31 @@
-import { drawRotatedImage } from "./player.js";
+import { drawRotatedImage } from "./player.js?v=elite-lasers-1";
 import { canEnemyRotateFully, getEnemyRenderRotation } from "../../data/enemyVisuals.js";
 import { getCachedCombatImage } from "../combatAssets.js";
 import { drawTargetSelectionOverlay, getEntityTargetSelectionRadius } from "./targetOverlay.js";
 import { drawDeadlyEnemyEngines } from "./enemyEngines.js";
 
 const impactSpriteCache = new Map();
+const DEFAULT_CULL_MARGIN = 140;
+const IMPACT_SPARK_BUDGET = 28;
+const IMPACT_SMOKE_BUDGET = 8;
+
+function viewSize(ctx){
+  const canvas = ctx?.canvas || {};
+  return {
+    width:canvas.__renderWidth || canvas.__viewWidth || canvas.clientWidth || canvas.width || 0,
+    height:canvas.__renderHeight || canvas.__viewHeight || canvas.clientHeight || canvas.height || 0
+  };
+}
+
+export function isWorldPointVisible({x, y, camera, width, height, margin = DEFAULT_CULL_MARGIN}){
+  const screenX = Number(x || 0) - Number(camera?.x || 0);
+  const screenY = Number(y || 0) - Number(camera?.y || 0);
+  const safeMargin = Math.max(0, Number(margin || 0));
+  return screenX >= -safeMargin
+    && screenX <= Number(width || 0) + safeMargin
+    && screenY >= -safeMargin
+    && screenY <= Number(height || 0) + safeMargin;
+}
 
 function colorWithAlpha(color, alpha, fallback = "rgba(255,255,255,1)"){
   if(typeof color !== "string") return fallback.replace(/,[\d.]+\)$/g, `,${alpha})`);
@@ -22,7 +43,7 @@ function drawFastProjectileTrail(ctx, bullet, angle){
   const trail = bullet.trail || [];
   if(trail.length < 2) return;
   const isMissile = bullet.kind === "missile";
-  const samples = isMissile ? 5 : 6;
+  const samples = 4;
   const start = Math.max(1, trail.length - samples);
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
@@ -66,6 +87,16 @@ function drawImpactSpark(ctx, effect, spark, progress, alpha, scale = 1){
   ctx.moveTo(x, y);
   ctx.lineTo(x - Math.cos(spark.angle) * tail, y - Math.sin(spark.angle) * tail);
   ctx.stroke();
+}
+
+function drawBudgetedImpactSparks(ctx, effect, progress, alpha, scale, budget){
+  if(budget <= 0) return 0;
+  const sparks = effect.sparks || [];
+  const count = Math.min(sparks.length, budget);
+  for(let index = 0; index < count; index += 1){
+    drawImpactSpark(ctx, effect, sparks[index], progress, alpha, scale);
+  }
+  return budget - count;
 }
 
 function getImpactSprite(kind){
@@ -124,9 +155,11 @@ function getImpactSprite(kind){
 }
 
 export function drawProjectiles({ctx, camera, cache, bullets, showTrails = true}){
+  const {width, height} = viewSize(ctx);
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
   for(const bullet of bullets){
+    if(!isWorldPointVisible({x:bullet.x, y:bullet.y, camera, width, height, margin:260})) continue;
     if(bullet.kind === "rocket" || bullet.kind === "missile"){
       const img = getCachedCombatImage(cache, bullet.sprite || (bullet.kind === "rocket" ? "assets/equipment/rocket_projectile.png" : ""));
       const angle = bullet.angle ?? Math.atan2(bullet.y - bullet.fromY, bullet.x - bullet.fromX);
@@ -268,15 +301,19 @@ export function drawBeams({ctx, camera, beams}){
 
 export function drawImpactEffects({ctx, camera, impactEffects, showExplosions = true, showSparksSmoke = true}){
   if(!impactEffects?.length) return;
+  const {width, height} = viewSize(ctx);
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
   ctx.globalCompositeOperation = "lighter";
   ctx.lineCap = "round";
+  let sparkBudget = showSparksSmoke ? IMPACT_SPARK_BUDGET : 0;
+  let smokeBudget = showSparksSmoke ? IMPACT_SMOKE_BUDGET : 0;
   for(const effect of impactEffects){
     if(effect.delay > 0) continue;
     const progress = 1 - Math.max(0, effect.life) / Math.max(.001, effect.max);
     const alpha = Math.max(0, effect.life / Math.max(.001, effect.max));
     const radius = effect.radius || 28;
+    if(!isWorldPointVisible({x:effect.x, y:effect.y, camera, width, height, margin:radius * 2 + 140})) continue;
     const color = effect.color || "rgba(125,211,252,.9)";
     const core = effect.core || "rgba(255,255,255,.95)";
 
@@ -295,7 +332,7 @@ export function drawImpactEffects({ctx, camera, impactEffects, showExplosions = 
         ctx.arc(effect.x, effect.y, 2.5 + alpha * 5, 0, Math.PI * 2);
         ctx.fill();
       }
-      if(showSparksSmoke) for(const spark of effect.sparks || []) drawImpactSpark(ctx, effect, spark, progress, alpha, 1);
+      if(showSparksSmoke) sparkBudget = drawBudgetedImpactSparks(ctx, effect, progress, alpha, 1, sparkBudget);
       continue;
     }
 
@@ -318,11 +355,13 @@ export function drawImpactEffects({ctx, camera, impactEffects, showExplosions = 
       ctx.stroke();
     }
 
-    if(showSparksSmoke) for(const spark of effect.sparks || []) drawImpactSpark(ctx, effect, spark, progress, alpha, isMissile ? 1.15 : .95);
+    if(showSparksSmoke) sparkBudget = drawBudgetedImpactSparks(ctx, effect, progress, alpha, isMissile ? 1.15 : .95, sparkBudget);
 
-    if(showSparksSmoke && effect.smoke?.length){
+    if(showSparksSmoke && effect.smoke?.length && smokeBudget > 0){
       ctx.globalCompositeOperation = "source-over";
-      for(const smoke of effect.smoke || []){
+      const smokeCount = Math.min(effect.smoke.length, smokeBudget);
+      for(let index = 0; index < smokeCount; index += 1){
+        const smoke = effect.smoke[index];
         const drift = smoke.speed * progress;
         const sx = effect.x + Math.cos(smoke.angle) * drift;
         const sy = effect.y + Math.sin(smoke.angle) * drift;
@@ -332,6 +371,7 @@ export function drawImpactEffects({ctx, camera, impactEffects, showExplosions = 
         ctx.arc(sx, sy, smoke.size * (.55 + progress), 0, Math.PI * 2);
         ctx.fill();
       }
+      smokeBudget -= smokeCount;
       ctx.shadowBlur = 0;
       ctx.globalCompositeOperation = "lighter";
     }
@@ -340,6 +380,7 @@ export function drawImpactEffects({ctx, camera, impactEffects, showExplosions = 
 }
 
 export function drawParticles({ctx, camera, particles, repairLayer = false, graphicsEffects = {}}){
+  const {width, height} = viewSize(ctx);
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
   for(const particle of particles){
@@ -349,6 +390,10 @@ export function drawParticles({ctx, camera, particles, repairLayer = false, grap
     if(particle.kind === "impact" && graphicsEffects.explosionsImpacts === false) continue;
     const isRepairPlus = particle.kind === "repairPlus";
     if(repairLayer !== isRepairPlus) continue;
+    const particleMargin = particle.kind === "poisonWave"
+      ? Number(particle.size || 0) + 120
+      : Math.max(80, Number(particle.size || 0) * 4 + 80);
+    if(!isWorldPointVisible({x:particle.x, y:particle.y, camera, width, height, margin:particleMargin})) continue;
     const alpha = Math.max(0, particle.life / particle.max);
     const color = particle.color?.replace ? particle.color.replace(/,[\d.]+\)$/g, `,${alpha})`) : `rgba(125,211,252,${alpha})`;
     ctx.fillStyle = color;
@@ -540,9 +585,11 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
 }
 
 export function drawCargoBoxes({ctx, camera, cache, cargoBoxes}){
+  const {width, height} = viewSize(ctx);
   const boxImg = getCachedCombatImage(cache, "assets/materials/cargo_box.svg");
   const time = performance.now() / 260;
   for(const box of cargoBoxes){
+    if(!isWorldPointVisible({x:box.x, y:box.y, camera, width, height, margin:120})) continue;
     const sx = Math.round(box.x - camera.x);
     const sy = Math.round(box.y - camera.y + Math.sin(time + box.id * 0.7) * 3);
     ctx.save();
@@ -571,12 +618,14 @@ export function drawCargoBoxes({ctx, camera, cache, cargoBoxes}){
 }
 
 export function drawGroundMaterials({ctx, camera, cache, materials}){
+  const {width, height} = viewSize(ctx);
   const time = performance.now() / 420;
   for(const node of materials || []){
+    const size = node.renderSize || node.size || 42;
+    if(!isWorldPointVisible({x:node.x, y:node.y, camera, width, height, margin:size * 2 + 90})) continue;
     const img = getCachedCombatImage(cache, node.img);
     const sx = Math.round(node.x - camera.x);
     const sy = Math.round(node.y - camera.y + Math.sin(time + node.phase) * 3);
-    const size = node.renderSize || node.size || 42;
     ctx.save();
     ctx.translate(sx, sy);
     ctx.globalCompositeOperation = "lighter";

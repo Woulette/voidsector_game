@@ -1,6 +1,7 @@
 import { getClosedMapPortals as getDefaultClosedMapPortals, getMapPortals as getDefaultMapPortals } from "../combatData.js";
 import { drawMapPortals } from "./mapPortals.js";
 import { ships } from "../../data/catalog.js";
+import { countCombatProfiler, recordCombatProfilerTiming, timeCombatProfiler } from "../systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
 
 function viewWidth(canvas){ return canvas.__renderWidth || canvas.__viewWidth || canvas.clientWidth || canvas.width; }
 function viewHeight(canvas){ return canvas.__renderHeight || canvas.__viewHeight || canvas.clientHeight || canvas.height; }
@@ -8,7 +9,27 @@ const parallaxAsteroidCache = new Map();
 const parallaxDustSpeckCache = new Map();
 const asteroidSpriteCache = new Map();
 const parallaxCloudSpriteCache = new Map();
+const BACKGROUND_CACHE_BUILD_LIMITS = {
+  cloudSprites:1,
+  asteroidSprites:4
+};
+let backgroundCacheBuilds = {cloudSprites:0, asteroidSprites:0};
 let vignetteCache = null;
+
+function resetBackgroundCacheBuildBudget(){
+  backgroundCacheBuilds = {cloudSprites:0, asteroidSprites:0};
+}
+
+function consumeBackgroundCacheBuildBudget(kind){
+  const limit = BACKGROUND_CACHE_BUILD_LIMITS[kind] || 0;
+  if(Number(backgroundCacheBuilds[kind] || 0) >= limit){
+    countCombatProfiler(`bg.cache.deferred.${kind}`, 1);
+    return false;
+  }
+  backgroundCacheBuilds[kind] = Number(backgroundCacheBuilds[kind] || 0) + 1;
+  countCombatProfiler(`bg.cache.built.${kind}`, 1);
+  return true;
+}
 
 function getTilePath(tileMap, col, row){
   const prefix = tileMap.prefix || "tile";
@@ -356,7 +377,9 @@ function getParallaxCloudSprite(cloud){
     cloud.edge || ""
   ].join("|");
   if(parallaxCloudSpriteCache.has(key)) return parallaxCloudSpriteCache.get(key);
+  if(!consumeBackgroundCacheBuildBudget("cloudSprites")) return null;
 
+  const buildStarted = performance.now();
   const buffer = document.createElement("canvas");
   buffer.width = bufferSize;
   buffer.height = bufferSize;
@@ -384,6 +407,7 @@ function getParallaxCloudSprite(cloud){
   bctx.globalCompositeOperation = "source-over";
   const sprite = {buffer, logicalSize};
   parallaxCloudSpriteCache.set(key, sprite);
+  recordCombatProfilerTiming("bg.cache.cloudSprite", performance.now() - buildStarted);
   return sprite;
 }
 
@@ -401,6 +425,7 @@ function drawParallaxClouds({ctx, canvas, currentMap, camera, layers, defaultCom
     if(sx + r * 2 < -160 || sx - r * 2 > w + 160 || sy + r * 2 < -160 || sy - r * 2 > h + 160) continue;
     const rnd = seededValue(17000 + (cloud.seed || 0) * 997);
     const sprite = getParallaxCloudSprite(cloud);
+    if(!sprite) continue;
     ctx.drawImage(sprite.buffer, sx - sprite.logicalSize / 2, sy - sprite.logicalSize / 2, sprite.logicalSize, sprite.logicalSize);
     ctx.strokeStyle = cloud.filament || `rgba(255,124,42,${(cloud.alpha || .22) * .34})`;
     ctx.lineWidth = Math.max(1, r * .006);
@@ -603,7 +628,9 @@ function getAsteroidSprite(asteroid){
   const bucket = Math.max(8, Math.round(asteroid.r / 4) * 4);
   const key = `${bucket}|${asteroid.tint}|${asteroid.shade}|${asteroid.variant}|${asteroid.craters}`;
   if(asteroidSpriteCache.has(key)) return asteroidSpriteCache.get(key);
+  if(!consumeBackgroundCacheBuildBudget("asteroidSprites")) return null;
 
+  const buildStarted = performance.now();
   const pad = Math.ceil(bucket * .55) + 8;
   const size = Math.max(24, Math.ceil(bucket * 2 + pad * 2));
   const cx = size / 2;
@@ -685,6 +712,7 @@ function getAsteroidSprite(asteroid){
   bctx.globalCompositeOperation = "source-over";
 
   asteroidSpriteCache.set(key, buffer);
+  recordCombatProfilerTiming("bg.cache.asteroidSprite", performance.now() - buildStarted);
   return buffer;
 }
 
@@ -699,6 +727,7 @@ function drawParallaxAsteroids({ctx, canvas, currentMap, camera}){
     const margin = asteroid.r * 3 + 80;
     if(sx < -margin || sx > w + margin || sy < -margin || sy > h + margin) continue;
     const sprite = getAsteroidSprite(asteroid);
+    if(!sprite) continue;
     const size = asteroid.r * 2 + Math.ceil(asteroid.r * 1.1) + 16;
     ctx.save();
     ctx.translate(sx, sy);
@@ -765,18 +794,18 @@ function drawParallaxVignette({ctx, canvas}){
 }
 
 function drawParallaxBackground({ctx, canvas, cache, currentMap, camera, stars, dust, graphicsQuality = "high"}){
-  drawParallaxNebulae({ctx, canvas, currentMap, camera});
-  drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera});
-  drawParallaxStars({ctx, canvas, camera, stars, dust});
-  drawParallaxDustSpecks({ctx, canvas, currentMap, camera});
-  drawParallaxTiles({ctx, canvas, cache, currentMap, camera});
-  drawParallaxLightClouds({ctx, canvas, currentMap, camera});
-  if(graphicsQuality === "high") drawParallaxStarLights({ctx, canvas, currentMap, camera});
-  drawParallaxImages({ctx, canvas, cache, currentMap, camera});
-  drawParallaxForegroundClouds({ctx, canvas, currentMap, camera});
-  drawParallaxAsteroids({ctx, canvas, currentMap, camera});
-  drawParallaxGlowSpots({ctx, canvas, currentMap, camera});
-  drawParallaxVignette({ctx, canvas});
+  timeCombatProfiler("bg.parallax.nebulae", ()=>drawParallaxNebulae({ctx, canvas, currentMap, camera}));
+  timeCombatProfiler("bg.parallax.backdrops", ()=>drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera}));
+  timeCombatProfiler("bg.parallax.stars", ()=>drawParallaxStars({ctx, canvas, camera, stars, dust}));
+  timeCombatProfiler("bg.parallax.dustSpecks", ()=>drawParallaxDustSpecks({ctx, canvas, currentMap, camera}));
+  timeCombatProfiler("bg.parallax.tiles", ()=>drawParallaxTiles({ctx, canvas, cache, currentMap, camera}));
+  timeCombatProfiler("bg.parallax.lightClouds", ()=>drawParallaxLightClouds({ctx, canvas, currentMap, camera}));
+  if(graphicsQuality === "high") timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera}));
+  timeCombatProfiler("bg.parallax.images", ()=>drawParallaxImages({ctx, canvas, cache, currentMap, camera}));
+  timeCombatProfiler("bg.parallax.foregroundClouds", ()=>drawParallaxForegroundClouds({ctx, canvas, currentMap, camera}));
+  timeCombatProfiler("bg.parallax.asteroids", ()=>drawParallaxAsteroids({ctx, canvas, currentMap, camera}));
+  timeCombatProfiler("bg.parallax.glowSpots", ()=>drawParallaxGlowSpots({ctx, canvas, currentMap, camera}));
+  timeCombatProfiler("bg.parallax.vignette", ()=>drawParallaxVignette({ctx, canvas}));
 }
 
 function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars, dust, graphicsQuality = "high", graphicsEffects = null}){
@@ -792,18 +821,18 @@ function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars,
   ctx.fillRect(0,0,w,h);
 
   if(currentMap?.parallaxScene?.enabled){
-    if(effect("nebulae", quality !== "low")) drawParallaxNebulae({ctx, canvas, currentMap, camera});
-    if(effect("nebulae", quality !== "low")) drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera});
-    drawParallaxStars({ctx, canvas, camera, stars, dust:effect("cosmicClouds", quality !== "low") ? dust : []});
-    if(effect("cosmicClouds", quality === "high")) drawParallaxDustSpecks({ctx, canvas, currentMap, camera});
-    if(effect("cosmicClouds", quality !== "low")) drawParallaxTiles({ctx, canvas, cache, currentMap, camera});
-    if(effect("cosmicClouds", quality !== "low")) drawParallaxLightClouds({ctx, canvas, currentMap, camera});
-    if(effect("starGlow", quality === "high")) drawParallaxStarLights({ctx, canvas, currentMap, camera});
-    drawParallaxImages({ctx, canvas, cache, currentMap, camera});
-    if(effect("cosmicClouds", quality === "high")) drawParallaxForegroundClouds({ctx, canvas, currentMap, camera});
-    if(effect("backgroundAsteroids", quality !== "low")) drawParallaxAsteroids({ctx, canvas, currentMap, camera});
-    if(effect("starGlow", quality !== "low")) drawParallaxGlowSpots({ctx, canvas, currentMap, camera});
-    if(effect("vignette", quality !== "low")) drawParallaxVignette({ctx, canvas});
+    if(effect("nebulae", quality !== "low")) timeCombatProfiler("bg.parallax.nebulae", ()=>drawParallaxNebulae({ctx, canvas, currentMap, camera}));
+    if(effect("nebulae", quality !== "low")) timeCombatProfiler("bg.parallax.backdrops", ()=>drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera}));
+    timeCombatProfiler("bg.parallax.stars", ()=>drawParallaxStars({ctx, canvas, camera, stars, dust:effect("cosmicClouds", quality !== "low") ? dust : []}));
+    if(effect("cosmicClouds", quality === "high")) timeCombatProfiler("bg.parallax.dustSpecks", ()=>drawParallaxDustSpecks({ctx, canvas, currentMap, camera}));
+    if(effect("cosmicClouds", quality !== "low")) timeCombatProfiler("bg.parallax.tiles", ()=>drawParallaxTiles({ctx, canvas, cache, currentMap, camera}));
+    if(effect("cosmicClouds", quality !== "low")) timeCombatProfiler("bg.parallax.lightClouds", ()=>drawParallaxLightClouds({ctx, canvas, currentMap, camera}));
+    if(effect("starGlow", quality === "high")) timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera}));
+    timeCombatProfiler("bg.parallax.images", ()=>drawParallaxImages({ctx, canvas, cache, currentMap, camera}));
+    if(effect("cosmicClouds", quality === "high")) timeCombatProfiler("bg.parallax.foregroundClouds", ()=>drawParallaxForegroundClouds({ctx, canvas, currentMap, camera}));
+    if(effect("backgroundAsteroids", quality !== "low")) timeCombatProfiler("bg.parallax.asteroids", ()=>drawParallaxAsteroids({ctx, canvas, currentMap, camera}));
+    if(effect("starGlow", quality !== "low")) timeCombatProfiler("bg.parallax.glowSpots", ()=>drawParallaxGlowSpots({ctx, canvas, currentMap, camera}));
+    if(effect("vignette", quality !== "low")) timeCombatProfiler("bg.parallax.vignette", ()=>drawParallaxVignette({ctx, canvas}));
     return;
   }
 
@@ -1246,8 +1275,9 @@ function drawWorldMarkers({
 }
 
 export function drawWorldLayer(options){
-  drawBackground(options);
-  if(!options.currentMap?.parallaxScene?.hideGrid) drawGrid(options);
-  drawWorldMarkers(options);
-  if(options.graphicsEffects?.backgroundAsteroids !== false) drawCloseSpeedStars(options);
+  resetBackgroundCacheBuildBudget();
+  timeCombatProfiler("bg.layer.background", ()=>drawBackground(options));
+  if(!options.currentMap?.parallaxScene?.hideGrid) timeCombatProfiler("bg.layer.grid", ()=>drawGrid(options));
+  timeCombatProfiler("bg.layer.markers", ()=>drawWorldMarkers(options));
+  if(options.graphicsEffects?.backgroundAsteroids !== false) timeCombatProfiler("bg.layer.speedStars", ()=>drawCloseSpeedStars(options));
 }

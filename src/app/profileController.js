@@ -29,6 +29,22 @@ export function createProfileController({
     String(shipId),
     normalizeActionSlots(slots)
   ]));
+  const hasActionPreferenceFields = profile=>Boolean(profile && (
+    Object.hasOwn(profile, "actionSlots")
+    || Object.hasOwn(profile, "actionSlotsByShip")
+    || Object.hasOwn(profile, "actionSlotsUpdatedAt")
+    || Object.hasOwn(profile, "lastLaserAmmoId")
+  ));
+  const getLocalActionSlotsVersion = state=>Math.max(
+    0,
+    Number(state?.actionSlotsUpdatedAt || 0),
+    Number(state?.mmoProfileUpdatedAt || 0)
+  );
+  const getIncomingActionSlotsVersion = profile=>{
+    if(!profile || typeof profile !== "object") return 0;
+    if(Object.hasOwn(profile, "actionSlotsUpdatedAt")) return Math.max(0, Number(profile.actionSlotsUpdatedAt || 0));
+    return 0;
+  };
   const getLocalActiveActionSlots = (shipId, profileHasSlotsByShip)=>{
     const slotsByShip = store.state.actionSlotsByShip;
     if(slotsByShip && typeof slotsByShip === "object" && Array.isArray(slotsByShip[shipId])){
@@ -68,6 +84,13 @@ export function createProfileController({
     if(!profile || typeof profile !== "object") return;
     const uiBefore = captureProfileUiState(store.state);
     const incomingVersion = Number(profile.updatedAt || 0);
+    const profileHasActionPreferences = hasActionPreferenceFields(profile);
+    const incomingActionSlotsVersion = getIncomingActionSlotsVersion(profile);
+    const localPreferenceVersion = getLocalActionSlotsVersion(store.state);
+    const keepLocalPreferences = profileHasActionPreferences && localPreferenceVersion > 0 && localPreferenceVersion > incomingActionSlotsVersion;
+    const localActionSlots = normalizeActionSlots(store.state.actionSlots);
+    const localActionSlotsByShip = normalizeActionSlotsByShip(store.state.actionSlotsByShip || {});
+    const localLastLaserAmmoId = store.state.lastLaserAmmoId;
     const localSelectedShip = store.state.selectedShip;
     const incomingOwnedShips = Array.isArray(profile.ownedShips) ? profile.ownedShips.map(String) : null;
     const keepLocalSelectedShip = store.currentView === "hangar"
@@ -96,19 +119,26 @@ export function createProfileController({
       const incomingSlotsByShip = normalizeActionSlotsByShip(profile.actionSlotsByShip);
       if(isGameRunning()) incomingSlotsByShip[activeShipId] = getLocalActiveActionSlots(activeShipId, true);
       store.state.actionSlotsByShip = {
-        ...store.state.actionSlotsByShip,
-        ...incomingSlotsByShip
+        ...(keepLocalPreferences ? incomingSlotsByShip : store.state.actionSlotsByShip),
+        ...(keepLocalPreferences ? localActionSlotsByShip : incomingSlotsByShip)
       };
     }
-    if(Array.isArray(store.state.actionSlotsByShip?.[activeShipId])){
+    if(keepLocalPreferences){
+      if(!Array.isArray(store.state.actionSlotsByShip?.[activeShipId])) store.state.actionSlotsByShip[activeShipId] = localActionSlots;
       store.state.actionSlots = normalizeActionSlots(store.state.actionSlotsByShip[activeShipId]);
+      store.state.actionSlotsUpdatedAt = localPreferenceVersion;
+    }else if(Array.isArray(store.state.actionSlotsByShip?.[activeShipId])){
+      store.state.actionSlots = normalizeActionSlots(store.state.actionSlotsByShip[activeShipId]);
+      if(profileHasActionPreferences) store.state.actionSlotsUpdatedAt = incomingActionSlotsVersion;
     }else if(Array.isArray(profile.actionSlots)){
       store.state.actionSlots = isGameRunning()
         ? getLocalActiveActionSlots(activeShipId, false)
         : normalizeActionSlots(profile.actionSlots);
       if(isGameRunning()) store.state.actionSlotsByShip[activeShipId] = [...store.state.actionSlots];
+      if(profileHasActionPreferences) store.state.actionSlotsUpdatedAt = incomingActionSlotsVersion;
     }
-    if(Object.hasOwn(profile, "lastLaserAmmoId")) store.state.lastLaserAmmoId = typeof profile.lastLaserAmmoId === "string" ? profile.lastLaserAmmoId : null;
+    if(Object.hasOwn(profile, "lastLaserAmmoId") && !keepLocalPreferences) store.state.lastLaserAmmoId = typeof profile.lastLaserAmmoId === "string" ? profile.lastLaserAmmoId : null;
+    if(keepLocalPreferences) store.state.lastLaserAmmoId = typeof localLastLaserAmmoId === "string" ? localLastLaserAmmoId : null;
     if(profile.shipLoadouts && typeof profile.shipLoadouts === "object") store.state.shipLoadouts = clone(profile.shipLoadouts);
     if(Array.isArray(profile.unlockedPortals)) store.state.unlockedPortals = [...new Set(profile.unlockedPortals.map(String))];
     if(Object.hasOwn(profile, "prestigeCount")) store.state.prestigeCount = Math.max(0, Math.floor(Number(profile.prestigeCount || 0)));
@@ -125,7 +155,7 @@ export function createProfileController({
     store.state.player.xpNext = getXpNextForLevel(store.state.player.level);
     store.state.player.xp = Math.min(Math.max(0, Number(store.state.player.xp || 0)), store.state.player.xpNext);
     store.state.xpCurveVersion = xpCurveVersion;
-      for(const key of ["cargoHold","shipCargo","combatBoosts","shipAbilityStates","boosters","skillRanks","skillLevels","completedPortals","portalPieces","refineryLevels","refineryModules","refineryUpgradeJobs","refineryProductionDisabled","questProgress","questFailProgress","completedQuestClaims","killStats","rankKillStats","worldSession","shipWorldSessions","firmBoxes"]){
+    for(const key of ["cargoHold","shipCargo","combatBoosts","shipAbilityStates","eliteLaserStates","boosters","skillRanks","skillLevels","completedPortals","portalPieces","refineryLevels","refineryModules","refineryUpgradeJobs","refineryProductionDisabled","questProgress","questFailProgress","completedQuestClaims","killStats","rankKillStats","worldSession","shipWorldSessions","firmBoxes"]){
         if(profile[key] && typeof profile[key] === "object") store.state[key] = clone(profile[key]);
       }
     if(Number.isFinite(Number(profile.firmatons))) store.state.firmatons = Math.max(0, Math.floor(Number(profile.firmatons)));
@@ -137,10 +167,13 @@ export function createProfileController({
     store.state.refineryJob = profile.refineryJob ? clone(profile.refineryJob) : null;
     if(Number.isFinite(Number(profile.refineryLastTick))) store.state.refineryLastTick = Number(profile.refineryLastTick);
     if(keepLocalSelectedShip) store.state.selectedShip = localSelectedShip;
-    store.state.mmoProfileUpdatedAt = incomingVersion || Date.now();
+    store.state.mmoProfileUpdatedAt = keepLocalPreferences
+      ? localPreferenceVersion
+      : incomingVersion || Date.now();
     const uiChanges = getProfileUiChanges(uiBefore, captureProfileUiState(store.state));
     const hasUiChanges = hasProfileUiChanges(uiChanges);
     saveState();
+    if(keepLocalPreferences) syncMultiplayerProfile(store.state);
     if(appMode === "game" && game.running){
       if(uiChanges.loadoutChanged) preserveScroll(()=>game.refreshActiveLoadout?.());
       game.updateHud?.();

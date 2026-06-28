@@ -1,16 +1,17 @@
 import { portals } from "../../data/catalog.js";
 import { fmt } from "../../core/utils.js";
 import { SAFE_ZONE_DELAY } from "../combatData.js";
-import { createProjectile } from "./projectiles.js";
+import { createProjectile } from "./projectiles.js?v=action-slots-save-1-fps-burst-1";
 import { buildPortalEnvironment, createPortalMap } from "./portalState.js";
-import { createRemoteWeaponEventProcessor } from "./combatRemoteWeaponEvents.js";
+import { createRemoteWeaponEventProcessor } from "./combatRemoteWeaponEvents.js?v=action-slots-save-1-fps-burst-1";
 import { createQuestServerEventProcessor } from "./combatQuestServerEvents.js";
+import { countCombatProfiler, isCombatProfilerFlagEnabled, setCombatProfilerMetric, timeCombatProfiler } from "./combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
 
 const RICKY_ALLY_ID = "ricky_companion";
 const RICKY_ROCKET_PROJECTILE = "assets/equipment/rocket_r2_projectile.png";
-const MAX_SERVER_ENEMY_PROJECTILES = 32;
-const MAX_SERVER_ENEMY_PROJECTILES_PER_FRAME = 12;
-const MAX_SERVER_ENEMY_ATTACK_PARTICLES_PER_FRAME = 12;
+const MAX_SERVER_ENEMY_PROJECTILES = 24;
+const MAX_SERVER_ENEMY_PROJECTILES_PER_FRAME = 8;
+const MAX_SERVER_ENEMY_ATTACK_PARTICLES_PER_FRAME = 8;
 const COMBAT_DAMAGE_TEXT_MERGE_MS = 120;
 
 export function applyAuthoritativeCombatAmmo({event, playerId, ammoInventory} = {}){
@@ -103,6 +104,22 @@ export function createCombatServerEventSystem({
       chargeStartedAt,
       chargeReadyAt,
       receivedAt:now
+    };
+    return true;
+  }
+
+  function updateEliteLaserCharges(event = {}){
+    if(String(event?.attackerId || "") !== String(multiplayer.playerId || "")) return false;
+    const {player} = getState();
+    if(!player) return false;
+    const state = event.eliteLaser;
+    if(!state || typeof state !== "object"){
+      delete player.eliteLaserCharges;
+      return false;
+    }
+    player.eliteLaserCharges = {
+      ...state,
+      receivedAt:Date.now()
     };
     return true;
   }
@@ -228,6 +245,8 @@ export function createCombatServerEventSystem({
 
   function applyDamageEvents(){
     if(!multiplayer.playerDamageEvents?.length) return;
+    const queuedDamageEvents = multiplayer.playerDamageEvents.length;
+    countCombatProfiler("events.playerDamage.queued", queuedDamageEvents);
     const {player, currentMap} = getState();
     const remaining = [];
     let normalDamageText = 0;
@@ -263,6 +282,9 @@ export function createCombatServerEventSystem({
       else normalDamageText += amount;
     }
     const totalDamage = normalDamageText + poisonDamageText;
+    setCombatProfilerMetric("events.playerDamage.total", totalDamage);
+    setCombatProfilerMetric("events.playerDamage.normalAmount", normalDamageText);
+    setCombatProfilerMetric("events.playerDamage.poisonAmount", poisonDamageText);
     if(totalDamage > 0){
       if(latestVitals && typeof markAuthoritativeDamageReceived === "function"){
         markAuthoritativeDamageReceived({
@@ -318,6 +340,9 @@ export function createCombatServerEventSystem({
       });
     }
     multiplayer.playerDamageEvents = remaining;
+    countCombatProfiler("events.playerDamage.processed", queuedDamageEvents - remaining.length);
+    if(normalDamageText > 0) countCombatProfiler("events.playerDamage.normalText", 1);
+    if(poisonDamageText > 0) countCombatProfiler("events.playerDamage.poisonText", 1);
   }
 
   function applyShipAbilityEffectEvents(){
@@ -525,6 +550,8 @@ export function createCombatServerEventSystem({
 
   function applyEnemyAttackEvents(){
     if(!multiplayer.enemyAttackEvents?.length) return;
+    const queuedAttackEvents = multiplayer.enemyAttackEvents.length;
+    countCombatProfiler("events.enemyAttack.queued", queuedAttackEvents);
     const {player, currentMap, enemies, bullets, particles} = getState();
     const remaining = [];
     const enemiesById = new Map(enemies.map(enemy=>[String(enemy.id), enemy]));
@@ -541,6 +568,9 @@ export function createCombatServerEventSystem({
       if(enemy){
         enemy.attackT = Math.max(Number(enemy.attackT || 0), Number(event.life || .22));
         enemy.recentHitTimer = Math.max(Number(enemy.recentHitTimer || 0), .35);
+      }
+      if(isCombatProfilerFlagEnabled("hideEnemyAttackVisuals")){
+        continue;
       }
       if(activeServerProjectiles >= MAX_SERVER_ENEMY_PROJECTILES
         || spawnedServerProjectiles >= MAX_SERVER_ENEMY_PROJECTILES_PER_FRAME){
@@ -571,12 +601,18 @@ export function createCombatServerEventSystem({
       }));
       activeServerProjectiles += 1;
       spawnedServerProjectiles += 1;
+      countCombatProfiler("events.enemyAttack.projectiles", 1);
       if(spawnedAttackParticles < MAX_SERVER_ENEMY_ATTACK_PARTICLES_PER_FRAME){
         particles.push({kind:"enemyAttack",x:fromX, y:fromY, life:.16, max:.16, size:16, color:event.particle || enemy?.particle || "rgba(252,165,165,.72)"});
         spawnedAttackParticles += 1;
+        countCombatProfiler("events.enemyAttack.particles", 1);
       }
     }
     multiplayer.enemyAttackEvents = remaining;
+    countCombatProfiler("events.enemyAttack.processed", queuedAttackEvents - remaining.length);
+    setCombatProfilerMetric("events.enemyAttack.activeProjectiles", activeServerProjectiles);
+    setCombatProfilerMetric("events.enemyAttack.spawnedProjectiles", spawnedServerProjectiles);
+    setCombatProfilerMetric("events.enemyAttack.spawnedParticles", spawnedAttackParticles);
   }
 
   function applyRemoteWeaponEvents(){
@@ -729,6 +765,7 @@ export function createCombatServerEventSystem({
         ammoInventory:store?.state?.ammoInventory
       });
       addRickyAttackVisual(event);
+      updateEliteLaserCharges(event);
       const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId));
       addSpectralDoubleShotVisual(event, enemy);
       if(!enemy){
@@ -868,23 +905,28 @@ export function createCombatServerEventSystem({
   }
 
   function applyAll(){
-    applyRemoteWeaponEvents();
-    applyEnemyAttackEvents();
-    applyShipAbilityStateEvents();
-    applyShipAbilityEffectEvents();
-    applyStatusEffectEvents();
-    applyNpcDamageEvents();
-    applyDamageEvents();
-    applyPlayerHealEvents();
-    applyLifecycleEvents();
-    applyCombatHitEvents();
-    applyRewardEvents();
-    applyQuestClaimEvents();
-    applyLootDropEvents();
-    applyQuestProgressEvents();
-    applyQuestFailureEvents();
-    applyRickyCinematicEvents();
-    applyPortalEvents();
+    setCombatProfilerMetric("queue.enemyAttack", multiplayer.enemyAttackEvents?.length || 0);
+    setCombatProfilerMetric("queue.playerDamage", multiplayer.playerDamageEvents?.length || 0);
+    setCombatProfilerMetric("queue.combat", multiplayer.combatEvents?.length || 0);
+    setCombatProfilerMetric("queue.reward", multiplayer.playerRewardEvents?.length || 0);
+    setCombatProfilerMetric("queue.status", multiplayer.playerStatusEffectEvents?.length || 0);
+    timeCombatProfiler("events.remoteWeapons", applyRemoteWeaponEvents);
+    timeCombatProfiler("events.enemyAttack", applyEnemyAttackEvents);
+    timeCombatProfiler("events.shipAbilityState", applyShipAbilityStateEvents);
+    timeCombatProfiler("events.shipAbilityEffect", applyShipAbilityEffectEvents);
+    timeCombatProfiler("events.status", applyStatusEffectEvents);
+    timeCombatProfiler("events.npcDamage", applyNpcDamageEvents);
+    timeCombatProfiler("events.playerDamage", applyDamageEvents);
+    timeCombatProfiler("events.playerHeal", applyPlayerHealEvents);
+    timeCombatProfiler("events.lifecycle", applyLifecycleEvents);
+    timeCombatProfiler("events.combatHit", applyCombatHitEvents);
+    timeCombatProfiler("events.reward", applyRewardEvents);
+    timeCombatProfiler("events.questClaim", applyQuestClaimEvents);
+    timeCombatProfiler("events.lootDrop", applyLootDropEvents);
+    timeCombatProfiler("events.questProgress", applyQuestProgressEvents);
+    timeCombatProfiler("events.questFailure", applyQuestFailureEvents);
+    timeCombatProfiler("events.rickyCinematic", applyRickyCinematicEvents);
+    timeCombatProfiler("events.portal", applyPortalEvents);
   }
 
   return {

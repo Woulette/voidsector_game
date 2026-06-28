@@ -1,12 +1,13 @@
-import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./canvasHud.js";
-import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=ship-charge-1";
-import { drawPlayerLayer } from "./player.js?v=engine-trail-41";
-import { drawPortalTransitionOverlay } from "./portalTransition.js";
-import { drawWorldLayer } from "./world.js";
-import { drawRemotePlayers } from "../../multiplayer/render.js?v=engine-trail-41";
+import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./canvasHud.js?v=action-slots-save-1-fps-burst-1";
+import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=action-slots-save-1-fps-burst-1";
+import { drawPlayerLayer } from "./player.js?v=elite-lasers-1";
+import { drawPortalTransitionOverlay } from "./portalTransition.js?v=action-slots-save-1-fps-burst-1";
+import { drawWorldLayer } from "./world.js?v=action-slots-save-1-fps-burst-1";
+import { drawRemotePlayers } from "../../multiplayer/render.js?v=action-slots-save-1-fps-burst-1";
 import { getFirmBadgeAsset } from "../../data/firms.js";
 import { RICKY_PORTAL_ASSETS, getRickyPortalWalls, RICKY_PORTAL_MAP } from "../../data/rickyPortal.js";
 import { getCachedCombatImage } from "../combatAssets.js";
+import { isCombatProfilerFlagEnabled, setCombatProfilerMetric, timeCombatProfiler } from "../systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
 
 function lerp(a, b, t){
   return a + (b - a) * t;
@@ -95,6 +96,7 @@ export function createCombatSceneRenderer({
   }
 
   function drawDamageTexts(){
+    if(isCombatProfilerFlagEnabled("hideDamageTexts")) return;
     const {camera, damageTexts} = getState();
     drawDamageTextsCanvas({ctx, camera, damageTexts});
   }
@@ -459,19 +461,25 @@ export function createCombatSceneRenderer({
     canvas.__renderHeight = viewH / zoom;
     ctx.save();
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0);
-    drawBackground();
-    drawRickyArena();
-    drawProjectiles({ctx, camera, cache, bullets, showTrails:graphicsEffects.projectileTrails !== false});
-    drawParticles({ctx, camera, particles, repairLayer:false, graphicsEffects});
-    drawGroundMaterials({ctx, camera, cache, materials:state.cargo.getGroundMaterials()});
-    drawPortalBeacons();
-    drawCargoBoxes({ctx, camera, cache, cargoBoxes:state.cargo.getCargoBoxes()});
-    drawEnemies({ctx, camera, cache, enemies, selectedEnemy});
-    drawImpactEffects({ctx, camera, impactEffects, showExplosions:graphicsEffects.explosionsImpacts !== false, showSparksSmoke:graphicsEffects.impactSparksSmoke !== false});
-    if(graphicsEffects.laserBeams !== false) drawBeams({ctx, camera, beams:beams.getBeams()});
-    drawPortalAlly();
+    setCombatProfilerMetric("draw.enemies.count", enemies?.length || 0);
+    setCombatProfilerMetric("draw.bullets.count", bullets?.length || 0);
+    setCombatProfilerMetric("draw.particles.count", particles?.length || 0);
+    setCombatProfilerMetric("draw.damageTexts.count", state.damageTexts?.length || 0);
+    timeCombatProfiler("draw.background", drawBackground);
+    timeCombatProfiler("draw.rickyArena", drawRickyArena);
+    timeCombatProfiler("draw.projectiles", ()=>drawProjectiles({ctx, camera, cache, bullets, showTrails:graphicsEffects.projectileTrails !== false}));
+    if(!isCombatProfilerFlagEnabled("hideParticles")){
+      timeCombatProfiler("draw.particles.main", ()=>drawParticles({ctx, camera, particles, repairLayer:false, graphicsEffects}));
+    }
+    timeCombatProfiler("draw.groundMaterials", ()=>drawGroundMaterials({ctx, camera, cache, materials:state.cargo.getGroundMaterials()}));
+    timeCombatProfiler("draw.portalBeacons", drawPortalBeacons);
+    timeCombatProfiler("draw.cargoBoxes", ()=>drawCargoBoxes({ctx, camera, cache, cargoBoxes:state.cargo.getCargoBoxes()}));
+    timeCombatProfiler("draw.enemies", ()=>drawEnemies({ctx, camera, cache, enemies, selectedEnemy}));
+    timeCombatProfiler("draw.impactEffects", ()=>drawImpactEffects({ctx, camera, impactEffects, showExplosions:graphicsEffects.explosionsImpacts !== false, showSparksSmoke:graphicsEffects.impactSparksSmoke !== false}));
+    if(graphicsEffects.laserBeams !== false) timeCombatProfiler("draw.beams", ()=>drawBeams({ctx, camera, beams:beams.getBeams()}));
+    timeCombatProfiler("draw.portalAlly", drawPortalAlly);
     const rank = getCurrentRank();
-    drawPlayerLayer({
+    timeCombatProfiler("draw.player", ()=>drawPlayerLayer({
       ctx,
       camera,
       cache,
@@ -490,9 +498,9 @@ export function createCombatSceneRenderer({
       defaultProfile:defaultEngineProfile,
       profiles:engineProfiles,
       graphicsEffects
-    });
-    drawPortgunChannel();
-    drawRemotePlayers({
+    }));
+    timeCombatProfiler("draw.portgun", drawPortgunChannel);
+    timeCombatProfiler("draw.remotePlayers", ()=>drawRemotePlayers({
       ctx,
       camera,
       cache,
@@ -504,16 +512,18 @@ export function createCombatSceneRenderer({
       player,
       enemies,
       graphicsEffects
-    });
-    drawParticles({ctx, camera, particles, repairLayer:true, graphicsEffects});
-    drawDamageTexts();
+    }));
+    if(!isCombatProfilerFlagEnabled("hideParticles")){
+      timeCombatProfiler("draw.particles.repair", ()=>drawParticles({ctx, camera, particles, repairLayer:true, graphicsEffects}));
+    }
+    timeCombatProfiler("draw.damageTexts", drawDamageTexts);
     ctx.restore();
     canvas.__renderWidth = null;
     canvas.__renderHeight = null;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawRadiationOverlay();
-    drawMiniMap();
-    if(graphicsEffects.portalWarp !== false) drawPortalTransitionOverlay({ctx, transition:portalTransition, maps:mapList, viewW, viewH});
+    timeCombatProfiler("draw.radiation", drawRadiationOverlay);
+    timeCombatProfiler("draw.minimap", drawMiniMap);
+    if(graphicsEffects.portalWarp !== false) timeCombatProfiler("draw.portalTransition", ()=>drawPortalTransitionOverlay({ctx, transition:portalTransition, maps:mapList, viewW, viewH}));
   }
 
   return {drawBackground, drawRadiationOverlay, drawDamageTexts, drawMiniMap, draw};

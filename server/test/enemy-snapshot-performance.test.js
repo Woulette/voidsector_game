@@ -178,15 +178,124 @@ test("server enemy sync caps visual correction instead of snapping mid-combat", 
     serverControlled:true,
     serverId:"enemy-jump",
     x:0,
-    y:0
+    y:0,
+    lastServerVisualAt:1000
   };
   const synced = syncServerControlledEnemies({
     enemies:[existing],
     multiplayerState:{serverEnemies:new Map([["enemy-jump", serverEnemy]])},
-    selectedEnemy:null
+    selectedEnemy:null,
+    now:1016
   });
 
   assert.equal(synced.enemies[0], existing);
   assert.equal(existing.serverX, 400);
-  assert.equal(existing.x, 28);
+  assert.ok(Math.abs(existing.x - 11.52) < 0.001);
+});
+
+test("server enemy sync scales visual correction with frame time", ()=>{
+  const serverEnemy = {
+    id:"enemy-high-refresh",
+    kind:"drone_pirate",
+    type:"Drone",
+    img:"drone.png",
+    x:400,
+    y:0,
+    angle:0,
+    vx:0,
+    vy:0,
+    moving:false,
+    hp:100,
+    maxHp:100
+  };
+  const existing = {
+    ...serverEnemy,
+    serverControlled:true,
+    serverId:"enemy-high-refresh",
+    x:0,
+    y:0,
+    lastServerVisualAt:1000
+  };
+  syncServerControlledEnemies({
+    enemies:[existing],
+    multiplayerState:{serverEnemies:new Map([["enemy-high-refresh", serverEnemy]])},
+    selectedEnemy:null,
+    now:1004
+  });
+
+  assert.equal(existing.serverX, 400);
+  assert.ok(Math.abs(existing.x - 3) < 0.001);
+});
+
+test("server enemy sync keeps near-threshold corrections smooth instead of jumping to the cap", ()=>{
+  const serverEnemy = {
+    id:"enemy-soft-threshold",
+    kind:"drone_pirate",
+    type:"Drone",
+    img:"drone.png",
+    x:5.1,
+    y:0,
+    angle:0,
+    vx:0,
+    vy:0,
+    moving:false,
+    hp:100,
+    maxHp:100
+  };
+  const existing = {
+    ...serverEnemy,
+    serverControlled:true,
+    serverId:"enemy-soft-threshold",
+    x:0,
+    y:0,
+    lastServerVisualAt:1000
+  };
+  syncServerControlledEnemies({
+    enemies:[existing],
+    multiplayerState:{serverEnemies:new Map([["enemy-soft-threshold", serverEnemy]])},
+    selectedEnemy:null,
+    now:1004
+  });
+
+  assert.ok(Math.abs(existing.x - 0.918) < 0.001);
+});
+
+test("crowded enemy sync uses a softer visual correction factor", ()=>{
+  const serverEnemies = new Map();
+  const enemies = [];
+  for(let index = 0; index < 40; index += 1){
+    const id = `enemy-crowded-${index}`;
+    const serverEnemy = {
+      id,
+      kind:"drone_pirate",
+      type:"Drone",
+      img:"drone.png",
+      x:5,
+      y:0,
+      angle:0,
+      vx:0,
+      vy:0,
+      moving:false,
+      hp:100,
+      maxHp:100
+    };
+    serverEnemies.set(id, serverEnemy);
+    enemies.push({
+      ...serverEnemy,
+      serverControlled:true,
+      serverId:id,
+      x:0,
+      y:0,
+      lastServerVisualAt:1000
+    });
+  }
+
+  syncServerControlledEnemies({
+    enemies,
+    multiplayerState:{serverEnemies},
+    selectedEnemy:null,
+    now:1004
+  });
+
+  assert.ok(Math.abs(enemies[0].x - 0.6) < 0.001);
 });

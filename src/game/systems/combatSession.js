@@ -1,4 +1,6 @@
 import { applyCombatStatFields, createCombatPlayer, DEFAULT_COMBAT_EXTRA_BONUS } from "./combatPlayerStats.js";
+import { countCombatProfiler, maxCombatProfilerMetric, setCombatProfilerMetric } from "./combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
+import { queuePlayerVisualCorrection } from "./playerMovement.js?v=action-slots-save-1-fps-burst-1";
 import { getFirmHomeMapName } from "../../data/firms.js";
 
 export function createCombatSessionController({
@@ -60,6 +62,16 @@ export function createCombatSessionController({
     const isSameMapCorrection = String(session.source || "") === "state-correction"
       && String(stateBeforeCorrection.currentMap?.id ?? "") === String(mapId);
     if(isSameMapCorrection){
+      const previousX = Number(stateBeforeCorrection.player?.x || 0);
+      const previousY = Number(stateBeforeCorrection.player?.y || 0);
+      const correctionPx = Math.hypot(x - previousX, y - previousY);
+      const visualSmoothingPx = queuePlayerVisualCorrection(stateBeforeCorrection.player, {nextX:x, nextY:y});
+      countCombatProfiler("sync.player.correction", 1);
+      setCombatProfilerMetric("sync.player.lastCorrectionPx", correctionPx);
+      setCombatProfilerMetric("sync.player.visualSmoothPx", visualSmoothingPx);
+      maxCombatProfilerMetric("sync.player.maxCorrectionPx", correctionPx);
+      maxCombatProfilerMetric("sync.player.maxVisualSmoothPx", visualSmoothingPx);
+      if(correctionPx >= 4) countCombatProfiler("sync.player.visibleCorrection", 1);
       stateBeforeCorrection.player.x = x;
       stateBeforeCorrection.player.y = y;
       stateBeforeCorrection.player.vx = Number(session.vx || 0);

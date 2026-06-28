@@ -6,6 +6,7 @@ import { io } from "socket.io-client";
 import { questCatalog } from "../../src/data/progression.js";
 import { ships } from "../../src/data/ships.js";
 import { FIRMS, getFirmMapId, normalizeFirmId } from "../../src/data/firms.js";
+import { replaceServerEnemies } from "../../src/multiplayer/socketState.js";
 import { WORLD_MAPS } from "../src/world/definitions.js";
 
 // LOAD_TEST_LOCAL_FIX: shared local defaults - see LOAD_TEST_LOCAL_FIXES.md
@@ -31,12 +32,18 @@ const BOT_FIRM_ID = cleanFirmId(process.env.BOT_FIRM_ID || "");
 const BOT_START_MAP_ID = cleanMapId(process.env.BOT_START_MAP_ID || "");
 const BOT_ROUTE_MAP_IDS = cleanRouteMapIds(process.env.BOT_ROUTE_MAPS || "");
 const BOT_MOVEMENT_SPEED_SCALE = clampNumber(process.env.BOT_MOVEMENT_SPEED_SCALE, 0.35, 1, 0.72);
+const BOT_TRAFFIC_MODE = cleanTrafficMode(process.env.BOT_TRAFFIC_MODE || "realistic");
+const BOT_IDLE_STATE_MS = clampInt(process.env.BOT_IDLE_STATE_MS, 1000, 30000, 5000);
+const BOT_MOVING_STATE_MS = clampInt(process.env.BOT_MOVING_STATE_MS, BOT_TICK_MS, 2000, 300);
+const BOT_STATE_POSITION_EPSILON = clampNumber(process.env.BOT_STATE_POSITION_EPSILON, 1, 120, 24);
+const BOT_STATE_ANGLE_EPSILON = clampNumber(process.env.BOT_STATE_ANGLE_EPSILON, 0.005, 0.5, 0.05);
 const BOT_RUN_ID = cleanRunId(process.env.BOT_RUN_ID || "local");
 const BOT_PASSWORD = String(process.env.BOT_PASSWORD || "VoidSectorLoad!2026");
 const BOT_ACCOUNT_DOMAIN = "voidsector-load.test";
 const WORLD_MAP_IDS = Object.keys(WORLD_MAPS).sort((a, b)=>Number(a) - Number(b));
+const IS_MAIN = process.argv[1] ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url) : false;
 
-if(BOT_PROVISION_LOADTEST && LOAD_TEST_SECRET.length < 16){
+if(IS_MAIN && BOT_PROVISION_LOADTEST && LOAD_TEST_SECRET.length < 16){
   throw new Error("LOAD_TEST_SECRET must match the server and contain at least 16 characters.");
 }
 
@@ -73,6 +80,60 @@ function cleanRouteMapIds(value){
     .split(",")
     .map(entry=>cleanMapId(entry))
     .filter(Boolean);
+}
+
+function cleanTrafficMode(value){
+  return String(value || "").trim().toLowerCase() === "stress" ? "stress" : "realistic";
+}
+
+function angleDelta(a, b){
+  return Math.abs(Math.atan2(Math.sin(Number(a || 0) - Number(b || 0)), Math.cos(Number(a || 0) - Number(b || 0))));
+}
+
+function hasStateIdentityChange(previous, next){
+  return String(previous?.mapId || "") !== String(next?.mapId || "")
+    || String(previous?.shipId || "") !== String(next?.shipId || "")
+    || String(previous?.attackTargetId || "") !== String(next?.attackTargetId || "")
+    || String(previous?.attackAmmoId || "") !== String(next?.attackAmmoId || "")
+    || String(previous?.attackWeaponClass || "") !== String(next?.attackWeaponClass || "")
+    || Boolean(previous?.repairBotActive) !== Boolean(next?.repairBotActive);
+}
+
+export function shouldSendBotStateSnapshot({
+  previous = null,
+  next = null,
+  lastSentAt = 0,
+  now = Date.now(),
+  force = false,
+  mode = BOT_TRAFFIC_MODE,
+  idleMs = BOT_IDLE_STATE_MS,
+  movingMs = BOT_MOVING_STATE_MS,
+  positionEpsilon = BOT_STATE_POSITION_EPSILON,
+  angleEpsilon = BOT_STATE_ANGLE_EPSILON
+} = {}){
+  if(force || mode === "stress") return true;
+  if(!previous || !next) return true;
+  if(hasStateIdentityChange(previous, next)) return true;
+  const elapsed = Math.max(0, Number(now || 0) - Number(lastSentAt || 0));
+  const moved = Math.hypot(Number(next.x || 0) - Number(previous.x || 0), Number(next.y || 0) - Number(previous.y || 0));
+  const turned = angleDelta(next.angle, previous.angle);
+  const moving = Math.hypot(Number(next.vx || 0), Number(next.vy || 0)) > 4 || Number(next.enginePower || 0) > 0.05;
+  if(moving) return elapsed >= movingMs && (moved >= positionEpsilon || turned >= angleEpsilon);
+  return elapsed >= idleMs;
+}
+
+function createEnemyState(){
+  return {
+    serverEnemies:new Map(),
+    serverEnemyDefinitions:new Map(),
+    serverEnemyScopeKey:""
+  };
+}
+
+function clearEnemyState(enemyState){
+  enemyState?.serverEnemies?.clear?.();
+  enemyState?.serverEnemyDefinitions?.clear?.();
+  if(enemyState) enemyState.serverEnemyScopeKey = "";
 }
 
 function wait(ms){
@@ -303,6 +364,8 @@ class Metrics {
       respawns:this.counters.get("respawns") || 0,
       lootPicked:this.counters.get("lootPicked") || 0,
       corrections:this.counters.get("corrections") || 0,
+      stateSent:this.counters.get("stateSent") || 0,
+      stateSkipped:this.counters.get("stateSkipped") || 0,
       rateLimited:this.counters.get("rateLimited") || 0,
       inboundEvents:Math.round([...this.inboundEvents.values()].reduce((sum, value)=>sum + value, 0) / seconds),
       outboundEvents:Math.round([...this.outboundEvents.values()].reduce((sum, value)=>sum + value, 0) / seconds),
@@ -330,6 +393,8 @@ class MmoBot extends EventEmitter {
     this.socket = null;
     this.profile = null;
     this.state = null;
+    this.worldEnemyState = createEnemyState();
+    this.instanceEnemyState = createEnemyState();
     this.worldEnemies = new Map();
     this.instanceEnemies = new Map();
     this.loot = new Map();
@@ -358,6 +423,8 @@ class MmoBot extends EventEmitter {
     this.behavior = "spawn";
     this.wanderTarget = null;
     this.travel = null;
+    this.lastStateSnapshot = null;
+    this.lastStateSentAt = 0;
     this.lastTickAt = Date.now();
     this.tickHandle = null;
     this.readyPromise = new Promise((resolve, reject)=>{
@@ -481,10 +548,12 @@ class MmoBot extends EventEmitter {
     });
     this.socket.on("world:enemies", payload=>{
       if(String(payload?.mapId) !== String(this.state?.mapId || this.mapId)) return;
-      this.worldEnemies = new Map((payload?.enemies || []).map(enemy=>[enemy.id, enemy]));
+      replaceServerEnemies(this.worldEnemyState, payload, "world");
+      this.worldEnemies = this.worldEnemyState.serverEnemies;
     });
     this.socket.on("coop:enemies", payload=>{
-      this.instanceEnemies = new Map((payload?.enemies || []).map(enemy=>[enemy.id, enemy]));
+      replaceServerEnemies(this.instanceEnemyState, payload, "coop");
+      this.instanceEnemies = this.instanceEnemyState.serverEnemies;
       if(payload?.completed && !this.portalCompleted){
         this.portalCompleted = true;
         setTimeout(()=>this.leaveCompletedPortal(), 1800 + this.index % 4 * 250).unref?.();
@@ -522,9 +591,12 @@ class MmoBot extends EventEmitter {
       this.state.x = Number(spawn.x || 0);
       this.state.y = Number(spawn.y || 0);
       this.state.moveTarget = null;
-      this.worldEnemies.clear();
+      clearEnemyState(this.worldEnemyState);
+      this.worldEnemies = this.worldEnemyState.serverEnemies;
+      clearEnemyState(this.instanceEnemyState);
+      this.instanceEnemies = this.instanceEnemyState.serverEnemies;
       this.metrics.inc("portalStarts");
-      this.sendState();
+      this.sendState({force:true});
     });
     this.socket.on("quest:accepted", ()=>{
       this.metrics.inc("questsAccepted");
@@ -991,7 +1063,8 @@ class MmoBot extends EventEmitter {
     this.map = WORLD_MAPS[this.mapId];
     this.routeIndex = this.travel.nextIndex;
     this.travel = null;
-    this.worldEnemies.clear();
+    clearEnemyState(this.worldEnemyState);
+    this.worldEnemies = this.worldEnemyState.serverEnemies;
     this.nextMapChangeAt = Date.now() + jitter(BOT_MAP_CHANGE_SECONDS * 1000);
     this.metrics.inc("mapTransfers");
   }
@@ -1010,12 +1083,13 @@ class MmoBot extends EventEmitter {
     this.state.attackTargetId = "";
     this.inPortal = false;
     this.portalCompleted = false;
-    this.instanceEnemies.clear();
+    clearEnemyState(this.instanceEnemyState);
+    this.instanceEnemies = this.instanceEnemyState.serverEnemies;
     this.mapId = this.state.mapId;
     this.map = home;
     this.routeIndex = 0;
     this.nextMapChangeAt = Date.now() + jitter(BOT_MAP_CHANGE_SECONDS * 1000);
-    this.sendState();
+    this.sendState({force:true});
   }
 
   wander(dt, now){
@@ -1073,9 +1147,8 @@ class MmoBot extends EventEmitter {
     this.state.moveTarget = null;
   }
 
-  sendState(){
-    if(!this.state || !this.socket.connected) return;
-    this.socket.emit("player:state", {
+  buildStatePayload(now = Date.now()){
+    return {
       x:Number(this.state.x || 0),
       y:Number(this.state.y || 0),
       angle:Number(this.state.angle || 0),
@@ -1092,8 +1165,30 @@ class MmoBot extends EventEmitter {
       attackTargetId:String(this.state.attackTargetId || ""),
       attackAmmoId:String(this.state.attackAmmoId || ""),
       attackWeaponClass:String(this.state.attackWeaponClass || ""),
-      repairBotActive:Date.now() < Number(this.repairActiveUntil || 0)
+      repairBotActive:now < Number(this.repairActiveUntil || 0)
+    };
+  }
+
+  sendState(options = {}){
+    if(!this.state || !this.socket.connected) return false;
+    const now = Date.now();
+    const payload = this.buildStatePayload(now);
+    const shouldSend = shouldSendBotStateSnapshot({
+      previous:this.lastStateSnapshot,
+      next:payload,
+      lastSentAt:this.lastStateSentAt,
+      now,
+      force:Boolean(options.force)
     });
+    if(!shouldSend){
+      this.metrics.inc("stateSkipped");
+      return false;
+    }
+    this.socket.emit("player:state", payload);
+    this.lastStateSnapshot = {...payload};
+    this.lastStateSentAt = now;
+    this.metrics.inc("stateSent");
+    return true;
   }
 }
 
@@ -1186,7 +1281,9 @@ async function main(){
   }
 }
 
-main().catch(error=>{
-  console.error(error);
-  process.exitCode = 1;
-});
+if(IS_MAIN){
+  main().catch(error=>{
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

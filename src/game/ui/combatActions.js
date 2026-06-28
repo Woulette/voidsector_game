@@ -2,7 +2,7 @@ import { renderActionBarHtml, updateActionBarDom } from "./actionBar.js?v=tutori
 import { renderShipAbilityBarHtml } from "./shipAbilityBar.js?v=ship-charge-1";
 import { renderNpcAbilityBarHtml } from "./npcAbilityBar.js?v=npc-abilities-1";
 import { renderQuickPanelContent, updateQuickPanelTabs } from "./quickPanel.js?v=ship-charge-1";
-import { describeAmmo, getAmmoCooldown as readAmmoCooldown, setAmmoCooldown as writeAmmoCooldown } from "../systems/projectiles.js";
+import { describeAmmo, getAmmoCooldown as readAmmoCooldown, setAmmoCooldown as writeAmmoCooldown } from "../systems/projectiles.js?v=action-slots-save-1-fps-burst-1";
 import { requireMmoConnection } from "../../app/mmoGate.js";
 
 export function createCombatActions({
@@ -566,6 +566,9 @@ export function createCombatActions({
   function saveAndSyncActionSlots(){
     if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
     store.state.actionSlotsByShip[String(store.state.activeShip || "orion")] = Array.from({length:9}, (_,index)=>store.state.actionSlots?.[index] || null);
+    const updatedAt = Date.now();
+    store.state.actionSlotsUpdatedAt = updatedAt;
+    store.state.mmoProfileUpdatedAt = updatedAt;
     saveState();
     syncProfile?.();
   }

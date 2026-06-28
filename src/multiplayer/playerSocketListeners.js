@@ -1,3 +1,6 @@
+import { markProfileSaveAcknowledged } from "./profileSync.js?v=action-slots-save-1-fps-burst-1";
+import { countCombatProfiler } from "../game/systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
+
 function pushEvent(target, event, limit){
   target.push({...event, receivedAt:performance.now()});
   if(target.length > limit) target.splice(0, target.length - limit);
@@ -44,6 +47,10 @@ export function installPlayerSocketListeners({
     toast(payload?.message || "Configuration du profil impossible.");
     emitChange("profile:setup-error", payload);
   });
+  socket.on("profile:saved", event=>{
+    markProfileSaveAcknowledged(event);
+    emitChange("profile:saved", event);
+  });
   socket.on("tutorial:updated", event=>{
     if(event?.rewardItemId) toast("Cadeau ouvert : Laser MK-III recu.");
     emitChange("tutorial:updated", event);
@@ -62,6 +69,7 @@ export function installPlayerSocketListeners({
     emitChange("player:resume", session);
   });
   socket.on("player:state-correction", session=>{
+    countCombatProfiler("socket.playerStateCorrection", 1);
     window.dispatchEvent(new CustomEvent("voidsector:player-resume", {detail:{session}}));
     emitChange("player:state-correction", session);
   });
@@ -93,8 +101,14 @@ export function installPlayerSocketListeners({
   });
   socket.on("player:state", upsertRemotePlayer);
   socket.on("player:laser", addRemoteEffect);
-  socket.on("enemy:attack", effect=>pushEvent(multiplayer.enemyAttackEvents, effect, 80));
-  socket.on("player:damage", event=>pushEvent(multiplayer.playerDamageEvents, event, 40));
+  socket.on("enemy:attack", effect=>{
+    countCombatProfiler("socket.enemyAttack", 1);
+    pushEvent(multiplayer.enemyAttackEvents, effect, 40);
+  });
+  socket.on("player:damage", event=>{
+    countCombatProfiler("socket.playerDamage", 1);
+    pushEvent(multiplayer.playerDamageEvents, event, 40);
+  });
   socket.on("player:death", event=>pushEvent(multiplayer.playerDeathEvents, event, 10));
   socket.on("player:respawned", event=>pushEvent(multiplayer.playerRespawnEvents, event, 10));
   socket.on("portgun:started", event=>{

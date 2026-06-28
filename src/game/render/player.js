@@ -96,12 +96,25 @@ function engineRgba(rgb, alpha){
   return `rgba(${rgb},${Math.max(0, Math.min(1, alpha))})`;
 }
 
+function finiteNumber(value, fallback = 0){
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function getPlayerDrawPosition(player){
+  return {
+    x:finiteNumber(player?.x) + finiteNumber(player?.visualCorrectionOffsetX),
+    y:finiteNumber(player?.y) + finiteNumber(player?.visualCorrectionOffsetY)
+  };
+}
+
 function localToWorld(player, x, y, angle = player.angle){
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
+  const origin = getPlayerDrawPosition(player);
   return {
-    x:player.x + x * cos - y * sin,
-    y:player.y + x * sin + y * cos
+    x:origin.x + x * cos - y * sin,
+    y:origin.y + x * sin + y * cos
   };
 }
 
@@ -472,6 +485,7 @@ function drawRepairDrone({ctx, camera, cache, player}){
   }
   ctx.restore();
 
+  const playerCenter = getPlayerDrawPosition(player);
   drawRotatedImage({
     ctx,
     camera,
@@ -480,14 +494,15 @@ function drawRepairDrone({ctx, camera, cache, player}){
     y:drone.y,
     w:42,
     h:42,
-    angle:Math.atan2(player.y - drone.y, player.x - drone.x) + Math.PI / 2 + Math.PI,
+    angle:Math.atan2(playerCenter.y - drone.y, playerCenter.x - drone.x) + Math.PI / 2 + Math.PI,
     fallbackColor:"#22d3ee"
   });
 }
 
 function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotFirmAssetPath, pilotName, pilotRole, pilotTitle}){
-  const px = player.x - camera.x;
-  const py = player.y - camera.y;
+  const position = getPlayerDrawPosition(player);
+  const px = position.x - camera.x;
+  const py = position.y - camera.y;
   const rankImg = getCachedCombatImage(cache, rankAssetPath);
   const firmImg = getCachedCombatImage(cache, pilotFirmAssetPath);
   const rankReady = Boolean(rankImg?.complete && rankImg.naturalWidth);
@@ -556,8 +571,9 @@ function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilot
 }
 
 function drawPlayerStatusBars({ctx, camera, player}){
-  const px = player.x - camera.x;
-  const py = player.y - camera.y;
+  const position = getPlayerDrawPosition(player);
+  const px = position.x - camera.x;
+  const py = position.y - camera.y;
   const width = 58;
   const height = 5;
   const gap = 4;
@@ -599,8 +615,9 @@ function drawSpectralDoubleShotCharge({ctx, camera, player, ship}){
   const readyAt = Math.max(startedAt + chargeMs, Number(charge.chargeReadyAt || startedAt + chargeMs));
   const elapsed = Math.max(0, Math.min(chargeMs, now - startedAt));
   const ready = now >= readyAt;
-  const px = player.x - camera.x;
-  const py = player.y - camera.y;
+  const position = getPlayerDrawPosition(player);
+  const px = position.x - camera.x;
+  const py = position.y - camera.y;
   const shipHeight = Math.max(96, Number(ship?.renderHeight || 96));
   const y = Math.round(py - shipHeight / 2 - 24);
   const spacing = 14;
@@ -653,6 +670,120 @@ function drawSpectralDoubleShotCharge({ctx, camera, player, ship}){
   ctx.restore();
 }
 
+function advanceEliteBlueGauge(blue, elapsedSeconds, maxCharge){
+  let charge = Math.max(0, Math.min(maxCharge, Number(blue?.charge || 0)));
+  let phase = blue?.phase === "discharge" ? "discharge" : "charge";
+  let remaining = Math.max(0, Number(elapsedSeconds || 0));
+  let guard = 0;
+  while(remaining > 0 && guard < 8){
+    guard += 1;
+    if(phase === "charge"){
+      const needed = maxCharge - charge;
+      if(remaining < needed){
+        charge += remaining;
+        remaining = 0;
+      }else{
+        remaining -= needed;
+        charge = maxCharge;
+        phase = "discharge";
+      }
+    }else{
+      const needed = charge;
+      if(remaining < needed){
+        charge -= remaining;
+        remaining = 0;
+      }else{
+        remaining -= needed;
+        charge = 0;
+        phase = "charge";
+      }
+    }
+  }
+  return {charge:Math.max(0, Math.min(maxCharge, charge)), phase};
+}
+
+function drawEliteLaserCharges({ctx, camera, player, ship}){
+  const state = player?.eliteLaserCharges;
+  if(!state || typeof state !== "object") return;
+  const now = Date.now();
+  const receivedAt = Math.max(0, Number(state.receivedAt || now));
+  const resetAfterMs = Math.max(1000, Number(state.resetAfterMs || 10_000));
+  const elapsedMs = Math.max(0, now - receivedAt);
+  if(elapsedMs > resetAfterMs) return;
+  const maxCharge = Math.max(1, Math.min(8, Number(state.maxCharge || 5)));
+  const elapsedSeconds = elapsedMs / 1000;
+  const colors = [
+    {key:"green", fill:"rgba(74,222,128,.96)", glow:"rgba(34,197,94,.85)", stroke:"rgba(134,239,172,.62)"},
+    {key:"blue", fill:"rgba(125,211,252,.96)", glow:"rgba(56,189,248,.86)", stroke:"rgba(186,230,253,.64)"},
+    {key:"red", fill:"rgba(248,113,113,.96)", glow:"rgba(239,68,68,.88)", stroke:"rgba(252,165,165,.64)"}
+  ].map(entry=>{
+    const raw = state[entry.key] || {};
+    if(Number(raw.count || 0) <= 0) return null;
+    if(entry.key === "blue"){
+      const blue = advanceEliteBlueGauge(raw, elapsedSeconds, maxCharge);
+      return {...entry, charge:blue.charge, active:blue.phase === "discharge"};
+    }
+    return {...entry, charge:Math.min(maxCharge, Math.max(0, Number(raw.charge || 0) + elapsedSeconds)), active:false};
+  }).filter(Boolean);
+  if(!colors.length) return;
+
+  const position = getPlayerDrawPosition(player);
+  const px = position.x - camera.x;
+  const py = position.y - camera.y;
+  const shipHeight = Math.max(96, Number(ship?.renderHeight || 96));
+  const rowGap = 17;
+  const yStart = Math.round(py - shipHeight / 2 - 54 - Math.max(0, colors.length - 1) * rowGap);
+  const spacing = 12;
+  const radius = 3.8;
+  const plateWidth = Math.max(82, (maxCharge - 1) * spacing + 24);
+  const plateHeight = 13;
+  const pulse = (Math.sin(performance.now() / 110) + 1) / 2;
+
+  ctx.save();
+  colors.forEach((entry, row)=>{
+    const y = yStart + row * rowGap;
+    const ready = entry.charge >= maxCharge || entry.active;
+    ctx.save();
+    ctx.translate(Math.round(px), y);
+    ctx.fillStyle = "rgba(2,6,23,.66)";
+    ctx.strokeStyle = ready ? entry.stroke : "rgba(148,163,184,.24)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(-plateWidth / 2, -plateHeight / 2, plateWidth, plateHeight, 7);
+    ctx.fill();
+    ctx.stroke();
+    for(let index = 0; index < maxCharge; index++){
+      const x = (index - (maxCharge - 1) / 2) * spacing;
+      const filled = entry.charge >= index + 1;
+      const partial = !filled && entry.charge > index;
+      const partialRatio = partial ? Math.max(.2, Math.min(1, entry.charge - index)) : 0;
+      ctx.beginPath();
+      if(filled){
+        ctx.shadowColor = entry.glow;
+        ctx.shadowBlur = ready ? 8 + pulse * 5 : 6;
+        ctx.fillStyle = entry.fill;
+        ctx.arc(x, 0, radius + (ready ? pulse * .8 : 0), 0, Math.PI * 2);
+        ctx.fill();
+      }else{
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = partial ? entry.stroke : "rgba(148,163,184,.44)";
+        ctx.lineWidth = 1.1;
+        ctx.arc(x, 0, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        if(partialRatio > 0){
+          ctx.fillStyle = entry.fill.replace(".96)", `${.24 + partialRatio * .38})`);
+          ctx.beginPath();
+          ctx.arc(x, 0, radius * partialRatio, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
 export function drawPlayerLayer({
   ctx,
   camera,
@@ -673,15 +804,17 @@ export function drawPlayerLayer({
   profiles,
   graphicsEffects = {}
 }){
+  const position = getPlayerDrawPosition(player);
   if(graphicsEffects.shipEngineTrail !== false) drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles});
   drawPlayerStatusBars({ctx, camera, player});
+  drawEliteLaserCharges({ctx, camera, player, ship});
   drawSpectralDoubleShotCharge({ctx, camera, player, ship});
   drawRotatedImage({
     ctx,
     camera,
     img:getCachedCombatImage(cache, ship.combatImg || ship.img),
-    x:player.x,
-    y:player.y,
+    x:position.x,
+    y:position.y,
     w:ship.renderWidth || 96,
     h:ship.renderHeight || 96,
     angle:player.angle + Number(ship.renderAngleOffset || 0)

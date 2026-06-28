@@ -151,7 +151,43 @@ test("profile save only keeps non-critical client preferences", ()=>{
 
   assert.equal(result.profile.actionSlots[0], "ammo_x6");
   assert.equal(result.profile.actionSlotsByShip.orion[0], "ammo_x6");
+  assert.ok(result.profile.actionSlotsUpdatedAt > 0);
   assert.equal(result.profile.lastLaserAmmoId, "ammo_x6");
+});
+
+test("profile save accepts newer action-slot preferences even when profile timestamp is older", ()=>{
+  const {manager} = createTestProfileManager();
+  const player = {id:"account-socket", name:"Normal", accountId:46, account:{username:"Normal", firmId:"astra"}};
+  manager.syncForSocket({emit(){}}, player);
+  manager.updateProfileForPlayer({
+    player,
+    update:profile=>{
+      profile.actionSlotsUpdatedAt = 1000;
+      profile.actionSlots = ["ammo_x1", null, null, null, null, null, null, null, null];
+      profile.actionSlotsByShip = {orion:[...profile.actionSlots]};
+      return {ok:true};
+    }
+  });
+
+  const existing = manager.getProfileForPlayer(player);
+  const result = manager.saveFromPayload({
+    player,
+    payload:{
+      profile:{
+        updatedAt:Number(existing.updatedAt || 0) - 1,
+        actionSlotsUpdatedAt:2000,
+        actionSlots:["ammo_x2", null, null, null, null, null, null, null, "extra_repair_starter"],
+        actionSlotsByShip:{orion:["ammo_x2", null, null, null, null, null, null, null, "extra_repair_starter"]},
+        lastLaserAmmoId:"ammo_x2"
+      }
+    }
+  });
+
+  assert.ok(result?.profile);
+  assert.equal(result.profile.actionSlots[0], "ammo_x2");
+  assert.equal(result.profile.actionSlotsByShip.orion[0], "ammo_x2");
+  assert.equal(result.profile.actionSlotsUpdatedAt, 2000);
+  assert.equal(result.profile.lastLaserAmmoId, "ammo_x2");
 });
 
 test("unchanged profile save acknowledges without writing another profile row", async ()=>{
@@ -177,6 +213,7 @@ test("unchanged profile save acknowledges without writing another profile row", 
 
   assert.equal(result.unchanged, true);
   assert.equal(result.profile.updatedAt, profile.updatedAt);
+  assert.ok(result.acknowledgedAt >= profile.updatedAt);
   assert.equal(persisted.length, 0);
 });
 

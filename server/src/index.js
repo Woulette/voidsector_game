@@ -9,7 +9,7 @@ import { createPlatformAuthHttpHandler } from "./auth/platformHttpApi.js";
 import { createPlatformAuthClient } from "./auth/platformAuthClient.js";
 import { createSocketSessionManager } from "./auth/socketSession.js";
 import { createSession, getSessionAccount, revokeSessionByToken, revokeSessionsForAccount } from "./auth/sessions.js";
-import { resolveServerCombatFire } from "./combat/damage.js";
+import { applyServerEliteLaserLifeSteal, resolveServerCombatFire } from "./combat/damage.js";
 import { getPlayerPvpBlockReason } from "./combat/playerPvp.js";
 import { createShipAbilityEffectManager } from "./combat/shipAbilityEffects.js";
 import { activateServerShipAbility, applyServerShipLifeSteal } from "./combat/shipAbilities.js";
@@ -698,6 +698,7 @@ function applyPlayerHit(socket, payload){
     missileHits:result.missileHits || 0,
     missileMisses:result.missileMisses || 0,
     doubleStrike:result.doubleStrike || null,
+    eliteLaser:result.eliteLaser || null,
     mapId:String(attacker.mapId ?? ""),
     fromX:Number(attacker.state.x || 0),
     fromY:Number(attacker.state.y || 0),
@@ -726,6 +727,29 @@ function applyPlayerHit(socket, payload){
       targetId:attacker.id,
       sourceId:lifeSteal.status?.abilityId || "absorbing_fire",
       amount:lifeSteal.healed,
+      hp:Number(attacker.state.hp || 0),
+      maxHp:Number(attacker.state.maxHp || 0),
+      mapId:String(attacker.mapId ?? ""),
+      x:Number(attacker.state.x || 0),
+      y:Number(attacker.state.y || 0),
+      fromX:Number(target.state.x || 0),
+      fromY:Number(target.state.y || 0),
+      weaponClass:String(result.weaponClass || ""),
+      at:Date.now()
+    });
+  }
+  const eliteLifeSteal = applyServerEliteLaserLifeSteal({
+    player:attacker,
+    eliteLaser:result.eliteLaser,
+    damageDealt:durabilityBefore - durabilityAfter,
+    weaponClass:result.weaponClass
+  });
+  if(eliteLifeSteal.healed > 0){
+    profileManager.saveWorldSession({player:attacker, state:attacker.state, force:false});
+    io.to(attacker.id).emit("player:healed", {
+      targetId:attacker.id,
+      sourceId:eliteLifeSteal.sourceId || "elite_laser_green",
+      amount:eliteLifeSteal.healed,
       hp:Number(attacker.state.hp || 0),
       maxHp:Number(attacker.state.maxHp || 0),
       mapId:String(attacker.mapId ?? ""),

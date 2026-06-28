@@ -171,6 +171,10 @@ export function createProfileManager({
       && JSON.stringify(left.lastLaserAmmoId ?? null) === JSON.stringify(right.lastLaserAmmoId ?? null);
   }
 
+  function clientPreferenceUpdatedAt(profile = {}, fallback = 0){
+    return Math.max(0, Number(profile.actionSlotsUpdatedAt || fallback || 0));
+  }
+
   function ensureProfileIdentity(profile, player){
     if(!profile) return false;
     let changed = false;
@@ -259,10 +263,15 @@ export function createProfileManager({
       return null;
     }
     const key = accountProfileKey(player.accountId);
-    const incoming = sanitizeProfile(payload?.profile || {});
+    const rawProfile = payload?.profile && typeof payload.profile === "object" ? payload.profile : {};
+    const incomingHasPreferenceTimestamp = Object.hasOwn(rawProfile, "actionSlotsUpdatedAt");
+    const incoming = sanitizeProfile(rawProfile);
     const existing = profiles.get(key);
     const refineryChanged = existing ? advanceRefineryState(existing) : false;
-    if(existing && Number(incoming.updatedAt || 0) < Number(existing.updatedAt || 0)){
+    const incomingPreferenceUpdatedAt = clientPreferenceUpdatedAt(incoming, incoming.updatedAt);
+    const existingPreferenceUpdatedAt = existing ? clientPreferenceUpdatedAt(existing, 0) : 0;
+    const hasNewerClientPreferences = incomingPreferenceUpdatedAt > existingPreferenceUpdatedAt;
+    if(existing && Number(incoming.updatedAt || 0) < Number(existing.updatedAt || 0) && !hasNewerClientPreferences){
       if(refineryChanged){
         profiles.set(key, sanitizeProfile(existing));
         persist(key);
@@ -276,19 +285,21 @@ export function createProfileManager({
       ...base,
       actionSlots:incoming.actionSlots,
       actionSlotsByShip:incoming.actionSlotsByShip,
+      actionSlotsUpdatedAt:Math.max(incomingPreferenceUpdatedAt, existingPreferenceUpdatedAt),
       lastLaserAmmoId:incoming.lastLaserAmmoId,
       updatedAt:Date.now()
     });
     const identityChanged = ensureProfileIdentity(next, player);
     const claimedQuests = autoClaimCompletedQuests(next);
     const preferencesChanged = !sameClientPreferenceFields(base, next);
-    if(!refineryChanged && !starterChanged && !starterShipChanged && !identityChanged && !claimedQuests.length && !preferencesChanged){
-      return {profile:base, claimedQuests:[], unchanged:true};
+    const preferenceTimestampChanged = incomingHasPreferenceTimestamp && Number(next.actionSlotsUpdatedAt || 0) > Number(base.actionSlotsUpdatedAt || 0);
+    if(!refineryChanged && !starterChanged && !starterShipChanged && !identityChanged && !claimedQuests.length && !preferencesChanged && !preferenceTimestampChanged){
+      return {profile:base, claimedQuests:[], unchanged:true, acknowledgedAt:Math.max(Number(incoming.updatedAt || 0), Number(base.updatedAt || 0))};
     }
     if(starterChanged || starterShipChanged) next.updatedAt = Date.now();
     profiles.set(key, next);
     persist(key);
-    return {profile:next, claimedQuests};
+    return {profile:next, claimedQuests, acknowledgedAt:Math.max(Number(incoming.updatedAt || 0), Number(next.updatedAt || 0))};
   }
 
   function getExistingProfile(player){

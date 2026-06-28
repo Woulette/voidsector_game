@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createCombatServerEventSystem } from "../../src/game/systems/combatServerEvents.js";
+import { clearCombatFrameProfiler, disableCombatFrameProfiler, enableCombatFrameProfiler, setCombatProfilerFlag } from "../../src/game/systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
 
 function createSystem({
   multiplayer,
@@ -234,7 +235,55 @@ test("enemy attack visuals are capped per frame while preserving attack animatio
   system.applyAll();
 
   assert.equal(multiplayer.enemyAttackEvents.length, 0);
-  assert.equal(state.bullets.filter(bullet=>bullet.owner === "serverEnemy").length, 12);
-  assert.equal(state.particles.filter(particle=>particle.kind === "enemyAttack").length, 12);
+  assert.equal(state.bullets.filter(bullet=>bullet.owner === "serverEnemy").length, 8);
+  assert.equal(state.particles.filter(particle=>particle.kind === "enemyAttack").length, 8);
   assert.equal(enemies.filter(enemy=>Number(enemy.attackT || 0) > 0).length, 30);
+});
+
+test("combat profiler can hide enemy attack visuals without dropping attack events", ()=>{
+  const enemies = Array.from({length:6}, (_, index)=>({
+    id:`enemy-${index}`,
+    x:index * 10,
+    y:0
+  }));
+  const state = {
+    player:{x:400, y:0, hp:100, maxHp:100},
+    currentMap:{id:"0"},
+    enemies,
+    bullets:[],
+    particles:[],
+    damageTexts:[],
+    impactEffects:[],
+    store:{state:{}}
+  };
+  const multiplayer = {
+    playerId:"player-1",
+    enemyAttackEvents:Array.from({length:6}, (_, index)=>({
+      mapId:"0",
+      targetId:"player-1",
+      enemyId:`enemy-${index}`,
+      fromX:index * 10,
+      fromY:0,
+      toX:400,
+      toY:0,
+      travelTime:.2
+    }))
+  };
+  const system = createSystem({multiplayer, state});
+
+  clearCombatFrameProfiler();
+  enableCombatFrameProfiler({overlay:false});
+  setCombatProfilerFlag("hideEnemyAttackVisuals", true);
+  try{
+    system.applyAll();
+  }finally{
+    setCombatProfilerFlag("hideEnemyAttackVisuals", false);
+    disableCombatFrameProfiler();
+    clearCombatFrameProfiler();
+  }
+
+  assert.equal(multiplayer.enemyAttackEvents.length, 0);
+  assert.equal(state.bullets.length, 0);
+  assert.equal(state.particles.length, 0);
+  assert.equal(enemies.filter(enemy=>Number(enemy.attackT || 0) > 0).length, 6);
 });

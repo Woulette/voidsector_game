@@ -15,7 +15,7 @@ import {
   getRankProgress,
   store
 } from "../core/store.js";
-import { multiplayer } from "../multiplayer/client.js?v=portal-prepare-1";
+import { multiplayer } from "../multiplayer/client.js?v=action-slots-save-1-fps-burst-1";
 import { rankIcon, rankInline } from "./renderShared.js";
 import { buildPreviewPilotProfile, installPilotProfileModal, registerPilotProfile } from "./playerProfileModal.js";
 import { getLeaderboardPreviewRows } from "./leaderboardPreview.js";

@@ -61,49 +61,51 @@ import {
 } from "./combatData.js?v=engine-trail-41";
 import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js";
 import { COMBAT_PROFILE_TITLES } from "./combatProfileTitles.js";
-import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=engine-trail-41";
-import { createCombatSceneRenderer } from "./render/combatScene.js?v=engine-trail-41";
-import { createCombatLoop } from "./systems/combatLoop.js";
+import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=action-slots-save-1-fps-burst-1";
+import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=elite-lasers-1";
+import { createCombatSceneRenderer } from "./render/combatScene.js?v=action-slots-save-1-fps-burst-1";
+import { createCombatLoop } from "./systems/combatLoop.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatBeamSystem } from "./systems/combatBeams.js?v=ship-charge-1";
 import { createCombatCargoSystem } from "./systems/combatCargo.js";
 import { installCombatDebugCommands } from "./systems/combatDebug.js";
 import { createCombatDeathRespawnSystem } from "./systems/combatDeathRespawn.js";
-import { createCombatFrameUpdateSystem } from "./systems/combatFrameUpdate.js";
-import { createCombatHitResolutionSystem } from "./systems/combatHitResolution.js";
-import { createCombatEnemyRuntime } from "./systems/combatEnemyRuntime.js";
+import { createCombatFrameUpdateSystem } from "./systems/combatFrameUpdate.js?v=action-slots-save-1-fps-burst-1";
+import { createCombatHitResolutionSystem } from "./systems/combatHitResolution.js?v=action-slots-save-1-fps-burst-1";
+import { createCombatEnemyRuntime } from "./systems/combatEnemyRuntime.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatEnemyDamageSystem } from "./systems/combatEnemyDamage.js";
 import { createCombatRemoteTargetResolver } from "./systems/combatRemoteTargets.js";
 import { createCombatInteractionSystem } from "./systems/combatInteractions.js";
 import { createCombatMapAssetStreamingSystem } from "./systems/combatMapAssetStreaming.js";
 import { createCombatMultiplayerSyncSystem } from "./systems/combatMultiplayerSync.js";
-import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=ship-charge-1";
+import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=elite-lasers-1";
 import { createCombatServerActions } from "./systems/combatServerActions.js";
 import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js";
 import { createCombatPortalNavigationSystem } from "./systems/combatPortalNavigation.js";
 import { applyCombatStatFields } from "./systems/combatPlayerStats.js";
 import { createCombatQuestProgressSystem } from "./systems/combatQuestProgress.js";
-import { createCombatSessionController } from "./systems/combatSession.js";
+import { createCombatSessionController } from "./systems/combatSession.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatStatusEffectSystem } from "./systems/combatStatusEffects.js";
 import { createCombatWorldStateSystem } from "./systems/combatWorldState.js";
 import { createCombatPerfSystem } from "./systems/combatPerf.js";
+import { timeCombatProfiler } from "./systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatSettingsRuntime } from "./systems/combatSettingsRuntime.js";
 import { advanceMapPortalTransition, createMapPortalTransition, findMapPortalAt } from "./systems/mapPortalTransfer.js";
 import { createMiniMapState } from "./systems/minimapState.js";
 import { createPlayerLifecycle } from "./systems/playerLifecycle.js";
-import { clampPlayerToMap as clampPlayerToMapSystem, updateCamera, updatePlayerMovement, worldFromScreen as screenToWorld } from "./systems/playerMovement.js";
+import { clampPlayerToMap as clampPlayerToMapSystem, tickPlayerVisualCorrection, updateCamera, updatePlayerMovement, worldFromScreen as screenToWorld } from "./systems/playerMovement.js?v=action-slots-save-1-fps-burst-1";
 import { createRepairBotSystem } from "./systems/repairBot.js";
 import { createRewardSystem } from "./systems/rewards.js";
-import { createWeaponSystem } from "./systems/weapons.js?v=ship-charge-1";
+import { createWeaponSystem } from "./systems/weapons.js?v=action-slots-save-1-fps-burst-1";
 import { updatePoisonStatus, updateSlowStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
 import { createCombatChat } from "./ui/combatChat.js";
 import { createCombatLogoutController } from "./ui/combatLogoutController.js";
 import { installCombatInputHandlers } from "./ui/inputBindings.js?v=firm-panel-gift-3";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
-import { createCombatActions } from "./ui/combatActions.js?v=tutorial-repair-drone-1";
-import { createCombatPanels } from "./ui/combatPanels.js?v=tutorial-quest-lock-1";
+import { createCombatActions } from "./ui/combatActions.js?v=action-slots-save-1-fps-burst-1";
+import { createCombatPanels } from "./ui/combatPanels.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=ship-abilities-1";
-import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=portal-prepare-1";
+import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=action-slots-save-1-fps-burst-1";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
 import { getShipAbilityStatuses } from "../shared/shipAbilities.js?v=ship-charge-1";
 import {
@@ -111,7 +113,7 @@ import {
   hasServerControlledEnemies,
   isServerControlledEnemy,
   syncServerControlledEnemies as syncMultiplayerEnemies
-} from "../multiplayer/enemies.js";
+} from "../multiplayer/enemies.js?v=action-slots-save-1-fps-burst-1";
 export function createCombatGame({renderAll, showToast}){
   const PORTAL_STARTING_LIVES = 3;
   const PORTAL_WAVE_DELAY = 30;
@@ -659,6 +661,7 @@ export function createCombatGame({renderAll, showToast}){
     loadMap,
     updatePlayerMovement,
     updateCamera,
+    tickPlayerVisualCorrection,
     updateRadiation,
     updatePlayerPoison,
     updatePlayerSlow,
@@ -795,6 +798,7 @@ export function createCombatGame({renderAll, showToast}){
   });
   function preload(){
     preloadCombatAssets({cache, ships:[getActiveShip()], ranks:[getCurrentRank()], getRankAssetPath});
+    warmCombatHudTextRendering();
   }
   function resetPerfMetrics(){
     perf.reset();
@@ -1193,10 +1197,10 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function draw(){
-    sceneRenderer.draw();
+    timeCombatProfiler("render.scene", ()=>sceneRenderer.draw());
   }
   function updateHud(){
-    hudController.updateHud();
+    timeCombatProfiler("hud.updateHud", ()=>hudController.updateHud());
   }
 
   function updateLootPopup(){

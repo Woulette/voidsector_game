@@ -72,6 +72,24 @@ test("unlimited combat loop renders every animation frame", ()=>{
   });
 });
 
+test("combat loop clamps negative frame delta to zero", ()=>{
+  withAnimationFrameHarness(runFrame=>{
+    let last = 200;
+    let capturedDt = null;
+    const loop = createCombatLoop({
+      isRunning:()=>true,
+      update:dt=>{ capturedDt = dt; },
+      draw:()=>{},
+      getLastTime:()=>last,
+      setLastTime:value=>{ last = value; },
+      getFpsLimit:()=>0
+    });
+    loop.start(200);
+    runFrame(150);
+    assert.equal(capturedDt, 0);
+  });
+});
+
 test("60 FPS limit stays at 60 on a 240 Hz animation clock", ()=>{
   withAnimationFrameHarness(runFrame=>{
     let last = 0;

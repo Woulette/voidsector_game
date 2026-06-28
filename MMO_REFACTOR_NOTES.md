@@ -33,8 +33,118 @@ Le gros decoupage structurel est en pause. Les anciens fichiers fourre-tout les 
 - `src/multiplayer/client.js`
 - `src/app.js`
 - `src/game/combatOrchestrator.js`
+- `server/src/portals/instances.js`
 
 Regle actuelle : ne plus decouper pour decouper. Ajouter du code dans le module de domaine existant, ou creer un nouveau module si la responsabilite ne rentre pas clairement dans les fichiers actuels.
+
+## Extraction portails - Runtime Ricky et preparation
+
+Fait le 28 juin 2026 :
+
+- `server/src/portals/instances.js`
+  - reste le coordinateur public des instances de portail ;
+  - garde `createPortalInstanceManager(...)` et les exports historiques du manager ;
+  - gere lancement, completion, rewards de portail generiques et branchement du runtime Ricky ;
+  - reduit d'environ 1486 lignes a 546 lignes.
+- `server/src/portals/rickyPortalRuntime.js`
+  - objectifs Deadly/Ricky ;
+  - vagues de route, balises, final gate et summons du boss ;
+  - compagnon Ricky, tirs Ricky, soin, retours des joueurs apres completion ;
+  - rewards des ennemis Ricky avec split de groupe et bonus de firme.
+- `server/src/portals/rickyPortalState.js`
+  - constantes Ricky ;
+  - definition du portail Ricky ;
+  - builders purs : objectif, boss, cage, allie Ricky.
+- `server/src/portals/portalPreparation.js`
+  - placement/public payload du portail prepare ;
+  - verification de presence au portail prepare.
+- `server/src/portals/portalWaves.js`
+  - creation des ennemis et vagues generiques des portails standards.
+
+Regle de reprise :
+
+- ne pas remettre les objectifs ou le compagnon Ricky dans `instances.js` ;
+- pour modifier le contenu Deadly/Ricky, partir de `rickyPortalRuntime.js` et `rickyPortalState.js` ;
+- pour modifier les portails standards, commencer par `portalWaves.js` ou le coordinateur `instances.js` selon que la modification touche les vagues ou le cycle d'instance.
+
+Checks effectues :
+
+- `node --check server/src/portals/instances.js`
+- `node --check server/src/portals/rickyPortalRuntime.js`
+- `node --check server/src/portals/rickyPortalState.js`
+- `node --check server/src/portals/portalWaves.js`
+- `node --check server/src/portals/portalPreparation.js`
+- `node --test server/test/portal-instance-security.test.js`
+- `node --test server/test/quest-level10-ricky.test.js`
+- `node --test server/test/player-state-security.test.js`
+- `npm test` dans `server/` : 678/678 tests OK
+- `git diff --check`
+
+## Extraction client - combatData facade
+
+Fait le 28 juin 2026 :
+
+- `src/game/combatData.js`
+  - reste la facade publique historique du client ;
+  - reexporte `MAPS`, `ENEMY_TYPES`, les constantes combat et les profils moteurs ;
+  - reduit d'environ 1968 lignes a 25 lignes.
+- `src/game/combatData/mapDefinitions.js`
+  - garde la definition brute initiale de `MAPS`.
+- `src/game/combatData/maps.js`
+  - reste la facade de composition des maps client ;
+  - installe le graphe secteur, le portail Ricky et les libelles publics ;
+  - reduit d'environ 825 lignes a 35 lignes.
+- `src/game/combatData/mapConstants.js`
+  - constantes de position de portails, visuels de firme et ids internes.
+- `src/game/combatData/mapUtils.js`
+  - helpers purs pour templates Helion, ids/noms de firmes, portails directionnels et theming.
+- `src/game/combatData/firmMapBuilders.js`
+  - generation des maps de firme et de la map `CORE`.
+- `src/game/combatData/sectorGraph.js`
+  - construction du graphe de portails client, bridges inter-firmes et resets de zones.
+- `src/game/combatData/rickyPortalClient.js`
+  - verrou client du portail Ricky, portail ferme, NPC Ricky et portail deverrouille.
+- `src/game/combatData/mapDisplayNames.js`
+  - application des noms publics de maps et labels de portails.
+- `src/game/combatData/enemies.js`
+  - garde `ENEMY_TYPES` et les helpers de loot/statistiques ennemis.
+- `src/game/combatData/constants.js`
+  - garde les constantes combat, aggro, hit chance, drops bruts et vagues portail.
+- `src/game/combatData/engineProfiles.js`
+  - garde `DEFAULT_ENGINE_PROFILE` et `SHIP_ENGINE_PROFILES`.
+
+Regle de reprise :
+
+- ne pas remettre de donnees ou logique metier dans `combatData.js` ;
+- ne pas remettre de logique de graphe dans `maps.js` ;
+- pour les donnees brutes de map, commencer par `mapDefinitions.js` ;
+- pour les routes/bridges client, commencer par `sectorGraph.js` ;
+- pour les portails Ricky client, commencer par `rickyPortalClient.js` ;
+- pour les themings de firme, commencer par `mapConstants.js`, `mapUtils.js` ou `firmMapBuilders.js` selon le changement ;
+- pour les stats ennemies, modifier `enemies.js` et verifier la source autoritaire serveur correspondante ;
+- pour les profils moteurs, garder l'alignement avec les definitions de vaisseaux.
+
+Checks effectues :
+
+- `node --check src/game/combatData.js`
+- `node --check src/game/combatData/maps.js`
+- `node --check src/game/combatData/mapDefinitions.js`
+- `node --check src/game/combatData/mapConstants.js`
+- `node --check src/game/combatData/mapUtils.js`
+- `node --check src/game/combatData/firmMapBuilders.js`
+- `node --check src/game/combatData/sectorGraph.js`
+- `node --check src/game/combatData/rickyPortalClient.js`
+- `node --check src/game/combatData/mapDisplayNames.js`
+- `node --check src/game/combatData/enemies.js`
+- `node --check src/game/combatData/constants.js`
+- `node --check src/game/combatData/engineProfiles.js`
+- import ESM de `src/game/combatData.js`
+- `node --test server/test/canonical-map-names.test.js`
+- `node --test server/test/map-portal-transitions.test.js`
+- `node --test server/test/quest-level10-ricky.test.js`
+- `node --test server/test/world-resource-drops.test.js`
+- `node --test server/test/asterion-double-shot.test.js`
+- `npm test` dans `server/` : 679/680 tests OK ; echec restant hors extraction sur `server/test/combat-server-events-performance.test.js` profiler combat.
 
 ## Reste a decouper plus tard
 

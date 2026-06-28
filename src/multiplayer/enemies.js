@@ -1,3 +1,5 @@
+import { countCombatProfiler, maxCombatProfilerMetric } from "../game/systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
+
 export function getServerEnemyList(multiplayerState){
   return [...(multiplayerState?.serverEnemies?.values?.() || [])];
 }
@@ -26,13 +28,37 @@ function lerpAngle(a, b, t){
 const SERVER_ENEMY_INTERPOLATION_DELAY_MS = 220;
 const SERVER_ENEMY_MAX_EXTRAPOLATION_SECONDS = 0.05;
 const SERVER_ENEMY_SNAP_DISTANCE = 900;
-const SERVER_ENEMY_MAX_VISUAL_CORRECTION = 28;
+const SERVER_ENEMY_MAX_VISUAL_CORRECTION_PER_SECOND = 720;
+const SERVER_ENEMY_POSITION_SMOOTH_FACTOR = .18;
+const SERVER_ENEMY_CROWDED_POSITION_SMOOTH_FACTOR = .12;
+const SERVER_ENEMY_CROWDED_COUNT = 24;
+const SERVER_ENEMY_DEFAULT_VISUAL_DT_SECONDS = 1 / 60;
+const SERVER_ENEMY_MIN_VISUAL_DT_SECONDS = 1 / 240;
+const SERVER_ENEMY_MAX_VISUAL_DT_SECONDS = 1 / 30;
+
+function getNowMs(){
+  const perf = globalThis.performance;
+  if(perf && typeof perf.now === "function") return perf.now();
+  return Date.now();
+}
+
+function getVisualCorrectionLimit(existing, nowMs){
+  const lastVisualAt = Number(existing?.lastServerVisualAt);
+  const rawDtSeconds = Number.isFinite(lastVisualAt)
+    ? (nowMs - lastVisualAt) / 1000
+    : SERVER_ENEMY_DEFAULT_VISUAL_DT_SECONDS;
+  const dtSeconds = Math.min(
+    SERVER_ENEMY_MAX_VISUAL_DT_SECONDS,
+    Math.max(SERVER_ENEMY_MIN_VISUAL_DT_SECONDS, rawDtSeconds)
+  );
+  return SERVER_ENEMY_MAX_VISUAL_CORRECTION_PER_SECOND * dtSeconds;
+}
 
 function sampleBufferedState(samples, delayMs = SERVER_ENEMY_INTERPOLATION_DELAY_MS){
   if(!Array.isArray(samples) || samples.length <= 0) return null;
   const ordered = samples;
   if(!ordered.length) return null;
-  const targetTime = (performance.now?.() || Date.now()) - delayMs;
+  const targetTime = getNowMs() - delayMs;
   if(targetTime <= ordered[0].at) return ordered[0];
   for(let i = 0; i < ordered.length - 1; i++){
     const from = ordered[i];
@@ -58,13 +84,29 @@ function sampleBufferedState(samples, delayMs = SERVER_ENEMY_INTERPOLATION_DELAY
   };
 }
 
-function smoothPosition(previous, target, factor = .20){
-  const delta = target - previous;
-  if(Math.abs(delta) <= SERVER_ENEMY_MAX_VISUAL_CORRECTION) return lerp(previous, target, factor);
-  return previous + Math.sign(delta) * SERVER_ENEMY_MAX_VISUAL_CORRECTION;
+function getPositionSmoothFactor(syncCount = 0){
+  return Number(syncCount || 0) >= SERVER_ENEMY_CROWDED_COUNT
+    ? SERVER_ENEMY_CROWDED_POSITION_SMOOTH_FACTOR
+    : SERVER_ENEMY_POSITION_SMOOTH_FACTOR;
 }
 
-function normalizeServerEnemy(serverEnemy, existing = null){
+function smoothVectorPosition(previousX, previousY, targetX, targetY, factor, maxCorrection = Number.POSITIVE_INFINITY){
+  const desiredStepX = (targetX - previousX) * factor;
+  const desiredStepY = (targetY - previousY) * factor;
+  const desiredLength = Math.hypot(desiredStepX, desiredStepY);
+  if(!Number.isFinite(desiredLength) || desiredLength <= 0) return {x:previousX, y:previousY};
+  if(desiredLength <= maxCorrection) return {
+    x:previousX + desiredStepX,
+    y:previousY + desiredStepY
+  };
+  const scale = maxCorrection / desiredLength;
+  return {
+    x:previousX + desiredStepX * scale,
+    y:previousY + desiredStepY * scale
+  };
+}
+
+function normalizeServerEnemy(serverEnemy, existing = null, nowMs = getNowMs(), syncCount = 0){
   const id = serverEnemy.id;
   const buffered = sampleBufferedState(serverEnemy.samples);
   const serverX = Number(buffered?.x ?? serverEnemy.x ?? 0);
@@ -85,8 +127,22 @@ function normalizeServerEnemy(serverEnemy, existing = null){
   target.maxHp = Number(serverEnemy.maxHp || serverEnemy.hp || 1);
   target.shield = Number(serverEnemy.shield || 0);
   target.maxShield = Number(serverEnemy.maxShield || 0);
-  target.x = smooth ? smoothPosition(previousX, serverX) : serverX;
-  target.y = smooth ? smoothPosition(previousY, serverY) : serverY;
+  const maxVisualCorrection = smooth ? getVisualCorrectionLimit(existing, nowMs) : Number.POSITIVE_INFINITY;
+  const smoothFactor = getPositionSmoothFactor(syncCount);
+  const nextPosition = smooth
+    ? smoothVectorPosition(previousX, previousY, serverX, serverY, smoothFactor, maxVisualCorrection)
+    : {x:serverX, y:serverY};
+  const nextX = nextPosition.x;
+  const nextY = nextPosition.y;
+  const visualStep = Math.hypot(nextX - previousX, nextY - previousY);
+  if(existing){
+    countCombatProfiler(smooth ? "sync.enemy.smoothed" : "sync.enemy.snap", 1);
+    maxCombatProfilerMetric("sync.enemy.maxCorrectionPx", distance);
+    maxCombatProfilerMetric("sync.enemy.maxVisualStepPx", visualStep);
+  }
+  target.x = nextX;
+  target.y = nextY;
+  target.lastServerVisualAt = nowMs;
   target.serverX = serverX;
   target.serverY = serverY;
   target.angle = smooth ? lerpAngle(previousAngle, serverAngle, .30) : serverAngle;
@@ -102,7 +158,7 @@ function normalizeServerEnemy(serverEnemy, existing = null){
   return target;
 }
 
-export function syncServerControlledEnemies({enemies, multiplayerState, selectedEnemy, onSelectionLost}){
+export function syncServerControlledEnemies({enemies, multiplayerState, selectedEnemy, onSelectionLost, now = getNowMs()}){
   if(!Array.isArray(enemies)) return {enemies:[], selectedEnemy:null};
 
   const serverEnemyMap = multiplayerState?.serverEnemies instanceof Map
@@ -122,7 +178,7 @@ export function syncServerControlledEnemies({enemies, multiplayerState, selected
   for(const serverEnemy of serverEnemyMap.values()){
     if(!serverEnemy?.id) continue;
     const existing = existingById.get(serverEnemy.id);
-    const normalized = normalizeServerEnemy(serverEnemy, existing);
+    const normalized = normalizeServerEnemy(serverEnemy, existing, now, serverEnemyMap.size);
     nextEnemies.push(existing || normalized);
   }
 

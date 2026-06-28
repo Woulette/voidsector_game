@@ -47,6 +47,15 @@ export function createCombatCooldownTracker({
 }
 
 const fireCooldowns = createCombatCooldownTracker();
+const ELITE_LASER_CHARGE_MAX = 5;
+const ELITE_LASER_RESET_MS = 10_000;
+const ELITE_LASER_COLORS = ["green", "blue", "red"];
+const ELITE_LASER_IDS = new Map([
+  ["laser_elite_green", "green"],
+  ["laser_elite_blue", "blue"],
+  ["laser_elite_red", "red"]
+]);
+const ELITE_BLUE_CADENCE_ENABLED = false;
 
 function rollBetween(min, max, random = Math.random){
   const lo = Number(min ?? max ?? 0);
@@ -92,6 +101,190 @@ function recordServerWeaponUse(profile, weaponClass, amount){
   const key = keys[weaponClass];
   if(!key) return;
   profile.player[key] = Math.max(0, Math.floor(Number(profile.player[key] || 0))) + Math.max(0, Math.floor(Number(amount || 0)));
+}
+
+function clampEliteCharge(value){
+  return Math.max(0, Math.min(ELITE_LASER_CHARGE_MAX, Number(value || 0)));
+}
+
+function blankEliteLaserState(){
+  return {
+    lastLaserAt:0,
+    green:{charge:0},
+    blue:{charge:0, phase:"charge"},
+    red:{charge:0}
+  };
+}
+
+function ensureEliteLaserStates(profile){
+  if(!profile.eliteLaserStates || typeof profile.eliteLaserStates !== "object" || Array.isArray(profile.eliteLaserStates)){
+    profile.eliteLaserStates = {};
+  }
+  return profile.eliteLaserStates;
+}
+
+function normalizeEliteLaserState(value){
+  const state = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return {
+    lastLaserAt:Math.max(0, Number(state.lastLaserAt || 0)),
+    green:{charge:clampEliteCharge(state.green?.charge)},
+    blue:{
+      charge:clampEliteCharge(state.blue?.charge),
+      phase:state.blue?.phase === "discharge" ? "discharge" : "charge"
+    },
+    red:{charge:clampEliteCharge(state.red?.charge)}
+  };
+}
+
+function eliteLaserColor(item){
+  const fromEffect = String(item?.effect?.eliteLaserColor || "");
+  if(ELITE_LASER_COLORS.includes(fromEffect)) return fromEffect;
+  return ELITE_LASER_IDS.get(String(item?.id || "")) || "";
+}
+
+function getEliteLaserCounts(lasers){
+  const counts = {green:0, blue:0, red:0};
+  for(const item of lasers){
+    const color = eliteLaserColor(item);
+    if(Object.hasOwn(counts, color)) counts[color] += 1;
+  }
+  return counts;
+}
+
+function totalEliteLaserCount(counts){
+  return ELITE_LASER_COLORS.reduce((sum, color)=>sum + Math.max(0, Number(counts?.[color] || 0)), 0);
+}
+
+function advanceBlueGauge(blue, elapsedSeconds){
+  let charge = clampEliteCharge(blue?.charge);
+  let phase = blue?.phase === "discharge" ? "discharge" : "charge";
+  let remaining = Math.max(0, Number(elapsedSeconds || 0));
+  let guard = 0;
+  while(remaining > 0 && guard < 8){
+    guard += 1;
+    if(phase === "charge"){
+      const needed = ELITE_LASER_CHARGE_MAX - charge;
+      if(remaining < needed){
+        charge += remaining;
+        remaining = 0;
+      }else{
+        remaining -= needed;
+        charge = ELITE_LASER_CHARGE_MAX;
+        phase = "discharge";
+      }
+    }else{
+      const needed = charge;
+      if(remaining < needed){
+        charge -= remaining;
+        remaining = 0;
+      }else{
+        remaining -= needed;
+        charge = 0;
+        phase = "charge";
+      }
+    }
+  }
+  return {charge:clampEliteCharge(charge), phase};
+}
+
+function serializeEliteLaserState({state, counts, triggers = {}, now = Date.now()}){
+  if(totalEliteLaserCount(counts) <= 0) return null;
+  const greenPercent = Math.min(Math.max(0, Number(counts.green || 0)) * 0.01, 0.25);
+  const redBonus = Math.min(Math.max(0, Number(counts.red || 0)) * 0.01, 0.25);
+  const cadenceBonus = Math.min(Math.max(0, Number(counts.blue || 0)) * 0.005, 0.15);
+  return {
+    maxCharge:ELITE_LASER_CHARGE_MAX,
+    resetAfterMs:ELITE_LASER_RESET_MS,
+    lastLaserAt:Math.max(0, Number(state.lastLaserAt || 0)),
+    updatedAt:now,
+    green:{
+      count:Math.max(0, Number(counts.green || 0)),
+      charge:clampEliteCharge(state.green?.charge),
+      triggered:Boolean(triggers.green),
+      lifestealPercent:greenPercent
+    },
+    blue:{
+      count:Math.max(0, Number(counts.blue || 0)),
+      charge:clampEliteCharge(state.blue?.charge),
+      phase:state.blue?.phase === "discharge" ? "discharge" : "charge",
+      active:state.blue?.phase === "discharge",
+      cadenceBonus,
+      cadenceEnabled:ELITE_BLUE_CADENCE_ENABLED
+    },
+    red:{
+      count:Math.max(0, Number(counts.red || 0)),
+      charge:clampEliteCharge(state.red?.charge),
+      triggered:Boolean(triggers.red),
+      damageBonus:redBonus
+    }
+  };
+}
+
+function prepareEliteLaserShot(profile, counts, now = Date.now()){
+  const states = ensureEliteLaserStates(profile);
+  const previous = normalizeEliteLaserState(states.current);
+  const hasEliteLasers = totalEliteLaserCount(counts) > 0;
+  if(!hasEliteLasers){
+    states.current = blankEliteLaserState();
+    return null;
+  }
+  const reset = previous.lastLaserAt <= 0 || now - previous.lastLaserAt > ELITE_LASER_RESET_MS;
+  const elapsedSeconds = reset ? 0 : Math.max(0, Math.min(ELITE_LASER_RESET_MS, now - previous.lastLaserAt)) / 1000;
+  const next = reset ? blankEliteLaserState() : normalizeEliteLaserState(previous);
+
+  for(const color of ["green", "red"]){
+    if(Number(counts[color] || 0) > 0){
+      next[color].charge = clampEliteCharge(next[color].charge + elapsedSeconds);
+    }else{
+      next[color].charge = 0;
+    }
+  }
+  next.blue = Number(counts.blue || 0) > 0
+    ? advanceBlueGauge(next.blue, elapsedSeconds)
+    : {charge:0, phase:"charge"};
+
+  const triggers = {
+    green:Number(counts.green || 0) > 0 && next.green.charge >= ELITE_LASER_CHARGE_MAX,
+    red:Number(counts.red || 0) > 0 && next.red.charge >= ELITE_LASER_CHARGE_MAX
+  };
+  const greenLifestealPercent = triggers.green ? Math.min(Number(counts.green || 0) * 0.01, 0.25) : 0;
+  const redDamageBonus = triggers.red ? Math.min(Number(counts.red || 0) * 0.01, 0.25) : 0;
+  const blueCadenceBonus = next.blue.phase === "discharge" ? Math.min(Number(counts.blue || 0) * 0.005, 0.15) : 0;
+  const blueCooldownMultiplier = ELITE_BLUE_CADENCE_ENABLED && blueCadenceBonus > 0
+    ? 1 / (1 + blueCadenceBonus)
+    : 1;
+
+  return {
+    redDamageBonus,
+    greenLifestealPercent,
+    blueCooldownMultiplier,
+    commit(){
+      next.lastLaserAt = now;
+      if(triggers.green) next.green.charge = 0;
+      if(triggers.red) next.red.charge = 0;
+      states.current = next;
+      return serializeEliteLaserState({state:next, counts, triggers, now});
+    }
+  };
+}
+
+export function applyServerEliteLaserLifeSteal({player, eliteLaser, damageDealt, weaponClass = "", now = Date.now()} = {}){
+  const green = eliteLaser?.green;
+  if(!player?.state || String(weaponClass || "") !== "laser" || !green?.triggered) return {healed:0};
+  if(Number(player.state.hp || 0) <= 0) return {healed:0};
+  const ratio = Math.max(0, Math.min(0.25, Number(green.lifestealPercent || 0)));
+  if(ratio <= 0) return {healed:0};
+  const maximum = Math.max(1, Number(player.state.maxHp || player.state.hp || 1));
+  const before = Math.max(0, Number(player.state.hp || 0));
+  const requested = Math.max(0, Math.round(Number(damageDealt || 0) * ratio));
+  player.state.hp = Math.min(maximum, before + requested);
+  player.state.updatedAt = now;
+  return {
+    healed:Math.max(0, Math.round(player.state.hp - before)),
+    requested,
+    sourceId:"elite_laser_green",
+    lifestealPercent:ratio
+  };
 }
 
 function getShipLoadout(profile, player){
@@ -160,6 +353,11 @@ function getRocketDamageMultiplier(profile){
     * getFormationBonus(profile, "rocketDamageMultiplier", 1);
 }
 
+function getMissileDamageMultiplier(profile){
+  return getProfileSkillBonus(profile, "missileDamageMultiplier", 1)
+    * getFormationBonus(profile, "missileDamageMultiplier", 1);
+}
+
 function getRocketCooldownMultiplier(profile, player){
   const loadout = getShipLoadout(profile, player);
   const extras = Array.isArray(loadout?.extras) ? loadout.extras : [];
@@ -209,6 +407,8 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
   let missileHits = 0;
   let missileMisses = 0;
   let laserDamage = null;
+  let eliteLaserShot = null;
+  let eliteLaser = null;
 
   if(weaponClass === "laser"){
     const shipLasers = getShipLaserItems(profile, player);
@@ -220,6 +420,8 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     consumed = lasers.length;
     range = shipLasers.length > 0 ? shipPool.range : dronePool.range;
     cooldownMs = Math.max(250, Number(ammo.cooldown || 1) * 1000);
+    eliteLaserShot = prepareEliteLaserShot(profile, getEliteLaserCounts(lasers), now);
+    cooldownMs = Math.max(250, cooldownMs * Math.max(0.25, Number(eliteLaserShot?.blueCooldownMultiplier || 1)));
     laserDamage = {
       ship:rollBetween(shipPool.min, shipPool.max, random),
       drone:rollBetween(dronePool.min, dronePool.max, random),
@@ -229,7 +431,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     const launcher = getLauncher(profile, player, "rocket");
     if(!launcher) return {ok:false, reason:"Aucun lance roquette equipe."};
     consumed = 1;
-    range = Number(launcher.effect?.rocketRange || ammo.range || 550);
+    range = Number(launcher.effect?.rocketRange || 550);
     cooldownMs = Math.max(500, Number(launcher.effect?.rocketCooldown || ammo.cooldown || 5) * getRocketCooldownMultiplier(profile, player) * 1000);
     damage = (rollBetween(ammo.damageMin, ammo.damageMax, random) + getUpgradeLevel(profile, ammo.id) * 80) * Number(launcher.effect?.rocketDamageMultiplier || 1);
   }else if(weaponClass === "missile"){
@@ -237,9 +439,9 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     if(!launcher) return {ok:false, reason:"Aucun lance missile equipe."};
     const capacity = Math.max(1, Math.min(12, Number(launcher.effect?.missileCapacity || 3)));
     consumed = Math.max(1, Math.min(capacity, Math.floor(Number(payload?.count || capacity))));
-    range = Number(launcher.effect?.missileRange || ammo.range || 600);
+    range = Number(launcher.effect?.missileRange || 600);
     cooldownMs = Math.max(750, consumed * Number(launcher.effect?.missileReload || 3) * 1000);
-    const multiplier = Number(launcher.effect?.missileDamageMultiplier || 1);
+    const multiplier = Number(launcher.effect?.missileDamageMultiplier || 1) * getMissileDamageMultiplier(profile);
     for(let index = 0; index < consumed; index += 1){
       if(random() <= missileHitChance){
         missileHits += 1;
@@ -258,6 +460,9 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
   if(!cooldown.ok) return cooldown;
   consumeAmmo(profile, ammo.id, consumed);
   recordServerWeaponUse(profile, weaponClass, consumed);
+  if(weaponClass === "laser" && eliteLaserShot){
+    eliteLaser = eliteLaserShot.commit();
+  }
   let boostPercent = 0;
   let droneBoostPercent = 0;
   if(weaponClass === "laser"){
@@ -273,6 +478,9 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
   }
   const activeFirmDamageBonus = Math.max(0, Number(firmDamageBonus || 0));
   damage *= 1 + activeFirmDamageBonus;
+  if(weaponClass === "laser" && eliteLaser?.red?.triggered){
+    damage *= 1 + Math.max(0, Number(eliteLaser.red.damageBonus || 0));
+  }
   const hit = weaponClass === "missile" ? missileHits > 0 : random() <= hitChance;
   const baseDamage = hit ? Math.max(1, Math.round(damage)) : 0;
   const doubleStrike = weaponClass === "laser"
@@ -292,6 +500,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     boostPercent,
     droneBoostPercent,
     firmDamageBonus:activeFirmDamageBonus,
+    eliteLaser,
     range,
     doubleStrike:doubleStrike?.triggered ? {
       abilityId:doubleStrike.status?.abilityId || "spectral_double_shot",

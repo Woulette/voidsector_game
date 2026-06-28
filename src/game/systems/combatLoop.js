@@ -1,3 +1,5 @@
+import { beginCombatProfilerFrame, finishCombatProfilerFrame, timeCombatProfiler } from "./combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
+
 export function createCombatLoop({isRunning, update, draw, getLastTime, setLastTime, onFrameMetrics, getFpsLimit = ()=>0}){
   let frameHandle = null;
   let hiddenInterval = null;
@@ -7,12 +9,18 @@ export function createCombatLoop({isRunning, update, draw, getLastTime, setLastT
   function tick(time, drawFrame){
     if(!isRunning()) return;
     const maxDt = document.hidden ? .12 : .033;
-    const dt = Math.min(maxDt, (time - getLastTime()) / 1000 || .016);
+    const elapsedSeconds = (time - getLastTime()) / 1000;
+    const dt = Number.isFinite(elapsedSeconds)
+      ? Math.max(0, Math.min(maxDt, elapsedSeconds))
+      : .016;
     setLastTime(time);
     const frameStart = performance.now();
-    update(dt);
-    if(drawFrame) draw();
-    onFrameMetrics?.({dt, frameMs:performance.now() - frameStart});
+    beginCombatProfilerFrame({dt, drawFrame});
+    timeCombatProfiler("frame.update", ()=>update(dt));
+    if(drawFrame) timeCombatProfiler("frame.draw", draw);
+    const frameMs = performance.now() - frameStart;
+    finishCombatProfilerFrame({frameMs});
+    onFrameMetrics?.({dt, frameMs});
   }
 
   function stopHiddenInterval(){

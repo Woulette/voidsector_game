@@ -3,7 +3,7 @@ import test from "node:test";
 import { createCombatCargoSystem } from "../../src/game/systems/combatCargo.js";
 import { createRewardSystem } from "../../src/game/systems/rewards.js";
 import { createWeaponSystem } from "../../src/game/systems/weapons.js";
-import { syncMultiplayerProfile } from "../../src/multiplayer/profileSync.js";
+import { markProfileSaveAcknowledged, syncMultiplayerProfile } from "../../src/multiplayer/profileSync.js";
 
 function createWeaponFixture(enemy, {
   shipLasers = [{id:"laser_mk1", weapon:{minDamage:10, maxDamage:10, range:1000, speed:900}}],
@@ -198,9 +198,32 @@ test("profile sync sends preferences only, never critical MMO progression", ()=>
   assert.deepEqual(Object.keys(sent[0].payload.profile).sort(), [
     "actionSlots",
     "actionSlotsByShip",
+    "actionSlotsUpdatedAt",
     "lastLaserAmmoId",
     "updatedAt"
   ]);
+  markProfileSaveAcknowledged({updatedAt:sent[0].payload.profile.updatedAt});
+});
+
+test("profile sync uses the local preference timestamp for action bar saves", ()=>{
+  const sent = [];
+  const multiplayer = {
+    connected:true,
+    socket:{emit:(event, payload)=>sent.push({event, payload})},
+    auth:{token:"token", account:{id:"account"}, profileReady:true},
+    name:"Pilote"
+  };
+  syncMultiplayerProfile(multiplayer, {
+    mmoProfileUpdatedAt:424242,
+    actionSlots:["ammo_x2"],
+    actionSlotsByShip:{razorion:["ammo_x2"]},
+    lastLaserAmmoId:"ammo_x2"
+  });
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].payload.profile.updatedAt, 424242);
+  assert.equal(sent[0].payload.profile.actionSlotsUpdatedAt, 424242);
+  markProfileSaveAcknowledged({updatedAt:424242});
 });
 
 test("profile sync emits nothing before an authenticated profile is ready", ()=>{

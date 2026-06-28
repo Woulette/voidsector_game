@@ -1,5 +1,6 @@
 import { PORTAL_WAVE_TOTAL } from "../combatData.js";
 import { resolveRickyPortalPoint } from "../../data/rickyPortal.js";
+import { maxCombatProfilerMetric, setCombatProfilerMetric, timeCombatProfiler } from "./combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
 
 export function createCombatFrameUpdateSystem({
   multiplayer,
@@ -9,6 +10,7 @@ export function createCombatFrameUpdateSystem({
   loadMap,
   updatePlayerMovement,
   updateCamera,
+  tickPlayerVisualCorrection = ()=>0,
   updateRadiation,
   updatePlayerPoison,
   updatePlayerSlow = ()=>{},
@@ -48,6 +50,31 @@ export function createCombatFrameUpdateSystem({
     let state = getState();
     const {player, camera, portalTransition, mouseMoveHeld, mouse, currentMap} = state;
     if(!player) return;
+    const frameStartPlayerX = Number(player.x || 0);
+    const frameStartPlayerY = Number(player.y || 0);
+    const frameStartCameraX = Number(camera?.x || 0);
+    const frameStartCameraY = Number(camera?.y || 0);
+    const visualOffsetPx = tickPlayerVisualCorrection(player, dt);
+
+    function recordPlayerCameraMotion(){
+      const latestState = getState();
+      const latestPlayer = latestState.player || player;
+      const latestCamera = latestState.camera || camera;
+      const playerStepPx = Math.hypot(
+        Number(latestPlayer?.x || 0) - frameStartPlayerX,
+        Number(latestPlayer?.y || 0) - frameStartPlayerY
+      );
+      const cameraStepPx = Math.hypot(
+        Number(latestCamera?.x || 0) - frameStartCameraX,
+        Number(latestCamera?.y || 0) - frameStartCameraY
+      );
+      setCombatProfilerMetric("sync.player.lastStepPx", playerStepPx);
+      setCombatProfilerMetric("sync.camera.lastStepPx", cameraStepPx);
+      setCombatProfilerMetric("sync.player.visualOffsetPx", visualOffsetPx);
+      maxCombatProfilerMetric("sync.player.maxStepPx", playerStepPx);
+      maxCombatProfilerMetric("sync.camera.maxStepPx", cameraStepPx);
+    }
+
     setState({teleportLock:Math.max(0, state.teleportLock - dt)});
     if(portalTransition){
       const completed = advancePortalTransition(portalTransition, dt);
@@ -62,8 +89,9 @@ export function createCombatFrameUpdateSystem({
         });
         beams.clear();
       }
-      updateParticles(dt);
+      timeCombatProfiler("sim.particles", ()=>updateParticles(dt));
       updateCamera({camera, player, canvas:getCanvas(), follow:1});
+      recordPlayerCameraMotion();
       if(completed){
         const target = portalTransition.portal;
         setState({portalTransition:null});
@@ -80,7 +108,7 @@ export function createCombatFrameUpdateSystem({
     player.safeZoneLock = Math.max(0, Number(player.safeZoneLock || 0) - dt);
     updateLootPopup();
     if(player.isDead){
-      serverEvents.applyAll();
+      timeCombatProfiler("events.applyAll", ()=>serverEvents.applyAll());
       const refreshed = getState();
       updateCamera({
         camera:refreshed.camera || camera,
@@ -88,6 +116,7 @@ export function createCombatFrameUpdateSystem({
         canvas:getCanvas(),
         follow:1
       });
+      recordPlayerCameraMotion();
       updateHud();
       return;
     }
@@ -118,7 +147,7 @@ export function createCombatFrameUpdateSystem({
       });
       setState({moveTarget:movedTarget});
     }
-    syncServerControlledEnemies();
+    timeCombatProfiler("sync.enemies", syncServerControlledEnemies);
     state = getState();
     const lockedEnemy = validSelectedEnemy();
     const activeLaserSlot = getActiveLaserSlot();
@@ -134,7 +163,7 @@ export function createCombatFrameUpdateSystem({
     const activeShip = getActiveShip();
     const droneLoadout = Array.isArray(state.store?.state?.droneLoadout) ? state.store.state.droneLoadout : [];
     const droneUpgrades = droneLoadout.slice(0, 10).map((uid, index)=>Boolean(uid && state.store?.state?.dronePermanentUpgrades?.[index]));
-    sendPlayerSnapshot({
+    timeCombatProfiler("net.playerSnapshot", ()=>sendPlayerSnapshot({
       x:player.x,
       y:player.y,
       angle:player.angle,
@@ -167,9 +196,9 @@ export function createCombatFrameUpdateSystem({
       attackWeaponClass:attackAmmo?.weaponClass || "",
       repairBotActive:Boolean(player.repairBotActive),
       pageHidden:document.hidden === true
-    });
+    }));
     updateRadiation(dt);
-    serverEvents.applyAll();
+    timeCombatProfiler("events.applyAll", ()=>serverEvents.applyAll());
     state = getState();
     if(state.gameMode === "portal" && multiplayer.portalInstance?.portal){
       setState({
@@ -182,11 +211,12 @@ export function createCombatFrameUpdateSystem({
     }
     if(player.isDead){
       updateCamera({camera, player, canvas:getCanvas(), follow:1});
+      recordPlayerCameraMotion();
       updateHud();
       return;
     }
-    cargo.tick();
-    cargo.updatePending(player);
+    timeCombatProfiler("cargo.tick", ()=>cargo.tick());
+    timeCombatProfiler("cargo.pending", ()=>cargo.updatePending(player));
 
     state = getState();
     if(state.gameMode === "portal" && !multiplayer.portalInstance){
@@ -210,13 +240,13 @@ export function createCombatFrameUpdateSystem({
       profiles:engineProfiles
     });
 
-    updateEnemies(dt);
-    updateWeapons(dt);
-    updateBullets(dt);
-    updateMapRespawns(dt);
-    beams.update(dt);
-    updateParticles(dt);
-    updateRepairBot(dt);
+    timeCombatProfiler("sim.enemies", ()=>updateEnemies(dt));
+    timeCombatProfiler("sim.weapons", ()=>updateWeapons(dt));
+    timeCombatProfiler("sim.bullets", ()=>updateBullets(dt));
+    timeCombatProfiler("sim.respawns", ()=>updateMapRespawns(dt));
+    timeCombatProfiler("sim.beams", ()=>beams.update(dt));
+    timeCombatProfiler("sim.particles", ()=>updateParticles(dt));
+    timeCombatProfiler("sim.repairBot", ()=>updateRepairBot(dt));
     if(player.maxShield > 0) player.shield = Math.min(player.maxShield, player.shield + (player.regen || 0)*dt);
     const targetZoom = isPlayerOutsideMap() ? 0.78 : 1;
     camera.zoom = (camera.zoom || 1) + (targetZoom - (camera.zoom || 1)) * Math.min(1, dt * 4.5);
@@ -232,14 +262,20 @@ export function createCombatFrameUpdateSystem({
     }else{
       updateCamera({camera, player, canvas:getCanvas(), follow:1});
     }
+    recordPlayerCameraMotion();
     state = getState();
     const hudT = state.hudT - dt;
     setState({hudT});
     if(hudT <= 0){
       setState({hudT:.15});
       updateHud();
-      actions.updateGameActionBar();
+      timeCombatProfiler("hud.actionBar", ()=>actions.updateGameActionBar());
     }
+    const refreshedState = getState();
+    setCombatProfilerMetric("count.enemies", refreshedState.enemies?.length || 0);
+    setCombatProfilerMetric("count.bullets", refreshedState.bullets?.length || 0);
+    setCombatProfilerMetric("count.particles", refreshedState.particles?.length || 0);
+    setCombatProfilerMetric("count.damageTexts", refreshedState.damageTexts?.length || 0);
     const quickPanel = document.getElementById("combatQuickPanel");
     if(quickPanel && !quickPanel.classList.contains("hidden")){
       const quickPanelRefreshT = state.quickPanelRefreshT - dt;
@@ -249,7 +285,7 @@ export function createCombatFrameUpdateSystem({
         setState({quickPanelRefreshT:1});
       }
     }
-    panels.tick(dt);
+    timeCombatProfiler("panels.tick", ()=>panels.tick(dt));
   }
 
   return {update};

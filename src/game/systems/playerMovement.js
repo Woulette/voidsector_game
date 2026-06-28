@@ -3,6 +3,68 @@ export function worldFromScreen({sx, sy, camera}){
   return {x:sx / zoom + camera.x, y:sy / zoom + camera.y};
 }
 
+const VISUAL_CORRECTION_MAX_SMOOTH_PX = 96;
+const VISUAL_CORRECTION_RECOVER_PX_PER_SECOND = 72;
+
+function finiteNumber(value, fallback = 0){
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+export function getPlayerVisualPosition(player){
+  return {
+    x:finiteNumber(player?.x) + finiteNumber(player?.visualCorrectionOffsetX),
+    y:finiteNumber(player?.y) + finiteNumber(player?.visualCorrectionOffsetY)
+  };
+}
+
+export function clearPlayerVisualCorrection(player){
+  if(!player) return;
+  player.visualCorrectionOffsetX = 0;
+  player.visualCorrectionOffsetY = 0;
+}
+
+export function queuePlayerVisualCorrection(player, {nextX, nextY, maxSmoothPx = VISUAL_CORRECTION_MAX_SMOOTH_PX} = {}){
+  if(!player) return 0;
+  const targetX = finiteNumber(nextX, finiteNumber(player.x));
+  const targetY = finiteNumber(nextY, finiteNumber(player.y));
+  const currentVisual = getPlayerVisualPosition(player);
+  const offsetX = currentVisual.x - targetX;
+  const offsetY = currentVisual.y - targetY;
+  const offsetPx = Math.hypot(offsetX, offsetY);
+  if(offsetPx <= .25){
+    clearPlayerVisualCorrection(player);
+    return 0;
+  }
+  if(offsetPx > Math.max(0, Number(maxSmoothPx || 0))){
+    clearPlayerVisualCorrection(player);
+    return 0;
+  }
+  player.visualCorrectionOffsetX = offsetX;
+  player.visualCorrectionOffsetY = offsetY;
+  return offsetPx;
+}
+
+export function tickPlayerVisualCorrection(player, dt){
+  if(!player) return 0;
+  const offsetX = finiteNumber(player.visualCorrectionOffsetX);
+  const offsetY = finiteNumber(player.visualCorrectionOffsetY);
+  const offsetPx = Math.hypot(offsetX, offsetY);
+  if(offsetPx <= .05){
+    clearPlayerVisualCorrection(player);
+    return 0;
+  }
+  const stepPx = Math.max(0, finiteNumber(dt) * VISUAL_CORRECTION_RECOVER_PX_PER_SECOND);
+  if(stepPx >= offsetPx){
+    clearPlayerVisualCorrection(player);
+    return 0;
+  }
+  const scale = (offsetPx - stepPx) / offsetPx;
+  player.visualCorrectionOffsetX = offsetX * scale;
+  player.visualCorrectionOffsetY = offsetY * scale;
+  return Math.hypot(player.visualCorrectionOffsetX, player.visualCorrectionOffsetY);
+}
+
 export function clampPlayerToMap({player, map, padding = 65}){
   const halfW = map.width / 2;
   const halfH = map.height / 2;
@@ -60,8 +122,9 @@ export function updateCamera({camera, player, canvas, follow = 1}){
   const width = canvas.__viewWidth || canvas.clientWidth || canvas.width;
   const height = canvas.__viewHeight || canvas.clientHeight || canvas.height;
   const zoom = camera.zoom || 1;
-  const targetX = player.x - width / (2 * zoom);
-  const targetY = player.y - height / (2 * zoom);
+  const visual = getPlayerVisualPosition(player);
+  const targetX = visual.x - width / (2 * zoom);
+  const targetY = visual.y - height / (2 * zoom);
   if(follow >= 1){
     camera.x = targetX;
     camera.y = targetY;

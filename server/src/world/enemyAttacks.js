@@ -1,10 +1,34 @@
 const MIN_PROJECTILE_TRAVEL_SECONDS = 0.11;
 const MAX_PROJECTILE_TRAVEL_SECONDS = 1.15;
+const ENEMY_ATTACK_VISUAL_WINDOW_MS = 80;
+const MAX_ENEMY_ATTACK_VISUALS_PER_WINDOW = 8;
 
 export function getEnemyProjectileTravelTime({fromX, fromY, toX, toY, projectileSpeed}){
   const distance = Math.hypot(Number(toX || 0) - Number(fromX || 0), Number(toY || 0) - Number(fromY || 0));
   const speed = Math.max(120, Number(projectileSpeed || 600));
   return Math.max(MIN_PROJECTILE_TRAVEL_SECONDS, Math.min(MAX_PROJECTILE_TRAVEL_SECONDS, distance / speed + 0.06));
+}
+
+export function consumeEnemyAttackVisualBudget(target, now = Date.now(), {
+  windowMs = ENEMY_ATTACK_VISUAL_WINDOW_MS,
+  maxVisuals = MAX_ENEMY_ATTACK_VISUALS_PER_WINDOW
+} = {}){
+  if(!target || maxVisuals <= 0) return false;
+  const budget = target.enemyAttackVisualBudget && typeof target.enemyAttackVisualBudget === "object"
+    ? target.enemyAttackVisualBudget
+    : {windowStart:0, count:0};
+  const windowStart = Number(budget.windowStart || 0);
+  if(!windowStart || now - windowStart >= windowMs){
+    budget.windowStart = now;
+    budget.count = 0;
+  }
+  if(Number(budget.count || 0) >= maxVisuals){
+    target.enemyAttackVisualBudget = budget;
+    return false;
+  }
+  budget.count = Number(budget.count || 0) + 1;
+  target.enemyAttackVisualBudget = budget;
+  return true;
 }
 
 function applyDamageToNpcState(state, amount){
@@ -70,25 +94,27 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
       toY
     });
 
-    const attackRecipient = target.npcTarget ? (map.room || `map:${map.id}`) : target.id;
-    io.to(attackRecipient).emit("enemy:attack", {
-      sourceId:enemy.id,
-      enemyId:enemy.id,
-      targetId:target.id,
-      mapId:map.id,
-      fromX,
-      fromY,
-      toX,
-      toY,
-      color:enemy.color || "rgba(248,113,113,.9)",
-      particle:enemy.particle || enemy.color || "rgba(248,113,113,.9)",
-      projectileSpeed,
-      travelTime,
-      impactAt,
-      enemyKind:enemy.kind,
-      attackStyle,
-      life:.22
-    });
+    if(consumeEnemyAttackVisualBudget(target, now)){
+      const attackRecipient = target.npcTarget ? (map.room || `map:${map.id}`) : target.id;
+      io.to(attackRecipient).emit("enemy:attack", {
+        sourceId:enemy.id,
+        enemyId:enemy.id,
+        targetId:target.id,
+        mapId:map.id,
+        fromX,
+        fromY,
+        toX,
+        toY,
+        color:enemy.color || "rgba(248,113,113,.9)",
+        particle:enemy.particle || enemy.color || "rgba(248,113,113,.9)",
+        projectileSpeed,
+        travelTime,
+        impactAt,
+        enemyKind:enemy.kind,
+        attackStyle,
+        life:.22
+      });
+    }
   }
 
   function targetIsValidForPlayerAttack(attack, target, now){

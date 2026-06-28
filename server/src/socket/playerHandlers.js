@@ -290,7 +290,7 @@ export function registerPlayerHandlers(socket, context){
           });
         }
       }
-      socket.emit("profile:saved", {updatedAt:incoming.updatedAt});
+      socket.emit("profile:saved", {updatedAt:saveResult?.acknowledgedAt || incoming.updatedAt});
       emitProfileSync?.(player, incoming);
       broadcastLeaderboard();
     }

@@ -6,8 +6,8 @@ import { installEconomySocketListeners } from "./economySocketListeners.js?v=bet
 import { createFirmCommands } from "./firmCommands.js";
 import { installFirmSocketListeners } from "./firmSocketListeners.js?v=firm-shop-sync-1";
 import { createGroupCommands } from "./groupCommands.js?v=portal-prepare-1";
-import { syncMultiplayerProfile as syncProfile } from "./profileSync.js?v=profile-sync-dedupe-1";
-import { installPlayerSocketListeners } from "./playerSocketListeners.js";
+import { syncMultiplayerProfile as syncProfile } from "./profileSync.js?v=action-slots-save-1-fps-burst-1";
+import { installPlayerSocketListeners } from "./playerSocketListeners.js?v=action-slots-save-1-fps-burst-1";
 import { installProgressionSocketListeners } from "./progressionSocketListeners.js";
 import { createSocketCommands } from "./socketCommands.js?v=firm-setup-1";
 import { createSocialCommands } from "./socialCommands.js";

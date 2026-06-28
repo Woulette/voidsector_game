@@ -1,7 +1,7 @@
 import { FIRMS, getFirmDefinition, normalizeFirmId } from "../data/firms.js";
 import { ammoTypes, rawMaterialCatalog } from "../data/catalog.js";
 import { fmt } from "../core/utils.js";
-import { multiplayer } from "../multiplayer/client.js?v=portal-prepare-1";
+import { multiplayer } from "../multiplayer/client.js?v=action-slots-save-1-fps-burst-1";
 import { store } from "../core/store.js";
 import { hasCompactQuestAsset } from "../data/enemyVisuals.js";
 import { FIRM_BOOSTER_DEFINITIONS, getFirmBoostersForRank } from "../shared/firmBoosters.js?v=firm-nova-10-1";
@@ -21,7 +21,7 @@ const FIRM_SHOP_RARITIES = [
   {id:"common", label:"Commun", color:"#94a3b8"},
   {id:"rare", label:"Rare", color:"#38bdf8"},
   {id:"veryRare", label:"Très rare", color:"#a78bfa"},
-  {id:"elite", label:"Elite", color:"#fb923c"},
+  {id:"elite", label:"Élite", color:"#fb923c"},
   {id:"mythic", label:"Mythique", color:"#facc15"}
 ];
 

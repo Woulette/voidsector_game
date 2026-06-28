@@ -158,11 +158,11 @@ test("changing formation recalculates shield capacity while preserving its perce
     profile,
     groups:new Map(),
     now:1050,
-    payload:{...previous, shield:212.5, maxShield:425, updatedAt:1050}
+    payload:{...previous, shield:225, maxShield:450, updatedAt:1050}
   });
 
-  assert.equal(result.state.maxShield, 425);
-  assert.equal(result.state.shield, 212.5);
+  assert.equal(result.state.maxShield, 450);
+  assert.equal(result.state.shield, 225);
   assert.equal(result.corrected, false);
 });
 
@@ -178,7 +178,7 @@ test("equivalent floating-point shield values do not trigger network corrections
     percent:0.40,
     expiresAt:Date.now() + 60_000
   };
-  const displayedShield = 10995.6;
+  const displayedShield = 11642.4;
   const previous = baseState({
     shield:displayedShield,
     maxShield:displayedShield,
