@@ -82,7 +82,7 @@ test("charged red elite lasers add burst damage and consume their gauge", ()=>{
   assert.equal(profile.eliteLaserStates.current.red.charge, 0);
 });
 
-test("red elite damage bonus is capped at twenty percent", ()=>{
+test("red elite damage bonus is capped at twenty five percent", ()=>{
   const profile = createDefaultProfile();
   equipShipLasers(profile, Array.from({length:30}, ()=>"laser_elite_red"));
   profile.ammoInventory.ammo_x1 = 100;
@@ -99,7 +99,7 @@ test("red elite damage bonus is capped at twenty percent", ()=>{
 
   assert.equal(result.ok, true);
   assert.equal(result.eliteLaser.red.triggered, true);
-  assert.equal(result.eliteLaser.red.damageBonus, 0.20);
+  assert.equal(result.eliteLaser.red.damageBonus, 0.25);
 });
 
 test("green elite lifesteal counts ship and drone lasers", ()=>{

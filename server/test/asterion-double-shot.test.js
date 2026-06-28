@@ -158,12 +158,71 @@ test("server combat resolution reports the Asterion double strike when the charg
 
   assert.equal(first.ok, true);
   assert.equal(first.doubleStrike, null);
+  assert.equal(first.shipAbilityState.abilityId, "spectral_double_shot");
+  assert.equal(first.shipAbilityState.chargeStartedAt, 1_000);
+  assert.equal(first.shipAbilityState.chargeReadyAt, 4_000);
+  assert.equal(first.shipAbilityState.chargeReady, false);
   assert.equal(charged.ok, true);
   assert.equal(charged.doubleStrike.abilityId, "spectral_double_shot");
   assert.equal(charged.doubleStrike.bonusDamage, charged.doubleStrike.baseDamage);
   assert.equal(charged.doubleStrike.chargeStartedAt, 4_000);
   assert.equal(charged.doubleStrike.chargeReadyAt, 7_000);
+  assert.equal(charged.shipAbilityState.chargeStartedAt, 4_000);
+  assert.equal(charged.shipAbilityState.chargeReadyAt, 7_000);
   assert.equal(charged.damage, charged.doubleStrike.baseDamage * 2);
   assert.equal(recharging.ok, true);
   assert.equal(recharging.doubleStrike, null);
+  assert.equal(recharging.shipAbilityState.chargeStartedAt, 4_000);
+  assert.equal(recharging.shipAbilityState.chargeReadyAt, 7_000);
+});
+
+test("Asterion double strike stacks with elite red laser burst damage", ()=>{
+  const profile = createDefaultProfile();
+  profile.ownedShips.push("asterion");
+  profile.activeShip = "asterion";
+  const laserUids = Array.from({length:10}, (_,index)=>{
+    const uid = `asterion_elite_red_${index + 1}`;
+    profile.inventoryItems.push({uid, itemId:"laser_elite_red"});
+    return uid;
+  });
+  profile.shipLoadouts.asterion = {
+    lasers:laserUids,
+    missileLauncher:null,
+    rocketLauncher:null,
+    generators:[],
+    extras:[]
+  };
+  profile.ammoInventory.ammo_x1 = 100;
+  profile.eliteLaserStates = {
+    current:{
+      lastLaserAt:3_000,
+      green:{charge:0},
+      blue:{charge:0, phase:"charge"},
+      red:{charge:4}
+    }
+  };
+  const enemy = {id:"dummy", x:100, y:0, hp:500_000, shield:0, maxShield:0, radius:30};
+  assert.equal(activateServerShipAbility({
+    player:{id:"ability-player-red", state:{shipId:"asterion", x:0, y:0, hp:180_000, maxHp:180_000}},
+    profile,
+    abilityId:"spectral_double_shot",
+    now:1_000
+  }).ok, true);
+
+  const result = resolveServerCombatFire({
+    player:{id:"fire-red-boost", state:{shipId:"asterion", x:0, y:0}},
+    profile,
+    enemy,
+    payload:{weaponClass:"laser", ammoId:"ammo_x1"},
+    random:()=>0,
+    now:4_000
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.eliteLaser.red.triggered, true);
+  assert.equal(result.eliteLaser.red.damageBonus, 0.10);
+  assert.equal(result.doubleStrike.abilityId, "spectral_double_shot");
+  assert.equal(result.doubleStrike.baseDamage, 2310);
+  assert.equal(result.doubleStrike.bonusDamage, 2310);
+  assert.equal(result.damage, 4620);
 });

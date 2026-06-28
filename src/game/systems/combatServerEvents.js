@@ -78,8 +78,9 @@ export function createCombatServerEventSystem({
     return String(map?.id ?? map?.name ?? "");
   }
 
-  function updateSpectralDoubleShotCharge(status = {}){
+  function updateSpectralDoubleShotCharge(status = {}, ownerId = ""){
     if(String(status?.abilityId || "") !== "spectral_double_shot") return false;
+    if(ownerId && String(ownerId) !== String(multiplayer.playerId || "")) return false;
     const {player, store} = getState();
     if(!player) return false;
     const activeShipId = String(store?.state?.activeShip || "");
@@ -680,7 +681,7 @@ export function createCombatServerEventSystem({
   function addSpectralDoubleShotVisual(event, enemy = null){
     if(String(event?.doubleStrike?.abilityId || "") !== "spectral_double_shot") return;
     if(String(event.weaponClass || "") !== "laser") return;
-    updateSpectralDoubleShotCharge(event.doubleStrike);
+    updateSpectralDoubleShotCharge(event.doubleStrike, event.attackerId);
     const {player, particles} = getState();
     const toX = Number(enemy?.x ?? event.x);
     const toY = Number(enemy?.y ?? event.y);
@@ -766,6 +767,7 @@ export function createCombatServerEventSystem({
       });
       addRickyAttackVisual(event);
       updateEliteLaserCharges(event);
+      updateSpectralDoubleShotCharge(event.shipAbilityState, event.attackerId);
       const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId));
       addSpectralDoubleShotVisual(event, enemy);
       if(!enemy){

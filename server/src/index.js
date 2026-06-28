@@ -698,6 +698,7 @@ function applyPlayerHit(socket, payload){
     missileHits:result.missileHits || 0,
     missileMisses:result.missileMisses || 0,
     doubleStrike:result.doubleStrike || null,
+    shipAbilityState:result.shipAbilityState || null,
     eliteLaser:result.eliteLaser || null,
     mapId:String(attacker.mapId ?? ""),
     fromX:Number(attacker.state.x || 0),

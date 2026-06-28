@@ -54,7 +54,7 @@ const ELITE_GREEN_LIFESTEAL_MAX = 0.25;
 const ELITE_BLUE_CADENCE_PER_LASER = 0.005;
 const ELITE_BLUE_CADENCE_MAX = 0.15;
 const ELITE_RED_DAMAGE_PER_LASER = 0.01;
-const ELITE_RED_DAMAGE_MAX = 0.20;
+const ELITE_RED_DAMAGE_MAX = 0.25;
 const ELITE_LASER_COLORS = ["green", "blue", "red"];
 const ELITE_LASER_IDS = new Map([
   ["laser_elite_green", "green"],
@@ -495,6 +495,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     ? applyServerLaserDoubleStrike({player, profile, weaponClass, hit, damage:baseDamage, now})
     : {triggered:false, bonusDamage:0};
   const bonusDamage = Math.max(0, Math.round(Number(doubleStrike?.bonusDamage || 0)));
+  const shipAbilityState = doubleStrike?.status || null;
   return {
     ok:true,
     hit,
@@ -509,9 +510,11 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     droneBoostPercent,
     firmDamageBonus:activeFirmDamageBonus,
     eliteLaser,
+    shipAbilityState,
     range,
     doubleStrike:doubleStrike?.triggered ? {
       abilityId:doubleStrike.status?.abilityId || "spectral_double_shot",
+      shipId:doubleStrike.status?.shipId || String(profile.activeShip || player.state.shipId || ""),
       baseDamage,
       bonusDamage,
       chargeMs:Number(doubleStrike.chargeMs || doubleStrike.status?.chargeMs || 0),

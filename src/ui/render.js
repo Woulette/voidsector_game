@@ -334,7 +334,7 @@ function eliteLaserEffectStats(item){
   if(color === "red"){
     return [
       ["Bonus", "+1% dégâts / laser"],
-      ["Max", "20%"],
+      ["Max", "25%"],
       ["Effet", "Toutes les 5 secondes"]
     ];
   }
