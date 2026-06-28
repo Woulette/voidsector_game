@@ -51,7 +51,8 @@ export function renderActionBarHtml({slots, slotKeybinds, getAmmo, getExtra, get
               ? `<img src="${formation.img}" alt="${formation.name}"><span class="slot-name">${formation.short || formation.name}</span>`
               : `<span class="no-item">+</span><span class="slot-name">VIDE</span>`;
     const title = state.reason || state.name || slotDisplayName({ammo, item:extra || cpu || rocketLauncher, formation});
-    return `<div class="action-slot ammo-slot ${extra ? "extra-slot" : ""} ${cpu ? "cpu-slot" : ""} ${rocketLauncher ? "rocket-launcher-slot" : ""} ${formation ? "formation-slot" : ""} ${filled ? "" : "empty"} ${unavailable ? "unavailable blocked" : ""}" data-action-index="${index}" draggable="${filled ? "true" : "false"}" title="${escapeAttr(title)}"><span class="key">${keyCodeToLabel(slotKeybinds?.[index])}</span><div class="cooldown" data-action-cooldown="${index}" style="height:0%"></div>${content}</div>`;
+    const itemIdAttr = id ? ` data-action-item-id="${escapeAttr(id)}"` : "";
+    return `<div class="action-slot ammo-slot ${extra ? "extra-slot" : ""} ${cpu ? "cpu-slot" : ""} ${rocketLauncher ? "rocket-launcher-slot" : ""} ${formation ? "formation-slot" : ""} ${filled ? "" : "empty"} ${unavailable ? "unavailable blocked" : ""}" data-action-index="${index}"${itemIdAttr} draggable="${filled ? "true" : "false"}" title="${escapeAttr(title)}"><span class="key">${keyCodeToLabel(slotKeybinds?.[index])}</span><div class="cooldown" data-action-cooldown="${index}" style="height:0%"></div>${content}</div>`;
   }).join("");
 }
 

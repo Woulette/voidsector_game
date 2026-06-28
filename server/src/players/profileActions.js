@@ -13,7 +13,9 @@ import { depositServerCombatBoostMaterial } from "../economy/combatBoosts.js";
 import { sellServerCommerceMaterials } from "../economy/materialCommerce.js";
 import { applyPremiumPackToPlayer, claimBetaRewardState, claimPremiumRewardState } from "../../../src/data/premium.js";
 import { BOOSTER_TYPE_IDS, addPlayerBoosterUnits } from "../../../src/shared/firmBoosters.js";
+import { canAcceptQuestDuringTutorial } from "../../../src/shared/tutorial.js";
 import { abandonTutorialAfterOutsideQuestAction } from "./tutorialActions.js";
+import { attachProfileSave, cloneProfileSnapshot, restoreProfileSnapshot } from "./profilePersistenceResult.js";
 
 const BETA_PURCHASE_LOG_DIR = new URL("../../data/", import.meta.url);
 const BETA_PURCHASE_LOG_FILE = new URL("../../data/betaPurchases.jsonl", import.meta.url);
@@ -28,9 +30,32 @@ function appendBetaPurchaseLog(record){
 }
 
 export function createProfileActions({profiles, persist, getExistingProfile}){
+  function commitProfileChange(key, previous, next){
+    const finalProfile = sanitizeProfile(next);
+    profiles.set(key, finalProfile);
+    let persistResult = null;
+    try{
+      persistResult = persist(key);
+    }catch(error){
+      persistResult = Promise.reject(error);
+    }
+    const save = Promise.resolve(persistResult).catch(error=>{
+      restoreProfileSnapshot(profiles, key, previous);
+      throw error;
+    });
+    save.catch(()=>{});
+    return {profile:finalProfile, save};
+  }
+
+  function commitProfileResult(result, key, previous, next){
+    const committed = commitProfileChange(key, previous, next);
+    return attachProfileSave({...result, profile:committed.profile}, committed.save);
+  }
+
   function spendAndUpdate({player, priceType, amount, update, activity} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     const result = spendCurrency(profile.player || {}, priceType, amount);
     if(!result.ok) return result;
     const next = sanitizeProfile({
@@ -40,9 +65,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     });
     if(typeof update === "function") update(next);
     if(activity) appendProfileActivity(next, activity);
-    profiles.set(key, next);
-    persist(key);
-    return {...result, profile:next};
+    return commitProfileResult(result, key, previous, next);
   }
 
   function addAmmoPurchase({player, purchase} = {}){
@@ -112,6 +135,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(!["s1", "s2"].includes(series)) return {ok:false, reason:"Série de booster invalide."};
     if(!BOOSTER_TYPE_IDS.includes(String(type || ""))) return {ok:false, reason:"Type de booster invalide."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     profile.boosters = addPlayerBoosterUnits(profile.boosters, {
       series,
       type,
@@ -125,15 +149,14 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       data:{boosterType:type || "", series, quantity:Number(quantity || 1), source:String(source || "event")}
     });
     const next = sanitizeProfile({...profile, updatedAt:Date.now()});
-    profiles.set(key, next);
-    persist(key);
-    return {ok:true, profile:next};
+    return commitProfileResult({ok:true}, key, previous, next);
   }
 
   function addShipPurchase({player, purchase} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     if(!purchase?.id) return {ok:false, reason:"Vaisseau invalide."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     if(Array.isArray(profile.ownedShips) && profile.ownedShips.includes(purchase.id)){
       return {ok:false, reason:"Vaisseau déjà possédé."};
     }
@@ -164,9 +187,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     });
     const claimedQuests = claimCompletedServerQuests(profile).claimed || [];
     const next = sanitizeProfile({...profile, updatedAt:Date.now()});
-    profiles.set(key, next);
-    persist(key);
-    return {...result, claimedQuests, profile:next};
+    return commitProfileResult({...result, claimedQuests}, key, previous, next);
   }
   
   function addDronePurchase({player, purchase} = {}){
@@ -192,6 +213,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
   function addDroneFormationPurchase({player, purchase} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     const alreadyOwned = Array.isArray(profile.ownedDroneFormations) && profile.ownedDroneFormations.includes(purchase.id);
     const result = spendCurrency(profile.player || {}, purchase?.priceType, alreadyOwned ? 0 : purchase?.totalPrice);
     if(!result.ok) return result;
@@ -211,9 +233,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       data:{formationId:purchase?.id || "", owned:alreadyOwned}
     });
     const finalProfile = sanitizeProfile(next);
-    profiles.set(key, finalProfile);
-    persist(key);
-    return {...result, profile:finalProfile, owned:alreadyOwned};
+    return commitProfileResult({...result, owned:alreadyOwned}, key, previous, finalProfile);
   }
 
   function addPremiumPackPurchase({player, purchase} = {}){
@@ -309,6 +329,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(!purchase?.id) return {ok:false, reason:"Pack beta invalide."};
     if(purchase.locked) return {ok:false, reason:purchase.reason || "Pack beta indisponible."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     const bought = Array.isArray(profile.betaPackPurchases) ? profile.betaPackPurchases.map(String) : [];
     if(bought.includes(purchase.id)) return {ok:false, reason:"Pack beta deja achete."};
     if(!Array.isArray(profile.betaPackPurchases)) profile.betaPackPurchases = [];
@@ -340,9 +361,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       }
     });
     const next = sanitizeProfile({...profile, updatedAt:Date.now()});
-    profiles.set(key, next);
-    persist(key);
-    appendBetaPurchaseLog({
+    const committed = commitProfileResult({ok:true}, key, previous, next);
+    const logSave = committed.save.then(()=>appendBetaPurchaseLog({
       type:"beta_pack_purchase",
       accountKey:String(key || ""),
       playerId:String(player?.id || player?.accountId || ""),
@@ -357,13 +377,14 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       betaPackPurchases:next.betaPackPurchases || [],
       recordedAt:Date.now(),
       recordedAtIso:new Date().toISOString()
-    });
-    return {ok:true, profile:next};
+    }));
+    return attachProfileSave(committed, logSave);
   }
 
   function claimPremiumReward({player} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     const result = claimPremiumRewardState(profile);
     if(!result.ok) return result;
     applyRewardPayload(profile, result.reward?.reward || {});
@@ -377,14 +398,13 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       ...profile,
       updatedAt:Date.now()
     });
-    profiles.set(key, next);
-    persist(key);
-    return {...result, profile:next};
+    return commitProfileResult(result, key, previous, next);
   }
 
   function claimBetaReward({player} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     const result = claimBetaRewardState(profile);
     if(!result.ok) return result;
     const applied = applyRewardPayload(profile, result.reward?.reward || {}, {randomShipKey:`day_${result.day}`});
@@ -398,9 +418,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       ...profile,
       updatedAt:Date.now()
     });
-    profiles.set(key, next);
-    persist(key);
-    return {...result, randomShip:applied.randomShip || "", profile:next};
+    return commitProfileResult({...result, randomShip:applied.randomShip || ""}, key, previous, next);
   }
 
   function getSaleValue(item){
@@ -418,6 +436,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     const uid = String(inventoryUid || "");
     if(!uid) return {ok:false, reason:"Objet invalide."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     const entryIndex = Array.isArray(profile.inventoryItems)
       ? profile.inventoryItems.findIndex(entry=>entry?.uid === uid)
       : -1;
@@ -441,21 +460,19 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       ...profile,
       updatedAt:Date.now()
     });
-    profiles.set(key, next);
-    persist(key);
-    return {
+    return commitProfileResult({
       ok:true,
       item:{id:item.id, name:item.name},
       inventoryUid:uid,
       priceType:value.priceType,
-      amount:value.amount,
-      profile:next
-    };
+      amount:value.amount
+    }, key, previous, next);
   }
   
   function applyEquipmentAction({player, action} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     let result = null;
     if(action?.kind === "batch"){
       const actions = Array.isArray(action.actions) ? action.actions.slice(0, 64) : [];
@@ -497,7 +514,10 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     }else{
       result = {ok:false, reason:"Action equipement invalide."};
     }
-    if(!result.ok) return result;
+    if(!result.ok){
+      restoreProfileSnapshot(profiles, key, previous);
+      return result;
+    }
     const claimedQuests = claimCompletedServerQuests(profile).claimed || [];
     appendProfileActivity(profile, {
       type:"equipment",
@@ -509,15 +529,14 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       ...profile,
       updatedAt:Date.now()
     });
-    profiles.set(key, next);
-    persist(key);
-    return {...result, claimedQuests, profile:next};
+    return commitProfileResult({...result, claimedQuests}, key, previous, next);
   }
   
   function setActiveShipForPlayer({player, shipId, worldSession = null} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const cleanShipId = String(shipId || "");
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     if(!cleanShipId) return {ok:false, reason:"Vaisseau invalide."};
     if(!Array.isArray(profile.ownedShips) || !profile.ownedShips.map(String).includes(cleanShipId)){
       return {ok:false, reason:"Vaisseau non possede."};
@@ -542,14 +561,21 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     const claimedQuests = claimCompletedServerQuests(draft).claimed || [];
     if(claimedQuests.length) draft.updatedAt = Date.now();
     const next = sanitizeProfile(draft);
-    profiles.set(key, next);
-    persist(key);
-    return {ok:true, shipId:cleanShipId, claimedQuests, profile:next};
+    return commitProfileResult({ok:true, shipId:cleanShipId, claimedQuests}, key, previous, next);
   }
   
+  function tutorialSnapshot(profile){
+    return JSON.stringify(profile?.tutorial || null);
+  }
+
   function applyQuestAction({player, action} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    if(action?.kind === "accept" && !canAcceptQuestDuringTutorial(profile?.tutorial, action.questId)){
+      return {ok:false, reason:"Tutoriel actif : accepte uniquement la mission indiquee."};
+    }
+    const previous = cloneProfileSnapshot(profile);
+    const tutorialBefore = tutorialSnapshot(profile);
     let result = null;
     let claimedQuests = [];
     if(action?.kind === "accept"){
@@ -574,7 +600,10 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     }else{
       result = {ok:false, reason:"Action quete invalide."};
     }
-    if(!result.ok) return result;
+    if(!result.ok){
+      restoreProfileSnapshot(profiles, key, previous);
+      return result;
+    }
     if(action?.kind === "claim") claimedQuests = result.claimedQuests || [];
     if(action?.kind === "accept" && result.quest?.id){
       claimedQuests = claimCompletedServerQuests(profile, [result.quest.id]).claimed || [];
@@ -602,14 +631,19 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       ...profile,
       updatedAt:Date.now()
     });
-    profiles.set(key, next);
-    persist(key);
-    return {...result, claimedQuests, profile:next};
+    const tutorialChanged = tutorialBefore !== tutorialSnapshot(next);
+    return commitProfileResult({
+      ...result,
+      claimedQuests,
+      tutorial:next.tutorial,
+      tutorialChanged
+    }, key, previous, next);
   }
   
   function applyEconomyAction({player, action} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     completeServerRefineryUpgrades(profile);
     completeServerRefineryShipment(profile);
     let result = null;
@@ -649,7 +683,10 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     }else{
       result = {ok:false, reason:"Action economie invalide."};
     }
-    if(!result.ok) return result;
+    if(!result.ok){
+      restoreProfileSnapshot(profiles, key, previous);
+      return result;
+    }
     const completedIds = [...new Set((questProgress?.updates || [])
       .filter(update=>update?.completed)
       .map(update=>String(update.questId || update.id || ""))
@@ -665,14 +702,13 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       ...profile,
       updatedAt:Date.now()
     });
-    profiles.set(key, next);
-    persist(key);
-    return {...result, questUpdates:questProgress?.updates || [], claimedQuests, profile:next};
+    return commitProfileResult({...result, questUpdates:questProgress?.updates || [], claimedQuests}, key, previous, next);
   }
   
   function applyProgressionAction({player, action} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     let result = null;
     if(action?.kind === "skill-upgrade"){
       result = upgradeServerSkill(profile, action.id);
@@ -683,7 +719,10 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     }else{
       result = {ok:false, reason:"Action progression invalide."};
     }
-    if(!result.ok) return result;
+    if(!result.ok){
+      restoreProfileSnapshot(profiles, key, previous);
+      return result;
+    }
     appendProfileActivity(profile, {
       type:"progression",
       label:"Progression",
@@ -694,9 +733,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       ...profile,
       updatedAt:Date.now()
     });
-    profiles.set(key, next);
-    persist(key);
-    return {...result, profile:next};
+    return commitProfileResult(result, key, previous, next);
   }
   
   return {addAmmoPurchase, addItemPurchase, addBoosterPurchase, grantBooster, addShipPurchase, addDronePurchase, addDroneFormationPurchase, addPremiumPackPurchase, addBetaPackPurchase, claimPremiumReward, claimBetaReward, sellInventoryItem, applyEquipmentAction, setActiveShipForPlayer, applyQuestAction, applyEconomyAction, applyProgressionAction};

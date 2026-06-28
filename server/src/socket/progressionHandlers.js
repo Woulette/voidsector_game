@@ -1,9 +1,14 @@
 import { applyProfileTitleSelection } from "../players/profileTitles.js";
+import { confirmProfileSave } from "./profileSaveGuard.js";
 
 export function registerProgressionHandlers(socket, context){
   const {emitProfileSync, guard, players, profileManager} = context;
 
-  socket.on("skill:upgrade", payload=>{
+  async function ensureSaved(result, eventName){
+    return confirmProfileSave(socket, result, {eventName});
+  }
+
+  socket.on("skill:upgrade", async payload=>{
     if(!guard("skill:upgrade")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -15,6 +20,7 @@ export function registerProgressionHandlers(socket, context){
       socket.emit("skill:error", {message:result.reason || "Competence impossible."});
       return;
     }
+    if(!await ensureSaved(result, "skill:error")) return;
     socket.emit("skill:upgraded", {
       skill:result.skill || null,
       level:result.level,
@@ -25,7 +31,7 @@ export function registerProgressionHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("portal:unlock", payload=>{
+  socket.on("portal:unlock", async payload=>{
     if(!guard("portal:unlock")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -37,6 +43,7 @@ export function registerProgressionHandlers(socket, context){
       socket.emit("portal:error", {message:result.reason || "Portail impossible."});
       return;
     }
+    if(!await ensureSaved(result, "portal:error")) return;
     socket.emit("portal:unlocked", {
       portal:result.portal || null,
       method:result.method,
@@ -45,7 +52,7 @@ export function registerProgressionHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("prestige:perform", ()=>{
+  socket.on("prestige:perform", async ()=>{
     if(!guard("prestige:perform")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -57,6 +64,7 @@ export function registerProgressionHandlers(socket, context){
       socket.emit("prestige:error", {message:result.reason || "Prestige impossible."});
       return;
     }
+    if(!await ensureSaved(result, "prestige:error")) return;
     socket.emit("prestige:performed", {
       prestige:result.prestige,
       at:Date.now()
@@ -64,7 +72,7 @@ export function registerProgressionHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("profile:title-set", payload=>{
+  socket.on("profile:title-set", async payload=>{
     if(!guard("profile:title-set")) return;
     const player = players.get(socket.id);
     if(!player?.accountId){
@@ -82,6 +90,7 @@ export function registerProgressionHandlers(socket, context){
       socket.emit("profile:title-error", {message:result.reason || "Titre impossible."});
       return;
     }
+    if(!await ensureSaved(result, "profile:title-error")) return;
     socket.emit("profile:title-updated", {
       titleId:result.titleId,
       visible:result.visible,

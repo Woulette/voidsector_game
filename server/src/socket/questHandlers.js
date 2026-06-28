@@ -1,4 +1,5 @@
 import { WORLD_MAPS } from "../world/definitions.js";
+import { confirmProfileSave } from "./profileSaveGuard.js";
 
 const CLIENT_PROGRESS_TYPES = new Set([
   "talk_npc",
@@ -52,9 +53,20 @@ function getMissionControlStation(player){
 }
 
 export function registerQuestHandlers(socket, context){
-  const {emitProfileSync, emitQuestClaims:emitQuestClaimsForPlayer, guard, players, profileManager, progressProfileQuestAction} = context;
+  const {emitProfileSync, emitQuestClaims:emitQuestClaimsForPlayer, emitTutorialUpdate, guard, players, profileManager, progressProfileQuestAction} = context;
 
-  socket.on("quest:accept", payload=>{
+  async function ensureSaved(result){
+    return confirmProfileSave(socket, result, {eventName:"quest:error"});
+  }
+
+  function emitQuestTutorialUpdate(player, result, source){
+    emitTutorialUpdate?.(player, result, {
+      source,
+      questId:String(result?.quest?.id || "")
+    });
+  }
+
+  socket.on("quest:accept", async payload=>{
     if(!guard("quest:accept")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -66,12 +78,14 @@ export function registerQuestHandlers(socket, context){
       socket.emit("quest:error", {message:result.reason || "Quete impossible."});
       return;
     }
+    if(!await ensureSaved(result)) return;
     socket.emit("quest:accepted", {id:result.quest?.id, title:result.quest?.title, at:Date.now()});
+    emitQuestTutorialUpdate(player, result, "quest:accept");
     if(result.claimedQuests?.length) emitQuestClaimsForPlayer?.(player, result.claimedQuests, {auto:true});
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("quest:claim", payload=>{
+  socket.on("quest:claim", async payload=>{
     if(!guard("quest:claim")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -83,6 +97,7 @@ export function registerQuestHandlers(socket, context){
       socket.emit("quest:error", {message:result.reason || "Recompense impossible."});
       return;
     }
+    if(!await ensureSaved(result)) return;
     socket.emit("quest:claimed", {
       id:result.quest?.id,
       title:result.quest?.title,
@@ -90,10 +105,11 @@ export function registerQuestHandlers(socket, context){
       auto:false,
       at:Date.now()
     });
+    emitQuestTutorialUpdate(player, result, "quest:claim");
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("quest:track", payload=>{
+  socket.on("quest:track", async payload=>{
     if(!guard("quest:track")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -105,11 +121,12 @@ export function registerQuestHandlers(socket, context){
       socket.emit("quest:error", {message:result.reason || "Suivi de quete impossible."});
       return;
     }
+    if(!await ensureSaved(result)) return;
     socket.emit("quest:tracked", {id:result.quest?.id, title:result.quest?.title, at:Date.now()});
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("quest:progress", payload=>{
+  socket.on("quest:progress", async payload=>{
     if(!guard("quest:progress")) return;
     const type = String(payload?.type || "");
     if(!CLIENT_PROGRESS_TYPES.has(type)) return;
@@ -126,7 +143,7 @@ export function registerQuestHandlers(socket, context){
         socket.emit("quest:error", {message:npcResult.reason || "Interaction PNJ impossible."});
         return;
       }
-      progressProfileQuestAction(socket, {
+      await progressProfileQuestAction(socket, {
         type,
         itemId:String(payload?.itemId || ""),
         npcId:String(npcResult.npc.id || ""),
@@ -140,7 +157,7 @@ export function registerQuestHandlers(socket, context){
         socket.emit("quest:error", {message:stationResult.reason || "Controleur de mission impossible."});
         return;
       }
-      progressProfileQuestAction(socket, {
+      await progressProfileQuestAction(socket, {
         type,
         stationId:String(stationResult.station.id || "quests"),
         zoneName:String(stationResult.map.name || "")
@@ -151,7 +168,7 @@ export function registerQuestHandlers(socket, context){
       socket.emit("quest:error", {message:"Position joueur inconnue."});
       return;
     }
-    progressProfileQuestAction(socket, {
+    await progressProfileQuestAction(socket, {
       type,
       zoneName:String(map.name || ""),
       x:Number(player.state.x || 0),

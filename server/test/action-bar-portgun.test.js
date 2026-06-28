@@ -24,4 +24,5 @@ test("Portgun action slot displays remaining teleportation fluid charges", ()=>{
 
   assert.match(html, /slot-count">12</);
   assert.match(html, /slot-name">Portgun</);
+  assert.match(html, /data-action-item-id="pistou_portgun"/);
 });

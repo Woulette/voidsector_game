@@ -36,7 +36,7 @@ test("server never publishes a forged locked title", ()=>{
   assert.equal(buildPublicPlayerProfile({key:"account:1", profile}).title, null);
 });
 
-test("profile title socket command updates the authoritative profile", ()=>{
+test("profile title socket command updates the authoritative profile", async ()=>{
   const profile = createDefaultProfile();
   profile.player.totalKills = 100;
   const handlers = new Map();
@@ -65,7 +65,7 @@ test("profile title socket command updates the authoritative profile", ()=>{
     }
   });
 
-  handlers.get("profile:title-set")({titleId:"hunter_100", visible:true});
+  await handlers.get("profile:title-set")({titleId:"hunter_100", visible:true});
 
   assert.equal(profile.player.activeTitleId, "hunter_100");
   assert.equal(syncedProfile, profile);

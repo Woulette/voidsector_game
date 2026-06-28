@@ -27,6 +27,7 @@ import { canSharePlayerState } from "./players/visibility.js";
 import { createPresenceManager } from "./players/presence.js";
 import { createProfileManager } from "./players/profiles.js";
 import { sanitizePilotName } from "./players/profileIdentity.js";
+import { waitForProfileSave } from "./players/profilePersistenceResult.js";
 import { updateRankScore } from "./players/rankProgression.js";
 import { createPortalInstanceManager } from "./portals/instances.js";
 import { createKillQuestProgress } from "./quests/killProgress.js";
@@ -243,7 +244,7 @@ const presence = createPresenceManager({
   getProfileForPlayer:player=>profileManager.getProfileForPlayer(player)
 });
 
-function progressProfileQuestAction(socket, action = {}){
+async function progressProfileQuestAction(socket, action = {}){
   const player = players.get(socket.id);
   if(!player) return null;
   const result = profileManager.applyQuestAction({
@@ -252,6 +253,12 @@ function progressProfileQuestAction(socket, action = {}){
   });
   if(!result.ok){
     socket.emit("quest:error", {message:result.reason || "Progression quete impossible."});
+    return result;
+  }
+  try{
+    await waitForProfileSave(result);
+  }catch{
+    socket.emit("quest:error", {message:"Sauvegarde temporairement indisponible. Reessaie.", at:Date.now()});
     return result;
   }
   if(result.updates?.length){
@@ -264,6 +271,7 @@ function progressProfileQuestAction(socket, action = {}){
   if(result.updates?.length || result.claimedQuests?.length){
     emitProfileSyncForPlayer(player, result.profile);
   }
+  emitTutorialUpdateForPlayer(player, result, {source:"quest:progress"});
   return result;
 }
 
@@ -302,6 +310,20 @@ function emitProfileSyncForPlayer(player, profile){
   for(const accountPlayer of accountSocketsForPlayer(player)){
     const accountSocket = io.sockets.sockets.get(accountPlayer.id);
     accountSocket?.emit("profile:sync", profile);
+  }
+}
+
+function emitTutorialUpdateForPlayer(player, result, extra = {}){
+  if(!player || !result?.tutorialChanged || !result.profile?.tutorial) return;
+  const payload = {
+    tutorial:result.profile.tutorial,
+    recovered:true,
+    ...extra,
+    at:Date.now()
+  };
+  for(const accountPlayer of accountSocketsForPlayer(player)){
+    const accountSocket = io.sockets.sockets.get(accountPlayer.id);
+    accountSocket?.emit("tutorial:updated", payload);
   }
 }
 
@@ -673,6 +695,8 @@ function applyPlayerHit(socket, payload){
     ammoRemaining:result.ammoRemaining,
     hit:result.hit,
     damage:incoming,
+    missileHits:result.missileHits || 0,
+    missileMisses:result.missileMisses || 0,
     doubleStrike:result.doubleStrike || null,
     mapId:String(attacker.mapId ?? ""),
     fromX:Number(attacker.state.x || 0),
@@ -884,6 +908,7 @@ io.on("connection", socket=>{
     players,
     profileManager,
     emitProfileSync:emitProfileSyncForPlayer,
+    emitTutorialUpdate:emitTutorialUpdateForPlayer,
     emitQuestClaims:emitQuestClaimsForPlayer,
     progressProfileQuestAction
   };

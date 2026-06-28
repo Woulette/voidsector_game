@@ -2,6 +2,7 @@
 .tutorial-launcher:hover{filter:brightness(1.2)}
 .tutorial-guide{--tutorial-accent:#38bdf8;position:fixed;z-index:19000;right:22px;bottom:22px;display:grid;grid-template-columns:190px minmax(300px,440px);width:min(650px,calc(100vw - 32px));min-height:205px;overflow:hidden;border:1px solid rgba(56,189,248,.72);background:linear-gradient(135deg,rgba(2,14,27,.98),rgba(1,7,14,.985));box-shadow:0 0 38px rgba(14,165,233,.22),inset 4px 0 0 var(--tutorial-accent)}
 .tutorial-guide.hidden,.tutorial-launcher.hidden,.tutorial-arrow.hidden,.tutorial-input-lock.hidden,.tutorial-abandon-backdrop.hidden,.tutorial-reward-overlay.hidden{display:none!important}
+body.game-disconnect-active .tutorial-guide,body.game-disconnect-active .tutorial-launcher,body.game-disconnect-active .tutorial-arrow,body.game-disconnect-active .tutorial-input-lock,body.game-disconnect-active .tutorial-abandon-backdrop,body.game-disconnect-active .tutorial-reward-overlay{display:none!important}
 .tutorial-input-lock{position:fixed;z-index:18950;inset:0;background:transparent;cursor:default}
 .tutorial-close{position:absolute;z-index:2;right:8px;top:7px;width:30px;height:30px;border:1px solid rgba(125,211,252,.35);background:#061827;color:#9fe8ff;font-size:20px;cursor:pointer}
 .tutorial-portrait{position:relative;min-height:205px;margin:0;overflow:hidden;border-right:1px solid rgba(56,189,248,.34);background:radial-gradient(circle at 50% 38%,rgba(56,189,248,.18),transparent 55%),#020b14}

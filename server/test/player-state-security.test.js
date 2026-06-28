@@ -600,9 +600,16 @@ test("separate Ricky groups use isolated instance rooms and cannot share player 
   assert.equal(canSharePlayerState(playerA, playerB), false);
 });
 
-test("members of the same group can share state across different maps", ()=>{
+test("members of the same group cannot share state across different maps", ()=>{
   const playerA = {id:"player-a", groupId:"group-a", mapRoom:"instance:instance-a"};
   const playerB = {id:"player-b", groupId:"group-a", mapRoom:"map:0"};
+
+  assert.equal(canSharePlayerState(playerA, playerB), false);
+});
+
+test("members of the same group can share state on the same map", ()=>{
+  const playerA = {id:"player-a", groupId:"group-a", mapId:"0"};
+  const playerB = {id:"player-b", groupId:"group-a", state:{mapId:"0"}};
 
   assert.equal(canSharePlayerState(playerA, playerB), true);
 });

@@ -76,6 +76,12 @@ function consumeAmmo(profile, ammoId, amount){
   return true;
 }
 
+function hasAmmo(profile, ammoId, amount){
+  const need = Math.max(1, Math.floor(Number(amount || 1)));
+  const have = Math.max(0, Number(profile?.ammoInventory?.[ammoId] || 0));
+  return have >= need;
+}
+
 function recordServerWeaponUse(profile, weaponClass, amount){
   if(!profile.player || typeof profile.player !== "object") profile.player = {};
   const keys = {
@@ -195,6 +201,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
   const weaponClass = String(payload?.weaponClass || ammo.weaponClass || "laser");
   if(weaponClass !== ammo.weaponClass) return {ok:false, reason:"Munition incompatible."};
   const hitChance = 0.88;
+  const missileHitChance = 0.8;
   let damage = 0;
   let consumed = 1;
   let cooldownMs = 1000;
@@ -234,7 +241,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     cooldownMs = Math.max(750, consumed * Number(launcher.effect?.missileReload || 3) * 1000);
     const multiplier = Number(launcher.effect?.missileDamageMultiplier || 1);
     for(let index = 0; index < consumed; index += 1){
-      if(random() <= hitChance){
+      if(random() <= missileHitChance){
         missileHits += 1;
         damage += rollBetween(ammo.damageMin, ammo.damageMax, random) * multiplier;
       }else{
@@ -246,9 +253,10 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
   }
 
   if(!distanceOk(player, enemy, range)) return {ok:false, reason:"Cible hors de portee."};
+  if(!hasAmmo(profile, ammo.id, consumed)) return {ok:false, reason:"Munitions insuffisantes."};
   const cooldown = checkCooldown(player, weaponClass, cooldownMs);
   if(!cooldown.ok) return cooldown;
-  if(!consumeAmmo(profile, ammo.id, consumed)) return {ok:false, reason:"Munitions insuffisantes."};
+  consumeAmmo(profile, ammo.id, consumed);
   recordServerWeaponUse(profile, weaponClass, consumed);
   let boostPercent = 0;
   let droneBoostPercent = 0;

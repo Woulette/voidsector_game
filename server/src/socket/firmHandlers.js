@@ -1,5 +1,6 @@
 import { applyFirmPendingRewards, applyFirmQuestClaimReward, buyFirmShopItem, openFirmBox } from "../firms/firmEconomy.js";
 import { enrichFirmSnapshot } from "../firms/firmSnapshots.js";
+import { confirmProfileSave } from "./profileSaveGuard.js";
 
 export function registerFirmHandlers(socket, context){
   const {emitProfileSync, firmWarManager, guard, players, profileManager} = context;
@@ -21,12 +22,16 @@ export function registerFirmHandlers(socket, context){
     socket.emit("firm:ranking", snapshot);
   }
 
+  async function ensureSaved(result){
+    return confirmProfileSave(socket, result, {eventName:"firm:error"});
+  }
+
   socket.on("firm:sync", payload=>{
     if(!guard("firm:sync")) return;
     emitSnapshot({includeShop:Boolean(payload?.includeShop)});
   });
 
-  socket.on("firm:shop-buy", payload=>{
+  socket.on("firm:shop-buy", async payload=>{
     if(!guard("firm:shop-buy")) return;
     const current = getPlayerContext();
     if(!current) return;
@@ -38,12 +43,13 @@ export function registerFirmHandlers(socket, context){
       socket.emit("firm:error", {message:result.reason || "Achat de firme impossible."});
       return;
     }
+    if(!await ensureSaved(result)) return;
     emitProfileSync(current.player, result.profile);
     socket.emit("firm:updated", {action:"shop-buy", item:result.item, firmatons:result.firmatons, at:Date.now()});
     emitSnapshot({includeShop:true});
   });
 
-  socket.on("firm:box-open", payload=>{
+  socket.on("firm:box-open", async payload=>{
     if(!guard("firm:box-open")) return;
     const current = getPlayerContext();
     if(!current) return;
@@ -55,12 +61,13 @@ export function registerFirmHandlers(socket, context){
       socket.emit("firm:error", {message:result.reason || "Ouverture de coffre impossible."});
       return;
     }
+    if(!await ensureSaved(result)) return;
     emitProfileSync(current.player, result.profile);
     socket.emit("firm:updated", {action:"box-open", boxRarity:result.boxRarity, reward:result.reward, rewardRarity:result.rewardRarity, at:Date.now()});
     emitSnapshot({includeShop:true});
   });
 
-  socket.on("firm:reward-claim", ()=>{
+  socket.on("firm:reward-claim", async ()=>{
     if(!guard("firm:reward-claim")) return;
     const current = getPlayerContext();
     if(!current) return;
@@ -77,6 +84,7 @@ export function registerFirmHandlers(socket, context){
       socket.emit("firm:error", {message:result.reason || "Reclamation impossible."});
       return;
     }
+    if(!await ensureSaved(result)) return;
     firmWarManager.consumePendingRewards(current.playerKey);
     emitProfileSync(current.player, result.profile);
     socket.emit("firm:updated", {action:"reward-claim", claimed:result.claimed, at:Date.now()});
@@ -103,7 +111,7 @@ export function registerFirmHandlers(socket, context){
     emitSnapshot();
   });
 
-  socket.on("firm:quest-claim", payload=>{
+  socket.on("firm:quest-claim", async payload=>{
     if(!guard("firm:quest-claim")) return;
     const current = getPlayerContext();
     if(!current) return;
@@ -127,12 +135,13 @@ export function registerFirmHandlers(socket, context){
       socket.emit("firm:error", {message:applied.reason || "Reclamation de quete impossible."});
       return;
     }
+    if(!await ensureSaved(applied)) return;
     emitProfileSync(current.player, applied.profile);
     socket.emit("firm:updated", {action:"quest-claim", questId:result.questId, reward:result.reward, at:Date.now()});
     emitSnapshot({includeShop:true});
   });
 
-  socket.on("firm:season-objective-claim", payload=>{
+  socket.on("firm:season-objective-claim", async payload=>{
     if(!guard("firm:season-objective-claim")) return;
     const current = getPlayerContext();
     if(!current) return;
@@ -157,6 +166,7 @@ export function registerFirmHandlers(socket, context){
       socket.emit("firm:error", {message:applied.reason || "Réclamation saisonnière impossible."});
       return;
     }
+    if(!await ensureSaved(applied)) return;
     emitProfileSync(current.player, applied.profile);
     socket.emit("firm:updated", {action:"season-objective-claim", objectiveId:result.objectiveId, reward:result.reward, at:Date.now()});
     emitSnapshot({includeShop:true});

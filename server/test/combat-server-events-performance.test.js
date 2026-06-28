@@ -105,6 +105,35 @@ test("stale server player damage refreshes vitals without replaying frame effect
   assert.equal(multiplayer.playerDamageEvents.length, 0);
 });
 
+test("server combat hit texts merge only near-simultaneous damage on the same target", ()=>{
+  const texts = [];
+  const state = {
+    enemies:[{id:"enemy-1", x:100, y:200, radius:40}],
+    store:{state:{ammoInventory:{ammo_x1:10, rocket_r1:10, missile_m1:10}}}
+  };
+  const multiplayer = {
+    playerId:"player-1",
+    combatEvents:[
+      {enemyId:"enemy-1", attackerId:"player-1", weaponClass:"laser", ammoId:"ammo_x1", consumed:1, ammoRemaining:9, damage:10000, mapId:"0", at:1000},
+      {enemyId:"enemy-1", attackerId:"player-1", weaponClass:"rocket", ammoId:"rocket_r1", consumed:1, ammoRemaining:9, damage:5000, mapId:"0", at:1060},
+      {enemyId:"enemy-1", attackerId:"player-1", weaponClass:"missile", ammoId:"missile_m1", consumed:3, ammoRemaining:7, damage:2000, mapId:"0", at:1200}
+    ]
+  };
+  const system = createSystem({
+    multiplayer,
+    state,
+    pushDamageText:text=>texts.push(text)
+  });
+
+  system.applyCombatHitEvents();
+
+  assert.deepEqual(texts.map(entry=>entry.value), [15000, 2000]);
+  assert.equal(multiplayer.combatEvents.length, 0);
+  assert.equal(state.store.state.ammoInventory.ammo_x1, 9);
+  assert.equal(state.store.state.ammoInventory.rocket_r1, 9);
+  assert.equal(state.store.state.ammoInventory.missile_m1, 7);
+});
+
 test("status effect events only apply the latest state per type in a frame", ()=>{
   const poisonCalls = [];
   const slowCalls = [];

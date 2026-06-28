@@ -202,6 +202,44 @@ test("profile manager records profile persistence failures with the account id",
   assert.equal(recorded[0].error.includes("profile write failed"), true);
 });
 
+test("critical profile mutations expose a save promise and roll back after persistence failure", async ()=>{
+  let rejectWrites = false;
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:async()=>[],
+    persistProfileEntries:async()=>{
+      if(rejectWrites) throw new Error("profile store offline");
+    }
+  });
+  const player = {
+    id:"socket-critical-save",
+    accountId:"critical-save",
+    name:"Critical Save",
+    account:{username:"Critical Save", firmId:"astra"}
+  };
+
+  manager.syncForSocket({emit(){}}, player);
+  await manager.flushPersistence();
+  const before = manager.getProfileForPlayer(player);
+  const creditsBefore = before.player.credits;
+  rejectWrites = true;
+
+  const result = manager.updateProfileForPlayer({
+    player,
+    update:profile=>{
+      profile.player.credits = creditsBefore + 12345;
+      return {ok:true};
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(Object.keys(result).includes("save"), false);
+  assert.equal(result.profile.player.credits, creditsBefore + 12345);
+  await assert.rejects(result.save, /profile store offline/);
+  assert.equal(manager.getProfileForPlayer(player).player.credits, creditsBefore);
+});
+
 test("combat profile mutations coalesce persistence until the next flush", async ()=>{
   const writes = [];
   const manager = createProfileManager({

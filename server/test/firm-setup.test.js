@@ -89,6 +89,74 @@ test("player hello refuses guest gameplay when no auth token is present", ()=>{
   assert.equal(rejection?.payload?.eventName, "player:hello");
 });
 
+test("player laser visual requires an active same-map game state", ()=>{
+  const socket = makeSocket("laser-socket");
+  const roomEvents = [];
+  socket.to = room=>({emit:(event, payload)=>roomEvents.push({room, event, payload})});
+  const player = {
+    id:socket.id,
+    accountId:"account-laser",
+    account:{id:"account-laser", username:"Laser"},
+    clientMode:"launcher",
+    connected:true,
+    mapId:"0",
+    mapRoom:"map:0",
+    state:{mapId:"0", x:100, y:100, hp:1000}
+  };
+  const players = new Map([[socket.id, player]]);
+  registerPlayerHandlers(socket, {
+    cleanName:value=>String(value || "Pilote"),
+    emitPlayers(){},
+    groups:new Map(),
+    guard:()=>true,
+    io:{sockets:{sockets:new Map([[socket.id, socket]])}, emit(){}},
+    logger:{warn(){}},
+    players,
+    presence:{syncMovementLogoutState(){}, markCombat(){}, markActivity(){}, startLogout(){}},
+    profileManager:{
+      profileKeyForPlayer:()=>"account:laser",
+      getProfileForPlayer:()=>createDefaultProfile(),
+      saveWorldSession(){},
+      listProfileEntries:()=>[]
+    },
+    publicPlayer:current=>current,
+    replaceGroupMemberId(){},
+    resumeQuestTimers(){},
+    setPlayerMap(){},
+    syncPlayerLifecycle(){},
+    syncPlayerStatusEffects(){},
+    syncProfileForPlayer(){}
+  });
+
+  socket.handlers.get("player:laser")({
+    kind:"laser",
+    starts:[{x:145, y:100}],
+    toX:200,
+    toY:100,
+    mapId:"0"
+  });
+  player.clientMode = "game";
+  socket.handlers.get("player:laser")({
+    kind:"laser",
+    starts:[{x:145, y:100}],
+    toX:200,
+    toY:100,
+    mapId:"0"
+  });
+  socket.handlers.get("player:laser")({
+    kind:"laser",
+    starts:[{x:145, y:100}],
+    toX:200,
+    toY:100,
+    mapId:"1"
+  });
+
+  assert.equal(roomEvents.length, 1);
+  assert.equal(roomEvents[0].room, "map:0");
+  assert.equal(roomEvents[0].event, "player:laser");
+  assert.equal(roomEvents[0].payload.mapId, "0");
+});
+
 test("player hello refuses an authenticated game entry when the beta player cap is full", ()=>{
   const socket = makeSocket("game");
   const players = new Map([

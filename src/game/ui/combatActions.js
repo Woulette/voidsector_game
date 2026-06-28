@@ -1,4 +1,4 @@
-import { renderActionBarHtml, updateActionBarDom } from "./actionBar.js";
+import { renderActionBarHtml, updateActionBarDom } from "./actionBar.js?v=tutorial-repair-drone-1";
 import { renderShipAbilityBarHtml } from "./shipAbilityBar.js?v=ship-charge-1";
 import { renderNpcAbilityBarHtml } from "./npcAbilityBar.js?v=npc-abilities-1";
 import { renderQuickPanelContent, updateQuickPanelTabs } from "./quickPanel.js?v=ship-charge-1";

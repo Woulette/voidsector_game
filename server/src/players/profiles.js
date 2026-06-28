@@ -5,10 +5,11 @@ import { createProfileActions } from "./profileActions.js";
 import { createProfileMutations } from "./profileMutations.js";
 import { sanitizeProfile } from "./profileSanitize.js";
 import { createProfileWorldSession } from "./profileWorldSession.js";
+import { cloneProfileSnapshot, restoreProfileSnapshot } from "./profilePersistenceResult.js";
 import { claimCompletedServerQuests } from "../quests/quests.js";
 import { getFirmDefinition, getFirmMapId, normalizeFirmId } from "../../../src/data/firms.js";
 import { pilotNameKey, sanitizePilotName } from "./profileIdentity.js";
-import { resetTutorialForNewFirm } from "./tutorialActions.js";
+import { reconcileTutorialProgress, resetTutorialForNewFirm } from "./tutorialActions.js";
 import { reservePilotIdentity as defaultReservePilotIdentity } from "../storage/pilotIdentityStore.js";
 
 export { sanitizeProfile } from "./profileSanitize.js";
@@ -200,13 +201,15 @@ export function createProfileManager({
       const identityChanged = ensureProfileIdentity(accountProfile, player);
       player.name = accountProfile.player?.name || player.name;
       const claimedQuests = autoClaimCompletedQuests(accountProfile);
-      if(refineryChanged || starterChanged || starterShipChanged || identityChanged || claimedQuests.length){
+      const tutorialChanged = reconcileTutorialProgress(accountProfile);
+      if(refineryChanged || starterChanged || starterShipChanged || identityChanged || claimedQuests.length || tutorialChanged){
         if(starterChanged || starterShipChanged || identityChanged) accountProfile.updatedAt = Date.now();
         profiles.set(accountKey, sanitizeProfile(accountProfile));
         persist(accountKey);
       }
       emitQuestClaims(socket, claimedQuests);
       socket.emit("profile:sync", accountProfile);
+      if(tutorialChanged) socket.emit("tutorial:updated", {tutorial:accountProfile.tutorial, recovered:true, source:"profile:sync", at:Date.now()});
       return;
     }
     if(accountKey){
@@ -221,10 +224,12 @@ export function createProfileManager({
       if(starterChanged || starterShipChanged) next.updatedAt = Date.now();
       next.updatedAt = Math.max(Number(next.updatedAt || 0), Date.now());
       const claimedQuests = autoClaimCompletedQuests(next);
+      const tutorialChanged = reconcileTutorialProgress(next);
       profiles.set(accountKey, next);
       persist(accountKey);
       emitQuestClaims(socket, claimedQuests);
       socket.emit("profile:sync", next);
+      if(tutorialChanged) socket.emit("tutorial:updated", {tutorial:next.tutorial, recovered:true, source:"profile:sync", at:Date.now()});
       return;
     }
     const legacyProfile = profiles.get(profileKey(player.name));
@@ -235,7 +240,8 @@ export function createProfileManager({
     const identityChanged = ensureProfileIdentity(legacyProfile, player);
     player.name = legacyProfile.player?.name || player.name;
     const claimedQuests = autoClaimCompletedQuests(legacyProfile);
-    if(refineryChanged || starterChanged || starterShipChanged || identityChanged || claimedQuests.length){
+    const tutorialChanged = reconcileTutorialProgress(legacyProfile);
+    if(refineryChanged || starterChanged || starterShipChanged || identityChanged || claimedQuests.length || tutorialChanged){
       if(starterChanged || starterShipChanged || identityChanged) legacyProfile.updatedAt = Date.now();
       const legacyKey = profileKey(player.name);
       profiles.set(legacyKey, sanitizeProfile(legacyProfile));
@@ -243,6 +249,7 @@ export function createProfileManager({
     }
     emitQuestClaims(socket, claimedQuests);
     socket.emit("profile:sync", legacyProfile);
+    if(tutorialChanged) socket.emit("tutorial:updated", {tutorial:legacyProfile.tutorial, recovered:true, source:"profile:sync", at:Date.now()});
   }
 
   function saveFromPayload({player, payload} = {}){
@@ -342,6 +349,7 @@ export function createProfileManager({
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const key = profileKeyForPlayer(player);
     const existing = getExistingProfile(player).profile;
+    const previous = cloneProfileSnapshot(existing);
     const profile = sanitizeProfile(existing);
     ensureProfileIdentity(profile, player);
     const currentFirm = normalizeFirmId(profile.player?.firmId || "astra");
@@ -391,8 +399,14 @@ export function createProfileManager({
     profile.updatedAt = Date.now();
     ensureStarterRepairDrone(profile);
     ensureStarterShipSelection(profile);
-    profiles.set(key, sanitizeProfile(profile));
-    persist(key);
+    const next = sanitizeProfile(profile);
+    profiles.set(key, next);
+    try{
+      await persist(key);
+    }catch(error){
+      restoreProfileSnapshot(profiles, key, previous);
+      throw error;
+    }
     return {ok:true, profile:profiles.get(key), firm:getFirmDefinition(nextFirm), firmChanged:currentFirm !== nextFirm};
   }
 

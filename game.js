@@ -1,1 +1,1 @@
-import "./src/app.js?v=portal-prepare-1";
+import "./src/app.js?v=tutorial-quest-lock-1";

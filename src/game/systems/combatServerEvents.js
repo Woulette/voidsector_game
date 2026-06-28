@@ -11,6 +11,7 @@ const RICKY_ROCKET_PROJECTILE = "assets/equipment/rocket_r2_projectile.png";
 const MAX_SERVER_ENEMY_PROJECTILES = 32;
 const MAX_SERVER_ENEMY_PROJECTILES_PER_FRAME = 12;
 const MAX_SERVER_ENEMY_ATTACK_PARTICLES_PER_FRAME = 12;
+const COMBAT_DAMAGE_TEXT_MERGE_MS = 120;
 
 export function applyAuthoritativeCombatAmmo({event, playerId, ammoInventory} = {}){
   const consumed = Math.max(0, Math.round(Number(event?.consumed || 0)));
@@ -681,7 +682,47 @@ export function createCombatServerEventSystem({
     const {enemies, store} = getState();
     const events = multiplayer.combatEvents.splice(0);
     const remaining = [];
-    for(const event of events){
+    const textGroups = [];
+    function hitEventOrder(event, fallback){
+      const at = Number(event?.at);
+      if(Number.isFinite(at) && at > 0) return at;
+      const receivedAt = Number(event?.receivedAt);
+      return Number.isFinite(receivedAt) ? receivedAt : fallback;
+    }
+    function queueCombatText(event, target, fallbackOrder){
+      const damage = Math.max(0, Math.round(Number(event.damage || 0)));
+      const poison = event.damageType === "poison";
+      const key = [
+        String(event.mapId ?? ""),
+        String(event.enemyId || ""),
+        String(event.attackerId || event.sourceId || ""),
+        poison ? "poison" : "normal"
+      ].join(":");
+      const order = hitEventOrder(event, fallbackOrder);
+      const group = textGroups.find(entry=>
+        entry.key === key
+        && Math.abs(order - entry.order) <= COMBAT_DAMAGE_TEXT_MERGE_MS
+      );
+      const next = group || {
+        key,
+        order,
+        x:target.x,
+        y:target.y,
+        damage:0,
+        misses:0,
+        poison,
+        radius:target.radius
+      };
+      next.order = Math.min(next.order, order);
+      next.x = target.x;
+      next.y = target.y;
+      next.radius = target.radius;
+      if(damage > 0) next.damage += damage;
+      else next.misses += 1;
+      if(!group) textGroups.push(next);
+    }
+    for(let index = 0; index < events.length; index += 1){
+      const event = events[index];
       applyAuthoritativeCombatAmmo({
         event,
         playerId:multiplayer.playerId,
@@ -694,30 +735,36 @@ export function createCombatServerEventSystem({
         const x = Number(event.x);
         const y = Number(event.y);
         if(Number.isFinite(x) && Number.isFinite(y)){
-          const damage = Math.max(0, Math.round(Number(event.damage || 0)));
-          const poison = event.damageType === "poison";
-          pushDamageText({
+          queueCombatText(event, {
             x,
             y:y - Math.max(16, Number(event.radius || 0) + 16),
-            value:damage > 0 ? (poison ? `-${damage}` : damage) : "MISS",
-            ...(damage > 0
-              ? poison ? {color:"rgba(22,163,74,", shadowColor:"rgba(21,128,61,.82)", life:.92} : {}
-              : {color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"})
-          });
+            radius:Number(event.radius || 0)
+          }, index);
         }else if((performance.now() - Number(event.receivedAt || 0)) < 1000) remaining.push(event);
         continue;
       }
-      const damage = Math.max(0, Math.round(Number(event.damage || 0)));
-      if(damage > 0){
-        const poison = event.damageType === "poison";
+      queueCombatText(event, {
+        x:enemy.x,
+        y:enemy.y - enemy.radius - 16,
+        radius:enemy.radius
+      }, index);
+    }
+    for(const group of textGroups.sort((left, right)=>left.order - right.order)){
+      if(group.damage > 0){
         pushDamageText({
-          x:enemy.x,
-          y:enemy.y - enemy.radius - 16,
-          value:poison ? `-${damage}` : damage,
-          ...(poison ? {color:"rgba(22,163,74,", shadowColor:"rgba(21,128,61,.82)", life:.92} : {})
+          x:group.x,
+          y:group.y,
+          value:group.poison ? `-${group.damage}` : group.damage,
+          ...(group.poison ? {color:"rgba(22,163,74,", shadowColor:"rgba(21,128,61,.82)", life:.92} : {})
         });
       }else{
-        pushDamageText({x:enemy.x, y:enemy.y - enemy.radius - 16, value:"MISS", color:"rgba(191,219,254,", shadowColor:"rgba(96,165,250,.78)"});
+        pushDamageText({
+          x:group.x,
+          y:group.y,
+          value:"MISS",
+          color:"rgba(191,219,254,",
+          shadowColor:"rgba(96,165,250,.78)"
+        });
       }
     }
     multiplayer.combatEvents = remaining;

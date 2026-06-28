@@ -1,5 +1,6 @@
 import { getAmmoPurchase, getBetaPackPurchase, getBoosterPurchase, getDroneFormationPurchase, getDronePurchase, getItemPurchase, getPremiumPackPurchase, getShipPurchase } from "../economy/shop.js";
 import { premiumRemainingLabel } from "../../../src/data/premium.js";
+import { confirmProfileSave } from "./profileSaveGuard.js";
 
 function emitQuestProgress(socket, result){
   if(!result.questUpdates?.length) return;
@@ -14,10 +15,14 @@ function emitQuestClaims(player, emitQuestClaimsForPlayer, result){
   emitQuestClaimsForPlayer?.(player, result.claimedQuests, {auto:true});
 }
 
+async function ensureSaved(socket, result, eventName){
+  return confirmProfileSave(socket, result, {eventName});
+}
+
 export function registerEconomyHandlers(socket, context){
   const {emitProfileSync, emitQuestClaims:emitQuestClaimsForPlayer, guard, players, profileManager} = context;
 
-  socket.on("space-caster:run", payload=>{
+  socket.on("space-caster:run", async payload=>{
     if(!guard("space-caster:run")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -29,6 +34,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("space-caster:error", {message:result.reason || "Space Caster impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "space-caster:error")) return;
     socket.emit("space-caster:result", {
       portal:result.portal,
       count:result.count,
@@ -41,7 +47,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("refinery:upgrade-start", payload=>{
+  socket.on("refinery:upgrade-start", async payload=>{
     if(!guard("refinery:upgrade-start")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -53,6 +59,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("refinery:error", {message:result.reason || "Amelioration impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "refinery:error")) return;
     socket.emit("refinery:updated", {
       action:"upgrade-start",
       type:result.type,
@@ -67,7 +74,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("refinery:upgrade-rush", payload=>{
+  socket.on("refinery:upgrade-rush", async payload=>{
     if(!guard("refinery:upgrade-rush")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -79,6 +86,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("refinery:error", {message:result.reason || "Acceleration impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "refinery:error")) return;
     socket.emit("refinery:updated", {
       action:"upgrade-rush",
       type:result.type,
@@ -91,7 +99,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("refinery:production-toggle", payload=>{
+  socket.on("refinery:production-toggle", async payload=>{
     if(!guard("refinery:production-toggle")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -103,6 +111,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("refinery:error", {message:result.reason || "Production impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "refinery:error")) return;
     socket.emit("refinery:updated", {
       action:"production-toggle",
       id:result.id,
@@ -112,7 +121,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("refinery:job-start", payload=>{
+  socket.on("refinery:job-start", async payload=>{
     if(!guard("refinery:job-start")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -124,11 +133,12 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("refinery:error", {message:result.reason || "Raffinage impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "refinery:error")) return;
     socket.emit("refinery:updated", {action:"job-start", recipe:result.recipe, at:Date.now()});
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("refinery:job-claim", ()=>{
+  socket.on("refinery:job-claim", async ()=>{
     if(!guard("refinery:job-claim")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -140,11 +150,12 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("refinery:error", {message:result.reason || "Recuperation impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "refinery:error")) return;
     socket.emit("refinery:updated", {action:"job-claim", recipe:result.recipe, at:Date.now()});
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("refinery:shipment-start", payload=>{
+  socket.on("refinery:shipment-start", async payload=>{
     if(!guard("refinery:shipment-start")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -161,6 +172,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("refinery:error", {message:result.reason || "Expedition impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "refinery:error")) return;
     socket.emit("refinery:updated", {
       action:"shipment-start",
       material:result.material,
@@ -173,7 +185,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("refinery:shipment-rush", ()=>{
+  socket.on("refinery:shipment-rush", async ()=>{
     if(!guard("refinery:shipment-rush")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -185,6 +197,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("refinery:error", {message:result.reason || "Acceleration expedition impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "refinery:error")) return;
     socket.emit("refinery:updated", {
       action:"shipment-rush",
       materialName:result.materialName,
@@ -195,7 +208,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("refinery:ship-cargo-refine", payload=>{
+  socket.on("refinery:ship-cargo-refine", async payload=>{
     if(!guard("refinery:ship-cargo-refine")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -212,6 +225,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("refinery:error", {message:result.reason || "Fusion impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "refinery:error")) return;
     socket.emit("refinery:updated", {
       action:"ship-cargo-refine",
       recipe:result.recipe,
@@ -223,7 +237,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("refinery:combat-boost-deposit", payload=>{
+  socket.on("refinery:combat-boost-deposit", async payload=>{
     if(!guard("refinery:combat-boost-deposit")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -241,6 +255,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("refinery:error", {message:result.reason || "Perfectionnement impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "refinery:error")) return;
     socket.emit("refinery:updated", {
       action:"combat-boost-deposit",
       target:result.target,
@@ -255,7 +270,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("commerce:sell-material", payload=>{
+  socket.on("commerce:sell-material", async payload=>{
     if(!guard("commerce:sell-material")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -273,6 +288,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("commerce:error", {message:result.reason || "Vente impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "commerce:error")) return;
     socket.emit("commerce:material-sold", {
       all:Boolean(result.all),
       entries:result.entries || [],
@@ -286,7 +302,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("shop:buy-ammo", payload=>{
+  socket.on("shop:buy-ammo", async payload=>{
     if(!guard("shop:buy-ammo")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -300,6 +316,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("shop:error", {message:result.reason || "Achat impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "shop:error")) return;
     socket.emit("shop:ammo-bought", {
       id:purchase.id,
       name:purchase.name,
@@ -312,7 +329,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("shop:buy-item", payload=>{
+  socket.on("shop:buy-item", async payload=>{
     if(!guard("shop:buy-item")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -326,6 +343,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("shop:error", {message:result.reason || "Achat impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "shop:error")) return;
     socket.emit("shop:item-bought", {
       id:purchase.id,
       name:purchase.name,
@@ -338,7 +356,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("shop:buy-booster", payload=>{
+  socket.on("shop:buy-booster", async payload=>{
     if(!guard("shop:buy-booster")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -352,6 +370,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("shop:error", {message:result.reason || "Achat du booster impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "shop:error")) return;
     socket.emit("shop:booster-bought", {
       id:purchase.id,
       type:purchase.type,
@@ -366,7 +385,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("shop:buy-premium-pack", payload=>{
+  socket.on("shop:buy-premium-pack", async payload=>{
     if(!guard("shop:buy-premium-pack")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -380,6 +399,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("shop:error", {message:result.reason || "Achat premium impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "shop:error")) return;
     socket.emit("shop:premium-pack-bought", {
       id:purchase.id,
       name:purchase.name,
@@ -394,7 +414,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("shop:buy-beta-pack", payload=>{
+  socket.on("shop:buy-beta-pack", async payload=>{
     if(!guard("shop:buy-beta-pack")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -408,6 +428,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("shop:error", {message:result.reason || "Achat beta impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "shop:error")) return;
     socket.emit("shop:beta-pack-bought", {
       id:purchase.id,
       name:purchase.name,
@@ -419,7 +440,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("premium:reward-claim", ()=>{
+  socket.on("premium:reward-claim", async ()=>{
     if(!guard("premium:reward-claim")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -428,6 +449,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("premium:reward-error", {message:result.reason || "Recompense premium impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "premium:reward-error")) return;
     socket.emit("premium:reward-claimed", {
       day:result.day,
       reward:result.reward,
@@ -437,7 +459,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("beta:reward-claim", ()=>{
+  socket.on("beta:reward-claim", async ()=>{
     if(!guard("beta:reward-claim")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -446,6 +468,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("beta:reward-error", {message:result.reason || "Recompense beta impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "beta:reward-error")) return;
     socket.emit("beta:reward-claimed", {
       day:result.day,
       reward:result.reward,
@@ -456,7 +479,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("shop:buy-ship", payload=>{
+  socket.on("shop:buy-ship", async payload=>{
     if(!guard("shop:buy-ship")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -470,6 +493,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("shop:error", {message:result.reason || "Achat impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "shop:error")) return;
     socket.emit("shop:ship-bought", {
       id:purchase.id,
       name:purchase.name,
@@ -481,7 +505,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("shop:buy-drone", payload=>{
+  socket.on("shop:buy-drone", async payload=>{
     if(!guard("shop:buy-drone")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -499,6 +523,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("shop:error", {message:result.reason || "Achat impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "shop:error")) return;
     socket.emit("shop:drone-bought", {
       id:purchase.id,
       name:purchase.name,
@@ -511,7 +536,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("shop:buy-drone-formation", payload=>{
+  socket.on("shop:buy-drone-formation", async payload=>{
     if(!guard("shop:buy-drone-formation")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -525,6 +550,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("shop:error", {message:result.reason || "Achat impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "shop:error")) return;
     socket.emit("shop:drone-formation-bought", {
       id:purchase.id,
       name:purchase.name,
@@ -536,7 +562,7 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("inventory:sell-item", payload=>{
+  socket.on("inventory:sell-item", async payload=>{
     if(!guard("inventory:sell-item")) return;
     const player = players.get(socket.id);
     if(!player) return;
@@ -548,6 +574,7 @@ export function registerEconomyHandlers(socket, context){
       socket.emit("inventory:error", {message:result.reason || "Vente impossible."});
       return;
     }
+    if(!await ensureSaved(socket, result, "inventory:error")) return;
     socket.emit("inventory:item-sold", {
       inventoryUid:result.inventoryUid,
       item:result.item,

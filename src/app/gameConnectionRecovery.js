@@ -66,6 +66,7 @@ export function createGameConnectionRecoveryController({
     cancelPendingNetworkRecovery();
     active = true;
     document.body.classList.remove("app-booting");
+    document.body.classList.add("game-disconnect-active");
     suspendGame?.();
     root.classList.remove("hidden");
     root.setAttribute("aria-hidden", "false");
@@ -74,6 +75,7 @@ export function createGameConnectionRecoveryController({
   }
 
   function hide(){
+    document.body.classList.remove("game-disconnect-active");
     if(!root) return;
     cancelPendingNetworkRecovery();
     active = false;

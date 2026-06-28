@@ -6,6 +6,7 @@ import { isLoadTestAccount } from "../loadtest/provisionBot.js";
 import { checkGameCapacity, publicGameCapacity } from "../players/playerCapacity.js";
 import { applyTutorialAction } from "../players/tutorialActions.js";
 import { shouldEmitPlayerStateCorrection } from "./stateCorrections.js";
+import { confirmProfileSave } from "./profileSaveGuard.js";
 import {
   PORTGUN_FLUID_ITEM_ID,
   cancelPendingPortgunTeleport,
@@ -76,7 +77,28 @@ export function registerPlayerHandlers(socket, context){
     return cancelPendingPortgunTeleport(player, {io, reason, message});
   }
 
-  function completePendingPortgun(playerId, teleportId){
+  function finiteNumber(value){
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function canEmitWeaponVisual(player, payload, starts){
+    if(!player || player.clientMode !== "game" || !player.state) return false;
+    if(player.state.isDead || Number(player.state.hp ?? 0) <= 0) return false;
+    const mapId = String(player.state.mapId ?? player.mapId ?? "");
+    if(!mapId || String(player.mapId ?? "") !== mapId) return false;
+    if(payload?.mapId !== undefined && String(payload.mapId) !== mapId) return false;
+    if(!player.mapRoom) return false;
+    const playerX = Number(player.state.x || 0);
+    const playerY = Number(player.state.y || 0);
+    return starts.every(start=>
+      Number.isFinite(start.x)
+      && Number.isFinite(start.y)
+      && Math.hypot(start.x - playerX, start.y - playerY) <= 520
+    );
+  }
+
+  async function completePendingPortgun(playerId, teleportId){
     const player = players.get(playerId);
     if(!player?.pendingPortgunTeleport || player.pendingPortgunTeleport.id !== teleportId) return;
     const pending = player.pendingPortgunTeleport;
@@ -114,6 +136,13 @@ export function registerPlayerHandlers(socket, context){
     });
     if(!profileResult.ok || !validation?.ok){
       cancelPendingPortgun(player, "invalid", profileResult.reason || validation?.reason || "Teleportation refusee.");
+      return;
+    }
+    if(!await confirmProfileSave(targetSocket, profileResult, {
+      eventName:"portgun:error",
+      message:"Sauvegarde temporairement indisponible. Teleportation annulee."
+    })){
+      cancelPendingPortgun(player, "save-failed", "Teleportation annulee : sauvegarde indisponible.");
       return;
     }
 
@@ -336,7 +365,7 @@ export function registerPlayerHandlers(socket, context){
     emitPlayers();
   });
 
-  socket.on("tutorial:update", payload=>{
+  socket.on("tutorial:update", async payload=>{
     if(!guard("tutorial:update")) return;
     const player = players.get(socket.id);
     const result = profileManager.updateProfileForPlayer({
@@ -351,6 +380,7 @@ export function registerPlayerHandlers(socket, context){
       if(result?.changed && result?.profile) emitProfileSync?.(player, result.profile);
       return;
     }
+    if(!await confirmProfileSave(socket, result, {eventName:"tutorial:error"})) return;
     socket.emit("tutorial:updated", {
       tutorial:result.profile?.tutorial,
       rewardItemId:result.rewardItemId || null,
@@ -359,7 +389,7 @@ export function registerPlayerHandlers(socket, context){
     emitProfileSync?.(player, result.profile);
   });
 
-  socket.on("profile:debug-reset-firm", ()=>{
+  socket.on("profile:debug-reset-firm", async ()=>{
     if(!guard("profile:debug-reset-firm")) return;
     const player = players.get(socket.id);
     if(!isLocalDebugSocket()){
@@ -383,6 +413,7 @@ export function registerPlayerHandlers(socket, context){
       socket.emit("profile:setup-error", {message:result.reason || "Reinitialisation firme impossible."});
       return;
     }
+    if(!await confirmProfileSave(socket, result, {eventName:"profile:setup-error"})) return;
     player.state = null;
     socket.emit("profile:debug-firm-reset", {firmId:result.profile?.player?.firmId, at:Date.now()});
     emitProfileSync?.(player, result.profile);
@@ -466,7 +497,7 @@ export function registerPlayerHandlers(socket, context){
     profileManager.saveWorldSession({player, state:player.state, force:mapChanged});
     presence.syncMovementLogoutState(player);
     setPlayerMap(socket, nextMapId);
-    const visibilityRooms = [...new Set([player.mapRoom, player.groupId].filter(Boolean))];
+    const visibilityRooms = [...new Set([player.mapRoom].filter(Boolean))];
     if(visibilityRooms.length) socket.to(visibilityRooms).emit("player:state", publicPlayer(player));
   });
 
@@ -514,12 +545,17 @@ export function registerPlayerHandlers(socket, context){
       completeAt:player.pendingPortgunTeleport.completeAt,
       at:now
     });
-    setTimeout(()=>completePendingPortgun(socket.id, teleportId), validation.durationMs);
+    setTimeout(()=>{
+      completePendingPortgun(socket.id, teleportId).catch(error=>{
+        logger?.warn?.("Portgun completion failed", {playerId:socket.id, error:error?.message || String(error)});
+      });
+    }, validation.durationMs);
   });
 
   socket.on("player:laser", payload=>{
     if(!guard("player:laser")) return;
     const player = players.get(socket.id);
+    if(!player || player.clientMode !== "game" || !player.state) return;
     presence.markCombat(player, "tir joueur");
     const kind = ["laser", "rocket", "missile"].includes(payload?.kind) ? payload.kind : "laser";
     const starts = (Array.isArray(payload?.starts) ? payload.starts : [{
@@ -533,7 +569,10 @@ export function registerPlayerHandlers(socket, context){
       curveSide:Math.max(-1, Math.min(1, Number(start?.curveSide || 0))),
       curveStrength:Math.max(0, Math.min(160, Number(start?.curveStrength || 0)))
     }));
-    socket.to(player?.mapRoom || `map:${String(player?.mapId ?? "0")}`).emit("player:laser", {
+    const toX = finiteNumber(payload?.toX);
+    const toY = finiteNumber(payload?.toY);
+    if(toX === null || toY === null || !canEmitWeaponVisual(player, payload, starts)) return;
+    socket.to(player.mapRoom).emit("player:laser", {
       sourceId:socket.id,
       kind,
       ammoId:String(payload?.ammoId || "ammo_x1").slice(0, 40),
@@ -541,11 +580,11 @@ export function registerPlayerHandlers(socket, context){
       starts,
       fromX:Number(starts[0]?.x || payload?.fromX || 0),
       fromY:Number(starts[0]?.y || payload?.fromY || 0),
-      toX:Number(payload?.toX || 0),
-      toY:Number(payload?.toY || 0),
+      toX,
+      toY,
       blueLaser:payload?.blueLaser === true,
       travelTime:Math.max(.1, Math.min(2, Number(payload?.travelTime || .2))),
-      mapId:String(player?.mapId ?? payload?.mapId ?? "0"),
+      mapId:String(player.mapId ?? player.state.mapId ?? "0"),
       color:String(payload?.color || "rgba(56,189,248,.9)").slice(0, 48),
       life:Math.max(0.05, Math.min(0.35, Number(payload?.life || 0.16))),
       createdAt:Date.now()

@@ -20,13 +20,14 @@ function makeSocket(id = "socket-quest"){
   };
 }
 
-function installQuestHandler({player, progressProfileQuestAction = ()=>{}} = {}){
+function installQuestHandler({player, profileManager = null, emitTutorialUpdate = null, progressProfileQuestAction = ()=>{}} = {}){
   const socket = makeSocket(player?.id || "socket-quest");
   registerQuestHandlers(socket, {
     emitProfileSync(){},
+    emitTutorialUpdate,
     guard(){ return true; },
     players:new Map([[socket.id, player]]),
-    profileManager:{
+    profileManager:profileManager || {
       applyQuestAction(){
         return {ok:false, reason:"unused"};
       }
@@ -35,6 +36,37 @@ function installQuestHandler({player, progressProfileQuestAction = ()=>{}} = {})
   });
   return socket;
 }
+
+test("accepting a quest emits tutorial updates when the server recovered the tutorial step", async ()=>{
+  const tutorialUpdates = [];
+  const profile = {tutorial:{status:"active", step:"game_hunt_pass"}};
+  const player = {id:"socket-quest", mapId:"0", state:{x:0, y:0, mapId:"0"}};
+  const socket = installQuestHandler({
+    player,
+    profileManager:{
+      applyQuestAction(){
+        return {
+          ok:true,
+          quest:{id:"quest_drone_cleanup", title:"Un passe droit ?"},
+          profile,
+          tutorialChanged:true
+        };
+      }
+    },
+    emitTutorialUpdate(_player, result, extra){
+      tutorialUpdates.push({_player, result, extra});
+    }
+  });
+
+  await socket.trigger("quest:accept", {id:"quest_drone_cleanup"});
+
+  assert.equal(socket.emitted.some(entry=>entry.event === "quest:accepted"), true);
+  assert.equal(tutorialUpdates.length, 1);
+  assert.equal(tutorialUpdates[0]._player, player);
+  assert.equal(tutorialUpdates[0].result.profile.tutorial.step, "game_hunt_pass");
+  assert.equal(tutorialUpdates[0].extra.source, "quest:accept");
+  assert.equal(tutorialUpdates[0].extra.questId, "quest_drone_cleanup");
+});
 
 test("client quest progress cannot forge server-owned objective types", ()=>{
   const calls = [];

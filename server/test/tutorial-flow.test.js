@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createProfileActions } from "../src/players/profileActions.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { sanitizeProfile } from "../src/players/profileSanitize.js";
 import {
@@ -46,11 +47,68 @@ test("an active tutorial recovers from a quest accepted outside the expected cli
   assert.equal(profile.tutorial.step,"game_hunt_pass");
 });
 
+test("accepting a tutorial quest marks the tutorial update for the client", ()=>{
+  const profile = createDefaultProfile();
+  profile.tutorial = {...profile.tutorial, status:"active", step:"game_select_pass"};
+  const profiles = new Map([["Pilot", profile]]);
+  const manager = createProfileActions({
+    profiles,
+    persist(){ return Promise.resolve(); },
+    getExistingProfile(){ return {key:"Pilot", profile:profiles.get("Pilot")}; }
+  });
+
+  const result = manager.applyQuestAction({
+    player:{name:"Pilot"},
+    action:{kind:"accept", questId:TUTORIAL_QUEST_IDS[0]}
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.tutorialChanged, true);
+  assert.equal(result.tutorial.step, "game_hunt_pass");
+  assert.equal(profiles.get("Pilot").tutorial.step, "game_hunt_pass");
+});
+
+test("active tutorial blocks accepting quests outside the current instruction", ()=>{
+  const profile = createDefaultProfile();
+  profile.tutorial = {...profile.tutorial, status:"active", step:"game_select_storage"};
+  profile.completedQuestClaims[TUTORIAL_QUEST_IDS[0]] = true;
+  const profiles = new Map([["Pilot", profile]]);
+  const manager = createProfileActions({
+    profiles,
+    persist(){ return Promise.resolve(); },
+    getExistingProfile(){ return {key:"Pilot", profile:profiles.get("Pilot")}; }
+  });
+
+  const result = manager.applyQuestAction({
+    player:{name:"Pilot"},
+    action:{kind:"accept", questId:TUTORIAL_QUEST_IDS[2]}
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /Tutoriel actif/);
+  assert.equal(profile.activeQuestIds.includes(TUTORIAL_QUEST_IDS[2]), false);
+  assert.equal(profile.tutorial.step, "game_select_storage");
+});
+
+test("tutorial recovery ignores future quests until previous tutorial quests are complete", ()=>{
+  const profile = createDefaultProfile();
+  profile.tutorial = {...profile.tutorial, status:"active", step:"game_open_quests_2"};
+  profile.completedQuestClaims[TUTORIAL_QUEST_IDS[0]] = true;
+  profile.activeQuestIds = [TUTORIAL_QUEST_IDS[2]];
+
+  assert.equal(reconcileTutorialProgress(profile), false);
+  assert.equal(profile.tutorial.step, "game_open_quests_2");
+});
+
 test("quest completion recovery always keeps the furthest valid tutorial step", ()=>{
   const profile = createDefaultProfile();
   profile.tutorial = {...profile.tutorial,status:"active",step:"game_select_pass"};
   profile.completedQuestClaims[TUTORIAL_QUEST_IDS[0]] = true;
   assert.equal(reconcileTutorialProgress(profile),true);
+  assert.equal(profile.tutorial.step,"game_repair_drone_intro");
+  assert.equal(applyTutorialAction(profile,{kind:"advance",currentStep:"game_repair_drone_intro"}).ok,true);
+  assert.equal(profile.tutorial.step,"game_use_repair_drone");
+  assert.equal(applyTutorialAction(profile,{kind:"advance",currentStep:"game_use_repair_drone"}).ok,true);
   assert.equal(profile.tutorial.step,"game_return_hq_1");
   profile.tutorial.step = "launcher_buy_velox";
   assert.equal(reconcileTutorialProgress(profile),false);

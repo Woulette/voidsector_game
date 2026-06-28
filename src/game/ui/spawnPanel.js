@@ -4,6 +4,7 @@ import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/ene
 import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
 import { getQuestBriefing } from "../../data/questBriefings.js";
 import { MATERIAL_COMMERCE_ORDER, getMaterialCommerceUnitPrice, getMaterialCommerceValue } from "../../shared/materialCommerce.js";
+import { getTutorialExpectedQuestId } from "../../shared/tutorial.js?v=tutorial-quest-lock-1";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
@@ -412,21 +413,36 @@ function renderQuestPanel({
   playerName = "Pilote",
   playerRank = null,
   firmId = "astra",
-  premiumActive = false
+  premiumActive = false,
+  tutorial = null
 }){
-  const activeCategory = QUEST_TABS.some(tab=>tab.id === selectedQuestCategory) ? selectedQuestCategory : "available";
-  const activeType = QUEST_TYPE_TABS.some(tab=>tab.id === selectedQuestType) ? selectedQuestType : "normal";
-  const questsWithStatus = quests.map(quest=>({
+  let activeCategory = QUEST_TABS.some(tab=>tab.id === selectedQuestCategory) ? selectedQuestCategory : "available";
+  let activeType = QUEST_TYPE_TABS.some(tab=>tab.id === selectedQuestType) ? selectedQuestType : "normal";
+  const tutorialQuestGateActive = tutorial?.status === "active";
+  const tutorialExpectedQuestId = getTutorialExpectedQuestId(tutorial);
+  const sourceQuests = tutorialQuestGateActive
+    ? (tutorialExpectedQuestId ? quests.filter(quest=>quest.id === tutorialExpectedQuestId) : [])
+    : quests;
+  const questsWithStatus = sourceQuests.map(quest=>({
     ...quest,
     prereqLocked:!isQuestPrerequisiteUnlocked(quest, quests, completedQuestClaims),
     panelStatus:getQuestPanelStatus(quest, activeQuests, completedQuestClaims),
     panelType:quest.category || "normal"
   }));
   const shouldHideLocked = quest=>{
+    if(tutorialQuestGateActive) return false;
     const state = questProgressData(quest, getQuestProgress, completedQuestClaims, playerLevel, premiumActive);
     return quest.panelStatus === "available" && !showLockedQuests && state.locked && (!state.premiumLocked || state.levelLocked || state.prereqLocked);
   };
   const displayQuests = questsWithStatus.filter(quest=>!shouldHideLocked(quest));
+  if(tutorialQuestGateActive && tutorialExpectedQuestId){
+    const expectedQuest = displayQuests.find(quest=>quest.id === tutorialExpectedQuestId)
+      || questsWithStatus.find(quest=>quest.id === tutorialExpectedQuestId);
+    if(expectedQuest){
+      activeCategory = expectedQuest.panelStatus;
+      activeType = expectedQuest.panelType;
+    }
+  }
   const visibleQuests = displayQuests
     .filter(quest=>quest.panelStatus === activeCategory && quest.panelType === activeType)
     .sort((a,b)=>

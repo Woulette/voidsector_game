@@ -100,8 +100,8 @@ import { createCombatChat } from "./ui/combatChat.js";
 import { createCombatLogoutController } from "./ui/combatLogoutController.js";
 import { installCombatInputHandlers } from "./ui/inputBindings.js?v=firm-panel-gift-3";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
-import { createCombatActions } from "./ui/combatActions.js?v=ship-charge-1";
-import { createCombatPanels } from "./ui/combatPanels.js?v=quest-detail-clean-4-refine-boost-assets-1-firm-panel-gift-3";
+import { createCombatActions } from "./ui/combatActions.js?v=tutorial-repair-drone-1";
+import { createCombatPanels } from "./ui/combatPanels.js?v=tutorial-quest-lock-1";
 import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=ship-abilities-1";
 import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=portal-prepare-1";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
@@ -906,7 +906,7 @@ export function createCombatGame({renderAll, showToast}){
     }else{
       point = player;
     }
-    if(!point) return {mapName:currentMap.name, player:{x:player.x,y:player.y}, target:null};
+    if(!point) return {mapName:currentMap.name, player:{x:player.x,y:player.y,repairBotActive:Boolean(player.repairBotActive)}, target:null};
     const canvasRect = canvas.getBoundingClientRect();
     const zoom = Number(camera.zoom || 1);
     const playerScreenX = canvasRect.left + (Number(player.x || 0) - camera.x) * zoom;
@@ -915,7 +915,7 @@ export function createCombatGame({renderAll, showToast}){
     const screenY = canvasRect.top + (Number(point.y || 0) - camera.y) * zoom;
     return {
       mapName:currentMap.name,
-      player:{x:player.x,y:player.y,screenX:playerScreenX,screenY:playerScreenY},
+      player:{x:player.x,y:player.y,screenX:playerScreenX,screenY:playerScreenY,repairBotActive:Boolean(player.repairBotActive)},
       target:{
         x:Number(point.x || 0),
         y:Number(point.y || 0),

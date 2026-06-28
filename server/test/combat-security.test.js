@@ -187,6 +187,41 @@ test("combat:fire rejects an out-of-range target without consuming ammo", ()=>{
   assert.equal(profile.player.laserShotsFired, 0);
 });
 
+test("combat:fire does not reserve cooldown when ammo is missing", ()=>{
+  const profile = createDefaultProfile();
+  profile.activeShip = "orion";
+  profile.ammoInventory.ammo_x1 = 0;
+  const player = {
+    id:"security-test-no-ammo-cooldown",
+    state:{x:0, y:0, shipId:"orion"}
+  };
+  const enemy = {x:100, y:0};
+  const payload = {weaponClass:"laser", ammoId:"ammo_x1"};
+
+  const missingAmmo = resolveServerCombatFire({
+    player,
+    profile,
+    enemy,
+    payload,
+    now:20_000
+  });
+  profile.ammoInventory.ammo_x1 = 10;
+  const withAmmo = resolveServerCombatFire({
+    player,
+    profile,
+    enemy,
+    payload,
+    random:()=>0,
+    now:20_000
+  });
+
+  assert.equal(missingAmmo.ok, false);
+  assert.match(missingAmmo.reason, /Munitions/i);
+  assert.equal(withAmmo.ok, true);
+  assert.equal(withAmmo.reason, undefined);
+  assert.equal(profile.ammoInventory.ammo_x1, 9);
+});
+
 test("server laser range uses the shortest equipped ship laser", ()=>{
   const profile = createDefaultProfile();
   profile.inventoryItems.push({uid:"inv_test_laser_mk3", itemId:"laser_mk3"});
@@ -245,6 +280,36 @@ test("server uses the shortest drone laser range when the ship has no laser", ()
 
   assert.equal(result.ok, false);
   assert.match(result.reason, /portee/i);
+});
+
+test("server missile salvo rolls accuracy independently per missile", ()=>{
+  const profile = createDefaultProfile();
+  profile.activeShip = "orion";
+  profile.inventoryItems.push({uid:"inv_test_missile_launcher", itemId:"launcher_missile_mk1"});
+  profile.shipLoadouts.orion.missileLauncher = "inv_test_missile_launcher";
+  profile.ammoInventory.missile_m1 = 10;
+  const rolls = [
+    0.10, 1.00,
+    0.95,
+    0.20, 1.00
+  ];
+
+  const result = resolveServerCombatFire({
+    player:{id:"security-test-missile-salvo", state:{x:0, y:0, shipId:"orion"}},
+    profile,
+    enemy:{x:100, y:0},
+    payload:{weaponClass:"missile", ammoId:"missile_m1", count:3},
+    random:()=>rolls.shift() ?? 0
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.hit, true);
+  assert.equal(result.consumed, 3);
+  assert.equal(result.missileHits, 2);
+  assert.equal(result.missileMisses, 1);
+  assert.equal(result.damage, 5000);
+  assert.equal(profile.ammoInventory.missile_m1, 7);
+  assert.equal(profile.player.missileShotsFired, 3);
 });
 
 test("server combat hit is broadcast to players in the same map room", ()=>{

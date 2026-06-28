@@ -2,8 +2,25 @@ import { applyProgressionReward, spendCurrency } from "./progression.js";
 import { applyServerReputationFromXp, registerServerMonsterKill, updateRankScore } from "./rankProgression.js";
 import { sanitizeProfile } from "./profileSanitize.js";
 import { appendProfileActivity } from "./activityLog.js";
+import { attachProfileSave, cloneProfileSnapshot, restoreProfileSnapshot } from "./profilePersistenceResult.js";
 
 export function createProfileMutations({profiles, persist, persistDeferred, profileKeyForPlayer, getExistingProfile}){
+  function commitProfileChange(key, previous, next){
+    profiles.set(key, next);
+    let persistResult = null;
+    try{
+      persistResult = persist(key);
+    }catch(error){
+      persistResult = Promise.reject(error);
+    }
+    const save = Promise.resolve(persistResult).catch(error=>{
+      restoreProfileSnapshot(profiles, key, previous);
+      throw error;
+    });
+    save.catch(()=>{});
+    return save;
+  }
+
   function applyRewardChanges(profile, reward = {}){
     profile.updatedAt = Date.now();
     profile.player = applyProgressionReward(profile.player || {}, reward);
@@ -34,6 +51,7 @@ export function createProfileMutations({profiles, persist, persistDeferred, prof
     if(!player) return null;
     const key = profileKeyForPlayer(player);
     const existing = profiles.get(key) || sanitizeProfile({updatedAt:Date.now(), player:{}});
+    const previous = cloneProfileSnapshot(existing);
     const draft = applyRewardChanges({
       ...existing,
       player:{...(existing.player || {})},
@@ -42,8 +60,8 @@ export function createProfileMutations({profiles, persist, persistDeferred, prof
       activityLog:[...(existing.activityLog || [])]
     }, reward);
     const next = sanitizeProfile(draft);
-    profiles.set(key, next);
-    persist(key);
+    const save = commitProfileChange(key, previous, next);
+    attachProfileSave(next, save);
     return next;
   }
 
@@ -61,6 +79,7 @@ export function createProfileMutations({profiles, persist, persistDeferred, prof
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const key = profileKeyForPlayer(player);
     const existing = profiles.get(key) || sanitizeProfile({updatedAt:Date.now(), player:{}});
+    const previous = cloneProfileSnapshot(existing);
     const result = spendCurrency(existing.player || {}, priceType, amount);
     if(!result.ok) return result;
     const next = sanitizeProfile({
@@ -68,23 +87,25 @@ export function createProfileMutations({profiles, persist, persistDeferred, prof
       updatedAt:Date.now(),
       player:result.player
     });
-    profiles.set(key, next);
-    persist(key);
-    return {...result, profile:next};
+    const save = commitProfileChange(key, previous, next);
+    return attachProfileSave({...result, profile:next}, save);
   }
 
   function updateProfileForPlayer({player, update} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const previous = cloneProfileSnapshot(profile);
     const result = typeof update === "function" ? update(profile) : {ok:true};
-    if(result && result.ok === false) return result;
+    if(result && result.ok === false){
+      restoreProfileSnapshot(profiles, key, previous);
+      return result;
+    }
     const next = sanitizeProfile({
       ...profile,
       updatedAt:Date.now()
     });
-    profiles.set(key, next);
-    persist(key);
-    return {...(result || {ok:true}), ok:true, profile:next};
+    const save = commitProfileChange(key, previous, next);
+    return attachProfileSave({...(result || {ok:true}), ok:true, profile:next}, save);
   }
 
   function updateCombatProfileForPlayer({player, update} = {}){

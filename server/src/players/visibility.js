@@ -18,6 +18,9 @@ export function getPlayerMapRoom(player, mapId, groups){
 export function canSharePlayerState(recipient, candidate){
   if(!recipient || !candidate) return false;
   if(recipient.id === candidate.id) return true;
-  if(recipient.groupId && recipient.groupId === candidate.groupId) return true;
-  return Boolean(recipient.mapRoom && recipient.mapRoom === candidate.mapRoom);
+  if(recipient.mapRoom && recipient.mapRoom === candidate.mapRoom) return true;
+  if(!recipient.groupId || recipient.groupId !== candidate.groupId) return false;
+  const recipientMapId = String(recipient.state?.mapId ?? recipient.mapId ?? "");
+  const candidateMapId = String(candidate.state?.mapId ?? candidate.mapId ?? "");
+  return Boolean(recipientMapId && candidateMapId && recipientMapId === candidateMapId);
 }

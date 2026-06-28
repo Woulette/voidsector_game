@@ -1,10 +1,15 @@
-import { getCurrentRank, getInventoryCount, getLoadout } from "../core/store.js";
+import { getCurrentRank, getInventoryCount, getItemFromInventoryUid, getLoadout } from "../core/store.js";
 import { equipment } from "../data/catalog.js";
 import { getFirmRepresentative } from "../data/firmRepresentatives.js";
 import { createTypewriterTextController } from "../game/ui/typewriterText.js";
-import { TUTORIAL_QUEST_IDS } from "../shared/tutorial.js";
+import { TUTORIAL_QUEST_IDS, sanitizeTutorialState } from "../shared/tutorial.js";
 
 const [PASS_QUEST, STORAGE_QUEST, RAIDER_QUEST, YELLOW_QUEST] = TUTORIAL_QUEST_IDS;
+const REPAIR_DRONE_ACTION_SELECTOR = [
+  '[data-action-item-id="extra_repair_starter"]',
+  '[data-action-item-id="extra_repair_bot"]',
+  '[data-action-item-id="extra_repair_auto"]'
+].join(",");
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[char]);
@@ -12,20 +17,21 @@ function escapeHtml(value = ""){
 
 function stageDefinitions(ctx){
   const name = ctx.playerName || "pilote";
-  const grade = ctx.rankName || "Recrue";
   return {
-    launcher_orion:{mode:"launcher",handoff:true,selector:'[data-ship-id="orion"]',click:true,message:`C'est toi la bleusaille, ${name} ? Clique sur ton Orion. Voyons au moins si tu sais reconnaître ton vaisseau.`},
-    launcher_ship_gift:{mode:"launcher",manual:true,message:`Le commandement t'offre ce premier vaisseau et son équipement de base, ${grade}. Prends-en soin : sans lui, tu ne quittes même pas le quai.`},
+    launcher_orion:{mode:"launcher",handoff:true,selector:'[data-ship-id="orion"]',click:true,message:"Encore une recrue... parfait, il ne manquait plus que ça. Je suis Kael Vorn. Je vais faire court : ici, c'est ton hangar, et ce tas de métal s'appelle l'Orion. Clique dessus."},
+    launcher_ship_gift:{mode:"launcher",manual:true,message:"Le commandement t'a attribué cet Orion et un équipement."},
     launcher_inventory:{mode:"launcher",manual:true,selector:".rpg-inventory-grid",message:"À droite se trouve ton inventaire. Tout ton équipement et tes ressources disponibles y seront stockés."},
-    launcher_unequip_all:{mode:"launcher",manual:true,selector:"#unequipAllShipBtn",message:"Ce bouton déséquipe tout le vaisseau en une seule fois. Tu peux aussi maintenir CTRL et faire glisser la souris pour sélectionner plusieurs objets. Pour l'instant, garde ton laser équipé afin de pouvoir combattre."},
+    launcher_unequip_all:{mode:"launcher",manual:true,selector:"#unequipAllShipBtn",message:"Ce bouton permet de déséquiper tout sur ton vaisseau."},
     launcher_depart:{mode:"launcher",handoff:true,selector:"#startGameBtn",click:true,message:"Les bases du hangar sont acquises. Clique sur DÉPART et rejoins le quartier général."},
-    game_base_intro:{mode:"game",manual:true,message:"Voici ta station. C'est le QG de ta firme : le contrôleur de quêtes distribue les missions et la raffinerie développe ta logistique."},
-    game_quest_camera:{mode:"game",manual:true,preview:{type:"station",id:"quests"},previewDuration:6500,message:"Le contrôleur de quêtes est là. Je maintiens la caméra quelques secondes sur sa position. Observe-le, puis continue."},
-    game_open_quests_1:{mode:"game",handoff:true,world:{type:"station",id:"quests"},arrowMode:"world-anchor",condition:s=>isQuestPanelOpen()||questStartedOrDone(s,PASS_QUEST),message:"Rejoins le contrôleur de quêtes. Après avoir continué, une flèche fixe oscillera juste au-dessus de lui."},
-    game_select_pass:{mode:"game",handoff:true,selector:`[data-view-quest="${PASS_QUEST}"]`,click:true,condition:s=>questStartedOrDone(s,PASS_QUEST),message:"Clique sur CONTINUER pour fermer cette transmission. Sélectionne ensuite « Un passe droit ? », puis accepte la mission."},
+    game_base_intro:{mode:"game",manual:true,message:"Voilà ta station. Le QG de ta firme, en quelque sorte. Le relais de quêtes te file du travail, le commerce te permet de vendre ce que tu récupères."},
+    game_quest_camera:{mode:"game",manual:true,preview:{type:"station",id:"quests"},previewDuration:6500,message:"Ici se trouve le relais de quêtes. Ouvre-le."},
+    game_open_quests_1:{mode:"game",silent:true,world:{type:"station",id:"quests"},arrowMode:"world-anchor",condition:s=>isQuestPanelOpen()||questStartedOrDone(s,PASS_QUEST),message:""},
+    game_select_pass:{mode:"game",handoff:true,selector:`[data-view-quest="${PASS_QUEST}"]`,click:true,condition:s=>questStartedOrDone(s,PASS_QUEST),message:"Voici les tâches disponibles au relais. Sélectionne « Un passe droit ? », puis accepte la mission."},
     game_accept_pass:{mode:"game",silent:true,selector:`[data-accept-quest="${PASS_QUEST}"]`,condition:s=>questStartedOrDone(s,PASS_QUEST),message:"Accepte la mission."},
     game_hunt_pass:{mode:"game",silent:true,world:{type:"enemy",kinds:["drone_pirate"]},arrowMode:"player-direction",condition:s=>questDone(s,PASS_QUEST),message:"Détruis trois Orbes sentinelles. La flèche au-dessus de ton vaisseau indique la plus proche."},
-    game_return_hq_1:{mode:"game",handoff:true,world:{type:"hq"},arrowMode:"player-direction",condition:(s,g)=>Number(g?.target?.distance||Infinity)<520,message:"Mission accomplie. Continue puis suis la flèche au-dessus de ton vaisseau pour retourner au centre du QG."},
+    game_repair_drone_intro:{mode:"game",manual:true,message:"Mission accomplie. Utilise ton drone de réparation pour réparer ton vaisseau."},
+    game_use_repair_drone:{mode:"game",silent:true,selector:REPAIR_DRONE_ACTION_SELECTOR,condition:(s,g)=>Boolean(g?.player?.repairBotActive),message:""},
+    game_return_hq_1:{mode:"game",handoff:true,world:{type:"hq"},arrowMode:"player-direction",condition:(s,g)=>Number(g?.target?.distance||Infinity)<520,message:"Maintenant retourne au QG."},
     launcher_open_shop:{mode:"launcher",handoff:true,selector:'[data-view="shop"]',click:true,message:"Ouvre le MAGASIN. Tes crédits de mission vont financer un Velox."},
     launcher_select_velox:{mode:"launcher",handoff:true,selector:'[data-select-shop="ship:velox"]',click:true,message:"Sélectionne le Velox : il est plus rapide et possède trois emplacements laser."},
     launcher_buy_velox:{mode:"launcher",handoff:true,selector:'[data-buy-shop-ship="velox"]',condition:s=>s.ownedShips?.includes("velox"),message:"Achète le Velox avec les crédits reçus."},
@@ -37,10 +43,10 @@ function stageDefinitions(ctx){
     launcher_unequip_orion:{mode:"launcher",handoff:true,selector:"#unequipAllShipBtn, [data-unequip-all-confirm]",condition:()=>loadoutIsEmpty("orion"),message:"Déséquipe entièrement l'Orion avec le bouton indiqué."},
     launcher_open_velox:{mode:"launcher",handoff:true,selector:'#backToShipsBtn, [data-ship-id="velox"]',condition:s=>s.selectedShip==="velox"&&!document.getElementById("shipDetailPanel")?.classList.contains("hidden"),message:"Reviens à la liste des vaisseaux, puis ouvre le Velox."},
     launcher_equip_velox:{mode:"launcher",handoff:true,selector:"#selectedShipAction",condition:s=>s.activeShip==="velox",message:"Équipe le Velox comme vaisseau actif."},
-    launcher_equip_three_lasers:{mode:"launcher",handoff:true,selector:".rpg-inventory-grid",condition:()=>getLoadout("velox").lasers?.filter(Boolean).length>=3,message:"Équipe maintenant les deux MK-I et le MK-III sur les trois emplacements laser du Velox. Un double-clic sur un objet l'équipe rapidement."},
+    launcher_equip_three_lasers:{mode:"launcher",handoff:true,selector:".rpg-inventory-grid",condition:()=>veloxTutorialLoadoutReady(),message:"Équipe sur le Velox tes trois lasers, le drone de réparation et le lance-roquette."},
     launcher_depart_velox:{mode:"launcher",handoff:true,selector:"#startGameBtn",click:true,message:"Ton Velox est prêt. Clique sur DÉPART pour poursuivre les missions d'initiation."},
-    game_open_quests_2:{mode:"game",handoff:true,world:{type:"station",id:"quests"},arrowMode:"world-anchor",condition:s=>isQuestPanelOpen()||questStartedOrDone(s,STORAGE_QUEST),message:"Retourne au contrôleur de quêtes. La flèche restera fixée au-dessus du relais."},
-    game_select_storage:{mode:"game",handoff:true,selector:`[data-view-quest="${STORAGE_QUEST}"]`,click:true,condition:s=>questStartedOrDone(s,STORAGE_QUEST),message:"Continue, puis sélectionne « Un choix rationelle » et accepte-la. Une bonne soute vaut parfois mieux qu'un gros canon."},
+    game_open_quests_2:{mode:"game",handoff:true,world:{type:"station",id:"quests"},arrowMode:"world-anchor",condition:s=>isQuestPanelOpen()||questStartedOrDone(s,STORAGE_QUEST),message:"Retourne au contrôleur de quêtes."},
+    game_select_storage:{mode:"game",handoff:true,selector:`[data-view-quest="${STORAGE_QUEST}"]`,click:true,condition:s=>questStartedOrDone(s,STORAGE_QUEST),message:"Sélectionne « Un choix rationelle » et accepte-la."},
     game_accept_storage:{mode:"game",silent:true,selector:`[data-accept-quest="${STORAGE_QUEST}"]`,condition:s=>questStartedOrDone(s,STORAGE_QUEST),message:"Accepte la mission d'amélioration du stockage."},
     launcher_open_refinery:{mode:"launcher",handoff:true,selector:'[data-view="refinery"]',click:true,message:"Ouvre la RAFFINERIE depuis le tableau de bord."},
     launcher_upgrade_storage:{mode:"launcher",handoff:true,selector:'[data-upgrade-refinery-module="storage"], [data-confirm-refinery-module-upgrade="storage"]',condition:s=>questDone(s,STORAGE_QUEST),message:"Améliore le module STOCKAGE au niveau 2. Clique d'abord sur Améliorer, puis confirme le lancement."},
@@ -70,6 +76,20 @@ function loadoutIsEmpty(shipId){
     ...(loadout.generators || []),
     ...(loadout.extras || [])
   ].some(Boolean);
+}
+function hasRepairDroneEquipped(loadout){
+  return (loadout?.extras || [])
+    .map(uid=>getItemFromInventoryUid(uid))
+    .some(item=>Boolean(item?.effect?.repairBot));
+}
+function hasRocketLauncherEquipped(loadout){
+  return getItemFromInventoryUid(loadout?.rocketLauncher)?.slotType === "rocketLauncher";
+}
+function veloxTutorialLoadoutReady(){
+  const loadout = getLoadout("velox") || {};
+  return (loadout.lasers || []).filter(Boolean).length >= 3
+    && hasRepairDroneEquipped(loadout)
+    && hasRocketLauncherEquipped(loadout);
 }
 function remainingYellowEnemyKinds(state){
   const progress = state.questProgress?.[YELLOW_QUEST] || {};
@@ -340,6 +360,10 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
     }) || null;
   }
 
+  function getTutorialStatusSnapshot(){
+    return game?.getTutorialSnapshot?.({type:"player"}) || null;
+  }
+
   function syncArrow(definition = currentDefinition()){
     if(!arrow || !definition || definition.mode !== appMode){
       setHighlightedElement();
@@ -367,7 +391,7 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
         }
         setHighlightedElement(target);
         placeArrowAt(rect.left + rect.width/2, Math.max(68,rect.top-8));
-        return null;
+        return getTutorialStatusSnapshot();
       }
     }
     setHighlightedElement();
@@ -400,7 +424,7 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
       return snapshot;
     }
     arrow.classList.add("hidden");
-    return null;
+    return getTutorialStatusSnapshot();
   }
 
   function tick(){
@@ -436,6 +460,10 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
         && TUTORIAL_QUEST_IDS.includes(String(event.detail?.payload?.id || ""))){
         game?.closeTutorialInteractionPanel?.();
         root?.classList.add("hidden");
+      }
+      const tutorialUpdate = event.detail?.payload?.tutorial;
+      if(reason === "tutorial:updated" && tutorialUpdate && typeof tutorialUpdate === "object"){
+        store.state.tutorial = sanitizeTutorialState(tutorialUpdate, {missingStatus:store.state?.tutorial?.status || "abandoned"});
       }
       const rewardItemId = String(event.detail?.payload?.rewardItemId || "");
       if(reason === "tutorial:updated" && rewardItemId === "laser_mk3") showRewardAnimation(rewardItemId);

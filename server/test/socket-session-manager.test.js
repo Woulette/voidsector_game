@@ -103,6 +103,7 @@ test("session resume from a second game socket takes over the existing live ship
   assert.equal(newSocket.calls.includes("join:group-1"), true);
   assert.equal(calls.includes("replaceGroup:old-game->new-game"), true);
   assert.equal(calls.includes("setMap:new-game:31"), true);
+  assert.equal(calls.includes("emitPlayers"), true);
   assert.equal(calls.includes("resumeQuests:new-game"), true);
   assert.equal(calls.includes("syncStatus:new-game"), true);
   assert.equal(calls.includes("syncLifecycle:new-game"), true);

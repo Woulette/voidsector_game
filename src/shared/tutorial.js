@@ -5,6 +5,32 @@ export const TUTORIAL_QUEST_IDS = Object.freeze([
   "quest_lv1_comprehension_acquisition"
 ]);
 
+const TUTORIAL_EXPECTED_QUEST_BY_STEP = Object.freeze({
+  game_open_quests_1:TUTORIAL_QUEST_IDS[0],
+  game_select_pass:TUTORIAL_QUEST_IDS[0],
+  game_accept_pass:TUTORIAL_QUEST_IDS[0],
+  game_open_quests_2:TUTORIAL_QUEST_IDS[1],
+  game_select_storage:TUTORIAL_QUEST_IDS[1],
+  game_accept_storage:TUTORIAL_QUEST_IDS[1],
+  game_open_quests_3:TUTORIAL_QUEST_IDS[2],
+  game_select_raiders:TUTORIAL_QUEST_IDS[2],
+  game_accept_raiders:TUTORIAL_QUEST_IDS[2],
+  game_open_quests_4:TUTORIAL_QUEST_IDS[3],
+  game_yellow_explain:TUTORIAL_QUEST_IDS[3],
+  game_accept_yellow:TUTORIAL_QUEST_IDS[3]
+});
+
+export function getTutorialExpectedQuestId(tutorialOrStep = ""){
+  const step = typeof tutorialOrStep === "string" ? tutorialOrStep : tutorialOrStep?.step;
+  return TUTORIAL_EXPECTED_QUEST_BY_STEP[String(step || "")] || "";
+}
+
+export function canAcceptQuestDuringTutorial(tutorial, questId){
+  if(tutorial?.status !== "active") return true;
+  const expectedQuestId = getTutorialExpectedQuestId(tutorial);
+  return Boolean(expectedQuestId && String(questId || "") === expectedQuestId);
+}
+
 export const TUTORIAL_STEPS = Object.freeze([
   "launcher_orion",
   "launcher_ship_gift",
@@ -17,6 +43,8 @@ export const TUTORIAL_STEPS = Object.freeze([
   "game_select_pass",
   "game_accept_pass",
   "game_hunt_pass",
+  "game_repair_drone_intro",
+  "game_use_repair_drone",
   "game_return_hq_1",
   "launcher_open_shop",
   "launcher_select_velox",

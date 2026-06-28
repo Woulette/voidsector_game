@@ -47,3 +47,35 @@ test("completed Un passe droit renders with the red quest class", ()=>{
   assert.doesNotMatch(rendered.html, /class="quest-strip[^"]*\bspecial\b[^"]*"[^>]*data-view-quest="quest_drone_cleanup"/);
   assert.doesNotMatch(rendered.html, /quest-progress-row|Progression op/);
 });
+
+test("active tutorial quest gate only renders the expected relay quest", ()=>{
+  const quests = questCatalog.filter(quest=>[
+    "quest_drone_cleanup",
+    "quest_spectral_scan",
+    "quest_raider_patrol"
+  ].includes(quest.id));
+  const rendered = renderSpawnPanelContent({
+    mode:"quests",
+    activeQuest:null,
+    activeQuests:[],
+    selectedQuestId:"quest_raider_patrol",
+    selectedQuestCategory:"available",
+    selectedQuestType:"normal",
+    showLockedQuests:false,
+    quests,
+    getQuestProgress:()=>0,
+    completedQuestClaims:{quest_drone_cleanup:true},
+    enemyTypes:{},
+    rawMaterials:[],
+    playerLevel:1,
+    playerName:"hfej",
+    playerRank:{id:"sergent", label:"Sergent"},
+    firmId:"astra",
+    premiumActive:false,
+    tutorial:{status:"active", step:"game_select_storage"}
+  });
+  assert.match(rendered.html, /data-view-quest="quest_spectral_scan"/);
+  assert.match(rendered.html, /data-accept-quest="quest_spectral_scan"/);
+  assert.doesNotMatch(rendered.html, /data-view-quest="quest_drone_cleanup"/);
+  assert.doesNotMatch(rendered.html, /data-view-quest="quest_raider_patrol"/);
+});

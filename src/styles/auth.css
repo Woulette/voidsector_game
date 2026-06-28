@@ -111,7 +111,7 @@ body.auth-ready #authGate{
 .game-disconnect-overlay{
   position:fixed;
   inset:0;
-  z-index:10000;
+  z-index:24000;
   display:grid;
   place-items:center;
   padding:24px;

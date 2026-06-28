@@ -110,6 +110,9 @@ export function createSocketSessionManager({io, players, profileManager, cleanNa
       players.delete(duplicate.id);
       duplicateSocket?.disconnect(true);
     }
+    if(transfersExistingState || duplicatesToRemove.length){
+      emitPlayers();
+    }
     const player = players.get(socket.id);
     if(isGameClient && !resumeSession){
       resumeSession = buildResumeSessionFromState(profileManager.getWorldSessionForPlayer(player), "profile");

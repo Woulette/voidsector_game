@@ -26,15 +26,18 @@ export function reconcileTutorialProgress(profile){
   const tutorial = sanitizeTutorialState(profile?.tutorial, {missingStatus:"abandoned"});
   if(tutorial.status !== "active") return false;
   const [passQuest, storageQuest, raiderQuest, yellowQuest] = TUTORIAL_QUEST_IDS;
+  const passCompleted = questCompleted(profile, passQuest);
+  const storageCompleted = questCompleted(profile, storageQuest);
+  const raiderCompleted = questCompleted(profile, raiderQuest);
   let recoveredStep = "";
 
-  if(questCompleted(profile, yellowQuest)) recoveredStep = "game_tutorial_complete";
-  else if(questStarted(profile, yellowQuest)) recoveredStep = "game_reach_map_2";
-  else if(questCompleted(profile, raiderQuest)) recoveredStep = "game_return_hq_2";
-  else if(questStarted(profile, raiderQuest)) recoveredStep = "game_hunt_raiders";
-  else if(questCompleted(profile, storageQuest)) recoveredStep = "game_open_quests_3";
-  else if(questStarted(profile, storageQuest)) recoveredStep = "launcher_open_refinery";
-  else if(questCompleted(profile, passQuest)) recoveredStep = "game_return_hq_1";
+  if(passCompleted && storageCompleted && raiderCompleted && questCompleted(profile, yellowQuest)) recoveredStep = "game_tutorial_complete";
+  else if(passCompleted && storageCompleted && raiderCompleted && questStarted(profile, yellowQuest)) recoveredStep = "game_reach_map_2";
+  else if(passCompleted && storageCompleted && questCompleted(profile, raiderQuest)) recoveredStep = "game_return_hq_2";
+  else if(passCompleted && storageCompleted && questStarted(profile, raiderQuest)) recoveredStep = "game_hunt_raiders";
+  else if(passCompleted && questCompleted(profile, storageQuest)) recoveredStep = "game_open_quests_3";
+  else if(passCompleted && questStarted(profile, storageQuest)) recoveredStep = "launcher_open_refinery";
+  else if(passCompleted) recoveredStep = "game_repair_drone_intro";
   else if(questStarted(profile, passQuest)) recoveredStep = "game_hunt_pass";
 
   if(!recoveredStep || tutorialStepIndex(recoveredStep) <= tutorialStepIndex(tutorial.step)) return false;
