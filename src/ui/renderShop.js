@@ -1,4 +1,4 @@
-import { ammoTypes, droneCatalog, droneFormations, equipment, ships } from "../data/catalog.js";
+import { ammoTypes, droneCatalog, droneFormations, equipment, ships } from "../data/catalog.js?v=elite-lasers-2";
 import { isPremiumActive, premiumRemainingLabel, premiumShopPacks } from "../data/premium.js";
 import { fmt } from "../core/utils.js";
 import {
