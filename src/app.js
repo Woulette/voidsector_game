@@ -1,4 +1,4 @@
-import { ammoTypes, portals, rawMaterialCatalog } from "./data/catalog.js?v=elite-lasers-2";
+import { ammoTypes, portals, rawMaterialCatalog } from "./data/catalog.js?v=elite-lasers-3";
 import {
   ensureShipLoadout,
   findEquippedSlot,
@@ -27,7 +27,7 @@ import {
 import { createCombatGame } from "./game/combat.js?v=action-slots-save-1-fps-burst-1";
 import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, prepareServerPortal, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=action-slots-save-1-fps-burst-1";
 import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=action-slots-save-1-fps-burst-1";
-import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=elite-lasers-2";
+import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=elite-lasers-3";
 import { showToast } from "./ui/toast.js?v=portal-toast-1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=ship-abilities-1";
 import { createProfileController } from "./app/profileController.js?v=action-slots-save-1";

@@ -31,7 +31,7 @@ function fireLaser({profile, now = 2_000, playerId = `elite-player-${Math.random
 
 test("elite laser items are temporary premium shop weapons above MK-IV", ()=>{
   const expected = [
-    ["laser_elite_green", "assets/equipment/laser_elite_emerald.webp", "green"],
+    ["laser_elite_green", "assets/equipment/laser_elite_emerald.webp?v=green-cut-2", "green"],
     ["laser_elite_blue", "assets/equipment/laser_elite_azure.webp", "blue"],
     ["laser_elite_red", "assets/equipment/laser_elite_crimson.webp", "red"]
   ];

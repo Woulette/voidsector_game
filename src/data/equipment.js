@@ -66,7 +66,7 @@
     short:"Élite Vert",
     category:"canon",
     slotType:"weapon",
-    img:"assets/equipment/laser_elite_emerald.webp",
+    img:"assets/equipment/laser_elite_emerald.webp?v=green-cut-2",
     rarity:"ÉLITE",
     rarityTier:"elite",
     priceType:"premium",
