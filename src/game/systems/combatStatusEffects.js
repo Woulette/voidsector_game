@@ -12,6 +12,31 @@ export function compactCombatListInPlace(list, keep, maxLength = 0){
   return list;
 }
 
+const STATUS_UI_REFRESH_SECONDS = .2;
+
+function nextStatusUiState(previous, remaining){
+  if(previous && Number(previous.remaining || 0) > 0){
+    return {
+      uiT:Number(previous.uiT || 0),
+      uiSecond:Number(previous.uiSecond || Math.ceil(Math.max(0, remaining)))
+    };
+  }
+  return {
+    uiT:STATUS_UI_REFRESH_SECONDS,
+    uiSecond:Math.ceil(Math.max(0, remaining))
+  };
+}
+
+function shouldRefreshStatusUi(effect, dt){
+  if(!effect) return false;
+  effect.uiT = Math.max(0, Number(effect.uiT || 0) - dt);
+  const second = Math.ceil(Math.max(0, Number(effect.remaining || 0)));
+  if(effect.uiT > 0 && effect.uiSecond === second) return false;
+  effect.uiT = STATUS_UI_REFRESH_SECONDS;
+  effect.uiSecond = second;
+  return true;
+}
+
 export function createCombatStatusEffectSystem({
   getState,
   setState,
@@ -37,23 +62,35 @@ export function createCombatStatusEffectSystem({
     const {player} = getState();
     if(!player || effect?.type !== "poison") return;
     const duration = Number(effect.duration || 0);
+    const previous = player.poisonEffect;
+    const remaining = Number(effect.remaining ?? duration);
+    const uiState = nextStatusUiState(previous, remaining);
     player.poisonEffect = {
       damage:Number(effect.damage || 0),
       interval:Number(effect.interval || 1),
       duration,
-      remaining:Number(effect.remaining ?? duration),
-      tick:Number(effect.interval || 1),
-      pulseT:0,
+      remaining,
+      tick:previous && Number(previous.remaining || 0) > 0
+        ? Number(previous.tick || effect.interval || 1)
+        : Number(effect.interval || 1),
+      pulseT:previous && Number(previous.remaining || 0) > 0
+        ? Math.max(0, Number(previous.pulseT || 0))
+        : 0,
+      ...uiState,
       serverAuthoritative:Boolean(effect.serverAuthoritative)
     };
-    updatePoisonStatus(player.poisonEffect);
+    if(!previous || shouldRefreshStatusUi(player.poisonEffect, 0)){
+      updatePoisonStatus(player.poisonEffect);
+    }
   }
 
   function updatePlayerPoison(dt){
     const {player, particles} = getState();
     if(!player) return;
     const effect = player.poisonEffect;
-    if(!effect?.remaining){
+    if(!effect) return;
+    if(Number(effect.remaining || 0) <= 0){
+      player.poisonEffect = null;
       updatePoisonStatus(null);
       return;
     }
@@ -96,29 +133,43 @@ export function createCombatStatusEffectSystem({
         }
       }
     }
-    if(effect.remaining <= 0) player.poisonEffect = null;
-    updatePoisonStatus(player.poisonEffect);
+    if(effect.remaining <= 0){
+      player.poisonEffect = null;
+      updatePoisonStatus(null);
+      return;
+    }
+    if(shouldRefreshStatusUi(effect, dt)) updatePoisonStatus(effect);
   }
 
   function applyPlayerSlow(effect){
     const {player} = getState();
     if(!player || effect?.type !== "slow") return;
     const duration = Number(effect.duration || 0);
+    const previous = player.slowEffect;
+    const remaining = Number(effect.remaining ?? duration);
+    const uiState = nextStatusUiState(previous, remaining);
     player.slowEffect = {
       amount:Math.max(0, Number(effect.amount || 0)),
       duration,
-      remaining:Number(effect.remaining ?? duration),
-      pulseT:0,
+      remaining,
+      pulseT:previous && Number(previous.remaining || 0) > 0
+        ? Math.max(0, Number(previous.pulseT || 0))
+        : 0,
+      ...uiState,
       serverAuthoritative:Boolean(effect.serverAuthoritative)
     };
-    updateSlowStatus(player.slowEffect);
+    if(!previous || shouldRefreshStatusUi(player.slowEffect, 0)){
+      updateSlowStatus(player.slowEffect);
+    }
   }
 
   function updatePlayerSlow(dt){
     const {player, particles} = getState();
     if(!player) return;
     const effect = player.slowEffect;
-    if(!effect?.remaining){
+    if(!effect) return;
+    if(Number(effect.remaining || 0) <= 0){
+      player.slowEffect = null;
       updateSlowStatus(null);
       return;
     }
@@ -139,8 +190,12 @@ export function createCombatStatusEffectSystem({
         color:"rgba(56,189,248,.68)"
       });
     }
-    if(effect.remaining <= 0) player.slowEffect = null;
-    updateSlowStatus(player.slowEffect);
+    if(effect.remaining <= 0){
+      player.slowEffect = null;
+      updateSlowStatus(null);
+      return;
+    }
+    if(shouldRefreshStatusUi(effect, dt)) updateSlowStatus(effect);
   }
 
   function updateParticles(dt){

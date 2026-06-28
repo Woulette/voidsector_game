@@ -113,36 +113,52 @@ export function updateTargetPanel(enemy){
   panel.querySelector("[data-target-level]").textContent = enemy.level;
 }
 
-export function updatePoisonStatus(effect){
-  const panel = document.getElementById("poisonStatus");
+function updateTimedStatusPanel({effect, panelId, fillId, timerId}){
+  const panel = document.getElementById(panelId);
   if(!panel) return;
   const remaining = Math.max(0, Number(effect?.remaining || 0));
   const duration = Math.max(0.1, Number(effect?.duration || effect?.remaining || 0));
   if(remaining <= 0){
-    panel.classList.add("hidden");
+    if(panel.dataset.statusVisible !== "0"){
+      panel.classList.add("hidden");
+      panel.dataset.statusVisible = "0";
+    }
     return;
   }
-  const fill = document.getElementById("poisonStatusFill");
-  const timer = document.getElementById("poisonStatusTimer");
-  panel.classList.remove("hidden");
-  if(fill) fill.style.width = `${Math.max(0, Math.min(100, remaining / duration * 100))}%`;
-  if(timer) timer.textContent = `${Math.ceil(remaining)}s`;
+  const fill = document.getElementById(fillId);
+  const timer = document.getElementById(timerId);
+  if(panel.dataset.statusVisible !== "1"){
+    panel.classList.remove("hidden");
+    panel.dataset.statusVisible = "1";
+  }
+  const width = `${Math.max(0, Math.min(100, remaining / duration * 100)).toFixed(1)}%`;
+  const seconds = String(Math.ceil(remaining));
+  if(fill && fill.dataset.statusWidth !== width){
+    fill.style.width = width;
+    fill.dataset.statusWidth = width;
+  }
+  if(timer && timer.dataset.statusSeconds !== seconds){
+    timer.textContent = `${seconds}s`;
+    timer.dataset.statusSeconds = seconds;
+  }
+}
+
+export function updatePoisonStatus(effect){
+  updateTimedStatusPanel({
+    effect,
+    panelId:"poisonStatus",
+    fillId:"poisonStatusFill",
+    timerId:"poisonStatusTimer"
+  });
 }
 
 export function updateSlowStatus(effect){
-  const panel = document.getElementById("slowStatus");
-  if(!panel) return;
-  const remaining = Math.max(0, Number(effect?.remaining || 0));
-  const duration = Math.max(0.1, Number(effect?.duration || effect?.remaining || 0));
-  if(remaining <= 0){
-    panel.classList.add("hidden");
-    return;
-  }
-  const fill = document.getElementById("slowStatusFill");
-  const timer = document.getElementById("slowStatusTimer");
-  panel.classList.remove("hidden");
-  if(fill) fill.style.width = `${Math.max(0, Math.min(100, remaining / duration * 100))}%`;
-  if(timer) timer.textContent = `${Math.ceil(remaining)}s`;
+  updateTimedStatusPanel({
+    effect,
+    panelId:"slowStatus",
+    fillId:"slowStatusFill",
+    timerId:"slowStatusTimer"
+  });
 }
 
 export function updateLootPopup({notices = []}){

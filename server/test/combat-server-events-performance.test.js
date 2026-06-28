@@ -168,3 +168,44 @@ test("status effect events only apply the latest state per type in a frame", ()=
   assert.equal(slowCalls[0].amount, 18);
   assert.equal(multiplayer.playerStatusEffectEvents.length, 0);
 });
+
+test("enemy attack visuals are capped per frame while preserving attack animation state", ()=>{
+  const enemies = Array.from({length:30}, (_, index)=>({
+    id:`enemy-${index}`,
+    x:index * 10,
+    y:0,
+    color:"rgba(248,113,113,.95)",
+    particle:"rgba(252,165,165,.75)"
+  }));
+  const state = {
+    player:{x:400, y:0, hp:100, maxHp:100},
+    currentMap:{id:"0"},
+    enemies,
+    bullets:[],
+    particles:[],
+    damageTexts:[],
+    impactEffects:[],
+    store:{state:{}}
+  };
+  const multiplayer = {
+    playerId:"player-1",
+    enemyAttackEvents:Array.from({length:30}, (_, index)=>({
+      mapId:"0",
+      targetId:"player-1",
+      enemyId:`enemy-${index}`,
+      fromX:index * 10,
+      fromY:0,
+      toX:400,
+      toY:0,
+      travelTime:.2
+    }))
+  };
+  const system = createSystem({multiplayer, state});
+
+  system.applyAll();
+
+  assert.equal(multiplayer.enemyAttackEvents.length, 0);
+  assert.equal(state.bullets.filter(bullet=>bullet.owner === "serverEnemy").length, 12);
+  assert.equal(state.particles.filter(particle=>particle.kind === "enemyAttack").length, 12);
+  assert.equal(enemies.filter(enemy=>Number(enemy.attackT || 0) > 0).length, 30);
+});

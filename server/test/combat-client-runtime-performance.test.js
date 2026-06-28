@@ -3,7 +3,7 @@ import test from "node:test";
 import { createCombatStatusEffectSystem } from "../../src/game/systems/combatStatusEffects.js";
 import { createProjectile, updateProjectiles } from "../../src/game/systems/projectiles.js";
 
-function createStatusSystem(state){
+function createStatusSystem(state, overrides = {}){
   return createCombatStatusEffectSystem({
     getState:()=>state,
     setState:patch=>Object.assign(state, patch),
@@ -11,7 +11,8 @@ function createStatusSystem(state){
     updateSlowStatus(){},
     pushDamageText(){},
     handlePlayerDeath(){},
-    onPlayerHpLost(){}
+    onPlayerHpLost(){},
+    ...overrides
   });
 }
 
@@ -85,4 +86,53 @@ test("projectile updates compact completed bullets in place", ()=>{
   assert.equal(result, bullets);
   assert.equal(result.length, 1);
   assert.equal(result[0].travelTime, 10);
+});
+
+test("inactive status effects do not write HUD state every frame", ()=>{
+  const poisonUpdates = [];
+  const slowUpdates = [];
+  const state = {
+    player:{x:0, y:0, hp:100, maxHp:100},
+    particles:[],
+    impactEffects:[],
+    damageTexts:[]
+  };
+  const system = createStatusSystem(state, {
+    updatePoisonStatus:effect=>poisonUpdates.push(effect),
+    updateSlowStatus:effect=>slowUpdates.push(effect)
+  });
+
+  for(let index = 0; index < 10; index += 1){
+    system.updatePlayerPoison(.016);
+    system.updatePlayerSlow(.016);
+  }
+
+  assert.equal(poisonUpdates.length, 0);
+  assert.equal(slowUpdates.length, 0);
+});
+
+test("server-authoritative poison refresh keeps pulses and throttles HUD updates", ()=>{
+  const poisonUpdates = [];
+  const state = {
+    player:{x:0, y:0, hp:100, maxHp:100},
+    particles:[],
+    impactEffects:[],
+    damageTexts:[]
+  };
+  const system = createStatusSystem(state, {
+    updatePoisonStatus:effect=>poisonUpdates.push(effect ? Math.ceil(effect.remaining) : null)
+  });
+
+  system.applyPlayerPoison({type:"poison", damage:5, interval:2, duration:10, remaining:10, serverAuthoritative:true});
+  assert.equal(poisonUpdates.length, 1);
+  state.player.poisonEffect.pulseT = .08;
+
+  system.applyPlayerPoison({type:"poison", damage:5, interval:2, duration:10, remaining:10, serverAuthoritative:true});
+  assert.equal(poisonUpdates.length, 1);
+  assert.equal(state.player.poisonEffect.pulseT, .08);
+
+  for(let index = 0; index < 10; index += 1) system.updatePlayerPoison(.016);
+  assert.equal(poisonUpdates.length, 1);
+  system.updatePlayerPoison(.05);
+  assert.equal(poisonUpdates.length, 2);
 });

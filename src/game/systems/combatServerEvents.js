@@ -9,6 +9,8 @@ import { createQuestServerEventProcessor } from "./combatQuestServerEvents.js";
 const RICKY_ALLY_ID = "ricky_companion";
 const RICKY_ROCKET_PROJECTILE = "assets/equipment/rocket_r2_projectile.png";
 const MAX_SERVER_ENEMY_PROJECTILES = 32;
+const MAX_SERVER_ENEMY_PROJECTILES_PER_FRAME = 12;
+const MAX_SERVER_ENEMY_ATTACK_PARTICLES_PER_FRAME = 12;
 
 export function applyAuthoritativeCombatAmmo({event, playerId, ammoInventory} = {}){
   const consumed = Math.max(0, Math.round(Number(event?.consumed || 0)));
@@ -524,19 +526,25 @@ export function createCombatServerEventSystem({
     if(!multiplayer.enemyAttackEvents?.length) return;
     const {player, currentMap, enemies, bullets, particles} = getState();
     const remaining = [];
+    const enemiesById = new Map(enemies.map(enemy=>[String(enemy.id), enemy]));
     let activeServerProjectiles = bullets.reduce((count, bullet)=>count + (bullet.owner === "serverEnemy" ? 1 : 0), 0);
+    let spawnedServerProjectiles = 0;
+    let spawnedAttackParticles = 0;
     for(const event of multiplayer.enemyAttackEvents){
       if(String(event.mapId ?? "") !== getCurrentMapToken(currentMap)){
         remaining.push(event);
         continue;
       }
       if(event.targetId && String(event.targetId) !== String(multiplayer.playerId)) continue;
-      const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId || event.sourceId));
+      const enemy = enemiesById.get(String(event.enemyId || event.sourceId));
       if(enemy){
         enemy.attackT = Math.max(Number(enemy.attackT || 0), Number(event.life || .22));
         enemy.recentHitTimer = Math.max(Number(enemy.recentHitTimer || 0), .35);
       }
-      if(activeServerProjectiles >= MAX_SERVER_ENEMY_PROJECTILES) continue;
+      if(activeServerProjectiles >= MAX_SERVER_ENEMY_PROJECTILES
+        || spawnedServerProjectiles >= MAX_SERVER_ENEMY_PROJECTILES_PER_FRAME){
+        continue;
+      }
       const fromX = Number(event.fromX ?? enemy?.x ?? player.x);
       const fromY = Number(event.fromY ?? enemy?.y ?? player.y);
       const toX = Number(event.toX ?? player.x);
@@ -561,7 +569,11 @@ export function createCombatServerEventSystem({
         visualOnly:true
       }));
       activeServerProjectiles += 1;
-      particles.push({kind:"enemyAttack",x:fromX, y:fromY, life:.16, max:.16, size:16, color:event.particle || enemy?.particle || "rgba(252,165,165,.72)"});
+      spawnedServerProjectiles += 1;
+      if(spawnedAttackParticles < MAX_SERVER_ENEMY_ATTACK_PARTICLES_PER_FRAME){
+        particles.push({kind:"enemyAttack",x:fromX, y:fromY, life:.16, max:.16, size:16, color:event.particle || enemy?.particle || "rgba(252,165,165,.72)"});
+        spawnedAttackParticles += 1;
+      }
     }
     multiplayer.enemyAttackEvents = remaining;
   }
