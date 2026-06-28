@@ -1,6 +1,6 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
-import { ammoTypes, equipment, portals } from "../../data/catalog.js";
-import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js";
+import { ammoTypes, craftResourceCatalog, equipment, portals } from "../../data/catalog.js";
+import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-ui-2";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
 import { getQuestBriefing } from "../../data/questBriefings.js";
@@ -23,9 +23,44 @@ function commerceCreditsHtml(amount){
 
 function currencyCostHtml(amount, type = "credits"){
   const value = Math.max(0, Math.floor(Number(amount || 0)));
+  const formatted = fmt(value);
   const icon = type === "premium" ? "assets/icons/premium.svg" : "assets/icons/credits.svg";
   const label = type === "premium" ? "NOVA" : "Credits";
-  return `<span class="craft-currency ${type}"><img src="${icon}" alt="" aria-hidden="true"><b>${fmt(value)}</b><small>${label}</small></span>`;
+  return `<span class="craft-currency ${type}">
+    <img src="${icon}" alt="" aria-hidden="true">
+    <span class="craft-currency-copy"><b title="${escapeHtml(formatted)}">${escapeHtml(formatted)}</b><small>${label}</small></span>
+  </span>`;
+}
+
+const CRAFT_RESOURCE_BY_ID = new Map(craftResourceCatalog.map(material=>[String(material.id), material]));
+const CRAFT_CATEGORY_LABEL_BY_ID = new Map(CRAFT_CATEGORY_TABS.map(tab=>[tab.id, tab.label]));
+
+function humanizeIdentifier(value, fallback = "Ressource inconnue"){
+  const clean = String(value || "").trim();
+  if(!clean || clean === "undefined") return fallback;
+  return clean
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, char=>char.toUpperCase());
+}
+
+function getCraftMaterialMeta(id, materials = []){
+  const cleanId = String(id || "");
+  const fromCraftCatalog = CRAFT_RESOURCE_BY_ID.get(cleanId);
+  if(fromCraftCatalog) return fromCraftCatalog;
+  const fromProvidedMaterials = materials.find(entry=>String(entry?.id || "") === cleanId && (entry.name || entry.short || entry.img));
+  if(fromProvidedMaterials) return fromProvidedMaterials;
+  return {
+    id:cleanId,
+    name:humanizeIdentifier(cleanId),
+    short:"",
+    img:"assets/materials/cargo_box.svg"
+  };
+}
+
+function craftCategoryLabel(category){
+  return CRAFT_CATEGORY_LABEL_BY_ID.get(category) || humanizeIdentifier(category, "Categorie");
 }
 
 const QUEST_TABS = [
@@ -669,14 +704,17 @@ function renderCraftMaterialCosts(recipe, materials = [], profile = {}){
   const entries = Object.entries(recipe?.costs?.materials || {});
   if(!entries.length) return `<div class="craft-empty-cost">Aucune ressource</div>`;
   return entries.map(([id, amount])=>{
-    const material = materials.find(entry=>entry.id === id) || null;
+    const material = getCraftMaterialMeta(id, materials);
     const need = Math.max(0, Number(amount || 0));
     const stock = Math.max(0, Number(cargoHold[id] || 0));
     const missing = stock < need;
+    const materialName = material?.name || humanizeIdentifier(id);
+    const materialCode = material?.short && material.short !== materialName ? material.short : "";
+    const amountText = `${fmt(stock)} / ${fmt(need)}`;
     return `<div class="craft-material-cost ${missing ? "missing" : ""}">
-      <img src="${material?.img || "assets/materials/cargo_box.svg"}" alt="${escapeHtml(material?.name || id)}">
-      <span>${escapeHtml(material?.short || material?.name || id)}</span>
-      <b>${fmt(stock)} / ${fmt(need)}</b>
+      <img src="${material?.img || "assets/materials/cargo_box.svg"}" alt="${escapeHtml(materialName)}">
+      <span class="craft-material-copy"><strong title="${escapeHtml(materialName)}">${escapeHtml(materialName)}</strong>${materialCode ? `<small>${escapeHtml(materialCode)}</small>` : ""}</span>
+      <b title="${escapeHtml(amountText)}">${escapeHtml(amountText)}</b>
     </div>`;
   }).join("");
 }
@@ -702,10 +740,20 @@ function renderCraftingPanel({
   profile = {},
   selectedCraftCategory = "all",
   selectedCraftRecipeId = "",
+  selectedCraftTabPage = 0,
   formatDuration
 }){
   const visibleRecipes = getVisibleCraftRecipes(profile);
   const activeCategory = CRAFT_CATEGORY_TABS.some(tab=>tab.id === selectedCraftCategory) ? selectedCraftCategory : "all";
+  const tabPageSize = 4;
+  const tabPageCount = Math.max(1, Math.ceil(CRAFT_CATEGORY_TABS.length / tabPageSize));
+  const requestedTabPage = Math.max(0, Math.min(tabPageCount - 1, Math.floor(Number(selectedCraftTabPage || 0))));
+  const activeCategoryIndex = Math.max(0, CRAFT_CATEGORY_TABS.findIndex(tab=>tab.id === activeCategory));
+  const activeCategoryPage = Math.floor(activeCategoryIndex / tabPageSize);
+  const pageHasActiveCategory = activeCategoryIndex >= requestedTabPage * tabPageSize && activeCategoryIndex < (requestedTabPage + 1) * tabPageSize;
+  const activeTabPage = activeCategory !== "all" && !pageHasActiveCategory ? activeCategoryPage : requestedTabPage;
+  const tabStart = activeTabPage * tabPageSize;
+  const visibleCategoryTabs = CRAFT_CATEGORY_TABS.slice(tabStart, tabStart + tabPageSize);
   const categoryRecipes = activeCategory === "all"
     ? visibleRecipes
     : visibleRecipes.filter(recipe=>recipe.category === activeCategory);
@@ -717,9 +765,9 @@ function renderCraftingPanel({
   const activeJob = profile.craftingJob || null;
   const activeJobRecipe = activeJob ? getCraftRecipe(activeJob.recipeId) || selectedRecipe : null;
   const selectedAvailability = getCraftRecipeAvailability(selectedRecipe, profile, Date.now());
-  const categoryTabs = CRAFT_CATEGORY_TABS.map(tab=>{
+  const categoryTabs = visibleCategoryTabs.map(tab=>{
     const count = tab.id === "all" ? visibleRecipes.length : visibleRecipes.filter(recipe=>recipe.category === tab.id).length;
-    return `<button class="craft-category-tab ${activeCategory === tab.id ? "active" : ""}" type="button" data-craft-category="${tab.id}">
+    return `<button class="craft-category-tab ${activeCategory === tab.id ? "active" : ""}" type="button" data-craft-category="${tab.id}" title="${escapeHtml(tab.label)}">
       <span>${escapeHtml(tab.label)}</span><b>${count}</b>
     </button>`;
   }).join("");
@@ -729,7 +777,7 @@ function renderCraftingPanel({
     return `<button class="craft-recipe-strip ${selected ? "selected" : ""} ${availability.ok ? "ready" : "locked"}" type="button" data-select-craft="${recipe.id}">
       <img src="${recipe.img}" alt="${escapeHtml(recipe.name)}">
       <span><strong>${escapeHtml(recipe.name)}</strong><small>${escapeHtml(recipe.rarity || recipe.rarityTier || "")}</small></span>
-      <b>${escapeHtml(recipe.category.toUpperCase())}</b>
+      <b>${escapeHtml(craftCategoryLabel(recipe.category))}</b>
     </button>`;
   }).join("");
   const selectedCost = selectedRecipe ? selectedRecipe.costs || {} : {};
@@ -740,7 +788,11 @@ function renderCraftingPanel({
   return {
     title:"FABRICATION",
     html:`<section class="craft-console">
-      <div class="craft-category-tabs">${categoryTabs}</div>
+      <div class="craft-category-tabs">
+        <button class="craft-category-shift" type="button" data-craft-tab-page="${activeTabPage - 1}" aria-label="Voir les categories precedentes" ${activeTabPage <= 0 ? "disabled" : ""}><span aria-hidden="true">&#8249;</span></button>
+        <div class="craft-category-track" data-craft-category-track>${categoryTabs}</div>
+        <button class="craft-category-shift" type="button" data-craft-tab-page="${activeTabPage + 1}" aria-label="Voir les categories suivantes" ${activeTabPage >= tabPageCount - 1 ? "disabled" : ""}><span aria-hidden="true">&#8250;</span></button>
+      </div>
       <div class="craft-layout">
         <aside class="craft-recipe-list">
           <div class="craft-list-head"><span>Recettes</span><b>${categoryRecipes.length}</b></div>

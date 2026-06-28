@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { rawMaterialCatalog } from "../../src/data/progression.js";
-import { getCraftRecipe, getVisibleCraftRecipes } from "../../src/data/craftingRecipes.js";
+import { craftResourceCatalog, rawMaterialCatalog } from "../../src/data/progression.js";
+import { getCraftRecipe, getCraftRecipes, getVisibleCraftRecipes } from "../../src/data/craftingRecipes.js";
 import { claimServerCraftingJob, startServerCraftingJob } from "../src/economy/crafting.js";
 import { getInventoryItemCount } from "../src/economy/inventoryStacks.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
@@ -40,6 +40,16 @@ test("server crafting starts one job, consumes craft resources, and claims outpu
   assert.equal(claimed.ok, true);
   assert.equal(profile.craftingJob, null);
   assert.equal(getInventoryItemCount(profile, "laser_mk2"), beforeCount + 1);
+});
+
+test("crafting recipes only reference known craft resources", ()=>{
+  const knownCraftResources = new Set(craftResourceCatalog.map(material=>material.id));
+  for(const recipe of getCraftRecipes()){
+    for(const id of Object.keys(recipe.costs?.materials || {})){
+      assert.notEqual(id, "undefined", `${recipe.id} references an undefined material id`);
+      assert.equal(knownCraftResources.has(id), true, `${recipe.id} references unknown material ${id}`);
+    }
+  }
 });
 
 test("server crafting rejects queues and owned ship or formation duplicates", ()=>{

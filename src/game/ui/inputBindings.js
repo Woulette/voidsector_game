@@ -75,6 +75,7 @@ export function installCombatInputHandlers({
   selectQuestTypeForPanel,
   toggleLockedQuestsForPanel,
   selectCraftCategory,
+  selectCraftTabPage,
   selectCraftRecipe,
   setRefineryPanelTab,
   openShipRefineRecipe,
@@ -949,6 +950,11 @@ export function installCombatInputHandlers({
       else showToast("Recompense locale refusee : validation serveur requise.");
       renderSpawnInteractionPanel("quests");
       updateHud();
+      return;
+    }
+    const craftTabPageBtn = e.target.closest("[data-craft-tab-page]");
+    if(craftTabPageBtn){
+      selectCraftTabPage?.(craftTabPageBtn.dataset.craftTabPage);
       return;
     }
     const craftCategoryBtn = e.target.closest("[data-craft-category]");

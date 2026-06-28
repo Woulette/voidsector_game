@@ -1,5 +1,5 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
-import { renderSpawnPanelContent } from "./spawnPanel.js?v=crafting-1";
+import { renderSpawnPanelContent } from "./spawnPanel.js?v=craft-ui-2";
 import { renderCombatFirmPanel } from "./combatFirmPanel.js?v=firm-panel-gift-3";
 import { renderCombatMapPanel } from "./combatMapPanel.js";
 import { renderCombatBoostersPanel } from "./combatBoostersPanel.js";
@@ -91,6 +91,7 @@ export function createCombatPanels({
   let selectedQuestType = "normal";
   let showLockedQuests = false;
   let selectedCraftCategory = "all";
+  let selectedCraftTabPage = 0;
   let selectedCraftRecipeId = null;
   let combatQuestDetailTab = "quest";
   let refineryPanelTab = "raffinage";
@@ -122,6 +123,7 @@ export function createCombatPanels({
     selectedQuestType = activeQuest?.category || "normal";
     selectedQuestId = activeQuest?.id || getAllQuests().find(quest=>!store.state.completedQuestClaims?.[quest.id])?.id || null;
     selectedCraftCategory = "all";
+    selectedCraftTabPage = 0;
     selectedCraftRecipeId = null;
     combatQuestDetailTab = "quest";
     refineryPanelTab = "raffinage";
@@ -1141,6 +1143,7 @@ export function createCombatPanels({
       completedQuestClaims:store.state.completedQuestClaims,
       profile:store.state,
       selectedCraftCategory,
+      selectedCraftTabPage,
       selectedCraftRecipeId,
       job:getRefineryJob(),
       recipes:getRefineryRecipes(),
@@ -1225,6 +1228,11 @@ export function createCombatPanels({
   function selectCraftCategory(category){
     selectedCraftCategory = category || "all";
     selectedCraftRecipeId = null;
+    renderSpawnInteractionPanel("crafting");
+  }
+
+  function selectCraftTabPage(page){
+    selectedCraftTabPage = Math.max(0, Math.floor(Number(page || 0)));
     renderSpawnInteractionPanel("crafting");
   }
 
@@ -1360,6 +1368,7 @@ export function createCombatPanels({
     selectQuestTypeForPanel,
     toggleLockedQuestsForPanel,
     selectCraftCategory,
+    selectCraftTabPage,
     selectCraftRecipe,
     setRefineryPanelTab,
     openShipRefineRecipe,

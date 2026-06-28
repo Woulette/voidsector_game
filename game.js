@@ -1,1 +1,1 @@
-import "./src/app.js?v=ship-clock-sync-1";
+import "./src/app.js?v=craft-ui-2";

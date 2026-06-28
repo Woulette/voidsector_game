@@ -69,13 +69,15 @@ function addMaterialCost(costs, poolName, seed, count, baseAmount){
   const pool = RARITY_POOLS[poolName] || [];
   if(!pool.length) return;
   const used = new Set(Object.keys(costs.materials));
+  const start = ((Number(seed) || 0) % pool.length + pool.length) % pool.length;
   for(let i = 0; i < count; i += 1){
-    let index = (seed + i * 7) % pool.length;
+    let index = (start + i * 7) % pool.length;
     let materialId = pool[index];
     for(let guard = 0; guard < pool.length && used.has(materialId); guard += 1){
       index = (index + 1) % pool.length;
       materialId = pool[index];
     }
+    if(!materialId) continue;
     used.add(materialId);
     costs.materials[materialId] = Math.max(1, Math.round(baseAmount + i));
   }
@@ -98,16 +100,16 @@ function buildCosts(source, category, rarityTier){
     addMaterialCost(costs, "common", seed, Math.min(3, 1 + weight), 2 + weight);
   }else if(rank === 2){
     addMaterialCost(costs, "common", seed, 2, 4 + weight);
-    addMaterialCost(costs, "rare", seed >> 2, 2, 2 + Math.ceil(weight / 2));
+    addMaterialCost(costs, "rare", seed >>> 2, 2, 2 + Math.ceil(weight / 2));
   }else if(rank === 3){
     addMaterialCost(costs, "rare", seed, 2, 5 + weight);
-    addMaterialCost(costs, "veryRare", seed >> 2, 2, 2 + Math.ceil(weight / 2));
+    addMaterialCost(costs, "veryRare", seed >>> 2, 2, 2 + Math.ceil(weight / 2));
   }else if(rank === 4){
     addMaterialCost(costs, "veryRare", seed, 2, 6 + weight);
-    addMaterialCost(costs, "elite", seed >> 2, 2, 3 + Math.ceil(weight / 2));
+    addMaterialCost(costs, "elite", seed >>> 2, 2, 3 + Math.ceil(weight / 2));
   }else{
     addMaterialCost(costs, "elite", seed, 2, 7 + weight);
-    addMaterialCost(costs, "mythic", seed >> 2, 2, 3 + Math.ceil(weight / 2));
+    addMaterialCost(costs, "mythic", seed >>> 2, 2, 3 + Math.ceil(weight / 2));
   }
 
   if(rank >= 3){

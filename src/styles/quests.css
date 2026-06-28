@@ -361,9 +361,32 @@
 }
 .craft-category-tabs{
   display:grid;
-  grid-template-columns:repeat(8,minmax(0,1fr));
+  grid-template-columns:36px minmax(0,1fr) 36px;
+  align-items:stretch;
   gap:6px;
 }
+.craft-category-track{
+  min-width:0;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(118px,1fr));
+  gap:6px;
+}
+.craft-category-shift{
+  width:36px;
+  min-height:36px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(56,189,248,.24);
+  background:linear-gradient(180deg,rgba(8,36,58,.76),rgba(2,10,19,.94));
+  color:#dff6ff;
+  font:900 20px/1 var(--font);
+  cursor:pointer;
+}
+.craft-category-shift:hover:not(:disabled){
+  border-color:rgba(125,211,252,.72);
+  background:linear-gradient(180deg,rgba(14,76,118,.84),rgba(3,17,31,.98));
+}
+.craft-category-shift:disabled{opacity:.34;cursor:default}
 .craft-category-tab{
   min-width:0;
   min-height:36px;
@@ -379,7 +402,7 @@
   text-transform:uppercase;
   cursor:pointer;
 }
-.craft-category-tab span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.craft-category-tab span{min-width:0;overflow:visible;text-overflow:clip;white-space:nowrap}
 .craft-category-tab b{
   min-width:22px;
   padding:2px 4px;
@@ -510,35 +533,48 @@
 .craft-material-cost{
   min-width:0;
   display:grid;
-  grid-template-columns:30px minmax(0,1fr) auto;
+  grid-template-columns:32px minmax(0,1fr);
+  grid-template-areas:"icon name" "icon amount";
   align-items:center;
   gap:7px;
-  min-height:36px;
-  padding:5px 7px;
+  min-height:50px;
+  padding:6px 8px;
   border:1px solid rgba(56,189,248,.13);
   background:rgba(255,255,255,.025);
 }
 .craft-material-cost.missing{border-color:rgba(248,113,113,.52);background:rgba(127,29,29,.18)}
-.craft-material-cost img{width:28px;height:28px;object-fit:contain}
-.craft-material-cost span{min-width:0;color:#dff6ff;font-size:9px;font-weight:900;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.craft-material-cost b{color:#f8fafc;font-size:10px;white-space:nowrap}
+.craft-material-cost img{grid-area:icon;width:30px;height:30px;object-fit:contain}
+.craft-material-copy{grid-area:name;min-width:0;display:grid;gap:2px}
+.craft-material-copy strong{
+  min-width:0;
+  color:#dff6ff;
+  font-size:10px;
+  line-height:1.12;
+  font-weight:900;
+  text-transform:uppercase;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+}
+.craft-material-copy small{color:#8fb9d6;font-size:8px;font-weight:900;text-transform:uppercase}
+.craft-material-cost b{grid-area:amount;color:#f8fafc;font-size:10px;white-space:nowrap}
 .craft-material-cost.missing b{color:#fecaca}
 .craft-empty-cost{color:#8fb9d6;font-size:11px;text-transform:uppercase}
-.craft-currency-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.craft-currency-row{display:grid;grid-template-columns:repeat(2,minmax(132px,1fr));gap:8px}
 .craft-currency{
   min-width:0;
   min-height:62px;
   display:grid;
-  grid-template-columns:30px minmax(0,1fr);
-  grid-template-rows:auto auto;
+  grid-template-columns:32px minmax(0,1fr);
   align-items:center;
-  gap:2px 8px;
+  gap:8px;
   padding:9px;
   border:1px solid rgba(56,189,248,.16);
   background:rgba(255,255,255,.025);
 }
-.craft-currency img{grid-row:1 / 3;width:28px;height:28px;object-fit:contain}
-.craft-currency b{color:#f8fafc;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.craft-currency img{width:30px;height:30px;object-fit:contain}
+.craft-currency-copy{min-width:0;display:grid;gap:3px}
+.craft-currency b{color:#f8fafc;font-size:13px;overflow:visible;text-overflow:clip;white-space:nowrap;font-variant-numeric:tabular-nums}
 .craft-currency small{color:#8fb9d6;font-size:9px;text-transform:uppercase}
 .craft-currency.premium b{color:#fff36a}
 .craft-time{
@@ -1023,14 +1059,16 @@
 .quest-reward-item b,.quest-reward-item small{font-size:12px;color:#f8fafc}
 .quest-reward-item small{color:#dff6ff;font-weight:900;letter-spacing:.45px;text-shadow:0 0 6px rgba(56,189,248,.24)}
 .quest-actions{padding-top:0;align-self:end}
-@media (max-width:1300px){.quest-console{grid-template-columns:225px minmax(0,1fr)}.quest-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quest-detail-copy strong{font-size:17px}.quest-tab span{font-size:11px}.craft-category-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}.craft-layout{grid-template-columns:250px minmax(0,1fr)}.craft-material-costs{grid-template-columns:1fr}}
+@media (max-width:1300px){.quest-console{grid-template-columns:225px minmax(0,1fr)}.quest-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quest-detail-copy strong{font-size:17px}.quest-tab span{font-size:11px}.craft-category-track{grid-template-columns:repeat(4,minmax(104px,1fr))}.craft-category-tab{padding:0 7px;font-size:9px}.craft-layout{grid-template-columns:250px minmax(0,1fr)}.craft-material-costs{grid-template-columns:1fr}}
 @media (max-width:1100px){.spawn-panel{width:min(620px,62vw)}.spawn-panel-grid-two{grid-template-columns:1fr}.spawn-panel.refinery-mode,.spawn-panel.commerce-mode,.spawn-panel.crafting-mode{left:12px;right:12px;width:auto}.spawn-panel.quest-mode{left:12px;right:12px;width:auto}.refine-material-grid{grid-template-columns:repeat(5,104px)}.commerce-material-row{grid-template-columns:38px minmax(100px,1fr) minmax(95px,.8fr);grid-template-areas:"icon name actions" "icon price total"}.commerce-material-row > img{grid-area:icon}.commerce-material-name{grid-area:name}.commerce-material-price{grid-area:price}.commerce-material-total{grid-area:total}.commerce-material-actions{grid-area:actions}.boost-target-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.boost-target-card:nth-child(2){border-right:0}.boost-target-card:nth-child(-n+2){border-bottom:2px solid rgba(34,197,94,.78)}.boost-material-row{grid-template-columns:repeat(5,minmax(90px,1fr))}}
 @media (max-width:820px){
   .spawn-panel{left:12px;right:12px;top:auto;bottom:72px;width:auto;max-height:48vh}
   .spawn-panel.crafting-mode{top:12px;bottom:72px;height:auto;max-height:none}
   .spawn-panel.quest-mode{height:min(620px,calc(100vh - 110px));max-height:none}
   .craft-layout{grid-template-columns:1fr;grid-template-rows:minmax(150px,.45fr) minmax(0,1fr)}
-  .craft-category-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .craft-category-tabs{grid-template-columns:32px minmax(0,1fr) 32px}
+  .craft-category-track{grid-template-columns:repeat(4,minmax(76px,1fr))}
+  .craft-category-tab{gap:4px;padding:0 5px;font-size:8px}
   .craft-detail-grid{grid-template-columns:1fr}
   .craft-detail-head{grid-template-columns:66px minmax(0,1fr);min-height:82px}
   .craft-detail-head img{width:62px;height:62px}
