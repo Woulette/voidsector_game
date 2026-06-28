@@ -1,1 +1,1 @@
-import "./src/app.js?v=dock-overflow-1";
+import "./src/app.js?v=ship-clock-sync-1";
