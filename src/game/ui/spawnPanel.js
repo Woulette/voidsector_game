@@ -1,6 +1,6 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, craftResourceCatalog, equipment, portals } from "../../data/catalog.js";
-import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-ui-2";
+import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-ui-3";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
 import { getQuestBriefing } from "../../data/questBriefings.js";
@@ -806,22 +806,22 @@ function renderCraftingPanel({
               <div><span>${escapeHtml(selectedRecipe.rarity || selectedRecipe.rarityTier || "")}</span><strong>${escapeHtml(selectedRecipe.name)}</strong><small>${escapeHtml(selectedOutput)}</small></div>
             </header>
             <div class="craft-detail-grid">
-              <section class="craft-cost-card">
+              <section class="craft-cost-card craft-resource-card">
                 <h4>Ressources</h4>
                 <div class="craft-material-costs">${renderCraftMaterialCosts(selectedRecipe, materials, profile)}</div>
               </section>
-              <section class="craft-cost-card">
+              <section class="craft-cost-card craft-payment-card">
                 <h4>Paiement</h4>
                 <div class="craft-currency-row">
                   ${currencyCostHtml(selectedCost.credits || 0, "credits")}
                   ${currencyCostHtml(selectedCost.premium || 0, "premium")}
                 </div>
                 <div class="craft-time"><span>Duree</span><b>${formatDuration?.(selectedRecipe.durationMs) || "1:00"}</b></div>
+                <div class="craft-action-row">
+                  <span class="${selectedAvailability.ok && !activeJob ? "ready" : "blocked"}">${escapeHtml(statusLabel)}</span>
+                  <button class="blue-button small" type="button" data-start-craft="${selectedRecipe.id}" ${startDisabled ? "disabled" : ""}>Demarrer</button>
+                </div>
               </section>
-            </div>
-            <div class="craft-action-row">
-              <span class="${selectedAvailability.ok && !activeJob ? "ready" : "blocked"}">${escapeHtml(statusLabel)}</span>
-              <button class="blue-button small" type="button" data-start-craft="${selectedRecipe.id}" ${startDisabled ? "disabled" : ""}>Demarrer</button>
             </div>
           ` : `<div class="spawn-panel-note">Aucune recette disponible.</div>`}
         </article>

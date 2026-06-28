@@ -24,7 +24,7 @@ import {
   store,
   XP_CURVE_VERSION
 } from "./core/store.js";
-import { createCombatGame } from "./game/combat.js?v=craft-ui-2";
+import { createCombatGame } from "./game/combat.js?v=craft-ui-3";
 import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, prepareServerPortal, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=crafting-1";
 import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=crafting-1";
 import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=elite-lasers-4";
