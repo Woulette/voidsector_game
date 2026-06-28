@@ -1,1 +1,1 @@
-import "./src/app.js?v=level-up-2";
+import "./src/app.js?v=level-up-3";

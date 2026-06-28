@@ -53,19 +53,6 @@ export const ships = [
     special:null
   },
   {
-    id:"astralis",
-    name:"Astralis",
-    className:"Intercepteur astral",
-    img:"assets/ships/Astralis.png",
-    rarity:"Très rare",
-    rarityTier:"veryRare",
-    priceType:"credits",
-    price:25000000,
-    desc:"Un intercepteur astral avancé qui réunit vitesse, capacité d'emport et armement dans une coque particulièrement polyvalente.",
-    stats:{vie:70000, vitesse:340, cargo:1500, maxLasers:10, maxGenerators:7, maxExtras:5},
-    special:null
-  },
-  {
     id:"helion_titan",
     name:"Helion Titan",
     className:"Cuirasse lourde",
@@ -76,6 +63,19 @@ export const ships = [
     price:10000000,
     desc:"Une cuirasse massive faite pour tenir la ligne, absorber les tirs ennemis et soutenir les affrontements les plus longs.",
     stats:{vie:80000, vitesse:270, cargo:1500, maxLasers:6, maxGenerators:10, maxExtras:5},
+    special:null
+  },
+  {
+    id:"astralis",
+    name:"Astralis",
+    className:"Intercepteur astral",
+    img:"assets/ships/Astralis.png",
+    rarity:"Très rare",
+    rarityTier:"veryRare",
+    priceType:"credits",
+    price:25000000,
+    desc:"Un intercepteur astral avancé qui réunit vitesse, capacité d'emport et armement dans une coque particulièrement polyvalente.",
+    stats:{vie:70000, vitesse:340, cargo:1500, maxLasers:10, maxGenerators:7, maxExtras:5},
     special:null
   },
   {

@@ -1,1 +1,1 @@
-export { createCombatGame } from "./combatOrchestrator.js?v=level-up-2";
+export { createCombatGame } from "./combatOrchestrator.js?v=level-up-3";

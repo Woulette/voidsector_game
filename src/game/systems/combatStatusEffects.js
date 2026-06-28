@@ -203,6 +203,16 @@ export function createCombatStatusEffectSystem({
     for(const p of particles){
       p.life -= dt;
       if(p.followPlayer && player){
+        if(p.kind === "levelUpStar"){
+          const age = Math.max(0, Number(p.max || 0) - Number(p.life || 0));
+          const driftStart = Number(p.driftStart ?? 1.7);
+          const driftSpeed = age >= driftStart ? Number(p.driftSpeed || 34) : 0;
+          p.offsetX = Number(p.offsetX || 0) + (p.vx || 0) * dt;
+          p.offsetY = Number(p.offsetY || 0) + ((p.vy || 0) - driftSpeed) * dt;
+          p.x = player.x + p.offsetX;
+          p.y = player.y + p.offsetY;
+          continue;
+        }
         p.offsetX = Number(p.offsetX || 0) + (p.vx || 0) * dt;
         p.offsetY = Number(p.offsetY || 0) + (p.vy || 0) * dt;
         p.x = player.x + p.offsetX;

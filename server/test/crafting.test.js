@@ -55,9 +55,75 @@ test("crafting recipes only reference known craft resources", ()=>{
 
 test("crafting separates generators from extras in recipe categories", ()=>{
   assert.equal(CRAFT_CATEGORY_TABS.some(tab=>tab.id === "generator" && tab.label === "Générateurs"), true);
+  assert.equal(CRAFT_CATEGORY_TABS.some(tab=>tab.id === "formation"), false);
   assert.equal(getCraftRecipe("craft_generator_shield_gen")?.category, "generator");
   assert.equal(getCraftRecipe("craft_generator_engine_ion")?.category, "generator");
-  assert.equal(getCraftRecipe("craft_extra_extra_repair_starter")?.category, "extra");
+  assert.equal(getCraftRecipe("craft_extra_extra_auto_rocket")?.category, "extra");
+  assert.equal(getCraftRecipe("craft_formation_cuirasse")?.category, "drone");
+});
+
+test("crafting applies requested recipe balance and exclusions", ()=>{
+  const recipes = getCraftRecipes();
+  const recipeIds = recipes.map(recipe=>recipe.id);
+
+  assert.equal(getCraftRecipe("craft_ship_orion"), null);
+  assert.equal(getCraftRecipe("craft_ship_velox"), null);
+  assert.equal(recipeIds.indexOf("craft_ship_helion_titan") < recipeIds.indexOf("craft_ship_astralis"), true);
+
+  assert.deepEqual(getCraftRecipe("craft_ship_valkyrie").costs, {
+    materials:{plaques_acier:3, cables_cuivre:2, micro_pompe_cryogenique:1, ruban_carbone_ceramique:1},
+    credits:0,
+    premium:0
+  });
+  assert.deepEqual(getCraftRecipe("craft_ship_razorion").costs, {
+    materials:{polymere_isolant:5, bobine_supraconductrice:3, gyroscope_stabilise:2},
+    credits:2_500_000,
+    premium:0
+  });
+  assert.deepEqual(getCraftRecipe("craft_ship_astralis").costs, {
+    materials:{gyroscope_stabilise:4, ruban_carbone_ceramique:3, diaphragme_gravitonique:1, micro_heatpipe_quantique:2},
+    credits:0,
+    premium:0
+  });
+  assert.deepEqual(getCraftRecipe("craft_ship_helion_titan").costs, {
+    materials:{panneau_titane_nid_abeille:4, ruban_carbone_ceramique:3, bobine_supraconductrice:3, ruban_alliage_memoire:1},
+    credits:0,
+    premium:0
+  });
+  assert.equal(getCraftRecipe("craft_ship_vesperion").costs.credits, 100_000_000);
+  assert.equal(getCraftRecipe("craft_ship_vesperion").costs.premium, 0);
+  assert.deepEqual(getCraftRecipe("craft_ship_asterion").costs.materials, {
+    micro_heatpipe_quantique:20,
+    diaphragme_gravitonique:12,
+    bobine_plasma_solaire:4,
+    roulement_magnetique:6
+  });
+
+  assert.equal(getCraftRecipe("craft_weapon_launcher_missile_mk1"), null);
+  assert.equal(getCraftRecipe("craft_weapon_launcher_rocket_mk1"), null);
+  assert.equal(getCraftRecipe("craft_extra_extra_repair_starter"), null);
+  assert.equal(getCraftRecipe("craft_extra_teleportation_fluid"), null);
+  assert.ok(getCraftRecipe("craft_weapon_laser_mk4"));
+  assert.ok(getCraftRecipe("craft_weapon_laser_elite_green"));
+
+  assert.deepEqual(getCraftRecipe("craft_weapon_laser_mk1").costs.materials, {
+    lentilles_optiques:1,
+    cables_cuivre:1,
+    plaques_acier:1
+  });
+  assert.deepEqual(getCraftRecipe("craft_generator_reactor_ion").costs.materials, {
+    poudre_propulsive:5,
+    circuits_imprimes:3,
+    bobine_supraconductrice:1,
+    micro_pompe_cryogenique:1
+  });
+
+  assert.equal(getCraftRecipe("craft_ammo_ammo_x1").output.amount, 10_000);
+  assert.equal(getCraftRecipe("craft_ammo_ammo_x4").costs.premium, 0);
+  assert.equal(getCraftRecipe("craft_ammo_rocket_r1").output.amount, 100);
+  assert.equal(getCraftRecipe("craft_ammo_missile_m2").output.amount, 100);
+  assert.equal(getCraftRecipe("craft_ammo_missile_m2").costs.premium, 0);
+  assert.equal(getCraftRecipe("craft_booster_booster_s1_damage").output.durationMs, 5 * 60 * 60 * 1000);
 });
 
 test("crafting resource rows expose rarity badges and hover details", ()=>{
@@ -75,10 +141,13 @@ test("crafting resource rows expose rarity badges and hover details", ()=>{
 
   assert.match(panel.html, /craft-material-rarity/);
   assert.match(panel.html, /craft-material-tooltip/);
+  assert.match(panel.html, /craft-detail-rarity rarity-rare/);
   assert.match(panel.html, /Stock actuel/);
   assert.match(panel.html, /Taux de drop/);
+  assert.match(panel.html, /Map X-1 \/ X-2 \/ X-3/);
+  assert.match(panel.html, /craft-drop-line low/);
   assert.match(panel.html, /rarity-/);
-  assert.doesNotMatch(panel.html, /craft-material-copy"><strong[\s\S]*?<\/strong><small/);
+  assert.match(panel.html, /<span class="craft-material-copy"><strong title="Câbles de cuivre">Câbles de cuivre<\/strong><\/span>/);
 });
 
 test("server crafting rejects queues and owned ship or formation duplicates", ()=>{
@@ -91,7 +160,8 @@ test("server crafting rejects queues and owned ship or formation duplicates", ()
   assert.match(queued.reason, /deja en cours/i);
 
   const shipProfile = createCraftReadyProfile();
-  const ownedShip = startServerCraftingJob(shipProfile, {recipeId:"craft_ship_orion", now:10});
+  shipProfile.ownedShips.push("valkyrie");
+  const ownedShip = startServerCraftingJob(shipProfile, {recipeId:"craft_ship_valkyrie", now:10});
   assert.equal(ownedShip.ok, false);
   assert.match(ownedShip.reason, /deja possede/i);
 

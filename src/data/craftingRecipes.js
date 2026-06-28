@@ -1,13 +1,13 @@
-import { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js";
-import { ships } from "./ships.js";
+import { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=craft-balance-1";
+import { ships } from "./ships.js?v=craft-balance-1";
 import {
   COMMON_CRAFT_RESOURCES,
   ELITE_CRAFT_RESOURCES,
   MYTHIC_CRAFT_RESOURCES,
   RARE_CRAFT_RESOURCES,
   VERY_RARE_CRAFT_RESOURCES
-} from "./resources.js";
-import { S1_BOOSTER_SHOP } from "../shared/firmBoosters.js";
+} from "./resources.js?v=craft-balance-1";
+import { S1_BOOSTER_DURATION_MS, S1_BOOSTER_SHOP } from "../shared/firmBoosters.js?v=craft-balance-1";
 
 export const CRAFT_DURATION_MS = 60_000;
 
@@ -18,7 +18,6 @@ export const CRAFT_CATEGORY_TABS = Object.freeze([
   {id:"generator", label:"Générateurs"},
   {id:"extra", label:"Extras"},
   {id:"drone", label:"Drones"},
-  {id:"formation", label:"Formations"},
   {id:"booster", label:"Boosters"},
   {id:"ammo", label:"Munitions"}
 ]);
@@ -49,6 +48,134 @@ const TYPE_WEIGHTS = Object.freeze({
   formation:5,
   booster:2,
   ammo:1
+});
+
+const NON_CRAFTABLE_SHIP_IDS = new Set(["orion", "velox"]);
+const NON_CRAFTABLE_ITEM_IDS = new Set([
+  "launcher_missile_mk1",
+  "launcher_rocket_mk1",
+  "extra_repair_starter",
+  "teleportation_fluid"
+]);
+const FORCE_CRAFTABLE_ITEM_IDS = new Set([
+  "laser_mk4",
+  "laser_elite_green",
+  "laser_elite_blue",
+  "laser_elite_red"
+]);
+
+function costs(materials = {}, credits = 0, premium = 0){
+  return {
+    materials:{...materials},
+    credits:Math.max(0, Math.floor(Number(credits || 0))),
+    premium:Math.max(0, Math.floor(Number(premium || 0)))
+  };
+}
+
+const CRAFT_RECIPE_OVERRIDES = Object.freeze({
+  valkyrie:{costs:costs({
+    plaques_acier:3,
+    cables_cuivre:2,
+    micro_pompe_cryogenique:1,
+    ruban_carbone_ceramique:1
+  })},
+  razorion:{costs:costs({
+    polymere_isolant:5,
+    bobine_supraconductrice:3,
+    gyroscope_stabilise:2
+  }, 2_500_000)},
+  astralis:{costs:costs({
+    gyroscope_stabilise:4,
+    ruban_carbone_ceramique:3,
+    diaphragme_gravitonique:1,
+    micro_heatpipe_quantique:2
+  })},
+  helion_titan:{costs:costs({
+    panneau_titane_nid_abeille:4,
+    ruban_carbone_ceramique:3,
+    bobine_supraconductrice:3,
+    ruban_alliage_memoire:1
+  })},
+  vesperion:{costs:costs({
+    ruban_alliage_memoire:14,
+    tresse_optique_quantique:15,
+    plaque_matiere_noire:5,
+    stabilisateur_dimensionnel:6
+  }, 100_000_000)},
+  nyxaris:{costs:costs({
+    injecteur_ionique_miniature:13,
+    ruban_alliage_memoire:14,
+    roulement_magnetique:5,
+    noyau_fusion_miniature:6
+  }, 100_000_000)},
+  asterion:{costs:costs({
+    micro_heatpipe_quantique:20,
+    diaphragme_gravitonique:12,
+    bobine_plasma_solaire:4,
+    roulement_magnetique:6
+  }, 100_000_000)},
+  laser_mk1:{costs:costs({
+    lentilles_optiques:1,
+    cables_cuivre:1,
+    plaques_acier:1
+  })},
+  laser_mk2:{costs:costs({
+    cables_cuivre:2,
+    plaques_acier:3,
+    lentille_focalisation_dopee:1
+  })},
+  laser_mk3:{costs:costs({
+    cables_cuivre:7,
+    plaques_acier:8,
+    lentille_focalisation_dopee:3,
+    cartouche_aerogel_cryogenique:2
+  })},
+  laser_mk4:{costs:costs({
+    bobine_supraconductrice:5,
+    lentille_focalisation_dopee:4,
+    micro_heatpipe_quantique:3,
+    prisme_phase:2
+  })},
+  laser_elite_green:{costs:costs({
+    prisme_phase:8,
+    tresse_optique_quantique:6,
+    bobine_plasma_solaire:3,
+    capsule_nanoreparation:3
+  }, 25_000_000)},
+  laser_elite_blue:{costs:costs({
+    capsule_fluide_neutronique:8,
+    micro_heatpipe_quantique:6,
+    cristal_phase_encapsule:4,
+    injecteur_vide:3
+  }, 25_000_000)},
+  laser_elite_red:{costs:costs({
+    cartouche_plasma_condense:8,
+    ruban_alliage_memoire:6,
+    noyau_fusion_miniature:4,
+    bobine_plasma_solaire:3
+  }, 25_000_000)},
+  shield_gen:{costs:costs({
+    plaques_acier:2,
+    condensateurs_ceramiques:1,
+    polymere_isolant:1
+  })},
+  shield_omega:{costs:costs({
+    condensateurs_ceramiques:3,
+    polymere_isolant:5,
+    panneau_titane_nid_abeille:2,
+    gyroscope_stabilise:1
+  })},
+  engine_ion:{costs:costs({
+    reservoirs_pressurises:1,
+    poudre_propulsive:2,
+    circuits_imprimes:1
+  })},
+  reactor_ion:{costs:costs({
+    poudre_propulsive:5,
+    circuits_imprimes:3,
+    bobine_supraconductrice:1,
+    micro_pompe_cryogenique:1
+  })}
 });
 
 function normalizeRarityTier(value, fallback = "common"){
@@ -128,6 +255,17 @@ function buildCosts(source, category, rarityTier){
   return costs;
 }
 
+function normalizeCosts(value){
+  const source = value && typeof value === "object" ? value : {};
+  return Object.freeze({
+    materials:Object.freeze(Object.fromEntries(Object.entries(source.materials || {})
+      .map(([id, amount])=>[id, Math.max(0, Math.floor(Number(amount || 0)))])
+      .filter(([, amount])=>amount > 0))),
+    credits:Math.max(0, Math.floor(Number(source.credits || 0))),
+    premium:Math.max(0, Math.floor(Number(source.premium || 0)))
+  });
+}
+
 function classifyEquipment(item){
   if(item.category === "canon" || item.slotType === "weapon" || item.slotType === "missileLauncher" || item.slotType === "rocketLauncher"){
     return "weapon";
@@ -140,8 +278,12 @@ function classifyEquipment(item){
 
 function recipeFromSource(source, category, output, options = {}){
   const rarityTier = normalizeRarityTier(options.rarityTier || source.rarityTier || source.rarity);
+  const override = CRAFT_RECIPE_OVERRIDES[source.id] || null;
+  const recipeCosts = normalizeCosts(override?.costs || buildCosts(source, category, rarityTier));
+  const finalCosts = options.freeCurrency ? normalizeCosts({...recipeCosts, credits:0, premium:0}) : recipeCosts;
+  const idCategory = options.idCategory || category;
   return Object.freeze({
-    id:`craft_${category}_${source.id}`.replace(/[^a-zA-Z0-9_:-]/g, "_"),
+    id:(options.recipeId || `craft_${idCategory}_${source.id}`).replace(/[^a-zA-Z0-9_:-]/g, "_"),
     category,
     name:source.name || source.label || source.id,
     short:source.short || source.name || source.id,
@@ -150,14 +292,25 @@ function recipeFromSource(source, category, output, options = {}){
     rarityTier,
     desc:source.desc || source.shopDesc || "",
     durationMs:CRAFT_DURATION_MS,
-    costs:buildCosts(source, category, rarityTier),
+    costs:finalCosts,
     output:Object.freeze(output)
   });
 }
 
+function isCraftableItem(item){
+  if(!item?.id || NON_CRAFTABLE_ITEM_IDS.has(item.id)) return false;
+  return item.shop !== false || FORCE_CRAFTABLE_ITEM_IDS.has(item.id);
+}
+
+function craftAmmoOutputAmount(ammo){
+  if(ammo.weaponClass === "laser") return 10_000;
+  if(ammo.weaponClass === "rocket" || ammo.weaponClass === "missile") return 100;
+  return Math.max(1, Math.floor(Number(ammo.amount || 1)));
+}
+
 function buildCraftRecipes(){
   const itemRecipes = equipment
-    .filter(item=>item.shop !== false)
+    .filter(isCraftableItem)
     .map(item=>{
       const category = classifyEquipment(item);
       return recipeFromSource(item, category, {
@@ -172,14 +325,16 @@ function buildCraftRecipes(){
     .map(ammo=>recipeFromSource(ammo, "ammo", {
       type:"ammo",
       id:ammo.id,
-      amount:Math.max(1, Math.floor(Number(ammo.amount || 1)))
-    }));
+      amount:craftAmmoOutputAmount(ammo)
+    }, {freeCurrency:true}));
 
-  const shipRecipes = ships.map(ship=>recipeFromSource(ship, "ship", {
-    type:"ship",
-    id:ship.id,
-    amount:1
-  }));
+  const shipRecipes = ships
+    .filter(ship=>!NON_CRAFTABLE_SHIP_IDS.has(ship.id))
+    .map(ship=>recipeFromSource(ship, "ship", {
+      type:"ship",
+      id:ship.id,
+      amount:1
+    }));
 
   const droneRecipes = droneCatalog.map(drone=>recipeFromSource({
     ...drone,
@@ -190,11 +345,11 @@ function buildCraftRecipes(){
     amount:1
   }));
 
-  const formationRecipes = droneFormations.map(formation=>recipeFromSource(formation, "formation", {
+  const formationRecipes = droneFormations.map(formation=>recipeFromSource(formation, "drone", {
     type:"formation",
     id:formation.id,
     amount:1
-  }));
+  }, {idCategory:"formation"}));
 
   const boosterRecipes = S1_BOOSTER_SHOP.map(booster=>recipeFromSource({
     ...booster,
@@ -205,7 +360,8 @@ function buildCraftRecipes(){
     id:booster.id,
     boosterType:booster.type,
     series:"s1",
-    amount:1
+    amount:1,
+    durationMs:booster.durationMs || S1_BOOSTER_DURATION_MS
   }, {rarityTier:"veryRare", rarity:"Booster"}));
 
   return Object.freeze([

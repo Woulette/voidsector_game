@@ -26,15 +26,19 @@ test("level-up effects stay quiet on reset and spawn only when the level increas
   state.store.state.player.level = 5;
 
   assert.equal(system.update(), true);
-  assert.equal(state.particles.some(particle=>particle.kind === "levelUpPulse"), true);
+  assert.equal(state.particles.some(particle=>particle.kind === "levelUpPulse"), false);
   assert.equal(state.particles.some(particle=>particle.kind === "levelUpAura"), true);
-  assert.ok(state.particles.find(particle=>particle.kind === "levelUpPulse").life > 1);
+  assert.equal(state.particles.some(particle=>particle.kind === "levelUpHalo"), true);
+  assert.equal(state.particles.some(particle=>particle.kind === "levelUpStar"), true);
+  assert.ok(state.particles.find(particle=>particle.kind === "levelUpAura").life > 2);
   assert.ok(state.particles.find(particle=>particle.kind === "levelUpSpark").life > .9);
   assert.equal(state.particles.filter(particle=>particle.kind === "levelUpSpark").length, 25);
-  assert.equal(state.damageTexts.length, 1);
-  assert.equal(state.damageTexts[0].kind, "levelUp");
-  assert.equal(state.damageTexts[0].value, "NIVEAU 5");
-  assert.ok(state.damageTexts[0].life > 2);
+  assert.equal(state.particles.every(particle=>particle.kind !== "levelUpSpark" || particle.followPlayer), true);
+  const star = state.particles.find(particle=>particle.kind === "levelUpStar");
+  assert.equal(star.level, 5);
+  assert.ok(star.life > 3);
+  assert.ok(star.driftStart > 1);
+  assert.equal(state.damageTexts.length, 0);
 });
 
 test("level-up effects report visible level-up notices once per increase", ()=>{
@@ -71,5 +75,6 @@ test("spawnLevelUpEffects accepts multi-level rewards without exceeding the spar
 
   assert.equal(spawnLevelUpEffects({state, level:30, previousLevel:1, random:fixedRandom}), true);
   assert.equal(state.particles.filter(particle=>particle.kind === "levelUpSpark").length, 34);
-  assert.equal(state.damageTexts[0].value, "NIVEAU 30");
+  assert.equal(state.particles.find(particle=>particle.kind === "levelUpStar").level, 30);
+  assert.equal(state.damageTexts.length, 0);
 });

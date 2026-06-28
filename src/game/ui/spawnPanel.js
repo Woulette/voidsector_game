@@ -1,6 +1,6 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, craftResourceCatalog, equipment, portals } from "../../data/catalog.js";
-import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-ui-6";
+import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-balance-1";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
 import { getQuestBriefing } from "../../data/questBriefings.js";
@@ -683,14 +683,26 @@ function renderCommercePanel({materials = [], shipCargo = {}, shipCargoUsed = 0,
   };
 }
 
+function formatCraftDurationLabel(ms){
+  const totalMinutes = Math.max(1, Math.round(Number(ms || 0) / 60_000));
+  if(totalMinutes >= 60 && totalMinutes % 60 === 0) return `${fmt(totalMinutes / 60)} h`;
+  if(totalMinutes >= 60) return `${fmt(Math.floor(totalMinutes / 60))} h ${String(totalMinutes % 60).padStart(2, "0")}`;
+  return `${fmt(totalMinutes)} min`;
+}
+
 function craftOutputLabel(recipe){
   const output = recipe?.output || {};
   const amount = Math.max(1, Math.floor(Number(output.amount || 1)));
-  if(output.type === "ammo") return `${fmt(amount)} munitions`;
+  if(output.type === "ammo"){
+    const ammo = ammoTypes.find(entry=>entry.id === output.id);
+    if(ammo?.weaponClass === "rocket") return `${fmt(amount)} roquettes`;
+    if(ammo?.weaponClass === "missile") return `${fmt(amount)} missiles`;
+    return `${fmt(amount)} munitions`;
+  }
   if(output.type === "ship") return "Hangar";
   if(output.type === "drone") return "+1 drone";
   if(output.type === "formation") return "Formation drone";
-  if(output.type === "booster") return "Booster S1";
+  if(output.type === "booster") return `Booster S1 · ${formatCraftDurationLabel(output.durationMs)}`;
   return amount > 1 ? `x${fmt(amount)} inventaire` : "Inventaire";
 }
 
@@ -704,31 +716,43 @@ const CRAFT_RESOURCE_RARITY_META = Object.freeze({
     key:"common",
     label:"Commun",
     source:"Drop monstres + magasin de firme",
-    drops:[{range:"Monstres niv. 1-14", chance:"5%"}]
+    drops:[{maps:"Map X-1 / X-2 / X-3", range:"Monstres niv. 1-14", chance:"5%", tone:"high"}]
   },
   rare:{
     key:"rare",
     label:"Rare",
     source:"Drop monstres + magasin de firme",
-    drops:[{range:"Monstres niv. 1-14", chance:"1%"}, {range:"Monstres niv. 15-24", chance:"5%"}]
+    drops:[
+      {maps:"Map X-1 / X-2 / X-3", range:"Monstres niv. 1-14", chance:"1%", tone:"low"},
+      {maps:"Map X-4 / X-5", range:"Monstres niv. 15-24", chance:"5%", tone:"high"}
+    ]
   },
   veryRare:{
     key:"veryRare",
-    label:"Tres rare",
+    label:"Très rare",
     source:"Drop monstres + magasin de firme",
-    drops:[{range:"Monstres niv. 15-24", chance:"1%"}, {range:"Monstres niv. 25-34", chance:"5%"}]
+    drops:[
+      {maps:"Map X-4 / X-5", range:"Monstres niv. 15-24", chance:"1%", tone:"low"},
+      {maps:"Map X-6 / X-7", range:"Monstres niv. 25-34", chance:"5%", tone:"high"}
+    ]
   },
   elite:{
     key:"elite",
-    label:"Elite",
+    label:"Élite",
     source:"Drop monstres + magasin de firme",
-    drops:[{range:"Monstres niv. 25-34", chance:"1%"}, {range:"Monstres niv. 35-50", chance:"5%"}]
+    drops:[
+      {maps:"Map X-6 / X-7", range:"Monstres niv. 25-34", chance:"1%", tone:"low"},
+      {maps:"Map X-8 / X-9 / X-10", range:"Monstres niv. 35-50", chance:"5%", tone:"high"}
+    ]
   },
   mythic:{
     key:"mythic",
     label:"Mythique",
     source:"Drop monstres + magasin de firme",
-    drops:[{range:"Monstres niv. 35-44", chance:"0,1%"}, {range:"Monstres niv. 45-50", chance:"1%"}]
+    drops:[
+      {maps:"Map X-8 / X-9", range:"Monstres niv. 35-44", chance:"0,1%", tone:"very-low"},
+      {maps:"Map X-10+", range:"Monstres niv. 45-50", chance:"1%", tone:"low"}
+    ]
   }
 });
 
@@ -738,8 +762,17 @@ function getCraftResourceRarityMeta(material){
   return CRAFT_RESOURCE_RARITY_META.common;
 }
 
+function getCraftRarityKey(recipe = {}){
+  const tier = String(recipe.rarityTier || "").trim();
+  if(CRAFT_RESOURCE_RARITY_META[tier]) return tier;
+  return getCraftResourceRarityMeta({rarity:tier || recipe.rarity}).key;
+}
+
 function craftMaterialTooltipHtml({material, materialName, rarity, stock, need}){
-  const dropLines = rarity.drops.map(drop=>`<span><b>${escapeHtml(drop.chance)}</b>${escapeHtml(drop.range)}</span>`).join("");
+  const dropLines = rarity.drops.map(drop=>`<span class="craft-drop-line ${escapeHtml(drop.tone || "")}">
+      <b>${escapeHtml(drop.chance)}</b>
+      <span><strong>${escapeHtml(drop.maps || "")}</strong><small>${escapeHtml(drop.range || "")}</small></span>
+    </span>`).join("");
   return `<span class="craft-material-tooltip" role="tooltip">
     <span class="craft-material-tooltip-head">
       <img src="${material?.img || "assets/materials/cargo_box.svg"}" alt="${escapeHtml(materialName)}">
@@ -833,6 +866,7 @@ function renderCraftingPanel({
   }).join("");
   const selectedCost = selectedRecipe ? selectedRecipe.costs || {} : {};
   const selectedOutput = selectedRecipe ? craftOutputLabel(selectedRecipe) : "";
+  const selectedRarityKey = selectedRecipe ? getCraftRarityKey(selectedRecipe) : "common";
   const activeJobHtml = activeJob ? renderCraftActiveJob({job:activeJob, recipe:activeJobRecipe, formatDuration}) : "";
   const startDisabled = !selectedAvailability.ok || Boolean(activeJob);
   const statusLabel = activeJob ? "Une fabrication est deja en cours" : craftStatusText(selectedAvailability);
@@ -854,7 +888,8 @@ function renderCraftingPanel({
           ${selectedRecipe ? `
             <header class="craft-detail-head">
               <img src="${selectedRecipe.img}" alt="${escapeHtml(selectedRecipe.name)}">
-              <div><span>${escapeHtml(selectedRecipe.rarity || selectedRecipe.rarityTier || "")}</span><strong>${escapeHtml(selectedRecipe.name)}</strong><small>${escapeHtml(selectedOutput)}</small></div>
+              <div class="craft-detail-title"><strong>${escapeHtml(selectedRecipe.name)}</strong><small>${escapeHtml(selectedOutput)}</small></div>
+              <span class="craft-detail-rarity rarity-${escapeHtml(selectedRarityKey)}">${escapeHtml(selectedRecipe.rarity || selectedRecipe.rarityTier || "")}</span>
             </header>
             <div class="craft-detail-grid">
               <section class="craft-cost-card craft-resource-card">

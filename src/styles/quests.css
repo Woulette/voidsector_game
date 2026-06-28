@@ -22,7 +22,7 @@
 }
 .spawn-panel.crafting-mode{
   top:128px;
-  width:min(1060px,calc(100vw - 96px));
+  width:min(1180px,calc(100vw - 64px));
   height:min(650px,calc(100vh - 148px));
   max-height:none;
   grid-template-rows:auto minmax(0,1fr);
@@ -502,7 +502,7 @@
 .craft-progress span{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#38bdf8,#facc15)}
 .craft-detail-head{
   display:grid;
-  grid-template-columns:84px minmax(0,1fr);
+  grid-template-columns:84px minmax(0,1fr) auto;
   gap:14px;
   align-items:center;
   min-height:98px;
@@ -512,6 +512,28 @@
 }
 .craft-detail-head img{width:80px;height:80px;object-fit:contain;filter:drop-shadow(0 0 15px rgba(125,211,252,.22))}
 .craft-detail-head div{min-width:0;display:grid;gap:5px}
+.craft-detail-title strong{display:block}
+.craft-detail-rarity{
+  --craft-rarity-rgb:148,163,184;
+  justify-self:end;
+  align-self:start;
+  min-width:78px;
+  padding:5px 9px;
+  border:1px solid rgba(var(--craft-rarity-rgb),.58);
+  background:rgba(var(--craft-rarity-rgb),.13);
+  color:rgb(var(--craft-rarity-rgb))!important;
+  font-size:9px!important;
+  font-weight:900;
+  letter-spacing:.65px;
+  text-align:center;
+  text-transform:uppercase;
+  box-shadow:inset 0 0 12px rgba(var(--craft-rarity-rgb),.06),0 0 14px rgba(var(--craft-rarity-rgb),.10);
+}
+.craft-detail-rarity.rarity-common{--craft-rarity-rgb:148,163,184}
+.craft-detail-rarity.rarity-rare{--craft-rarity-rgb:56,189,248}
+.craft-detail-rarity.rarity-veryRare{--craft-rarity-rgb:168,85,247}
+.craft-detail-rarity.rarity-elite{--craft-rarity-rgb:250,204,21}
+.craft-detail-rarity.rarity-mythic{--craft-rarity-rgb:244,63,94}
 .craft-detail-grid{
   min-height:0;
   display:grid;
@@ -653,8 +675,23 @@
   border:1px solid rgba(56,189,248,.10);
   background:rgba(255,255,255,.025);
 }
-.craft-material-tooltip-drops span{display:flex;justify-content:space-between;gap:10px;color:#dff6ff;font-size:10px}
-.craft-material-tooltip-drops span b{color:rgb(var(--craft-rarity-rgb));font-size:10px;white-space:nowrap}
+.craft-material-tooltip-drops > span{display:grid;grid-template-columns:48px minmax(0,1fr);align-items:center;gap:10px;color:#dff6ff;font-size:10px}
+.craft-material-tooltip-drops > span > b{
+  min-width:44px;
+  padding:4px 5px;
+  border:1px solid rgba(var(--craft-rarity-rgb),.40);
+  background:rgba(var(--craft-rarity-rgb),.10);
+  color:rgb(var(--craft-rarity-rgb));
+  font-size:10px;
+  text-align:center;
+  white-space:nowrap;
+}
+.craft-drop-line.high > b{border-color:rgba(34,197,94,.50);background:rgba(34,197,94,.12);color:#86efac}
+.craft-drop-line.low > b{border-color:rgba(56,189,248,.48);background:rgba(56,189,248,.11);color:#7dd3fc}
+.craft-drop-line.very-low > b{border-color:rgba(248,113,113,.48);background:rgba(248,113,113,.10);color:#fca5a5}
+.craft-drop-line > span{min-width:0;display:grid;gap:2px}
+.craft-drop-line strong{color:#f8fafc;font-size:10px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.craft-drop-line small{color:#8fb9d6;font-size:9px;text-transform:uppercase}
 .craft-material-tooltip-desc{color:#a8c7d9;font-size:10px;line-height:1.35}
 .craft-empty-cost{color:#8fb9d6;font-size:11px;text-transform:uppercase}
 .craft-currency-row{display:grid;grid-template-columns:1fr;gap:8px}
@@ -1165,7 +1202,7 @@
   .craft-category-tab{min-width:74px}
   .craft-category-tab{gap:4px;padding:0 5px;font-size:8px}
   .craft-detail-grid{grid-template-columns:1fr}
-  .craft-detail-head{grid-template-columns:66px minmax(0,1fr);min-height:82px}
+  .craft-detail-head{grid-template-columns:66px minmax(0,1fr) auto;min-height:82px}
   .craft-detail-head img{width:62px;height:62px}
   .quest-console{grid-template-columns:1fr;grid-template-rows:minmax(160px,.75fr) minmax(0,1fr);min-height:0}
   .quest-detail-hero{grid-template-columns:1fr}
