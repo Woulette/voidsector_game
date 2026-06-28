@@ -452,9 +452,9 @@
 }
 .craft-recipe-strip{
   min-width:0;
-  min-height:58px;
+  min-height:62px;
   display:grid;
-  grid-template-columns:42px minmax(0,1fr) 66px;
+  grid-template-columns:42px minmax(0,1fr) 58px;
   align-items:center;
   gap:10px;
   padding:8px 9px;
@@ -468,9 +468,9 @@
 .craft-recipe-strip.locked{opacity:.7}
 .craft-recipe-strip img{width:40px;height:40px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(125,211,252,.24))}
 .craft-recipe-strip span{min-width:0;display:grid;gap:3px}
-.craft-recipe-strip strong{min-width:0;color:#f8fafc;font-size:11px;line-height:1.12;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.craft-recipe-strip strong{min-width:0;color:#f8fafc;font-size:11px;line-height:1.12;text-transform:uppercase;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:break-word}
 .craft-recipe-strip small{color:#8fb9d6;font-size:9px;text-transform:uppercase}
-.craft-recipe-strip>b{justify-self:end;color:#7dd3fc;font-size:8px;line-height:1.1;letter-spacing:.35px;text-align:right;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.craft-recipe-strip>b{justify-self:end;color:#7dd3fc;font-size:7.5px;line-height:1.1;letter-spacing:.25px;text-align:right;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .craft-detail{
   display:grid;
   grid-template-rows:auto minmax(0,1fr);
