@@ -8,6 +8,7 @@ const combat = fs.readFileSync(new URL("../../src/game/combatOrchestrator.js", i
 const actionBar = fs.readFileSync(new URL("../../src/game/ui/actionBar.js", import.meta.url),"utf8");
 const app = fs.readFileSync(new URL("../../src/app.js", import.meta.url),"utf8");
 const shop = fs.readFileSync(new URL("../../src/ui/renderShop.js", import.meta.url),"utf8");
+const refinery = fs.readFileSync(new URL("../../src/ui/renderRefinery.js", import.meta.url),"utf8");
 const css = fs.readFileSync(new URL("../../src/styles/tutorial.css", import.meta.url),"utf8");
 const authCss = fs.readFileSync(new URL("../../src/styles/auth.css", import.meta.url),"utf8");
 
@@ -127,6 +128,16 @@ test("shop selection tutorial steps lock purchases until the highlighted card is
   assert.match(shop,/tutorialPurchaseBlocked \|\| !canAfford/);
   assert.match(app,/reason === "tutorial:updated" && store\.currentView === "shop"/);
   assert.match(app,/renderShop\(\)/);
+});
+
+test("refinery storage tutorial locks improve then launch as separate clicks", ()=>{
+  assert.match(controller,/launcher_upgrade_storage:\{[^\n]*selector:'\[data-upgrade-refinery-module="storage"\]'[^\n]*click:true[^\n]*lockToSelector:true/);
+  assert.match(controller,/launcher_launch_storage_upgrade:\{[^\n]*silent:true[^\n]*selector:'\[data-confirm-refinery-module-upgrade="storage"\]'[^\n]*lockToSelector:true/);
+  assert.match(controller,/findVisibleTarget\(definition\.selector\)/);
+  assert.match(refinery,/launcher_launch_storage_upgrade/);
+  assert.match(refinery,/store\.selectedRefineryUpgrade = \{type:"module", id:"storage"\}/);
+  assert.match(app,/tutorial-flow-21/);
+  assert.match(app,/tutorial-refinery-lock-1/);
 });
 
 test("mission relay camera preview lasts long enough to understand the target", ()=>{

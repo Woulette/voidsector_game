@@ -49,7 +49,8 @@ function stageDefinitions(ctx){
     game_select_storage:{mode:"game",handoff:true,selector:`[data-view-quest="${STORAGE_QUEST}"]`,click:true,condition:s=>questStartedOrDone(s,STORAGE_QUEST),message:"Sélectionne « Un choix rationelle » et accepte-la."},
     game_accept_storage:{mode:"game",silent:true,selector:`[data-accept-quest="${STORAGE_QUEST}"]`,condition:s=>questStartedOrDone(s,STORAGE_QUEST),message:"Accepte la mission d'amélioration du stockage."},
     launcher_open_refinery:{mode:"launcher",handoff:true,selector:'[data-view="refinery"]',click:true,message:"Ouvre la RAFFINERIE depuis le tableau de bord."},
-    launcher_upgrade_storage:{mode:"launcher",handoff:true,selector:'[data-upgrade-refinery-module="storage"], [data-confirm-refinery-module-upgrade="storage"]',condition:s=>questDone(s,STORAGE_QUEST),message:"Améliore le module STOCKAGE au niveau 2. Clique d'abord sur Améliorer, puis confirme le lancement."},
+    launcher_upgrade_storage:{mode:"launcher",handoff:true,selector:'[data-upgrade-refinery-module="storage"]',click:true,lockToSelector:true,message:"Clique sur AMELIORER pour le module STOCKAGE."},
+    launcher_launch_storage_upgrade:{mode:"launcher",silent:true,selector:'[data-confirm-refinery-module-upgrade="storage"]',lockToSelector:true,condition:s=>questDone(s,STORAGE_QUEST),message:""},
     game_open_quests_3:{mode:"game",handoff:true,world:{type:"station",id:"quests"},arrowMode:"world-anchor",condition:s=>isQuestPanelOpen()||questStartedOrDone(s,RAIDER_QUEST),message:"L'amélioration est lancée. Reviens au contrôleur pour la mission suivante."},
     game_select_raiders:{mode:"game",handoff:true,selector:`[data-view-quest="${RAIDER_QUEST}"]`,click:true,condition:s=>questStartedOrDone(s,RAIDER_QUEST),message:"Continue, sélectionne « Pulvérisé à la racine », puis accepte la mission."},
     game_accept_raiders:{mode:"game",silent:true,selector:`[data-accept-quest="${RAIDER_QUEST}"]`,condition:s=>questStartedOrDone(s,RAIDER_QUEST),message:"Accepte la mission contre les Vorak rushers."},
@@ -318,6 +319,7 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
       && definition?.mode === appMode
       && definition?.lockToSelector
       && definition?.selector
+      && findVisibleTarget(definition.selector)
       && (!definition.handoff || dismissedStep === tutorial.step));
   }
 

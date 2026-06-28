@@ -64,6 +64,7 @@ export const TUTORIAL_STEPS = Object.freeze([
   "game_accept_storage",
   "launcher_open_refinery",
   "launcher_upgrade_storage",
+  "launcher_launch_storage_upgrade",
   "game_open_quests_3",
   "game_select_raiders",
   "game_accept_raiders",

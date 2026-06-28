@@ -54,7 +54,7 @@ import { FIRM_REPRESENTATIVES } from "../data/firmRepresentatives.js";
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
 import { renderShop } from "./renderShop.js?v=tutorial-shop-lock-1";
 import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=portal-prepare-1";
-import { renderRefinery } from "./renderRefinery.js";
+import { renderRefinery } from "./renderRefinery.js?v=tutorial-refinery-lock-1";
 import { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
 import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
 import { multiplayer } from "../multiplayer/client.js?v=portal-prepare-1";
@@ -1167,7 +1167,7 @@ function renderFirmSetupGate(){
 
 export { renderShop } from "./renderShop.js?v=tutorial-shop-lock-1";
 export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=portal-prepare-1";
-export { renderRefinery } from "./renderRefinery.js";
+export { renderRefinery } from "./renderRefinery.js?v=tutorial-refinery-lock-1";
 export { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
 
 export function renderAll(){

@@ -60,6 +60,20 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     return null;
   }
 
+  function rejectTutorialEconomyAction(profile, action = {}){
+    if(profile?.tutorial?.status !== "active") return null;
+    const step = String(profile.tutorial.step || "");
+    if(step === "launcher_upgrade_storage"){
+      return {ok:false, reason:"Tutoriel actif : clique d'abord sur AMELIORER pour le stockage."};
+    }
+    if(step !== "launcher_launch_storage_upgrade") return null;
+    const isExpectedStorageLaunch = action?.kind === "refinery-upgrade-start"
+      && action?.type === "module"
+      && action?.id === "storage";
+    if(isExpectedStorageLaunch) return null;
+    return {ok:false, reason:"Tutoriel actif : lance uniquement l'amelioration du stockage."};
+  }
+
   function spendAndUpdate({player, priceType, amount, update, activity} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
@@ -657,7 +671,10 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
   function applyEconomyAction({player, action} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const tutorialBlocked = rejectTutorialEconomyAction(profile, action);
+    if(tutorialBlocked) return tutorialBlocked;
     const previous = cloneProfileSnapshot(profile);
+    const tutorialBefore = tutorialSnapshot(profile);
     completeServerRefineryUpgrades(profile);
     completeServerRefineryShipment(profile);
     let result = null;
@@ -705,7 +722,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       .filter(update=>update?.completed)
       .map(update=>String(update.questId || update.id || ""))
       .filter(Boolean))];
-    if(completedIds.length) claimedQuests = claimCompletedServerQuests(profile, completedIds).claimed || [];
+    claimedQuests = claimCompletedServerQuests(profile, completedIds.length ? completedIds : null).claimed || [];
+    abandonTutorialAfterOutsideQuestAction(profile);
     appendProfileActivity(profile, {
       type:"economy",
       label:"Economie",
@@ -716,7 +734,14 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       ...profile,
       updatedAt:Date.now()
     });
-    return commitProfileResult({...result, questUpdates:questProgress?.updates || [], claimedQuests}, key, previous, next);
+    const tutorialChanged = tutorialBefore !== tutorialSnapshot(next);
+    return commitProfileResult({
+      ...result,
+      questUpdates:questProgress?.updates || [],
+      claimedQuests,
+      tutorial:next.tutorial,
+      tutorialChanged
+    }, key, previous, next);
   }
   
   function applyProgressionAction({player, action} = {}){

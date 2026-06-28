@@ -90,6 +90,53 @@ test("active tutorial blocks accepting quests outside the current instruction", 
   assert.equal(profile.tutorial.step, "game_select_storage");
 });
 
+test("active tutorial gates the refinery storage upgrade sequence", ()=>{
+  const profile = createDefaultProfile();
+  profile.tutorial = {...profile.tutorial, status:"active", step:"launcher_upgrade_storage"};
+  profile.completedQuestClaims[TUTORIAL_QUEST_IDS[0]] = true;
+  profile.activeQuestIds = [TUTORIAL_QUEST_IDS[1]];
+  profile.player.credits = 100_000;
+  profile.cargoHold = {
+    cuivre_orbital:125,
+    zinc_spatial:125,
+    nickel_brut:125,
+    titane_fissure:125,
+    silice_conductrice:125
+  };
+  const profiles = new Map([["Pilot", profile]]);
+  const manager = createProfileActions({
+    profiles,
+    persist(){ return Promise.resolve(); },
+    getExistingProfile(){ return {key:"Pilot", profile:profiles.get("Pilot")}; }
+  });
+
+  const tooEarly = manager.applyEconomyAction({
+    player:{name:"Pilot"},
+    action:{kind:"refinery-upgrade-start", type:"module", id:"storage"}
+  });
+  assert.equal(tooEarly.ok, false);
+  assert.match(tooEarly.reason, /AMELIORER/);
+  assert.equal(Boolean(profile.refineryUpgradeJobs?.["module:storage"]), false);
+
+  profile.tutorial.step = "launcher_launch_storage_upgrade";
+  const wrongUpgrade = manager.applyEconomyAction({
+    player:{name:"Pilot"},
+    action:{kind:"refinery-upgrade-start", type:"material", id:"cuivre_orbital"}
+  });
+  assert.equal(wrongUpgrade.ok, false);
+  assert.match(wrongUpgrade.reason, /stockage/);
+
+  const allowed = manager.applyEconomyAction({
+    player:{name:"Pilot"},
+    action:{kind:"refinery-upgrade-start", type:"module", id:"storage"}
+  });
+  assert.equal(allowed.ok, true);
+  assert.equal(allowed.tutorialChanged, true);
+  assert.equal(allowed.profile.tutorial.step, "game_open_quests_3");
+  assert.equal(Boolean(allowed.profile.refineryUpgradeJobs?.["module:storage"]), true);
+  assert.equal(Boolean(allowed.profile.completedQuestClaims?.[TUTORIAL_QUEST_IDS[1]]), true);
+});
+
 test("tutorial recovery ignores future quests until previous tutorial quests are complete", ()=>{
   const profile = createDefaultProfile();
   profile.tutorial = {...profile.tutorial, status:"active", step:"game_open_quests_2"};

@@ -20,7 +20,7 @@ async function ensureSaved(socket, result, eventName){
 }
 
 export function registerEconomyHandlers(socket, context){
-  const {emitProfileSync, emitQuestClaims:emitQuestClaimsForPlayer, guard, players, profileManager} = context;
+  const {emitProfileSync, emitQuestClaims:emitQuestClaimsForPlayer, emitTutorialUpdate, guard, players, profileManager} = context;
 
   socket.on("space-caster:run", async payload=>{
     if(!guard("space-caster:run")) return;
@@ -71,6 +71,7 @@ export function registerEconomyHandlers(socket, context){
     });
     emitQuestProgress(socket, result);
     emitQuestClaims(player, emitQuestClaimsForPlayer, result);
+    emitTutorialUpdate?.(player, result, {source:"refinery:upgrade-start"});
     emitProfileSync(player, result.profile);
   });
 
