@@ -4,6 +4,7 @@ import {
   abilityIndexFromEvent,
   normalizeAbilityKeybinds
 } from "../../src/core/keybinds.js";
+import { normalizeSpectralDoubleShotChargeStatus } from "../../src/game/systems/combatServerEvents.js";
 import { renderShipAbilityBarHtml } from "../../src/game/ui/shipAbilityBar.js";
 import { getShipAbilityStatuses } from "../../src/shared/shipAbilities.js";
 
@@ -65,4 +66,28 @@ test("ability shortcuts default to C V B and avoid action key conflicts", ()=>{
   const keys = normalizeAbilityKeybinds(["KeyC", "KeyV", "KeyB"], ["KeyC"]);
   assert.equal(keys.includes("KeyC"), false);
   assert.equal(abilityIndexFromEvent({code:keys[0]}, keys, ["KeyC"]), 0);
+});
+
+test("spectral double-shot charge is mapped from server time to local time", ()=>{
+  const normalized = normalizeSpectralDoubleShotChargeStatus({
+    abilityId:"spectral_double_shot",
+    shipId:"asterion",
+    activeUntil:150_000,
+    chargeMs:3_000,
+    chargeSegments:3,
+    chargeStartedAt:120_000,
+    chargeReadyAt:123_000
+  }, {
+    ownerId:"player-1",
+    playerId:"player-1",
+    activeShipId:"asterion",
+    now:101_500,
+    localReceivedAt:100_000,
+    serverAt:120_000
+  });
+
+  assert.equal(normalized.chargeStartedAt, 100_000);
+  assert.equal(normalized.chargeReadyAt, 103_000);
+  assert.equal(normalized.activeUntil, 130_000);
+  assert.equal(normalized.chargeSegments, 3);
 });

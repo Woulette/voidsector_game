@@ -49,6 +49,52 @@ export function getNpcDamageDisplayAmount(event = {}){
   return Math.max(0, Math.round(Number(event.hpLost || 0)));
 }
 
+export function normalizeSpectralDoubleShotChargeStatus(status = {}, {
+  ownerId = "",
+  playerId = "",
+  activeShipId = "",
+  now = Date.now(),
+  localReceivedAt = now,
+  serverAt = status?.at
+} = {}){
+  if(String(status?.abilityId || "") !== "spectral_double_shot") return null;
+  if(ownerId && String(ownerId) !== String(playerId || "")) return null;
+  const shipId = String(status.shipId || activeShipId || "");
+  if(activeShipId && shipId && shipId !== String(activeShipId)) return null;
+
+  const localNow = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+  const localAnchor = Number.isFinite(Number(localReceivedAt)) ? Number(localReceivedAt) : localNow;
+  const serverAnchor = Number(serverAt);
+  const clockOffset = Number.isFinite(serverAnchor) && serverAnchor > 0 ? localAnchor - serverAnchor : 0;
+  const toLocalTime = value=>{
+    const raw = Number(value || 0);
+    return Number.isFinite(raw) && raw > 0 ? raw + clockOffset : 0;
+  };
+
+  const activeUntil = Math.max(0, toLocalTime(status.activeUntil));
+  if(activeUntil <= localNow) return {expired:true};
+
+  const chargeMs = Math.max(1, Number(status.chargeMs || 3_000));
+  const chargeSegments = Math.max(1, Number(status.chargeSegments || 3));
+  let chargeStartedAt = Math.max(0, toLocalTime(status.chargeStartedAt));
+  let chargeReadyAt = Math.max(0, toLocalTime(status.chargeReadyAt));
+  if(chargeReadyAt <= 0 && chargeStartedAt > 0) chargeReadyAt = chargeStartedAt + chargeMs;
+  if(chargeStartedAt <= 0 && chargeReadyAt > 0) chargeStartedAt = chargeReadyAt - chargeMs;
+  if(chargeStartedAt <= 0) chargeStartedAt = localNow;
+  if(chargeReadyAt <= 0) chargeReadyAt = chargeStartedAt + chargeMs;
+
+  return {
+    abilityId:"spectral_double_shot",
+    shipId,
+    activeUntil,
+    chargeMs,
+    chargeSegments,
+    chargeStartedAt,
+    chargeReadyAt,
+    receivedAt:localAnchor
+  };
+}
+
 export function createCombatServerEventSystem({
   multiplayer,
   getState,
@@ -78,34 +124,33 @@ export function createCombatServerEventSystem({
     return String(map?.id ?? map?.name ?? "");
   }
 
-  function updateSpectralDoubleShotCharge(status = {}, ownerId = ""){
-    if(String(status?.abilityId || "") !== "spectral_double_shot") return false;
-    if(ownerId && String(ownerId) !== String(multiplayer.playerId || "")) return false;
+  function localWallTimeFromEvent(event = {}){
+    const receivedAt = Number(event?.receivedAt);
+    if(Number.isFinite(receivedAt)){
+      return Date.now() - Math.max(0, performance.now() - receivedAt);
+    }
+    return Date.now();
+  }
+
+  function updateSpectralDoubleShotCharge(status = {}, ownerId = "", eventMeta = status){
     const {player, store} = getState();
     if(!player) return false;
     const activeShipId = String(store?.state?.activeShip || "");
-    const shipId = String(status.shipId || activeShipId || "");
-    if(activeShipId && shipId && shipId !== activeShipId) return false;
     const now = Date.now();
-    const activeUntil = Math.max(0, Number(status.activeUntil || 0));
-    if(activeUntil <= now){
+    const normalized = normalizeSpectralDoubleShotChargeStatus(status, {
+      ownerId,
+      playerId:multiplayer.playerId,
+      activeShipId,
+      now,
+      localReceivedAt:localWallTimeFromEvent(eventMeta),
+      serverAt:eventMeta?.at || status?.at
+    });
+    if(!normalized) return false;
+    if(normalized.expired){
       delete player.spectralDoubleShotCharge;
       return false;
     }
-    const chargeMs = Math.max(1, Number(status.chargeMs || 3_000));
-    const chargeSegments = Math.max(1, Number(status.chargeSegments || 3));
-    const chargeReadyAt = Math.max(0, Number(status.chargeReadyAt || now + chargeMs));
-    const chargeStartedAt = Math.max(0, Number(status.chargeStartedAt || chargeReadyAt - chargeMs || now));
-    player.spectralDoubleShotCharge = {
-      abilityId:"spectral_double_shot",
-      shipId,
-      activeUntil,
-      chargeMs,
-      chargeSegments,
-      chargeStartedAt,
-      chargeReadyAt,
-      receivedAt:now
-    };
+    player.spectralDoubleShotCharge = normalized;
     return true;
   }
 
@@ -681,7 +726,7 @@ export function createCombatServerEventSystem({
   function addSpectralDoubleShotVisual(event, enemy = null){
     if(String(event?.doubleStrike?.abilityId || "") !== "spectral_double_shot") return;
     if(String(event.weaponClass || "") !== "laser") return;
-    updateSpectralDoubleShotCharge(event.doubleStrike, event.attackerId);
+    updateSpectralDoubleShotCharge(event.doubleStrike, event.attackerId, event);
     const {player, particles} = getState();
     const toX = Number(enemy?.x ?? event.x);
     const toY = Number(enemy?.y ?? event.y);
@@ -767,7 +812,7 @@ export function createCombatServerEventSystem({
       });
       addRickyAttackVisual(event);
       updateEliteLaserCharges(event);
-      updateSpectralDoubleShotCharge(event.shipAbilityState, event.attackerId);
+      updateSpectralDoubleShotCharge(event.shipAbilityState, event.attackerId, event);
       const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId));
       addSpectralDoubleShotVisual(event, enemy);
       if(!enemy){
