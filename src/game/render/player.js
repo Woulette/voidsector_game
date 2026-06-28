@@ -114,13 +114,14 @@ function lerpAngle(current, target, amount){
 }
 
 function getEngineTrailVisual({player, time, power, profile = {}}){
-  const targetAngle = Number.isFinite(player.engineAngle) ? player.engineAngle : player.angle;
+  const locked = player.engineTrailLocked === true;
+  const targetAngle = locked ? player.angle : (Number.isFinite(player.engineAngle) ? player.engineAngle : player.angle);
   const previousTime = Number.isFinite(player.engineTrailVisualTime) ? player.engineTrailVisualTime : time;
   const dt = clamp(time - previousTime, 0, .08);
   const previousAngle = Number.isFinite(player.engineTrailVisualAngle) ? player.engineTrailVisualAngle : targetAngle;
   const response = 5.8 + power * 3.2;
-  const angle = lerpAngle(previousAngle, targetAngle, Math.min(1, dt * response));
-  const delta = Math.atan2(Math.sin(angle - player.angle), Math.cos(angle - player.angle));
+  const angle = locked ? targetAngle : lerpAngle(previousAngle, targetAngle, Math.min(1, dt * response));
+  const delta = locked ? 0 : Math.atan2(Math.sin(angle - player.angle), Math.cos(angle - player.angle));
   const turnAngleScale = Number.isFinite(profile.turnAngleScale) ? profile.turnAngleScale : 1;
   const turnAngleMax = Number.isFinite(profile.turnAngleMax) ? profile.turnAngleMax : .22;
   const turnBendScale = Number.isFinite(profile.turnBendScale) ? profile.turnBendScale : 1;

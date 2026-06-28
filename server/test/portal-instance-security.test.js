@@ -25,14 +25,17 @@ function createFixture(){
   };
   const players = new Map([[player.id, player]]);
   const profiles = new Map([[player.id, createDefaultProfile()]]);
+  const sockets = new Map();
   const socket = {
     id:player.id,
     emit(event, payload){
       events.push({target:player.id, event, payload});
     }
   };
+  sockets.set(socket.id, socket);
   const manager = createPortalInstanceManager({
     io:{
+      sockets:{sockets},
       to(target){
         return {
           emit(event, payload){
@@ -59,7 +62,8 @@ function createFixture(){
     createGroup(originSocket){
       const group = {id:"group-1", leaderId:originSocket.id, members:[originSocket.id], instance:null};
       groups.set(group.id, group);
-      player.groupId = group.id;
+      const originPlayer = players.get(originSocket.id);
+      if(originPlayer) originPlayer.groupId = group.id;
       return group;
     },
     emitInstance(group){
@@ -77,7 +81,16 @@ function createFixture(){
     addPlayer(nextPlayer, nextProfile = createDefaultProfile()){
       players.set(nextPlayer.id, nextPlayer);
       profiles.set(nextPlayer.id, structuredClone(nextProfile));
+      sockets.set(nextPlayer.id, {
+        id:nextPlayer.id,
+        emit(event, payload){
+          events.push({target:nextPlayer.id, event, payload});
+        }
+      });
       return nextPlayer;
+    },
+    getSocket(playerId){
+      return sockets.get(playerId);
     },
     setProfile(nextProfile, playerId = player.id){
       profiles.set(playerId, structuredClone(nextProfile));
@@ -93,35 +106,119 @@ function lastError(events){
   return events.filter(entry=>entry.event === "portal:error").at(-1)?.payload?.message || "";
 }
 
-test("server portal start requires an unlocked portal and the required player level", ()=>{
+function movePlayerToPreparedPortal(fixture){
+  const group = fixture.groups.get("group-1");
+  const prepared = group?.preparedPortal;
+  assert.ok(prepared);
+  fixture.player.mapId = String(prepared.mapId);
+  fixture.player.state = {
+    ...fixture.player.state,
+    mapId:String(prepared.mapId),
+    x:Number(prepared.x),
+    y:Number(prepared.y),
+    hp:Math.max(1, Number(fixture.player.state?.hp || 1000))
+  };
+  return prepared;
+}
+
+test("server portal preparation requires an unlocked portal and starts only from the prepared map portal", ()=>{
   const fixture = createFixture();
   let profile = createDefaultProfile();
   profile.player.level = 15;
   profile.unlockedPortals = [];
   fixture.setProfile(profile);
 
-  fixture.manager.startPortalInstance(fixture.socket, "blue");
+  fixture.manager.preparePortalInstance(fixture.socket, "blue");
   assert.match(lastError(fixture.events), /non deverrouille/i);
   assert.equal(fixture.groups.get("group-1").instance, null);
+  assert.equal(fixture.groups.get("group-1").preparedPortal || null, null);
 
   profile = createDefaultProfile();
   profile.player.level = 14;
   profile.unlockedPortals = ["blue"];
   fixture.setProfile(profile);
 
-  fixture.manager.startPortalInstance(fixture.socket, "blue");
+  fixture.manager.preparePortalInstance(fixture.socket, "blue");
   assert.match(lastError(fixture.events), /niveau 15/i);
   assert.equal(fixture.groups.get("group-1").instance, null);
+  assert.equal(fixture.groups.get("group-1").preparedPortal || null, null);
 
   profile.player.level = 15;
   fixture.setProfile(profile);
 
+  fixture.manager.preparePortalInstance(fixture.socket, "blue");
+  const prepared = fixture.groups.get("group-1").preparedPortal;
+  assert.equal(prepared.portalId, "blue");
+  assert.equal(prepared.mapId, "0");
+  assert.ok(Number.isFinite(prepared.x));
+  assert.ok(Number.isFinite(prepared.y));
+  assert.equal(fixture.events.some(entry=>entry.event === "portal:prepared" && entry.payload.preparedPortal?.portalId === "blue"), true);
+
+  fixture.manager.startPortalInstance(fixture.socket, "blue");
+  assert.match(lastError(fixture.events), /approche/i);
+  assert.equal(fixture.groups.get("group-1").instance, null);
+
+  movePlayerToPreparedPortal(fixture);
   fixture.manager.startPortalInstance(fixture.socket, "blue");
   const instance = fixture.groups.get("group-1").instance;
   assert.equal(instance.type, "portal");
   assert.equal(instance.portal.id, "blue");
   assert.equal(instance.playerLives["leader-1"], 3);
+  assert.equal(fixture.groups.get("group-1").preparedPortal, null);
   assert.equal(fixture.events.some(entry=>entry.event === "portal:started"), true);
+});
+
+test("portal preparation from the launcher targets the live game socket for the same account", ()=>{
+  const fixture = createFixture();
+  fixture.player.accountId = "account-1";
+  fixture.player.clientMode = "launcher";
+  fixture.player.state = null;
+
+  const gameProfile = createDefaultProfile();
+  gameProfile.player.level = 15;
+  gameProfile.player.firmId = "cyan";
+  gameProfile.player.firmSelected = true;
+  gameProfile.unlockedPortals = ["blue"];
+  const gamePlayer = fixture.addPlayer({
+    id:"game-1",
+    name:"Leader",
+    accountId:"account-1",
+    account:{id:"account-1", firmId:"cyan"},
+    clientMode:"game",
+    connected:true,
+    groupId:null,
+    mapId:"20",
+    state:{hp:1000, mapId:"20", x:-4300, y:-3300}
+  }, gameProfile);
+
+  fixture.manager.preparePortalInstance(fixture.socket, "blue");
+
+  const group = fixture.groups.get("group-1");
+  assert.equal(group.leaderId, "game-1");
+  assert.equal(group.members[0], "game-1");
+  assert.equal(gamePlayer.groupId, "group-1");
+  assert.equal(fixture.player.groupId, null);
+  assert.equal(group.preparedPortal.portalId, "blue");
+  assert.equal(group.preparedPortal.mapId, "20");
+  assert.equal(lastError(fixture.events), "");
+  assert.equal(fixture.events.some(entry=>entry.target === "group-1" && entry.event === "portal:prepared" && entry.payload.preparedPortal?.portalId === "blue"), true);
+  assert.equal(fixture.events.some(entry=>entry.target === "leader-1" && entry.event === "portal:prepared" && entry.payload.preparedPortal?.portalId === "blue"), true);
+});
+
+test("portal preparation from the launcher refuses clearly when no game socket is active", ()=>{
+  const fixture = createFixture();
+  fixture.player.accountId = "account-1";
+  fixture.player.clientMode = "launcher";
+  fixture.player.state = null;
+  const profile = createDefaultProfile();
+  profile.player.level = 15;
+  profile.unlockedPortals = ["blue"];
+  fixture.setProfile(profile);
+
+  fixture.manager.preparePortalInstance(fixture.socket, "blue");
+
+  assert.equal(fixture.groups.size, 0);
+  assert.match(lastError(fixture.events), /entre en jeu/i);
 });
 
 test("server portal start refuses dead players and duplicate active instances", ()=>{
@@ -136,6 +233,8 @@ test("server portal start refuses dead players and duplicate active instances", 
   assert.equal(fixture.groups.size, 0);
 
   fixture.player.state.hp = 1000;
+  fixture.manager.preparePortalInstance(fixture.socket, "blue");
+  movePlayerToPreparedPortal(fixture);
   fixture.manager.startPortalInstance(fixture.socket, "blue");
   assert.equal(fixture.groups.get("group-1").instance.type, "portal");
 

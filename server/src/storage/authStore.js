@@ -153,6 +153,156 @@ export async function saveAccount(account){
   return account;
 }
 
+function cleanExternalAccountValue(value, fallback){
+  const clean = String(value || "").trim();
+  return clean || fallback;
+}
+
+function externalAccountFallbackKey(accountId){
+  return String(accountId || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .slice(0, 18) || crypto.randomUUID().replace(/-/g, "").slice(0, 18);
+}
+
+function externalAccountRecord(account, {useFallbackIdentity = false, now = Date.now()} = {}){
+  const id = String(account?.id || "").trim();
+  if(!id) return null;
+  const fallbackKey = externalAccountFallbackKey(id);
+  const username = useFallbackIdentity
+    ? `Absyrion-${fallbackKey}`
+    : cleanExternalAccountValue(account?.username, `Absyrion-${fallbackKey}`).slice(0, 24);
+  const usernameKey = String(username || `absyrion-${fallbackKey}`).trim().toLowerCase();
+  const email = useFallbackIdentity
+    ? `external-${fallbackKey}@absyrion.local`
+    : cleanExternalAccountValue(account?.email, `external-${fallbackKey}@absyrion.local`).toLowerCase();
+  return {
+    id,
+    email,
+    username,
+    usernameKey,
+    passwordHash:`external:absyrion:${id}`,
+    role:account?.role || "player",
+    createdAt:Number(account?.createdAt || now),
+    lastLoginAt:Number(account?.lastLoginAt || now),
+    bannedUntil:Number(account?.bannedUntil || 0),
+    banReason:String(account?.banReason || ""),
+    mutedUntil:Number(account?.mutedUntil || 0),
+    muteReason:String(account?.muteReason || "")
+  };
+}
+
+const ROLE_POWER = new Map([
+  ["player", 0],
+  ["moderator", 1],
+  ["admin", 2],
+  ["owner", 3]
+]);
+
+function strongestRole(...roles){
+  return roles.reduce((selected, role)=>{
+    const normalized = String(role || "player").trim().toLowerCase();
+    const selectedPower = ROLE_POWER.get(selected) ?? 0;
+    const rolePower = ROLE_POWER.get(normalized) ?? 0;
+    return rolePower > selectedPower ? normalized : selected;
+  }, "player");
+}
+
+async function preserveExistingElevatedRole(record){
+  if(!record) return record;
+  const existingById = await findAccountById(record.id);
+  const existingByEmail = await findAccountByEmail(record.email);
+  record.role = strongestRole(record.role, existingById?.role, existingByEmail?.role);
+  return record;
+}
+
+async function linkExternalAccountByEmail(record){
+  const existingByEmail = await findAccountByEmail(record?.email);
+  if(!existingByEmail || String(existingByEmail.id) === String(record?.id || "")) return null;
+  const linkedAccount = {
+    ...existingByEmail,
+    role:strongestRole(existingByEmail.role, record.role),
+    lastLoginAt:record.lastLoginAt || Date.now(),
+    bannedUntil:Math.max(Number(existingByEmail.bannedUntil || 0), Number(record.bannedUntil || 0)),
+    banReason:existingByEmail.banReason || record.banReason || "",
+    mutedUntil:Math.max(Number(existingByEmail.mutedUntil || 0), Number(record.mutedUntil || 0)),
+    muteReason:existingByEmail.muteReason || record.muteReason || ""
+  };
+  await saveAccount(linkedAccount);
+  return linkedAccount;
+}
+
+async function saveExternalAccountRecord(record){
+  if(dbEnabled){
+    await query(`
+      INSERT INTO accounts (
+        id, email, username, username_key, password_hash, role, created_at, last_login_at,
+        banned_until, ban_reason, muted_until, mute_reason
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        username = EXCLUDED.username,
+        username_key = EXCLUDED.username_key,
+        role = EXCLUDED.role,
+        last_login_at = EXCLUDED.last_login_at,
+        banned_until = EXCLUDED.banned_until,
+        ban_reason = EXCLUDED.ban_reason,
+        muted_until = EXCLUDED.muted_until,
+        mute_reason = EXCLUDED.mute_reason
+    `, [
+      record.id,
+      record.email,
+      record.username,
+      record.usernameKey,
+      record.passwordHash,
+      record.role,
+      record.createdAt,
+      record.lastLoginAt ?? null,
+      record.bannedUntil,
+      record.banReason.slice(0, 240),
+      record.mutedUntil,
+      record.muteReason.slice(0, 240)
+    ]);
+    return record;
+  }
+  const existing = accounts[record.id] || {};
+  const nextRecord = {
+    ...existing,
+    ...record,
+    passwordHash:existing.passwordHash || record.passwordHash,
+    createdAt:existing.createdAt || record.createdAt
+  };
+  const nextAccounts = {
+    ...accounts,
+    [record.id]:nextRecord
+  };
+  writeJson(ACCOUNTS_URL, nextAccounts);
+  accounts = nextAccounts;
+  return nextRecord;
+}
+
+export async function ensureExternalAccountRecord(account, options = {}){
+  const record = externalAccountRecord(account, options);
+  if(!record) return null;
+  await preserveExistingElevatedRole(record);
+  const linkedAccount = await linkExternalAccountByEmail(record);
+  if(linkedAccount) return linkedAccount;
+  try{
+    return await saveExternalAccountRecord(record);
+  }catch(error){
+    if(error?.code !== "23505") throw error;
+    const conflictAccount = await linkExternalAccountByEmail(record);
+    if(conflictAccount) return conflictAccount;
+    const fallbackRecord = externalAccountRecord(account, {
+      ...options,
+      useFallbackIdentity:true
+    });
+    fallbackRecord.role = record.role;
+    return saveExternalAccountRecord(fallbackRecord);
+  }
+}
+
 export async function updateAccountModeration(accountId, patch = {}){
   const account = await findAccountById(accountId);
   if(!account) return null;

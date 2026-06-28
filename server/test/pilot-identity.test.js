@@ -30,6 +30,8 @@ test("profile setup rejects a pilot name already configured by another account",
   });
 
   assert.equal(first.ok, true);
+  assert.equal(first.profile.activeShip, "orion");
+  assert.equal(first.profile.selectedShip, "orion");
   assert.equal(second.ok, false);
   assert.match(second.reason, /deja utilise/i);
 });

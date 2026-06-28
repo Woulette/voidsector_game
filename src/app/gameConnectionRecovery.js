@@ -101,6 +101,11 @@ export function createGameConnectionRecoveryController({
     if(appMode !== "game" || pageUnloading) return;
     const reason = String(event.detail?.reason || "");
     const intent = String(event.detail?.payload?.intent || "");
+    if(!isGameRunning?.() && !active && hasToken()){
+      if(reason === "auth:error" || reason === "auth:required" || reason === "auth:logout" || reason === "auth:external-logout" || reason === "auth:replaced" || reason === "auth:banned" || reason === "connection:error" || reason === "connection:disconnect"){
+        return;
+      }
+    }
     if(reason === "connection" || reason === "server:ready"){
       cancelPendingNetworkRecovery();
       return;

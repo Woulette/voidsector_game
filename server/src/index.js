@@ -500,6 +500,7 @@ const {
   emitPortalComplete,
   handlePortalEnemyDeath,
   portalWaveTotal,
+  preparePortalInstance,
   startPortalInstance,
   updateRickyCompanions
 } = createPortalInstanceManager({
@@ -963,6 +964,7 @@ io.on("connection", socket=>{
     kickMember,
     leaveCurrentGroup,
     promoteLeader,
+    preparePortalInstance,
     startPortalInstance,
     activateRickyLever,
     activateRickyHealBeacon

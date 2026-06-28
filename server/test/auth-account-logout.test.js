@@ -109,7 +109,7 @@ test("auth handlers can use the Absyrion platform provider instead of local sess
     async session(token){
       calls.push(`session:${token}`);
       return {
-        account:{id:"abs-account-1", username:"AbsyrionPilot", email:"pilot@absyrion.com"},
+        account:{id:"abs-account-1", username:"AbsyrionPilot", email:"pilot@absyrion.com", role:"player"},
         token,
         expiresAt:123,
         session:{token, expiresAt:123}
@@ -122,8 +122,12 @@ test("auth handlers can use the Absyrion platform provider instead of local sess
     guard:()=>true,
     emitPlayers(){},
     authProvider,
+    ensureExternalAccountRecord:async account=>{
+      calls.push(`mirror:${account.id}:${account.role}`);
+      return {...account, role:"owner"};
+    },
     attachOrResumeAccountSocket:(targetSocket, account, session)=>{
-      calls.push(`attach:${targetSocket.id}:${account.id}:${session.expiresAt}`);
+      calls.push(`attach:${targetSocket.id}:${account.id}:${account.role}:${session.expiresAt}`);
     },
     publicAuthPayload:({account, session})=>({account, token:session.token, expiresAt:session.expiresAt}),
     syncProfileForPlayer:()=>calls.push("sync-profile")
@@ -133,16 +137,57 @@ test("auth handlers can use the Absyrion platform provider instead of local sess
 
   assert.deepEqual(calls, [
     "session:abs-token",
-    "attach:game-socket:abs-account-1:123",
+    "mirror:abs-account-1:player",
+    "attach:game-socket:abs-account-1:owner:123",
     "sync-profile"
   ]);
   assert.deepEqual(emitted, [{
     event:"auth:success",
     payload:{
-      account:{id:"abs-account-1", username:"AbsyrionPilot", email:"pilot@absyrion.com"},
+      account:{id:"abs-account-1", username:"AbsyrionPilot", email:"pilot@absyrion.com", role:"owner"},
       token:"abs-token",
       expiresAt:123
     }
+  }]);
+});
+
+test("external auth mode refuses direct socket account creation", async ()=>{
+  const handlers = new Map();
+  const calls = [];
+  const emitted = [];
+  const socket = {
+    id:"launcher-socket",
+    on:(event, callback)=>handlers.set(event, callback),
+    emit:(event, payload)=>emitted.push({event, payload})
+  };
+  const players = new Map([[socket.id, {id:socket.id, accountId:null, clientMode:"launcher"}]]);
+  const authProvider = {
+    async register(){
+      calls.push("provider-register");
+      return {account:{id:"bad"}, token:"bad", expiresAt:1};
+    }
+  };
+
+  registerAuthHandlers(socket, {
+    players,
+    guard:()=>true,
+    emitPlayers(){},
+    authProvider,
+    attachOrResumeAccountSocket:()=>calls.push("attach"),
+    publicAuthPayload:({account, session})=>({account, token:session.token}),
+    syncProfileForPlayer:()=>calls.push("sync-profile")
+  });
+
+  await handlers.get("auth:register")({
+    email:"player@absyrion.com",
+    username:"Pilot",
+    password:"secret123"
+  });
+
+  assert.deepEqual(calls, []);
+  assert.deepEqual(emitted, [{
+    event:"auth:error",
+    payload:{message:"La creation du compte se fait uniquement sur Absyrion."}
   }]);
 });
 

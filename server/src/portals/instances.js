@@ -2,7 +2,7 @@ import { applyProgressionReward, getProgressionSnapshot } from "../players/progr
 import { applyServerReputationFromXp, updateRankScore } from "../players/rankProgression.js";
 import { buildPersonalFirmSeasonSnapshot, emitThrottledFirmRanking } from "../firms/firmBroadcasts.js";
 import { consumeInventoryItemAmount, getInventoryItemCount } from "../economy/inventoryStacks.js";
-import { PORTAL_CONFIGS, WORLD_ENEMY_TYPES } from "../world/definitions.js";
+import { PORTAL_CONFIGS, WORLD_ENEMY_TYPES, WORLD_MAPS } from "../world/definitions.js";
 import { ENEMY_THREAT_RECALC_MS, markEnemyAttackedByPlayer } from "../world/aggro.js";
 import { portals } from "../../../src/data/catalog.js";
 import { getFirmMapId, normalizeFirmId } from "../../../src/data/firms.js";
@@ -31,6 +31,10 @@ const RICKY_PORTAL_KEY_ITEM_NAME = "Clé du portail Deadly";
 const RICKY_PORTAL_KEY_REQUIRED_MESSAGE = `0/1 ${RICKY_PORTAL_KEY_ITEM_NAME}`;
 const RICKY_PORTAL_QUEST_BASE_ID = "quest_lv10_maintenance_impossible";
 const RICKY_MAX_GROUP_MEMBERS = 4;
+const PREPARED_PORTAL_RADIUS = 115;
+const PREPARED_PORTAL_SAFE_RADIUS = 280;
+const PREPARED_PORTAL_INTERACTION_RADIUS = 430;
+const PREPARED_PORTAL_SPAWN_OFFSET = 520;
 const RICKY_ALLY_ID = "ricky_companion";
 const RICKY_ALLY_IMG = "assets/ships/npc/npc_saucer.png";
 const RICKY_SHIELD_REGEN_PER_SECOND = 150;
@@ -67,6 +71,48 @@ function getPortalDefinition(portalId){
   const id = String(portalId || "blue");
   if(id === RICKY_PORTAL_ID) return RICKY_PORTAL_DEFINITION;
   return portals.find(entry=>entry.id === id) || null;
+}
+
+function getPortalDisplayName(portal){
+  return String(portal?.name || "Portail");
+}
+
+function getPreparedPortalPlacement(firmId){
+  const mapId = String(getFirmMapId(firmId, 1));
+  const map = WORLD_MAPS[mapId] || WORLD_MAPS["0"];
+  const spawn = map?.spawn || {x:0, y:0};
+  const spawnX = Number(spawn.x || 0);
+  const spawnY = Number(spawn.y || 0);
+  const towardCenterX = spawnX < 0 ? 1 : -1;
+  const towardCenterY = spawnY < 0 ? 1 : -1;
+  return {
+    mapId,
+    mapName:String(map?.name || mapId),
+    x:spawnX + towardCenterX * PREPARED_PORTAL_SPAWN_OFFSET,
+    y:spawnY + towardCenterY * PREPARED_PORTAL_SPAWN_OFFSET
+  };
+}
+
+function publicPreparedPortal(preparedPortal){
+  if(!preparedPortal) return null;
+  const portalName = getPortalDisplayName(preparedPortal.portal);
+  return {
+    id:String(preparedPortal.id || ""),
+    portalId:String(preparedPortal.portalId || preparedPortal.portal?.id || ""),
+    portal:preparedPortal.portal || null,
+    mapId:String(preparedPortal.mapId || ""),
+    mapName:String(preparedPortal.mapName || ""),
+    x:Number(preparedPortal.x || 0),
+    y:Number(preparedPortal.y || 0),
+    r:Number(preparedPortal.r || PREPARED_PORTAL_RADIUS),
+    safeRadius:Number(preparedPortal.safeRadius || PREPARED_PORTAL_SAFE_RADIUS),
+    activationRadius:Number(preparedPortal.activationRadius || PREPARED_PORTAL_INTERACTION_RADIUS),
+    label:portalName.toUpperCase(),
+    displayLabel:portalName.toUpperCase(),
+    dungeonPortal:true,
+    prepared:true,
+    preparedAt:Number(preparedPortal.preparedAt || 0)
+  };
 }
 
 function applyDamageToEnemy(enemy, incoming){
@@ -125,6 +171,7 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       attackRange:base.attackRange,
       attackDamage:Math.round(base.attackDamage(level) * (boss ? 1.65 : 1)),
       attackCooldown:base.attackCooldown,
+      staggerFirstAttack:true,
       projectileSpeed:base.projectileSpeed || 600,
       particle:base.particle || base.color,
       onHitEffect:base.onHitEffect || null,
@@ -433,6 +480,150 @@ export function createPortalInstanceManager({io, players, groups, profileManager
     });
   }
 
+  function emitPreparedPortal(group, preparedPortal = group?.preparedPortal || null){
+    if(!group?.id) return;
+    const payload = {
+      preparedPortal:publicPreparedPortal(preparedPortal),
+      at:Date.now()
+    };
+    io.to(group.id).emit("portal:prepared", payload);
+    return payload;
+  }
+
+  function clearPreparedPortal(group, reason = "cleared"){
+    if(!group?.preparedPortal) return;
+    group.preparedPortal = null;
+    io.to(group.id).emit("portal:prepared", {
+      preparedPortal:null,
+      cleared:true,
+      reason,
+      at:Date.now()
+    });
+  }
+
+  function isPlayerAtPreparedPortal(player, preparedPortal){
+    if(!player?.state || !preparedPortal) return false;
+    if(String(player.state.mapId || player.mapId || "") !== String(preparedPortal.mapId || "")) return false;
+    const distance = Math.hypot(
+      Number(player.state.x || 0) - Number(preparedPortal.x || 0),
+      Number(player.state.y || 0) - Number(preparedPortal.y || 0)
+    );
+    return distance <= Math.max(PREPARED_PORTAL_INTERACTION_RADIUS, Number(preparedPortal.activationRadius || 0));
+  }
+
+  function validatePortalDefinitionForPlayer({socket, player, profile, portalDefinition, requireUnlocked = true} = {}){
+    if(!portalDefinition){
+      socket.emit("portal:error", {message:"Portail non deverrouille."});
+      return false;
+    }
+    if(requireUnlocked && !profile?.unlockedPortals?.includes(portalDefinition.id)){
+      socket.emit("portal:error", {message:"Portail non deverrouille."});
+      return false;
+    }
+    if(Number(profile?.player?.level || 1) < Number(portalDefinition.requirement?.level || 1)){
+      socket.emit("portal:error", {message:`Niveau ${portalDefinition.requirement.level} requis.`});
+      return false;
+    }
+    if(player?.deathState || Number(player?.state?.hp || 0) <= 0) return false;
+    return true;
+  }
+
+  function getSocketById(playerId){
+    return io?.sockets?.sockets?.get?.(String(playerId || "")) || null;
+  }
+
+  function findLiveGameSessionForAccount(player){
+    const accountId = String(player?.accountId || "");
+    if(!accountId) return null;
+    for(const candidate of players.values()){
+      if(candidate.id === player.id) continue;
+      if(String(candidate.accountId || "") !== accountId) continue;
+      if(candidate.connected === false || candidate.clientMode !== "game" || !candidate.state) continue;
+      const candidateSocket = getSocketById(candidate.id);
+      if(candidateSocket) return {player:candidate, socket:candidateSocket};
+    }
+    return null;
+  }
+
+  function resolvePortalPreparationSession(socket){
+    const originPlayer = players.get(socket.id);
+    if(!originPlayer) return null;
+    if(originPlayer.clientMode === "game" && originPlayer.state){
+      return {originPlayer, player:originPlayer, socket, redirected:false};
+    }
+    const liveGameSession = findLiveGameSessionForAccount(originPlayer);
+    if(liveGameSession){
+      return {
+        originPlayer,
+        player:liveGameSession.player,
+        socket:liveGameSession.socket,
+        redirected:true
+      };
+    }
+    return {originPlayer, player:originPlayer, socket, redirected:false};
+  }
+
+  function createReplySocket(originSocket, targetSocket){
+    if(!targetSocket || targetSocket.id === originSocket.id) return originSocket;
+    return {
+      id:targetSocket.id,
+      emit(event, payload){
+        originSocket.emit(event, payload);
+        targetSocket.emit(event, payload);
+      }
+    };
+  }
+
+  function preparePortalInstance(socket, portalId){
+    const session = resolvePortalPreparationSession(socket);
+    const player = session?.player || null;
+    const targetSocket = session?.socket || socket;
+    const replySocket = createReplySocket(socket, targetSocket);
+    if(!player) return;
+    if(!player.state){
+      socket.emit("portal:error", {message:"Entre en jeu avec ton vaisseau avant de preparer un portail."});
+      return;
+    }
+    if(player.deathState || Number(player.state?.hp || 0) <= 0){
+      socket.emit("portal:error", {message:"Vaisseau detruit : impossible de preparer un portail."});
+      return;
+    }
+    let group = player.groupId ? groups.get(player.groupId) : null;
+    if(!group) group = createGroup(targetSocket);
+    if(!group) return;
+    if(group.leaderId !== targetSocket.id){
+      replySocket.emit("portal:error", {message:"Seul le chef de groupe peut preparer ce portail."});
+      return;
+    }
+    if(group.instance?.type === "portal" && !group.instance.completed){
+      replySocket.emit("portal:error", {message:"Un portail est deja actif pour ce groupe."});
+      return;
+    }
+    const profile = profileManager.getProfileForPlayer?.(player);
+    const portalDefinition = getPortalDefinition(portalId);
+    if(!portalDefinition || portalDefinition.id === RICKY_PORTAL_ID){
+      replySocket.emit("portal:error", {message:"Portail non deverrouille."});
+      return;
+    }
+    if(!validatePortalDefinitionForPlayer({socket:replySocket, player, profile, portalDefinition})) return;
+    const portal = PORTAL_CONFIGS[portalDefinition.id] || PORTAL_CONFIGS.blue;
+    const firmId = normalizeFirmId(profile?.player?.firmId || player.account?.firmId || "astra");
+    const placement = getPreparedPortalPlacement(firmId);
+    group.preparedPortal = {
+      id:`prepared-${portal.id}-${Date.now().toString(36)}`,
+      portalId:portal.id,
+      portal:{id:portal.id, name:portal.name, totalWaves:portalWaveTotal},
+      ...placement,
+      r:PREPARED_PORTAL_RADIUS,
+      safeRadius:PREPARED_PORTAL_SAFE_RADIUS,
+      activationRadius:PREPARED_PORTAL_INTERACTION_RADIUS,
+      preparedBy:player.id,
+      preparedAt:Date.now()
+    };
+    const payload = emitPreparedPortal(group);
+    if(session.redirected) socket.emit("portal:prepared", payload);
+  }
+
   function joinRickyPortalInstance(socket, group, portalDefinition, profile){
     const player = players.get(socket.id);
     const instance = group?.instance;
@@ -597,6 +788,17 @@ export function createPortalInstanceManager({io, players, groups, profileManager
       socket.emit("portal:error", {message:`Niveau ${portalDefinition.requirement.level} requis.`});
       return;
     }
+    if(!isRickyPortal){
+      const preparedPortal = group.preparedPortal;
+      if(!preparedPortal || String(preparedPortal.portalId || "") !== String(portalDefinition.id || "")){
+        socket.emit("portal:error", {message:"Prepare ce portail depuis l'ecran Portails avant d'entrer."});
+        return;
+      }
+      if(!isPlayerAtPreparedPortal(player, preparedPortal)){
+        socket.emit("portal:error", {message:`Approche du portail prepare sur ${preparedPortal.mapName || "la map 1"} puis appuie sur J.`});
+        return;
+      }
+    }
     const portal = PORTAL_CONFIGS[portalDefinition.id] || PORTAL_CONFIGS.blue;
     const joinedMemberIds = isRickyPortal ? [socket.id] : [...group.members];
     group.instance = {
@@ -616,6 +818,7 @@ export function createPortalInstanceManager({io, players, groups, profileManager
         objective:createRickyObjective()
       } : {})
     };
+    if(!isRickyPortal) clearPreparedPortal(group, "started");
     if(isRickyPortal) emitPortalStart(socket, group);
     else io.to(group.id).emit("portal:started", {
       instanceId:group.instance.id,
@@ -1343,6 +1546,7 @@ export function createPortalInstanceManager({io, players, groups, profileManager
     activateRickyLever,
     activateRickyHealBeacon,
     updateRickyCompanions,
+    preparePortalInstance,
     startPortalInstance:startRickyAwarePortalInstance
   };
 }

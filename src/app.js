@@ -24,10 +24,10 @@ import {
   store,
   XP_CURVE_VERSION
 } from "./core/store.js";
-import { createCombatGame } from "./game/combat.js?v=engine-trail-41-quest-detail-clean-4-refine-boost-assets-1-firm-panel-gift-3";
-import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerPortal, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=firm-shop-sync-1";
-import { connectMultiplayer, disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, registerAccount, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=firm-shop-sync-1";
-import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=beta-store-3-firm-collective-1-firm-nova-10-1";
+import { createCombatGame } from "./game/combat.js?v=portal-prepare-1";
+import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, prepareServerPortal, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=portal-prepare-1";
+import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=portal-prepare-1";
+import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=portal-prepare-1";
 import { showToast } from "./ui/toast.js?v=portal-toast-1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=ship-abilities-1";
 import { createProfileController } from "./app/profileController.js?v=beta-store-1";
@@ -51,8 +51,8 @@ import { createRefineryActions } from "./app/refineryActions.js";
 import { createProgressionActions } from "./app/progressionActions.js";
 import { createInventorySaleController } from "./app/inventorySaleController.js?v=currency-icons-2";
 import { createUnequipAllController } from "./app/unequipAllController.js";
-import { createAuthGateController, isMmoAuthenticated } from "./app/authGate.js";
-import { createGameConnectionRecoveryController } from "./app/gameConnectionRecovery.js";
+import { createAuthGateController, isMmoAuthenticated } from "./app/authGate.js?v=auth-flow-4";
+import { createGameConnectionRecoveryController } from "./app/gameConnectionRecovery.js?v=auth-flow-2";
 import { requireMmoConnection, sendMmoCommand } from "./app/mmoGate.js";
 import { handleAdminPanelChange, handleAdminPanelClick, handleAdminPanelInput, handleAdminPanelServerChange } from "./ui/adminPanel.js?v=currency-icons-2";
 
@@ -64,7 +64,6 @@ let suppressNextEquipmentClick = false;
 let pendingKeybindSlot = null;
 let pendingAbilityKeybindSlot = null;
 let pendingServerResume = null;
-let gameStartConnectRequested = false;
 let lastGameAuthNoticeAt = 0;
 const urlParams = new URLSearchParams(window.location.search);
 const appMode = urlParams.get("mode") === "game" ? "game" : "launcher";
@@ -293,6 +292,10 @@ let gameRecovery = null;
 function promptAuthGate(message = "Connecte ton compte Absyrion avant d'entrer en jeu."){
   if(appMode === "game"){
     if(multiplayer.auth?.token && (multiplayer.connecting || multiplayer.auth?.pending)) return;
+    if(!Game.running){
+      authGate?.show?.();
+      return;
+    }
     gameRecovery?.show?.("account");
     return;
   }
@@ -307,9 +310,6 @@ function promptAuthGate(message = "Connecte ton compte Absyrion avant d'entrer e
 function requireMmoAccountReady(message){
   if(isMmoAuthenticated(multiplayer)) return true;
   promptAuthGate(message);
-  if(multiplayer.auth?.token && !multiplayer.connected && !multiplayer.connecting){
-    connectMultiplayer({name:multiplayer.name});
-  }
   return false;
 }
 
@@ -426,15 +426,19 @@ document.addEventListener("click", (e)=>{
 
   const firmChoice = e.target.closest("[data-firm-choice]");
   if(firmChoice){
+    if(store.pendingFirmSetup) return showToast("Affectation en cours, attends la reponse du serveur.");
     store.pendingFirmName = document.getElementById("firmSetupName")?.value || store.pendingFirmName || "";
     store.pendingFirmId = firmChoice.dataset.firmChoice || "astra";
+    store.pendingFirmSetupMessage = "";
     renderAll();
     return;
   }
   const firmChoiceReset = e.target.closest("[data-firm-choice-reset]");
   if(firmChoiceReset){
+    if(store.pendingFirmSetup) return showToast("Affectation en cours, attends la reponse du serveur.");
     store.pendingFirmName = document.getElementById("firmSetupName")?.value || store.pendingFirmName || "";
     store.pendingFirmId = null;
+    store.pendingFirmSetupMessage = "";
     renderAll();
     return;
   }
@@ -442,13 +446,20 @@ document.addEventListener("click", (e)=>{
   if(firmSetupConfirm){
     const name = document.getElementById("firmSetupName")?.value || store.state.player.name || multiplayer.auth?.account?.username || "NOVA-37";
     const firmId = store.pendingFirmId;
+    if(store.pendingFirmSetup) return showToast("Affectation deja envoyee au serveur.");
     if(!firmId) return showToast("Selectionne une firme avant de valider.");
     if(!multiplayer.connected) return showToast("Connexion serveur requise pour choisir la firme.");
+    store.pendingFirmSetup = true;
+    store.pendingFirmSetupMessage = "Affectation envoyee au serveur...";
     if(setupServerProfile({name, firmId})){
       showToast("Configuration du profil envoyee au serveur.");
+      renderAllPreserveScroll();
       return;
     }
+    store.pendingFirmSetup = false;
+    store.pendingFirmSetupMessage = "Impossible d'envoyer le profil au serveur.";
     showToast("Impossible d'envoyer le profil au serveur.");
+    renderAllPreserveScroll();
     return;
   }
 
@@ -768,7 +779,7 @@ document.addEventListener("click", (e)=>{
   if(spaceCasterPay){ runSpaceCaster(spaceCasterPay.dataset.spaceCasterPay, store.state.portalCasterPendingCount); return; }
 
   const portalCasterSelect = e.target.closest("[data-portal-caster-select]");
-  if(portalCasterSelect && !e.target.closest("[data-start-portal]")){
+  if(portalCasterSelect && !e.target.closest("[data-prepare-portal]")){
     if(store.state.selectedPortalCasterId !== portalCasterSelect.dataset.portalCasterSelect) store.state.portalCasterResults = [];
     store.state.selectedPortalCasterId = portalCasterSelect.dataset.portalCasterSelect;
     store.state.portalCasterPendingCount = 1;
@@ -777,15 +788,12 @@ document.addEventListener("click", (e)=>{
     return;
   }
 
-  const portalBtn = e.target.closest("[data-start-portal]");
+  const portalBtn = e.target.closest("[data-prepare-portal]");
   if(portalBtn){
-    if(!store.state.activeShip) return showToast("Équipe un vaisseau avant d'entrer dans un portail.");
+    if(!store.state.activeShip) return showToast("Equipe un vaisseau avant de preparer un portail.");
     if(!requireMmoConnection(multiplayer, showToast)) return;
-    if(startServerPortal(portalBtn.dataset.startPortal)){
-      Game.start("open");
-      return;
-    }
-    showToast("Activation du portail serveur impossible.");
+    if(prepareServerPortal(portalBtn.dataset.preparePortal)) showToast("Preparation du portail envoyee au serveur.");
+    else showToast("Preparation du portail serveur impossible.");
     return;
   }
 
@@ -1123,6 +1131,19 @@ window.addEventListener("voidsector:multiplayer-change", serverEvents.handleChan
 window.addEventListener("voidsector:multiplayer-change", event=>{
   const reason = String(event.detail?.reason || "");
   gameRecovery?.handleChange(event);
+  if(reason === "profile:setup-complete"){
+    store.pendingFirmSetup = false;
+    store.pendingFirmSetupMessage = "";
+    renderAllPreserveScroll();
+  }else if(reason === "profile:setup-error"){
+    store.pendingFirmSetup = false;
+    store.pendingFirmSetupMessage = String(event.detail?.payload?.message || "Choix de firme refuse par le serveur.");
+    renderAllPreserveScroll();
+  }else if((reason === "account:action-limited" || reason === "rate:limited") && event.detail?.payload?.eventName === "profile:setup"){
+    store.pendingFirmSetup = false;
+    store.pendingFirmSetupMessage = "Commande recue trop vite. Attends quelques secondes puis reessaie.";
+    renderAllPreserveScroll();
+  }
   if(handleAdminPanelServerChange(reason) || reason === "auth:success" || reason === "auth:role" || reason === "auth:moderation" || reason === "auth:logout" || reason === "auth:replaced" || reason === "auth:banned") renderAllPreserveScroll();
   if(reason === "auth:success" && store.currentView === "firm") window.setTimeout(()=>requestFirmSync({includeShop:true}), 100);
   if(reason === "firm:updated" && event.detail?.payload?.action === "box-open"){
@@ -1159,14 +1180,14 @@ loadState();
 initMultiplayer({
   showToast,
   getDefaultName:()=>store.state?.player?.name || "NOVA-37",
-  clientMode:appMode
+  clientMode:appMode,
+  autoConnectAuth:appMode === "game"
 });
 authGate = createAuthGateController({
   multiplayer,
   loginAccount,
-  registerAccount,
   setAuthRememberEnabled,
-  connectMultiplayer,
+  connectStoredSession:()=>reconnectWithStoredAuthSession(),
   showToast,
   appMode
 });
@@ -1182,9 +1203,6 @@ gameRecovery = createGameConnectionRecoveryController({
   getAuthToken:()=>getLatestAuthToken(),
   disconnect:intent=>disconnectMultiplayer(intent)
 });
-if(appMode === "game" && !multiplayer.auth?.token && !isMmoAuthenticated(multiplayer)){
-  gameRecovery.show("account");
-}
 window.voidResetFirm = ()=>{
   if(!multiplayer.auth?.account) return "Connecte un compte avant d'utiliser cette commande.";
   if(!multiplayer.connected) return "Serveur multijoueur deconnecte.";
@@ -1199,10 +1217,6 @@ tutorialController.init();
 function startGameWhenMmoReady(){
   if(appMode !== "game" || Game.running) return;
   if(!isMmoAuthenticated(multiplayer)){
-    if(multiplayer.auth?.token && !multiplayer.connected && !multiplayer.connecting && !gameStartConnectRequested){
-      gameStartConnectRequested = true;
-      connectMultiplayer({name:multiplayer.name});
-    }
     promptAuthGate("Connecte ton compte Absyrion pour lancer la session.");
     return;
   }

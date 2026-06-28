@@ -115,8 +115,8 @@ test("profile save cannot forge critical account progression or ownership", ()=>
   assert.equal(profile.player.firmId, "astra");
   assert.equal(profile.player.firmSelected, false);
   assert.deepEqual(profile.ownedShips, ["orion"]);
-  assert.equal(profile.activeShip, null);
-  assert.equal(profile.selectedShip, null);
+  assert.equal(profile.activeShip, "orion");
+  assert.equal(profile.selectedShip, "orion");
   assert.equal(profile.inventoryItems.some(entry=>entry.uid === "hack_laser"), false);
   assert.equal(profile.ammoInventory.ammo_x6, undefined);
   assert.equal(profile.ownedDroneCount, 0);

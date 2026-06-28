@@ -14,6 +14,56 @@ function clamp(value, min, max){
   return Math.max(min, Math.min(max, value));
 }
 
+function hashText(value){
+  let hash = 2166136261;
+  for(const char of String(value || "")){
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function randomUnit(key){
+  return hashText(key) / 4294967296;
+}
+
+function getEnemyAttackCooldownMs(enemy){
+  return Math.max(250, Number(enemy?.attackCooldown || 1400));
+}
+
+function getEnemyOpeningAttackDelayMs(enemy, cooldownMs){
+  const configured = Number(enemy?.attackPhaseMs ?? enemy?.firstAttackDelayMs);
+  if(Number.isFinite(configured) && configured > 0){
+    return Math.max(40, Math.min(Math.max(80, cooldownMs - 50), configured));
+  }
+  const windowMs = Math.min(650, Math.max(220, cooldownMs * .65));
+  const spread = Math.max(1, Math.round(windowMs - 120));
+  return 120 + Math.round(randomUnit(`${enemy?.id || enemy?.kind || "enemy"}:opening-attack`) * spread);
+}
+
+function getEnemyCooldownJitterMs(enemy, cooldownMs){
+  const span = Math.min(180, Math.max(40, cooldownMs * .12));
+  const unit = randomUnit(`${enemy?.id || enemy?.kind || "enemy"}:${Number(enemy?.attackSequence || 0)}:attack-jitter`);
+  return Math.round((unit - .5) * span);
+}
+
+function enemyCanAttackNow(enemy, now, cooldownMs){
+  const nextAttackAt = Number(enemy?.nextAttackAt ?? 0);
+  if(nextAttackAt === Infinity) return false;
+  if(Number.isFinite(nextAttackAt) && nextAttackAt > 0) return now >= nextAttackAt;
+  if(enemy?.staggerFirstAttack){
+    enemy.nextAttackAt = now + getEnemyOpeningAttackDelayMs(enemy, cooldownMs);
+    enemy.staggerFirstAttack = false;
+    return false;
+  }
+  return true;
+}
+
+function scheduleEnemyNextAttack(enemy, now, cooldownMs){
+  enemy.attackSequence = Number(enemy.attackSequence || 0) + 1;
+  enemy.nextAttackAt = now + cooldownMs + getEnemyCooldownJitterMs(enemy, cooldownMs);
+}
+
 function getEnemyAiKind(kind){
   return String(kind || "drone_pirate").replace(/^boss_/, "");
 }
@@ -258,7 +308,12 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
       ? Math.hypot(Number(attackTarget.state.x || 0) - enemy.x, Number(attackTarget.state.y || 0) - enemy.y)
       : Infinity;
     const attackUnlocked = !requiresPlayerAttack(enemy) || hasBeenAttackedByPlayer(enemy);
-    if(attackUnlocked && canAttackTarget && presence.isActiveForWorld(attackTarget, now) && attackDistance <= attackRange && now >= Number(enemy.nextAttackAt || 0)){
+    const attackCooldownMs = getEnemyAttackCooldownMs(enemy);
+    if(attackUnlocked
+      && canAttackTarget
+      && presence.isActiveForWorld(attackTarget, now)
+      && attackDistance <= attackRange
+      && enemyCanAttackNow(enemy, now, attackCooldownMs)){
       enemy.angle = Math.atan2(
         Number(attackTarget.state.y || 0) - enemy.y,
         Number(attackTarget.state.x || 0) - enemy.x
@@ -268,7 +323,7 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
       const amount = enemy.useExactDamageRange && Number.isFinite(damageMin) && Number.isFinite(damageMax)
         ? Math.max(1, Math.round(Math.min(damageMin, damageMax) + Math.random() * Math.abs(damageMax - damageMin)))
         : Math.max(1, Math.round(Number(enemy.attackDamage || 25) * (0.85 + Math.random() * 0.3)));
-      enemy.nextAttackAt = now + Number(enemy.attackCooldown || 1400);
+      scheduleEnemyNextAttack(enemy, now, attackCooldownMs);
       launchEnemyAttack({
         enemy,
         map,

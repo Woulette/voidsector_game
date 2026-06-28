@@ -53,11 +53,11 @@ import { FIRM_REPRESENTATIVES } from "../data/firmRepresentatives.js";
 
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
 import { renderShop } from "./renderShop.js?v=store-real-prices-1";
-import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=currency-icons-1";
+import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=portal-prepare-1";
 import { renderRefinery } from "./renderRefinery.js";
 import { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
 import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
-import { multiplayer } from "../multiplayer/client.js?v=firm-shop-sync-1";
+import { multiplayer } from "../multiplayer/client.js?v=portal-prepare-1";
 import { renderAdminPanel } from "./adminPanel.js?v=currency-icons-2";
 import { currencyAmountHtml, currencyIconHtml, realMoneyPriceHtml } from "./currencyIcons.js?v=store-real-prices-1";
 
@@ -1108,10 +1108,9 @@ function renderFirmSetupGate(){
   const selectedFirmId = store.pendingFirmId ? normalizeFirmId(store.pendingFirmId) : null;
   const selectedFirm = FIRMS.find(firm=>firm.id === selectedFirmId) || null;
   const selectedPresentation = selectedFirm ? firmPresentations[selectedFirm.id] : null;
-  const profileName = store.state.player.name && store.state.player.name !== "NOVA-37"
-    ? store.state.player.name
-    : (account.username || "");
-  const defaultName = store.pendingFirmName || profileName;
+  const setupPending = Boolean(store.pendingFirmSetup);
+  const setupMessage = String(store.pendingFirmSetupMessage || "");
+  const defaultName = store.pendingFirmName || "";
   gate.className = `firm-setup-gate ${selectedFirm ? "has-selection" : ""}`;
   gate.innerHTML = `
     <main class="firm-selection-shell">
@@ -1158,15 +1157,16 @@ function renderFirmSetupGate(){
           <span>Cette affectation ne pourra plus etre changee apres validation.</span>
         </div>
         <div class="firm-selection-actions">
+          ${setupMessage ? `<p class="firm-selection-server-status">${escapeHtml(setupMessage)}</p>` : ""}
           ${selectedFirm ? `<button type="button" class="firm-selection-reset" data-firm-choice-reset>VOIR LES QUATRE FIRMES</button>` : ""}
-          <button type="button" class="firm-setup-confirm" data-firm-setup-confirm ${selectedFirm ? "" : "disabled"}>REJOINDRE ${selectedFirm ? escapeHtml(selectedFirm.label).toUpperCase() : "UNE FIRME"}</button>
+          <button type="button" class="firm-setup-confirm" data-firm-setup-confirm ${(selectedFirm && !setupPending) ? "" : "disabled"}>${setupPending ? "AFFECTATION EN COURS..." : `REJOINDRE ${selectedFirm ? escapeHtml(selectedFirm.label).toUpperCase() : "UNE FIRME"}`}</button>
         </div>
       </footer>
     </main>`;
 }
 
 export { renderShop } from "./renderShop.js";
-export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=currency-icons-1";
+export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=portal-prepare-1";
 export { renderRefinery } from "./renderRefinery.js";
 export { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
 

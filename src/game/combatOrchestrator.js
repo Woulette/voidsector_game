@@ -58,11 +58,11 @@ import {
   RADAR_RANGE,
   SAFE_ZONE_DELAY,
   SHIP_ENGINE_PROFILES
-} from "./combatData.js?v=engine-trail-40";
+} from "./combatData.js?v=engine-trail-41";
 import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js";
 import { COMBAT_PROFILE_TITLES } from "./combatProfileTitles.js";
-import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=engine-trail-40";
-import { createCombatSceneRenderer } from "./render/combatScene.js?v=engine-trail-40";
+import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=engine-trail-41";
+import { createCombatSceneRenderer } from "./render/combatScene.js?v=engine-trail-41";
 import { createCombatLoop } from "./systems/combatLoop.js";
 import { createCombatBeamSystem } from "./systems/combatBeams.js?v=ship-charge-1";
 import { createCombatCargoSystem } from "./systems/combatCargo.js";
@@ -103,7 +103,7 @@ import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js?v=ship-charge-1";
 import { createCombatPanels } from "./ui/combatPanels.js?v=quest-detail-clean-4-refine-boost-assets-1-firm-panel-gift-3";
 import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=ship-abilities-1";
-import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=firm-shop-sync-1";
+import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=portal-prepare-1";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
 import { getShipAbilityStatuses } from "../shared/shipAbilities.js?v=ship-charge-1";
 import {
@@ -486,7 +486,7 @@ export function createCombatGame({renderAll, showToast}){
     mapList:MAPS,
     getState:getCombatState,
     getMapPortals:getAccessibleMapPortals,
-    preloadMapAssets:map=>mapAssetCache.preload(map)
+    preloadMapAssets:map=>mapAssetCache.preload(map, {defer:true})
   });
   const interactions = createCombatInteractionSystem({
     store,
@@ -638,7 +638,8 @@ export function createCombatGame({renderAll, showToast}){
       mapAssetStreaming.reset();
     },
     applyServerDeath:event=>deathRespawn.applyServerDeath(event),
-    applyServerRespawn:event=>deathRespawn.applyServerRespawn(event)
+    applyServerRespawn:event=>deathRespawn.applyServerRespawn(event),
+    markAuthoritativeDamageReceived
   });
   const multiplayerSync = createCombatMultiplayerSyncSystem({
     multiplayer,
@@ -822,7 +823,34 @@ export function createCombatGame({renderAll, showToast}){
   function isSafeModeActive(){ return worldState.isSafeModeActive(); }
   function getCompletedQuestClaims(){ return store.state.completedQuestClaims || {}; }
   function getQuestProgressState(){ return store.state.questProgress || {}; }
-  function getAccessibleMapPortals(map){ return getMapPortals(map, {completedQuestClaims:getCompletedQuestClaims(), questProgress:getQuestProgressState()}); }
+  function getPreparedDungeonPortal(map = currentMap){
+    const prepared = multiplayer.preparedPortal;
+    if(!prepared || !map || String(prepared.mapId || "") !== String(map.id || "")) return null;
+    const portalId = String(prepared.portalId || prepared.portal?.id || "");
+    if(!portalId) return null;
+    return {
+      ...prepared,
+      portalId,
+      dungeonPortal:true,
+      prepared:true,
+      r:Number(prepared.r || 115),
+      safeRadius:Number(prepared.safeRadius || 280),
+      activationRadius:Number(prepared.activationRadius || 430),
+      label:prepared.label || prepared.portal?.name || "PORTAIL PREPARE",
+      displayLabel:prepared.displayLabel || prepared.portal?.name || "PORTAIL PREPARE"
+    };
+  }
+
+  function getAccessibleMapPortals(map = currentMap){
+    const base = getMapPortals(map, {completedQuestClaims:getCompletedQuestClaims(), questProgress:getQuestProgressState()});
+    const prepared = getPreparedDungeonPortal(map);
+    if(!prepared) return base;
+    if(base.some(portal=>
+      String(portal.portalId || "") === String(prepared.portalId || "")
+      && Math.hypot(Number(portal.x || 0) - Number(prepared.x || 0), Number(portal.y || 0) - Number(prepared.y || 0)) <= 4
+    )) return base;
+    return [...base, prepared];
+  }
   function getLockedMapPortals(map){ return getClosedMapPortals(map, {completedQuestClaims:getCompletedQuestClaims(), questProgress:getQuestProgressState()}); }
 
   function clearPoison(){
@@ -1108,6 +1136,14 @@ export function createCombatGame({renderAll, showToast}){
     const hpLost = lifecycle.damage(amount, options);
     if(options.recordQuestHpLoss !== false) questProgress.recordHpLoss(hpLost);
     return hpLost;
+  }
+
+  function markAuthoritativeDamageReceived(){
+    logout.cancel("degats recus");
+    if(!player) return;
+    player.secondsSinceDamage = 0;
+    player.repairBotActive = false;
+    player.repairBotTickTimer = 0;
   }
   function rewardEnemy(enemy){
     if(multiplayer.authoritativeSession || isServerControlledEnemy(enemy)) return;

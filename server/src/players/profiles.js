@@ -1,6 +1,6 @@
 import { loadProfileEntries as defaultLoadProfileEntries, persistProfileEntries as defaultPersistProfileEntries } from "../storage/profileStore.js";
 import { completeServerRefineryShipment, completeServerRefineryUpgrades, tickServerRefineryProduction } from "../economy/refinery.js";
-import { createDefaultProfile, ensureStarterRepairDrone } from "./profileDefaults.js";
+import { createDefaultProfile, ensureStarterRepairDrone, ensureStarterShipSelection } from "./profileDefaults.js";
 import { createProfileActions } from "./profileActions.js";
 import { createProfileMutations } from "./profileMutations.js";
 import { sanitizeProfile } from "./profileSanitize.js";
@@ -195,12 +195,13 @@ export function createProfileManager({
     const accountProfile = accountKey ? profiles.get(accountKey) : null;
     if(accountProfile){
       const starterChanged = ensureStarterRepairDrone(accountProfile);
+      const starterShipChanged = ensureStarterShipSelection(accountProfile);
       const refineryChanged = advanceRefineryState(accountProfile);
       const identityChanged = ensureProfileIdentity(accountProfile, player);
       player.name = accountProfile.player?.name || player.name;
       const claimedQuests = autoClaimCompletedQuests(accountProfile);
-      if(refineryChanged || starterChanged || identityChanged || claimedQuests.length){
-        if(starterChanged || identityChanged) accountProfile.updatedAt = Date.now();
+      if(refineryChanged || starterChanged || starterShipChanged || identityChanged || claimedQuests.length){
+        if(starterChanged || starterShipChanged || identityChanged) accountProfile.updatedAt = Date.now();
         profiles.set(accountKey, sanitizeProfile(accountProfile));
         persist(accountKey);
       }
@@ -213,8 +214,11 @@ export function createProfileManager({
         ...getExistingProfile(player).profile,
         updatedAt:Date.now()
       });
+      const starterChanged = ensureStarterRepairDrone(next);
+      const starterShipChanged = ensureStarterShipSelection(next);
       ensureProfileIdentity(next, player);
       player.name = next.player?.name || player.name;
+      if(starterChanged || starterShipChanged) next.updatedAt = Date.now();
       next.updatedAt = Math.max(Number(next.updatedAt || 0), Date.now());
       const claimedQuests = autoClaimCompletedQuests(next);
       profiles.set(accountKey, next);
@@ -226,12 +230,13 @@ export function createProfileManager({
     const legacyProfile = profiles.get(profileKey(player.name));
     if(!legacyProfile) return;
     const starterChanged = ensureStarterRepairDrone(legacyProfile);
+    const starterShipChanged = ensureStarterShipSelection(legacyProfile);
     const refineryChanged = advanceRefineryState(legacyProfile);
     const identityChanged = ensureProfileIdentity(legacyProfile, player);
     player.name = legacyProfile.player?.name || player.name;
     const claimedQuests = autoClaimCompletedQuests(legacyProfile);
-    if(refineryChanged || starterChanged || identityChanged || claimedQuests.length){
-      if(starterChanged || identityChanged) legacyProfile.updatedAt = Date.now();
+    if(refineryChanged || starterChanged || starterShipChanged || identityChanged || claimedQuests.length){
+      if(starterChanged || starterShipChanged || identityChanged) legacyProfile.updatedAt = Date.now();
       const legacyKey = profileKey(player.name);
       profiles.set(legacyKey, sanitizeProfile(legacyProfile));
       persist(legacyKey);
@@ -258,6 +263,8 @@ export function createProfileManager({
       return null;
     }
     const base = existing ? sanitizeProfile(existing) : createDefaultProfile();
+    const starterChanged = ensureStarterRepairDrone(base);
+    const starterShipChanged = ensureStarterShipSelection(base);
     const next = sanitizeProfile({
       ...base,
       actionSlots:incoming.actionSlots,
@@ -268,9 +275,10 @@ export function createProfileManager({
     const identityChanged = ensureProfileIdentity(next, player);
     const claimedQuests = autoClaimCompletedQuests(next);
     const preferencesChanged = !sameClientPreferenceFields(base, next);
-    if(!refineryChanged && !identityChanged && !claimedQuests.length && !preferencesChanged){
+    if(!refineryChanged && !starterChanged && !starterShipChanged && !identityChanged && !claimedQuests.length && !preferencesChanged){
       return {profile:base, claimedQuests:[], unchanged:true};
     }
+    if(starterChanged || starterShipChanged) next.updatedAt = Date.now();
     profiles.set(key, next);
     persist(key);
     return {profile:next, claimedQuests};
@@ -281,9 +289,10 @@ export function createProfileManager({
     const existing = profiles.get(key);
     if(existing){
       const starterChanged = ensureStarterRepairDrone(existing);
+      const starterShipChanged = ensureStarterShipSelection(existing);
       const refineryChanged = advanceRefineryState(existing);
-      if(refineryChanged || starterChanged){
-        if(starterChanged) existing.updatedAt = Date.now();
+      if(refineryChanged || starterChanged || starterShipChanged){
+        if(starterChanged || starterShipChanged) existing.updatedAt = Date.now();
         profiles.set(key, sanitizeProfile(existing));
         persist(key);
       }
@@ -381,6 +390,7 @@ export function createProfileManager({
     if(player.account) player.account.firmId = nextFirm;
     profile.updatedAt = Date.now();
     ensureStarterRepairDrone(profile);
+    ensureStarterShipSelection(profile);
     profiles.set(key, sanitizeProfile(profile));
     persist(key);
     return {ok:true, profile:profiles.get(key), firm:getFirmDefinition(nextFirm), firmChanged:currentFirm !== nextFirm};

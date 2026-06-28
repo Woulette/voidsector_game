@@ -368,8 +368,8 @@ const baseQuestCatalog = [
     requiredLevel:3,
     title:"Nouvelle Gamme",
     giver:"Relais de Commandement",
-    desc:"Achète un Velox puis équipe-le. Si le Velox est déjà ton vaisseau actif, retourne simplement au relais.",
-    objective:{type:"equipped_ship", shipId:"velox", label:"Velox équipé", count:1, zone:"Hangar"},
+    desc:"Achète un Velox. Si le Velox est déjà dans ton hangar, retourne simplement au relais.",
+    objective:{type:"owned_ship", shipId:"velox", label:"Velox possédé", count:1, zone:"Hangar"},
     rewards:{credits:23000, premium:200, xp:3500, materials:{}}
   },
   {

@@ -18,6 +18,21 @@ export function normalizeServerUrl(value){
   }
 }
 
+export function isLocalServerUrl(value){
+  const normalized = normalizeServerUrl(value);
+  if(!normalized) return false;
+  try{
+    const hostname = new URL(normalized).hostname.toLowerCase();
+    return hostname === "localhost"
+      || hostname === "127.0.0.1"
+      || hostname === "::1"
+      || hostname === "[::1]"
+      || hostname.endsWith(".localhost");
+  }catch(error){
+    return false;
+  }
+}
+
 export function getServerUrlFromSearch(locationSearch = ""){
   const raw = String(locationSearch || "");
   if(!raw) return "";

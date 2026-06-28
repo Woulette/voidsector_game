@@ -1,5 +1,6 @@
 import { loginAccount, registerAccount } from "../auth/accounts.js";
 import { createSession, getSessionAccount, revokeSessionByToken, revokeSessionsForAccount } from "../auth/sessions.js";
+import { ensureExternalAccountRecord } from "../storage/authStore.js";
 
 const EXPECTED_AUTH_ERROR_PATTERNS = [
   /^Email invalide\.$/,
@@ -38,9 +39,11 @@ export function registerAuthHandlers(socket, context){
     createSession:createAuthSession = createSession,
     revokeSessionsForAccount:revokeAccountSessions = revokeSessionsForAccount,
     revokeSessionByToken:revokeAuthSessionByToken = revokeSessionByToken,
+    ensureExternalAccountRecord:ensureProviderAccountRecord = ensureExternalAccountRecord,
     authProvider = null
   } = context;
 
+  const usesExternalAuthProvider = Boolean(authProvider);
   const provider = authProvider || {
     async register(payload){
       const account = await registerNewAccount(payload);
@@ -97,6 +100,11 @@ export function registerAuthHandlers(socket, context){
     return previousPlayers.length;
   }
 
+  async function ensureProviderAccount(account){
+    if(!usesExternalAuthProvider) return account;
+    return await ensureProviderAccountRecord(account) || account;
+  }
+
   function recordUnexpectedAuthError(eventName, error){
     if(isExpectedAuthError(error)) return;
     const player = players.get(socket.id);
@@ -123,8 +131,14 @@ export function registerAuthHandlers(socket, context){
   socket.on("auth:register", async payload=>{
     if(!guard("auth:register")) return;
     try{
+      if(usesExternalAuthProvider){
+        socket.emit("auth:error", {
+          message:"La creation du compte se fait uniquement sur Absyrion."
+        });
+        return;
+      }
       const result = await provider.register(payload);
-      const account = result.account;
+      const account = await ensureProviderAccount(result.account);
       const session = result.session || {token:result.token, expiresAt:result.expiresAt};
       attachOrResumeAccountSocket(socket, account, session);
       socket.emit("auth:success", publicAuthPayload({account, session}));
@@ -139,7 +153,7 @@ export function registerAuthHandlers(socket, context){
     if(!guard("auth:login")) return;
     try{
       const result = await provider.login(payload);
-      const account = result.account;
+      const account = await ensureProviderAccount(result.account);
       const session = result.session || {token:result.token, expiresAt:result.expiresAt};
       disconnectPreviousAccountSockets(account.id);
       attachOrResumeAccountSocket(socket, account, session);
@@ -156,9 +170,10 @@ export function registerAuthHandlers(socket, context){
     try{
       const token = String(payload?.token || "");
       const result = await provider.session(token);
-      attachOrResumeAccountSocket(socket, result.account, result);
+      const account = await ensureProviderAccount(result.account);
+      attachOrResumeAccountSocket(socket, account, result);
       socket.emit("auth:success", publicAuthPayload({
-        account:result.account,
+        account,
         session:{token:result.token || token, expiresAt:result.expiresAt}
       }));
       syncProfileForPlayer(socket);

@@ -9,7 +9,7 @@ const CLIENT_PROGRESS_TYPES = new Set([
 const MISSION_CONTROL_INTERACTION_RADIUS = 320;
 
 function getPlayerWorldMap(player){
-  return WORLD_MAPS[String(player?.mapId || player?.state?.mapId || "")] || null;
+  return WORLD_MAPS[String(player?.state?.mapId || player?.mapId || "")] || null;
 }
 
 function getNearbyNpc(player, npcId){
@@ -25,11 +25,10 @@ function getNearbyNpc(player, npcId){
   return {ok:true, map, npc};
 }
 
-function getNearbyMissionControl(player){
+function getMissionControlStation(player){
   const map = getPlayerWorldMap(player);
-  const state = player?.state;
   const spawn = map?.spawn;
-  if(!map || !state || !spawn) return {ok:false, reason:"Controleur de mission introuvable."};
+  if(!map || !spawn) return {ok:false, reason:"Controleur de mission introuvable."};
   const configuredStations = Array.isArray(map.questStations) ? map.questStations : [];
   const sideX = Number(spawn.x || 0) > 0 ? -1 : 1;
   const sideY = Number(spawn.y || 0) > 0 ? -1 : 1;
@@ -47,17 +46,13 @@ function getNearbyMissionControl(player){
       y:Number(entry.y || 0),
       radius:Math.max(80, Number(entry.interactionRadius || entry.radius || MISSION_CONTROL_INTERACTION_RADIUS))
     }))
-    .sort((left, right)=>
-      Math.hypot(Number(state.x || 0) - left.x, Number(state.y || 0) - left.y)
-      - Math.hypot(Number(state.x || 0) - right.x, Number(state.y || 0) - right.y)
-    )[0];
-  const distance = Math.hypot(Number(state.x || 0) - station.x, Number(state.y || 0) - station.y);
-  if(distance > station.radius) return {ok:false, reason:"Controleur de mission trop loin."};
+    .find(entry=>String(entry.id || "quests") === "quests");
+  if(!station) return {ok:false, reason:"Controleur de mission introuvable."};
   return {ok:true, map, station};
 }
 
 export function registerQuestHandlers(socket, context){
-  const {emitProfileSync, guard, players, profileManager, progressProfileQuestAction} = context;
+  const {emitProfileSync, emitQuestClaims:emitQuestClaimsForPlayer, guard, players, profileManager, progressProfileQuestAction} = context;
 
   socket.on("quest:accept", payload=>{
     if(!guard("quest:accept")) return;
@@ -72,6 +67,7 @@ export function registerQuestHandlers(socket, context){
       return;
     }
     socket.emit("quest:accepted", {id:result.quest?.id, title:result.quest?.title, at:Date.now()});
+    if(result.claimedQuests?.length) emitQuestClaimsForPlayer?.(player, result.claimedQuests, {auto:true});
     emitProfileSync(player, result.profile);
   });
 
@@ -139,7 +135,7 @@ export function registerQuestHandlers(socket, context){
       return;
     }
     if(type === "mission_control"){
-      const stationResult = getNearbyMissionControl(player);
+      const stationResult = getMissionControlStation(player);
       if(!stationResult.ok){
         socket.emit("quest:error", {message:stationResult.reason || "Controleur de mission impossible."});
         return;

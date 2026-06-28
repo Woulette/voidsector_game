@@ -9,6 +9,7 @@ export function createMultiplayerAuthController({
   toast
 }){
   let pendingAction = null;
+  const absyrionRegisterUrl = "https://absyrion.com/login.html?mode=register";
 
   function setSuccess(payload){
     const previousAccountId = multiplayer.auth.account?.id || null;
@@ -56,15 +57,12 @@ export function createMultiplayerAuthController({
   }
 
   function registerAccount({email, username, password, serverUrl} = {}){
-    const action = {type:"auth:register", payload:{email, username, password}};
-    if(!multiplayer.connected || !multiplayer.socket){
-      beginPending(action, serverUrl, username || multiplayer.name);
-      return;
+    multiplayer.auth.pending = false;
+    multiplayer.auth.error = "La creation du compte se fait sur Absyrion.";
+    emitChange("auth:register:redirect", {url:absyrionRegisterUrl});
+    if(typeof window !== "undefined"){
+      window.location.assign(absyrionRegisterUrl);
     }
-    multiplayer.auth.pending = true;
-    multiplayer.auth.error = "";
-    emitChange("auth:pending");
-    multiplayer.socket.emit(action.type, action.payload);
   }
 
   function loginAccount({login, password, serverUrl} = {}){

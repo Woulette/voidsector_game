@@ -7,9 +7,14 @@ function normalizePortalAlly(ally){
   return ally ? {...ally, receivedAt:performance.now()} : null;
 }
 
+function normalizePreparedPortal(portal){
+  return portal ? {...portal, receivedAt:performance.now()} : null;
+}
+
 export function installWorldSocketListeners({socket, multiplayer, replaceServerEnemies, emitChange, toast}){
   socket.on("group:update", group=>{
     multiplayer.group = group || null;
+    multiplayer.preparedPortal = normalizePreparedPortal(group?.preparedPortal);
     if(group?.members?.length){
       const memberIds = new Set(group.members.map(member=>member.id));
       multiplayer.outgoingGroupInvites = multiplayer.outgoingGroupInvites.filter(invite=>!memberIds.has(invite.playerId));
@@ -34,6 +39,7 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     // authentication and utility panels ten times per second during an instance.
   });
   socket.on("portal:started", event=>{
+    multiplayer.preparedPortal = null;
     multiplayer.portalInstance = {
       instanceId:event?.instanceId || null,
       portal:event?.portal || null,
@@ -47,6 +53,15 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     multiplayer.rickyCinematicEvents = [];
     pushEvent(multiplayer.portalStartEvents, event, 10);
     emitChange();
+  });
+  socket.on("portal:prepared", event=>{
+    multiplayer.preparedPortal = normalizePreparedPortal(event?.preparedPortal);
+    if(multiplayer.preparedPortal){
+      const name = multiplayer.preparedPortal.portal?.name || "Portail";
+      const mapName = multiplayer.preparedPortal.mapName || "la map 1";
+      toast(`${name} prepare sur ${mapName}.`);
+    }
+    emitChange("portal:prepared", event);
   });
   socket.on("portal:complete", event=>{
     pushEvent(multiplayer.portalCompleteEvents, event, 10);

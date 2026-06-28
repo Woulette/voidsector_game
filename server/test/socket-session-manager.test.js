@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createSocketSessionManager } from "../src/auth/socketSession.js";
+import { LOAD_TEST_ACCOUNT_DOMAIN } from "../src/loadtest/provisionBot.js";
 
 function createSocket(id){
   const emitted = [];
@@ -246,4 +247,33 @@ test("session resume allows same-account takeover when the beta player cap is fu
   assert.equal(resume.source, "takeover");
   assert.equal(players.has(oldSocket.id), false);
   assert.equal(players.get(newSocket.id).accountId, "account-1");
+});
+
+test("session resume disconnects disabled load-test bot accounts", ()=>{
+  const botSocket = createSocket("bot-game");
+  const sockets = new Map([[botSocket.id, botSocket]]);
+  const players = new Map([[
+    botSocket.id,
+    {
+      id:botSocket.id,
+      accountId:null,
+      account:null,
+      name:"Guest",
+      clientMode:"game",
+      connected:true,
+      state:null
+    }
+  ]]);
+  const {manager} = createManagerFixture(players, sockets);
+
+  const resume = manager.attachOrResumeAccountSocket(
+    botSocket,
+    {id:"bot-account", username:"LoadBot", email:`loadbot${LOAD_TEST_ACCOUNT_DOMAIN}`, role:"player"},
+    {expiresAt:123}
+  );
+
+  assert.equal(resume, null);
+  assert.equal(players.get(botSocket.id).accountId, null);
+  assert.equal(botSocket.emitted.some(entry=>entry.event === "auth:error"), true);
+  assert.deepEqual(botSocket.calls, ["disconnect:true"]);
 });

@@ -1,7 +1,7 @@
 import { FIRMS, getFirmDefinition, normalizeFirmId } from "../data/firms.js";
 import { ammoTypes, rawMaterialCatalog } from "../data/catalog.js";
 import { fmt } from "../core/utils.js";
-import { multiplayer } from "../multiplayer/client.js?v=firm-shop-sync-1";
+import { multiplayer } from "../multiplayer/client.js?v=portal-prepare-1";
 import { store } from "../core/store.js";
 import { hasCompactQuestAsset } from "../data/enemyVisuals.js";
 import { FIRM_BOOSTER_DEFINITIONS, getFirmBoostersForRank } from "../shared/firmBoosters.js?v=firm-nova-10-1";

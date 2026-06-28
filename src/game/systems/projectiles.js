@@ -60,6 +60,32 @@ export function createProjectile({owner, startX, startY, targetId, damage, trave
   };
 }
 
+function compactLivingTrail(trail, maxLength){
+  if(!Array.isArray(trail)) return trail;
+  let write = 0;
+  for(let read = 0; read < trail.length; read += 1){
+    const point = trail[read];
+    if(point.life <= 0) continue;
+    trail[write] = point;
+    write += 1;
+  }
+  trail.length = write;
+  if(trail.length > maxLength) trail.splice(0, trail.length - maxLength);
+  return trail;
+}
+
+function compactActiveProjectiles(bullets){
+  let write = 0;
+  for(let read = 0; read < bullets.length; read += 1){
+    const bullet = bullets[read];
+    if(bullet.done) continue;
+    bullets[write] = bullet;
+    write += 1;
+  }
+  bullets.length = write;
+  return bullets;
+}
+
 export function updateProjectiles({bullets, dt, getTarget, onImpact}){
   for(const bullet of bullets){
     bullet.elapsed += dt;
@@ -85,12 +111,12 @@ export function updateProjectiles({bullets, dt, getTarget, onImpact}){
     if((bullet.kind === "rocket" || bullet.kind === "missile") && bullet.trail){
       bullet.trail.push({x:bullet.x, y:bullet.y, life:.42, max:.42});
       for(const point of bullet.trail) point.life -= dt;
-      bullet.trail = bullet.trail.filter(point=>point.life > 0).slice(-8);
+      compactLivingTrail(bullet.trail, 8);
     }
     if(progress >= 1){
       onImpact(bullet);
       bullet.done = true;
     }
   }
-  return bullets.filter(bullet=>!bullet.done);
+  return compactActiveProjectiles(bullets);
 }

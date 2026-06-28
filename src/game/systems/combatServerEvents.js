@@ -66,7 +66,8 @@ export function createCombatServerEventSystem({
   portalStartingLives,
   onPortalMapLoaded = ()=>{},
   applyServerDeath,
-  applyServerRespawn
+  applyServerRespawn,
+  markAuthoritativeDamageReceived
 }){
   const processedRewardIds = new Set();
   function getCurrentMapToken(map){
@@ -226,7 +227,12 @@ export function createCombatServerEventSystem({
     if(!multiplayer.playerDamageEvents?.length) return;
     const {player, currentMap} = getState();
     const remaining = [];
-    for(const event of multiplayer.playerDamageEvents){
+    let normalDamageText = 0;
+    let poisonDamageText = 0;
+    let latestVitals = null;
+    let latestVitalsOrder = -Infinity;
+    for(let index = 0; index < multiplayer.playerDamageEvents.length; index += 1){
+      const event = multiplayer.playerDamageEvents[index];
       if(String(event.mapId ?? "") !== getCurrentMapToken(currentMap)){
         remaining.push(event);
         continue;
@@ -239,35 +245,73 @@ export function createCombatServerEventSystem({
       const serverShield = Number(event.shield);
       const serverMaxShield = Number(event.maxShield);
       const hasServerVitals = Number.isFinite(serverHp) || Number.isFinite(serverShield);
+      const serverOrder = Number.isFinite(Number(event.at))
+        ? Number(event.at)
+        : Number.isFinite(Number(event.receivedAt)) ? Number(event.receivedAt) : index;
+      if(hasServerVitals && serverOrder >= latestVitalsOrder){
+        latestVitalsOrder = serverOrder;
+        latestVitals = {serverHp, serverMaxHp, serverShield, serverMaxShield};
+      }
       const serverAgeMs = Number.isFinite(Number(event.at)) ? Date.now() - Number(event.at) : 0;
       const staleVisual = serverAgeMs > 2500;
-      if(staleVisual && hasServerVitals){
-        if(Number.isFinite(serverMaxHp) && serverMaxHp > 0) player.maxHp = serverMaxHp;
-        if(Number.isFinite(serverHp)) player.hp = Math.max(0, Math.min(player.maxHp || serverHp, serverHp));
-        if(Number.isFinite(serverMaxShield) && serverMaxShield >= 0) player.maxShield = serverMaxShield;
-        if(Number.isFinite(serverShield)) player.shield = Math.max(0, Math.min(player.maxShield || serverShield, serverShield));
-        continue;
-      }
+      if(staleVisual && hasServerVitals) continue;
       const poison = event.damageType === "poison";
-      damagePlayer(amount, {
-        recordQuestHpLoss:false,
-        bypassShield:poison,
-        allowDamageToHp:!poison,
-        suppressDeath:true,
-        serverAuthoritative:true
-      });
-      if(hasServerVitals){
-        if(Number.isFinite(serverMaxHp) && serverMaxHp > 0) player.maxHp = serverMaxHp;
-        if(Number.isFinite(serverHp)) player.hp = Math.max(0, Math.min(player.maxHp || serverHp, serverHp));
-        if(Number.isFinite(serverMaxShield) && serverMaxShield >= 0) player.maxShield = serverMaxShield;
-        if(Number.isFinite(serverShield)) player.shield = Math.max(0, Math.min(player.maxShield || serverShield, serverShield));
+      if(poison) poisonDamageText += amount;
+      else normalDamageText += amount;
+    }
+    const totalDamage = normalDamageText + poisonDamageText;
+    if(totalDamage > 0){
+      if(latestVitals && typeof markAuthoritativeDamageReceived === "function"){
+        markAuthoritativeDamageReceived({
+          amount:totalDamage,
+          normalDamage:normalDamageText,
+          poisonDamage:poisonDamageText
+        });
+      }else if(latestVitals){
+        damagePlayer(totalDamage, {
+          recordQuestHpLoss:false,
+          allowDamageToHp:false,
+          suppressDeath:true,
+          serverAuthoritative:true
+        });
+      }else{
+        if(normalDamageText > 0) damagePlayer(normalDamageText, {
+          recordQuestHpLoss:false,
+          suppressDeath:true,
+          serverAuthoritative:true
+        });
+        if(poisonDamageText > 0) damagePlayer(poisonDamageText, {
+          recordQuestHpLoss:false,
+          bypassShield:true,
+          allowDamageToHp:false,
+          suppressDeath:true,
+          serverAuthoritative:true
+        });
       }
+    }
+    if(latestVitals){
+      const {serverHp, serverMaxHp, serverShield, serverMaxShield} = latestVitals;
+      if(Number.isFinite(serverMaxHp) && serverMaxHp > 0) player.maxHp = serverMaxHp;
+      if(Number.isFinite(serverHp)) player.hp = Math.max(0, Math.min(player.maxHp || serverHp, serverHp));
+      if(Number.isFinite(serverMaxShield) && serverMaxShield >= 0) player.maxShield = serverMaxShield;
+      if(Number.isFinite(serverShield)) player.shield = Math.max(0, Math.min(player.maxShield || serverShield, serverShield));
+    }
+    if(normalDamageText > 0){
       pushDamageText({
         x:player.x,
         y:player.y - 58,
-        value:poison ? `-${amount}` : amount,
-        color:poison ? "rgba(74,222,128," : "rgba(248,113,113,",
-        shadowColor:poison ? "rgba(34,197,94,.78)" : "rgba(248,113,113,.78)"
+        value:normalDamageText,
+        color:"rgba(248,113,113,",
+        shadowColor:"rgba(248,113,113,.78)"
+      });
+    }
+    if(poisonDamageText > 0){
+      pushDamageText({
+        x:player.x,
+        y:player.y - (normalDamageText > 0 ? 78 : 58),
+        value:`-${poisonDamageText}`,
+        color:"rgba(74,222,128,",
+        shadowColor:"rgba(34,197,94,.78)"
       });
     }
     multiplayer.playerDamageEvents = remaining;
@@ -354,7 +398,11 @@ export function createCombatServerEventSystem({
 
   function applyStatusEffectEvents(){
     if(!multiplayer.playerStatusEffectEvents?.length) return;
+    const latestByType = new Map();
     for(const event of multiplayer.playerStatusEffectEvents.splice(0)){
+      if(event?.type) latestByType.set(String(event.type), event);
+    }
+    for(const event of latestByType.values()){
       if(event?.type === "poison"){
         if(event.active === false) clearPoison?.();
         else applyPlayerPoison?.({...event, serverAuthoritative:true});

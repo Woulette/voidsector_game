@@ -24,7 +24,8 @@ $items = @(
     "game.js",
     "styles.css",
     "assets",
-    "favicon.ico"
+    "favicon.ico",
+    "robots.txt"
 )
 
 # Supprimer l'ancienne archive si elle existe

@@ -54,11 +54,14 @@ export function createCombatFrameUpdateSystem({
       player.vx = 0;
       player.vy = 0;
       player.enginePower = 0;
-      setState({
-        moveTarget:null,
-        bullets:state.bullets.filter(bullet=>bullet.owner !== "enemy")
-      });
-      beams.clear();
+      if(portalTransition.cleanupDone !== true){
+        portalTransition.cleanupDone = true;
+        setState({
+          moveTarget:null,
+          bullets:state.bullets.filter(bullet=>bullet.owner !== "enemy" && bullet.owner !== "serverEnemy")
+        });
+        beams.clear();
+      }
       updateParticles(dt);
       updateCamera({camera, player, canvas:getCanvas(), follow:1});
       if(completed){
@@ -126,6 +129,7 @@ export function createCombatFrameUpdateSystem({
     if(lockedEnemy && attackTargetId){
       player.angle = Math.atan2(lockedEnemy.y-player.y, lockedEnemy.x-player.x)+Math.PI/2;
     }
+    player.engineTrailLocked = Boolean(lockedEnemy);
     const rank = getCurrentRank();
     const activeShip = getActiveShip();
     const droneLoadout = Array.isArray(state.store?.state?.droneLoadout) ? state.store.state.droneLoadout : [];
@@ -142,6 +146,7 @@ export function createCombatFrameUpdateSystem({
       vy:player.vy || 0,
       enginePower:player.enginePower || 0,
       engineAngle:player.engineAngle || player.angle || 0,
+      engineTrailLocked:Boolean(player.engineTrailLocked),
       mapId:state.currentMap?.id ?? state.currentMap?.name ?? "unknown",
       shipId:activeShip.id || state.store.state.activeShip || "unknown",
       shipImg:activeShip.combatImg || activeShip.img || "",

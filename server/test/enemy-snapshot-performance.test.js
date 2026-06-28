@@ -24,19 +24,43 @@ test("enemy delta snapshots reuse the last full enemy definition", ()=>{
     full:true,
     enemies:[makeEnemy(1, 10)]
   }, "world");
+  const serverEnemies = multiplayer.serverEnemies;
+  const serverEnemy = serverEnemies.get("enemy-1");
   replaceServerEnemies(multiplayer, {
     mapId:"0",
     delta:true,
     enemies:[{id:"enemy-1", x:55, y:80, hp:75, shield:12, angle:.5, vx:20, vy:0, moving:true}]
   }, "world");
 
+  assert.equal(multiplayer.serverEnemies, serverEnemies);
   const enemy = multiplayer.serverEnemies.get("enemy-1");
+  assert.equal(enemy, serverEnemy);
   assert.equal(enemy.kind, "drone_pirate");
   assert.equal(enemy.img, "drone.png");
   assert.equal(enemy.maxHp, 100);
   assert.equal(enemy.hp, 75);
   assert.equal(enemy.x, 55);
   assert.equal(enemy.samples.length, 2);
+});
+
+test("enemy delta snapshots remove missing enemies without replacing the map", ()=>{
+  const multiplayer = {serverEnemies:new Map(), serverEnemyDefinitions:new Map()};
+  replaceServerEnemies(multiplayer, {
+    mapId:"0",
+    full:true,
+    enemies:[makeEnemy(1, 10), makeEnemy(2, 20)]
+  }, "world");
+  const serverEnemies = multiplayer.serverEnemies;
+
+  replaceServerEnemies(multiplayer, {
+    mapId:"0",
+    delta:true,
+    enemies:[{id:"enemy-1", x:55, y:80, hp:75, angle:.5, vx:20, vy:0, moving:true}]
+  }, "world");
+
+  assert.equal(multiplayer.serverEnemies, serverEnemies);
+  assert.equal(multiplayer.serverEnemies.has("enemy-1"), true);
+  assert.equal(multiplayer.serverEnemies.has("enemy-2"), false);
 });
 
 test("high-frequency enemy snapshots bypass the global application event bus", ()=>{
@@ -132,4 +156,37 @@ test("large server enemy sets preserve runtime objects during linear synchroniza
   for(let index = 0; index < previous.length; index += 1){
     assert.equal(synced.enemies[index], previous[index]);
   }
+});
+
+test("server enemy sync caps visual correction instead of snapping mid-combat", ()=>{
+  const serverEnemy = {
+    id:"enemy-jump",
+    kind:"drone_pirate",
+    type:"Drone",
+    img:"drone.png",
+    x:400,
+    y:0,
+    angle:0,
+    vx:0,
+    vy:0,
+    moving:false,
+    hp:100,
+    maxHp:100
+  };
+  const existing = {
+    ...serverEnemy,
+    serverControlled:true,
+    serverId:"enemy-jump",
+    x:0,
+    y:0
+  };
+  const synced = syncServerControlledEnemies({
+    enemies:[existing],
+    multiplayerState:{serverEnemies:new Map([["enemy-jump", serverEnemy]])},
+    selectedEnemy:null
+  });
+
+  assert.equal(synced.enemies[0], existing);
+  assert.equal(existing.serverX, 400);
+  assert.equal(existing.x, 28);
 });

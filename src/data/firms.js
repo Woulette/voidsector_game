@@ -8,6 +8,7 @@ export const FIRMS = [
 const FIRM_ALIASES = new Map();
 for(const firm of FIRMS){
   FIRM_ALIASES.set(firm.id, firm.id);
+  FIRM_ALIASES.set(firm.label.toLowerCase(), firm.id);
   FIRM_ALIASES.set(firm.mapPrefix.toLowerCase(), firm.id);
   FIRM_ALIASES.set(firm.legacyMapPrefix.toLowerCase(), firm.id);
 }

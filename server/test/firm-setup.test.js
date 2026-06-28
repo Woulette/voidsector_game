@@ -2,18 +2,22 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { registerPlayerHandlers } from "../src/socket/playerHandlers.js";
+import { LOAD_TEST_ACCOUNT_DOMAIN } from "../src/loadtest/provisionBot.js";
 
 function makeSocket(id){
   const handlers = new Map();
   const emitted = [];
+  const calls = [];
   return {
     id,
     handlers,
     emitted,
+    calls,
     handshake:{address:"127.0.0.1"},
     conn:{remoteAddress:"127.0.0.1"},
     on:(event, handler)=>handlers.set(event, handler),
     emit:(event, payload)=>emitted.push({event, payload}),
+    disconnect:force=>calls.push(`disconnect:${force}`),
     to:()=>({emit(){}}),
     broadcast:{emit(){}}
   };
@@ -137,6 +141,53 @@ test("player hello refuses an authenticated game entry when the beta player cap 
   assert.equal(players.get(socket.id).clientMode, "launcher");
   assert.equal(socket.emitted.some(event=>event.event === "server:full"), true);
   assert.equal(socket.emitted.some(event=>event.event === "auth:error"), true);
+});
+
+test("player hello disconnects disabled load-test bot accounts", ()=>{
+  const socket = makeSocket("bot-game");
+  const players = new Map([[
+    socket.id,
+    {
+      id:socket.id,
+      accountId:"bot-account",
+      account:{id:"bot-account", username:"LoadBot", email:`loadbot${LOAD_TEST_ACCOUNT_DOMAIN}`},
+      clientMode:"launcher",
+      connected:true,
+      state:null
+    }
+  ]]);
+
+  registerPlayerHandlers(socket, {
+    cleanName:value=>String(value || "Pilote"),
+    emitPlayers(){},
+    groups:new Map(),
+    guard:()=>true,
+    io:{sockets:{sockets:new Map([[socket.id, socket]])}, emit(){}},
+    logger:{warn(){}},
+    players,
+    presence:{syncMovementLogoutState(){}, markCombat(){}, startLogout(){}},
+    profileManager:{
+      profileKeyForPlayer:()=>"bot-account",
+      listProfileEntries:()=>[]
+    },
+    publicPlayer:current=>current,
+    replaceGroupMemberId(){},
+    resumeQuestTimers(){},
+    setPlayerMap(){},
+    syncPlayerLifecycle(){},
+    syncPlayerStatusEffects(){},
+    syncProfileForPlayer(){ throw new Error("profile sync should not run for disabled bots"); }
+  });
+
+  socket.handlers.get("player:hello")({
+    name:"LoadBot",
+    clientMode:"game",
+    clientId:"bot-client"
+  });
+
+  assert.equal(players.get(socket.id).clientMode, "launcher");
+  assert.equal(socket.emitted.some(event=>event.event === "auth:error"), true);
+  assert.deepEqual(socket.calls, ["disconnect:true"]);
 });
 
 test("changing firm moves every live game socket to the new firm home map", async ()=>{

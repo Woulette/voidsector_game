@@ -12,7 +12,29 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
     return {
       id:group.id,
       leaderId:group.leaderId,
-      members:group.members.map(id=>players.get(id)).filter(Boolean).map(publicPlayer)
+      members:group.members.map(id=>players.get(id)).filter(Boolean).map(publicPlayer),
+      preparedPortal:publicPreparedPortal(group.preparedPortal)
+    };
+  }
+
+  function publicPreparedPortal(preparedPortal){
+    if(!preparedPortal) return null;
+    return {
+      id:String(preparedPortal.id || ""),
+      portalId:String(preparedPortal.portalId || preparedPortal.portal?.id || ""),
+      portal:preparedPortal.portal || null,
+      mapId:String(preparedPortal.mapId || ""),
+      mapName:String(preparedPortal.mapName || ""),
+      x:Number(preparedPortal.x || 0),
+      y:Number(preparedPortal.y || 0),
+      r:Number(preparedPortal.r || 115),
+      safeRadius:Number(preparedPortal.safeRadius || 280),
+      activationRadius:Number(preparedPortal.activationRadius || 430),
+      label:String(preparedPortal.label || preparedPortal.portal?.name || "PORTAIL").toUpperCase(),
+      displayLabel:String(preparedPortal.displayLabel || preparedPortal.portal?.name || "PORTAIL").toUpperCase(),
+      dungeonPortal:true,
+      prepared:true,
+      preparedAt:Number(preparedPortal.preparedAt || 0)
     };
   }
 

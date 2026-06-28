@@ -5,11 +5,11 @@ import { installMultiplayerDomHandlers as installDomHandlers } from "./domHandle
 import { installEconomySocketListeners } from "./economySocketListeners.js?v=beta-store-1";
 import { createFirmCommands } from "./firmCommands.js";
 import { installFirmSocketListeners } from "./firmSocketListeners.js?v=firm-shop-sync-1";
-import { createGroupCommands } from "./groupCommands.js";
+import { createGroupCommands } from "./groupCommands.js?v=portal-prepare-1";
 import { syncMultiplayerProfile as syncProfile } from "./profileSync.js?v=profile-sync-dedupe-1";
 import { installPlayerSocketListeners } from "./playerSocketListeners.js";
 import { installProgressionSocketListeners } from "./progressionSocketListeners.js";
-import { createSocketCommands } from "./socketCommands.js?v=beta-store-1";
+import { createSocketCommands } from "./socketCommands.js?v=firm-setup-1";
 import { createSocialCommands } from "./socialCommands.js";
 import { installSocialSocketListeners } from "./socialSocketListeners.js";
 import {
@@ -17,8 +17,8 @@ import {
   replaceServerEnemies as replaceServerEnemiesState,
   upsertRemotePlayer as upsertRemotePlayerState
 } from "./socketState.js";
-import { DEFAULT_MULTIPLAYER_SERVER_URL, normalizeServerUrl, resolveInitialServerUrl } from "./serverUrlConfig.js";
-import { installWorldSocketListeners } from "./worldSocketListeners.js";
+import { DEFAULT_MULTIPLAYER_SERVER_URL, isLocalServerUrl, normalizeServerUrl, resolveInitialServerUrl } from "./serverUrlConfig.js";
+import { installWorldSocketListeners } from "./worldSocketListeners.js?v=portal-prepare-1";
 import { setPersonalFirmBoosterReward, setPersonalPlayerBoosters } from "../core/firmBoosterStore.js";
 
 const DEFAULT_SERVER_URL = DEFAULT_MULTIPLAYER_SERVER_URL;
@@ -50,6 +50,22 @@ function readConfiguredServerUrl(){
   return "";
 }
 
+function readPublicOriginServerUrl(){
+  const origin = normalizeServerUrl(window.location?.origin || "");
+  if(!origin || isLocalServerUrl(origin)) return "";
+  return origin;
+}
+
+function readDefaultServerUrl(){
+  return readPublicOriginServerUrl() || DEFAULT_SERVER_URL;
+}
+
+function readStoredServerUrl(){
+  const stored = normalizeServerUrl(localStorage.getItem(SERVER_STORAGE_KEY));
+  if(!stored) return "";
+  return readPublicOriginServerUrl() ? "" : stored;
+}
+
 function broadcastAuthChange(message){
   try{ authSyncChannel?.postMessage(message); }catch(error){}
 }
@@ -71,6 +87,11 @@ function getCookieValue(name){
   return match ? decodeURIComponent(match.slice(prefix.length)) : "";
 }
 
+function isAbsyrionHost(){
+  const hostname = String(window.location?.hostname || "").toLowerCase();
+  return hostname === "absyrion.com" || hostname.endsWith(".absyrion.com");
+}
+
 function storeAbsyrionAuthCookie(token, remember = shouldRememberAuth()){
   if(typeof document === "undefined") return;
   const clean = String(token || "");
@@ -88,7 +109,10 @@ function clearAbsyrionAuthCookie(){
 }
 
 function getStoredAuthToken(){
-  return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || getCookieValue(ABSYRION_AUTH_TOKEN_COOKIE) || "";
+  const cookieToken = getCookieValue(ABSYRION_AUTH_TOKEN_COOKIE);
+  if(cookieToken) return cookieToken;
+  if(isAbsyrionHost()) return "";
+  return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "";
 }
 
 function clearStoredAuthToken(){
@@ -166,8 +190,8 @@ function createMultiplayerState(){
   serverUrl:resolveInitialServerUrl({
     locationSearch:window.location?.search || "",
     configuredUrl:readConfiguredServerUrl(),
-    storedUrl:localStorage.getItem(SERVER_STORAGE_KEY),
-    defaultUrl:DEFAULT_SERVER_URL
+    storedUrl:readStoredServerUrl(),
+    defaultUrl:readDefaultServerUrl()
   }),
   clientMode:"launcher",
   name:localStorage.getItem(NAME_STORAGE_KEY) || "",
@@ -222,6 +246,7 @@ function createMultiplayerState(){
   coopInstanceId:null,
   coopSpawn:null,
   portalInstance:null,
+  preparedPortal:null,
   portalAlly:null,
   portalBeacons:[],
   portalObjective:null,
@@ -336,6 +361,7 @@ const {
   promoteMultiplayerGroupMember,
   pingMultiplayerGroupMember,
   startCoopTestInstance,
+  prepareServerPortal,
   startServerPortal,
   getGroupRemotePlayers
 } = createGroupCommands({multiplayer, toast, emitChange});
@@ -383,21 +409,29 @@ export function requestLeaderboardSync({force = false} = {}){
 }
 
 function loadSocketIo(serverUrl = multiplayer.serverUrl){
-  const resolvedServerUrl = normalizeServerUrl(serverUrl) || DEFAULT_SERVER_URL;
+  const resolvedServerUrl = normalizeServerUrl(serverUrl) || readDefaultServerUrl();
   if(window.io) return Promise.resolve(window.io);
   return new Promise((resolve, reject)=>{
     const existing = document.querySelector("script[data-socket-io-client]");
     if(existing){
-      existing.addEventListener("load", ()=>resolve(window.io), {once:true});
-      existing.addEventListener("error", reject, {once:true});
-      return;
+      if(existing.dataset.socketIoClientUrl !== resolvedServerUrl){
+        existing.remove();
+      }else{
+        existing.addEventListener("load", ()=>resolve(window.io), {once:true});
+        existing.addEventListener("error", reject, {once:true});
+        return;
+      }
     }
     const script = document.createElement("script");
     script.src = `${resolvedServerUrl}/socket.io/socket.io.js`;
     script.async = true;
     script.dataset.socketIoClient = "true";
+    script.dataset.socketIoClientUrl = resolvedServerUrl;
     script.onload = ()=>resolve(window.io);
-    script.onerror = ()=>reject(new Error("Impossible de charger Socket.IO client."));
+    script.onerror = ()=>{
+      script.remove();
+      reject(new Error("Impossible de charger Socket.IO client."));
+    };
     document.head.appendChild(script);
   });
 }
@@ -421,7 +455,7 @@ export function initMultiplayer({showToast = null, getDefaultName = null, autoCo
 
 export async function connectMultiplayer({serverUrl, name} = {}){
   if(multiplayer.connected || multiplayer.connecting) return;
-  multiplayer.serverUrl = normalizeServerUrl(serverUrl) || normalizeServerUrl(multiplayer.serverUrl) || DEFAULT_SERVER_URL;
+  multiplayer.serverUrl = normalizeServerUrl(serverUrl) || normalizeServerUrl(multiplayer.serverUrl) || readDefaultServerUrl();
   multiplayer.name = String(name || multiplayer.name || "Pilote").trim().replace(/\s+/g, " ").slice(0, 24) || "Pilote";
   localStorage.setItem(SERVER_STORAGE_KEY, multiplayer.serverUrl);
   localStorage.setItem(NAME_STORAGE_KEY, multiplayer.name);
@@ -463,6 +497,7 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       const disconnectIntent = multiplayer.disconnectIntent || "";
       multiplayer.connected = false;
       multiplayer.group = null;
+      multiplayer.preparedPortal = null;
       multiplayer.logout = {pending:false, completeAt:null, reason:""};
       emitChange("connection:disconnect", {
         intent:disconnectIntent,
@@ -473,6 +508,22 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     socket.on("server:ready", payload=>{
       multiplayer.playerId = payload?.id || socket.id;
       emitChange("server:ready");
+    });
+    socket.on("rate:limited", payload=>{
+      const eventName = String(payload?.eventName || "");
+      const message = eventName === "profile:setup"
+        ? "Choix de firme deja envoye, attends quelques secondes."
+        : "Commande envoyee trop vite, attends quelques secondes.";
+      toast(message);
+      emitChange("rate:limited", payload);
+    });
+    socket.on("account:action-limited", payload=>{
+      const eventName = String(payload?.eventName || "");
+      const message = eventName === "profile:setup"
+        ? "Choix de firme deja en cours, attends la reponse du serveur."
+        : "Action envoyee trop vite, attends quelques secondes.";
+      toast(message);
+      emitChange("account:action-limited", payload);
     });
     socket.on("auth:success", payload=>{
       const previousAccountId = String(multiplayer.auth.account?.id || "");
@@ -529,8 +580,7 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       setTimeout(()=>disconnectMultiplayer("account-logout"), 0);
     });
     socket.on("auth:replaced", payload=>{
-      removeStoredAuthTokenIfMatches(multiplayer.auth.token);
-      multiplayer.auth = {...multiplayer.auth, account:null, token:"", expiresAt:null, pending:false, error:"", profileReady:false};
+      multiplayer.auth = {...multiplayer.auth, account:null, expiresAt:null, pending:false, error:"", profileReady:false};
       multiplayer.disconnectIntent = "session-replaced";
       toast(String(payload?.message || "Ce compte a ete connecte depuis une autre session."));
       emitChange("auth:replaced", payload);
@@ -716,6 +766,7 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.coopInstanceId = null;
   multiplayer.coopSpawn = null;
   multiplayer.portalInstance = null;
+  multiplayer.preparedPortal = null;
   multiplayer.portalAlly = null;
   multiplayer.portalBeacons = [];
   multiplayer.portalObjective = null;
@@ -739,7 +790,10 @@ export function reconnectWithStoredAuthSession(){
     pending:true,
     error:""
   };
-  if(multiplayer.socket){
+  emitChange("auth:pending", {source:"stored-session"});
+  if(multiplayer.socket?.connected){
+    multiplayer.socket.emit("auth:session", {token});
+  }else if(multiplayer.socket){
     multiplayer.connecting = true;
     emitChange("connection:pending", {reconnect:true});
     multiplayer.socket.connect();
@@ -847,6 +901,7 @@ export {
   promoteMultiplayerGroupMember,
   pingMultiplayerGroupMember,
   startCoopTestInstance,
+  prepareServerPortal,
   startServerPortal,
   getGroupRemotePlayers
 };

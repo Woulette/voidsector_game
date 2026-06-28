@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="voidsector-server-url" content="" />
+  <meta name="voidsector-server-url" content="https://avosoma.absyrion.com" />
   <title>Avosoma - MMO</title>
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="styles.css?v=beta-store-1-firm-panel-gift-3-firm-collective-1" />
+  <link rel="stylesheet" href="styles.css?v=auth-flow-3" />
   <script>
     document.documentElement.dataset.appMode = new URLSearchParams(location.search).get("mode") === "game" ? "game" : "launcher";
   </script>
@@ -51,6 +51,7 @@
           <button class="active" type="button" data-auth-gate-mode="login">Connexion</button>
           <button type="button" data-auth-gate-mode="register">Créer un compte</button>
         </div>
+        <button class="auth-platform-login" type="button" data-auth-platform-login hidden>Connexion avec Absyrion</button>
         <form id="authGateLoginForm" class="auth-form" data-auth-form="login">
           <label>
             <span>Email</span>
@@ -66,25 +67,10 @@
           </label>
           <button class="auth-submit" type="submit" data-auth-submit="login">Connexion</button>
         </form>
-        <form id="authGateRegisterForm" class="auth-form hidden" data-auth-form="register">
-          <label>
-            <span>Email</span>
-            <input id="authGateRegisterEmail" name="email" type="email" autocomplete="email" placeholder="pilote@email.fr" required>
-          </label>
-          <label>
-            <span>Pseudo pilote</span>
-            <input id="authGateRegisterUsername" name="username" type="text" autocomplete="username" maxlength="24" placeholder="Nom pilote" required>
-          </label>
-          <label>
-            <span>Mot de passe</span>
-            <input id="authGateRegisterPassword" name="password" type="password" autocomplete="new-password" placeholder="8 caractères minimum" required>
-          </label>
-          <label>
-            <span>Confirmation</span>
-            <input id="authGateRegisterConfirm" name="confirm" type="password" autocomplete="new-password" placeholder="Confirme le mot de passe" required>
-          </label>
-          <button class="auth-submit" type="submit" data-auth-submit="register">Créer le compte</button>
-        </form>
+        <div id="authGateRegisterForm" class="auth-form auth-register-redirect hidden" data-auth-form="register">
+          <p>La creation du compte se fait sur Absyrion. Le meme compte servira ensuite pour Avosoma et les prochains jeux.</p>
+          <a class="auth-submit auth-submit-link" href="https://absyrion.com/login.html?mode=register">Creer un compte Absyrion</a>
+        </div>
         <p id="authGateStatus" class="auth-status">Connecte ton compte Absyrion pour entrer.</p>
       </section>
     </div>
@@ -587,6 +573,6 @@
   </section>
 
   <div id="toast" class="toast"></div>
-    <script type="module" src="game.js?v=firm-menu-sync-1-firm-panel-gift-3-firm-collective-1-firm-nova-10-1"></script>
+    <script type="module" src="game.js?v=portal-prepare-1"></script>
 </body>
 </html>

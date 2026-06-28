@@ -59,10 +59,15 @@ export function getQuestObjectiveProgress(id, objectiveKey){
   if(objectiveEntry?.objective?.type === "owned_combat_drone"){
     return Math.min(Math.max(0, Number(objectiveEntry.objective.count || 0)), Math.max(0, Number(store.state?.ownedDroneCount || 0)));
   }
-    if(objectiveEntry?.objective?.type === "equipped_ship"){
+  if(objectiveEntry?.objective?.type === "owned_ship"){
+    const requiredShip = String(objectiveEntry.objective.shipId || "");
+    const ownedShips = Array.isArray(store.state?.ownedShips) ? store.state.ownedShips.map(String) : [];
+    return requiredShip && ownedShips.includes(requiredShip) ? Math.max(0, Number(objectiveEntry.objective.count || 1)) : 0;
+  }
+  if(objectiveEntry?.objective?.type === "equipped_ship"){
     const requiredShip = objectiveEntry.objective.shipId;
     return requiredShip && store.state?.activeShip === requiredShip ? Math.max(0, Number(objectiveEntry.objective.count || 1)) : 0;
-    }
+  }
     if(objectiveEntry?.objective?.type === "equipped_ship_lasers"){
       const target = Math.max(0, Number(objectiveEntry.objective.count || 0));
       const lasers = store.state?.shipLoadouts?.[store.state?.activeShip]?.lasers;
@@ -80,12 +85,26 @@ export function getQuestObjectiveProgress(id, objectiveKey){
     const targetLevel = Math.max(0, Number(objective.targetLevel || 0));
     const currentLevel = Math.max(0, Number(store.state?.refineryModules?.[objective.module] || 0));
     if(targetLevel > 0 && currentLevel >= targetLevel) return Math.max(0, Number(objective.count || 1));
+    const jobs = store.state?.refineryUpgradeJobs && typeof store.state.refineryUpgradeJobs === "object" ? Object.values(store.state.refineryUpgradeJobs) : [];
+    const hasMatchingJob = jobs.some(job=>
+      job?.type === "module"
+      && String(job.id || "") === String(objective.module || "")
+      && Math.max(0, Number(job.toLevel || 0)) >= targetLevel
+    );
+    if(targetLevel > 0 && hasMatchingJob) return Math.max(0, Number(objective.count || 1));
   }
   if(objectiveEntry?.objective?.type === "refinery_material_upgrade_start"){
     const objective = objectiveEntry.objective;
     const targetLevel = Math.max(0, Number(objective.targetLevel || 0));
     const currentLevel = Math.max(0, Number(store.state?.refineryLevels?.[objective.material] || 0));
     if(targetLevel > 0 && currentLevel >= targetLevel) return Math.max(0, Number(objective.count || 1));
+    const jobs = store.state?.refineryUpgradeJobs && typeof store.state.refineryUpgradeJobs === "object" ? Object.values(store.state.refineryUpgradeJobs) : [];
+    const hasMatchingJob = jobs.some(job=>
+      job?.type === "material"
+      && String(job.id || "") === String(objective.material || "")
+      && Math.max(0, Number(job.toLevel || 0)) >= targetLevel
+    );
+    if(targetLevel > 0 && hasMatchingJob) return Math.max(0, Number(objective.count || 1));
   }
   const stored = store.state?.questProgress?.[id];
   if(typeof stored === "object" && stored !== null) return Math.max(0, Number(stored[objectiveKey] || 0));

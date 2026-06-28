@@ -1,4 +1,6 @@
 import { publicAccount } from "./accounts.js";
+import { config } from "../config.js";
+import { isLoadTestAccount } from "../loadtest/provisionBot.js";
 import { assertGameCapacity, publicGameCapacity } from "../players/playerCapacity.js";
 
 export function createSocketSessionManager({io, players, profileManager, cleanName, emitPlayers, replaceGroupMemberId, resumeQuestTimers, setPlayerMap, syncPlayerLifecycle, syncPlayerStatusEffects, maxConcurrentGamePlayers = 0}){
@@ -42,6 +44,14 @@ export function createSocketSessionManager({io, players, profileManager, cleanNa
   function attachOrResumeAccountSocket(socket, account, session = null){
     const current = players.get(socket.id);
     if(!current || !account) return null;
+    if(isLoadTestAccount(account) && !config.loadTest?.enabled){
+      socket.emit("auth:error", {
+        message:"Les comptes bots de test sont desactives sur ce serveur.",
+        at:Date.now()
+      });
+      socket.disconnect?.(true);
+      return null;
+    }
     let resumeSession = null;
     const isGameClient = current.clientMode === "game";
     if(isGameClient){

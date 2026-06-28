@@ -187,6 +187,7 @@ export function createDeadlyEnemy(kind, {
     attackDamageMax,
     useExactDamageRange:true,
     attackCooldown:1_000,
+    staggerFirstAttack:true,
     projectileSpeed:Number(base.projectileSpeed || 680),
     particle:base.particle || base.color,
     reward:{...base.reward},

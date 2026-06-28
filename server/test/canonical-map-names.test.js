@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FIRMS, getCanonicalMapName, getFirmMapName } from "../../src/data/firms.js";
+import { FIRMS, getCanonicalMapName, getFirmMapName, normalizeFirmId } from "../../src/data/firms.js";
 import { questCatalog } from "../../src/data/progression.js";
 import { MAPS } from "../../src/game/combatData.js";
 import { WORLD_MAPS } from "../src/world/definitions.js";
@@ -33,6 +33,13 @@ test("legacy map aliases resolve to canonical names without remaining visible", 
   assert.equal(getCanonicalMapName("CYAN-01"), "Nereid-01");
   assert.equal(getCanonicalMapName("JAUNE-01"), "Aureon-01");
   assert.equal(getCanonicalMapName("VERTE-01"), "Sylva-01");
+});
+
+test("public firm labels normalize to their server firm ids", ()=>{
+  assert.equal(normalizeFirmId("Astra"), "astra");
+  assert.equal(normalizeFirmId("Cygnus"), "cyan");
+  assert.equal(normalizeFirmId("Solarys"), "jaune");
+  assert.equal(normalizeFirmId("Verdantis"), "verte");
 });
 
 test("quests and portal labels never expose legacy map names", ()=>{

@@ -2,12 +2,15 @@ import { sanitizeProfile } from "./profileSanitize.js";
 import { cleanupDuplicateEquippedInventoryUids } from "../economy/equipment.js";
 
 const REPAIR_EXTRA_ITEM_IDS = new Set(["extra_repair_starter", "extra_repair_yellow", "extra_repair_bot"]);
+const STARTER_SHIP_ID = "orion";
 
 export function createDefaultProfile(){
   return sanitizeProfile({
     updatedAt:Date.now(),
     player:{name:"NOVA-37", firmId:"astra", firmSelected:false, level:1, skillPoints:1},
-    ownedShips:["orion"],
+    ownedShips:[STARTER_SHIP_ID],
+    activeShip:STARTER_SHIP_ID,
+    selectedShip:STARTER_SHIP_ID,
     inventoryItems:[{uid:"inv_laser_mk1_1", itemId:"laser_mk1"}, {uid:"inv_repair_starter_2", itemId:"extra_repair_starter"}],
     nextInventoryUid:3,
     ammoInventory:{ammo_x1:2500, missile_m1:30, missile_m2:30},
@@ -47,6 +50,27 @@ export function createDefaultProfile(){
     firmRewardHistory:[],
     starterRepairGranted:true
   });
+}
+
+export function ensureStarterShipSelection(profile){
+  if(!profile || typeof profile !== "object") return false;
+  let changed = false;
+  if(!Array.isArray(profile.ownedShips)) profile.ownedShips = [];
+  profile.ownedShips = profile.ownedShips.map(shipId=>String(shipId || "").trim()).filter(Boolean);
+  if(!profile.ownedShips.length){
+    profile.ownedShips.push(STARTER_SHIP_ID);
+    changed = true;
+  }
+  const fallbackShip = profile.ownedShips.includes(STARTER_SHIP_ID) ? STARTER_SHIP_ID : profile.ownedShips[0];
+  if(!profile.activeShip || !profile.ownedShips.includes(profile.activeShip)){
+    profile.activeShip = fallbackShip;
+    changed = true;
+  }
+  if(!profile.selectedShip || !profile.ownedShips.includes(profile.selectedShip)){
+    profile.selectedShip = profile.activeShip;
+    changed = true;
+  }
+  return changed;
 }
 
 function makeStarterRepairUid(profile){

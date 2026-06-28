@@ -26,7 +26,7 @@ import {
   sendFriendRequest,
   setSocialCategory,
   startPortgunTeleport
-} from "../../multiplayer/client.js?v=firm-shop-sync-1";
+} from "../../multiplayer/client.js?v=portal-prepare-1";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({

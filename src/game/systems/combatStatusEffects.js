@@ -1,3 +1,17 @@
+export function compactCombatListInPlace(list, keep, maxLength = 0){
+  if(!Array.isArray(list)) return [];
+  let write = 0;
+  for(let read = 0; read < list.length; read += 1){
+    const item = list[read];
+    if(!keep(item)) continue;
+    list[write] = item;
+    write += 1;
+  }
+  list.length = write;
+  if(maxLength > 0 && list.length > maxLength) list.splice(0, list.length - maxLength);
+  return list;
+}
+
 export function createCombatStatusEffectSystem({
   getState,
   setState,
@@ -153,16 +167,10 @@ export function createCombatStatusEffectSystem({
       text.y += (text.vy || -38) * dt;
       text.vy = (text.vy || -38) + 42 * dt;
     }
-    const nextParticles = particles.filter(p=>p.life > 0);
-    const nextImpactEffects = impactEffects.filter(effect=>effect.life > 0 || effect.delay > 0);
-    const nextDamageTexts = damageTexts.filter(text=>text.life > 0);
-    if(nextParticles.length > 240) nextParticles.splice(0, nextParticles.length - 240);
-    if(nextImpactEffects.length > 96) nextImpactEffects.splice(0, nextImpactEffects.length - 96);
-    if(nextDamageTexts.length > 80) nextDamageTexts.splice(0, nextDamageTexts.length - 80);
     setState({
-      particles:nextParticles,
-      impactEffects:nextImpactEffects,
-      damageTexts:nextDamageTexts
+      particles:compactCombatListInPlace(particles, p=>p.life > 0, 240),
+      impactEffects:compactCombatListInPlace(impactEffects, effect=>effect.life > 0 || effect.delay > 0, 96),
+      damageTexts:compactCombatListInPlace(damageTexts, text=>text.life > 0, 80)
     });
   }
 

@@ -1,8 +1,11 @@
 import { validatePlayerState } from "../players/playerStateValidation.js";
 import { buildGlobalLeaderboardSnapshotFromManager } from "../players/leaderboard.js";
 import { consumeInventoryItemAmount } from "../economy/inventoryStacks.js";
+import { config } from "../config.js";
+import { isLoadTestAccount } from "../loadtest/provisionBot.js";
 import { checkGameCapacity, publicGameCapacity } from "../players/playerCapacity.js";
 import { applyTutorialAction } from "../players/tutorialActions.js";
+import { shouldEmitPlayerStateCorrection } from "./stateCorrections.js";
 import {
   PORTGUN_FLUID_ITEM_ID,
   cancelPendingPortgunTeleport,
@@ -182,6 +185,17 @@ export function registerPlayerHandlers(socket, context){
     let player = players.get(socket.id);
     if(!player) return;
     const requestedClientMode = payload?.clientMode === "game" ? "game" : "launcher";
+    if(requestedClientMode === "game" && isLoadTestAccount(player.account) && !config.loadTest?.enabled){
+      player.clientMode = "launcher";
+      socket.emit("auth:error", {
+        message:"Les comptes bots de test sont desactives sur ce serveur.",
+        at:Date.now()
+      });
+      socket.disconnect?.(true);
+      emitLeaderboard();
+      emitPlayers();
+      return;
+    }
     if(requestedClientMode === "game" && player.accountId){
       const capacity = checkGameCapacity({
         players,
@@ -440,7 +454,7 @@ export function registerPlayerHandlers(socket, context){
     const mapChanged = previousState
       ? String(validation.state.mapId ?? "") !== String(previousState.mapId ?? "")
       : String(validation.state.mapId ?? "") !== String(player.mapId ?? "");
-    if(validation.corrected){
+    if(validation.corrected && shouldEmitPlayerStateCorrection({player, validation, now})){
       logger?.warn?.("Player state corrected", {
         playerId:player.id,
         accountId:player.accountId || null,

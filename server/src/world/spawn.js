@@ -186,6 +186,7 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
     attackDamageMax,
     useExactDamageRange:Boolean(base.useExactDamageRange),
     attackCooldown:base.attackCooldown,
+    staggerFirstAttack:true,
     projectileSpeed:base.projectileSpeed || 600,
     particle:base.particle || base.color,
     onHitEffect,

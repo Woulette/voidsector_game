@@ -93,9 +93,8 @@ export function renderPortals(){
     const clearCount = Math.max(0, Number(store.state.completedPortals?.[p.id] || 0));
     const run = store.state.portalRuns?.[p.id] || null;
     const runLives = run ? Math.max(0, Math.min(3, Math.round(Number(run.lives || 0)))) : 3;
-    const actionLabel = run && runLives > 0 ? "Reprendre" : "Entrer";
     const actionHtml = unlocked
-      ? `<button class="blue-button small" data-start-portal="${p.id}" ${canEnter ? "" : "disabled"}>${canEnter ? actionLabel : !store.state.activeShip ? "Equiper un vaisseau" : "Prerequis manquants"}</button>`
+      ? `<button class="blue-button small" data-prepare-portal="${p.id}" ${canEnter ? "" : "disabled"}>${canEnter ? "Preparer" : !store.state.activeShip ? "Equiper un vaisseau" : "Prerequis manquants"}</button>`
       : `<button class="blue-button secondary small" data-unlock-portal-pieces="${p.id}" ${canUnlockPieces ? "" : "disabled"}>Utiliser ${fmt(p.piecesRequired)} pieces</button><button class="blue-button small" data-portal-caster-select="${p.id}">Space Caster</button>`;
     return `<article class="portal-card ${canEnter ? "ready" : unlocked ? "unlocked" : "locked"} ${selectedPortal?.id === p.id ? "selected" : ""}" data-portal-caster-select="${p.id}">
       <img src="${p.img}" alt="${p.name}">

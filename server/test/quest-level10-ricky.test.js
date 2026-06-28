@@ -4,7 +4,7 @@ import { getInventoryItemCount } from "../src/economy/inventoryStacks.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { rollServerQuestItemDrop } from "../src/quests/questItemDrops.js";
 import { claimCompletedServerQuests, progressServerQuestAction } from "../src/quests/quests.js";
-import { acceptServerQuest, canClaimQuest, getQuest, getQuestObjectiveProgress, getQuestObjectives } from "../src/quests/questState.js";
+import { acceptServerQuest, canClaimQuest, getQuest, getQuestObjectiveProgress, getQuestObjectives, normalizeQuestFields } from "../src/quests/questState.js";
 import { MAPS, getClosedMapPortals, getMapPortals } from "../../src/game/combatData.js";
 
 const QUEST_ID = "quest_lv10_maintenance_impossible";
@@ -123,6 +123,41 @@ test("Maintenance impossible requires five parts, Ricky handoff, then mission co
   assert.equal(claimed.length, 1);
   assert.equal(claimed[0].reward.itemCounts.portal_anchor_key, 1);
   assert.equal(getInventoryItemCount(profile, "portal_anchor_key"), 1);
+});
+
+test("Maintenance impossible legacy Astra state migrates to the player's firm quest", ()=>{
+  const profile = createDefaultProfile();
+  const cyanQuestId = `${QUEST_ID}_cyan`;
+  profile.player.level = 10;
+  profile.player.firmId = "cyan";
+  profile.player.firmSelected = true;
+  profile.activeQuestIds = [QUEST_ID];
+  profile.activeQuestId = QUEST_ID;
+  profile.questProgress[QUEST_ID] = {talk_start:1, stabilisateurs:5, talk_return:1};
+
+  const result = progressServerQuestAction(profile, {
+    type:"mission_control",
+    stationId:"quests",
+    zoneName:"Nereid-01"
+  });
+
+  assert.equal(result.updates.length, 1);
+  assert.equal(result.updates[0].questId, cyanQuestId);
+  assert.deepEqual(profile.activeQuestIds, [cyanQuestId]);
+  assert.equal(profile.activeQuestId, cyanQuestId);
+  assert.equal(profile.questProgress[QUEST_ID], undefined);
+  assert.equal(profile.questProgress[cyanQuestId].mission_control, 1);
+
+  const claimed = claimCompletedServerQuests(profile, [cyanQuestId]).claimed;
+  assert.equal(claimed.length, 1);
+  assert.equal(profile.completedQuestClaims[cyanQuestId], true);
+
+  const completedProfile = createDefaultProfile();
+  completedProfile.player.firmId = "cyan";
+  completedProfile.completedQuestClaims[QUEST_ID] = true;
+  normalizeQuestFields(completedProfile);
+  assert.equal(completedProfile.completedQuestClaims[QUEST_ID], undefined);
+  assert.equal(completedProfile.completedQuestClaims[cyanQuestId], true);
 });
 
 test("Ricky's portal stays locked while the normal zone four portal remains available", ()=>{

@@ -291,6 +291,53 @@ test("an enemy holds position while its moving target stays in attack range", ()
   assert.ok(Math.abs(enemy.angle - expectedAim) < 0.000001);
 });
 
+test("staggered enemies do not open attacks on the same server tick", ()=>{
+  const player = {
+    id:"player-staggered",
+    mapId:"0",
+    state:{mapId:"0", x:0, y:0, hp:1000}
+  };
+  const createEnemy = id=>({
+    id,
+    kind:"deadly_intercepteur",
+    x:320,
+    y:0,
+    homeX:320,
+    homeY:0,
+    hp:10000,
+    maxHp:10000,
+    speed:330,
+    attackRange:360,
+    attackDamage:100,
+    attackCooldown:1000,
+    nextAttackAt:0,
+    staggerFirstAttack:true,
+    lockedPlayerId:player.id,
+    lockedPlayerLastSeenAt:1000
+  });
+  const enemies = [createEnemy("staggered-enemy-a"), createEnemy("staggered-enemy-b")];
+  const attacks = [];
+  const manager = createWorldAiManager({
+    players:new Map([[player.id, player]]),
+    presence:{isActiveForWorld:()=>true},
+    launchEnemyAttack:payload=>attacks.push(payload),
+    isPlayerSafeOnMap:()=>false
+  });
+  const map = {id:"0", width:10000, height:8000};
+
+  for(const enemy of enemies) manager.updateWorldEnemy(enemy, map, [player], .1, 1000);
+
+  assert.equal(attacks.length, 0);
+  assert.ok(enemies[0].nextAttackAt > 1000);
+  assert.ok(enemies[1].nextAttackAt > 1000);
+  assert.notEqual(enemies[0].nextAttackAt, enemies[1].nextAttackAt);
+
+  manager.updateWorldEnemy(enemies[0], map, [player], .1, enemies[0].nextAttackAt);
+  assert.equal(attacks.length, 1);
+  manager.updateWorldEnemy(enemies[1], map, [player], .1, enemies[1].nextAttackAt);
+  assert.equal(attacks.length, 2);
+});
+
 test("heavy enemies cross the player before stopping inside attack range", ()=>{
   const player = {
     id:"player-heavy",

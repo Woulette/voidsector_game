@@ -4,30 +4,39 @@ import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
 import { io } from "socket.io-client";
 import { questCatalog } from "../../src/data/progression.js";
-import { FIRMS, getFirmMapId } from "../../src/data/firms.js";
+import { ships } from "../../src/data/ships.js";
+import { FIRMS, getFirmMapId, normalizeFirmId } from "../../src/data/firms.js";
 import { WORLD_MAPS } from "../src/world/definitions.js";
 
-// LOAD_TEST_LOCAL_FIX: shared local defaults — see LOAD_TEST_LOCAL_FIXES.md
+// LOAD_TEST_LOCAL_FIX: shared local defaults - see LOAD_TEST_LOCAL_FIXES.md
 dotenv.config({
   path:path.join(path.dirname(fileURLToPath(import.meta.url)), "../loadtest.local.env"),
   override:false
 });
 
 const SERVER_URL = String(process.env.BOT_SERVER_URL || "http://127.0.0.1:3001").trim();
+const AUTH_URL = String(process.env.BOT_AUTH_URL || process.env.PLATFORM_AUTH_BASE_URL || SERVER_URL).trim();
 const LOAD_TEST_SECRET = String(process.env.LOAD_TEST_SECRET || "").trim();
 const BOT_COUNT = clampInt(process.env.BOT_COUNT, 1, 500, 10);
 const BOT_DURATION_SECONDS = clampInt(process.env.BOT_DURATION_SECONDS, 10, 86400, 120);
-const BOT_RAMP_MS = clampInt(process.env.BOT_RAMP_MS, 0, 10000, 200);
+const BOT_RAMP_MS = clampInt(process.env.BOT_RAMP_MS, 0, 60000, 200);
 const BOT_TICK_MS = clampInt(process.env.BOT_TICK_MS, 100, 1000, 200);
 const BOT_MAP_CHANGE_SECONDS = clampInt(process.env.BOT_MAP_CHANGE_SECONDS, 15, 3600, 55);
 const BOT_RESET_QUESTS = String(process.env.BOT_RESET_QUESTS || "true").toLowerCase() !== "false";
 const BOT_MEASURE_BYTES = String(process.env.BOT_MEASURE_BYTES || "").toLowerCase() === "true";
+const BOT_STAY_ONLINE = ["1", "true", "yes", "on"].includes(String(process.env.BOT_STAY_ONLINE || "").trim().toLowerCase());
+const BOT_PROVISION_LOADTEST = String(process.env.BOT_PROVISION_LOADTEST || "true").toLowerCase() !== "false";
+const BOT_PORTALS_ENABLED = String(process.env.BOT_PORTALS_ENABLED || "true").toLowerCase() !== "false";
+const BOT_FIRM_ID = cleanFirmId(process.env.BOT_FIRM_ID || "");
+const BOT_START_MAP_ID = cleanMapId(process.env.BOT_START_MAP_ID || "");
+const BOT_ROUTE_MAP_IDS = cleanRouteMapIds(process.env.BOT_ROUTE_MAPS || "");
+const BOT_MOVEMENT_SPEED_SCALE = clampNumber(process.env.BOT_MOVEMENT_SPEED_SCALE, 0.35, 1, 0.72);
 const BOT_RUN_ID = cleanRunId(process.env.BOT_RUN_ID || "local");
 const BOT_PASSWORD = String(process.env.BOT_PASSWORD || "VoidSectorLoad!2026");
 const BOT_ACCOUNT_DOMAIN = "voidsector-load.test";
 const WORLD_MAP_IDS = Object.keys(WORLD_MAPS).sort((a, b)=>Number(a) - Number(b));
 
-if(LOAD_TEST_SECRET.length < 16){
+if(BOT_PROVISION_LOADTEST && LOAD_TEST_SECRET.length < 16){
   throw new Error("LOAD_TEST_SECRET must match the server and contain at least 16 characters.");
 }
 
@@ -36,11 +45,34 @@ function clampInt(value, min, max, fallback){
   return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
 }
 
+function clampNumber(value, min, max, fallback){
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+}
+
 function cleanRunId(value){
   return String(value || "local")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "")
     .slice(0, 8) || "local";
+}
+
+function cleanFirmId(value){
+  const raw = String(value || "").trim();
+  if(!raw) return "";
+  return normalizeFirmId(raw);
+}
+
+function cleanMapId(value){
+  const raw = String(value || "").trim();
+  return raw && WORLD_MAPS[raw] ? raw : "";
+}
+
+function cleanRouteMapIds(value){
+  return String(value || "")
+    .split(",")
+    .map(entry=>cleanMapId(entry))
+    .filter(Boolean);
 }
 
 function wait(ms){
@@ -60,8 +92,37 @@ function payloadBytes(args){
   }
 }
 
+async function platformAuthRequest(path, body){
+  const response = await fetch(`${AUTH_URL.replace(/\/+$/, "")}${path}`, {
+    method:"POST",
+    headers:{"content-type":"application/json"},
+    body:JSON.stringify(body || {})
+  });
+  const text = await response.text();
+  let payload = null;
+  try{
+    payload = JSON.parse(text);
+  }catch{
+    const contentType = response.headers.get("content-type") || "unknown";
+    throw new Error(`Invalid auth response (${response.status}, ${contentType}) from ${AUTH_URL}`);
+  }
+  if(!response.ok || payload?.ok === false){
+    throw new Error(payload?.message || "Platform authentication failed");
+  }
+  return payload;
+}
+
 function mapFirmId(map, index){
   return map?.firmId || FIRMS[index % FIRMS.length].id;
+}
+
+function initialMapIdForBot(index){
+  if(BOT_START_MAP_ID) return BOT_START_MAP_ID;
+  if(BOT_FIRM_ID){
+    const route = routeForFirm(BOT_FIRM_ID);
+    return route[index % Math.max(1, route.length)];
+  }
+  return WORLD_MAP_IDS[index % WORLD_MAP_IDS.length];
 }
 
 function mapNumber(map){
@@ -69,8 +130,37 @@ function mapNumber(map){
   return match ? Number(match[1]) : 0;
 }
 
+function routeMapsAreAdjacent(a, b){
+  const from = WORLD_MAPS[String(a)];
+  const to = WORLD_MAPS[String(b)];
+  if(!from || !to) return false;
+  if(String(from.id) === String(to.id)) return true;
+  const fromNumber = mapNumber(from);
+  const toNumber = mapNumber(to);
+  if(String(from.id) === "50") return toNumber === 5;
+  if(String(to.id) === "50") return fromNumber === 5;
+  if(String(from.firmId || "") !== String(to.firmId || "")) return false;
+  const pair = [fromNumber, toNumber].sort((x, y)=>x - y).join(":");
+  return ["1:2", "2:3", "2:4", "3:4", "3:5", "4:5"].includes(pair);
+}
+
+function routeCycleIsValid(route){
+  if(route.length <= 1) return true;
+  return route.every((mapId, index)=>routeMapsAreAdjacent(mapId, route[(index + 1) % route.length]));
+}
+
+function normalizeRouteCycle(route){
+  const clean = route.filter(mapId=>WORLD_MAPS[String(mapId)]);
+  if(clean.length <= 2 || routeCycleIsValid(clean)) return clean;
+  const returnLeg = clean.slice(1, -1).reverse();
+  const closed = [...clean, ...returnLeg];
+  if(routeCycleIsValid(closed)) return closed;
+  return clean;
+}
+
 function routeForFirm(firmId){
-  return [
+  if(BOT_ROUTE_MAP_IDS.length) return normalizeRouteCycle(BOT_ROUTE_MAP_IDS);
+  return normalizeRouteCycle([
     String(getFirmMapId(firmId, 1)),
     String(getFirmMapId(firmId, 2)),
     String(getFirmMapId(firmId, 3)),
@@ -79,7 +169,7 @@ function routeForFirm(firmId){
     String(getFirmMapId(firmId, 5)),
     String(getFirmMapId(firmId, 4)),
     String(getFirmMapId(firmId, 2))
-  ];
+  ]);
 }
 
 const SPECIAL_TWO_FOUR_POINTS = {
@@ -126,6 +216,40 @@ function activeObjective(profile){
   return null;
 }
 
+const BOT_PERSONALITIES = [
+  {name:"hunter", fight:0.82, quest:0.45, roam:0.42, map:0.45, afk:0.08, portal:0.18, loot:0.82, caution:0.28},
+  {name:"quester", fight:0.48, quest:0.86, roam:0.48, map:0.38, afk:0.12, portal:0.10, loot:0.70, caution:0.38},
+  {name:"explorer", fight:0.36, quest:0.42, roam:0.88, map:0.78, afk:0.10, portal:0.08, loot:0.54, caution:0.46},
+  {name:"casual", fight:0.44, quest:0.54, roam:0.62, map:0.34, afk:0.28, portal:0.06, loot:0.58, caution:0.56},
+  {name:"sentinel", fight:0.30, quest:0.34, roam:0.36, map:0.20, afk:0.38, portal:0.04, loot:0.40, caution:0.70}
+];
+
+function randomBetween(min, max){
+  return min + Math.random() * Math.max(0, max - min);
+}
+
+function chance(value){
+  return Math.random() < Math.max(0, Math.min(1, Number(value || 0)));
+}
+
+function createPersonality(index){
+  const base = BOT_PERSONALITIES[index % BOT_PERSONALITIES.length];
+  return {
+    ...base,
+    fight:Math.max(0.08, Math.min(0.95, base.fight + randomBetween(-0.08, 0.08))),
+    quest:Math.max(0.08, Math.min(0.95, base.quest + randomBetween(-0.1, 0.1))),
+    roam:Math.max(0.08, Math.min(0.95, base.roam + randomBetween(-0.1, 0.1))),
+    map:Math.max(0.04, Math.min(0.9, base.map + randomBetween(-0.08, 0.08))),
+    afk:Math.max(0.02, Math.min(0.6, base.afk + randomBetween(-0.05, 0.05))),
+    portal:Math.max(0.02, Math.min(0.35, base.portal + randomBetween(-0.04, 0.04))),
+    loot:Math.max(0.08, Math.min(0.95, base.loot + randomBetween(-0.08, 0.08))),
+    caution:Math.max(0.12, Math.min(0.85, base.caution + randomBetween(-0.08, 0.08))),
+    fireDelay:randomBetween(920, 1500),
+    wanderMs:randomBetween(7000, 22000),
+    decisionMs:randomBetween(4500, 14000)
+  };
+}
+
 class Metrics {
   constructor(){
     this.startedAt = Date.now();
@@ -164,6 +288,11 @@ class Metrics {
       connected,
       grouped,
       maps,
+      afk:bots.filter(bot=>bot.behavior === "afk").length,
+      resting:bots.filter(bot=>bot.behavior === "rest").length,
+      hunting:bots.filter(bot=>bot.behavior === "hunt").length,
+      questing:bots.filter(bot=>bot.behavior === "quest").length,
+      wandering:bots.filter(bot=>bot.behavior === "wander").length,
       fires:this.counters.get("fires") || 0,
       hits:this.counters.get("hits") || 0,
       rewards:this.counters.get("rewards") || 0,
@@ -189,9 +318,10 @@ class MmoBot extends EventEmitter {
     this.index = index;
     this.metrics = metrics;
     this.runtime = runtime;
-    this.mapId = WORLD_MAP_IDS[index % WORLD_MAP_IDS.length];
+    this.mapId = initialMapIdForBot(index);
     this.map = WORLD_MAPS[this.mapId];
-    this.firmId = mapFirmId(this.map, index);
+    this.firmId = BOT_FIRM_ID || mapFirmId(this.map, index);
+    this.personality = createPersonality(index);
     this.route = routeForFirm(this.firmId);
     this.routeIndex = Math.max(0, this.route.indexOf(this.mapId));
     this.name = `LoadBot-${BOT_RUN_ID}-${String(index + 1).padStart(3, "0")}`.slice(0, 24);
@@ -215,8 +345,17 @@ class MmoBot extends EventEmitter {
     this.nextFireAt = 0;
     this.nextMapChangeAt = Date.now() + jitter(BOT_MAP_CHANGE_SECONDS * 1000);
     this.nextQuestAttemptAt = 0;
+    this.nextQuestScheduleAt = Date.now() + jitter(20_000);
     this.nextWanderAt = 0;
     this.nextPortalInstanceAt = Date.now() + jitter(90_000);
+    this.nextHumanDecisionAt = Date.now() + jitter(3500);
+    this.nextActivityAt = Date.now() + jitter(60_000);
+    this.nextHelloAt = 0;
+    this.nextClaimAttemptAt = Date.now() + jitter(35_000);
+    this.afkUntil = 0;
+    this.restUntil = 0;
+    this.repairActiveUntil = 0;
+    this.behavior = "spawn";
     this.wanderTarget = null;
     this.travel = null;
     this.lastTickAt = Date.now();
@@ -247,38 +386,34 @@ class MmoBot extends EventEmitter {
   installListeners(){
     this.socket.on("connect", ()=>{
       this.metrics.inc("connections");
-      this.socket.emit("auth:register", {
-        email:this.email,
-        username:this.name,
-        password:BOT_PASSWORD
-      });
+      this.authenticate()
+        .then(token=>this.socket.emit("auth:session", {token}))
+        .catch(error=>{
+          this.metrics.inc("authErrors");
+          this.rejectReady(new Error(`${this.name}: ${error?.message || "auth failed"}`));
+        });
     });
     this.socket.on("connect_error", ()=>this.metrics.inc("connectErrors"));
     this.socket.on("disconnect", ()=>this.metrics.inc("disconnects"));
-    this.socket.on("auth:error", payload=>{
-      const message = String(payload?.message || "");
-      if(!this.loginFallbackSent && /deja utilise|déjà utilisé|identifiants/i.test(message)){
-        this.loginFallbackSent = true;
-        this.socket.emit("auth:login", {login:this.email, password:BOT_PASSWORD});
-        return;
-      }
+    this.socket.on("auth:error", ()=>{
       this.metrics.inc("authErrors");
     });
     this.socket.on("auth:success", ()=>{
-      this.socket.emit("player:hello", {
-        clientMode:"game",
-        clientId:this.clientId,
-        name:this.name,
-        hasAuthToken:false
-      });
+      this.ensureGameMode(true);
     });
     this.socket.on("profile:sync", profile=>{
       this.profile = profile;
+      this.syncProfileRoute(profile);
       if(!profile?.player?.firmSelected){
         if(!this.setupSent){
           this.setupSent = true;
           this.socket.emit("profile:setup", {name:this.name, firmId:this.firmId});
         }
+        return;
+      }
+      if(!BOT_PROVISION_LOADTEST){
+        if(!this.state) this.applySession(this.createNormalSession(profile));
+        this.markReady("normal-profile");
         return;
       }
       if(!this.provisionSent){
@@ -293,6 +428,18 @@ class MmoBot extends EventEmitter {
         });
       }
     });
+    this.socket.on("profile:setup-complete", ()=>{
+      this.metrics.inc("profileSetupComplete");
+      if(!BOT_PROVISION_LOADTEST && this.profile?.player?.firmSelected){
+        if(!this.state) this.applySession(this.createNormalSession(this.profile));
+        this.markReady("normal-setup");
+      }
+    });
+    this.socket.on("profile:setup-error", payload=>{
+      const message = String(payload?.message || "profile setup failed");
+      this.metrics.inc("profileSetupErrors");
+      this.rejectReady(new Error(`${this.name}: ${message}`));
+    });
     this.socket.on("loadtest:error", payload=>{
       const message = String(payload?.message || "provision failed");
       if(/refus/i.test(message) && this.runtime && !this.runtime.provisionRefused){
@@ -303,14 +450,12 @@ class MmoBot extends EventEmitter {
       this.rejectReady(new Error(`${this.name}: ${message}`));
     });
     this.socket.on("loadtest:provisioned", ()=>{
-      this.ready = true;
-      this.metrics.inc("ready");
-      this.startTick();
-      this.scheduleQuestAcceptance();
-      this.resolveReady(this);
-      this.emit("ready", this);
+      this.markReady("loadtest-provisioned");
     });
-    this.socket.on("player:resume", session=>this.applySession(session));
+    this.socket.on("player:resume", session=>{
+      this.applySession(session);
+      if(!BOT_PROVISION_LOADTEST && this.profile?.player?.firmSelected) this.markReady("normal-session");
+    });
     this.socket.on("player:state-correction", session=>{
       this.metrics.inc("corrections");
       this.applySession(session);
@@ -409,6 +554,71 @@ class MmoBot extends EventEmitter {
     }
   }
 
+  syncProfileRoute(profile){
+    if(BOT_FIRM_ID && !profile?.player?.firmSelected) return;
+    const firmId = String(profile?.player?.firmId || "").trim();
+    if(!firmId || firmId === this.firmId) return;
+    this.firmId = firmId;
+    this.route = routeForFirm(this.firmId);
+    this.routeIndex = Math.max(0, this.route.indexOf(this.mapId));
+  }
+
+  createNormalSession(profile){
+    const existing = profile?.worldSession && typeof profile.worldSession === "object" ? profile.worldSession : null;
+    if(existing?.mapId) return existing;
+    const firmId = String(profile?.player?.firmId || this.firmId || "astra");
+    const mapId = String(getFirmMapId(firmId, 1) ?? this.mapId ?? "0");
+    const map = WORLD_MAPS[mapId] || this.map || WORLD_MAPS["0"];
+    const spawn = map?.spawn || {x:0, y:0};
+    const shipId = String(profile?.activeShip || profile?.selectedShip || profile?.ownedShips?.[0] || "orion");
+    const ship = ships.find(entry=>entry.id === shipId) || ships.find(entry=>entry.id === "orion");
+    const maxHp = Math.max(1, Number(ship?.stats?.vie || 5000));
+    return {
+      source:"normal-bot",
+      mapId,
+      x:Number(spawn.x || 0),
+      y:Number(spawn.y || 0),
+      angle:0,
+      hp:maxHp,
+      maxHp,
+      shield:0,
+      maxShield:0,
+      shipId,
+      shipImg:ship?.combatImg || ship?.img || "",
+      updatedAt:Date.now()
+    };
+  }
+
+  markReady(reason = "ready"){
+    if(this.ready || !this.state) return;
+    this.ready = true;
+    this.metrics.inc("ready");
+    this.metrics.inc(`ready:${reason}`);
+    this.startTick();
+    this.scheduleQuestAcceptance();
+    this.resolveReady(this);
+    this.emit("ready", this);
+  }
+
+  async authenticate(){
+    try{
+      const payload = await platformAuthRequest("/platform/auth/register", {
+        email:this.email,
+        username:this.name,
+        password:BOT_PASSWORD
+      });
+      return payload.token;
+    }catch(error){
+      const message = String(error?.message || "");
+      if(!/deja utilise|deja utilise|identifiants/i.test(message)) throw error;
+      const payload = await platformAuthRequest("/platform/auth/login", {
+        login:this.email,
+        password:BOT_PASSWORD
+      });
+      return payload.token;
+    }
+  }
+
   startTick(){
     if(this.tickHandle) return;
     this.lastTickAt = Date.now();
@@ -422,6 +632,8 @@ class MmoBot extends EventEmitter {
   }
 
   scheduleQuestAcceptance(){
+    this.nextQuestScheduleAt = Date.now() + randomBetween(65_000, 160_000);
+    if(!chance(this.personality.quest)) return;
     const candidates = questCatalog
       .filter(quest=>quest.firmId === this.firmId)
       .filter(quest=>!quest.rare && ["normal", "daily"].includes(quest.category || "normal"))
@@ -438,9 +650,212 @@ class MmoBot extends EventEmitter {
       );
       return Number(bMap) - Number(aMap) || Number(a.requiredLevel || 1) - Number(b.requiredLevel || 1);
     });
-    candidates.slice(0, 5).forEach((quest, index)=>{
-      setTimeout(()=>this.socket.emit("quest:accept", {id:quest.id}), 450 * index + this.index % 10 * 20).unref?.();
+    const activeCount = Array.isArray(this.profile?.activeQuestIds) ? this.profile.activeQuestIds.length : 0;
+    const limit = Math.max(1, Math.min(4, Math.round(1 + this.personality.quest * 3) - activeCount));
+    candidates
+      .filter(quest=>!(this.profile?.activeQuestIds || []).includes(quest.id))
+      .slice(0, limit)
+      .forEach((quest, index)=>{
+        const delay = randomBetween(800, 6500) + index * randomBetween(900, 2400);
+        setTimeout(()=>this.socket?.emit("quest:accept", {id:quest.id}), delay).unref?.();
+      });
+  }
+
+  tryClaimQuestRewards(now){
+    if(now < this.nextClaimAttemptAt || !Array.isArray(this.profile?.activeQuestIds)) return;
+    this.nextClaimAttemptAt = now + randomBetween(25_000, 85_000);
+    if(!chance(0.45 + this.personality.quest * 0.35)) return;
+    for(const questId of this.profile.activeQuestIds.slice(0, 3)){
+      setTimeout(()=>this.socket?.emit("quest:claim", {id:questId}), randomBetween(300, 2400)).unref?.();
+    }
+  }
+
+  sendActivity(now, reason = "bot-human-ai"){
+    if(now < this.nextActivityAt || !this.socket?.connected) return;
+    this.socket.emit("player:activity", {kind:reason, at:now});
+    this.nextActivityAt = now + randomBetween(70_000, 210_000);
+  }
+
+  ensureGameMode(force = false){
+    const now = Date.now();
+    if(!force && now < this.nextHelloAt) return;
+    if(!this.socket?.connected) return;
+    this.socket.emit("player:hello", {
+      clientMode:"game",
+      clientId:this.clientId,
+      name:this.name,
+      hasAuthToken:false
     });
+    this.nextHelloAt = now + 30_000;
+  }
+
+  chooseHumanBehavior(now){
+    if(now < this.nextHumanDecisionAt) return;
+    this.nextHumanDecisionAt = now + this.personality.decisionMs * randomBetween(0.65, 1.75);
+    if(chance(this.personality.afk)){
+      this.behavior = "afk";
+      this.afkUntil = now + randomBetween(18_000, 120_000);
+      this.wanderTarget = null;
+      return;
+    }
+    if(this.healthRatio() < this.personality.caution){
+      this.behavior = "rest";
+      this.restUntil = now + randomBetween(8000, 30_000);
+      this.wanderTarget = null;
+      return;
+    }
+    const roll = Math.random();
+    if(roll < this.personality.quest) this.behavior = "quest";
+    else if(roll < this.personality.quest + this.personality.fight) this.behavior = "hunt";
+    else if(roll < this.personality.quest + this.personality.fight + this.personality.map) this.behavior = "travel";
+    else this.behavior = "wander";
+  }
+
+  idleInPlace(){
+    if(!this.state) return;
+    this.state.vx = 0;
+    this.state.vy = 0;
+    this.state.enginePower = 0;
+    this.state.moveTarget = null;
+    this.state.attackTargetId = "";
+    this.state.attackAmmoId = "";
+    this.state.attackWeaponClass = "";
+  }
+
+  healthRatio(){
+    if(!this.state) return 1;
+    const maxHp = Math.max(1, Number(this.state.maxHp || 1));
+    const hp = Math.max(0, Number(this.state.hp || maxHp));
+    return hp / maxHp;
+  }
+
+  shouldRest(now){
+    if(this.healthRatio() < this.personality.caution * 0.72){
+      this.restUntil = Math.max(this.restUntil, now + randomBetween(12_000, 36_000));
+      this.behavior = "rest";
+      return true;
+    }
+    return now < this.restUntil;
+  }
+
+  restOrRepair(dt, now){
+    const map = WORLD_MAPS[String(this.state?.mapId || "")];
+    const spawn = map?.spawn || null;
+    if(spawn && this.distanceTo(spawn) > 360 && chance(0.75)){
+      this.moveToward(spawn, dt, 220);
+    }else{
+      this.idleInPlace();
+    }
+    if(this.healthRatio() < 0.92){
+      this.repairActiveUntil = now + 1800;
+    }
+    if(this.healthRatio() > 0.82 && now >= this.restUntil){
+      this.behavior = "wander";
+      this.nextHumanDecisionAt = now + randomBetween(1500, 5500);
+    }
+  }
+
+  maybeRescheduleQuests(now){
+    if(now >= this.nextQuestScheduleAt) this.scheduleQuestAcceptance();
+  }
+
+  maybeStartPortal(now){
+    if(!BOT_PORTALS_ENABLED) return false;
+    if(this.inPortal || this.groupLeaderId !== this.socket.id || now < this.nextPortalInstanceAt) return false;
+    this.nextPortalInstanceAt = now + jitter(150_000);
+    const groupNumber = Math.floor(this.index / 4);
+    if(groupNumber % 4 !== 0 || !chance(this.personality.portal)) return false;
+    this.socket.emit("portal:start", {portalId:"blue"});
+    return true;
+  }
+
+  shouldTravel(now){
+    if(this.travel) return true;
+    if(now < this.nextMapChangeAt) return false;
+    if(this.behavior === "travel") return chance(0.88);
+    return chance(this.personality.map * 0.55);
+  }
+
+  chooseTarget(enemies){
+    const viable = enemies
+      .filter(enemy=>Number(enemy.hp || 0) > 0)
+      .filter(enemy=>this.distanceTo(enemy) < (this.behavior === "hunt" ? 2200 : 1250));
+    return this.closest(viable);
+  }
+
+  shouldFightTarget(target){
+    if(!target || this.behavior === "afk" || this.behavior === "rest") return false;
+    if(this.healthRatio() < this.personality.caution) return false;
+    if(this.behavior === "hunt") return chance(this.personality.fight);
+    if(this.behavior === "quest") return chance(this.personality.fight * 0.45);
+    return chance(this.personality.fight * 0.32);
+  }
+
+  maybePickLoot(lootTarget){
+    return lootTarget && !this.inPortal && chance(this.personality.loot);
+  }
+
+  attackOrApproachTarget(target, dt, now){
+    const distance = this.distanceTo(target);
+    if(distance > 485){
+      this.moveToward(target, dt, 430);
+      this.state.attackTargetId = "";
+      return;
+    }
+    this.state.vx = 0;
+    this.state.vy = 0;
+    this.state.enginePower = 0;
+    this.state.moveTarget = null;
+    this.state.angle = Math.atan2(target.y - this.state.y, target.x - this.state.x) + Math.PI / 2;
+    this.state.attackTargetId = target.id;
+    this.state.attackAmmoId = "ammo_x1";
+    this.state.attackWeaponClass = "laser";
+    if(now >= this.nextFireAt){
+      this.nextFireAt = now + jitter(this.personality.fireDelay, 0.16);
+      this.socket.emit("combat:fire", {
+        enemyId:target.id,
+        weaponClass:"laser",
+        ammoId:"ammo_x1",
+        count:1,
+        clientAimX:Number(target.x || 0),
+        clientAimY:Number(target.y || 0),
+        targetRadius:Number(target.radius || 40)
+      });
+      this.metrics.inc("fires");
+    }
+  }
+
+  maybeMoveToQuestTarget(questTarget, dt, now){
+    if(!questTarget || this.inPortal || this.behavior !== "quest") return false;
+    if(this.distanceTo(questTarget.point) <= questTarget.radius){
+      this.socket.emit("quest:progress", questTarget.payload);
+      this.nextQuestAttemptAt = now + randomBetween(18_000, 45_000);
+    }else{
+      this.moveToward(questTarget.point, dt);
+    }
+    return true;
+  }
+
+  maybeMoveToLoot(lootTarget, dt){
+    if(!this.maybePickLoot(lootTarget)) return false;
+    if(this.distanceTo(lootTarget) <= 115){
+      this.socket.emit("loot:pickup", {id:lootTarget.id});
+      this.loot.delete(lootTarget.id);
+    }else{
+      this.moveToward(lootTarget, dt);
+    }
+    return true;
+  }
+
+  humanWander(dt, now){
+    if(this.behavior === "afk"){
+      if(now < this.afkUntil){
+        this.idleInPlace();
+        return;
+      }
+      this.behavior = "wander";
+    }
+    this.wander(dt, now);
   }
 
   tick(){
@@ -449,12 +864,30 @@ class MmoBot extends EventEmitter {
     const dt = Math.min(0.5, Math.max(0.05, (now - this.lastTickAt) / 1000));
     this.lastTickAt = now;
 
-    if(this.shouldStartPortalInstance(now)){
-      this.nextPortalInstanceAt = now + jitter(150_000);
-      this.socket.emit("portal:start", {portalId:"blue"});
+    this.ensureGameMode();
+    this.sendActivity(now, this.behavior === "afk" ? "afk-idle" : "bot-human-ai");
+    this.chooseHumanBehavior(now);
+    this.maybeRescheduleQuests(now);
+    this.tryClaimQuestRewards(now);
+
+    if(this.maybeStartPortal(now)){
+      this.sendState();
+      return;
     }
 
-    if(!this.inPortal && (this.travel || now >= this.nextMapChangeAt)){
+    if(this.behavior === "afk" && now < this.afkUntil){
+      this.idleInPlace();
+      this.sendState();
+      return;
+    }
+
+    if(this.shouldRest(now)){
+      this.restOrRepair(dt, now);
+      this.sendState();
+      return;
+    }
+
+    if(!this.inPortal && this.shouldTravel(now)){
       this.updateMapTravel(dt);
       this.sendState();
       return;
@@ -462,60 +895,22 @@ class MmoBot extends EventEmitter {
 
     const questTarget = this.getQuestInteractionTarget();
     const lootTarget = this.closest([...this.loot.values()]);
-    if(lootTarget && !this.inPortal){
-      if(this.distanceTo(lootTarget) <= 115){
-        this.socket.emit("loot:pickup", {id:lootTarget.id});
-        this.loot.delete(lootTarget.id);
-      }else{
-        this.moveToward(lootTarget, dt);
-      }
+    if(this.maybeMoveToLoot(lootTarget, dt)){
       this.sendState();
       return;
     }
 
-    if(questTarget && !this.inPortal){
-      if(this.distanceTo(questTarget.point) <= questTarget.radius){
-        this.socket.emit("quest:progress", questTarget.payload);
-        this.nextQuestAttemptAt = now + 20_000;
-      }else{
-        this.moveToward(questTarget.point, dt);
-      }
+    if(this.maybeMoveToQuestTarget(questTarget, dt, now)){
       this.sendState();
       return;
     }
 
     const enemies = this.inPortal ? [...this.instanceEnemies.values()] : [...this.worldEnemies.values()];
-    const target = this.closest(enemies.filter(enemy=>Number(enemy.hp || 0) > 0));
-    if(target){
-      const distance = this.distanceTo(target);
-      if(distance > 485){
-        this.moveToward(target, dt, 430);
-        this.state.attackTargetId = "";
-      }else{
-        this.state.vx = 0;
-        this.state.vy = 0;
-        this.state.enginePower = 0;
-        this.state.moveTarget = null;
-        this.state.angle = Math.atan2(target.y - this.state.y, target.x - this.state.x) + Math.PI / 2;
-        this.state.attackTargetId = target.id;
-        this.state.attackAmmoId = "ammo_x1";
-        this.state.attackWeaponClass = "laser";
-        if(now >= this.nextFireAt){
-          this.nextFireAt = now + jitter(1080, 0.08);
-          this.socket.emit("combat:fire", {
-            enemyId:target.id,
-            weaponClass:"laser",
-            ammoId:"ammo_x1",
-            count:1,
-            clientAimX:Number(target.x || 0),
-            clientAimY:Number(target.y || 0),
-            targetRadius:Number(target.radius || 40)
-          });
-          this.metrics.inc("fires");
-        }
-      }
+    const target = this.chooseTarget(enemies);
+    if(this.shouldFightTarget(target)){
+      this.attackOrApproachTarget(target, dt, now);
     }else{
-      this.wander(dt, now);
+      this.humanWander(dt, now);
     }
     this.sendState();
   }
@@ -664,7 +1059,7 @@ class MmoBot extends EventEmitter {
       this.state.moveTarget = null;
       return;
     }
-    const speed = Math.max(100, Number(this.state.speed || 330));
+    const speed = Math.max(80, Number(this.state.speed || 330) * BOT_MOVEMENT_SPEED_SCALE);
     const step = Math.min(speed * dt, distance - stopDistance);
     const nx = dx / distance;
     const ny = dy / distance;
@@ -675,7 +1070,7 @@ class MmoBot extends EventEmitter {
     this.state.angle = Math.atan2(ny, nx) + Math.PI / 2;
     this.state.engineAngle = this.state.angle;
     this.state.enginePower = 1;
-    this.state.moveTarget = {x:Number(target.x || 0), y:Number(target.y || 0)};
+    this.state.moveTarget = null;
   }
 
   sendState(){
@@ -684,24 +1079,20 @@ class MmoBot extends EventEmitter {
       x:Number(this.state.x || 0),
       y:Number(this.state.y || 0),
       angle:Number(this.state.angle || 0),
-      hp:Number(this.state.hp || 0),
-      maxHp:Number(this.state.maxHp || 35000),
-      shield:Number(this.state.shield || 0),
-      maxShield:Number(this.state.maxShield || 0),
       vx:Number(this.state.vx || 0),
       vy:Number(this.state.vy || 0),
       enginePower:Number(this.state.enginePower || 0),
       engineAngle:Number(this.state.engineAngle || this.state.angle || 0),
       mapId:String(this.state.mapId || this.mapId),
-      shipId:"razorion",
-      shipImg:"assets/ships/Razorion.png",
-      level:30,
+      shipId:String(this.state.shipId || "razorion"),
+      shipImg:String(this.state.shipImg || "assets/ships/Razorion.png"),
+      level:Math.max(1, Math.floor(Number(this.state.level || 30))),
       radius:48,
-      moveTarget:this.state.moveTarget || null,
+      moveTarget:null,
       attackTargetId:String(this.state.attackTargetId || ""),
       attackAmmoId:String(this.state.attackAmmoId || ""),
       attackWeaponClass:String(this.state.attackWeaponClass || ""),
-      repairBotActive:false
+      repairBotActive:Date.now() < Number(this.repairActiveUntil || 0)
     });
   }
 }
@@ -736,7 +1127,9 @@ function printProvisionRefusedHelp(message){
 }
 
 async function main(){
-  console.log(`Starting ${BOT_COUNT} MMO bots on ${SERVER_URL} for ${BOT_DURATION_SECONDS}s (run=${BOT_RUN_ID}).`);
+  console.log(`Starting ${BOT_COUNT} MMO bots on ${SERVER_URL} ${BOT_STAY_ONLINE ? "until stopped" : `for ${BOT_DURATION_SECONDS}s`} (run=${BOT_RUN_ID}).`);
+  if(AUTH_URL !== SERVER_URL) console.log(`Using ${AUTH_URL} for platform authentication.`);
+  if(!BOT_PROVISION_LOADTEST) console.log("Using normal account profiles; load-test provisioning is disabled for this run.");
   const metrics = new Metrics();
   const runtime = {provisionRefused:false, provisionRefusedMessage:""};
   const bots = [];
@@ -765,23 +1158,32 @@ async function main(){
   }
 
   const readyBots = bots.filter(bot=>bot.ready);
-  if(!readyBots.length) throw new Error("No bot reached the provisioned state.");
-  console.log(`${readyBots.length}/${BOT_COUNT} bots provisioned. Creating groups.`);
+  if(!readyBots.length) throw new Error("No bot reached the ready state.");
+  console.log(`${readyBots.length}/${BOT_COUNT} bots ready. Creating groups.`);
   await setupGroups(readyBots);
 
   const summaryHandle = setInterval(()=>printSummary(metrics, bots), 10_000);
+  let stopped = false;
+  let resolveStopped = null;
+  const stoppedPromise = new Promise(resolve=>{ resolveStopped = resolve; });
   const stop = ()=>{
+    if(stopped) return;
+    stopped = true;
     clearInterval(summaryHandle);
     for(const bot of bots) bot.stop();
     printSummary(metrics, bots, "FINAL");
+    resolveStopped?.();
   };
   process.once("SIGINT", ()=>{
     stop();
     process.exitCode = 130;
   });
   process.once("SIGTERM", stop);
-  await wait(BOT_DURATION_SECONDS * 1000);
-  stop();
+  if(BOT_STAY_ONLINE) await stoppedPromise;
+  else{
+    await wait(BOT_DURATION_SECONDS * 1000);
+    stop();
+  }
 }
 
 main().catch(error=>{

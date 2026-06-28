@@ -109,31 +109,20 @@ test("npc quest progress uses trusted map and npc when the player is nearby", ()
   assert.equal(calls[0].zoneName, "Helion-02");
 });
 
-test("mission control progress requires the trusted station position", ()=>{
-  const rejectedCalls = [];
-  const rejected = installQuestHandler({
+test("mission control progress uses the trusted current map without requiring ship proximity", ()=>{
+  const farCalls = [];
+  const farFromStation = installQuestHandler({
     player:{id:"socket-quest", mapId:"0", state:{x:0, y:0, mapId:"0"}},
     progressProfileQuestAction(_socket, action){
-      rejectedCalls.push(action);
+      farCalls.push(action);
     }
   });
 
-  rejected.trigger("quest:progress", {type:"mission_control", stationId:"quests", zoneName:"Helion-01"});
-  assert.equal(rejectedCalls.length, 0);
-  assert.equal(rejected.emitted.at(-1)?.event, "quest:error");
-  assert.match(rejected.emitted.at(-1)?.payload?.message || "", /trop loin/i);
-
-  const relaxedCalls = [];
-  const nearStation = installQuestHandler({
-    player:{id:"socket-quest", mapId:"0", state:{x:-3460, y:3000, mapId:"0"}},
-    progressProfileQuestAction(_socket, action){
-      relaxedCalls.push(action);
-    }
-  });
-
-  nearStation.trigger("quest:progress", {type:"mission_control", stationId:"quests", zoneName:"Helion-01"});
-  assert.equal(relaxedCalls.length, 1);
-  assert.equal(relaxedCalls[0].stationId, "quests");
+  farFromStation.trigger("quest:progress", {type:"mission_control", stationId:"quests", zoneName:"Helion-01"});
+  assert.equal(farCalls.length, 1);
+  assert.equal(farCalls[0].type, "mission_control");
+  assert.equal(farCalls[0].stationId, "quests");
+  assert.equal(farCalls[0].zoneName, "Helion-01");
 
   const calls = [];
   const accepted = installQuestHandler({
@@ -150,7 +139,22 @@ test("mission control progress requires the trusted station position", ()=>{
   assert.equal(calls[0].zoneName, "Helion-01");
 });
 
-test("Helion-05 mission control uses its dedicated relay position", ()=>{
+test("mission control trusts the validated state map when the cached player map is stale", ()=>{
+  const calls = [];
+  const staleCachedMap = installQuestHandler({
+    player:{id:"socket-quest", mapId:"0", state:{x:-3700, y:-3000, mapId:"20"}},
+    progressProfileQuestAction(_socket, action){
+      calls.push(action);
+    }
+  });
+
+  staleCachedMap.trigger("quest:progress", {type:"mission_control", stationId:"quests", zoneName:"Helion-01"});
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].stationId, "quests");
+  assert.equal(calls[0].zoneName, "Nereid-01");
+});
+
+test("Helion-05 mission control uses its dedicated relay map without ship proximity", ()=>{
   const calls = [];
   const relay = installQuestHandler({
     player:{id:"socket-quest", mapId:"4", state:{x:-4300, y:3300, mapId:"4"}},
@@ -165,15 +169,16 @@ test("Helion-05 mission control uses its dedicated relay position", ()=>{
   assert.equal(calls[0].stationId, "quests");
   assert.equal(calls[0].zoneName, "Helion-05");
 
-  const rejectedCalls = [];
+  const outsideCalls = [];
   const outsideRelay = installQuestHandler({
     player:{id:"socket-quest", mapId:"4", state:{x:-3500, y:3300, mapId:"4"}},
     progressProfileQuestAction(_socket, action){
-      rejectedCalls.push(action);
+      outsideCalls.push(action);
     }
   });
 
   outsideRelay.trigger("quest:progress", {type:"mission_control", stationId:"quests"});
-  assert.equal(rejectedCalls.length, 0);
-  assert.match(outsideRelay.emitted.at(-1)?.payload?.message || "", /trop loin/i);
+  assert.equal(outsideCalls.length, 1);
+  assert.equal(outsideCalls[0].stationId, "quests");
+  assert.equal(outsideCalls[0].zoneName, "Helion-05");
 });

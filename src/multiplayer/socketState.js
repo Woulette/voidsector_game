@@ -28,7 +28,7 @@ function storeServerEnemyDefinition(definitions, enemy){
   definitions.set(enemy.id, definition);
 }
 
-function upsertServerEnemy(next, enemy, existing, now){
+function upsertServerEnemy(target, enemy, existing, now){
   const samples = Array.isArray(existing?.samples) ? existing.samples.slice(-5) : [];
   samples.push({
     x:Number(enemy.x || 0),
@@ -39,20 +39,31 @@ function upsertServerEnemy(next, enemy, existing, now){
     moving:Boolean(enemy.moving),
     at:now
   });
-  next.set(enemy.id, {...existing, ...enemy, receivedAt:now, samples});
+  const nextEnemy = existing && typeof existing === "object" ? existing : {};
+  Object.assign(nextEnemy, enemy);
+  nextEnemy.receivedAt = now;
+  nextEnemy.samples = samples;
+  target.set(enemy.id, nextEnemy);
+}
+
+function removeServerEnemiesMissingFromDelta(serverEnemies, seenIds){
+  for(const id of serverEnemies.keys()){
+    if(!seenIds.has(id)) serverEnemies.delete(id);
+  }
 }
 
 export function replaceServerEnemies(multiplayer, payload, scope){
-  const next = new Map();
   const now = performance.now();
   const isDelta = Boolean(payload?.delta);
   const scopeKey = getServerEnemyScopeKey(payload, scope);
   const definitions = getServerEnemyDefinitions(multiplayer);
   if(!isDelta){
-    if(scopeKey !== multiplayer.serverEnemyScopeKey) definitions.clear();
+    const next = new Map();
+    const sameScope = scopeKey === multiplayer.serverEnemyScopeKey;
+    if(!sameScope) definitions.clear();
     for(const enemy of Array.isArray(payload?.enemies) ? payload.enemies : []){
       if(!enemy?.id) continue;
-      const existing = multiplayer.serverEnemies.get(enemy.id);
+      const existing = sameScope ? multiplayer.serverEnemies.get(enemy.id) : null;
       storeServerEnemyDefinition(definitions, enemy);
       upsertServerEnemy(next, enemy, existing, now);
     }
@@ -63,16 +74,19 @@ export function replaceServerEnemies(multiplayer, payload, scope){
   }
 
   if(multiplayer.serverEnemyScopeKey && multiplayer.serverEnemyScopeKey !== scopeKey) return;
+  if(!(multiplayer.serverEnemies instanceof Map)) multiplayer.serverEnemies = new Map();
+  const seenIds = new Set();
   for(const enemy of Array.isArray(payload?.enemies) ? payload.enemies : []){
     if(!enemy?.id) continue;
     const existing = multiplayer.serverEnemies.get(enemy.id);
     const definition = definitions.get(enemy.id) || existing;
     if(!definition) continue;
-    upsertServerEnemy(next, {...definition, ...existing, ...enemy}, existing, now);
+    seenIds.add(enemy.id);
+    upsertServerEnemy(multiplayer.serverEnemies, {...definition, ...existing, ...enemy}, existing, now);
   }
+  removeServerEnemiesMissingFromDelta(multiplayer.serverEnemies, seenIds);
   multiplayer.serverEnemyScope = scope;
   multiplayer.serverEnemyScopeKey = scopeKey;
-  multiplayer.serverEnemies = next;
 }
 
 export function addRemoteEffect(multiplayer, effect){

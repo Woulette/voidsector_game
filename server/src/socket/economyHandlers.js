@@ -477,6 +477,7 @@ export function registerEconomyHandlers(socket, context){
       price:purchase.totalPrice,
       at:Date.now()
     });
+    emitQuestClaims(player, emitQuestClaimsForPlayer, result);
     emitProfileSync(player, result.profile);
   });
 

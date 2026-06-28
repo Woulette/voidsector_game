@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   DEFAULT_MULTIPLAYER_SERVER_URL,
   getServerUrlFromSearch,
+  isLocalServerUrl,
   normalizeServerUrl,
   resolveInitialServerUrl
 } from "../../src/multiplayer/serverUrlConfig.js";
@@ -36,6 +37,12 @@ test("stored URL is used when no deployment config exists", ()=>{
   }), "http://203.0.113.10:3001");
 });
 
+test("local server URLs are detected before using stale browser storage", ()=>{
+  assert.equal(isLocalServerUrl("http://localhost:3001"), true);
+  assert.equal(isLocalServerUrl("http://127.0.0.1:3001"), true);
+  assert.equal(isLocalServerUrl("https://avosoma.absyrion.com"), false);
+});
+
 test("server URL normalization strips paths and rejects unsafe protocols", ()=>{
   assert.equal(normalizeServerUrl("https://api.voidsector.example/socket.io/"), "https://api.voidsector.example");
   assert.equal(normalizeServerUrl("ftp://api.voidsector.example"), "");
@@ -48,7 +55,8 @@ test("server URL can be read from a URL search string", ()=>{
 });
 
 test("client is wired to deployment server URL config before local storage", ()=>{
-  assert.match(indexSource, /<meta name="voidsector-server-url" content=""/);
-  assert.match(clientSource, /configuredUrl:readConfiguredServerUrl\(\),\s*storedUrl:localStorage\.getItem\(SERVER_STORAGE_KEY\)/);
+  assert.match(indexSource, /<meta name="voidsector-server-url" content="https:\/\/avosoma\.absyrion\.com"/);
+  assert.match(clientSource, /configuredUrl:readConfiguredServerUrl\(\),\s*storedUrl:readStoredServerUrl\(\)/);
+  assert.match(clientSource, /readPublicOriginServerUrl\(\) \? "" : stored/);
   assert.match(clientSource, /window\.__VOIDSECTOR_CONFIG__\?\.serverUrl/);
 });

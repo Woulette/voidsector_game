@@ -1,7 +1,8 @@
 export function drawPortalTransitionOverlay({ctx, transition, maps, viewW, viewH}){
   if(!transition) return;
   const t = Math.max(0, Math.min(1, transition.elapsed / transition.duration));
-  const pulse = .5 + Math.sin(performance.now() / 95) * .5;
+  const now = performance.now();
+  const pulse = .5 + Math.sin(now / 95) * .5;
   const cx = viewW / 2;
   const cy = viewH / 2;
   const radius = Math.max(viewW, viewH) * (.18 + t * .62);
@@ -23,7 +24,7 @@ export function drawPortalTransitionOverlay({ctx, transition, maps, viewW, viewH
   ctx.shadowColor = "rgba(125,211,252,.9)";
   ctx.shadowBlur = 22 + t * 34;
   for(let i = 0; i < 3; i++){
-    ctx.rotate((performance.now() / (900 + i * 240)) * (i % 2 ? -1 : 1));
+    ctx.rotate((now / (900 + i * 240)) * (i % 2 ? -1 : 1));
     ctx.beginPath();
     ctx.arc(0, 0, 70 + i * 34 + t * 190, i * .7, Math.PI * 1.65 + i * .7);
     ctx.stroke();

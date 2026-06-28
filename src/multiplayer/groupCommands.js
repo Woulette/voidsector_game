@@ -45,6 +45,7 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
     multiplayer.coopInstanceId = null;
     multiplayer.coopSpawn = null;
     multiplayer.portalInstance = null;
+    multiplayer.preparedPortal = null;
     multiplayer.portalAlly = null;
     multiplayer.portalBeacons = [];
     multiplayer.portalObjective = null;
@@ -83,6 +84,15 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
     return true;
   }
 
+  function prepareServerPortal(portalId){
+    if(!canPlay()){
+      toast("Compte MMO synchronise requis.");
+      return false;
+    }
+    multiplayer.socket.emit("portal:prepare", {portalId});
+    return true;
+  }
+
   function getGroupRemotePlayers(mapId = null){
     const memberIds = new Set((multiplayer.group?.members || []).map(member=>member?.id).filter(Boolean));
     const byId = new Map();
@@ -112,6 +122,7 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
     promoteMultiplayerGroupMember,
     pingMultiplayerGroupMember,
     startCoopTestInstance,
+    prepareServerPortal,
     startServerPortal,
     getGroupRemotePlayers
   };

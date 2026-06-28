@@ -1,5 +1,5 @@
-import { multiplayer } from "./client.js?v=firm-shop-sync-1";
-import { drawPlayerLayer } from "../game/render/player.js?v=engine-trail-40";
+import { multiplayer } from "./client.js?v=portal-prepare-1";
+import { drawPlayerLayer } from "../game/render/player.js?v=engine-trail-41";
 import { getFirmBadgeAsset } from "../data/firms.js";
 import { getCachedCombatImage } from "../game/combatAssets.js";
 import { drawTargetSelectionOverlay } from "../game/render/targetOverlay.js";
@@ -47,7 +47,9 @@ function sampleBufferedState(samples, delayMs = 115){
       shipImg:to.shipImg,
       rankName:to.rankName,
       rankAssetPath:to.rankAssetPath,
-      mapId:to.mapId
+      mapId:to.mapId,
+      attackTargetId:to.attackTargetId || "",
+      engineTrailLocked:Boolean(to.engineTrailLocked || to.attackTargetId)
     };
   }
   const latest = ordered[ordered.length - 1];
@@ -139,6 +141,7 @@ function buildRemotePlayer(render, state){
     shield:Number(state.shield || 0),
     maxShield:Number(state.maxShield || state.shield || 0),
     enginePower:render.enginePower,
+    engineTrailLocked:Boolean(state.engineTrailLocked || state.attackTargetId),
     engineParticleT:0,
     repairBotActive:false
   };

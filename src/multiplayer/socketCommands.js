@@ -4,8 +4,22 @@ function canEmit(multiplayer){
   return isAuthenticatedGameplaySession(multiplayer);
 }
 
+function canEmitAccountSetup(multiplayer){
+  return Boolean(
+    multiplayer?.connected
+    && multiplayer?.socket
+    && multiplayer?.auth?.account?.id
+  );
+}
+
 function emit(multiplayer, event, payload){
   if(!canEmit(multiplayer)) return false;
+  multiplayer.socket.emit(event, payload);
+  return true;
+}
+
+function emitAccountSetup(multiplayer, event, payload){
+  if(!canEmitAccountSetup(multiplayer)) return false;
   multiplayer.socket.emit(event, payload);
   return true;
 }
@@ -58,7 +72,7 @@ export function createSocketCommands({multiplayer}){
       return emit(multiplayer, "admin:reset-instance", payload);
     },
     setupServerProfile({name, firmId} = {}){
-      return emit(multiplayer, "profile:setup", {name, firmId});
+      return emitAccountSetup(multiplayer, "profile:setup", {name, firmId});
     },
     updateTutorial({kind, currentStep = ""} = {}){
       return kind ? emit(multiplayer, "tutorial:update", {kind, currentStep}) : false;

@@ -4,6 +4,7 @@ function uniqueAssetPaths(paths){
 
 const runtimeAssetStates = new WeakMap();
 export const RUNTIME_COMBAT_ASSET_LIMIT = 48;
+const DEFERRED_MAP_ASSET_BATCH_SIZE = 4;
 
 function preloadAsset(cache, src){
   if(!src || cache[src]) return cache[src] || null;
@@ -98,8 +99,11 @@ export function preloadCombatAssets({cache, ships = [], ranks = [], getRankAsset
 export function createCombatMapAssetCache({cache, maxMaps = 3} = {}){
   const retainedMaps = new Map();
   const managedSources = new Set();
+  const queuedSources = new Set();
+  const preloadQueue = [];
   let activeMapKey = null;
   let previousActiveMapKey = null;
+  let preloadQueueScheduled = false;
 
   function getMapKey(map){
     return String(map?.id ?? map?.name ?? "");
@@ -120,6 +124,33 @@ export function createCombatMapAssetCache({cache, maxMaps = 3} = {}){
     }
   }
 
+  function scheduleQueuedPreloads(){
+    if(preloadQueueScheduled || !preloadQueue.length) return;
+    preloadQueueScheduled = true;
+    const run = deadline=>{
+      preloadQueueScheduled = false;
+      let loaded = 0;
+      while(preloadQueue.length && loaded < DEFERRED_MAP_ASSET_BATCH_SIZE){
+        if(deadline?.timeRemaining && deadline.timeRemaining() <= 2 && loaded > 0) break;
+        const src = preloadQueue.shift();
+        queuedSources.delete(src);
+        if(!src || cache[src] || !isSourceRetained(src)) continue;
+        managedSources.add(src);
+        preloadAsset(cache, src);
+        loaded += 1;
+      }
+      scheduleQueuedPreloads();
+    };
+    if(typeof requestIdleCallback === "function") requestIdleCallback(run, {timeout:120});
+    else setTimeout(()=>run(), 16);
+  }
+
+  function queuePreload(src){
+    if(!src || cache[src] || queuedSources.has(src)) return;
+    queuedSources.add(src);
+    preloadQueue.push(src);
+  }
+
   function trim(){
     const limit = Math.max(1, Math.floor(Number(maxMaps) || 1));
     while(retainedMaps.size > limit){
@@ -133,7 +164,7 @@ export function createCombatMapAssetCache({cache, maxMaps = 3} = {}){
     }
   }
 
-  function retain(map, {active = false} = {}){
+  function retain(map, {active = false, defer = false} = {}){
     const key = getMapKey(map);
     if(!key) return [];
     const existing = retainedMaps.get(key);
@@ -144,10 +175,16 @@ export function createCombatMapAssetCache({cache, maxMaps = 3} = {}){
       previousActiveMapKey = activeMapKey;
       activeMapKey = key;
     }
-    entry.paths.forEach(src=>{
+    const immediateLimit = defer && !active ? 3 : Number.POSITIVE_INFINITY;
+    entry.paths.forEach((src, index)=>{
+      if(defer && !active && index >= immediateLimit){
+        queuePreload(src);
+        return;
+      }
       if(!cache[src]) managedSources.add(src);
       preloadAsset(cache, src);
     });
+    if(defer && !active) scheduleQueuedPreloads();
     trim();
     return entry.paths;
   }
@@ -157,12 +194,14 @@ export function createCombatMapAssetCache({cache, maxMaps = 3} = {}){
     retainedMaps.clear();
     activeMapKey = null;
     previousActiveMapKey = null;
+    preloadQueue.length = 0;
+    queuedSources.clear();
     entries.forEach(releaseEntry);
   }
 
   return {
     activate:map=>retain(map, {active:true}),
-    preload:map=>retain(map),
+    preload:(map, options = {})=>retain(map, options),
     clear,
     getRetainedMapKeys:()=>[...retainedMaps.keys()]
   };

@@ -162,10 +162,11 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       detail:`${purchase.id} pour ${Math.max(0, Number(purchase.totalPrice || 0))} ${purchase.priceType || "credits"}.`,
       data:{shipId:purchase.id, price:Number(purchase.totalPrice || 0), priceType:purchase.priceType || "credits"}
     });
+    const claimedQuests = claimCompletedServerQuests(profile).claimed || [];
     const next = sanitizeProfile({...profile, updatedAt:Date.now()});
     profiles.set(key, next);
     persist(key);
-    return {...result, profile:next};
+    return {...result, claimedQuests, profile:next};
   }
   
   function addDronePurchase({player, purchase} = {}){
@@ -575,6 +576,9 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     }
     if(!result.ok) return result;
     if(action?.kind === "claim") claimedQuests = result.claimedQuests || [];
+    if(action?.kind === "accept" && result.quest?.id){
+      claimedQuests = claimCompletedServerQuests(profile, [result.quest.id]).claimed || [];
+    }
     if(action?.kind === "kill" || action?.kind === "progress"){
       const completedIds = [...new Set((result.updates || [])
         .filter(update=>update?.completed)

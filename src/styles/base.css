@@ -325,7 +325,19 @@ button{font:inherit}
   border-left:2px solid rgba(251,191,36,.66);
 }
 .firm-selection-warning b{color:#fbbf24}
-.firm-selection-actions{display:flex;align-items:center;gap:8px}
+.firm-selection-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.firm-selection-server-status{
+  flex:1 0 100%;
+  margin:0 0 2px;
+  padding:8px 10px;
+  border:1px solid rgba(248,113,113,.38);
+  background:rgba(69,10,10,.34);
+  color:#fecaca;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.45px;
+  text-transform:uppercase;
+}
 .firm-selection-actions button{
   min-height:44px;
   padding:9px 16px;

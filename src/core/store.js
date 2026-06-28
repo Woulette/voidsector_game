@@ -142,6 +142,8 @@ export const store = {
   firmAutoOpenClaimable:false,
   pendingFirmId:null,
   pendingFirmName:"",
+  pendingFirmSetup:false,
+  pendingFirmSetupMessage:"",
   inventoryFilter:"all",
   selectedInventoryUid:null,
   selectedInventoryUids:[],

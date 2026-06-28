@@ -23,10 +23,10 @@ function lerpAngle(a, b, t){
   return a + delta * t;
 }
 
-const SERVER_ENEMY_INTERPOLATION_DELAY_MS = 170;
-const SERVER_ENEMY_MAX_EXTRAPOLATION_SECONDS = 0.08;
+const SERVER_ENEMY_INTERPOLATION_DELAY_MS = 220;
+const SERVER_ENEMY_MAX_EXTRAPOLATION_SECONDS = 0.05;
 const SERVER_ENEMY_SNAP_DISTANCE = 900;
-const SERVER_ENEMY_MAX_VISUAL_CORRECTION = 55;
+const SERVER_ENEMY_MAX_VISUAL_CORRECTION = 28;
 
 function sampleBufferedState(samples, delayMs = SERVER_ENEMY_INTERPOLATION_DELAY_MS){
   if(!Array.isArray(samples) || samples.length <= 0) return null;
@@ -58,7 +58,7 @@ function sampleBufferedState(samples, delayMs = SERVER_ENEMY_INTERPOLATION_DELAY
   };
 }
 
-function smoothPosition(previous, target, factor = .28){
+function smoothPosition(previous, target, factor = .20){
   const delta = target - previous;
   if(Math.abs(delta) <= SERVER_ENEMY_MAX_VISUAL_CORRECTION) return lerp(previous, target, factor);
   return previous + Math.sign(delta) * SERVER_ENEMY_MAX_VISUAL_CORRECTION;
