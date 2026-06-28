@@ -46,8 +46,8 @@ test("starter Orion gift dialogue stays concise", ()=>{
 });
 
 test("unequip all dialogue stays simple", ()=>{
-  assert.match(controller,/Ce bouton permet de d/);
-  assert.match(controller,/quiper tout sur ton vaisseau\./);
+  assert.match(controller,/Ce bouton permet de tout d/);
+  assert.match(controller,/quiper sur ton vaisseau\./);
   assert.doesNotMatch(controller,/Maintiens CTRL/);
   assert.doesNotMatch(controller,/Même toi/);
 });

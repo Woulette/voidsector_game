@@ -21,7 +21,7 @@ function stageDefinitions(ctx){
     launcher_orion:{mode:"launcher",handoff:true,selector:'[data-ship-id="orion"]',click:true,message:"Encore une recrue... parfait, il ne manquait plus que ça. Je suis Kael Vorn. Je vais faire court : ici, c'est ton hangar, et ce tas de métal s'appelle l'Orion. Clique dessus."},
     launcher_ship_gift:{mode:"launcher",manual:true,message:"Le commandement t'a attribué cet Orion et un équipement."},
     launcher_inventory:{mode:"launcher",manual:true,selector:".rpg-inventory-grid",message:"À droite se trouve ton inventaire. Tout ton équipement et tes ressources disponibles y seront stockés."},
-    launcher_unequip_all:{mode:"launcher",manual:true,selector:"#unequipAllShipBtn",message:"Ce bouton permet de déséquiper tout sur ton vaisseau."},
+    launcher_unequip_all:{mode:"launcher",manual:true,selector:"#unequipAllShipBtn",message:"Ce bouton permet de tout déséquiper sur ton vaisseau."},
     launcher_depart:{mode:"launcher",handoff:true,selector:"#startGameBtn",click:true,message:"Les bases du hangar sont acquises. Clique sur DÉPART et rejoins le quartier général."},
     game_base_intro:{mode:"game",manual:true,message:"Voilà ta station. Le QG de ta firme, en quelque sorte. Le relais de quêtes te file du travail, le commerce te permet de vendre ce que tu récupères."},
     game_quest_camera:{mode:"game",manual:true,preview:{type:"station",id:"quests"},previewDuration:6500,message:"Ici se trouve le relais de quêtes. Ouvre-le."},

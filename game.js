@@ -1,1 +1,1 @@
-import "./src/app.js?v=tutorial-quest-lock-1";
+import "./src/app.js?v=tutorial-dialog-copy-1";

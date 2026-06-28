@@ -31,7 +31,7 @@ import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, rend
 import { showToast } from "./ui/toast.js?v=portal-toast-1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=ship-abilities-1";
 import { createProfileController } from "./app/profileController.js?v=beta-store-1";
-import { createTutorialController } from "./ui/tutorialController.js?v=tutorial-flow-18";
+import { createTutorialController } from "./ui/tutorialController.js?v=tutorial-flow-19";
 import { createServerEventController } from "./app/serverEventController.js?v=beta-store-1";
 import { createShopActions } from "./app/shopActions.js?v=beta-store-1";
 import { getFirstFirmRewardDestination } from "./ui/firmRewardNotifications.js";
