@@ -62,15 +62,15 @@ import {
 } from "./combatData.js?v=engine-trail-41";
 import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js";
 import { COMBAT_PROFILE_TITLES } from "./combatProfileTitles.js";
-import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=level-up-1";
+import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=level-up-2";
 import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=elite-lasers-1";
-import { createCombatSceneRenderer } from "./render/combatScene.js?v=level-up-1";
+import { createCombatSceneRenderer } from "./render/combatScene.js?v=level-up-2";
 import { createCombatLoop } from "./systems/combatLoop.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatBeamSystem } from "./systems/combatBeams.js?v=ship-charge-1";
 import { createCombatCargoSystem } from "./systems/combatCargo.js?v=loot-rarity-1";
 import { installCombatDebugCommands } from "./systems/combatDebug.js";
 import { createCombatDeathRespawnSystem } from "./systems/combatDeathRespawn.js";
-import { createCombatFrameUpdateSystem } from "./systems/combatFrameUpdate.js?v=level-up-1";
+import { createCombatFrameUpdateSystem } from "./systems/combatFrameUpdate.js?v=level-up-2";
 import { createCombatHitResolutionSystem } from "./systems/combatHitResolution.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatEnemyRuntime } from "./systems/combatEnemyRuntime.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatEnemyDamageSystem } from "./systems/combatEnemyDamage.js";
@@ -82,7 +82,7 @@ import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v
 import { createCombatServerActions } from "./systems/combatServerActions.js";
 import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js";
 import { createCombatPortalNavigationSystem } from "./systems/combatPortalNavigation.js";
-import { createLevelUpEffectSystem } from "./systems/levelUpEffects.js?v=level-up-1";
+import { createLevelUpEffectSystem } from "./systems/levelUpEffects.js?v=level-up-2";
 import { applyCombatStatFields } from "./systems/combatPlayerStats.js";
 import { createCombatQuestProgressSystem } from "./systems/combatQuestProgress.js";
 import { createCombatSessionController } from "./systems/combatSession.js?v=action-slots-save-1-fps-burst-1";
@@ -447,7 +447,23 @@ export function createCombatGame({renderAll, showToast}){
     onLootChanged:()=>updateLootPopup()
   });
   const levelUpEffects = createLevelUpEffectSystem({
-    getState:getCombatState
+    getState:getCombatState,
+    onLevelUp:({level, previousLevel, at})=>{
+      const label = `Niveau ${level} atteint`;
+      rewards.showLootNotice?.({
+        message:label,
+        duration:6
+      });
+      window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
+        kind:"level",
+        enemyName:"Progression",
+        label,
+        level,
+        previousLevel,
+        at:at || Date.now()
+      }}));
+      updateLootPopup();
+    }
   });
   window.addEventListener("voidsector:multiplayer-change", event=>{
     const reason = String(event.detail?.reason || "");

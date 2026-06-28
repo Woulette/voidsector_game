@@ -1,5 +1,5 @@
-import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./canvasHud.js?v=level-up-1";
-import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=level-up-1";
+import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./canvasHud.js?v=level-up-2";
+import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=level-up-2";
 import { drawPlayerLayer } from "./player.js?v=elite-lasers-1";
 import { drawPortalTransitionOverlay } from "./portalTransition.js?v=action-slots-save-1-fps-burst-1";
 import { drawWorldLayer } from "./world.js?v=action-slots-save-1-fps-burst-1";

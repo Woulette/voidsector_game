@@ -22,8 +22,8 @@ export function spawnLevelUpEffects({state, level, previousLevel = level - 1, ra
     followPlayer:true,
     offsetX:0,
     offsetY:0,
-    life:.82,
-    max:.82,
+    life:1.28,
+    max:1.28,
     size:radius * 3.25,
     color:"rgba(125,211,252,.86)"
   });
@@ -34,8 +34,8 @@ export function spawnLevelUpEffects({state, level, previousLevel = level - 1, ra
     followPlayer:true,
     offsetX:0,
     offsetY:0,
-    life:.68,
-    max:.68,
+    life:1.12,
+    max:1.12,
     size:radius * 1.8,
     color:"rgba(255,255,255,.62)"
   });
@@ -43,9 +43,9 @@ export function spawnLevelUpEffects({state, level, previousLevel = level - 1, ra
   for(let index = 0; index < sparkCount; index += 1){
     const angle = random() * Math.PI * 2;
     const distance = radius * (.25 + random() * .92);
-    const lift = 48 + random() * 92;
-    const speed = 20 + random() * 44;
-    const life = .56 + random() * .38;
+    const lift = 30 + random() * 58;
+    const speed = 12 + random() * 28;
+    const life = .94 + random() * .48;
     particles.push({
       kind:"levelUpSpark",
       x:x + Math.cos(angle) * distance,
@@ -64,10 +64,10 @@ export function spawnLevelUpEffects({state, level, previousLevel = level - 1, ra
     x,
     y:y - radius - 36,
     value:`NIVEAU ${Math.max(1, Math.floor(Number(level || 1)))}`,
-    life:1.38,
-    max:1.38,
+    life:2.05,
+    max:2.05,
     vx:0,
-    vy:-26,
+    vy:-16,
     wobble:random() * Math.PI * 2,
     color:"rgba(236,254,255,",
     shadowColor:"rgba(56,189,248,.96)"
@@ -75,7 +75,7 @@ export function spawnLevelUpEffects({state, level, previousLevel = level - 1, ra
   return true;
 }
 
-export function createLevelUpEffectSystem({getState, random = Math.random} = {}){
+export function createLevelUpEffectSystem({getState, random = Math.random, onLevelUp = null} = {}){
   let lastLevel = 0;
 
   function reset(level = readCombatLevel(getState?.())){
@@ -97,7 +97,9 @@ export function createLevelUpEffectSystem({getState, random = Math.random} = {})
     if(level === lastLevel) return false;
     const previousLevel = lastLevel;
     lastLevel = level;
-    return spawnLevelUpEffects({state, level, previousLevel, random});
+    const spawned = spawnLevelUpEffects({state, level, previousLevel, random});
+    if(spawned) onLevelUp?.({level, previousLevel, at:Date.now()});
+    return spawned;
   }
 
   return {

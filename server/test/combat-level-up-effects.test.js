@@ -28,10 +28,38 @@ test("level-up effects stay quiet on reset and spawn only when the level increas
   assert.equal(system.update(), true);
   assert.equal(state.particles.some(particle=>particle.kind === "levelUpPulse"), true);
   assert.equal(state.particles.some(particle=>particle.kind === "levelUpAura"), true);
+  assert.ok(state.particles.find(particle=>particle.kind === "levelUpPulse").life > 1);
+  assert.ok(state.particles.find(particle=>particle.kind === "levelUpSpark").life > .9);
   assert.equal(state.particles.filter(particle=>particle.kind === "levelUpSpark").length, 25);
   assert.equal(state.damageTexts.length, 1);
   assert.equal(state.damageTexts[0].kind, "levelUp");
   assert.equal(state.damageTexts[0].value, "NIVEAU 5");
+  assert.ok(state.damageTexts[0].life > 2);
+});
+
+test("level-up effects report visible level-up notices once per increase", ()=>{
+  const notices = [];
+  const state = {
+    store:{state:{player:{level:9}}},
+    player:{x:0, y:0, radius:45},
+    particles:[],
+    damageTexts:[]
+  };
+  const system = createLevelUpEffectSystem({
+    getState:()=>state,
+    random:fixedRandom,
+    onLevelUp:event=>notices.push(event)
+  });
+
+  system.reset();
+  state.store.state.player.level = 10;
+
+  assert.equal(system.update(), true);
+  assert.deepEqual(notices.map(event=>({level:event.level, previousLevel:event.previousLevel})), [
+    {level:10, previousLevel:9}
+  ]);
+  assert.equal(system.update(), false);
+  assert.equal(notices.length, 1);
 });
 
 test("spawnLevelUpEffects accepts multi-level rewards without exceeding the spark cap", ()=>{
