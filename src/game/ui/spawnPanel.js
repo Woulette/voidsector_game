@@ -1,6 +1,6 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, craftResourceCatalog, equipment, portals } from "../../data/catalog.js";
-import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-ui-5";
+import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-ui-6";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
 import { getQuestBriefing } from "../../data/questBriefings.js";
@@ -699,6 +699,60 @@ function craftStatusText(availability){
   return availability?.reason || "Indisponible";
 }
 
+const CRAFT_RESOURCE_RARITY_META = Object.freeze({
+  common:{
+    key:"common",
+    label:"Commun",
+    source:"Drop monstres + magasin de firme",
+    drops:[{range:"Monstres niv. 1-14", chance:"5%"}]
+  },
+  rare:{
+    key:"rare",
+    label:"Rare",
+    source:"Drop monstres + magasin de firme",
+    drops:[{range:"Monstres niv. 1-14", chance:"1%"}, {range:"Monstres niv. 15-24", chance:"5%"}]
+  },
+  veryRare:{
+    key:"veryRare",
+    label:"Tres rare",
+    source:"Drop monstres + magasin de firme",
+    drops:[{range:"Monstres niv. 15-24", chance:"1%"}, {range:"Monstres niv. 25-34", chance:"5%"}]
+  },
+  elite:{
+    key:"elite",
+    label:"Elite",
+    source:"Drop monstres + magasin de firme",
+    drops:[{range:"Monstres niv. 25-34", chance:"1%"}, {range:"Monstres niv. 35-50", chance:"5%"}]
+  },
+  mythic:{
+    key:"mythic",
+    label:"Mythique",
+    source:"Drop monstres + magasin de firme",
+    drops:[{range:"Monstres niv. 35-44", chance:"0,1%"}, {range:"Monstres niv. 45-50", chance:"1%"}]
+  }
+});
+
+function getCraftResourceRarityMeta(material){
+  const clean = String(material?.rarity || "").trim();
+  if(CRAFT_RESOURCE_RARITY_META[clean]) return CRAFT_RESOURCE_RARITY_META[clean];
+  return CRAFT_RESOURCE_RARITY_META.common;
+}
+
+function craftMaterialTooltipHtml({material, materialName, rarity, stock, need}){
+  const dropLines = rarity.drops.map(drop=>`<span><b>${escapeHtml(drop.chance)}</b>${escapeHtml(drop.range)}</span>`).join("");
+  return `<span class="craft-material-tooltip" role="tooltip">
+    <span class="craft-material-tooltip-head">
+      <img src="${material?.img || "assets/materials/cargo_box.svg"}" alt="${escapeHtml(materialName)}">
+      <span><strong>${escapeHtml(materialName)}</strong><em>${escapeHtml(rarity.label)}</em></span>
+    </span>
+    <span class="craft-material-tooltip-line"><b>Stock actuel</b><span>${fmt(stock)}</span></span>
+    <span class="craft-material-tooltip-line"><b>Besoin recette</b><span>${fmt(need)}</span></span>
+    <span class="craft-material-tooltip-line"><b>Source</b><span>${escapeHtml(rarity.source)}</span></span>
+    <span class="craft-material-tooltip-drops"><b>Taux de drop</b>${dropLines}</span>
+    ${material?.desc ? `<span class="craft-material-tooltip-desc">${escapeHtml(material.desc)}</span>` : ""}
+  </span>`;
+}
+
 function renderCraftMaterialCosts(recipe, materials = [], profile = {}){
   const cargoHold = profile.cargoHold && typeof profile.cargoHold === "object" ? profile.cargoHold : {};
   const entries = Object.entries(recipe?.costs?.materials || {});
@@ -709,11 +763,14 @@ function renderCraftMaterialCosts(recipe, materials = [], profile = {}){
     const stock = Math.max(0, Number(cargoHold[id] || 0));
     const missing = stock < need;
     const materialName = material?.name || humanizeIdentifier(id);
+    const rarity = getCraftResourceRarityMeta(material);
     const amountText = `${fmt(stock)} / ${fmt(need)}`;
-    return `<div class="craft-material-cost ${missing ? "missing" : ""}">
+    return `<div class="craft-material-cost rarity-${rarity.key} ${missing ? "missing" : ""}" tabindex="0">
       <img src="${material?.img || "assets/materials/cargo_box.svg"}" alt="${escapeHtml(materialName)}">
       <span class="craft-material-copy"><strong title="${escapeHtml(materialName)}">${escapeHtml(materialName)}</strong></span>
+      <span class="craft-material-rarity">${escapeHtml(rarity.label)}</span>
       <b title="${escapeHtml(amountText)}">${escapeHtml(amountText)}</b>
+      ${craftMaterialTooltipHtml({material, materialName, rarity, stock, need})}
     </div>`;
   }).join("");
 }

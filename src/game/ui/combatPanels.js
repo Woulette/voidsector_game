@@ -1,5 +1,5 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
-import { renderSpawnPanelContent } from "./spawnPanel.js?v=craft-ui-5";
+import { renderSpawnPanelContent } from "./spawnPanel.js?v=craft-ui-6";
 import { renderCombatFirmPanel } from "./combatFirmPanel.js?v=firm-panel-gift-3";
 import { renderCombatMapPanel } from "./combatMapPanel.js";
 import { renderCombatBoostersPanel } from "./combatBoostersPanel.js";

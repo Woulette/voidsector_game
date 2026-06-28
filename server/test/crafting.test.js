@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { craftResourceCatalog, rawMaterialCatalog } from "../../src/data/progression.js";
 import { CRAFT_CATEGORY_TABS, getCraftRecipe, getCraftRecipes, getVisibleCraftRecipes } from "../../src/data/craftingRecipes.js";
+import { renderSpawnPanelContent } from "../../src/game/ui/spawnPanel.js";
 import { claimServerCraftingJob, startServerCraftingJob } from "../src/economy/crafting.js";
 import { getInventoryItemCount } from "../src/economy/inventoryStacks.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
@@ -57,6 +58,27 @@ test("crafting separates generators from extras in recipe categories", ()=>{
   assert.equal(getCraftRecipe("craft_generator_shield_gen")?.category, "generator");
   assert.equal(getCraftRecipe("craft_generator_engine_ion")?.category, "generator");
   assert.equal(getCraftRecipe("craft_extra_extra_repair_starter")?.category, "extra");
+});
+
+test("crafting resource rows expose rarity badges and hover details", ()=>{
+  const profile = createCraftReadyProfile();
+  const recipe = getCraftRecipe("craft_weapon_laser_mk2");
+  const panel = renderSpawnPanelContent({
+    mode:"crafting",
+    materials:craftResourceCatalog,
+    profile,
+    selectedCraftCategory:"weapon",
+    selectedCraftRecipeId:recipe.id,
+    selectedCraftTabPage:0,
+    formatDuration:()=> "1:00"
+  });
+
+  assert.match(panel.html, /craft-material-rarity/);
+  assert.match(panel.html, /craft-material-tooltip/);
+  assert.match(panel.html, /Stock actuel/);
+  assert.match(panel.html, /Taux de drop/);
+  assert.match(panel.html, /rarity-/);
+  assert.doesNotMatch(panel.html, /craft-material-copy"><strong[\s\S]*?<\/strong><small/);
 });
 
 test("server crafting rejects queues and owned ship or formation duplicates", ()=>{
