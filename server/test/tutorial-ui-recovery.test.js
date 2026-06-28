@@ -137,7 +137,7 @@ test("refinery storage tutorial locks improve then launch as separate clicks", (
   assert.match(refinery,/launcher_launch_storage_upgrade/);
   assert.match(refinery,/store\.selectedRefineryUpgrade = \{type:"module", id:"storage"\}/);
   assert.match(app,/tutorial-flow-21/);
-  assert.match(app,/crafting-1/);
+  assert.match(app,/dock-overflow-1/);
 });
 
 test("mission relay camera preview lasts long enough to understand the target", ()=>{

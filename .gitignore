@@ -19,6 +19,7 @@ server/data/sessions.json
 server/.codex-server.err.log
 server/.codex-server.out.log
 server/*.log
+server/logs/
 server/backups/
 .codex-*.log
 .codex/

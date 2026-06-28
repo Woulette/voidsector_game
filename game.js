@@ -1,1 +1,1 @@
-import "./src/app.js?v=crafting-1";
+import "./src/app.js?v=dock-overflow-1";

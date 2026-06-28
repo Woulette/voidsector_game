@@ -211,14 +211,18 @@
   left:306px;
   display:grid;
   grid-template-columns:repeat(9,40px);
+  grid-auto-rows:40px;
   gap:4px;
-  padding:4px 5px;
+  padding:4px 29px 4px 5px;
+  height:48px;
+  overflow:visible;
   background:rgba(3,12,24,.48);
   border-color:rgba(56,189,248,.18);
   opacity:.72;
-  transition:opacity .14s ease,background .14s ease,border-color .14s ease;
+  transition:opacity .14s ease,background .14s ease,border-color .14s ease,height .16s ease;
 }
 .combat-utility-dock:hover{opacity:.96;background:rgba(3,12,24,.82);border-color:rgba(56,189,248,.36)}
+.combat-utility-dock.expanded{height:auto}
 .combat-utility-dock button{
   position:relative;
   width:40px;
@@ -238,6 +242,30 @@
 .combat-utility-dock button:hover{border-color:rgba(125,211,252,.62);background:rgba(14,165,233,.16);color:#f0fbff;box-shadow:inset 0 0 16px rgba(56,189,248,.08)}
 .combat-utility-dock button.active{border-color:rgba(250,204,21,.72);background:rgba(113,63,18,.34);color:#fef3c7;box-shadow:0 0 16px rgba(250,204,21,.22),inset 0 0 14px rgba(250,204,21,.12)}
 .combat-utility-dock button.disabled{opacity:.32;cursor:not-allowed;box-shadow:none}
+.combat-utility-dock:not(.expanded)>button:nth-of-type(n+10):not(.combat-utility-dock-toggle){
+  visibility:hidden;
+  pointer-events:none;
+}
+.combat-utility-dock .combat-utility-dock-toggle{
+  position:absolute;
+  right:5px;
+  top:5px;
+  z-index:2;
+  width:18px;
+  height:18px;
+  min-width:18px;
+  padding:0;
+  border-color:rgba(56,189,248,.46);
+  background:rgba(3,12,24,.86);
+  color:#7dd3fc;
+  box-shadow:0 0 10px rgba(56,189,248,.18);
+}
+.combat-utility-dock .combat-utility-dock-toggle svg{
+  width:13px;
+  height:13px;
+  transition:transform .16s ease;
+}
+.combat-utility-dock.expanded .combat-utility-dock-toggle svg{transform:rotate(180deg)}
 .combat-utility-badge{
   position:absolute;
   right:-5px;

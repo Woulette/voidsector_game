@@ -6,7 +6,7 @@
   <meta name="voidsector-server-url" content="https://avosoma.absyrion.com" />
   <title>Avosoma - MMO</title>
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="styles.css?v=crafting-1" />
+  <link rel="stylesheet" href="styles.css?v=dock-overflow-1" />
   <script>
     document.documentElement.dataset.appMode = new URLSearchParams(location.search).get("mode") === "game" ? "game" : "launcher";
   </script>
@@ -487,6 +487,7 @@
       <button data-chat-toggle type="button" title="Chat" aria-label="Chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H8l-4 4z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></svg></button>
       <button data-utility-panel="boosters" type="button" title="Boosters" aria-label="Boosters"><img src="assets/boosters/booster_damage.png" alt=""></button>
       <button data-utility-panel="crafting" type="button" title="Fabrication" aria-label="Fabrication"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4l6 6"></path><path d="M13 5l-8 8 6 6 8-8"></path><path d="M5 17l-2 4 4-2"></path><path d="M8 10l6 6"></path></svg></button>
+      <button class="combat-utility-dock-toggle" data-utility-dock-toggle type="button" title="Afficher les modules suivants" aria-label="Afficher les modules suivants" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
     </div>
     <div id="combatChatPanel" class="combat-chat-panel frame hidden" aria-label="Chat">
       <div class="combat-chat-head" data-chat-drag-handle>
@@ -574,6 +575,6 @@
   </section>
 
   <div id="toast" class="toast"></div>
-    <script type="module" src="game.js?v=crafting-1"></script>
+    <script type="module" src="game.js?v=dock-overflow-1"></script>
 </body>
 </html>

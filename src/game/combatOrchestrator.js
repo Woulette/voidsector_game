@@ -101,7 +101,7 @@ import { updatePoisonStatus, updateSlowStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
 import { createCombatChat } from "./ui/combatChat.js";
 import { createCombatLogoutController } from "./ui/combatLogoutController.js";
-import { installCombatInputHandlers } from "./ui/inputBindings.js?v=crafting-1";
+import { installCombatInputHandlers } from "./ui/inputBindings.js?v=dock-overflow-1";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatPanels } from "./ui/combatPanels.js?v=crafting-1";

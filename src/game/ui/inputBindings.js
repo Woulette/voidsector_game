@@ -660,6 +660,16 @@ export function installCombatInputHandlers({
 
   documentRef.getElementById("combatUtilityDock")?.addEventListener("click", e=>{
     if(!isRunning()) return;
+    const toggle = e.target.closest("[data-utility-dock-toggle]");
+    if(toggle){
+      const dock = toggle.closest("#combatUtilityDock");
+      const expanded = !dock?.classList.contains("expanded");
+      dock?.classList.toggle("expanded", expanded);
+      toggle.setAttribute("aria-expanded", String(expanded));
+      toggle.setAttribute("aria-label", expanded ? "Masquer les modules suivants" : "Afficher les modules suivants");
+      toggle.setAttribute("title", expanded ? "Masquer les modules suivants" : "Afficher les modules suivants");
+      return;
+    }
     const btn = e.target.closest("[data-utility-panel]");
     if(!btn || btn.disabled) return;
     const panel = btn.dataset.utilityPanel;

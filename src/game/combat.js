@@ -1,1 +1,1 @@
-export { createCombatGame } from "./combatOrchestrator.js?v=crafting-1";
+export { createCombatGame } from "./combatOrchestrator.js?v=dock-overflow-1";
