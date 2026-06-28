@@ -63,6 +63,12 @@ const SHOP_FILTER_META = {
 function productKey(product){ return `${product.kind}:${product.id}`; }
 function shopAmmoMultiplier(){ return [1, 10, 100, 1000].includes(Number(store.selectedShopAmmoMultiplier)) ? Number(store.selectedShopAmmoMultiplier) : 1; }
 function shopBoosterMultiplier(){ return [1, 10, 50, 100].includes(Number(store.selectedShopBoosterMultiplier)) ? Number(store.selectedShopBoosterMultiplier) : 1; }
+function isTutorialStep(step){
+  return store.state?.tutorial?.status === "active" && store.state?.tutorial?.step === step;
+}
+function tutorialBlocksLaserPurchase(product){
+  return product?.kind === "item" && product?.id === "laser_mk1" && isTutorialStep("launcher_select_laser");
+}
 function shopPriceClass(priceType){
   return priceType === "premium" ? "shop-price premium" : "shop-price credits";
 }
@@ -510,6 +516,7 @@ function renderShopDetail(product){
   }
   const item = product.data;
   const itemMultiplier = item.id === "teleportation_fluid" ? shopAmmoMultiplier() : 1;
+  const tutorialPurchaseBlocked = tutorialBlocksLaserPurchase(product);
   detail.innerHTML = `
     <div class="shop-detail-top"><span class="badge">${(item.shopCategory || item.category).toUpperCase()}</span><span class="badge">${item.rarity}</span></div>
     <div class="shop-detail-art"><img src="${item.img}" alt="${item.name}"></div>
@@ -518,7 +525,7 @@ function renderShopDetail(product){
     ${lockHtml}
     <div class="shop-detail-stats">${productDetailStats(product).map(renderShopDetailStat).join("")}</div>
     ${renderItemPurchaseControls(item)}
-    <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix${itemMultiplier > 1 ? ` x${fmt(itemMultiplier)}` : ""}</small>${shopPriceHtml(item.priceType, item.price * itemMultiplier)}</div><button class="blue-button" data-buy-item="${item.id}" data-buy-item-multiplier="${itemMultiplier}" ${(!canAfford(item.priceType, item.price * itemMultiplier)) ? "disabled" : ""}>ACHETER</button></div>`;
+    <div class="shop-detail-footer"><div class="shop-detail-price"><small>Prix${itemMultiplier > 1 ? ` x${fmt(itemMultiplier)}` : ""}</small>${shopPriceHtml(item.priceType, item.price * itemMultiplier)}</div><button class="blue-button" data-buy-item="${item.id}" data-buy-item-multiplier="${itemMultiplier}" ${(tutorialPurchaseBlocked || !canAfford(item.priceType, item.price * itemMultiplier)) ? "disabled" : ""}>ACHETER</button></div>`;
 }
 
 export function renderShop(){

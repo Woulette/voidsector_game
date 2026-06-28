@@ -33,10 +33,10 @@ function stageDefinitions(ctx){
     game_use_repair_drone:{mode:"game",silent:true,selector:REPAIR_DRONE_ACTION_SELECTOR,condition:(s,g)=>Boolean(g?.player?.repairBotActive),message:""},
     game_return_hq_1:{mode:"game",handoff:true,world:{type:"hq"},arrowMode:"player-direction",condition:(s,g)=>Number(g?.target?.distance||Infinity)<520,message:"Maintenant retourne au QG."},
     launcher_open_shop:{mode:"launcher",handoff:true,selector:'[data-view="shop"]',click:true,message:"Ouvre le MAGASIN. Tes crédits de mission vont financer un Velox."},
-    launcher_select_velox:{mode:"launcher",handoff:true,selector:'[data-select-shop="ship:velox"]',click:true,message:"Sélectionne le Velox : il est plus rapide et possède trois emplacements laser."},
+    launcher_select_velox:{mode:"launcher",handoff:true,selector:'[data-select-shop="ship:velox"]',click:true,lockToSelector:true,message:"Sélectionne le Velox : il est plus rapide et possède trois emplacements laser."},
     launcher_buy_velox:{mode:"launcher",handoff:true,selector:'[data-buy-shop-ship="velox"]',condition:s=>s.ownedShips?.includes("velox"),message:"Achète le Velox avec les crédits reçus."},
     launcher_open_weapons:{mode:"launcher",handoff:true,selector:'[data-filter-shop="canon"]',click:true,message:"Passe maintenant dans la catégorie ARMES."},
-    launcher_select_laser:{mode:"launcher",handoff:true,selector:'[data-select-shop="item:laser_mk1"]',click:true,message:"Sélectionne un Canon laser MK-I."},
+    launcher_select_laser:{mode:"launcher",handoff:true,selector:'[data-select-shop="item:laser_mk1"]',click:true,lockToSelector:true,message:"Sélectionne un Canon laser MK-I."},
     launcher_buy_laser:{mode:"launcher",handoff:true,selector:'[data-buy-item="laser_mk1"]',condition:()=>getInventoryCount("laser_mk1")>=2,message:"Achète ce deuxième MK-I. Avec le MK-III de ta première mission, le Velox pourra utiliser ses trois emplacements."},
     launcher_open_hangar:{mode:"launcher",handoff:true,selector:'[data-view="hangar"]',click:true,message:"Retourne au HANGAR pour transférer ton équipement."},
     launcher_open_orion:{mode:"launcher",handoff:true,selector:'[data-ship-id="orion"]',click:true,message:"Ouvre d'abord l'Orion pour vérifier qu'il ne conserve aucun équipement utile."},
@@ -313,6 +313,25 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
     return Boolean(definition?.manual && (definition.selector || definition.world));
   }
 
+  function isSelectorLockActive(tutorial = store.state?.tutorial, definition = currentDefinition()){
+    return Boolean(tutorial?.status === "active"
+      && definition?.mode === appMode
+      && definition?.lockToSelector
+      && definition?.selector
+      && (!definition.handoff || dismissedStep === tutorial.step));
+  }
+
+  function handleTutorialLockedClick(event){
+    const tutorial = store.state?.tutorial;
+    const definition = currentDefinition();
+    if(!isSelectorLockActive(tutorial, definition)) return;
+    if(event.target.closest(definition.selector)) return;
+    if(event.target.closest(".tutorial-guide,.tutorial-launcher,.tutorial-abandon-backdrop")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  }
+
   function intersectRects(a,b){
     const left = Math.max(a.left,b.left);
     const top = Math.max(a.top,b.top);
@@ -451,6 +470,7 @@ export function createTutorialController({store, appMode, game, updateTutorial, 
 
   function init(){
     ensureDom();
+    document.addEventListener("click", handleTutorialLockedClick, true);
     document.addEventListener("click", handleDocumentClick);
     window.addEventListener("voidsector:profile-applied", refresh);
     window.addEventListener("voidsector:multiplayer-change", event=>{

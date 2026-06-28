@@ -36,6 +36,31 @@ test("bulk multipliers cannot duplicate normal equipment", ()=>{
   assert.equal(purchase.totalPrice, 25_000);
 });
 
+test("tutorial selection step blocks buying the laser before the card is selected", ()=>{
+  const purchase = getItemPurchase("laser_mk1", 1);
+  const profile = createDefaultProfile();
+  profile.player.credits = 100_000;
+  profile.tutorial = {...profile.tutorial, status:"active", step:"launcher_select_laser"};
+  const profiles = new Map([["account:tutorial-shop", profile]]);
+  const player = {id:"socket-tutorial-shop", accountId:"tutorial-shop"};
+  const actions = createProfileActions({
+    profiles,
+    persist(){},
+    getExistingProfile:()=>({key:"account:tutorial-shop", profile:profiles.get("account:tutorial-shop")})
+  });
+  const before = getInventoryItemCount(profile, "laser_mk1");
+
+  const blocked = actions.addItemPurchase({player, purchase});
+  assert.equal(blocked.ok, false);
+  assert.match(blocked.reason, /Tutoriel actif/);
+  assert.equal(getInventoryItemCount(profile, "laser_mk1"), before);
+
+  profile.tutorial.step = "launcher_buy_laser";
+  const allowed = actions.addItemPurchase({player, purchase});
+  assert.equal(allowed.ok, true);
+  assert.equal(getInventoryItemCount(allowed.profile, "laser_mk1"), before + 1);
+});
+
 test("rapid equipment actions are no longer blocked by the old 180 ms delay", ()=>{
   assert.ok(config.accountActionLocks["equipment:equip"].minIntervalMs <= 35);
   assert.ok(config.accountActionLocks["equipment:unequip-slot"].minIntervalMs <= 35);

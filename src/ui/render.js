@@ -52,7 +52,7 @@ import { ENEMY_TYPES } from "../game/combatData.js";
 import { FIRM_REPRESENTATIVES } from "../data/firmRepresentatives.js";
 
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
-import { renderShop } from "./renderShop.js?v=store-real-prices-1";
+import { renderShop } from "./renderShop.js?v=tutorial-shop-lock-1";
 import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=portal-prepare-1";
 import { renderRefinery } from "./renderRefinery.js";
 import { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
@@ -1165,7 +1165,7 @@ function renderFirmSetupGate(){
     </main>`;
 }
 
-export { renderShop } from "./renderShop.js";
+export { renderShop } from "./renderShop.js?v=tutorial-shop-lock-1";
 export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=portal-prepare-1";
 export { renderRefinery } from "./renderRefinery.js";
 export { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";

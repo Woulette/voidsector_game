@@ -52,9 +52,19 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     return attachProfileSave({...result, profile:committed.profile}, committed.save);
   }
 
+  function rejectTutorialSelectionPurchase(profile){
+    if(profile?.tutorial?.status !== "active") return null;
+    if(["launcher_select_velox", "launcher_select_laser"].includes(profile.tutorial.step)){
+      return {ok:false, reason:"Tutoriel actif : selectionne d'abord l'article indique."};
+    }
+    return null;
+  }
+
   function spendAndUpdate({player, priceType, amount, update, activity} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const tutorialBlocked = rejectTutorialSelectionPurchase(profile);
+    if(tutorialBlocked) return tutorialBlocked;
     const previous = cloneProfileSnapshot(profile);
     const result = spendCurrency(profile.player || {}, priceType, amount);
     if(!result.ok) return result;
@@ -156,6 +166,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     if(!purchase?.id) return {ok:false, reason:"Vaisseau invalide."};
     const {key, profile} = getExistingProfile(player);
+    const tutorialBlocked = rejectTutorialSelectionPurchase(profile);
+    if(tutorialBlocked) return tutorialBlocked;
     const previous = cloneProfileSnapshot(profile);
     if(Array.isArray(profile.ownedShips) && profile.ownedShips.includes(purchase.id)){
       return {ok:false, reason:"Vaisseau déjà possédé."};
@@ -213,6 +225,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
   function addDroneFormationPurchase({player, purchase} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
     const {key, profile} = getExistingProfile(player);
+    const tutorialBlocked = rejectTutorialSelectionPurchase(profile);
+    if(tutorialBlocked) return tutorialBlocked;
     const previous = cloneProfileSnapshot(profile);
     const alreadyOwned = Array.isArray(profile.ownedDroneFormations) && profile.ownedDroneFormations.includes(purchase.id);
     const result = spendCurrency(profile.player || {}, purchase?.priceType, alreadyOwned ? 0 : purchase?.totalPrice);

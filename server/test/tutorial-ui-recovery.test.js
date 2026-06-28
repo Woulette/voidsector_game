@@ -6,6 +6,8 @@ const controller = fs.readFileSync(new URL("../../src/ui/tutorialController.js",
 const recovery = fs.readFileSync(new URL("../../src/app/gameConnectionRecovery.js", import.meta.url),"utf8");
 const combat = fs.readFileSync(new URL("../../src/game/combatOrchestrator.js", import.meta.url),"utf8");
 const actionBar = fs.readFileSync(new URL("../../src/game/ui/actionBar.js", import.meta.url),"utf8");
+const app = fs.readFileSync(new URL("../../src/app.js", import.meta.url),"utf8");
+const shop = fs.readFileSync(new URL("../../src/ui/renderShop.js", import.meta.url),"utf8");
 const css = fs.readFileSync(new URL("../../src/styles/tutorial.css", import.meta.url),"utf8");
 const authCss = fs.readFileSync(new URL("../../src/styles/auth.css", import.meta.url),"utf8");
 
@@ -113,6 +115,18 @@ test("Velox departure waits for lasers repair drone and rocket launcher", ()=>{
   assert.match(controller,/hasRepairDroneEquipped\(loadout\)/);
   assert.match(controller,/hasRocketLauncherEquipped\(loadout\)/);
   assert.match(controller,/item\?\.effect\?\.repairBot/);
+});
+
+test("shop selection tutorial steps lock purchases until the highlighted card is selected", ()=>{
+  assert.match(controller,/launcher_select_laser:\{[^\n]*lockToSelector:true/);
+  assert.match(controller,/launcher_select_velox:\{[^\n]*lockToSelector:true/);
+  assert.match(controller,/function handleTutorialLockedClick\(event\)/);
+  assert.match(controller,/event\.stopImmediatePropagation\(\)/);
+  assert.match(shop,/function tutorialBlocksLaserPurchase\(product\)/);
+  assert.match(shop,/launcher_select_laser/);
+  assert.match(shop,/tutorialPurchaseBlocked \|\| !canAfford/);
+  assert.match(app,/reason === "tutorial:updated" && store\.currentView === "shop"/);
+  assert.match(app,/renderShop\(\)/);
 });
 
 test("mission relay camera preview lasts long enough to understand the target", ()=>{

@@ -27,11 +27,11 @@ import {
 import { createCombatGame } from "./game/combat.js?v=tutorial-quest-lock-1";
 import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, prepareServerPortal, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=portal-prepare-1";
 import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=portal-prepare-1";
-import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=portal-prepare-1";
+import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=tutorial-shop-lock-1";
 import { showToast } from "./ui/toast.js?v=portal-toast-1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=ship-abilities-1";
 import { createProfileController } from "./app/profileController.js?v=beta-store-1";
-import { createTutorialController } from "./ui/tutorialController.js?v=tutorial-flow-19";
+import { createTutorialController } from "./ui/tutorialController.js?v=tutorial-flow-20";
 import { createServerEventController } from "./app/serverEventController.js?v=beta-store-1";
 import { createShopActions } from "./app/shopActions.js?v=beta-store-1";
 import { getFirstFirmRewardDestination } from "./ui/firmRewardNotifications.js";
@@ -1143,6 +1143,9 @@ window.addEventListener("voidsector:multiplayer-change", event=>{
     store.pendingFirmSetup = false;
     store.pendingFirmSetupMessage = "Commande recue trop vite. Attends quelques secondes puis reessaie.";
     renderAllPreserveScroll();
+  }
+  if(reason === "tutorial:updated" && store.currentView === "shop"){
+    window.setTimeout(()=>{ if(store.currentView === "shop") renderShop(); }, 0);
   }
   if(handleAdminPanelServerChange(reason) || reason === "auth:success" || reason === "auth:role" || reason === "auth:moderation" || reason === "auth:logout" || reason === "auth:replaced" || reason === "auth:banned") renderAllPreserveScroll();
   if(reason === "auth:success" && store.currentView === "firm") window.setTimeout(()=>requestFirmSync({includeShop:true}), 100);
