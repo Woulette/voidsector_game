@@ -1,4 +1,4 @@
-import { ammoTypes, droneCatalog, droneFormations, equipment, ships } from "../data/catalog.js?v=craft-balance-2";
+import { ammoTypes, droneCatalog, droneFormations, equipment, ships } from "../data/catalog.js?v=craft-map-labels-1";
 import { isPremiumActive, premiumRemainingLabel, premiumShopPacks } from "../data/premium.js";
 import { fmt } from "../core/utils.js";
 import {

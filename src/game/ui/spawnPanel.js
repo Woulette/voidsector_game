@@ -715,13 +715,13 @@ const CRAFT_RESOURCE_RARITY_META = Object.freeze({
   common:{
     key:"common",
     label:"Commun",
-    source:"Drop monstres + magasin de firme",
+    source:"Drop monstres + magasin de firme · X = toutes firmes",
     drops:[{maps:"Map X-1 / X-2 / X-3", range:"Monstres niv. 1-14", chance:"5%", tone:"high"}]
   },
   rare:{
     key:"rare",
     label:"Rare",
-    source:"Drop monstres + magasin de firme",
+    source:"Drop monstres + magasin de firme · X = toutes firmes",
     drops:[
       {maps:"Map X-1 / X-2 / X-3", range:"Monstres niv. 1-14", chance:"1%", tone:"low"},
       {maps:"Map X-4 / X-5", range:"Monstres niv. 15-24", chance:"5%", tone:"high"}
@@ -730,28 +730,28 @@ const CRAFT_RESOURCE_RARITY_META = Object.freeze({
   veryRare:{
     key:"veryRare",
     label:"Très rare",
-    source:"Drop monstres + magasin de firme",
+    source:"Drop monstres + magasin de firme · X = toutes firmes",
     drops:[
       {maps:"Map X-4 / X-5", range:"Monstres niv. 15-24", chance:"1%", tone:"low"},
-      {maps:"Map X-6 / X-7", range:"Monstres niv. 25-34", chance:"5%", tone:"high"}
+      {maps:"Map Core", range:"Monstres niv. 25-34", chance:"5%", tone:"high"}
     ]
   },
   elite:{
     key:"elite",
     label:"Élite",
-    source:"Drop monstres + magasin de firme",
+    source:"Drop monstres + magasin de firme · X = toutes firmes",
     drops:[
-      {maps:"Map X-6 / X-7", range:"Monstres niv. 25-34", chance:"1%", tone:"low"},
-      {maps:"Map X-8 / X-9 / X-10", range:"Monstres niv. 35-50", chance:"5%", tone:"high"}
+      {maps:"Map Core", range:"Monstres niv. 25-34", chance:"1%", tone:"low"},
+      {maps:"Map Core", range:"Monstres niv. 35-50", chance:"5%", tone:"high"}
     ]
   },
   mythic:{
     key:"mythic",
     label:"Mythique",
-    source:"Drop monstres + magasin de firme",
+    source:"Drop monstres + magasin de firme · X = toutes firmes",
     drops:[
-      {maps:"Map X-8 / X-9", range:"Monstres niv. 35-44", chance:"0,1%", tone:"very-low"},
-      {maps:"Map X-10+", range:"Monstres niv. 45-50", chance:"1%", tone:"low"}
+      {maps:"Map Core", range:"Monstres niv. 35-44", chance:"0,1%", tone:"very-low"},
+      {maps:"Map Core", range:"Monstres niv. 45-50", chance:"1%", tone:"low"}
     ]
   }
 });
