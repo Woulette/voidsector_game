@@ -1,1 +1,1 @@
-import "./src/app.js?v=craft-map-labels-1";
+import "./src/app.js?v=craft-extras-1";

@@ -117,6 +117,31 @@ test("crafting applies requested recipe balance and exclusions", ()=>{
     bobine_supraconductrice:1,
     micro_pompe_cryogenique:1
   });
+  assert.deepEqual(getCraftRecipe("craft_extra_extra_auto_rocket").costs, {
+    materials:{panneau_titane_nid_abeille:3, ruban_carbone_ceramique:2, micro_heatpipe_quantique:1, prisme_phase:1},
+    credits:10_000_000,
+    premium:0
+  });
+  assert.deepEqual(getCraftRecipe("craft_extra_extra_auto_missile").costs, {
+    materials:{panneau_titane_nid_abeille:3, bobine_supraconductrice:3, tresse_optique_quantique:1, ruban_alliage_memoire:1},
+    credits:10_000_000,
+    premium:0
+  });
+  assert.deepEqual(getCraftRecipe("craft_extra_extra_rocket_accelerator").costs, {
+    materials:{panneau_titane_nid_abeille:3, gyroscope_stabilise:2, ruban_alliage_memoire:1, prisme_phase:1},
+    credits:10_000_000,
+    premium:0
+  });
+  assert.deepEqual(getCraftRecipe("craft_extra_extra_repair_auto").costs, {
+    materials:{panneau_titane_nid_abeille:3, ruban_carbone_ceramique:1, bobine_supraconductrice:3, prisme_phase:1},
+    credits:7_500_000,
+    premium:0
+  });
+  assert.deepEqual(getCraftRecipe("craft_extra_extra_repair_bot").costs, {
+    materials:{bobine_supraconductrice:3, gyroscope_stabilise:2, ruban_carbone_ceramique:1, micro_heatpipe_quantique:1},
+    credits:2_000_000,
+    premium:0
+  });
 
   assert.equal(getCraftRecipe("craft_ammo_ammo_x1").output.amount, 10_000);
   assert.equal(getCraftRecipe("craft_ammo_ammo_x4").costs.premium, 0);
@@ -145,6 +170,7 @@ test("crafting resource rows expose rarity badges and hover details", ()=>{
   assert.match(panel.html, /Stock actuel/);
   assert.match(panel.html, /Taux de drop/);
   assert.match(panel.html, /Map X-1 \/ X-2 \/ X-3/);
+  assert.doesNotMatch(panel.html, /Map X-[6-9]|Map X-10/);
   assert.match(panel.html, /craft-drop-line low/);
   assert.match(panel.html, /rarity-/);
   assert.match(panel.html, /<span class="craft-material-copy"><strong title="Câbles de cuivre">Câbles de cuivre<\/strong><\/span>/);

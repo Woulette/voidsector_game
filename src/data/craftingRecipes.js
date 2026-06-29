@@ -1,13 +1,13 @@
-import { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=craft-map-labels-1";
-import { ships } from "./ships.js?v=craft-map-labels-1";
+import { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=craft-extras-1";
+import { ships } from "./ships.js?v=craft-extras-1";
 import {
   COMMON_CRAFT_RESOURCES,
   ELITE_CRAFT_RESOURCES,
   MYTHIC_CRAFT_RESOURCES,
   RARE_CRAFT_RESOURCES,
   VERY_RARE_CRAFT_RESOURCES
-} from "./resources.js?v=craft-map-labels-1";
-import { S1_BOOSTER_DURATION_MS, S1_BOOSTER_SHOP } from "../shared/firmBoosters.js?v=craft-map-labels-1";
+} from "./resources.js?v=craft-extras-1";
+import { S1_BOOSTER_DURATION_MS, S1_BOOSTER_SHOP } from "../shared/firmBoosters.js?v=craft-extras-1";
 
 export const CRAFT_DURATION_MS = 60_000;
 
@@ -175,7 +175,37 @@ const CRAFT_RECIPE_OVERRIDES = Object.freeze({
     circuits_imprimes:3,
     bobine_supraconductrice:1,
     micro_pompe_cryogenique:1
-  })}
+  })},
+  extra_auto_rocket:{costs:costs({
+    panneau_titane_nid_abeille:3,
+    ruban_carbone_ceramique:2,
+    micro_heatpipe_quantique:1,
+    prisme_phase:1
+  }, 10_000_000)},
+  extra_auto_missile:{costs:costs({
+    panneau_titane_nid_abeille:3,
+    bobine_supraconductrice:3,
+    tresse_optique_quantique:1,
+    ruban_alliage_memoire:1
+  }, 10_000_000)},
+  extra_rocket_accelerator:{costs:costs({
+    panneau_titane_nid_abeille:3,
+    gyroscope_stabilise:2,
+    ruban_alliage_memoire:1,
+    prisme_phase:1
+  }, 10_000_000)},
+  extra_repair_auto:{costs:costs({
+    panneau_titane_nid_abeille:3,
+    ruban_carbone_ceramique:1,
+    bobine_supraconductrice:3,
+    prisme_phase:1
+  }, 7_500_000)},
+  extra_repair_bot:{costs:costs({
+    bobine_supraconductrice:3,
+    gyroscope_stabilise:2,
+    ruban_carbone_ceramique:1,
+    micro_heatpipe_quantique:1
+  }, 2_000_000)}
 });
 
 function normalizeRarityTier(value, fallback = "common"){

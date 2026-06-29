@@ -1,5 +1,5 @@
-export { ships } from "./ships.js?v=craft-map-labels-1";
-export { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=craft-map-labels-1";
+export { ships } from "./ships.js?v=craft-extras-1";
+export { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=craft-extras-1";
 export { FIRMS, getCanonicalMapName, getFirmDefinition, getFirmHomeMapName, getFirmIdFromMapName, getFirmMapId, getFirmMapName, getFirmMapPrefix, normalizeFirmId } from "./firms.js";
 export { craftResourceCatalog, pageText, portals, questCatalog, rawMaterialCatalog, refineryMaterialCatalog, refineryRecipes, skills } from "./progression.js";
 export { COMMON_CRAFT_RESOURCES, ELITE_CRAFT_RESOURCES, MYTHIC_CRAFT_RESOURCES, RARE_CRAFT_RESOURCES, RESOURCE_DROP_POOLS, VERY_RARE_CRAFT_RESOURCES } from "./resources.js";

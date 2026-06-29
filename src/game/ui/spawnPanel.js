@@ -1,6 +1,6 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, craftResourceCatalog, equipment, portals } from "../../data/catalog.js";
-import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-balance-1";
+import { CRAFT_CATEGORY_TABS, getCraftJobProgress, getCraftRecipe, getCraftRecipeAvailability, getVisibleCraftRecipes } from "../../data/craftingRecipes.js?v=craft-extras-1";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
 import { getQuestBriefing } from "../../data/questBriefings.js";

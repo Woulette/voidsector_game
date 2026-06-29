@@ -1,1 +1,1 @@
-export { createCombatGame } from "./combatOrchestrator.js?v=craft-map-labels-1";
+export { createCombatGame } from "./combatOrchestrator.js?v=craft-extras-1";

@@ -26,7 +26,8 @@
   height:min(650px,calc(100vh - 148px));
   max-height:none;
   grid-template-rows:auto minmax(0,1fr);
-  overflow:hidden;
+  overflow:visible;
+  z-index:70;
 }
 .spawn-panel.quest-mode{
   width:min(860px,62vw);
@@ -41,7 +42,7 @@
 .spawn-panel-content{display:grid;gap:12px}
 .spawn-panel.refinery-mode .spawn-panel-content{min-height:0}
 .spawn-panel.commerce-mode .spawn-panel-content{min-height:0;overflow:hidden}
-.spawn-panel.crafting-mode .spawn-panel-content{min-height:0;overflow:hidden}
+.spawn-panel.crafting-mode .spawn-panel-content{min-height:0;overflow:visible}
 .spawn-panel.quest-mode .spawn-panel-content{grid-template-rows:auto auto minmax(0,1fr);min-height:0;overflow:hidden}
 .spawn-panel-grid-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .spawn-panel-section{display:grid;gap:10px;padding:12px;border:1px solid rgba(56,189,248,.16);background:rgba(5,17,31,.72)}
@@ -357,7 +358,7 @@
   display:grid;
   grid-template-rows:auto minmax(0,1fr);
   gap:12px;
-  overflow:hidden;
+  overflow:visible;
 }
 .craft-category-tabs{
   display:grid;
@@ -417,7 +418,7 @@
   display:grid;
   grid-template-columns:270px minmax(0,1fr);
   gap:12px;
-  overflow:hidden;
+  overflow:visible;
 }
 .craft-recipe-list,.craft-detail{
   min-height:0;
