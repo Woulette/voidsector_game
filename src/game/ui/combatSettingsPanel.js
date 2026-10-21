@@ -107,8 +107,8 @@ export function createCombatSettingsPanel({
   function renderAudio(settings){
     return `<div class="combat-settings-page">
       <section class="combat-settings-section">
-        <div class="combat-settings-section-head"><div><span>AUDIO</span><h3>Mixage sonore</h3></div><b>PRÉPARÉ</b></div>
-        <p class="combat-settings-help">Le moteur audio sera branché plus tard. Tes valeurs sont déjà sauvegardées.</p>
+        <div class="combat-settings-section-head"><div><span>AUDIO</span><h3>Mixage sonore</h3></div><b>EFFETS ACTIFS</b></div>
+        <p class="combat-settings-help">Les tirs laser suivent les volumes Général et Effets. La musique et les ambiances seront ajoutées plus tard.</p>
         <div class="combat-settings-volume-list">
           ${audioSlider("master", "Volume général", settings.audio.master)}
           ${audioSlider("music", "Musique", settings.audio.music)}
@@ -216,6 +216,7 @@ export function createCombatSettingsPanel({
     const audio = event.target.closest("[data-settings-audio]");
     if(!audio) return;
     setAudioSetting(audio.dataset.settingsAudio, audio.value);
+    windowRef.dispatchEvent(new CustomEvent("voidsector:settings-applied", {detail:{settings:getGameSettings()}}));
     panel.querySelector(`[data-settings-audio-output="${audio.dataset.settingsAudio}"]`)?.replaceChildren(`${Math.round(Number(audio.value))}%`);
     saveState?.();
   });

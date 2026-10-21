@@ -138,6 +138,7 @@ export function createWeaponSystem(deps){
       life:.20
     });
     deps.resolveLaserHit?.(enemy, damage, deps.playerHitChance, ammo);
+    deps.playLaserSound?.();
     particles.push({kind:"muzzle",x:startX,y:startY,life:.16,max:.16,size:14,color:player.blueLaserBeams && ammo.id !== "ammo_x4" ? "rgba(56,189,248,.65)" : ammo.id === "ammo_x4" ? "rgba(255,132,24,.65)" : "rgba(255,218,72,.62)"});
     return true;
   }

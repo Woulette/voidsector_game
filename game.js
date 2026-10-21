@@ -1,1 +1,1 @@
-import "./src/app.js?v=craft-extras-1";
+import "./src/app.js?v=laser-audio-1";

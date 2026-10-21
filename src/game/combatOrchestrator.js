@@ -97,7 +97,8 @@ import { createPlayerLifecycle } from "./systems/playerLifecycle.js";
 import { clampPlayerToMap as clampPlayerToMapSystem, tickPlayerVisualCorrection, updateCamera, updatePlayerMovement, worldFromScreen as screenToWorld } from "./systems/playerMovement.js?v=action-slots-save-1-fps-burst-1";
 import { createRepairBotSystem } from "./systems/repairBot.js";
 import { createRewardSystem } from "./systems/rewards.js";
-import { createWeaponSystem } from "./systems/weapons.js?v=action-slots-save-1-fps-burst-1";
+import { createWeaponSystem } from "./systems/weapons.js?v=action-slots-save-1-fps-burst-1-laser-audio-1";
+import { createCombatLaserAudio } from "./systems/combatLaserAudio.js";
 import { updatePoisonStatus, updateSlowStatus } from "./ui/hud.js";
 import { createCombatHudController } from "./ui/combatHudController.js";
 import { createCombatChat } from "./ui/combatChat.js?v=loot-rarity-1";
@@ -106,7 +107,7 @@ import { installCombatInputHandlers } from "./ui/inputBindings.js?v=craft-ui-6";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js?v=action-slots-save-1-fps-burst-1";
 import { createCombatPanels } from "./ui/combatPanels.js?v=craft-extras-1";
-import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=ship-abilities-1";
+import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=ship-abilities-1-laser-audio-1";
 import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerCraft, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerCraft, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=crafting-1";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
 import { getShipAbilityStatuses } from "../shared/shipAbilities.js?v=ship-charge-1";
@@ -124,6 +125,10 @@ export function createCombatGame({renderAll, showToast}){
   const cache = {};
   const mapAssetCache = createCombatMapAssetCache({cache, maxMaps:3});
   let running = false;
+  const laserAudio = createCombatLaserAudio({
+    getAudioSettings:()=>getGameSettings().audio,
+    isActive:()=>running && !player?.isDead
+  });
   let last = 0;
   let hudT = 0;
   let quickPanelRefreshT = 0;
@@ -223,6 +228,7 @@ export function createCombatGame({renderAll, showToast}){
     getEquippedLauncher,
     markCombatActivity,
     addLaserBeam:beam=>beams.add(beam),
+    playLaserSound:()=>laserAudio.play(),
     sendPlayerWeaponEffect:sendPlayerLaserEffect,
     getNetworkTargetId:enemy=>enemy?.isPlayerTarget ? `player:${enemy.playerId}` : getServerEnemyId(enemy),
     resolveLaserHit,
@@ -763,7 +769,7 @@ export function createCombatGame({renderAll, showToast}){
     requestServerLogout,
     disconnectMultiplayer,
     getRunning:()=>running,
-    setRunning:value=>{ running = value; },
+    setRunning:value=>{ running = value; if(!value) laserAudio.stop(); },
     getPlayer:()=>player,
     getPortalTransition:()=>portalTransition,
     getTeleportLock:()=>teleportLock,
@@ -789,7 +795,7 @@ export function createCombatGame({renderAll, showToast}){
     mapList:MAPS,
     radarRange:RADAR_RANGE,
     getRunning:()=>running,
-    setRunning:value=>{ running = value; },
+    setRunning:value=>{ running = value; if(!value) laserAudio.stop(); },
     getState:getCombatState,
     setState:setCombatState,
     getShipCombatStats,
