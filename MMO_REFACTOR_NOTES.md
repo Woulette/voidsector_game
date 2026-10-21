@@ -1,5 +1,13 @@
 # VoidSector MMO - Notes de decoupage serveur
 
+## Audio laser - 21 octobre 2026
+
+- `src/game/systems/combatLaserAudio.js` charge et decode une seule fois le double tir valide, debloque Web Audio sur une interaction, puis joue une source par attaque laser locale.
+- Les deux impulsions sont espacees de 120 ms et durent 265 ms au total. La cadence reste celle du systeme d'armes existant ; aucun timer audio ne pilote le combat.
+- Le son respecte les volumes General/Effets et le mute existants. Les sources sont arretees quand le combat se termine ou que l'onglet est masque.
+- Le chargement audio ne bloque jamais les armes et ne rejoue pas de tirs retardes. Les roquettes, missiles et tirs distants restent inchanges.
+- La chaine d'import client est versionnee pour que le navigateur recupere les nouveaux modules apres deploiement.
+
 Objectif : reduire `server/src/index.js` sans changer le gameplay, en gardant le serveur autoritaire et le mode solo compatible pendant la migration.
 
 ## Regles de decoupage

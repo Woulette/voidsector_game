@@ -12,6 +12,8 @@ function createWeaponFixture(enemy, {
   let consumed = 0;
   let saved = 0;
   let resolved = 0;
+  let sounded = 0;
+  let cooldown = 0;
   let actionBarRefreshes = 0;
   let quickPanelRefreshes = 0;
   const ammo = {id:"ammo_x1", name:"M1", weaponClass:"laser", multiplier:1};
@@ -29,10 +31,10 @@ function createWeaponFixture(enemy, {
     getAmmo:()=>ammo,
     getAmmoCount:()=>100,
     getCombatAmmo:()=>ammo,
-    getAmmoCooldown:()=>0,
-    setAmmoCooldown(){},
+    getAmmoCooldown:()=>cooldown,
+    setAmmoCooldown:(_ammo, value)=>{ cooldown = value; },
     getEffectiveAmmoCooldown:()=>1,
-    tickAmmoCooldowns(){},
+    tickAmmoCooldowns:dt=>{ cooldown = Math.max(0, cooldown - dt); },
     getEquippedLasers:()=>shipLasers,
     getEquippedDroneLasers:()=>droneLasers,
     getEquippedLauncher:()=>null,
@@ -45,6 +47,7 @@ function createWeaponFixture(enemy, {
     },
     markCombatActivity(){},
     addLaserBeam(){},
+    playLaserSound:()=>{ sounded++; },
     sendPlayerWeaponEffect(){},
     getNetworkTargetId:()=>enemy.id,
     resolveLaserHit(){
@@ -62,6 +65,7 @@ function createWeaponFixture(enemy, {
   return {
     consumed:()=>consumed,
     resolved:()=>resolved,
+    sounded:()=>sounded,
     saved:()=>saved,
     actionBarRefreshes:()=>actionBarRefreshes,
     quickPanelRefreshes:()=>quickPanelRefreshes,
@@ -93,6 +97,22 @@ test("client laser range uses the shortest equipped ship laser", ()=>{
 
   assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), false);
   assert.equal(fixture.resolved(), 0);
+  assert.equal(fixture.sounded(), 0);
+});
+
+test("each successful laser volley plays one double-shot sound at the existing cooldown", ()=>{
+  const enemy = {id:"server-enemy", x:100, y:0, hp:100, serverControlled:true};
+  const fixture = createWeaponFixture(enemy, {
+    shipLasers:[{weapon:{range:500}}, {weapon:{range:500}}],
+    droneLasers:[{weapon:{range:500}}]
+  });
+  fixture.system.updateWeapons(0);
+  assert.equal(fixture.sounded(), 1);
+  for(let i = 0; i < 3; i++) fixture.system.updateWeapons(.25);
+  assert.equal(fixture.sounded(), 1);
+  fixture.system.updateWeapons(.25);
+  assert.equal(fixture.sounded(), 2);
+  assert.equal(fixture.resolved(), 2);
 });
 
 test("client drone lasers do not reduce an equipped ship laser range", ()=>{

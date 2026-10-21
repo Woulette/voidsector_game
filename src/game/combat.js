@@ -1,1 +1,1 @@
-export { createCombatGame } from "./combatOrchestrator.js?v=craft-extras-1";
+export { createCombatGame } from "./combatOrchestrator.js?v=laser-audio-1";
