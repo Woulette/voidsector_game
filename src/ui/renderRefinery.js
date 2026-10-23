@@ -11,7 +11,7 @@ import { updateRefineryDom } from "./refineryDom.js";
 import { refineryShipmentPanel, refineryStatsPanel } from "./refineryHangarPanels.js";
 import {
   REFINERY_TREE_POSITIONS, refineryArt, refineryDuration, refineryEscape as esc,
-  refineryKindLabel, refineryMaterialName as name, refineryProductionStatus, refineryTreeHtml
+  refineryMaterialName as name, refineryProductionStatus, refineryTreeHtml
 } from "./refineryPresentation.js";
 
 const boundPanels = new WeakSet();
@@ -27,10 +27,15 @@ function bindQuantityInputs(panel){
   });
 }
 
+function moduleIllustration(id){
+  return {name:id === "storage" ? "Module de stockage" : "Transporteur spatial", img:`assets/materials/refinery-v2/module-${id === "storage" ? "stockage" : "transport"}.png`};
+}
+
 function moduleButton(id){
   const storage = id === "storage", job = getRefineryUpgradeProgress("module", id);
   const data = getRefineryModuleUpgradeData(id);
-  return `<button type="button" class="rf-module" data-upgrade-refinery-module="${id}" data-refinery-key="module:${id}" ${!job && !data ? "disabled" : ""}><span class="rf-module-icon" aria-hidden="true">${storage ? "▤" : "↗"}</span><span class="rf-module-copy"><strong>${storage ? "Stockage" : "Transport"}</strong><small>${storage ? `${fmt(getMaterialStorageCap("cuivre_orbital"))} / minerai` : `${fmt(getRefineryTransportCapacity())} / envoi`}</small>${job ? `<small class="rf-module-job">Amélioration · ${refineryDuration(job.remaining)}</small>` : ""}</span><b>Niveau ${getRefineryModuleLevel(id)}</b><span class="rf-module-open" aria-hidden="true">↗</span>${job ? `<i class="rf-module-progress" style="width:${job.percent}%"></i>` : ""}</button>`;
+  const art = moduleIllustration(id);
+  return `<button type="button" class="rf-module" data-upgrade-refinery-module="${id}" data-refinery-key="module:${id}" ${!job && !data ? "disabled" : ""}>${refineryArt(art, "rf-module-art")}<span class="rf-module-copy"><strong>${storage ? "Stockage" : "Transport"}</strong><small>${storage ? `${fmt(getMaterialStorageCap("cuivre_orbital"))} / minerai` : `${fmt(getRefineryTransportCapacity())} / envoi`}</small>${job ? `<small class="rf-module-job">Amélioration · ${refineryDuration(job.remaining)}</small>` : ""}</span><b>Niveau ${getRefineryModuleLevel(id)}</b><span class="rf-module-open" aria-hidden="true">↗</span>${job ? `<i class="rf-module-progress" style="width:${job.percent}%"></i>` : ""}</button>`;
 }
 
 function upgradePopover(){
@@ -40,7 +45,7 @@ function upgradePopover(){
   if(isModule ? !["storage", "transport"].includes(selected.id) : !REFINERY_TREE_POSITIONS[selected.id]) return "";
   const job = getRefineryUpgradeProgress(selected.type, selected.id);
   const data = isModule ? getRefineryModuleUpgradeData(selected.id) : getRefineryUpgradeData(selected.id);
-  const material = isModule ? null : getRawMaterial(selected.id);
+  const material = isModule ? moduleIllustration(selected.id) : getRawMaterial(selected.id);
   const currentLevel = isModule ? getRefineryModuleLevel(selected.id) : getRefineryMaterialLevel(selected.id);
   const nextLevel = job?.toLevel ?? data?.nextLevel ?? currentLevel;
   const title = isModule ? (selected.id === "storage" ? "Stockage" : "Transport") : name(material);
@@ -63,17 +68,7 @@ function upgradePopover(){
 function forgePanel(materials, recipes, read){
   const selectedId = materials.some(material=>material.id === store.selectedRefineryMaterial)
     ? store.selectedRefineryMaterial : "noyau_astra";
-  const selected = getRawMaterial(selectedId), current = read(selectedId);
-  const recipe = recipes.find(entry=>entry.outputId === selectedId);
-  const upgrade = getRefineryUpgradeData(selectedId);
-  const activeRaw = materials.filter(material=>material.kind === "raw" && read(material.id).status.key === "active").length;
-  const unlocked = recipes.filter(entry=>getRefineryMaterialLevel(entry.outputId) > 0).length;
-  const ingredients = Object.entries(recipe?.costs || {}).map(([id, amount], index)=>`${index ? `<span class="rf-formula-plus">+</span>` : ""}<span class="rf-formula-material">${refineryArt(getRawMaterial(id))}<b>${fmt(amount)}</b><span>${esc(name(getRawMaterial(id)))}</span></span>`).join("");
-  return `<div class="rf-forge" data-refinery-key="forge"><div class="rf-toolbar"><div class="rf-toolbar-info"><span class="rf-online-dot"></span><span><b>${activeRaw}</b> / 5 extracteurs en production</span><span class="rf-toolbar-separator"></span><span><b>${unlocked}</b> / ${recipes.length} recettes débloquées</span></div><span class="rf-toolbar-hint">Sélectionnez un matériau pour voir sa recette</span></div>
-    ${refineryTreeHtml(materials, recipes, selectedId, read)}
-    <section class="rf-detail-band" aria-label="Détails du matériau sélectionné" data-refinery-key="material-detail"><div class="rf-detail-title">${refineryArt(selected)}<div><span class="rf-eyebrow">${refineryKindLabel(selected?.kind)}</span><h3>${esc(name(selected))}</h3><span>${fmt(current.stock)} / ${fmt(current.cap)} en station</span></div></div>
-    <div class="rf-detail-recipe"><span class="rf-eyebrow">${recipe ? `RECETTE POUR ${fmt(recipe.outputAmount || 1)} UNITÉ${Number(recipe.outputAmount || 1) > 1 ? "S" : ""}` : "EXTRACTION AUTOMATIQUE"}</span>${recipe ? `<div class="rf-formula">${ingredients}<span class="rf-formula-arrow">→</span><span class="rf-formula-result">${fmt(recipe.outputAmount || 1)} ${esc(name(selected))}</span></div>` : `<p>Produit par votre extracteur de ${esc(name(selected).toLowerCase())}.</p>`}<small>Débit théorique : ${fmt(current.rate)} / h · ${current.status.text}</small></div>
-    <div class="rf-detail-actions"><div class="rf-detail-action-row"><button type="button" class="rf-primary" data-upgrade-refinery="${esc(selectedId)}" ${!current.job && !upgrade ? "disabled" : ""}>${current.job ? "Voir l’amélioration" : current.level <= 0 ? "Débloquer cette recette" : "Améliorer la production"} <span aria-hidden="true">↗</span></button><button type="button" class="rf-power ${current.enabled ? "is-on" : ""}" data-toggle-refinery-production="${esc(selectedId)}" aria-pressed="${current.enabled}" ${current.level <= 0 ? "disabled" : ""} title="${current.enabled ? "Mettre la production en pause" : "Reprendre la production"}">${current.enabled ? "ON" : "OFF"}</button></div><small>${current.job ? `Amélioration · ${refineryDuration(current.job.remaining)}` : `Niveau ${current.level} / ${selected?.maxLevel || 20}`}</small></div></section><p class="rf-page-note">Les stocks appartiennent à la station. Les recettes consomment leurs ingrédients lorsque la production est active.</p></div>`;
+  return `<div class="rf-forge" data-refinery-key="forge">${refineryTreeHtml(materials, recipes, selectedId, read)}</div>`;
 }
 
 export function renderRefinery(){
@@ -84,7 +79,7 @@ export function renderRefinery(){
   const read = id=>{
     const level = getRefineryMaterialLevel(id), stock = getMaterialCount(id), cap = getMaterialStorageCap(id);
     const enabled = isRefineryProductionEnabled(id), recipe = recipes.find(entry=>entry.outputId === id);
-    return {level, stock, cap, enabled, rate:getRefineryProductionRate(id), job:getRefineryUpgradeProgress("material", id),
+    return {level, stock, cap, enabled, rate:getRefineryProductionRate(id), upgrade:getRefineryUpgradeData(id), job:getRefineryUpgradeProgress("material", id),
       status:refineryProductionStatus({level, stock, cap, enabled, recipe, getStock:getMaterialCount})};
   };
   const tab = ["forge", "shipment", "stats"].includes(store.selectedRefineryTab) ? store.selectedRefineryTab : "forge";

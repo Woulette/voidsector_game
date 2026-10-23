@@ -34,6 +34,75 @@ test('refinery tree shows the 11 real materials and all 14 ingredient quantities
  }
 });
 
+function refineryCards(html){
+ return [...html.matchAll(/<article\b([^>]*\bdata-refinery-node="([^"]+)"[^>]*)>([\s\S]*?)<\/article>/g)]
+  .map(([,attributes,id,body])=>({attributes,id,body}));
+}
+
+function cardButton(card,attribute){
+ const escaped=attribute.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+ const buttons=[...card.body.matchAll(new RegExp(`<button\\b([^>]*\\b${escaped}="([^"]+)"[^>]*)>([\\s\\S]*?)<\\/button>`,'g'))];
+ assert.equal(buttons.length,1,`${card.id}: exactly one ${attribute} button`);
+ const [,attributes,id,body]=buttons[0];
+ assert.equal(id,card.id,`${card.id}: ${attribute} targets its own material`);
+ return {attributes,body};
+}
+
+test('every material exposes independent selection, upgrade and production buttons directly on its card',()=>{
+ const states=Object.fromEntries(refineryMaterialCatalog.map((material,index)=>[material.id,{
+  stock:17,level:2,rate:150,enabled:index%2===0,status:{key:'active',text:'En production'},job:null,
+  upgrade:{nextLevel:3,canAfford:true}
+ }]));
+ const before=JSON.stringify(states);
+ const html=refineryTreeHtml(refineryMaterialCatalog,refineryRecipes,'cuivre_orbital',id=>states[id]);
+ const cards=refineryCards(html);
+ assert.equal(cards.length,11);
+ assert.deepEqual(new Set(cards.map(card=>card.id)),new Set(refineryMaterialCatalog.map(material=>material.id)));
+ for(const card of cards){
+  // The article itself must not match selection: sibling action clicks must
+  // reach their own delegated handlers instead of selecting the material.
+  assert.doesNotMatch(card.attributes,/data-refinery-select-material/);
+  cardButton(card,'data-refinery-select-material');
+  const upgrade=cardButton(card,'data-upgrade-refinery');
+  const toggle=cardButton(card,'data-toggle-refinery-production');
+  assert.doesNotMatch(upgrade.attributes,/\bdisabled\b/);
+  assert.doesNotMatch(toggle.attributes,/\bdisabled\b/);
+  assert.match(toggle.attributes,new RegExp(`aria-pressed="${states[card.id].enabled}"`));
+  assert.equal(toggle.body.replace(/<[^>]*>/g,'').trim(),states[card.id].enabled?'ON':'OFF');
+  let buttonDepth=0;
+  for(const token of card.body.matchAll(/<\/?button\b[^>]*>/g)){
+   if(token[0].startsWith('</'))buttonDepth--;
+   else{assert.equal(buttonDepth,0,`${card.id}: interactive buttons must not be nested`);buttonDepth++;}
+  }
+  assert.equal(buttonDepth,0,`${card.id}: balanced buttons`);
+ }
+ assert.equal(JSON.stringify(states),before,'rendering card controls must not change production, jobs or upgrade data');
+});
+
+test('card controls preserve locked recipes, maximum levels, unaffordable previews and active upgrade progress',()=>{
+ const ids=['cuivre_orbital','alliage_cuivre_zinc','conducteur_renforce','blindage_composite'];
+ const states={
+  [ids[0]]:{level:20,enabled:true,upgrade:null,job:null},
+  [ids[1]]:{level:0,enabled:true,upgrade:{nextLevel:1,canAfford:false},job:null},
+  [ids[2]]:{level:1,enabled:false,upgrade:{nextLevel:2,canAfford:false},job:{remaining:91000,percent:25,toLevel:2}},
+  [ids[3]]:{level:1,enabled:false,upgrade:null,job:null}
+ };
+ const html=refineryTreeHtml(refineryMaterialCatalog,refineryRecipes,ids[0],id=>({stock:0,rate:0,status:{key:'paused',text:'En pause'},
+  level:2,enabled:true,upgrade:{nextLevel:3,canAfford:true},job:null,...states[id]}));
+ const cards=new Map(refineryCards(html).map(card=>[card.id,card]));
+ assert.match(cardButton(cards.get(ids[0]),'data-upgrade-refinery').attributes,/\bdisabled\b/,'maximum-level production cannot be upgraded');
+ assert.doesNotMatch(cardButton(cards.get(ids[0]),'data-toggle-refinery-production').attributes,/\bdisabled\b/,'maximum-level production still has a power switch');
+ assert.doesNotMatch(cardButton(cards.get(ids[1]),'data-upgrade-refinery').attributes,/\bdisabled\b/,'locked recipes still open their actual unlock costs even if unaffordable');
+ const lockedPower=cardButton(cards.get(ids[1]),'data-toggle-refinery-production');
+ assert.match(lockedPower.attributes,/\bdisabled\b/,'locked production cannot be activated from the card');
+ assert.match(lockedPower.attributes,/aria-pressed="false"/,'a locked recipe is visibly OFF even when its saved preference is enabled');
+ assert.equal(lockedPower.body.replace(/<[^>]*>/g,'').trim(),'OFF');
+ assert.doesNotMatch(cardButton(cards.get(ids[2]),'data-upgrade-refinery').attributes,/\bdisabled\b/,'an active job remains accessible');
+ assert.match(cards.get(ids[2]).body,/Amélioration|En cours|En amélioration/,'an active job is visibly distinguished');
+ assert.doesNotMatch(cardButton(cards.get(ids[2]),'data-toggle-refinery-production').attributes,/\bdisabled\b/,'pausing production remains independent from its upgrade job');
+ assert.match(cardButton(cards.get(ids[3]),'data-upgrade-refinery').attributes,/\bdisabled\b/,'missing upgrade data cannot create a new upgrade');
+});
+
 test('selecting an alloy highlights only its actual ingredients; the final core reveals the whole chain',()=>{
  const alloy=refineryAncestors('alliage_cuivre_zinc',refineryRecipes);
  assert.deepEqual([...alloy.nodes].sort(),['alliage_cuivre_zinc','cuivre_orbital','zinc_spatial']);
@@ -164,6 +233,41 @@ test('UI upgrade selection and confirmation submit a command without changing th
  assert.equal(commands.length,1);assert.equal(JSON.stringify(profile),before);
  actions.handleClick(event('#refineryPanel [data-confirm-refinery-module-upgrade]',{confirmRefineryModuleUpgrade:'storage'}));
  assert.deepEqual(commands[1],{type:'module',id:'storage'});assert.equal(JSON.stringify(profile),before);
+});
+
+test('each material card routes its own power and upgrade commands without locally changing station production',()=>{
+ const profile=shipmentProfile();
+ profile.refineryProductionDisabled={zinc_spatial:true};
+ const before=JSON.stringify(profile),toggles=[],upgrades=[];
+ const localStore={state:profile,selectedRefineryMaterial:'noyau_astra',selectedRefineryUpgrade:null};
+ const actions=createRefineryActions({store:localStore,multiplayer:{connected:true,socket:{},auth:{account:{id:'qa'},profileReady:true}},
+  renderRefinery:()=>{},renderAll:()=>{},
+  toggleServerRefineryProduction:id=>{toggles.push(id);return true;},
+  startServerRefineryUpgrade:data=>{upgrades.push(data);return true;}});
+ const event=(selector,dataset)=>({target:{closest:s=>s===selector?{dataset}:null}});
+ for(const {id} of refineryMaterialCatalog){
+  assert.equal(actions.handleClick(event('#refineryPanel [data-toggle-refinery-production]',{toggleRefineryProduction:id})),true);
+  assert.equal(toggles.at(-1),id);
+  assert.equal(localStore.selectedRefineryMaterial,'noyau_astra','power action is independent from material selection');
+  assert.equal(JSON.stringify(profile),before);
+  const sent=upgrades.length;
+  assert.equal(actions.handleClick(event('#refineryPanel [data-upgrade-refinery]',{upgradeRefinery:id})),true);
+  assert.deepEqual(localStore.selectedRefineryUpgrade,{type:'material',id});
+  assert.equal(upgrades.length,sent,'opening the upgrade does not send or pay for an upgrade');
+  assert.equal(actions.handleClick(event('#refineryPanel [data-confirm-refinery-upgrade]',{confirmRefineryUpgrade:id})),true);
+  assert.deepEqual(upgrades.at(-1),{type:'material',id});
+  assert.equal(JSON.stringify(profile),before,'the canonical server profile is not mutated before synchronization');
+ }
+ assert.deepEqual(toggles,refineryMaterialCatalog.map(material=>material.id));
+ assert.deepEqual(upgrades,refineryMaterialCatalog.map(material=>({type:'material',id:material.id})));
+ const offline=createRefineryActions({store:localStore,multiplayer:{connected:false},
+  toggleServerRefineryProduction:id=>{toggles.push(id);return true;},
+  startServerRefineryUpgrade:data=>{upgrades.push(data);return true;},renderRefinery:()=>{},renderAll:()=>{}});
+ offline.handleClick(event('#refineryPanel [data-toggle-refinery-production]',{toggleRefineryProduction:'cuivre_orbital'}));
+ offline.handleClick(event('#refineryPanel [data-confirm-refinery-upgrade]',{confirmRefineryUpgrade:'cuivre_orbital'}));
+ assert.equal(toggles.length,11,'offline UI cannot issue a production command');
+ assert.equal(upgrades.length,11,'offline UI cannot issue an upgrade command');
+ assert.equal(JSON.stringify(profile),before);
 });
 
 test('ship fusion still consumes the exact server recipe and rejects impossible amounts',()=>{
