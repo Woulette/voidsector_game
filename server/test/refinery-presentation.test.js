@@ -158,6 +158,12 @@ test('UI upgrade selection and confirmation submit a command without changing th
  assert.equal(commands.length,0);assert.equal(JSON.stringify(profile),before);
  actions.handleClick(event('#refineryPanel [data-confirm-refinery-upgrade]',{confirmRefineryUpgrade:'cuivre_orbital'}));
  assert.deepEqual(commands,[{type:'material',id:'cuivre_orbital'}]);assert.equal(JSON.stringify(profile),before);assert.ok(rendered>=2);
+ // Infrastructure controls live in the compact header, outside #refineryPanel.
+ assert.equal(actions.handleClick(event('.refinery-panel [data-upgrade-refinery-module]',{upgradeRefineryModule:'storage'})),true);
+ assert.deepEqual(localStore.selectedRefineryUpgrade,{type:'module',id:'storage'});
+ assert.equal(commands.length,1);assert.equal(JSON.stringify(profile),before);
+ actions.handleClick(event('#refineryPanel [data-confirm-refinery-module-upgrade]',{confirmRefineryModuleUpgrade:'storage'}));
+ assert.deepEqual(commands[1],{type:'module',id:'storage'});assert.equal(JSON.stringify(profile),before);
 });
 
 test('ship fusion still consumes the exact server recipe and rejects impossible amounts',()=>{

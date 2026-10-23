@@ -85,7 +85,7 @@ export function createRefineryActions({
       renderRefinery();
       return true;
     }
-    const moduleUpgrade = event.target.closest("#refineryPanel [data-upgrade-refinery-module]");
+    const moduleUpgrade = event.target.closest(".refinery-panel [data-upgrade-refinery-module]");
     if(moduleUpgrade){
       store.selectedRefineryUpgrade = {type:"module", id:moduleUpgrade.dataset.upgradeRefineryModule};
       renderRefinery();
