@@ -1,10 +1,10 @@
 // A fixed illustrated overview, independent of the pilot and the combat camera.
 const HELION_ONE_OVERVIEW = Object.freeze({
-  image:"assets/maps/minimaps/helion-01-wide-v2.png",
+  image:"assets/maps/minimaps/helion-01-wide-v3.png",
   atmosphere:{src:"assets/maps/decor/helion01-v1/nebula-crimson.png", alpha:.20},
   landmarks:{
     planet:{x:.10, y:.90, width:.44},
-    stellar:{x:.40, y:.62, width:.28}
+    stellar:{x:.40, y:.52, width:.28}
   }
 });
 
