@@ -2,7 +2,7 @@
 #gameScreen{
   --hud-slot-width:60px;
   --hud-actions-half:calc(4.5 * var(--hud-slot-width) + 27px);
-  --hud-actions-shift:112px;
+  --hud-actions-shift:30px;
   --hud-actions-bottom:48px;
   --hud-actions-height:72px;
 }
