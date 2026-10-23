@@ -309,6 +309,22 @@
   z-index:4;
 }
 .commerce-dialog-layer[hidden]{display:none}
+.quest-abandon-action{display:grid;gap:5px;justify-items:start;margin-top:12px}
+.quest-abandon-action small{color:#aebbc8;font-size:11px;line-height:1.4}
+.quest-abandon-button{padding:7px 10px;border:1px solid #755963;background:#201b27;color:#e5bfc3;font:600 12px/1.2 var(--font);cursor:pointer}
+.quest-abandon-button:disabled{opacity:.55;cursor:default}
+.quest-abandon-button:not(:disabled):hover{border-color:#c78b94;background:#352331}
+.quest-abandon-dialog{box-sizing:border-box;width:min(430px,calc(100vw - 32px));max-height:calc(100vh - 32px);margin:auto;padding:24px;border:1px solid #735866;border-radius:8px;background:#0b1927;color:#cedbe5;font:14px/1.5 var(--font);box-shadow:0 18px 60px #0008}
+.quest-abandon-dialog::backdrop{background:#02070dc4}
+.quest-abandon-dialog h2{margin:0 0 12px;font-size:23px;color:#f3f7fb}
+.quest-abandon-dialog>strong{display:block;color:#aedfff;font-size:17px}
+.quest-abandon-dialog p{margin:12px 0}
+.quest-abandon-dialog .quest-abandon-status{color:#f4c49a;font-size:13px}
+.quest-abandon-dialog-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+.quest-abandon-dialog-actions button{flex:1;min-width:140px;padding:10px;border:1px solid #538398;border-radius:4px;background:#153647;color:#dbf2ff;font:600 14px/1.3 var(--font);cursor:pointer}
+.quest-abandon-dialog-actions [data-confirm-quest-abandon]{border-color:#a16b79;background:#38222d;color:#ffd5dc}
+.quest-abandon-dialog-actions button:disabled{opacity:.55;cursor:wait}
+.quest-abandon-dialog button:focus-visible,.quest-abandon-button:focus-visible{outline:2px solid #b6e6ff;outline-offset:3px}
 .commerce-sale-dialog{
   width:min(420px,90vw);
   display:grid;
@@ -466,12 +482,18 @@
   cursor:pointer;
 }
 .craft-recipe-strip:hover,.craft-recipe-strip.selected{border-color:rgba(250,204,21,.58);background:linear-gradient(100deg,rgba(72,48,8,.36),rgba(2,10,19,.94))}
-.craft-recipe-strip.locked{opacity:.7}
-.craft-recipe-strip img{width:40px;height:40px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(125,211,252,.24))}
+.craft-recipe-strip.locked{border-color:rgba(148,163,184,.16);background:linear-gradient(100deg,rgba(8,25,42,.62),rgba(2,10,19,.94))}
+.craft-art-hd{
+  image-rendering:auto;
+  object-fit:contain;
+  object-position:center;
+  filter:brightness(1.08) contrast(1.14) saturate(1.1) drop-shadow(0 0 8px color-mix(in srgb,var(--rarity-color,#38bdf8) 32%,transparent));
+}
+.craft-recipe-strip img{width:40px;height:40px}
 .craft-recipe-strip span{min-width:0;display:grid;gap:3px}
 .craft-recipe-strip strong{min-width:0;color:#f8fafc;font-size:11px;line-height:1.12;text-transform:uppercase;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:break-word}
-.craft-recipe-strip small{color:#8fb9d6;font-size:9px;text-transform:uppercase}
-.craft-recipe-strip>b{justify-self:end;color:#7dd3fc;font-size:7.5px;line-height:1.1;letter-spacing:.25px;text-align:right;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.craft-recipe-strip small{color:var(--rarity-color,#8fb9d6);font-size:9px;font-weight:900;text-transform:uppercase;text-shadow:0 0 8px color-mix(in srgb,var(--rarity-color,#8fb9d6) 42%,transparent)}
+.craft-recipe-strip>b{justify-self:end;color:#7dd3fc;font:900 9px/1 Rajdhani,Arial,sans-serif;letter-spacing:0;text-align:right;text-transform:uppercase;text-shadow:none;text-rendering:geometricPrecision;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .craft-detail{
   display:grid;
   grid-template-rows:auto minmax(0,1fr);
@@ -480,6 +502,7 @@
   padding:12px;
   overflow:visible;
 }
+.craft-detail.has-job{grid-template-rows:auto auto auto;align-content:start;overflow:auto}
 .craft-active-job{
   display:grid;
   gap:8px;
@@ -494,7 +517,7 @@
   align-items:center;
   gap:10px;
 }
-.craft-active-head img{width:44px;height:44px;object-fit:contain}
+.craft-active-head img{width:44px;height:44px}
 .craft-active-head div{min-width:0;display:grid;gap:2px}
 .craft-active-head span,.craft-detail-head span,.craft-detail-head small,.craft-time span{color:#8ee7ff;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.65px}
 .craft-active-head strong,.craft-detail-head strong{min-width:0;color:#f8fafc;font-size:17px;line-height:1.08;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -511,30 +534,24 @@
   border:1px solid rgba(56,189,248,.16);
   background:linear-gradient(90deg,rgba(8,36,58,.54),rgba(2,10,19,.72));
 }
-.craft-detail-head img{width:80px;height:80px;object-fit:contain;filter:drop-shadow(0 0 15px rgba(125,211,252,.22))}
+.craft-detail-head img{width:80px;height:80px;filter:brightness(1.08) contrast(1.14) saturate(1.1) drop-shadow(0 0 15px color-mix(in srgb,var(--rarity-color,#38bdf8) 34%,transparent))}
 .craft-detail-head div{min-width:0;display:grid;gap:5px}
 .craft-detail-title strong{display:block}
 .craft-detail-rarity{
-  --craft-rarity-rgb:148,163,184;
   justify-self:end;
   align-self:start;
   min-width:78px;
   padding:5px 9px;
-  border:1px solid rgba(var(--craft-rarity-rgb),.58);
-  background:rgba(var(--craft-rarity-rgb),.13);
-  color:rgb(var(--craft-rarity-rgb))!important;
+  border:1px solid color-mix(in srgb,var(--rarity-color,#94a3b8) 58%,transparent);
+  background:color-mix(in srgb,var(--rarity-color,#94a3b8) 13%,transparent);
+  color:var(--rarity-color,#94a3b8)!important;
   font-size:9px!important;
   font-weight:900;
   letter-spacing:.65px;
   text-align:center;
   text-transform:uppercase;
-  box-shadow:inset 0 0 12px rgba(var(--craft-rarity-rgb),.06),0 0 14px rgba(var(--craft-rarity-rgb),.10);
+  box-shadow:inset 0 0 12px color-mix(in srgb,var(--rarity-color,#94a3b8) 6%,transparent),0 0 14px color-mix(in srgb,var(--rarity-color,#94a3b8) 10%,transparent);
 }
-.craft-detail-rarity.rarity-common{--craft-rarity-rgb:148,163,184}
-.craft-detail-rarity.rarity-rare{--craft-rarity-rgb:56,189,248}
-.craft-detail-rarity.rarity-veryRare{--craft-rarity-rgb:168,85,247}
-.craft-detail-rarity.rarity-elite{--craft-rarity-rgb:250,204,21}
-.craft-detail-rarity.rarity-mythic{--craft-rarity-rgb:244,63,94}
 .craft-detail-grid{
   min-height:0;
   display:grid;
@@ -585,9 +602,9 @@
 }
 .craft-material-cost.rarity-common{--craft-rarity-rgb:148,163,184}
 .craft-material-cost.rarity-rare{--craft-rarity-rgb:56,189,248}
-.craft-material-cost.rarity-veryRare{--craft-rarity-rgb:168,85,247}
-.craft-material-cost.rarity-elite{--craft-rarity-rgb:250,204,21}
-.craft-material-cost.rarity-mythic{--craft-rarity-rgb:244,63,94}
+.craft-material-cost.rarity-veryRare{--craft-rarity-rgb:167,139,250}
+.craft-material-cost.rarity-elite{--craft-rarity-rgb:251,146,60}
+.craft-material-cost.rarity-mythic{--craft-rarity-rgb:250,204,21}
 .craft-material-cost:hover,.craft-material-cost:focus-within{z-index:12;border-color:rgba(var(--craft-rarity-rgb),.9);background:linear-gradient(90deg,rgba(var(--craft-rarity-rgb),.14),rgba(255,255,255,.025))}
 .craft-material-cost.missing{background:linear-gradient(90deg,rgba(var(--craft-rarity-rgb),.10),rgba(127,29,29,.20))}
 .craft-material-cost > img{grid-area:icon;width:34px;height:34px;object-fit:contain}
@@ -627,7 +644,8 @@
   left:48px;
   right:10px;
   top:50%;
-  transform:translateY(-50%);
+  margin-top:var(--craft-tooltip-offset,-130px);
+  transform:none;
   display:none;
   gap:8px;
   padding:10px;
@@ -683,9 +701,13 @@
   border:1px solid rgba(var(--craft-rarity-rgb),.40);
   background:rgba(var(--craft-rarity-rgb),.10);
   color:rgb(var(--craft-rarity-rgb));
-  font-size:10px;
+  font:900 12px/1 Arial,sans-serif;
+  letter-spacing:0;
   text-align:center;
+  text-rendering:geometricPrecision;
+  text-shadow:none;
   white-space:nowrap;
+  font-variant-numeric:tabular-nums;
 }
 .craft-drop-line.high > b{border-color:rgba(34,197,94,.50);background:rgba(34,197,94,.12);color:#86efac}
 .craft-drop-line.low > b{border-color:rgba(56,189,248,.48);background:rgba(56,189,248,.11);color:#7dd3fc}
@@ -696,6 +718,28 @@
 .craft-material-tooltip-desc{color:#a8c7d9;font-size:10px;line-height:1.35}
 .craft-empty-cost{color:#8fb9d6;font-size:11px;text-transform:uppercase}
 .craft-currency-row{display:grid;grid-template-columns:1fr;gap:8px}
+.craft-payment-choice{display:grid;grid-template-columns:1fr;gap:6px}
+.craft-payment-option{
+  min-width:0;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  padding:0;
+  border:1px solid rgba(56,189,248,.20);
+  background:rgba(255,255,255,.025);
+  color:#dff6ff;
+  text-align:left;
+  cursor:pointer;
+}
+.craft-payment-option:hover,.craft-payment-option:focus-visible{border-color:rgba(125,211,252,.72);outline:none;box-shadow:0 0 14px rgba(56,189,248,.14)}
+.craft-payment-option.active{border-color:#38bdf8;background:linear-gradient(90deg,rgba(14,116,144,.24),rgba(2,10,19,.92));box-shadow:inset 3px 0 0 #38bdf8,0 0 14px rgba(56,189,248,.16)}
+.craft-payment-option.unavailable{border-color:rgba(248,113,113,.34)}
+.craft-payment-option .craft-currency{border:0;background:transparent;pointer-events:none}
+.craft-payment-option>small{padding-right:10px;color:#8fb9d6;font:900 9px/1 Arial,sans-serif;letter-spacing:.35px;text-transform:uppercase;white-space:nowrap}
+.craft-payment-option.active>small{color:#86efac}
+.craft-payment-option.unavailable:not(.active)>small{color:#fca5a5}
+.craft-payment-or{display:grid;place-items:center;height:16px;color:#7dd3fc;font:900 10px/1 Arial,sans-serif;letter-spacing:.8px}
 .craft-currency{
   min-width:0;
   min-height:48px;

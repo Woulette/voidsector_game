@@ -1,8 +1,9 @@
-import { createProjectile } from "./projectiles.js?v=action-slots-save-1-fps-burst-1";
-
 export function createWeaponSystem(deps){
   let rocketSide = -1;
-  let missileSalvoSeq = 1;
+  let shotSequence = 1;
+  const pendingWeaponClasses = new Set();
+  const pendingShotsById = new Map();
+  const rejectedUntilByWeaponClass = new Map();
 
   function isServerTarget(enemy){
     return Boolean(enemy?.isPlayerTarget || deps.isServerControlledEnemy?.(enemy));
@@ -27,25 +28,141 @@ export function createWeaponSystem(deps){
     };
   }
 
-  function shootAt(enemy, ammo, slotIndex){
+  function nextShotId(weaponClass){
+    const playerId = String(deps.getPlayerId?.() || "player")
+      .replace(/[^a-zA-Z0-9_-]/g, "")
+      .slice(0, 40) || "player";
+    return `${playerId}:${weaponClass}:${Date.now().toString(36)}:${(shotSequence++).toString(36)}`;
+  }
+
+  function rejectResponse(reasonCode, reason){
+    return {accepted:false, outcome:"rejected", reasonCode, reason};
+  }
+
+  function acceptedCooldownSeconds(response, fallbackSeconds){
+    const fallbackMs = Math.max(1, Number(fallbackSeconds || 0) * 1000);
+    const authoritativeMs = Math.max(0, Number(response?.cooldownMs || 0));
+    const elapsedMs = Math.max(0, Number(response?.requestElapsedMs || 0));
+    return Math.max(.001, (authoritativeMs > 0 ? authoritativeMs - elapsedMs : fallbackMs) / 1000);
+  }
+
+  function requestAuthoritativeShot(enemy, context, callbacks = {}){
+    const weaponClass = String(context.weaponClass || "laser");
+    if(pendingWeaponClasses.has(weaponClass)) return false;
+    if(Date.now() < Number(rejectedUntilByWeaponClass.get(weaponClass) || 0)) return false;
+    const send = enemy?.isPlayerTarget ? deps.sendServerPlayerHit : deps.sendServerEnemyHit;
+    const targetId = enemy?.isPlayerTarget
+      ? String(enemy.playerId || "")
+      : String(deps.getNetworkTargetId?.(enemy) || enemy?.serverId || enemy?.id || "");
+    if(typeof send !== "function" || !targetId){
+      callbacks.onRejected?.(rejectResponse("target-missing", "Cible serveur introuvable."));
+      return false;
+    }
+
+    pendingWeaponClasses.add(weaponClass);
+    const shotId = String(context.shotId || "");
+    const requestedAt = Date.now();
+    let callbackRan = false;
+    const acknowledge = response=>{
+      if(callbackRan) return;
+      callbackRan = true;
+      pendingWeaponClasses.delete(weaponClass);
+      if(shotId) pendingShotsById.delete(shotId);
+      if(response?.accepted === true){
+        rejectedUntilByWeaponClass.delete(weaponClass);
+        deps.markCombatActivity?.("outgoing");
+        if(enemy) enemy.aggro = true;
+        callbacks.onAccepted?.({
+          ...response,
+          requestElapsedMs:Math.max(0, Date.now() - requestedAt)
+        });
+        return;
+      }
+      const retryAfterMs = Math.max(0, Math.min(5000, Number(response?.retryAfterMs || 0)));
+      rejectedUntilByWeaponClass.set(weaponClass, Date.now() + Math.max(150, retryAfterMs));
+      callbacks.onRejected?.(response || rejectResponse("invalid-ack", "Tir non confirme."));
+    };
+    if(shotId) pendingShotsById.set(shotId, acknowledge);
+    const sent = send(targetId, context, acknowledge);
+    if(sent !== true){
+      pendingWeaponClasses.delete(weaponClass);
+      if(!callbackRan) acknowledge(rejectResponse("not-sent", "Tir non envoye."));
+      return false;
+    }
+    return true;
+  }
+
+  function confirmAuthoritativeShot(event = {}){
+    if(event?.accepted !== true) return false;
+    const shotId = String(event?.shotId || "");
+    const acknowledge = pendingShotsById.get(shotId);
+    if(!acknowledge) return false;
+    acknowledge({
+      accepted:true,
+      shotId,
+      ammoRemaining:event.ammoRemaining,
+      consumed:event.consumed,
+      cooldownReadyAt:event.cooldownReadyAt,
+      cooldownMs:event.cooldownMs
+    });
+    return true;
+  }
+
+  function rejectAuthoritativeShot(event = {}){
+    if(event?.accepted === true) return false;
+    const shotId = String(event?.shotId || "");
+    const acknowledge = pendingShotsById.get(shotId);
+    if(!acknowledge) return false;
+    acknowledge({
+      accepted:false,
+      outcome:"rejected",
+      shotId,
+      reasonCode:event.reasonCode || "COMBAT_REJECTED",
+      reason:event.reason || "Tir refuse par le serveur.",
+      retryAfterMs:event.retryAfterMs
+    });
+    return true;
+  }
+
+  function baseShotContext({enemy, ammo, weaponClass, count, travelTime, starts, targetId, blueLaser = false}){
+    const first = starts[0] || {};
+    return {
+      shotId:nextShotId(weaponClass),
+      weaponClass,
+      ammoId:ammo.id,
+      count,
+      travelTimeMs:Math.round(Math.max(0, Number(travelTime || 0)) * 1000),
+      starts,
+      fromX:Number(first.x || 0),
+      fromY:Number(first.y || 0),
+      toX:Number(enemy.x || 0),
+      toY:Number(enemy.y || 0),
+      clientAimX:Number(enemy.x || 0),
+      clientAimY:Number(enemy.y || 0),
+      targetRadius:Number(enemy.radius || 0),
+      targetId,
+      blueLaser
+    };
+  }
+
+  function shootAt(enemy, ammo, slotIndex, callbacks = {}){
     if(!enemy || !ammo) return false;
     if(enemy.isPlayerTarget && enemy.canAttack === false){
       deps.showToast(enemy.attackBlockedReason || "Cible joueur non attaquable.");
       return false;
     }
-    const serverPlayerTarget = isServerTarget(enemy);
-    if(!serverPlayerTarget){
+    if(enemy.damageImmune) return false;
+    if(!isServerTarget(enemy)){
       deps.showToast("Cible serveur indisponible.");
       return false;
     }
+
     const player = deps.getPlayer();
     const dx = enemy.x - player.x;
     const dy = enemy.y - player.y;
-    const dist = Math.hypot(dx,dy) || 1;
-    const a = Math.atan2(dy, dx);
-    const bullets = deps.getBullets();
-    const particles = deps.getParticles();
-    const networkTargetId = deps.getNetworkTargetId?.(enemy) || enemy.id;
+    const dist = Math.hypot(dx, dy) || 1;
+    const angle = Math.atan2(dy, dx);
+    const targetId = deps.getNetworkTargetId?.(enemy) || enemy.id;
 
     if(ammo.weaponClass === "rocket"){
       const launcher = deps.getEquippedLauncher?.("rocket");
@@ -60,45 +177,36 @@ export function createWeaponSystem(deps){
         deps.refreshQuickPanel();
         return false;
       }
-      deps.markCombatActivity("outgoing");
-      enemy.aggro = true;
       rocketSide *= -1;
-      const forwardX = Math.cos(a);
-      const forwardY = Math.sin(a);
+      const forwardX = Math.cos(angle);
+      const forwardY = Math.sin(angle);
       const sideX = -forwardY;
       const sideY = forwardX;
       const startX = player.x + forwardX * 42 + sideX * rocketSide * 28;
       const startY = player.y + forwardY * 42 + sideY * rocketSide * 28;
-      bullets.push(createProjectile({
-        owner:"player",
-        startX,
-        startY,
-        kind:"rocket",
-        sprite:ammo.projectileImg || ammo.img || "assets/equipment/rocket_projectile.png",
-        curveSide:rocketSide,
-        curveStrength:42,
-        damage:1,
-        travelTime:Math.max(.22, Math.min(1.55, dist/(ammo.speed || 620) + .14)),
-        radius:10,
-        color:ammo.color,
-        particle:ammo.particle,
-        slotIndex,
-        targetId:enemy.id,
-        ammoId:ammo.id,
-        serverFireCount:1,
-        hitChance:deps.playerHitChance
-      }));
-      deps.sendPlayerWeaponEffect?.({
-        kind:"rocket",
-        ammoId:ammo.id,
-        targetId:networkTargetId,
-        starts:[{x:startX, y:startY, curveSide:rocketSide, curveStrength:42}],
-        toX:enemy.x,
-        toY:enemy.y,
-        travelTime:Math.max(.22, Math.min(1.55, dist/(ammo.speed || 620) + .14))
-      });
-      particles.push({kind:"muzzle",x:startX,y:startY,life:.24,max:.24,size:26,color:ammo.particle});
-      return true;
+      const travelTime = Math.max(.22, Math.min(1.55, dist / (ammo.speed || 620) + .14));
+      return requestAuthoritativeShot(
+        enemy,
+        baseShotContext({
+          enemy,
+          ammo,
+          weaponClass:"rocket",
+          count:1,
+          travelTime,
+          starts:[{x:startX, y:startY, curveSide:rocketSide, curveStrength:42}],
+          targetId
+        }),
+        {
+          onAccepted:response=>{
+            deps.setAmmoCooldown?.(
+              ammo,
+              acceptedCooldownSeconds(response, deps.getEffectiveAmmoCooldown?.(ammo))
+            );
+            callbacks.onAccepted?.(response);
+          },
+          onRejected:callbacks.onRejected
+        }
+      );
     }
 
     const volley = getLaserVolley();
@@ -111,49 +219,47 @@ export function createWeaponSystem(deps){
       deps.refreshQuickPanel();
       return false;
     }
-    deps.markCombatActivity("outgoing");
-    enemy.aggro = true;
-    const damage = 1;
-    const startX = player.x + Math.cos(a)*45;
-    const startY = player.y + Math.sin(a)*45;
-    deps.addLaserBeam?.({
-      ammoId:ammo.id,
-      fromX:startX,
-      fromY:startY,
-      toX:enemy.x,
-      toY:enemy.y,
-      targetId:enemy.id,
-      blueLaser:Boolean(player.blueLaserBeams && ammo.id !== "ammo_x4")
-    });
-    deps.sendPlayerWeaponEffect?.({
-      kind:"laser",
-      ammoId:ammo.id,
-      targetId:networkTargetId,
-      starts:[{x:startX, y:startY}],
-      fromX:startX,
-      fromY:startY,
-      toX:enemy.x,
-      toY:enemy.y,
-      blueLaser:Boolean(player.blueLaserBeams && ammo.id !== "ammo_x4"),
-      life:.20
-    });
-    deps.resolveLaserHit?.(enemy, damage, deps.playerHitChance, ammo);
-    particles.push({kind:"muzzle",x:startX,y:startY,life:.16,max:.16,size:14,color:player.blueLaserBeams && ammo.id !== "ammo_x4" ? "rgba(56,189,248,.65)" : ammo.id === "ammo_x4" ? "rgba(255,132,24,.65)" : "rgba(255,218,72,.62)"});
-    return true;
+    const startX = player.x + Math.cos(angle) * 45;
+    const startY = player.y + Math.sin(angle) * 45;
+    return requestAuthoritativeShot(
+      enemy,
+      baseShotContext({
+        enemy,
+        ammo,
+        weaponClass:"laser",
+        count:1,
+        travelTime:0,
+        starts:[{x:startX, y:startY}],
+        targetId,
+        blueLaser:Boolean(player.blueLaserBeams && ammo.id !== "ammo_x4")
+      }),
+      {
+        onAccepted:response=>{
+          deps.setAmmoCooldown?.(
+            ammo,
+            acceptedCooldownSeconds(response, deps.getEffectiveAmmoCooldown?.(ammo))
+          );
+          callbacks.onAccepted?.(response);
+        },
+        onRejected:callbacks.onRejected
+      }
+    );
   }
 
   function fireManualRocket(index, ammo){
     const enemy = deps.getSelectedEnemy();
     if(!enemy) return deps.showToast("Sélectionne une cible avant de lancer une roquette.");
-    if(deps.getAmmoCooldown(ammo) > 0) return;
-    const fired = shootAt(enemy, ammo, index);
-    if(fired) deps.setAmmoCooldown(ammo, deps.getEffectiveAmmoCooldown(ammo));
+    if(deps.getAmmoCooldown(ammo) > 0) return false;
+    return shootAt(enemy, ammo, index);
   }
 
-  function fireManualMissile(ammo, count = 3){
+  function fireManualMissile(ammo, count = 3, callbacks = {}){
     const enemy = deps.getSelectedEnemy();
     if(!enemy) return deps.showToast("Selectionne une cible avant de lancer les missiles.");
-    if(enemy.isPlayerTarget && enemy.canAttack === false) return deps.showToast(enemy.attackBlockedReason || "Cible joueur non attaquable.");
+    if(enemy.isPlayerTarget && enemy.canAttack === false){
+      return deps.showToast(enemy.attackBlockedReason || "Cible joueur non attaquable.");
+    }
+    if(enemy.damageImmune) return false;
     if(!isServerTarget(enemy)){
       deps.showToast("Cible serveur indisponible.");
       return false;
@@ -173,58 +279,38 @@ export function createWeaponSystem(deps){
       deps.refreshQuickPanel();
       return false;
     }
-    deps.markCombatActivity("outgoing");
-    enemy.aggro = true;
-    const a = Math.atan2(dy, dx);
-    const forwardX = Math.cos(a);
-    const forwardY = Math.sin(a);
+
+    const angle = Math.atan2(dy, dx);
+    const forwardX = Math.cos(angle);
+    const forwardY = Math.sin(angle);
     const sideX = -forwardY;
     const sideY = forwardX;
-    const bullets = deps.getBullets();
-    const particles = deps.getParticles();
-    const networkTargetId = deps.getNetworkTargetId?.(enemy) || enemy.id;
+    const targetId = deps.getNetworkTargetId?.(enemy) || enemy.id;
     const travelTime = Math.max(.28, Math.min(1.65, dist / (ammo.speed || 520) + .18));
-    const salvoId = `missile-${missileSalvoSeq++}`;
     const starts = [];
-    for(let i = 0; i < needed; i++){
-      const spread = (i - (needed - 1) / 2) * 30;
-      const curveSide = i % 2 === 0 ? 1 : -1;
-      const startX = player.x + forwardX * 44 + sideX * spread;
-      const startY = player.y + forwardY * 44 + sideY * spread;
-      starts.push({x:startX, y:startY, curveSide, curveStrength:46 + i * 8});
-      bullets.push(createProjectile({
-        owner:"player",
-        startX,
-        startY,
-        kind:"missile",
-        sprite:ammo.projectileImg || ammo.img || null,
+    for(let index = 0; index < needed; index += 1){
+      const spread = (index - (needed - 1) / 2) * 30;
+      const curveSide = index % 2 === 0 ? 1 : -1;
+      starts.push({
+        x:player.x + forwardX * 44 + sideX * spread,
+        y:player.y + forwardY * 44 + sideY * spread,
         curveSide,
-        curveStrength:46 + i * 8,
-        damage:1,
-        visualOnly:false,
-        salvoId,
-        salvoSize:needed,
-        travelTime,
-        radius:7,
-        color:ammo.color,
-        particle:ammo.particle,
-        targetId:enemy.id,
-        ammoId:ammo.id,
-        serverFireCount:needed,
-        hitChance:deps.playerHitChance
-      }));
-      particles.push({kind:"muzzle",x:startX, y:startY, life:.24, max:.24, size:22, color:ammo.particle});
+        curveStrength:46 + index * 8
+      });
     }
-    deps.sendPlayerWeaponEffect?.({
-      kind:"missile",
-      ammoId:ammo.id,
-      targetId:networkTargetId,
-      starts,
-      toX:enemy.x,
-      toY:enemy.y,
-      travelTime
-    });
-    return true;
+    return requestAuthoritativeShot(
+      enemy,
+      baseShotContext({
+        enemy,
+        ammo,
+        weaponClass:"missile",
+        count:needed,
+        travelTime,
+        starts,
+        targetId
+      }),
+      callbacks
+    );
   }
 
   function fireAutomaticRocket(enemy){
@@ -241,9 +327,7 @@ export function createWeaponSystem(deps){
       return ammo && ammo.weaponClass === "rocket" && deps.getAmmoCount(ammo.id) > 0 && deps.getAmmoCooldown(ammo) <= 0;
     });
     if(index < 0) return;
-    const ammo = deps.getCombatAmmo(index);
-    const fired = shootAt(enemy, ammo, index);
-    if(fired) deps.setAmmoCooldown(ammo, deps.getEffectiveAmmoCooldown(ammo));
+    shootAt(enemy, deps.getCombatAmmo(index), index);
   }
 
   function updateWeapons(dt){
@@ -260,11 +344,18 @@ export function createWeaponSystem(deps){
     const ammo = deps.getCombatAmmo(activeLaserSlot);
     if(!ammo || ammo.weaponClass === "rocket") return;
     if(getLaserVolley().count <= 0) return;
-    if(deps.getAmmoCooldown(ammo) <= 0){
-      const fired = shootAt(enemy, ammo, activeLaserSlot);
-      if(fired) deps.setAmmoCooldown(ammo, deps.getEffectiveAmmoCooldown(ammo));
-    }
+    if(deps.getAmmoCooldown(ammo) <= 0) shootAt(enemy, ammo, activeLaserSlot);
   }
 
-  return {getLaserVolley, shootAt, fireManualRocket, fireManualMissile, fireAutomaticRocket, updateWeapons};
+  return {
+    getLaserVolley,
+    shootAt,
+    fireManualRocket,
+    fireManualMissile,
+    fireAutomaticRocket,
+    updateWeapons,
+    confirmAuthoritativeShot,
+    rejectAuthoritativeShot,
+    hasPendingShot:weaponClass=>pendingWeaponClasses.has(String(weaponClass || ""))
+  };
 }

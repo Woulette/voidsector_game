@@ -2,6 +2,7 @@ import { publicAccount } from "./accounts.js";
 import { config } from "../config.js";
 import { isLoadTestAccount } from "../loadtest/provisionBot.js";
 import { assertGameCapacity, publicGameCapacity } from "../players/playerCapacity.js";
+import { publicPreparedPortal } from "../portals/portalPreparation.js";
 
 export function createSocketSessionManager({io, players, profileManager, cleanName, emitPlayers, replaceGroupMemberId, resumeQuestTimers, setPlayerMap, syncPlayerLifecycle, syncPlayerStatusEffects, maxConcurrentGamePlayers = 0}){
   function publicAuthPayload({account, session = null}){
@@ -59,6 +60,7 @@ export function createSocketSessionManager({io, players, profileManager, cleanNa
         assertGameCapacity({
           players,
           accountId:account.id,
+          account,
           socketId:socket.id,
           maxConcurrentGamePlayers
         });
@@ -80,6 +82,10 @@ export function createSocketSessionManager({io, players, profileManager, cleanNa
         account,
         name:cleanName(account.username || existing.name),
         sessionExpiresAt:session?.expiresAt || existing.sessionExpiresAt || null,
+        // Client source metadata belongs to the replaced Socket.IO stream.
+        lastClientStateSourceSeq:0,
+        lastClientStateRawAt:undefined,
+        lastClientStateNormalizedAt:undefined,
         connected:true,
         disconnecting:false,
         logoutPending:null,
@@ -114,12 +120,24 @@ export function createSocketSessionManager({io, players, profileManager, cleanNa
       emitPlayers();
     }
     const player = players.get(socket.id);
+    const persistedProfile = profileManager.getProfileForPlayer?.(player) || null;
+    if(player){
+      player.firmId = persistedProfile?.player?.firmId || player.account?.firmId || "astra";
+      if(persistedProfile) player.preparedPortal = persistedProfile.preparedPortal || null;
+    }
     if(isGameClient && !resumeSession){
       resumeSession = buildResumeSessionFromState(profileManager.getWorldSessionForPlayer(player), "profile");
     }
     if(resumeSession){
       setPlayerMap(socket, resumeSession.mapId);
       socket.emit("player:resume", resumeSession);
+    }
+    if(isGameClient){
+      socket.emit("portal:prepared", {
+        preparedPortal:publicPreparedPortal(player?.preparedPortal || null),
+        synced:true,
+        at:Date.now()
+      });
     }
     if(isGameClient) resumeQuestTimers?.(player);
     if(isGameClient) syncPlayerStatusEffects?.(player);

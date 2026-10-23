@@ -1,4 +1,4 @@
-import { getRefineryMaterial, store } from "./store.js";
+import { getRefineryMaterial, store } from "./store.js?v=20260726-kharon1";
 import { REFINERY_MODULES } from "./refineryRules.js";
 
 export function getDefaultRefineryLevel(id){

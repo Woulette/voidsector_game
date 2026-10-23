@@ -2,6 +2,9 @@
 
 import { betaPacks, premiumShopPacks } from "../../../src/data/premium.js";
 import { S1_BOOSTER_SHOP } from "../../../src/shared/firmBoosters.js";
+import { getRequiredPortalForShip } from "../../../src/shared/progressionUnlocks.js";
+import { normalizeServerActionRepeat } from "./actionBatch.js";
+import { MAX_STANDARD_DRONES, MAX_TOTAL_DRONES } from "../../../src/shared/droneLimits.js";
 
 export const SERVER_AMMO_SHOP = {
   ammo_x1:{id:"ammo_x1", name:"Munition M-1", priceType:"credits", price:10000, amount:1000},
@@ -35,19 +38,24 @@ export const SERVER_ITEM_SHOP = {
   teleportation_fluid:{id:"teleportation_fluid", name:"Fluide de Teleportation", priceType:"premium", price:100}
 };
 
-export const SERVER_SHIP_SHOP = Object.fromEntries(ships.map(ship=>[
-  ship.id,
-  {
-    id:ship.id,
-    name:ship.name,
-    priceType:ship.priceType || "credits",
-    price:Number(ship.price || 0),
-    requiresCompletedPortal:ship.requiresCompletedPortal || ship.requiresPortalCompletion || (ship.skillShip ? "violet" : null)
-  }
-]));
+export const SERVER_SHIP_SHOP = Object.fromEntries(ships.map(ship=>{
+  const requirement = getRequiredPortalForShip(ship);
+  return [
+    ship.id,
+    {
+      id:ship.id,
+      name:ship.name,
+      priceType:ship.priceType || "credits",
+      price:Number(ship.price || 0),
+      allowedRoles:Array.isArray(ship.allowedRoles) ? ship.allowedRoles.map(String) : [],
+      requiresCompletedPortal:requirement?.portalId || null,
+      requiresCompletedPortalName:requirement?.portalName || ""
+    }
+  ];
+}));
 
 export const SERVER_DRONE_SHOP = {
-  combat_drone:{id:"combat_drone", name:"Drone de Combat", priceType:"credits", basePrice:200000, maxOwned:10}
+  combat_drone:{id:"combat_drone", name:"Drone de Combat", priceType:"credits", basePrice:200000, maxOwned:MAX_TOTAL_DRONES, maxStandardOwned:MAX_STANDARD_DRONES}
 };
 
 export const SERVER_DRONE_FORMATION_SHOP = {
@@ -132,39 +140,50 @@ export function normalizeBoosterQuantity(value){
   return [1, 10, 50, 100].includes(count) ? count : 1;
 }
 
-export function getAmmoPurchase(id, multiplier = 1){
+export function getAmmoPurchase(id, multiplier = 1, repeat = 1){
   const ammo = SERVER_AMMO_SHOP[String(id || "")];
   if(!ammo) return null;
   const count = normalizeShopMultiplier(multiplier);
+  const actionRepeat = normalizeServerActionRepeat(repeat);
+  if(!actionRepeat) return null;
   return {
     ...ammo,
     multiplier:count,
-    totalPrice:Math.max(0, Math.round(Number(ammo.price || 0) * count)),
-    totalAmount:Math.max(0, Math.round(Number(ammo.amount || 0) * count))
+    repeat:actionRepeat,
+    totalPrice:Math.max(0, Math.round(Number(ammo.price || 0) * count * actionRepeat)),
+    totalAmount:Math.max(0, Math.round(Number(ammo.amount || 0) * count * actionRepeat))
   };
 }
 
-export function getItemPurchase(id, multiplier = 1){
+export function getItemPurchase(id, multiplier = 1, repeat = 1){
   const item = SERVER_ITEM_SHOP[String(id || "")];
   if(!item) return null;
   const count = item.id === "teleportation_fluid" ? normalizeShopMultiplier(multiplier) : 1;
+  const actionRepeat = normalizeServerActionRepeat(repeat);
+  if(!actionRepeat) return null;
+  const quantity = count * actionRepeat;
   return {
     ...item,
     multiplier:count,
-    quantity:count,
-    totalPrice:Math.max(0, Math.round(Number(item.price || 0) * count))
+    repeat:actionRepeat,
+    quantity,
+    totalPrice:Math.max(0, Math.round(Number(item.price || 0) * quantity))
   };
 }
 
-export function getBoosterPurchase(id, quantity = 1){
+export function getBoosterPurchase(id, quantity = 1, repeat = 1){
   const booster = SERVER_BOOSTER_SHOP[String(id || "")];
   if(!booster) return null;
   const count = normalizeBoosterQuantity(quantity);
+  const actionRepeat = normalizeServerActionRepeat(repeat);
+  if(!actionRepeat) return null;
+  const totalQuantity = count * actionRepeat;
   return {
     ...booster,
-    quantity:count,
-    totalPrice:Math.max(0, Math.round(Number(booster.price || 0) * count)),
-    totalDurationMs:Math.max(0, Number(booster.durationMs || 0) * count)
+    quantity:totalQuantity,
+    repeat:actionRepeat,
+    totalPrice:Math.max(0, Math.round(Number(booster.price || 0) * totalQuantity)),
+    totalDurationMs:Math.max(0, Number(booster.durationMs || 0) * totalQuantity)
   };
 }
 
@@ -177,11 +196,12 @@ export function getShipPurchase(id){
   };
 }
 
-export function getDronePurchase({id = "combat_drone", ownedCount = 0} = {}){
-  const drone = SERVER_DRONE_SHOP[String(id || "combat_drone")];
+export function getDronePurchase({id = "combat_drone", profile} = {}){
+  const drone = typeof id === "string" && Object.hasOwn(SERVER_DRONE_SHOP, id) ? SERVER_DRONE_SHOP[id] : null;
   if(!drone) return null;
-  const count = Math.max(0, Math.floor(Number(ownedCount || 0)));
-  if(count >= Number(drone.maxOwned || 0)) return {...drone, locked:true, reason:"Nombre maximum de drones atteint."};
+  const count = Number(profile?.ownedDroneCount);
+  if(!profile || !Number.isSafeInteger(count) || count < 0) return {...drone, locked:true, reason:"Possession des drones invalide."};
+  if(count >= drone.maxStandardOwned) return {...drone, locked:true, reason:`Limite de ${drone.maxStandardOwned} drones standards atteinte.`};
   const price = Math.max(0, Math.round(Number(drone.basePrice || 0) * Math.pow(2, count)));
   return {
     ...drone,

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hélion 1 — nouveau placement de la lumière</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#08070b;color:#eee0dc;font:16px/1.5 system-ui,sans-serif}main{max-width:1280px;margin:auto;padding:24px 18px}h1{font-size:clamp(24px,4vw,34px);margin:0 0 8px}p{color:#bcaeae}nav{display:flex;gap:8px;margin:18px 0}button{font:inherit;padding:8px 18px;border:1px solid #754951;border-radius:5px;background:#23151c;color:#eee;cursor:pointer}button[aria-pressed=true]{background:#843b35;border-color:#efaf8e}img{display:block;width:100%;height:auto;background:#000;border:1px solid #3c2830;border-radius:6px}a{color:#efbda1}
+</style>
+<main><h1>Hélion 1 — lumière plus à droite</h1>
+<p>La source lumineuse avance encore légèrement vers la droite. La planète et les bords conservent leur rendu validé.</p>
+<nav aria-label="Comparer le placement"><button id="after" aria-pressed="true">Après</button><button id="before" aria-pressed="false">Avant</button></nav>
+<img id="view" src="after.jpg" width="1880" height="950" alt="La lumière d’Hélion 1 est décalée vers la droite, près de l’épave">
+<p id="caption">Après — nouveau placement de la lumière.</p>
+</main>
+<script>
+for(const mode of ['before','after'])document.getElementById(mode).onclick=()=>{
+ for(const button of document.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.id===mode));
+ document.getElementById('view').src=mode+'.jpg';
+ document.getElementById('caption').textContent=mode==='after'?'Après — nouveau placement de la lumière.':'Avant — placement précédent.';
+};
+</script>
+</html>

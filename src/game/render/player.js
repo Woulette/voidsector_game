@@ -1,4 +1,4 @@
-import { getCachedCombatImage } from "../combatAssets.js";
+import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1";
 
 export function drawRotatedImage({ctx, camera, img, x, y, w, h, angle, fallbackColor = "#38bdf8"}){
   ctx.save();
@@ -28,6 +28,8 @@ const STAFF_BADGES = {
 const RANK_VISIBLE_CENTER_CACHE = new WeakMap();
 const FIRST_DYNAMICALLY_ALIGNED_RANK = 6;
 const RANK_ALPHA_THRESHOLD = 24;
+export const STELLAR_SYSTEM_ORNAMENT_ID = "stellar_system_colonized_ornament";
+const ORNAMENT_HOVER_ANIMATION = new Map();
 
 function getStaffBadge(role){
   return STAFF_BADGES[String(role || "").toLowerCase()] || null;
@@ -386,14 +388,14 @@ function drawDroneSprite({ctx, camera, img, x, y, angle, upgraded}){
   ctx.translate(Math.round(x - camera.x), Math.round(y - camera.y));
   ctx.rotate(angle);
   if(upgraded){
-    ctx.shadowColor = "rgba(239,68,68,.78)";
+    ctx.shadowColor = "rgba(248,64,64,.9)";
     ctx.shadowBlur = 16;
   }
   if(img && img.complete){
     ctx.drawImage(img, -17, -17, 34, 34);
     if(upgraded){
       ctx.globalCompositeOperation = "source-atop";
-      ctx.fillStyle = "rgba(239,68,68,.58)";
+      ctx.fillStyle = "rgba(220,20,38,.62)";
       ctx.fillRect(-17, -17, 34, 34);
     }
   }else{
@@ -499,7 +501,166 @@ function drawRepairDrone({ctx, camera, cache, player}){
   });
 }
 
-function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotFirmAssetPath, pilotName, pilotRole, pilotTitle}){
+export function isPlayerIdentityHovered({mouse, camera, player, ship} = {}){
+  if(!mouse || !camera || !player) return false;
+  const mouseX = Number(mouse.x);
+  const mouseY = Number(mouse.y);
+  if(!Number.isFinite(mouseX) || !Number.isFinite(mouseY)) return false;
+  const zoom = Math.max(.1, Number(camera.zoom || 1));
+  const pointerX = mouseX / zoom;
+  const pointerY = mouseY / zoom;
+  const position = getPlayerDrawPosition(player);
+  const playerX = position.x - Number(camera.x || 0);
+  const playerY = position.y - Number(camera.y || 0);
+  const shipRadius = Math.max(
+    42,
+    Number(ship?.renderWidth || 96) * .58,
+    Number(ship?.renderHeight || 96) * .58
+  );
+  if(Math.hypot(pointerX - playerX, pointerY - playerY) <= shipRadius) return true;
+  return Math.abs(pointerX - playerX) <= 128
+    && pointerY >= playerY + 72
+    && pointerY <= playerY + 128;
+}
+
+export function advanceOrnamentHoverProgress(current, hovered, elapsedMs){
+  const value = Math.max(0, Math.min(1, Number(current || 0)));
+  const elapsed = Math.max(0, Math.min(100, Number(elapsedMs || 0)));
+  const speed = hovered ? 6.4 : 4.8;
+  return Math.max(0, Math.min(1, value + (hovered ? 1 : -1) * elapsed / 1000 * speed));
+}
+
+function getOrnamentHoverProgress(animationKey, hovered, now){
+  const key = String(animationKey || "pilot");
+  const previous = ORNAMENT_HOVER_ANIMATION.get(key) || {value:0, at:now - 16};
+  const value = advanceOrnamentHoverProgress(previous.value, hovered, now - previous.at);
+  if(!hovered && value <= 0) ORNAMENT_HOVER_ANIMATION.delete(key);
+  else{
+    ORNAMENT_HOVER_ANIMATION.set(key, {value, at:now});
+    if(ORNAMENT_HOVER_ANIMATION.size > 80){
+      const oldestKey = ORNAMENT_HOVER_ANIMATION.keys().next().value;
+      if(oldestKey !== key) ORNAMENT_HOVER_ANIMATION.delete(oldestKey);
+    }
+  }
+  return value;
+}
+
+function drawMechanicalOrnamentWing({ctx, anchorX, centerY, direction, progress, now}){
+  if(progress <= .01) return;
+  const extension = 14 + progress * 34;
+  const lift = progress * 13 + Math.sin(now / 135) * progress * 1.8;
+  ctx.save();
+  ctx.translate(anchorX, centerY);
+  ctx.scale(direction, 1);
+  ctx.globalAlpha = Math.min(1, progress * 1.35);
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 1.35;
+  ctx.shadowColor = "rgba(239,68,68,.8)";
+  ctx.shadowBlur = 6 * progress;
+
+  ctx.strokeStyle = "rgba(250,204,21,.92)";
+  ctx.beginPath();
+  ctx.moveTo(0, -4);
+  ctx.lineTo(extension, -lift * .42);
+  ctx.lineTo(extension + 16 * progress, -lift);
+  ctx.stroke();
+
+  const plates = [
+    [
+      [3, -6],
+      [13 + extension * .45, -8 - lift * .32],
+      [18 + extension * .72, -5 - lift * .76],
+      [10 + extension * .45, 0]
+    ],
+    [
+      [5, -1],
+      [16 + extension * .54, -2 - lift * .16],
+      [25 + extension * .82, 1 - lift * .34],
+      [12 + extension * .48, 5]
+    ],
+    [
+      [4, 5],
+      [13 + extension * .42, 6 + lift * .12],
+      [20 + extension * .67, 11 + lift * .18],
+      [9 + extension * .34, 10]
+    ]
+  ];
+  for(let index = 0; index < plates.length; index += 1){
+    const plate = plates[index];
+    ctx.beginPath();
+    ctx.moveTo(plate[0][0], plate[0][1]);
+    for(let point = 1; point < plate.length; point += 1) ctx.lineTo(plate[point][0], plate[point][1]);
+    ctx.closePath();
+    ctx.fillStyle = index === 1 ? "rgba(127,29,29,.94)" : "rgba(69,10,10,.96)";
+    ctx.fill();
+    ctx.strokeStyle = index === 1 ? "rgba(253,224,71,.95)" : "rgba(248,113,113,.92)";
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawStellarSystemOrnament({ctx, frameX, frameY, frameWidth, frameHeight, hovered, animationKey}){
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  const progress = getOrnamentHoverProgress(animationKey, hovered, now);
+  const centerY = frameY + frameHeight / 2;
+  drawMechanicalOrnamentWing({
+    ctx,
+    anchorX:frameX - 2,
+    centerY,
+    direction:-1,
+    progress,
+    now
+  });
+  drawMechanicalOrnamentWing({
+    ctx,
+    anchorX:frameX + frameWidth + 2,
+    centerY,
+    direction:1,
+    progress,
+    now
+  });
+
+  ctx.save();
+  ctx.fillStyle = "rgba(23,5,8,.72)";
+  ctx.fillRect(frameX, frameY, frameWidth, frameHeight);
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = "rgba(245,158,11,.92)";
+  ctx.strokeRect(frameX + .5, frameY + .5, frameWidth - 1, frameHeight - 1);
+  ctx.strokeStyle = "rgba(239,68,68,.96)";
+  ctx.lineWidth = 2;
+  const corner = Math.min(12, frameWidth * .12);
+  ctx.beginPath();
+  ctx.moveTo(frameX, frameY + corner);
+  ctx.lineTo(frameX, frameY);
+  ctx.lineTo(frameX + corner, frameY);
+  ctx.moveTo(frameX + frameWidth - corner, frameY);
+  ctx.lineTo(frameX + frameWidth, frameY);
+  ctx.lineTo(frameX + frameWidth, frameY + corner);
+  ctx.moveTo(frameX, frameY + frameHeight - corner);
+  ctx.lineTo(frameX, frameY + frameHeight);
+  ctx.lineTo(frameX + corner, frameY + frameHeight);
+  ctx.moveTo(frameX + frameWidth - corner, frameY + frameHeight);
+  ctx.lineTo(frameX + frameWidth, frameY + frameHeight);
+  ctx.lineTo(frameX + frameWidth, frameY + frameHeight - corner);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawPlayerLabel({
+  ctx,
+  camera,
+  cache,
+  player,
+  rank,
+  rankAssetPath,
+  pilotFirmAssetPath,
+  pilotName,
+  pilotRole,
+  pilotTitle,
+  pilotOrnamentId,
+  pilotOrnamentHovered = false,
+  ornamentAnimationKey = ""
+}){
   const position = getPlayerDrawPosition(player);
   const px = position.x - camera.x;
   const py = position.y - camera.y;
@@ -526,6 +687,17 @@ function drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilot
     + badgeGap
     + nameWidth;
   const startX = px - groupWidth / 2;
+  if(pilotOrnamentId === STELLAR_SYSTEM_ORNAMENT_ID){
+    drawStellarSystemOrnament({
+      ctx,
+      frameX:startX - 7,
+      frameY:nameY - 17,
+      frameWidth:groupWidth + 14,
+      frameHeight:31,
+      hovered:pilotOrnamentHovered,
+      animationKey:ornamentAnimationKey
+    });
+  }
   let textX = startX;
   if(firmReady){
     ctx.drawImage(firmImg, textX, getFirmIconDrawY({firmIconSize, nameY}), firmIconSize, firmIconSize);
@@ -780,6 +952,9 @@ export function drawPlayerLayer({
   pilotName,
   pilotRole,
   pilotTitle,
+  pilotOrnamentId,
+  mouse,
+  ornamentAnimationKey = "",
   getItemFromInventoryUid,
   getDronePermanentUpgrade,
   droneFormation,
@@ -804,5 +979,19 @@ export function drawPlayerLayer({
   });
   if(graphicsEffects.repairDrone !== false) drawRepairDrone({ctx, camera, cache, player});
   if(graphicsEffects.combatDrones !== false) drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, getDronePermanentUpgrade, droneFormation});
-  drawPlayerLabel({ctx, camera, cache, player, rank, rankAssetPath, pilotFirmAssetPath, pilotName, pilotRole, pilotTitle});
+  drawPlayerLabel({
+    ctx,
+    camera,
+    cache,
+    player,
+    rank,
+    rankAssetPath,
+    pilotFirmAssetPath,
+    pilotName,
+    pilotRole,
+    pilotTitle,
+    pilotOrnamentId,
+    pilotOrnamentHovered:isPlayerIdentityHovered({mouse, camera, player, ship}),
+    ornamentAnimationKey
+  });
 }

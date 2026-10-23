@@ -1,20 +1,24 @@
 import { WORLD_MAPS } from "../world/definitions.js";
 
 export function createKillQuestProgress({io, players, groups, profileManager, emitProfileSync, emitQuestClaims}){
-  function getSameMapQuestRecipients(attacker, mapId){
+  function getSameMapQuestRecipients(attacker, mapId, recipientIds = null){
     const attackerGroup = attacker.groupId ? groups?.get(attacker.groupId) : null;
-    const ids = attackerGroup?.members?.length ? attackerGroup.members : [attacker.id];
+    const ids = Array.isArray(recipientIds) && recipientIds.length
+      ? recipientIds
+      : attackerGroup?.members?.length
+        ? attackerGroup.members
+        : [attacker.id];
     const recipients = ids
       .map(id=>players.get(id))
       .filter(player=>player && player.mapId === String(mapId) && player.connected !== false && player.clientMode === "game");
     return recipients.length ? recipients : [attacker];
   }
 
-  function progressServerQuestsForKill({enemy, mapId, attackerId}){
+  function progressServerQuestsForKill({enemy, mapId, attackerId, recipientIds = null}){
     const attacker = players.get(attackerId);
     if(!attacker || !enemy) return;
     const mapName = WORLD_MAPS[String(mapId)]?.name || String(mapId);
-    for(const player of getSameMapQuestRecipients(attacker, mapId)){
+    for(const player of getSameMapQuestRecipients(attacker, mapId, recipientIds)){
       const profileResult = profileManager.applyQuestAction({
         player,
         action:{kind:"kill", enemyKind:enemy.kind, zoneName:mapName}

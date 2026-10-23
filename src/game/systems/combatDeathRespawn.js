@@ -1,5 +1,5 @@
 import { getFirmHomeMapName } from "../../data/firms.js";
-import { getCurrencyPrice, hasCurrencyDiscount } from "../../core/store.js";
+import { getCurrencyPrice, hasCurrencyDiscount } from "../../core/store.js?v=20260726-kharon1";
 import { currencyAmountHtml } from "../../ui/currencyIcons.js";
 
 export function getPortalRespawnActionCopy(deathState = {}){

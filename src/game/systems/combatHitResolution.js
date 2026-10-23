@@ -1,4 +1,4 @@
-import { PLAYER_HIT_CHANCE } from "../combatData.js";
+import { PLAYER_HIT_CHANCE } from "../combatData.js?v=20261022-helion-hub1";
 
 function makeImpactSparks({count, color, speedMin, speedMax, lengthMin, lengthMax, width = 1.2, arc = Math.PI * 2, angle = 0}){
   return Array.from({length:count}, (_, index)=>{

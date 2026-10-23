@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import crypto from "node:crypto";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeFirmId } from "../../../src/data/firms.js";
@@ -71,35 +72,89 @@ export function createFirmWarManager({
   database = dbEnabled ? {query} : null
 } = {}){
   let state = buildInitialFirmState(now());
-  let savePending = false;
+  let saveTimer = null;
+  let saveDirty = false;
+  let persistenceTail = Promise.resolve();
+  let lastPersistenceError = null;
   let loaded = false;
 
-  async function persist(){
+  async function writeSnapshot(serializedState, updatedAt){
+    if(database){
+      await database.query(`
+        INSERT INTO firm_war_state (id, state_json, updated_at)
+        VALUES ('global', $1::jsonb, $2)
+        ON CONFLICT (id) DO UPDATE SET
+          state_json = EXCLUDED.state_json,
+          updated_at = EXCLUDED.updated_at
+      `, [serializedState, updatedAt]);
+      return;
+    }
+    await mkdir(dirname(file), {recursive:true});
+    const tempFile = `${String(file)}.${crypto.randomUUID()}.tmp`;
+    let handle = null;
     try{
-      if(database){
-        await database.query(`
-          INSERT INTO firm_war_state (id, state_json, updated_at)
-          VALUES ('global', $1::jsonb, $2)
-          ON CONFLICT (id) DO UPDATE SET
-            state_json = EXCLUDED.state_json,
-            updated_at = EXCLUDED.updated_at
-        `, [JSON.stringify(state), Number(now())]);
-        return;
-      }
-      await mkdir(dirname(file), {recursive:true});
-      await writeFile(file, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+      handle = await open(tempFile, "wx");
+      await handle.writeFile(`${serializedState}\n`, "utf8");
+      await handle.sync();
+      await handle.close();
+      handle = null;
+      await rename(tempFile, file);
     }catch(error){
-      logger?.warn?.("Firm war save failed", {error:error?.message || String(error)});
+      if(handle){
+        try{ await handle.close(); }catch(closeError){}
+      }
+      try{ await rm(tempFile, {force:true}); }catch(cleanupError){}
+      throw error;
     }
   }
 
+  function persist(){
+    if(saveTimer !== null){
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    saveDirty = false;
+    const serializedState = JSON.stringify(state);
+    const updatedAt = Number(now());
+    const operation = persistenceTail
+      .catch(()=>{})
+      .then(()=>writeSnapshot(serializedState, updatedAt));
+    persistenceTail = operation.then(
+      ()=>{
+        lastPersistenceError = null;
+      },
+      error=>{
+        saveDirty = true;
+        lastPersistenceError = error;
+        logger?.warn?.("Firm war save failed", {error:error?.message || String(error)});
+      }
+    );
+    return operation;
+  }
+
   function scheduleSave(){
-    if(savePending) return;
-    savePending = true;
-    setTimeout(async ()=>{
-      savePending = false;
-      await persist();
-    }, 50).unref?.();
+    saveDirty = true;
+    if(saveTimer !== null) return;
+    saveTimer = setTimeout(()=>{
+      saveTimer = null;
+      persist().catch(()=>{});
+    }, 50);
+    saveTimer.unref?.();
+  }
+
+  async function flushPersistence(){
+    do{
+      if(saveTimer !== null){
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      if(saveDirty){
+        await persist();
+      }else{
+        await persistenceTail;
+      }
+    }while(saveDirty || saveTimer !== null);
+    if(lastPersistenceError) throw lastPersistenceError;
   }
 
   function ensureSeason(currentTime = now()){
@@ -332,6 +387,7 @@ export function createFirmWarManager({
     consumePendingRewards,
     getPendingRewards,
     getActiveBoosters,
+    flushPersistence,
     load,
     recordPlayerKill,
     recordPortalCompletion,

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hélion 1 — décors et bords affinés</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#08070b;color:#e9e0df;font:16px/1.5 system-ui,sans-serif}main{max-width:1260px;margin:auto;padding:28px 18px 50px}h1{font-size:clamp(24px,4vw,36px);margin:0 0 8px;color:#ffd4be}p{color:#bcaeae;margin:0 0 22px}nav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}button{font:inherit;padding:9px 20px;background:#20151b;color:#eee;border:1px solid #69434a;border-radius:6px;cursor:pointer}button[aria-pressed=true]{background:#843b35;border-color:#efaf8e}section{margin:22px 0 32px}h2{font-size:20px;margin:0 0 10px}figure{margin:0}img,video{display:block;width:100%;height:auto;background:#000;border:1px solid #35252d;border-radius:7px}figcaption{font-size:14px;color:#c4b5b4;margin-top:7px}a{color:#f7bd99}.tag{font-size:13px;color:#d8a49b;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+</style>
+<main>
+<div class="tag">Hélion 1 · 22 octobre 2026</div>
+<h1>Lumière, décors et limites affinés</h1>
+<p>La lumière se décale vers la droite, les épaves et les rochers retrouvent leur matière et le fond nuageux laisse place au vide plus près des bords. L’explosion sombre est retirée.</p>
+<nav aria-label="Comparer les versions"><button id="after" aria-pressed="true">Après</button><button id="before" aria-pressed="false">Avant</button></nav>
+<section><h2>Lumière et épave</h2><figure><img id="landmark" src="landmark-after.jpg" width="1880" height="950" alt="Hélion 1 : lumière chaude décalée vers la droite et épave plus opaque"><figcaption id="landmark-caption">Après — lumière décalée et objets solides plus lisibles.</figcaption></figure></section>
+<section><h2>Arrivée au bord gauche</h2><figure><img id="edge" src="edge-after.jpg" width="1880" height="950" alt="Le fond nuageux s’estompe au bord gauche et la planète reste visible"><figcaption id="edge-caption">Après — le vide apparaît près du bord, la planète continue au-delà.</figcaption></figure></section>
+<section><h2>En déplacement</h2><video controls playsinline preload="metadata" poster="edge-after.jpg" src="helion-one-clarity-motion.mp4" aria-label="Lumière puis approche du bord gauche, vidéo de douze secondes"></video><p><a href="helion-one-clarity-motion.mp4">Ouvrir la vidéo</a></p></section>
+</main>
+<script>
+for(const mode of ['before','after'])document.getElementById(mode).onclick=()=>{
+ for(const button of document.querySelectorAll('nav button'))button.setAttribute('aria-pressed',String(button.id===mode));
+ document.getElementById('landmark').src='landmark-'+mode+'.jpg';
+ document.getElementById('edge').src='edge-'+mode+'.jpg';
+ document.getElementById('landmark-caption').textContent=mode==='after'?'Après — lumière décalée et objets solides plus lisibles.':'Avant — lumière plus à gauche et épave plus transparente.';
+ document.getElementById('edge-caption').textContent=mode==='after'?'Après — le vide apparaît près du bord, la planète continue au-delà.':'Avant — les nappes lointaines restent visibles loin hors du secteur.';
+};
+</script>
+</html>

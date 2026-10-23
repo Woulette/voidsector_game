@@ -1,1 +1,1 @@
-import "./src/app.js?v=craft-extras-1";
+import "./src/app.js?v=20261022-helion-hub1";

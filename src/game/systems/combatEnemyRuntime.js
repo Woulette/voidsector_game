@@ -1,7 +1,7 @@
-import { AGGRO_RANGE, ENEMY_HIT_CHANCE, LEASH_RANGE, PLAYER_HIT_CHANCE } from "../combatData.js";
-import { getServerEnemyId, getSoloEnemies, hasServerControlledEnemies, isServerControlledEnemy } from "../../multiplayer/enemies.js";
-import { createProjectile, updateProjectiles } from "./projectiles.js?v=action-slots-save-1-fps-burst-1";
-import { createMapEnemy } from "./mapState.js";
+import { AGGRO_RANGE, ENEMY_HIT_CHANCE, LEASH_RANGE, PLAYER_HIT_CHANCE } from "../combatData.js?v=20261022-helion-hub1";
+import { getServerEnemyId, getSoloEnemies, hasServerControlledEnemies, isServerControlledEnemy } from "../../multiplayer/enemies.js?v=20260905-motion3";
+import { createProjectile, updateProjectiles } from "./projectiles.js?v=20260726-kharon1";
+import { createMapEnemy } from "./mapState.js?v=20261022-helion-hub1";
 import { updateEnemyAi } from "./enemyAi.js";
 
 export function createCombatEnemyRuntime({

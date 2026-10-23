@@ -1,12 +1,12 @@
-import { portals } from "../../data/catalog.js";
+import { equipment, portals } from "../../data/catalog.js?v=20260726-prismatic1";
 import { fmt } from "../../core/utils.js";
 import { lootNameWithRarityHtml } from "../../ui/lootRarityDisplay.js";
-import { SAFE_ZONE_DELAY } from "../combatData.js";
-import { createProjectile } from "./projectiles.js?v=action-slots-save-1-fps-burst-1";
-import { buildPortalEnvironment, createPortalMap } from "./portalState.js";
-import { createRemoteWeaponEventProcessor } from "./combatRemoteWeaponEvents.js?v=action-slots-save-1-fps-burst-1";
-import { createQuestServerEventProcessor } from "./combatQuestServerEvents.js";
-import { countCombatProfiler, isCombatProfilerFlagEnabled, setCombatProfilerMetric, timeCombatProfiler } from "./combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
+import { SAFE_ZONE_DELAY } from "../combatData.js?v=20261022-helion-hub1";
+import { createProjectile } from "./projectiles.js?v=20260726-kharon1";
+import { buildPortalEnvironment, createPortalMap } from "./portalState.js?v=20261022-helion-hub1";
+import { createRemoteWeaponEventProcessor } from "./combatRemoteWeaponEvents.js?v=20260726-combat-authority1";
+import { createQuestServerEventProcessor } from "./combatQuestServerEvents.js?v=20260726-kharon1";
+import { countCombatProfiler, isCombatProfilerFlagEnabled, setCombatProfilerMetric, timeCombatProfiler } from "./combatFrameProfiler.js?v=20260726-kharon1";
 
 const RICKY_ALLY_ID = "ricky_companion";
 const RICKY_ROCKET_PROJECTILE = "assets/equipment/rocket_r2_projectile.png";
@@ -14,6 +14,7 @@ const MAX_SERVER_ENEMY_PROJECTILES = 24;
 const MAX_SERVER_ENEMY_PROJECTILES_PER_FRAME = 8;
 const MAX_SERVER_ENEMY_ATTACK_PARTICLES_PER_FRAME = 8;
 const COMBAT_DAMAGE_TEXT_MERGE_MS = 120;
+const COMBAT_VISUAL_MAX_AGE_MS = 2000;
 
 export function applyAuthoritativeCombatAmmo({event, playerId, ammoInventory} = {}){
   const consumed = Math.max(0, Math.round(Number(event?.consumed || 0)));
@@ -118,7 +119,9 @@ export function createCombatServerEventSystem({
   onPortalMapLoaded = ()=>{},
   applyServerDeath,
   applyServerRespawn,
-  markAuthoritativeDamageReceived
+  markAuthoritativeDamageReceived,
+  confirmAuthoritativeShot = ()=>false,
+  rejectAuthoritativeShot = ()=>false
 }){
   const processedRewardIds = new Set();
   function getCurrentMapToken(map){
@@ -189,6 +192,7 @@ export function createCombatServerEventSystem({
     const currentMap = createPortalMap(portal);
     const environment = buildPortalEnvironment(portal.id, currentMap);
     const {player, missileSalvos} = getState();
+    const authoritativeLives = multiplayer.portalInstance?.lives;
     cargo.clear();
     player.x = Number(event?.spawn?.x ?? currentMap.spawn.x ?? 0);
     player.y = Number(event?.spawn?.y ?? currentMap.spawn.y ?? 0);
@@ -204,10 +208,12 @@ export function createCombatServerEventSystem({
       portalWave:Math.max(1, Number(event?.wave || 1)),
       portalDelay:0,
       portalCompleted:false,
-      portalLives:portalStartingLives,
+      portalLives:typeof authoritativeLives === "number" && Number.isFinite(authoritativeLives)
+        ? Math.max(0, Math.min(portalStartingLives, Math.round(authoritativeLives)))
+        : portalStartingLives,
       portalAlly:null,
       portalBeacons:[],
-      portalObjective:event?.objective || null,
+      portalObjective:multiplayer.portalObjective || event?.objective || null,
       portalCinematic:null,
       currentMap,
       enemies:[],
@@ -225,7 +231,7 @@ export function createCombatServerEventSystem({
     });
     onPortalMapLoaded(currentMap);
     panels.closeSpawnPanel();
-    if(!event?.resumed) showToast(`${portal.name} lance cote serveur pour le groupe.`);
+    if(!event?.resumed) showToast(`Entree dans ${portal.name}.`);
     updateHud();
   }
 
@@ -249,10 +255,17 @@ export function createCombatServerEventSystem({
         ...(reward.ammoX4 ? [`+${fmt(reward.ammoX4)} munitions x4`] : []),
         ...(reward.ammoX6 ? [`+${fmt(reward.ammoX6)} munitions x6`] : [])
       ];
+      const itemDrop = reward.itemDrop || null;
+      const rewardItem = itemDrop?.awarded
+        ? equipment.find(item=>item.id === itemDrop.itemId)
+        : null;
+      const itemRewards = rewardItem
+        ? [`+1 ${rewardItem.name}${itemDrop.guaranteed === true ? " (première victoire garantie)" : ""}`]
+        : [];
       window.dispatchEvent(new CustomEvent("voidsector:combat-log", {detail:{
         kind:"portal",
         enemyName:`Portail : ${portal.name}`,
-        label:["Recompense de portail", ...ammoRewards].join(" - "),
+        label:["Récompense de portail", ...ammoRewards, ...itemRewards].join(" - "),
         credits:Math.max(0, Math.round(Number(reward.credits || 0))),
         xp,
         premium:Math.max(0, Math.round(Number(reward.premium || 0))),
@@ -264,6 +277,7 @@ export function createCombatServerEventSystem({
         xp,
         premium:reward.premium || 0,
         ammo:ammoRewards,
+        items:itemRewards,
         duration:15
       });
       showToast(portal.id === "ricky"
@@ -666,6 +680,44 @@ export function createCombatServerEventSystem({
     remoteWeaponEvents.applyRemoteWeaponEvents();
   }
 
+  function applyCombatShotEvents(){
+    if(!multiplayer.combatShotEvents?.length) return;
+    const {store} = getState();
+    if(!Array.isArray(multiplayer.remoteEffects)) multiplayer.remoteEffects = [];
+    for(const event of multiplayer.combatShotEvents.splice(0)){
+      if(String(event?.attackerId || "") === String(multiplayer.playerId || "")){
+        confirmAuthoritativeShot(event);
+      }
+      applyAuthoritativeCombatAmmo({
+        event,
+        playerId:multiplayer.playerId,
+        ammoInventory:store?.state?.ammoInventory
+      });
+      const serverAt = Number(event?.at || 0);
+      if(serverAt > 1_000_000_000_000 && Date.now() - serverAt > COMBAT_VISUAL_MAX_AGE_MS) continue;
+      multiplayer.remoteEffects.push({
+        ...event,
+        kind:String(event.kind || event.weaponClass || "laser"),
+        travelTime:Number.isFinite(Number(event.travelTime))
+          ? Number(event.travelTime)
+          : Math.max(0, Number(event.travelTimeMs || 0)) / 1000,
+        sourceId:String(event.attackerId || event.sourceId || ""),
+        targetId:String(event.targetId || event.enemyId || ""),
+        createdAt:Date.now()
+      });
+    }
+    if(multiplayer.remoteEffects.length > 80){
+      multiplayer.remoteEffects.splice(0, multiplayer.remoteEffects.length - 80);
+    }
+  }
+
+  function applyCombatRejectedEvents(){
+    if(!multiplayer.combatRejectedEvents?.length) return;
+    for(const event of multiplayer.combatRejectedEvents.splice(0)){
+      rejectAuthoritativeShot(event);
+    }
+  }
+
   function rickyMuzzlePoint(ally, targetX, targetY, weaponClass){
     const angle = Math.atan2(targetY - Number(ally.y || 0), targetX - Number(ally.x || 0));
     const facing = angle + Math.PI / 2;
@@ -773,7 +825,13 @@ export function createCombatServerEventSystem({
       return Number.isFinite(receivedAt) ? receivedAt : fallback;
     }
     function queueCombatText(event, target, fallbackOrder){
+      if(event?.accepted === false || event?.outcome === "rejected") return;
+      const serverAt = Number(event?.at || 0);
+      if(serverAt > 1_000_000_000_000 && Date.now() - serverAt > COMBAT_VISUAL_MAX_AGE_MS) return;
       const damage = Math.max(0, Math.round(Number(event.damage || 0)));
+      const validMiss = event?.hit === false && Math.max(0, Number(event?.consumed || 0)) > 0;
+      if(damage <= 0 && !validMiss) return;
+      if(validMiss && String(event?.attackerId || "") !== String(multiplayer.playerId || "")) return;
       const poison = event.damageType === "poison";
       const key = [
         String(event.mapId ?? ""),
@@ -806,6 +864,7 @@ export function createCombatServerEventSystem({
     }
     for(let index = 0; index < events.length; index += 1){
       const event = events[index];
+      if(event?.accepted === false || event?.outcome === "rejected") continue;
       applyAuthoritativeCombatAmmo({
         event,
         playerId:multiplayer.playerId,
@@ -924,7 +983,7 @@ export function createCombatServerEventSystem({
             serverControlled:Boolean(event.serverControlled)
           }
         );
-        showToast(`Piece ${portal.name} detectee au sol.`);
+        showToast(`${event.name || portal.pieceName || `Fragment ${portal.name}`} détecté au sol.`);
         continue;
       }
       cargo.spawnServerLootDrop?.({
@@ -957,6 +1016,8 @@ export function createCombatServerEventSystem({
     setCombatProfilerMetric("queue.combat", multiplayer.combatEvents?.length || 0);
     setCombatProfilerMetric("queue.reward", multiplayer.playerRewardEvents?.length || 0);
     setCombatProfilerMetric("queue.status", multiplayer.playerStatusEffectEvents?.length || 0);
+    timeCombatProfiler("events.combatShot", applyCombatShotEvents);
+    timeCombatProfiler("events.combatRejected", applyCombatRejectedEvents);
     timeCombatProfiler("events.remoteWeapons", applyRemoteWeaponEvents);
     timeCombatProfiler("events.enemyAttack", applyEnemyAttackEvents);
     timeCombatProfiler("events.shipAbilityState", applyShipAbilityStateEvents);
@@ -980,8 +1041,10 @@ export function createCombatServerEventSystem({
     loadPortalArena,
     applyPortalEvents,
     applyRickyCinematicEvents,
+    applyCombatRejectedEvents,
     applyDamageEvents,
     applyLifecycleEvents,
+    applyCombatShotEvents,
     applyRemoteWeaponEvents,
     applyCombatHitEvents,
     applyRewardEvents,

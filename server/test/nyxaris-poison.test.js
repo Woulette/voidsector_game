@@ -8,13 +8,13 @@ import { getShipPurchase } from "../src/economy/shop.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { createProfileActions } from "../src/players/profileActions.js";
 
-test("Nyxaris exposes the requested premium stats and violet portal gate", ()=>{
+test("Nyxaris exposes the requested premium stats and Kharon portal gate", ()=>{
   const ship = ships.find(entry=>entry.id === "nyxaris");
   assert.ok(ship);
   assert.equal(ship.name, "Nyxaris");
   assert.equal(ship.priceType, "premium");
   assert.equal(ship.price, 150_000);
-  assert.equal(ship.requiresCompletedPortal, "violet");
+  assert.equal(ship.requiresCompletedPortal, "red");
   assert.equal(ship.renderWidth, 128);
   assert.equal(ship.renderHeight, 144);
   assert.deepEqual(ship.stats, {
@@ -29,7 +29,7 @@ test("Nyxaris exposes the requested premium stats and violet portal gate", ()=>{
   });
 });
 
-test("server refuses Nyxaris before the violet portal and charges it only once", ()=>{
+test("server refuses Nyxaris before Kharon and charges it only once", ()=>{
   const purchase = getShipPurchase("nyxaris");
   const profile = createDefaultProfile();
   profile.player.premium = 200_000;
@@ -43,10 +43,10 @@ test("server refuses Nyxaris before the violet portal and charges it only once",
 
   const locked = actions.addShipPurchase({player, purchase});
   assert.equal(locked.ok, false);
-  assert.match(locked.reason, /violet/i);
+  assert.match(locked.reason, /Kharon/i);
   assert.equal(profiles.get("account:nyxaris-shop").player.premium, 200_000);
 
-  profiles.get("account:nyxaris-shop").completedPortals.violet = 1;
+  profiles.get("account:nyxaris-shop").completedPortals.red = 1;
   const bought = actions.addShipPurchase({player, purchase});
   assert.equal(bought.ok, true);
   assert.equal(bought.profile.player.premium, 50_000);
@@ -61,6 +61,7 @@ test("Nyxaris poison bomb activates for 10 seconds and cools down for 3 minutes"
   const profile = createDefaultProfile();
   profile.ownedShips.push("nyxaris");
   profile.activeShip = "nyxaris";
+  profile.completedPortals.red = 1;
   const player = {
     id:"socket-nyxaris-ability",
     state:{shipId:"nyxaris", hp:210_000, maxHp:210_000}
@@ -185,6 +186,19 @@ test("Nyxaris poison bomb can kill world enemies and grant normal kill rewards",
   assert.equal(rewards.length, 1);
   assert.equal(rewards[0].enemy, enemy);
   assert.equal(rewards[0].attackerId, player.id);
+});
+
+test("Nyxaris poison cannot bypass an objective enemy's server immunity", ()=>{
+  const {enemy, manager, player, status} = createPoisonFixture({enemyHp:80_000});
+  enemy.damageImmune = true;
+  enemy.damageImmuneReason = "Tourelles actives.";
+
+  assert.equal(manager.startShipAbilityEffect({player, status, now:0}), true);
+  manager.updateShipAbilityEffects(1_000);
+  manager.updateShipAbilityEffects(5_000);
+
+  assert.equal(enemy.shipPoison, undefined);
+  assert.equal(enemy.hp, 80_000);
 });
 
 

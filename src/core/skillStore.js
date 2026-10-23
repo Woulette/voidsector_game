@@ -1,6 +1,6 @@
-import { skills } from "../data/catalog.js";
+import { skills } from "../data/catalog.js?v=20260726-kharon1";
 import { getNovaDiscountedPrice, hasNovaDiscount } from "../data/premium.js";
-import { canAfford, spend, store, syncSkillPoints } from "./store.js";
+import { canAfford, spend, store, syncSkillPoints } from "./store.js?v=20260726-kharon1";
 import { currencyAmountHtml } from "../ui/currencyIcons.js";
 
 const MATERIAL_LABELS = {
@@ -12,13 +12,10 @@ const MATERIAL_LABELS = {
   noyau_astra:"Noyau"
 };
 
-const SKILL_PORTAL_REQUIREMENTS = [
-  {portalId:"blue", label:"Portail Bleu"},
-  {portalId:"violet", label:"Portail Violet"},
-  {portalId:"red", label:"Portail Rouge"},
-  {portalId:"emerald", label:"Portail Émeraude"},
-  {portalId:"void", label:"Portail du Néant"}
-];
+const SKILL_ACCESS_PORTAL_REQUIREMENT = Object.freeze({
+  portalId:"blue",
+  label:"Le Seuil d’Azuron"
+});
 
 function getSkillCostEntries(step){
   const costs = step?.costs;
@@ -119,8 +116,7 @@ export function isSkillNodeUnlocked(nodeIndex){
 }
 
 export function getSkillNodePortalRequirement(nodeIndex){
-  const index = Math.max(0, Number(nodeIndex || 0));
-  return SKILL_PORTAL_REQUIREMENTS[index] || null;
+  return Number.isFinite(Number(nodeIndex)) ? SKILL_ACCESS_PORTAL_REQUIREMENT : null;
 }
 
 export function hasCompletedSkillNodePortal(nodeIndex){

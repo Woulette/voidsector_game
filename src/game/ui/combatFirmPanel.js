@@ -1,5 +1,5 @@
 import { getFirmDefinition, normalizeFirmId } from "../../data/firms.js";
-import { ammoTypes, rawMaterialCatalog } from "../../data/catalog.js";
+import { ammoTypes, rawMaterialCatalog } from "../../data/catalog.js?v=20260726-kharon1";
 import { hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 import { getFirmIndividualRewardTiers } from "../../shared/firmSeasonRewards.js";
 
@@ -20,8 +20,8 @@ const FIRM_SHOP_RARITIES = {
 };
 
 const QUEST_OBJECTIVE_ASSETS = {
-  portal:["assets/portals/portail_bleu.svg"],
-  portals:["assets/portals/portail_bleu.svg"],
+  portal:["assets/portals/seuil_azuron.png"],
+  portals:["assets/portals/seuil_azuron.png"],
   drone_pirate:["assets/enemies/generated/orbe_vorak_lowlevel_01/low_orbe_01.png"],
   sentinel_orb:["assets/enemies/generated/orbe_vorak_lowlevel_01/low_orbe_01.png"],
   raider_astral:["assets/enemies/generated/orbe_vorak_lowlevel_01/low_vorak_03.png"],

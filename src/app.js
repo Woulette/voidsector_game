@@ -1,4 +1,4 @@
-import { ammoTypes, portals, rawMaterialCatalog } from "./data/catalog.js?v=craft-extras-1";
+import { ammoTypes, portals, rawMaterialCatalog } from "./data/catalog.js?v=20260726-ancient1";
 import {
   ensureShipLoadout,
   findEquippedSlot,
@@ -23,17 +23,17 @@ import {
   setGraphicsQuality,
   store,
   XP_CURVE_VERSION
-} from "./core/store.js";
-import { createCombatGame } from "./game/combat.js?v=craft-extras-1";
-import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, prepareServerPortal, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=crafting-1";
-import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=crafting-1";
-import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=craft-extras-1";
-import { showToast } from "./ui/toast.js?v=loot-rarity-1";
-import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=ship-abilities-1";
-import { createProfileController } from "./app/profileController.js?v=crafting-1";
-import { createTutorialController } from "./ui/tutorialController.js?v=tutorial-flow-21";
-import { createServerEventController } from "./app/serverEventController.js?v=crafting-1";
-import { createShopActions } from "./app/shopActions.js?v=beta-store-1";
+} from "./core/store.js?v=20260726-kharon1";
+import { createCombatGame } from "./game/combat.js?v=20261022-helion-hub1";
+import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, prepareServerPortal, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=20261018-map-transfer1";
+import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=20261018-map-transfer1";
+import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=20261022-helion-hub1";
+import { showToast } from "./ui/toast.js?v=20260726-kharon1";
+import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=20260726-kharon1";
+import { createProfileController } from "./app/profileController.js?v=20260726-kharon1";
+import { createTutorialController } from "./ui/tutorialController.js?v=20260726-kharon1";
+import { createServerEventController } from "./app/serverEventController.js?v=20260726-economy-burst1";
+import { createShopActions } from "./app/shopActions.js?v=20260726-economy-burst1";
 import { getFirstFirmRewardDestination } from "./ui/firmRewardNotifications.js";
 import { createEquipmentActions } from "./app/equipmentActions.js";
 import {
@@ -48,13 +48,14 @@ import {
   toggleEquipmentSelection
 } from "./app/equipmentBulkSelection.js";
 import { createRefineryActions } from "./app/refineryActions.js";
-import { createProgressionActions } from "./app/progressionActions.js";
-import { createInventorySaleController } from "./app/inventorySaleController.js?v=currency-icons-2";
+import { createRefinerySyncController } from "./app/refinerySyncController.js";
+import { createProgressionActions } from "./app/progressionActions.js?v=20260726-economy-burst1";
+import { createInventorySaleController } from "./app/inventorySaleController.js?v=20260726-kharon1";
 import { createUnequipAllController } from "./app/unequipAllController.js";
-import { createAuthGateController, isMmoAuthenticated } from "./app/authGate.js?v=auth-flow-4";
-import { createGameConnectionRecoveryController } from "./app/gameConnectionRecovery.js?v=tutorial-disconnect-1";
+import { createAuthGateController, isMmoAuthenticated } from "./app/authGate.js?v=20260726-kharon1";
+import { createGameConnectionRecoveryController } from "./app/gameConnectionRecovery.js?v=20260726-kharon1";
 import { requireMmoConnection, sendMmoCommand } from "./app/mmoGate.js";
-import { handleAdminPanelChange, handleAdminPanelClick, handleAdminPanelInput, handleAdminPanelServerChange } from "./ui/adminPanel.js?v=currency-icons-2";
+import { handleAdminPanelChange, handleAdminPanelClick, handleAdminPanelInput, handleAdminPanelServerChange } from "./ui/adminPanel.js?v=20261018-map-transfer1";
 
 const Game = createCombatGame({renderAll, showToast});
 let inventoryClickTimer = null;
@@ -511,10 +512,41 @@ document.addEventListener("click", (e)=>{
     return;
   }
 
-  const profileTab = e.target.closest("[data-profile-tab]");
-  if(profileTab){
-    store.profileTab = profileTab.dataset.profileTab || "overview";
-    renderAll();
+  const profileDisplayBtn = e.target.closest("[data-profile-display]");
+  if(profileDisplayBtn){
+    store.profileDisplay = profileDisplayBtn.dataset.profileDisplay === "drones" ? "drones" : "ship";
+    renderProfile();
+    return;
+  }
+
+  const profileTitleToggle = e.target.closest("[data-profile-title-toggle]");
+  if(profileTitleToggle){
+    const titleId = String(profileTitleToggle.dataset.profileTitleToggle || "");
+    sendMmoCommand({
+      multiplayer,
+      send:()=>setServerProfileTitle({
+        titleId:titleId || null,
+        visible:store.state.player.titleVisible !== false
+      }),
+      showToast,
+      sentMessage:titleId ? "Équipement du titre envoyé au serveur." : "Retrait du titre envoyé au serveur.",
+      failedMessage:"Modification du titre impossible."
+    });
+    return;
+  }
+
+  const profileTitleVisibility = e.target.closest("[data-profile-title-visibility]");
+  if(profileTitleVisibility){
+    sendMmoCommand({
+      multiplayer,
+      send:()=>setServerProfileTitle({
+        titleId:store.state.player.activeTitleId || null,
+        visible:store.state.player.titleVisible === false
+      }),
+      showToast,
+      sentMessage:"Visibilité du titre envoyée au serveur.",
+      failedMessage:"Modification du titre impossible."
+    });
     return;
   }
 
@@ -528,38 +560,14 @@ document.addEventListener("click", (e)=>{
     return;
   }
 
-  const profileTitleBtn = e.target.closest("[data-profile-title]");
-  if(profileTitleBtn){
-    sendMmoCommand({
-      multiplayer,
-      send:()=>setServerProfileTitle?.({titleId:profileTitleBtn.dataset.profileTitle || null}),
-      showToast,
-      sentMessage:"Changement de titre envoye au serveur.",
-      failedMessage:"Changement de titre impossible."
-    });
-    return;
-  }
-
-  const profileTitleVisibilityBtn = e.target.closest("[data-profile-title-visibility]");
-  if(profileTitleVisibilityBtn){
-    sendMmoCommand({
-      multiplayer,
-      send:()=>setServerProfileTitle?.({visible:store.state.player.titleVisible === false}),
-      showToast,
-      sentMessage:"Visibilite du titre envoyee au serveur.",
-      failedMessage:"Changement de visibilite impossible."
-    });
-    return;
-  }
-
   const prestigeBtn = e.target.closest("[data-prestige]");
   if(prestigeBtn){
     sendMmoCommand({
       multiplayer,
       send:()=>performServerPrestige?.(),
       showToast,
-      sentMessage:"Prestige envoye au serveur.",
-      failedMessage:"Prestige impossible."
+      sentMessage:"Ascension envoyée au serveur.",
+      failedMessage:"Ascension impossible."
     });
     return;
   }
@@ -780,8 +788,11 @@ document.addEventListener("click", (e)=>{
 
   const portalCasterSelect = e.target.closest("[data-portal-caster-select]");
   if(portalCasterSelect && !e.target.closest("[data-prepare-portal]")){
-    if(store.state.selectedPortalCasterId !== portalCasterSelect.dataset.portalCasterSelect) store.state.portalCasterResults = [];
-    store.state.selectedPortalCasterId = portalCasterSelect.dataset.portalCasterSelect;
+    const portalId = portalCasterSelect.dataset.portalCasterSelect;
+    store.state.selectedPortalCasterId = portalId;
+    store.state.portalCasterResults = Array.isArray(store.state.portalCasterResultsByPortal?.[portalId])
+      ? store.state.portalCasterResultsByPortal[portalId]
+      : [];
     store.state.portalCasterPendingCount = 1;
     saveState();
     renderAll();
@@ -1217,6 +1228,8 @@ setView("hangar");
 renderAll();
 const tutorialController = createTutorialController({store, appMode, game:Game, updateTutorial, multiplayer});
 tutorialController.init();
+const refinerySyncController = createRefinerySyncController({appMode,getCurrentView:()=>store.currentView,multiplayer});
+refinerySyncController.init();
 function startGameWhenMmoReady(){
   if(appMode !== "game" || Game.running) return;
   if(!isMmoAuthenticated(multiplayer)){

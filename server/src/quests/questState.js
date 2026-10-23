@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { questCatalog } from "../../../src/data/progression.js";
 import { normalizeFirmId } from "../../../src/data/firms.js";
 import { isPremiumActive } from "../../../src/data/premium.js";
@@ -211,7 +212,9 @@ export function acceptServerQuest(profile, id){
   if(!profile.activeQuestId) profile.activeQuestId = quest.id;
   profile.questProgress[quest.id] = getQuestObjectives(quest).length > 1 ? {} : 0;
   const failProgress = getInitialQuestFailProgress(quest);
+  if(getQuestObjectives(quest).some(objective=>objective.type === "quest_item_drop")) failProgress.runId = randomUUID();
   if(Object.keys(failProgress).length) profile.questFailProgress[quest.id] = failProgress;
+  else delete profile.questFailProgress[quest.id];
   return {ok:true, quest:deepClone(quest)};
 }
 

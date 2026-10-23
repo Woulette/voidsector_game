@@ -7,14 +7,14 @@ import { activateServerShipAbility, applyServerShipLifeSteal } from "../src/comb
 import { createProfileActions } from "../src/players/profileActions.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 
-test("Vesperion exposes the requested premium stats and violet portal gate", ()=>{
+test("Vesperion exposes the requested premium stats and Kharon portal gate", ()=>{
   const ship = ships.find(entry=>entry.id === "vesperion");
   assert.ok(ship);
   assert.equal(ship.priceType, "premium");
   assert.equal(ship.price, 150_000);
   assert.equal(ship.renderWidth, 148);
   assert.equal(ship.renderHeight, 148);
-  assert.equal(ship.requiresCompletedPortal, "violet");
+  assert.equal(ship.requiresCompletedPortal, "red");
   assert.deepEqual(ship.stats, {
     vie:230_000,
     vitesse:310,
@@ -27,7 +27,7 @@ test("Vesperion exposes the requested premium stats and violet portal gate", ()=
   });
 });
 
-test("server refuses Vesperion before the violet portal and charges it only once", ()=>{
+test("server refuses Vesperion before Kharon and charges it only once", ()=>{
   const purchase = getShipPurchase("vesperion");
   const profile = createDefaultProfile();
   profile.player.premium = 200_000;
@@ -41,10 +41,10 @@ test("server refuses Vesperion before the violet portal and charges it only once
 
   const locked = actions.addShipPurchase({player, purchase});
   assert.equal(locked.ok, false);
-  assert.match(locked.reason, /violet/i);
+  assert.match(locked.reason, /Kharon/i);
   assert.equal(profiles.get("account:vesperion-shop").player.premium, 200_000);
 
-  profiles.get("account:vesperion-shop").completedPortals.violet = 1;
+  profiles.get("account:vesperion-shop").completedPortals.red = 1;
   const bought = actions.addShipPurchase({player, purchase});
   assert.equal(bought.ok, true);
   assert.equal(bought.profile.player.premium, 50_000);
@@ -59,6 +59,7 @@ test("Tir absorbant restores 50 percent of real damage for 20 seconds and cools 
   const profile = createDefaultProfile();
   profile.ownedShips.push("vesperion");
   profile.activeShip = "vesperion";
+  profile.completedPortals.red = 1;
   const player = {
     id:"socket-vesperion-ability",
     state:{shipId:"vesperion", hp:1_000, maxHp:230_000}
@@ -93,6 +94,7 @@ test("Tir absorbant can stack with elite green laser lifesteal", ()=>{
   const profile = createDefaultProfile();
   profile.ownedShips.push("vesperion");
   profile.activeShip = "vesperion";
+  profile.completedPortals.red = 1;
   const player = {
     id:"socket-vesperion-elite-lifesteal",
     state:{shipId:"vesperion", hp:1_000, maxHp:230_000}

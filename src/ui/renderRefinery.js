@@ -22,7 +22,7 @@ import {
   getShippableRefineryMaterials,
   isRefineryProductionEnabled,
   store
-} from "../core/store.js";
+} from "../core/store.js?v=20260726-kharon1";
 import { currencyAmountHtml, currencyIconHtml } from "./currencyIcons.js";
 export function renderRefinery(){
   const panel = document.getElementById("refineryPanel");
@@ -45,13 +45,6 @@ export function renderRefinery(){
     transport:[86, 16],
     storage:[86, 80]
   };
-  const isTutorialStep = step => store.state?.tutorial?.status === "active" && store.state?.tutorial?.step === step;
-  if(isTutorialStep("launcher_launch_storage_upgrade")){
-    store.selectedRefineryTab = "forge";
-    if(store.selectedRefineryUpgrade?.type !== "module" || store.selectedRefineryUpgrade?.id !== "storage"){
-      store.selectedRefineryUpgrade = {type:"module", id:"storage"};
-    }
-  }
   const labelForKind = kind => ({
     raw:"BRUT",
     refined:"RAFFINE",

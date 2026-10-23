@@ -14,15 +14,16 @@
 .drone-art-large{min-height:250px;display:grid;place-items:center}
 .drone-art-large img{width:min(280px,88%);height:auto;filter:drop-shadow(0 0 22px rgba(56,189,248,.3))}
 .panel-note{margin-top:10px;color:var(--muted);font-size:13px;line-height:1.4}
-.drone-equipment-layout .equipped-compact-panel{display:grid;grid-template-rows:auto 1fr}
-.drone-bay-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:7px;row-gap:3px;align-content:space-between;height:100%}
-.drone-slot-card{display:grid;grid-template-columns:76px 1fr;align-items:center;gap:7px;padding:6px;background:linear-gradient(180deg,rgba(7,22,40,.92),rgba(2,10,19,.94));border:1px solid rgba(56,189,248,.22);clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px)}
-.drone-slot-card.upgraded{border-color:rgba(239,68,68,.72);background:linear-gradient(180deg,rgba(70,12,18,.72),rgba(8,10,18,.96));box-shadow:inset 0 0 20px rgba(239,68,68,.10),0 0 16px rgba(239,68,68,.14)}
-.drone-slot-head{display:grid;gap:3px;margin-bottom:0;font-size:10px;color:#94c7e4;text-transform:uppercase}
-.drone-slot-body{display:grid;grid-template-columns:1fr 48px;gap:6px;align-items:center;min-height:58px;border:0;padding:0;background:transparent}
-.drone-preview{width:54px;height:54px;object-fit:contain;justify-self:center;filter:drop-shadow(0 0 13px rgba(56,189,248,.38))}
-.drone-slot-card.upgraded .drone-preview{filter:sepia(1) saturate(4) hue-rotate(315deg) drop-shadow(0 0 16px rgba(239,68,68,.62))}
-.drone-module{width:48px;height:48px;min-height:48px;display:grid;place-items:center;gap:0;text-align:center;border:1px solid rgba(56,189,248,.25);background:linear-gradient(180deg,rgba(7,22,40,.9),rgba(2,10,19,.94));padding:0;position:relative}
+.drone-equipment-layout .equipped-compact-panel{display:grid;grid-template-rows:auto auto;align-content:start;min-width:0}
+.drone-bay-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-flow:row;gap:6px 7px;align-content:start;width:100%;height:auto;min-width:0}
+.drone-slot-card{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;align-items:center;gap:4px;min-width:0;padding:5px 6px;background:linear-gradient(180deg,rgba(7,22,40,.92),rgba(2,10,19,.94));border:1px solid rgba(56,189,248,.22);clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px)}
+.drone-slot-card.vesper-active{border-color:rgba(248,113,113,.82);background:linear-gradient(180deg,rgba(92,20,28,.72),rgba(12,8,16,.96));box-shadow:inset 0 0 20px rgba(239,68,68,.14),0 0 16px rgba(239,68,68,.18)}
+.drone-slot-head{display:flex;align-items:center;justify-content:space-between;gap:5px;min-width:0;margin-bottom:0;font-size:9px;color:#94c7e4;text-transform:uppercase}
+.drone-slot-head>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drone-slot-body{display:grid;grid-template-columns:minmax(42px,1fr) 48px 32px;gap:5px;align-items:center;min-width:0;min-height:52px;border:0;padding:0;background:transparent}
+.drone-preview{grid-column:1;grid-row:1;width:52px;max-width:100%;height:52px;object-fit:contain;justify-self:center;filter:drop-shadow(0 0 13px rgba(56,189,248,.38))}
+.drone-slot-card.vesper-active .drone-preview{filter:sepia(.78) saturate(5.5) hue-rotate(318deg) brightness(.92) contrast(1.16) drop-shadow(0 0 16px rgba(248,113,113,.66))}
+.drone-module{grid-column:2;grid-row:1;width:48px;height:48px;min-height:48px;display:grid;place-items:center;gap:0;text-align:center;border:1px solid rgba(56,189,248,.25);background:linear-gradient(180deg,rgba(7,22,40,.9),rgba(2,10,19,.94));padding:0;position:relative}
 .drone-module.filled{grid-template-columns:1fr;place-items:center;text-align:center}
 .drone-module.filled.rarity-common,.drone-module.filled.rarity-rare,.drone-module.filled.rarity-veryRare,.drone-module.filled.rarity-elite,.drone-module.filled.rarity-mythic{border-color:color-mix(in srgb,var(--rarity-color) 72%,rgba(56,189,248,.18));background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--rarity-color) 20%,transparent),rgba(2,10,19,.78) 72%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--rarity-color) 58%,transparent),inset 0 0 22px color-mix(in srgb,var(--rarity-color) 17%,transparent),0 0 13px color-mix(in srgb,var(--rarity-color) 15%,transparent)}
 .drone-module img{width:36px;height:36px;object-fit:contain}
@@ -32,10 +33,18 @@
 .drone-module.filled.rarity-common b,.drone-module.filled.rarity-rare b,.drone-module.filled.rarity-veryRare b,.drone-module.filled.rarity-elite b,.drone-module.filled.rarity-mythic b{color:var(--rarity-color);text-shadow:0 0 6px color-mix(in srgb,var(--rarity-color) 45%,rgba(0,0,0,.7))}
 .drone-module em,.equip-slot-tile em{cursor:pointer;display:grid;place-items:center;width:12px;height:12px;border:1px solid rgba(239,68,68,.36);background:rgba(42,12,18,.72);color:rgba(254,202,202,.82);font-style:normal;border-radius:1px}
 .drone-module em{position:absolute;right:-3px;top:-3px;z-index:3;font-size:9px;line-height:9px}
+.drone-cosmetic-slot{position:relative;isolation:isolate;grid-column:3;grid-row:1;width:32px;height:48px;display:grid;place-items:center;align-self:center;overflow:hidden;border:1px dashed rgba(248,113,113,.52);background:radial-gradient(circle at 50% 38%,rgba(239,68,68,.2),rgba(2,10,19,.96) 72%);box-shadow:inset 0 0 12px rgba(239,68,68,.1);cursor:pointer}
+.drone-cosmetic-slot::before{content:"O";position:absolute;inset:0;display:grid;place-items:center;color:rgba(254,202,202,.22);font-size:19px;font-weight:900;z-index:0}
+.drone-cosmetic-slot i{position:relative;z-index:1;color:#f87171;font-size:19px;font-style:normal;font-weight:900;line-height:1;text-shadow:0 0 8px rgba(248,113,113,.62)}
+.drone-cosmetic-slot img{position:relative;z-index:1;width:27px;height:27px;object-fit:contain;filter:drop-shadow(0 0 7px rgba(248,113,113,.48))}
+.drone-cosmetic-slot small{position:absolute;z-index:2;left:1px;right:1px;bottom:2px;overflow:hidden;color:#fecaca;font-size:6px;font-weight:900;line-height:1;text-align:center;text-overflow:ellipsis;letter-spacing:.2px}
+.drone-cosmetic-slot.locked{border-color:rgba(100,116,139,.34);background:rgba(2,10,19,.84);filter:grayscale(1);opacity:.52}
+.drone-cosmetic-slot.locked img,.drone-cosmetic-slot.locked i{opacity:.28}
+.drone-cosmetic-slot.active{border-style:solid;border-color:rgba(254,202,202,.86);box-shadow:inset 0 0 13px rgba(239,68,68,.2),0 0 12px rgba(239,68,68,.24)}
 .extra-placeholder{padding:18px}
 .page-view.hangar-view.hangar-list-mode.active{display:block}
 .page-view.hangar-view.hangar-detail-mode.active{display:grid;grid-template-columns:.8fr 1.2fr;gap:10px;align-items:start}
 .shop-list-art.ammo{display:grid;place-items:center}
-@media (max-width:1080px){.drone-layout,.page-view.hangar-view.hangar-detail-mode.active{grid-template-columns:1fr}.drone-bay-grid{grid-template-columns:1fr}}
-@media (max-width:720px){.hangar-tabs{flex-wrap:wrap}.hangar-tab-btn{flex:1 1 120px}.drone-slot-body{grid-template-columns:1fr}.drone-preview{margin-inline:auto}}
+@media (max-width:1080px){.drone-layout,.page-view.hangar-view.hangar-detail-mode.active{grid-template-columns:1fr}}
+@media (max-width:720px){.hangar-tabs{flex-wrap:wrap}.hangar-tab-btn{flex:1 1 120px}.drone-slot-body{grid-template-columns:minmax(36px,1fr) 44px 28px;gap:4px}.drone-preview{width:46px;height:46px;margin-inline:auto}.drone-module{width:44px;height:44px;min-height:44px}.drone-cosmetic-slot{width:28px;height:44px}}
 

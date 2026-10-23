@@ -1,4 +1,5 @@
 import { sendMmoCommand } from "./mmoGate.js";
+import { createServerActionBurstQueue } from "./serverActionBurstQueue.js?v=20260726-economy-burst1";
 
 export function createProgressionActions({
   multiplayer,
@@ -10,6 +11,10 @@ export function createProgressionActions({
   upgradeServerSkill,
   showToast
 }){
+  const spaceCasterQueue = createServerActionBurstQueue({
+    onSendFailure:()=>showToast("Connexion perdue : lancement Space Caster annule.")
+  });
+
   function runSpaceCaster(id, count = 1){
     const portal = getPortal(id);
     if(!portal) return;
@@ -17,9 +22,13 @@ export function createProgressionActions({
     store.state.selectedPortalCasterId = portal.id;
     sendMmoCommand({
       multiplayer,
-      send:()=>runServerSpaceCaster?.({portalId:portal.id, count:rollCount}),
+      send:()=>spaceCasterQueue.enqueue({
+        channel:"space-caster:run",
+        key:`${portal.id}:${rollCount}`,
+        send:repeat=>runServerSpaceCaster?.({portalId:portal.id, count:rollCount, repeat})
+      }),
       showToast,
-      sentMessage:"Space Caster envoye au serveur.",
+      sentMessage:"Lancement Space Caster pris en compte.",
       failedMessage:"Space Caster impossible."
     });
   }

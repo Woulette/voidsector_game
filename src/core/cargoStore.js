@@ -1,6 +1,6 @@
-import { rawMaterialCatalog, refineryMaterialCatalog } from "../data/catalog.js";
-import { getMaterialStorageCap } from "./refineryStore.js";
-import { getRawMaterial, getShipCombatStats, store } from "./store.js";
+import { rawMaterialCatalog, refineryMaterialCatalog } from "../data/catalog.js?v=20260726-kharon1";
+import { getMaterialStorageCap } from "./refineryStore.js?v=20260726-kharon1";
+import { getRawMaterial, getShipCombatStats, store } from "./store.js?v=20260726-kharon1";
 export function getMaterialCount(id){
   return Math.max(0, Number(store.state?.cargoHold?.[id] || 0));
 }

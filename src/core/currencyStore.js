@@ -1,5 +1,5 @@
 import { fmt } from "./utils.js";
-import { store } from "./store.js";
+import { store } from "./store.js?v=20260726-kharon1";
 import { getNovaDiscountedPrice, hasNovaDiscount, isPremiumActive } from "../data/premium.js";
 
 const MIN_PLAYER_CREDITS = 0;

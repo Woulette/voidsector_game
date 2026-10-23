@@ -1,6 +1,35 @@
-import { ENEMY_TYPES, PORTAL_WAVE_TOTAL } from "../combatData.js";
+import { ENEMY_TYPES, PORTAL_WAVE_TOTAL } from "../combatData.js?v=20261022-helion-hub1";
 import { RICKY_PORTAL_MAP } from "../../data/rickyPortal.js";
-import { makeAsteroids, makeDust, makeStars, seededRandom } from "./mapState.js";
+import {
+  VESPER_CAGE_DESTROYED_ASSET,
+  VESPER_CAGE_INTACT_ASSET,
+  VESPER_DRONE_ASSET,
+  VESPER_PORTAL_ID,
+  VESPER_PORTAL_MAP
+} from "../../data/vesperPortal.js?v=20260726-kharon1";
+import {
+  KHARON_BOSS_ASSETS,
+  KHARON_PORTAL_ID,
+  KHARON_PORTAL_MAP
+} from "../../data/kharonPortal.js?v=20260726-kharon1";
+import {
+  ECLANITE_BOSS_ASSETS,
+  ECLANITE_CORE_ASSET,
+  ECLANITE_PORTAL_ID,
+  ECLANITE_PORTAL_MAP
+} from "../../data/eclanitePortal.js?v=20260726-nox1";
+import { NOX_PORTAL_ID, NOX_PORTAL_MAP } from "../../data/noxPortal.js?v=20260726-nox2";
+import {
+  PRISMATIC_GUARDIAN_ASSET,
+  PRISMATIC_PLANET_ASSETS,
+  PRISMATIC_PORTAL_ID,
+  PRISMATIC_PORTAL_MAP
+} from "../../data/prismaticPortal.js?v=20260726-prismatic1";
+import {
+  ANCIENT_PORTAL_ID,
+  ANCIENT_PORTAL_MAP
+} from "../../data/ancientPortal.js?v=20260726-ancient1";
+import { makeAsteroids, makeDust, makeStars, seededRandom } from "./mapState.js?v=20261022-helion-hub1";
 
 export function createPortalMap(portal){
   if(portal?.id === "ricky"){
@@ -71,6 +100,224 @@ export function createPortalMap(portal){
           {x:760, y:520, w:3300, h:1500, count:42, p:.22, angle:.12, alpha:.56, sizeMin:5, sizeMax:17, sizePower:1.9, craters:1, tint:"slate", shadeMin:22, shadeMax:52},
           {x:-900, y:620, w:2600, h:1300, count:20, p:.32, angle:-.14, alpha:.72, sizeMin:10, sizeMax:25, sizePower:2.1, craters:2, tint:"slate", shadeMin:20, shadeMax:48}
         ]
+      }
+    };
+  }
+  if(portal?.id === VESPER_PORTAL_ID){
+    return {
+      id:"portal-violet",
+      name:"LA FAILLE DE VESPER",
+      width:VESPER_PORTAL_MAP.width,
+      height:VESPER_PORTAL_MAP.height,
+      spawn:{...VESPER_PORTAL_MAP.spawn, r:240, kind:"portal", label:"POINT D'INSERTION"},
+      portal:null,
+      vesperPortal:true,
+      enemyAssets:[
+        VESPER_DRONE_ASSET,
+        VESPER_CAGE_INTACT_ASSET,
+        VESPER_CAGE_DESTROYED_ASSET
+      ],
+      parallaxScene:{
+        enabled:true,
+        hideGrid:false,
+        tileAlpha:.05,
+        background:["#09020e", "#210716", "#050108"],
+        nebulae:[
+          {x:-2200, y:-1200, r:1780, p:.05, color:"rgba(190,24,93,.16)", mid:"rgba(88,28,135,.07)", edge:"rgba(0,0,0,0)"},
+          {x:2150, y:1100, r:1680, p:.07, color:"rgba(220,38,38,.12)", mid:"rgba(126,34,206,.06)", edge:"rgba(0,0,0,0)"},
+          {x:0, y:0, r:1100, p:.11, color:"rgba(239,68,68,.055)", mid:"rgba(192,38,211,.03)", edge:"rgba(0,0,0,0)"}
+        ],
+        dustSpecks:[
+          {x:-2800, y:-1850, w:5600, h:3700, count:170, p:.10, sizeMin:.18, sizeMax:.72, alphaMin:.012, alphaMax:.050, colors:["254,202,202", "244,114,182", "216,180,254"]},
+          {x:-2400, y:-1500, w:4800, h:3000, count:95, p:.20, sizeMin:.20, sizeMax:.88, alphaMin:.010, alphaMax:.042, colors:["248,113,113", "192,132,252", "251,113,133"]}
+        ],
+        glowSpots:[
+          {x:0, y:0, r:900, p:.10, seed:815, alpha:.13, speed:1900, core:"rgba(255,255,255,.50)", hot:"rgba(251,113,133,.22)", mid:"rgba(126,34,206,.08)"}
+        ],
+        asteroidFields:[
+          {x:-2800, y:-2050, w:5600, h:900, count:34, p:.13, angle:.04, alpha:.34, sizeMin:3, sizeMax:11, sizePower:1.8, craters:1, tint:"slate", shadeMin:20, shadeMax:50},
+          {x:-2800, y:1200, w:5600, h:900, count:28, p:.24, angle:-.08, alpha:.48, sizeMin:5, sizeMax:18, sizePower:1.9, craters:1, tint:"slate", shadeMin:18, shadeMax:46}
+        ]
+      }
+    };
+  }
+  if(portal?.id === KHARON_PORTAL_ID){
+    return {
+      id:"portal-red",
+      name:"LA FORGE DE KHARON",
+      width:KHARON_PORTAL_MAP.width,
+      height:KHARON_PORTAL_MAP.height,
+      spawn:{...KHARON_PORTAL_MAP.spawn, r:240, kind:"portal", label:"POINT D'INSERTION"},
+      portal:null,
+      kharonPortal:true,
+      enemyAssets:Object.values(KHARON_BOSS_ASSETS),
+      parallaxScene:{
+        enabled:true,
+        hideGrid:false,
+        tileAlpha:.055,
+        background:["#120503", "#310b05", "#080101"],
+        nebulae:[
+          {x:-1800, y:-800, r:1500, p:.05, color:"rgba(234,88,12,.16)", mid:"rgba(127,29,29,.075)", edge:"rgba(0,0,0,0)"},
+          {x:1850, y:700, r:1460, p:.07, color:"rgba(220,38,38,.13)", mid:"rgba(124,45,18,.06)", edge:"rgba(0,0,0,0)"},
+          {x:0, y:0, r:920, p:.12, color:"rgba(251,146,60,.06)", mid:"rgba(153,27,27,.035)", edge:"rgba(0,0,0,0)"}
+        ],
+        dustSpecks:[
+          {x:-2400, y:-1600, w:4800, h:3200, count:145, p:.11, sizeMin:.18, sizeMax:.76, alphaMin:.012, alphaMax:.052, colors:["254,215,170", "248,113,113", "253,186,116"]},
+          {x:-2100, y:-1350, w:4200, h:2700, count:86, p:.21, sizeMin:.20, sizeMax:.90, alphaMin:.010, alphaMax:.044, colors:["251,146,60", "239,68,68", "254,202,202"]}
+        ],
+        glowSpots:[
+          {x:0, y:0, r:820, p:.10, seed:905, alpha:.15, speed:1600, core:"rgba(255,255,255,.52)", hot:"rgba(251,146,60,.25)", mid:"rgba(153,27,27,.09)"}
+        ],
+        asteroidFields:[
+          {x:-2450, y:-1700, w:4900, h:760, count:30, p:.13, angle:.06, alpha:.38, sizeMin:3, sizeMax:12, sizePower:1.8, craters:1, tint:"slate", shadeMin:18, shadeMax:46},
+          {x:-2450, y:980, w:4900, h:760, count:26, p:.24, angle:-.07, alpha:.50, sizeMin:5, sizeMax:18, sizePower:1.9, craters:1, tint:"slate", shadeMin:17, shadeMax:43}
+        ]
+      }
+    };
+  }
+  if(portal?.id === ECLANITE_PORTAL_ID){
+    return {
+      id:"portal-emerald",
+      name:"LA RUCHE D'ECLANITE",
+      width:ECLANITE_PORTAL_MAP.width,
+      height:ECLANITE_PORTAL_MAP.height,
+      spawn:{...ECLANITE_PORTAL_MAP.spawn, r:240, kind:"portal", label:"POINT D'INSERTION"},
+      portal:null,
+      eclanitePortal:true,
+      enemyAssets:[ECLANITE_CORE_ASSET, ...Object.values(ECLANITE_BOSS_ASSETS)],
+      parallaxScene:{
+        enabled:true,
+        hideGrid:false,
+        tileAlpha:.045,
+        background:["#02110d", "#071f1c", "#02050b"],
+        nebulae:[
+          {x:-1500, y:900, r:1450, p:.05, color:"rgba(16,185,129,.16)", mid:"rgba(5,150,105,.07)", edge:"rgba(0,0,0,0)"},
+          {x:1550, y:760, r:1380, p:.07, color:"rgba(239,68,68,.11)", mid:"rgba(127,29,29,.055)", edge:"rgba(0,0,0,0)"},
+          {x:0, y:-980, r:1700, p:.09, color:"rgba(59,130,246,.13)", mid:"rgba(30,64,175,.055)", edge:"rgba(0,0,0,0)"}
+        ],
+        dustSpecks:[
+          {x:-2500, y:-1700, w:5000, h:3400, count:170, p:.10, sizeMin:.18, sizeMax:.78, alphaMin:.012, alphaMax:.052, colors:["134,239,172", "248,113,113", "147,197,253"]}
+        ],
+        glowSpots:[
+          {x:-1300, y:820, r:720, p:.10, seed:1031, alpha:.12, speed:1700, core:"rgba(255,255,255,.48)", hot:"rgba(74,222,128,.24)", mid:"rgba(5,150,105,.08)"},
+          {x:1300, y:820, r:720, p:.12, seed:1032, alpha:.11, speed:1800, core:"rgba(255,255,255,.45)", hot:"rgba(248,113,113,.22)", mid:"rgba(127,29,29,.07)"},
+          {x:0, y:-900, r:880, p:.14, seed:1033, alpha:.13, speed:1900, core:"rgba(255,255,255,.50)", hot:"rgba(96,165,250,.24)", mid:"rgba(30,64,175,.08)"}
+        ],
+        asteroidFields:[
+          {x:-2520, y:-1720, w:5040, h:500, count:22, p:.15, angle:.04, alpha:.36, sizeMin:3, sizeMax:12, sizePower:1.8, craters:1, tint:"slate", shadeMin:18, shadeMax:46},
+          {x:-2520, y:1220, w:5040, h:470, count:20, p:.25, angle:-.05, alpha:.44, sizeMin:4, sizeMax:16, sizePower:1.9, craters:1, tint:"slate", shadeMin:17, shadeMax:43}
+        ]
+      }
+    };
+  }
+  if(portal?.id === NOX_PORTAL_ID){
+    return {
+      id:"portal-void",
+      name:"L'ABIME DE NOX",
+      width:NOX_PORTAL_MAP.width,
+      height:NOX_PORTAL_MAP.height,
+      spawn:{...NOX_PORTAL_MAP.spawn, r:240, kind:"portal", label:"POSTE DE DEFENSE"},
+      portal:null,
+      noxPortal:true,
+      enemyAssets:[],
+      parallaxScene:{
+        enabled:true,
+        hideGrid:false,
+        tileAlpha:.035,
+        background:["#03010a", "#100525", "#010106"],
+        nebulae:[
+          {x:-1900, y:-1500, r:1750, p:.045, color:"rgba(88,28,135,.18)", mid:"rgba(30,58,138,.055)", edge:"rgba(0,0,0,0)"},
+          {x:2050, y:1350, r:1650, p:.065, color:"rgba(30,64,175,.13)", mid:"rgba(76,29,149,.055)", edge:"rgba(0,0,0,0)"},
+          {x:0, y:0, r:1250, p:.11, color:"rgba(103,232,249,.045)", mid:"rgba(88,28,135,.035)", edge:"rgba(0,0,0,0)"}
+        ],
+        dustSpecks:[
+          {x:-2800, y:-2800, w:5600, h:5600, count:190, p:.10, sizeMin:.16, sizeMax:.72, alphaMin:.010, alphaMax:.048, colors:["216,180,254", "103,232,249", "148,163,184"]},
+          {x:-2400, y:-2400, w:4800, h:4800, count:95, p:.20, sizeMin:.18, sizeMax:.86, alphaMin:.008, alphaMax:.038, colors:["192,132,252", "96,165,250", "226,232,240"]}
+        ],
+        glowSpots:[
+          {x:0, y:0, r:1120, p:.10, seed:1135, alpha:.15, speed:1800, core:"rgba(255,255,255,.52)", hot:"rgba(192,132,252,.24)", mid:"rgba(30,64,175,.08)"}
+        ],
+        asteroidFields:[
+          {x:-2800, y:-2800, w:5600, h:720, count:28, p:.13, angle:.03, alpha:.34, sizeMin:3, sizeMax:12, sizePower:1.8, craters:1, tint:"slate", shadeMin:16, shadeMax:44},
+          {x:-2800, y:2080, w:5600, h:720, count:25, p:.24, angle:-.05, alpha:.46, sizeMin:5, sizeMax:18, sizePower:1.9, craters:1, tint:"slate", shadeMin:15, shadeMax:42}
+        ]
+      }
+    };
+  }
+  if(portal?.id === PRISMATIC_PORTAL_ID){
+    return {
+      id:"portal-prismatic",
+      name:"LE NEXUS PRISMATIQUE",
+      width:PRISMATIC_PORTAL_MAP.width,
+      height:PRISMATIC_PORTAL_MAP.height,
+      spawn:{...PRISMATIC_PORTAL_MAP.spawn, r:240, kind:"portal", label:"POINT D'INSERTION"},
+      portal:null,
+      prismaticPortal:true,
+      enemyAssets:[
+        ...Object.values(PRISMATIC_PLANET_ASSETS),
+        PRISMATIC_GUARDIAN_ASSET
+      ],
+      parallaxScene:{
+        enabled:true,
+        hideGrid:false,
+        tileAlpha:.035,
+        background:["#03020d", "#12072a", "#010106"],
+        nebulae:[
+          {x:-2_050, y:-1_050, r:1_650, p:.045, color:"rgba(249,115,22,.15)", mid:"rgba(127,29,29,.055)", edge:"rgba(0,0,0,0)"},
+          {x:2_050, y:-1_050, r:1_650, p:.060, color:"rgba(14,165,233,.15)", mid:"rgba(30,64,175,.055)", edge:"rgba(0,0,0,0)"},
+          {x:0, y:500, r:1_420, p:.075, color:"rgba(244,63,94,.13)", mid:"rgba(88,28,135,.055)", edge:"rgba(0,0,0,0)"},
+          {x:0, y:0, r:1_050, p:.11, color:"rgba(192,132,252,.07)", mid:"rgba(34,211,238,.028)", edge:"rgba(0,0,0,0)"}
+        ],
+        dustSpecks:[
+          {x:-3_000, y:-2_100, w:6_000, h:4_200, count:210, p:.09, sizeMin:.16, sizeMax:.74, alphaMin:.010, alphaMax:.050, colors:["254,215,170", "165,243,252", "251,207,232", "216,180,254"]},
+          {x:-2_600, y:-1_780, w:5_200, h:3_560, count:108, p:.19, sizeMin:.18, sizeMax:.90, alphaMin:.008, alphaMax:.040, colors:["251,146,60", "56,189,248", "251,113,133"]}
+        ],
+        glowSpots:[
+          {x:-1_750, y:-850, r:780, p:.10, seed:1241, alpha:.14, speed:1_650, core:"rgba(255,255,255,.54)", hot:"rgba(251,146,60,.28)", mid:"rgba(127,29,29,.08)"},
+          {x:1_750, y:-850, r:780, p:.11, seed:1242, alpha:.14, speed:1_750, core:"rgba(255,255,255,.54)", hot:"rgba(56,189,248,.28)", mid:"rgba(30,64,175,.08)"},
+          {x:0, y:400, r:700, p:.12, seed:1243, alpha:.13, speed:1_750, core:"rgba(255,255,255,.52)", hot:"rgba(251,113,133,.27)", mid:"rgba(136,19,55,.08)"}
+        ],
+        asteroidFields:[
+          {x:-3_000, y:-2_100, w:6_000, h:560, count:25, p:.13, angle:.03, alpha:.33, sizeMin:3, sizeMax:12, sizePower:1.8, craters:1, tint:"slate", shadeMin:16, shadeMax:44},
+          {x:-3_000, y:1_540, w:6_000, h:560, count:22, p:.24, angle:-.05, alpha:.44, sizeMin:5, sizeMax:18, sizePower:1.9, craters:1, tint:"slate", shadeMin:15, shadeMax:42}
+        ]
+      }
+    };
+  }
+  if(portal?.id === ANCIENT_PORTAL_ID){
+    return {
+      id:`portal-${ANCIENT_PORTAL_ID}`,
+      name:"LE SANCTUAIRE DES PRÉCURSEURS",
+      width:ANCIENT_PORTAL_MAP.width,
+      height:ANCIENT_PORTAL_MAP.height,
+      spawn:{...ANCIENT_PORTAL_MAP.spawn, r:240, kind:"portal", label:"SEUIL DE L'ENFER"},
+      portal:null,
+      ancientPortal:true,
+      enemyAssets:[
+        "assets/ships/Astralis.png",
+        "assets/ships/combat/Asterion.png",
+        "assets/ships/Imperial.png",
+        "assets/ships/Helion Titan.png",
+        "assets/spawn/spawn_dock.png"
+      ],
+      parallaxScene:{
+        enabled:true,
+        hideGrid:true,
+        tileAlpha:.025,
+        background:["#070106", "#210308", "#02030d"],
+        nebulae:[
+          {x:-2_100, y:-1_300, r:1_850, p:.045, color:"rgba(127,29,29,.20)", mid:"rgba(88,28,135,.06)", edge:"rgba(0,0,0,0)"},
+          {x:2_050, y:1_250, r:1_750, p:.060, color:"rgba(190,24,93,.13)", mid:"rgba(30,64,175,.05)", edge:"rgba(0,0,0,0)"},
+          {x:0, y:0, r:1_250, p:.11, color:"rgba(251,146,60,.045)", mid:"rgba(127,29,29,.03)", edge:"rgba(0,0,0,0)"}
+        ],
+        dustSpecks:[
+          {x:-3_400, y:-2_600, w:6_800, h:5_200, count:230, p:.10, sizeMin:.16, sizeMax:.74, alphaMin:.010, alphaMax:.050, colors:["254,202,202", "251,146,60", "216,180,254"]},
+          {x:-3_000, y:-2_200, w:6_000, h:4_400, count:120, p:.20, sizeMin:.18, sizeMax:.88, alphaMin:.008, alphaMax:.038, colors:["248,113,113", "192,132,252", "226,232,240"]}
+        ],
+        glowSpots:[
+          {x:0, y:0, r:1_100, p:.10, seed:1451, alpha:.14, speed:1_700, core:"rgba(255,255,255,.48)", hot:"rgba(248,113,113,.25)", mid:"rgba(88,28,135,.08)"}
+        ],
+        asteroidFields:[]
       }
     };
   }

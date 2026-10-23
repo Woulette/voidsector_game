@@ -6,7 +6,7 @@ export const LOAD_TEST_LASER_COUNT = 8;
 export const LOAD_TEST_AMMO_COUNT = 5_000_000;
 export const LOAD_TEST_LEVEL = 30;
 
-const LOAD_TEST_PORTALS = ["blue", "violet", "red", "emerald", "void", "ancient"];
+const LOAD_TEST_PORTALS = ["blue", "violet", "red", "ionis", "emerald", "void", "prismatic", "ancient", "eternal"];
 const LOAD_TEST_LASER_UID_PREFIX = "loadtest_laser_mk3_";
 
 function clamp(value, min, max){

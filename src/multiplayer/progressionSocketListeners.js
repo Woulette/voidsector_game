@@ -40,6 +40,10 @@ export function installProgressionSocketListeners({socket, multiplayer, emitChan
   socket.on("quest:tracked", event=>{
     emitChange("quest:tracked", event);
   });
+  socket.on("quest:abandoned", event=>{
+    toast(event?.title ? `Quête abandonnée : ${event.title}` : "Quête abandonnée.");
+    emitChange("quest:abandoned", event);
+  });
   socket.on("quest:error", payload=>{
     toast(payload?.message || "Action quete impossible.");
     emitChange("quest:error", payload);
@@ -61,19 +65,22 @@ export function installProgressionSocketListeners({socket, multiplayer, emitChan
     emitChange("portal:error", payload);
   });
   socket.on("prestige:performed", event=>{
-    toast(`Prestige ${event?.prestige || 0} actif : retour niveau 1.`);
+    toast("Ascension accomplie : retour au niveau 1, plafond désormais fixé au niveau 100.");
     emitChange("prestige:performed", event);
   });
   socket.on("prestige:error", payload=>{
-    toast(payload?.message || "Prestige impossible.");
+    toast(payload?.message || "Ascension impossible.");
     emitChange("prestige:error", payload);
   });
   socket.on("profile:title-updated", event=>{
-    toast(event?.titleId ? "Titre public mis a jour." : "Titre public retire.");
+    const message = event?.titleId
+      ? (event.visible === false ? "Titre équipé, mais masqué en jeu." : "Titre équipé et visible en jeu.")
+      : "Titre retiré.";
+    toast(message);
     emitChange("profile:title-updated", event);
   });
   socket.on("profile:title-error", payload=>{
-    toast(payload?.message || "Titre impossible.");
+    toast(payload?.message || "Modification du titre impossible.");
     emitChange("profile:title-error", payload);
   });
 }

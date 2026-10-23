@@ -56,10 +56,19 @@ function integerConfig(value, fallback, {min = 0, max = Number.MAX_SAFE_INTEGER}
   return Math.max(min, Math.min(max, parsed));
 }
 
+function isValidBindHost(value){
+  const host = String(value || "").trim();
+  if(!host || host.length > 255 || /[\s/\\?#]/.test(host)) return false;
+  return host === "localhost"
+    || /^[a-z0-9.-]+$/i.test(host)
+    || /^\[?[a-f0-9:.]+\]?$/i.test(host);
+}
+
 export function createRuntimeConfig(environment = process.env){
   const nodeEnv = String(environment.NODE_ENV || "development").trim().toLowerCase();
   const isProduction = nodeEnv === "production";
   const port = Number(environment.PORT || 3001);
+  const host = String(environment.HOST || (isProduction ? "127.0.0.1" : "0.0.0.0")).trim();
   const clientOrigin = normalizeClientOrigins(environment.CLIENT_ORIGIN || "*");
   const databaseUrl = String(environment.DATABASE_URL || "").trim();
   const platformAuthApiUrl = normalizeBaseUrl(environment.PLATFORM_AUTH_API_URL || "");
@@ -75,6 +84,9 @@ export function createRuntimeConfig(environment = process.env){
 
   if(!Number.isInteger(port) || port < 1 || port > 65535){
     errors.push("PORT must be an integer between 1 and 65535.");
+  }
+  if(!isValidBindHost(host)){
+    errors.push("HOST must be a hostname or IP address without a protocol or path.");
   }
   if(clientOrigin !== "*" && (!origins.length || origins.some(origin=>!isValidClientOrigin(origin)))){
     errors.push("CLIENT_ORIGIN must contain valid comma-separated http(s) origins without paths.");
@@ -108,6 +120,7 @@ export function createRuntimeConfig(environment = process.env){
     nodeEnv,
     isProduction,
     port,
+    host,
     clientOrigin:clientOrigin === "*" || clientOrigin.length === 1 ? clientOrigin === "*" ? "*" : clientOrigin[0] : clientOrigin,
     databaseEnabled:Boolean(databaseUrl),
     platformAuthApiUrl,
@@ -132,8 +145,8 @@ export const config = {
   afkDisconnectMs:10 * 60 * 1000,
   accountActionLocks:{
     "shop:buy-ammo":{minIntervalMs:220, limit:24, windowMs:10000},
-    "shop:buy-item":{minIntervalMs:300, limit:16, windowMs:10000},
-    "shop:buy-booster":{minIntervalMs:300, limit:16, windowMs:10000},
+    "shop:buy-item":{minIntervalMs:300, limit:24, windowMs:10000},
+    "shop:buy-booster":{minIntervalMs:300, limit:24, windowMs:10000},
     "shop:buy-premium-pack":{minIntervalMs:600, limit:8, windowMs:10000},
     "shop:buy-beta-pack":{minIntervalMs:800, limit:6, windowMs:10000},
     "premium:reward-claim":{minIntervalMs:800, limit:6, windowMs:10000},
@@ -151,6 +164,7 @@ export const config = {
     "equipment:drone-upgrade":{minIntervalMs:500, limit:8, windowMs:10000},
     "equipment:upgrade":{minIntervalMs:500, limit:10, windowMs:10000},
     "quest:accept":{minIntervalMs:250, limit:16, windowMs:10000},
+    "quest:abandon":{minIntervalMs:500, limit:10, windowMs:10000},
     "quest:track":{minIntervalMs:80, limit:40, windowMs:10000},
     "quest:claim":{minIntervalMs:500, limit:10, windowMs:10000},
     "quest:progress":{minIntervalMs:120, limit:24, windowMs:10000},
@@ -171,7 +185,8 @@ export const config = {
     "skill:upgrade":{minIntervalMs:450, limit:10, windowMs:10000},
     "portal:unlock":{minIntervalMs:1000, limit:5, windowMs:10000},
     "prestige:perform":{minIntervalMs:2500, limit:3, windowMs:30000},
-    "space-caster:run":{minIntervalMs:900, limit:8, windowMs:10000},
+    "profile:title-set":{minIntervalMs:350, limit:10, windowMs:10000},
+    "space-caster:run":{minIntervalMs:350, limit:24, windowMs:10000},
     "portal:prepare":{minIntervalMs:1000, limit:5, windowMs:10000},
     "refinery:upgrade-start":{minIntervalMs:350, limit:10, windowMs:10000},
     "refinery:upgrade-rush":{minIntervalMs:350, limit:10, windowMs:10000},
@@ -189,14 +204,15 @@ export const config = {
     "portal:ricky-heal":{minIntervalMs:500, limit:6, windowMs:10000},
     "ship:ability-use":{minIntervalMs:500, limit:6, windowMs:10000},
     "portal:ricky-lever":{minIntervalMs:250, limit:20, windowMs:10000},
+    "portal:precursor-interact":{minIntervalMs:350, limit:12, windowMs:10000},
     "player:respawn":{minIntervalMs:500, limit:6, windowMs:10000},
     "portgun:teleport":{minIntervalMs:1000, limit:4, windowMs:10000},
     "group:invite":{minIntervalMs:500, limit:12, windowMs:10000},
     "group:kick":{minIntervalMs:350, limit:12, windowMs:10000},
     "group:promote":{minIntervalMs:350, limit:12, windowMs:10000},
     "profile:setup":{minIntervalMs:0, limit:12, windowMs:30000},
+    "profile:refresh":{minIntervalMs:2000, limit:6, windowMs:10000},
     "loadtest:provision":{minIntervalMs:1000, limit:2, windowMs:30000},
-    "profile:title-set":{minIntervalMs:300, limit:12, windowMs:10000},
     "profile:debug-reset-firm":{minIntervalMs:1500, limit:3, windowMs:30000},
     "admin:sync":{minIntervalMs:500, limit:10, windowMs:10000},
     "admin:inspect-player":{minIntervalMs:500, limit:20, windowMs:10000},
@@ -209,7 +225,7 @@ export const config = {
   },
   socketRateLimits:{
     default:{limit:120, windowMs:1000},
-    "player:state":{limit:30, windowMs:1000},
+    "player:state":{limit:30, windowMs:1000, burst:60},
     "combat:fire":{limit:25, windowMs:1000},
     "combat:fire-player":{limit:25, windowMs:1000},
     "chat:send":{limit:8, windowMs:10000},
@@ -235,11 +251,12 @@ export const config = {
     "player:activity":{limit:30, windowMs:10000},
     "portgun:teleport":{limit:4, windowMs:10000},
     "portal:ricky-lever":{limit:30, windowMs:10000},
+    "portal:precursor-interact":{limit:16, windowMs:10000},
     "ship:ability-use":{limit:8, windowMs:10000},
     "profile:save":{limit:6, windowMs:10000},
+    "profile:refresh":{limit:6, windowMs:10000},
     "profile:setup":{limit:20, windowMs:60000},
     "loadtest:provision":{limit:3, windowMs:60000},
-    "profile:title-set":{limit:16, windowMs:10000},
     "profile:debug-reset-firm":{limit:4, windowMs:60000},
     "auth:register":{limit:4, windowMs:60000},
     "auth:login":{limit:8, windowMs:60000},
@@ -252,9 +269,9 @@ export const config = {
     "admin:inventory-remove":{limit:12, windowMs:30000},
     "admin:moderate-account":{limit:8, windowMs:30000},
     "admin:reset-instance":{limit:4, windowMs:60000},
-    "shop:buy-ammo":{limit:20, windowMs:10000},
-    "shop:buy-item":{limit:20, windowMs:10000},
-    "shop:buy-booster":{limit:20, windowMs:10000},
+    "shop:buy-ammo":{limit:30, windowMs:10000},
+    "shop:buy-item":{limit:30, windowMs:10000},
+    "shop:buy-booster":{limit:30, windowMs:10000},
     "shop:buy-premium-pack":{limit:12, windowMs:10000},
     "shop:buy-beta-pack":{limit:8, windowMs:10000},
     "premium:reward-claim":{limit:8, windowMs:10000},
@@ -272,13 +289,15 @@ export const config = {
     "equipment:drone-upgrade":{limit:12, windowMs:10000},
     "equipment:upgrade":{limit:20, windowMs:10000},
     "quest:accept":{limit:20, windowMs:10000},
+    "quest:abandon":{limit:12, windowMs:10000},
     "quest:track":{limit:40, windowMs:10000},
     "quest:claim":{limit:20, windowMs:10000},
     "quest:progress":{limit:30, windowMs:10000},
     "skill:upgrade":{limit:20, windowMs:10000},
     "portal:unlock":{limit:20, windowMs:10000},
     "prestige:perform":{limit:5, windowMs:10000},
-    "space-caster:run":{limit:12, windowMs:10000},
+    "profile:title-set":{limit:12, windowMs:10000},
+    "space-caster:run":{limit:30, windowMs:10000},
     "portal:prepare":{limit:8, windowMs:10000},
     "refinery:upgrade-start":{limit:12, windowMs:10000},
     "refinery:upgrade-rush":{limit:12, windowMs:10000},

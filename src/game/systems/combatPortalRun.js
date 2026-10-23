@@ -1,6 +1,6 @@
-import { store } from "../../core/store.js";
+import { store } from "../../core/store.js?v=20260726-kharon1";
 import { getFirmHomeMapName, normalizeFirmId } from "../../data/firms.js";
-import { PORTAL_WAVE_TOTAL } from "../combatData.js";
+import { PORTAL_WAVE_TOTAL } from "../combatData.js?v=20261022-helion-hub1";
 
 export function createCombatPortalRunSystem({
   mapList,

@@ -1,12 +1,14 @@
 import { FIRMS, getFirmMapDisplayName, getFirmMapId, getFirmMapName } from "../../../src/data/firms.js";
+import { buildServerPortalConfigs, buildServerPortalDropRules } from "../portals/portalDefinitions.js";
+import { installHelionOneHub } from "../../../src/shared/helionOneHub.js";
 
 const ASTRA_WORLD_MAPS = {
-  "0":{id:"0", name:"Helion-01", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:320, safeRect:{minX:-5000, minY:2500, maxX:-3500, maxY:3950}}, portals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:7, count:40, level:[1,4], enemyTypes:[["drone_pirate", .50], ["raider_astral", .50]]},
-  "1":{id:"1", name:"Helion-02", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], closedPortals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:19, count:40, level:[5,9], enemyTypes:[["drone_pirate", 1], ["raider_astral", 1], ["chasseur_spectral", 1]], fixedEnemyCounts:{boss_drone_pirate:4, boss_raider_astral:4}},
-  "2":{id:"2", name:"Helion-03", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], seed:31, count:50, level:[10,14], enemyTypes:[["raider_astral", 1], ["chasseur_spectral", 1], ["cuirasse_nebulaire", 1]], fixedEnemyCounts:{eclanite:4, boss_raider_astral:4}},
-  "3":{id:"3", name:"Helion-04", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], seed:43, count:50, level:[15,19], enemyTypes:[["pondeuse_astrale", .56], ["cuirasse_nebulaire", .44]], fixedEnemyCounts:{cuirasse_ambre:6}},
-  "4":{id:"4", name:"Helion-05", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:440, label:"RELAIS HELION-05", hub:false, safeType:"relay"}, questStations:[{id:"quests", x:-4300, y:3300, interactionRadius:320}], portals:[{x:4300, y:-3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}, {x:0, y:-3300, r:95, safeRadius:230}], seed:59, count:50, level:[20,24], enemyTypes:[["eclanite", .60], ["cristanite", .32], ["astranite", .08]], fixedEnemyCounts:{eclanite:30, cristanite:16, astranite:4}},
-  "20":{id:"20", name:"Nereid-01", width:10000, height:8000, spawn:{x:-4300, y:-3300, r:320, safeRadius:320}, portals:[{x:4300, y:3300, r:95, safeRadius:230}], seed:207, count:20, level:[1,4], enemyTypes:[["drone_pirate", .70], ["raider_astral", .30]]}
+  "0":{id:"0", name:"Helion-01", resourceDropBand:"early", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:320, safeRect:{minX:-5000, minY:2500, maxX:-3500, maxY:3950}}, portals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:7, count:40, level:[1,4], enemyTypes:[["drone_pirate", .50], ["raider_astral", .50]]},
+  "1":{id:"1", name:"Helion-02", resourceDropBand:"early", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], closedPortals:[{x:4300, y:-3300, r:95, safeRadius:230}], seed:19, count:40, level:[5,9], enemyTypes:[["drone_pirate", 1], ["raider_astral", 1], ["chasseur_spectral", 1]], fixedEnemyCounts:{boss_drone_pirate:4, boss_raider_astral:4}},
+  "2":{id:"2", name:"Helion-03", resourceDropBand:"early", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], seed:31, count:50, level:[10,14], enemyTypes:[["raider_astral", 1], ["chasseur_spectral", 1], ["cuirasse_nebulaire", 1]], fixedEnemyCounts:{eclanite:4, boss_raider_astral:4}},
+  "3":{id:"3", name:"Helion-04", resourceDropBand:"mid", width:10000, height:8000, portals:[{x:-4300, y:3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}], seed:43, count:50, level:[15,19], enemyTypes:[["pondeuse_astrale", .56], ["cuirasse_nebulaire", .44]], fixedEnemyCounts:{cuirasse_ambre:6}},
+  "4":{id:"4", name:"Helion-05", resourceDropBand:"mid", width:10000, height:8000, spawn:{x:-4300, y:3300, r:320, safeRadius:440, label:"RELAIS HELION-05", hub:false, safeType:"relay"}, questStations:[{id:"quests", x:-4300, y:3300, interactionRadius:320}], portals:[{x:4300, y:-3300, r:95, safeRadius:230}, {x:-4300, y:-3300, r:95, safeRadius:230}, {x:4300, y:3300, r:95, safeRadius:230}, {x:0, y:-3300, r:95, safeRadius:230}], seed:59, count:50, level:[20,24], enemyTypes:[["eclanite", .60], ["cristanite", .32], ["astranite", .08]], fixedEnemyCounts:{eclanite:30, cristanite:16, astranite:4}},
+  "20":{id:"20", name:"Nereid-01", resourceDropBand:"early", width:10000, height:8000, spawn:{x:-4300, y:-3300, r:320, safeRadius:320}, portals:[{x:4300, y:3300, r:95, safeRadius:230}], seed:207, count:20, level:[1,4], enemyTypes:[["drone_pirate", .70], ["raider_astral", .30]]}
 };
 
 const RICKY_PORTAL_BY_FIRM = {
@@ -74,6 +76,7 @@ function buildFirmWorldMaps(){
     id:"50",
     name:"CORE",
     displayName:"Noyau",
+    resourceDropBand:"core",
     width:10000,
     height:8000,
     spawn:{x:0, y:0, r:420, safeRadius:420, safeRect:{minX:-520, minY:-520, maxX:520, maxY:520}},
@@ -92,6 +95,7 @@ function buildFirmWorldMaps(){
 }
 
 export const WORLD_MAPS = buildFirmWorldMaps();
+Object.values(WORLD_MAPS).forEach(installHelionOneHub);
 export const WORLD_ENEMY_TYPES = {
   drone_pirate:{
     kind:"drone_pirate",
@@ -161,6 +165,7 @@ export const WORLD_ENEMY_TYPES = {
   pondeuse_astrale:{
     kind:"pondeuse_astrale",
     type:"Pondeuse astrale",
+    requiresPlayerAttack:true,
     baseLevel:15,
     img:"assets/enemies/generated/astra4_astral_brood.png",
     radius:54,
@@ -470,21 +475,9 @@ export const COOP_ENEMY_TYPES = {
 
 export const PORTAL_CONFIGS = {
   ricky:{id:"ricky", name:"Portail de Ricky", reward:{credits:2000000, xp:400000, premium:5000, ammoX4:0, ammoX6:0}},
-  blue:{id:"blue", name:"Portail Bleu", reward:{credits:3000000, xp:400000, premium:20000, ammoX4:20000, ammoX6:0}},
-  violet:{id:"violet", name:"Portail Violet", reward:{credits:0, xp:0, premium:35000, ammoX4:35000, ammoX6:0}},
-  red:{id:"red", name:"Portail Rouge", reward:{credits:0, xp:0, premium:50000, ammoX4:50000, ammoX6:0}},
-  emerald:{id:"emerald", name:"Portail Emeraude", reward:{credits:0, xp:0, premium:50000, ammoX4:25000, ammoX6:0}},
-  void:{id:"void", name:"Portail du Neant", reward:{credits:0, xp:0, premium:60000, ammoX4:30000, ammoX6:0}},
-  ancient:{id:"ancient", name:"Portail Ancestral", reward:{credits:0, xp:0, premium:100000, ammoX4:0, ammoX6:10000}}
+  ...buildServerPortalConfigs()
 };
 
 export const LOOT_OWNER_TIMEOUT_MS = 15000;
 export const GROUND_LOOT_TTL_MS = 60000;
-export const PORTAL_DROP_RULES = [
-  {id:"blue", name:"Portail Bleu", img:"assets/portal_pieces/portal_piece_blue.png", dropZones:["Helion-01", "Helion-02", "Helion-03"], dropChance:0.0033},
-  {id:"violet", name:"Portail Violet", img:"assets/portals/portail_violet.svg", dropZones:["Helion-03", "Helion-04", "Helion-05"], dropChance:0.0033},
-  {id:"red", name:"Portail Rouge", img:"assets/portals/portail_rouge.svg", dropZones:["Zone 21-30"], dropChance:0.0033},
-  {id:"emerald", name:"Portail Emeraude", img:"assets/portals/portail_emeraude.svg", dropZones:["Zone 31-40"], dropChance:0.0033},
-  {id:"void", name:"Portail du Neant", img:"assets/portals/portail_neant.svg", dropZones:["Zone 41-50"], dropChance:0.0033},
-  {id:"ancient", name:"Portail Ancestral", img:"assets/portals/portail_ancestral.svg", dropZones:["Zone 51+"], dropChance:0.0033}
-];
+export const PORTAL_DROP_RULES = buildServerPortalDropRules();

@@ -1,31 +1,8 @@
-import { droneFormations, equipment, ships } from "../data/catalog.js";
+import { droneFormations, equipment, ships } from "../data/catalog.js?v=20260726-kharon1";
 import { getFirmDefinition, normalizeFirmId } from "../data/firms.js";
 import { calculateRankScore, getRankAssetPath, getRankForScore } from "../data/ranks.js";
 import { fmt } from "../core/utils.js";
-import { store } from "../core/store.js";
-
-const PROFILE_TITLE_NAMES = {
-  first_contact:"Premier sang",
-  hunter_100:"Traqueur spatial",
-  veteran_25:"Vétéran d'Astra",
-  portal_mastery:"Nettoyeur d'Astra",
-  quest_5:"Mercenaire fiable",
-  inventory_30:"Ingénieur de bord",
-  skill_15:"Spécialiste",
-  drone_5:"Chef d'escadron",
-  hunter_500:"Chasseur abyssal",
-  laser_100k:"Canonnier laser",
-  laser_1m:"Déluge photonique",
-  laser_10m:"Architecte de faisceaux",
-  laser_100m:"Tempête laser",
-  laser_1b:"Légende photonique",
-  rocket_25k:"Artilleur orbital",
-  rocket_250k:"Maître roquettes",
-  rocket_25m:"Barrage orbital",
-  missile_10k:"Artilleur guidé",
-  missile_1m:"Commandant missile",
-  missile_100m:"Doctrine orbitale"
-};
+import { store } from "../core/store.js?v=20260726-kharon1";
 
 const profileRegistry = new Map();
 let profileEventsInstalled = false;
@@ -88,11 +65,6 @@ function compactItems(state, uids = []){
   return (Array.isArray(uids) ? uids : []).map(uid=>itemByUid(state, uid)).filter(Boolean);
 }
 
-function activeTitle(player = {}){
-  if(player.titleVisible === false || !player.activeTitleId) return null;
-  return PROFILE_TITLE_NAMES[player.activeTitleId] || null;
-}
-
 function buildFormationSummary(id = "base"){
   const formation = droneFormations.find(entry=>entry.id === id) || droneFormations[0];
   if(!formation) return null;
@@ -116,7 +88,8 @@ export function buildLocalPlayerProfile(row = {}){
   const droneItems = (Array.isArray(state.droneLoadout) ? state.droneLoadout : [])
     .map((uid, index)=>{
       const item = itemByUid(state, uid);
-      return item ? {...item, droneIndex:index + 1, upgraded:Boolean(state.dronePermanentUpgrades?.[index])} : null;
+      const vesperUnlocked = Math.max(0, Number(state.completedPortals?.violet || 0)) > 0;
+      return item ? {...item, droneIndex:index + 1, upgraded:vesperUnlocked && Boolean(state.dronePermanentUpgrades?.[index])} : null;
     })
     .filter(Boolean);
   const portalClears = completedPortalCount(state.completedPortals);
@@ -127,7 +100,6 @@ export function buildLocalPlayerProfile(row = {}){
     key:"local-player",
     name:player.name || row.pilot || "NOVA-37",
     firm:{id:firm.id, label:firm.label, color:firm.color},
-    title:activeTitle(player),
     level:Math.max(1, Number(player.level || row.level || 1)),
     sourceLabel:"Profil sauvegardé",
     rank:{id:rank.id, name:rank.name, score:rankScore, asset:getRankAssetPath(rank)},
@@ -211,7 +183,6 @@ export function buildPreviewPilotProfile(row = {}){
     key:`preview:${row.id || row.pilot || "pilot"}`,
     name:row.pilot || "Pilote",
     firm:{id:firm.id, label:firm.label, color:firm.color},
-    title:level >= 30 ? "Chasseur abyssal" : level >= 20 ? "Traqueur spatial" : null,
     level,
     sourceLabel:"Profil de prévisualisation",
     rank:{id:rank.id, name:rank.name, score:Number(row.points || 0), asset:getRankAssetPath(rank)},
@@ -258,7 +229,6 @@ export function buildFallbackPilotProfile(row = {}){
     key:String(row.key || row.name || "pilot"),
     name:String(row.name || row.pilot || "Pilote"),
     firm:{id:firm.id, label:firm.label, color:firm.color},
-    title:null,
     level:Math.max(1, Number(row.level || 1)),
     sourceLabel:"Profil public partiel",
     rank:null,
@@ -404,10 +374,11 @@ function renderPilotProfileModal(){
   const loadout = profile.loadout || {};
   const drones = profile.drones || {};
   const firm = profile.firm || getFirmDefinition("astra");
-  const titleLine = [profile.title, rank?.name, `Niv. ${fmt(profile.level || 1)}`].filter(Boolean).join(" - ");
+  const ascended = Number(progression.prestige || 0) > 0;
+  const titleLine = [rank?.name, `Niv. ${fmt(profile.level || 1)} / ${ascended ? 100 : 50}`].filter(Boolean).join(" - ");
 
   root.innerHTML = `<div class="pilot-profile-modal" role="dialog" aria-modal="true" aria-label="Profil joueur">
-    <section class="pilot-profile-window frame" style="--pilot-firm-color:${escapeHtml(firm.color || "#38bdf8")}">
+    <section class="pilot-profile-window frame ${ascended ? "ascended" : ""}" style="--pilot-firm-color:${escapeHtml(firm.color || "#38bdf8")}">
       <header class="pilot-profile-head">
         <div class="pilot-profile-identity">
           <img class="pilot-profile-rank" src="${escapeHtml(rank?.asset || "assets/ranks/01_Recrue.svg")}" alt="">
@@ -417,6 +388,7 @@ function renderPilotProfileModal(){
             <p>${escapeHtml(titleLine || "Profil public")}</p>
           </div>
         </div>
+        ${ascended ? `<div class="pilot-profile-ascension-mark"><i>A</i><span>ASCENSION</span><b>ACCOMPLIE</b></div>` : ""}
         <button class="pilot-profile-close" type="button" data-pilot-profile-close aria-label="Fermer">×</button>
       </header>
       <div class="pilot-profile-summary">
@@ -432,7 +404,7 @@ function renderPilotProfileModal(){
         <section class="pilot-profile-stats">
           ${renderMetric("Réputation", fmt(progression.reputation || 0))}
           ${renderMetric("XP totale", fmt(progression.totalXp || 0))}
-          ${renderMetric("Prestige", fmt(progression.prestige || 0))}
+          ${renderMetric("Niveau", `${fmt(profile.level || 1)} / ${ascended ? 100 : 50}`, ascended ? "Progression ascendante" : "Première progression")}
           ${renderMetric("Points compétence", fmt(progression.skillPoints || 0))}
           ${renderMetric("Tirs laser", fmt(progression.laserShots || 0))}
           ${renderMetric("Quêtes", fmt(progression.questsCompleted || 0))}

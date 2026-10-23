@@ -1,8 +1,11 @@
 import {ammoTypes, droneFormations} from "../../../src/data/equipment.js";
 import {skills} from "../../../src/data/progression.js";
-import {getItemFromInventoryUid, getServerItem} from "../economy/equipment.js";
+import {getDroneLaserDamageMultiplier, getItemFromInventoryUid, getTrustedEquipmentUpgradeLevel} from "../economy/equipment.js";
 import {consumeServerCombatBoostCharges, getServerCombatTimedBoostPercent} from "../economy/combatBoosts.js";
+import { ANCIENT_PORTAL_ID } from "../../../src/data/ancientPortal.js";
 import {applyServerLaserDoubleStrike} from "./shipAbilities.js";
+import {getEquippedProfileTitleDamageMultiplier} from "../players/profileTitles.js";
+import {canAccountRoleAccessShip, ships} from "../../../src/data/ships.js";
 
 export function createCombatCooldownTracker({
   now = ()=>Date.now(),
@@ -39,14 +42,31 @@ export function createCombatCooldownTracker({
     return {ok:true};
   }
 
+  function retryAfterMs(player, weaponClass){
+    const key = `${playerKey(player)}:${weaponClass || "laser"}`;
+    return Math.max(0, Math.ceil(Number(cooldowns.get(key) || 0) - now()));
+  }
+
+  function readyAt(player, weaponClass){
+    const key = `${playerKey(player)}:${weaponClass || "laser"}`;
+    return Math.max(0, Number(cooldowns.get(key) || 0));
+  }
+
   return {
     check,
     prune,
+    readyAt,
+    retryAfterMs,
     size:()=>cooldowns.size
   };
 }
 
 const fireCooldowns = createCombatCooldownTracker();
+export const SERVER_WEAPON_HIT_CHANCES = Object.freeze({
+  laser:0.8,
+  rocket:0.88,
+  missile:0.8
+});
 const ELITE_LASER_CHARGE_MAX = 5;
 const ELITE_LASER_RESET_MS = 10_000;
 const ELITE_GREEN_LIFESTEAL_PER_LASER = 0.01;
@@ -81,11 +101,34 @@ function getAmmo(id){
 }
 
 function getUpgradeLevel(profile, itemId){
-  return Math.max(0, Number(profile?.equipmentUpgrades?.[itemId] || 0));
+  return getTrustedEquipmentUpgradeLevel(profile, itemId);
 }
 
 function checkCooldown(player, weaponClass, cooldownMs){
-  return fireCooldowns.check(player, weaponClass, cooldownMs);
+  const result = fireCooldowns.check(player, weaponClass, cooldownMs);
+  const cooldownReadyAt = fireCooldowns.readyAt(player, weaponClass);
+  if(result.ok) return {...result, cooldownReadyAt};
+  return {
+    ...result,
+    cooldownReadyAt,
+    retryAfterMs:fireCooldowns.retryAfterMs(player, weaponClass)
+  };
+}
+
+export function getServerWeaponHitChance(weaponClass){
+  return Number(SERVER_WEAPON_HIT_CHANCES[String(weaponClass || "")] || 0);
+}
+
+function rejectCombatFire(reasonCode, reason, extra = {}){
+  return {
+    ok:false,
+    accepted:false,
+    outcome:"rejected",
+    reasonCode:String(reasonCode || "COMBAT_REJECTED"),
+    reason:String(reason || "Tir refuse."),
+    consumed:0,
+    ...extra
+  };
 }
 
 function consumeAmmo(profile, ammoId, amount){
@@ -312,11 +355,9 @@ function getDroneLaserItems(profile){
   return loadout.map((uid, index)=>{
     const item = getItemFromInventoryUid(profile, uid);
     if(item?.category !== "canon" || !item?.weapon) return null;
-    const upgradeId = profile.dronePermanentUpgrades?.[index] || null;
-    const upgrade = upgradeId ? getServerItem(upgradeId) : null;
     return {
       ...item,
-      droneDamageMultiplier:Math.max(1, Number(upgrade?.effect?.droneDamageMultiplier || 1))
+      droneDamageMultiplier:getDroneLaserDamageMultiplier(profile, index)
     };
   }).filter(Boolean);
 }
@@ -366,6 +407,28 @@ function getMissileDamageMultiplier(profile){
     * getFormationBonus(profile, "missileDamageMultiplier", 1);
 }
 
+export function getPrecursorBlessingDamageMultiplier(player, now = Date.now()){
+  const blessing = player?.precursorBlessing;
+  if(!blessing) return 1;
+  const sourceInstanceId = String(blessing.sourceInstanceId || "");
+  if(Number(now || 0) >= Number(blessing.expiresAt || 0)
+    || String(player?.state?.mapId || player?.mapId || "") !== `portal-${ANCIENT_PORTAL_ID}`
+    || !sourceInstanceId
+    || String(player?.precursorActiveInstanceId || "") !== sourceInstanceId){
+    delete player.precursorBlessing;
+    return 1;
+  }
+  return Math.max(1, Math.min(1.5, Number(blessing.damageMultiplier || 1)));
+}
+
+export function getServerShipDamageMultiplier(profile, player){
+  const shipId = String(profile?.activeShip || player?.state?.shipId || "");
+  if(!shipId || (player?.state?.shipId && String(player.state.shipId) !== shipId)) return 1;
+  const ship = ships.find(candidate=>candidate.id === shipId);
+  if(!ship || !canAccountRoleAccessShip(ship, player?.account?.role)) return 1;
+  return Math.max(1, Number(ship.stats?.damageMultiplier || 1));
+}
+
 function getRocketCooldownMultiplier(profile, player){
   const loadout = getShipLoadout(profile, player);
   const extras = Array.isArray(loadout?.extras) ? loadout.extras : [];
@@ -400,18 +463,36 @@ function distanceOk(player, enemy, range, tolerance = 180){
   return dist <= Math.max(1, Number(range || 0)) + tolerance;
 }
 
+export function calculateServerCombatTravelTimeMs({player, enemy, weaponClass, projectileSpeed} = {}){
+  if(String(weaponClass || "") === "laser") return 0;
+  const distance = Math.hypot(
+    Number(enemy?.x || 0) - Number(player?.state?.x || 0),
+    Number(enemy?.y || 0) - Number(player?.state?.y || 0)
+  );
+  if(String(weaponClass || "") === "rocket"){
+    const seconds = Math.max(0.22, Math.min(1.55, distance / Math.max(1, Number(projectileSpeed || 620)) + 0.14));
+    return Math.round(seconds * 1000);
+  }
+  if(String(weaponClass || "") === "missile"){
+    const seconds = Math.max(0.28, Math.min(1.65, distance / Math.max(1, Number(projectileSpeed || 520)) + 0.18));
+    return Math.round(seconds * 1000);
+  }
+  return 0;
+}
+
 export function resolveServerCombatFire({player, profile, enemy, payload, firmDamageBonus = 0, random = Math.random, now = Date.now()} = {}){
-  if(!player || !profile || !enemy) return {ok:false, reason:"Combat impossible."};
+  if(!player || !profile || !enemy) return rejectCombatFire("COMBAT_UNAVAILABLE", "Combat impossible.");
   const ammo = getAmmo(String(payload?.ammoId || "ammo_x1"));
-  if(!ammo) return {ok:false, reason:"Munition inconnue."};
+  if(!ammo) return rejectCombatFire("UNKNOWN_AMMO", "Munition inconnue.");
   const weaponClass = String(payload?.weaponClass || ammo.weaponClass || "laser");
-  if(weaponClass !== ammo.weaponClass) return {ok:false, reason:"Munition incompatible."};
-  const hitChance = 0.88;
-  const missileHitChance = 0.8;
+  if(weaponClass !== ammo.weaponClass) return rejectCombatFire("INCOMPATIBLE_AMMO", "Munition incompatible.");
+  const hitChance = getServerWeaponHitChance(weaponClass);
+  const missileHitChance = getServerWeaponHitChance("missile");
   let damage = 0;
   let consumed = 1;
   let cooldownMs = 1000;
   let range = 500;
+  let projectileSpeed = 0;
   let missileHits = 0;
   let missileMisses = 0;
   let laserDamage = null;
@@ -422,7 +503,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     const shipLasers = getShipLaserItems(profile, player);
     const droneLasers = getDroneLaserItems(profile);
     const lasers = [...shipLasers, ...droneLasers];
-    if(lasers.length <= 0) return {ok:false, reason:"Aucun laser equipe."};
+    if(lasers.length <= 0) return rejectCombatFire("NO_WEAPON", "Aucun laser equipe.");
     const shipPool = sumLaserDamage(profile, shipLasers);
     const dronePool = sumLaserDamage(profile, droneLasers);
     consumed = lasers.length;
@@ -437,21 +518,23 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     };
   }else if(weaponClass === "rocket"){
     const launcher = getLauncher(profile, player, "rocket");
-    if(!launcher) return {ok:false, reason:"Aucun lance roquette equipe."};
+    if(!launcher) return rejectCombatFire("NO_WEAPON", "Aucun lance roquette equipe.");
     consumed = 1;
     range = Number(launcher.effect?.rocketRange || 550);
+    projectileSpeed = Math.max(1, Number(ammo.speed || 620));
     cooldownMs = Math.max(500, Number(launcher.effect?.rocketCooldown || ammo.cooldown || 5) * getRocketCooldownMultiplier(profile, player) * 1000);
     damage = (rollBetween(ammo.damageMin, ammo.damageMax, random) + getUpgradeLevel(profile, ammo.id) * 80) * Number(launcher.effect?.rocketDamageMultiplier || 1);
   }else if(weaponClass === "missile"){
     const launcher = getLauncher(profile, player, "missile");
-    if(!launcher) return {ok:false, reason:"Aucun lance missile equipe."};
+    if(!launcher) return rejectCombatFire("NO_WEAPON", "Aucun lance missile equipe.");
     const capacity = Math.max(1, Math.min(12, Number(launcher.effect?.missileCapacity || 3)));
     consumed = Math.max(1, Math.min(capacity, Math.floor(Number(payload?.count || capacity))));
     range = Number(launcher.effect?.missileRange || 600);
+    projectileSpeed = Math.max(1, Number(ammo.speed || 520));
     cooldownMs = Math.max(750, consumed * Number(launcher.effect?.missileReload || 3) * 1000);
     const multiplier = Number(launcher.effect?.missileDamageMultiplier || 1) * getMissileDamageMultiplier(profile);
     for(let index = 0; index < consumed; index += 1){
-      if(random() <= missileHitChance){
+      if(random() < missileHitChance){
         missileHits += 1;
         damage += rollBetween(ammo.damageMin, ammo.damageMax, random) * multiplier;
       }else{
@@ -459,13 +542,18 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
       }
     }
   }else{
-    return {ok:false, reason:"Type d'arme invalide."};
+    return rejectCombatFire("INVALID_WEAPON", "Type d'arme invalide.");
   }
 
-  if(!distanceOk(player, enemy, range)) return {ok:false, reason:"Cible hors de portee."};
-  if(!hasAmmo(profile, ammo.id, consumed)) return {ok:false, reason:"Munitions insuffisantes."};
+  if(!distanceOk(player, enemy, range)) return rejectCombatFire("OUT_OF_RANGE", "Cible hors de portee.");
+  if(!hasAmmo(profile, ammo.id, consumed)) return rejectCombatFire("NO_AMMO", "Munitions insuffisantes.");
   const cooldown = checkCooldown(player, weaponClass, cooldownMs);
-  if(!cooldown.ok) return cooldown;
+  if(!cooldown.ok){
+    return rejectCombatFire("COOLDOWN", cooldown.reason || "Arme en recharge.", {
+      cooldownReadyAt:Math.max(0, Number(cooldown.cooldownReadyAt || 0)),
+      retryAfterMs:Math.max(0, Number(cooldown.retryAfterMs || 0))
+    });
+  }
   consumeAmmo(profile, ammo.id, consumed);
   recordServerWeaponUse(profile, weaponClass, consumed);
   if(weaponClass === "laser" && eliteLaserShot){
@@ -484,30 +572,49 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     boostPercent = consumeServerCombatBoostCharges(profile, "rocket", 1);
     damage *= getRocketDamageMultiplier(profile) * (1 + boostPercent);
   }
+  const shipDamageMultiplier = getServerShipDamageMultiplier(profile, player);
+  damage *= shipDamageMultiplier;
+  const titleDamageMultiplier = getEquippedProfileTitleDamageMultiplier(profile);
+  damage *= titleDamageMultiplier;
   const activeFirmDamageBonus = Math.max(0, Number(firmDamageBonus || 0));
   damage *= 1 + activeFirmDamageBonus;
+  damage *= getPrecursorBlessingDamageMultiplier(player, now);
   if(weaponClass === "laser" && eliteLaser?.red?.triggered){
     damage *= 1 + Math.max(0, Number(eliteLaser.red.damageBonus || 0));
   }
-  const hit = weaponClass === "missile" ? missileHits > 0 : random() <= hitChance;
+  const hit = weaponClass === "missile" ? missileHits > 0 : random() < hitChance;
   const baseDamage = hit ? Math.max(1, Math.round(damage)) : 0;
   const doubleStrike = weaponClass === "laser"
     ? applyServerLaserDoubleStrike({player, profile, weaponClass, hit, damage:baseDamage, now})
     : {triggered:false, bonusDamage:0};
   const bonusDamage = Math.max(0, Math.round(Number(doubleStrike?.bonusDamage || 0)));
   const shipAbilityState = doubleStrike?.status || null;
+  const travelTimeMs = calculateServerCombatTravelTimeMs({
+    player,
+    enemy,
+    weaponClass,
+    projectileSpeed
+  });
   return {
     ok:true,
+    accepted:true,
+    outcome:hit ? "hit" : "miss",
     hit,
     damage:baseDamage + bonusDamage,
     ammoId:ammo.id,
     consumed,
     ammoRemaining:Math.max(0, Number(profile.ammoInventory?.[ammo.id] || 0)),
     weaponClass,
+    cooldownMs:Math.max(0, Math.round(Number(cooldownMs || 0))),
+    cooldownReadyAt:Math.max(0, Number(cooldown.cooldownReadyAt || 0)),
+    projectileSpeed,
+    travelTimeMs,
     missileHits,
     missileMisses,
     boostPercent,
     droneBoostPercent,
+    shipDamageMultiplier,
+    titleDamageMultiplier,
     firmDamageBonus:activeFirmDamageBonus,
     eliteLaser,
     shipAbilityState,

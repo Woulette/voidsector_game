@@ -1,5 +1,5 @@
-import { ammoTypes, equipment, portals, rawMaterialCatalog } from "../../data/catalog.js";
-import { getAllQuests as defaultGetAllQuests } from "../../core/store.js";
+import { ammoTypes, equipment, portals, rawMaterialCatalog } from "../../data/catalog.js?v=20260726-kharon1";
+import { getAllQuests as defaultGetAllQuests } from "../../core/store.js?v=20260726-kharon1";
 import { fmt } from "../../core/utils.js";
 
 export function compactQuestRewardLabels(reward = {}, {

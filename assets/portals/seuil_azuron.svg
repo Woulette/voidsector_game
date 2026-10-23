@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 420" role="img" aria-labelledby="title desc">
+  <title id="title">Le Seuil d'Azuron</title>
+  <desc id="desc">Une arche blindée cobalt gardée par deux sentinelles et traversée par une énergie cyan.</desc>
+  <defs>
+    <linearGradient id="azuron-metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8cc9ff"/>
+      <stop offset=".16" stop-color="#183c6b"/>
+      <stop offset=".52" stop-color="#07172f"/>
+      <stop offset=".82" stop-color="#1d4e82"/>
+      <stop offset="1" stop-color="#a7d8ff"/>
+    </linearGradient>
+    <linearGradient id="azuron-dark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#123a68"/>
+      <stop offset=".48" stop-color="#06152c"/>
+      <stop offset="1" stop-color="#020817"/>
+    </linearGradient>
+    <radialGradient id="azuron-energy" cx="50%" cy="43%" r="62%">
+      <stop offset="0" stop-color="#04152d"/>
+      <stop offset=".35" stop-color="#075ea9"/>
+      <stop offset=".69" stop-color="#09d9ff"/>
+      <stop offset=".82" stop-color="#52f4ff"/>
+      <stop offset="1" stop-color="#b9fbff"/>
+    </radialGradient>
+    <radialGradient id="azuron-halo" cx="50%" cy="43%" r="58%">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity=".42"/>
+      <stop offset=".58" stop-color="#0ea5e9" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#020617" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="azuron-grid" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M0 0h18v18H0z" fill="none" stroke="#67e8f9" stroke-opacity=".14" stroke-width="1"/>
+    </pattern>
+    <filter id="azuron-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="azuron-soft-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <clipPath id="azuron-threshold">
+      <path d="M160 71C93 71 61 129 61 209v99h198v-99c0-80-32-138-99-138Z"/>
+    </clipPath>
+  </defs>
+
+  <ellipse cx="160" cy="214" rx="151" ry="190" fill="url(#azuron-halo)"/>
+  <ellipse cx="160" cy="366" rx="122" ry="24" fill="#020817" opacity=".88"/>
+  <ellipse cx="160" cy="360" rx="94" ry="15" fill="#22d3ee" opacity=".18" filter="url(#azuron-soft-glow)"/>
+
+  <g clip-path="url(#azuron-threshold)">
+    <path d="M160 79C101 79 72 132 72 211v89h176v-89c0-79-29-132-88-132Z" fill="url(#azuron-energy)"/>
+    <path d="M60 70h200v240H60z" fill="url(#azuron-grid)" opacity=".82"/>
+    <path d="M160 91C112 91 86 137 86 210v77h148v-77c0-73-26-119-74-119Z" fill="#03142d" opacity=".39"/>
+    <path d="M94 286c23-24 42-35 66-35s43 11 66 35" fill="none" stroke="#9ff9ff" stroke-opacity=".65" stroke-width="2"/>
+    <g fill="none" stroke="#d9fdff" stroke-linecap="round" filter="url(#azuron-glow)">
+      <path d="M84 139c16-32 41-51 76-51s60 19 76 51" stroke-width="3" opacity=".8"/>
+      <path d="M80 200c7-29 21-47 43-59M240 200c-7-29-21-47-43-59" stroke-width="2" opacity=".52"/>
+      <path d="M103 255c14-12 33-18 57-18s43 6 57 18" stroke-width="2" opacity=".58"/>
+    </g>
+  </g>
+
+  <g fill="url(#azuron-metal)" stroke="#77ddff" stroke-width="2">
+    <path d="M160 45c-79 0-123 69-123 166v127h34V211c0-75 28-131 89-131s89 56 89 131v127h34V211c0-97-44-166-123-166Z"/>
+    <path d="M58 109 30 143v179l34 28 24-35V157l-30-48Z"/>
+    <path d="m262 109 28 34v179l-34 28-24-35V157l30-48Z"/>
+    <path d="m83 51 36-26h82l36 26-28 33h-98L83 51Z"/>
+  </g>
+
+  <g fill="url(#azuron-dark)" stroke="#38bdf8" stroke-width="1.5">
+    <path d="m43 158 20-21 14 25v55l-34 20v-79Z"/>
+    <path d="m277 158-20-21-14 25v55l34 20v-79Z"/>
+    <path d="m54 251 23-14v72l-16 21-7-11v-68Z"/>
+    <path d="m266 251-23-14v72l16 21 7-11v-68Z"/>
+    <path d="m115 50 19-14h52l19 14-15 18h-60l-15-18Z"/>
+  </g>
+
+  <g filter="url(#azuron-glow)">
+    <path d="M160 68c-64 0-101 60-101 143v111" fill="none" stroke="#22d3ee" stroke-width="5" stroke-linecap="round"/>
+    <path d="M160 68c64 0 101 60 101 143v111" fill="none" stroke="#7dd3fc" stroke-width="5" stroke-linecap="round"/>
+    <path d="M79 322h162" stroke="#67e8f9" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <g aria-label="Sentinelles d'Azuron">
+    <g transform="translate(59 188)">
+      <path d="m0-27 18 11v31L0 29-18 15v-31L0-27Z" fill="#061a36" stroke="#7dd3fc" stroke-width="2"/>
+      <path d="m0-17 9 11-9 16-9-16 9-11Z" fill="#67e8f9" filter="url(#azuron-glow)"/>
+      <path d="M-10 16 0 24l10-8" fill="none" stroke="#38bdf8" stroke-width="2"/>
+    </g>
+    <g transform="translate(261 188)">
+      <path d="m0-27 18 11v31L0 29-18 15v-31L0-27Z" fill="#061a36" stroke="#7dd3fc" stroke-width="2"/>
+      <path d="m0-17 9 11-9 16-9-16 9-11Z" fill="#67e8f9" filter="url(#azuron-glow)"/>
+      <path d="M-10 16 0 24l10-8" fill="none" stroke="#38bdf8" stroke-width="2"/>
+    </g>
+  </g>
+
+  <g transform="translate(160 49)">
+    <path d="M0-21 24-10v18C24 24 13 36 0 43-13 36-24 24-24 8v-18L0-21Z" fill="#071b38" stroke="#a5f3fc" stroke-width="2"/>
+    <path d="M0-11 13-5v11c0 9-5 16-13 22C-8 22-13 15-13 6V-5L0-11Z" fill="none" stroke="#22d3ee" stroke-width="3" filter="url(#azuron-glow)"/>
+    <path d="M0-3v20M-7 4l7-7 7 7" fill="none" stroke="#d9fdff" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <path d="M49 337h222l22 23-27 23H54l-27-23 22-23Z" fill="url(#azuron-metal)" stroke="#7dd3fc" stroke-width="2"/>
+    <path d="M72 346h176l12 13-15 13H75l-15-13 12-13Z" fill="#05162f" stroke="#0ea5e9"/>
+    <path d="M101 359h118" stroke="#67e8f9" stroke-width="4" stroke-linecap="round" filter="url(#azuron-glow)"/>
+    <circle cx="79" cy="359" r="6" fill="#22d3ee"/>
+    <circle cx="241" cy="359" r="6" fill="#22d3ee"/>
+  </g>
+</svg>

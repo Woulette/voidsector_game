@@ -211,7 +211,6 @@ test("Sauvons Deadly unlocks after Maintenance impossible and progresses on Rick
     premium:15000,
     xp:3000000,
     materials:{},
-    portalPieces:{blue:10},
     items:["laser_mk3", "pistou_portgun"]
   });
   assert.equal(portal.type, "portal_complete");

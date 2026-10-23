@@ -1,8 +1,8 @@
-import * as cargoStore from "./cargoStore.js";
-import { skills } from "../data/catalog.js";
+import * as cargoStore from "./cargoStore.js?v=20260726-kharon1";
+import { skills } from "../data/catalog.js?v=20260726-kharon1";
 import { isPremiumActive } from "../data/premium.js";
-import { addAmmo, addInventoryItem, addPortalPiece, addXP, getQuest, store } from "./store.js";
-import { MAX_ACTIVE_QUESTS, canClaimQuest } from "./questProgressStore.js";
+import { addAmmo, addInventoryItem, addPortalPiece, addXP, getQuest, store } from "./store.js?v=20260726-kharon1";
+import { MAX_ACTIVE_QUESTS, canClaimQuest } from "./questProgressStore.js?v=20260726-kharon1";
 
 function getQuestRewardMultipliers(){
   const result = {credits:1, premium:1};

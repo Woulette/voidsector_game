@@ -20,6 +20,7 @@ export async function buildHealthStatus({
   databaseEnabled,
   checkDatabase,
   maxConcurrentGamePlayers = 0,
+  getRuntimeMetrics = null,
   uptimeSeconds = ()=>Math.round(process.uptime()),
   now = ()=>Date.now()
 }){
@@ -47,22 +48,24 @@ export async function buildHealthStatus({
   }
 
   const ok = database.ok;
+  const body = {
+    ok,
+    service:"voidsector-realtime",
+    storage:databaseEnabled ? "postgres" : "json",
+    readiness:{
+      database
+    },
+    uptimeSeconds:uptimeSeconds(),
+    players:countOnlinePlayers(players),
+    limits:{
+      maxConcurrentGamePlayers:Math.max(0, Math.floor(Number(maxConcurrentGamePlayers || 0)))
+    },
+    at:now()
+  };
+  if(typeof getRuntimeMetrics === "function") body.runtime = getRuntimeMetrics();
   return {
     statusCode:ok ? 200 : 503,
-    body:{
-      ok,
-      service:"voidsector-realtime",
-      storage:databaseEnabled ? "postgres" : "json",
-      readiness:{
-        database
-      },
-      uptimeSeconds:uptimeSeconds(),
-      players:countOnlinePlayers(players),
-      limits:{
-        maxConcurrentGamePlayers:Math.max(0, Math.floor(Number(maxConcurrentGamePlayers || 0)))
-      },
-      at:now()
-    }
+    body
   };
 }
 
@@ -71,6 +74,7 @@ export async function buildSafeHealthStatus({
   databaseEnabled,
   checkDatabase,
   maxConcurrentGamePlayers = 0,
+  getRuntimeMetrics = null,
   uptimeSeconds,
   now = ()=>Date.now(),
   buildHealthStatusFn = buildHealthStatus,
@@ -83,6 +87,7 @@ export async function buildSafeHealthStatus({
       databaseEnabled,
       checkDatabase,
       maxConcurrentGamePlayers,
+      getRuntimeMetrics,
       uptimeSeconds,
       now
     });

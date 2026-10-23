@@ -35,11 +35,7 @@ export function createProfileController({
     || Object.hasOwn(profile, "actionSlotsUpdatedAt")
     || Object.hasOwn(profile, "lastLaserAmmoId")
   ));
-  const getLocalActionSlotsVersion = state=>Math.max(
-    0,
-    Number(state?.actionSlotsUpdatedAt || 0),
-    Number(state?.mmoProfileUpdatedAt || 0)
-  );
+  const getLocalActionSlotsVersion = state=>Math.max(0, Number(state?.actionSlotsUpdatedAt || 0));
   const getIncomingActionSlotsVersion = profile=>{
     if(!profile || typeof profile !== "object") return 0;
     if(Object.hasOwn(profile, "actionSlotsUpdatedAt")) return Math.max(0, Number(profile.actionSlotsUpdatedAt || 0));
@@ -75,7 +71,6 @@ export function createProfileController({
   }
 
   function saveAndSync(){
-    store.state.mmoProfileUpdatedAt = Date.now();
     saveState();
     syncMultiplayerProfile(store.state);
   }
@@ -87,7 +82,14 @@ export function createProfileController({
     const profileHasActionPreferences = hasActionPreferenceFields(profile);
     const incomingActionSlotsVersion = getIncomingActionSlotsVersion(profile);
     const localPreferenceVersion = getLocalActionSlotsVersion(store.state);
-    const keepLocalPreferences = profileHasActionPreferences && localPreferenceVersion > 0 && localPreferenceVersion > incomingActionSlotsVersion;
+    const resolvesPreferenceConflict = profile.profileSyncReason === "profile-save-conflict";
+    const keepLocalPreferences = !resolvesPreferenceConflict
+      && profileHasActionPreferences
+      && localPreferenceVersion > 0
+      && localPreferenceVersion > incomingActionSlotsVersion;
+    const preserveRunningActiveSlots = !resolvesPreferenceConflict
+      && isGameRunning()
+      && incomingActionSlotsVersion <= localPreferenceVersion;
     const localActionSlots = normalizeActionSlots(store.state.actionSlots);
     const localActionSlotsByShip = normalizeActionSlotsByShip(store.state.actionSlotsByShip || {});
     const localLastLaserAmmoId = store.state.lastLaserAmmoId;
@@ -117,7 +119,7 @@ export function createProfileController({
     const activeShipId = String(store.state.activeShip || "orion");
     if(profileHasSlotsByShip){
       const incomingSlotsByShip = normalizeActionSlotsByShip(profile.actionSlotsByShip);
-      if(isGameRunning()) incomingSlotsByShip[activeShipId] = getLocalActiveActionSlots(activeShipId, true);
+      if(preserveRunningActiveSlots) incomingSlotsByShip[activeShipId] = getLocalActiveActionSlots(activeShipId, true);
       store.state.actionSlotsByShip = {
         ...(keepLocalPreferences ? incomingSlotsByShip : store.state.actionSlotsByShip),
         ...(keepLocalPreferences ? localActionSlotsByShip : incomingSlotsByShip)
@@ -141,7 +143,7 @@ export function createProfileController({
     if(keepLocalPreferences) store.state.lastLaserAmmoId = typeof localLastLaserAmmoId === "string" ? localLastLaserAmmoId : null;
     if(profile.shipLoadouts && typeof profile.shipLoadouts === "object") store.state.shipLoadouts = clone(profile.shipLoadouts);
     if(Array.isArray(profile.unlockedPortals)) store.state.unlockedPortals = [...new Set(profile.unlockedPortals.map(String))];
-    if(Object.hasOwn(profile, "prestigeCount")) store.state.prestigeCount = Math.max(0, Math.floor(Number(profile.prestigeCount || 0)));
+    if(Object.hasOwn(profile, "prestigeCount")) store.state.prestigeCount = Math.min(1, Math.max(0, Math.floor(Number(profile.prestigeCount || 0))));
     if(Number.isFinite(Number(profile.ownedDroneCount))) store.state.ownedDroneCount = Math.max(0, Math.floor(Number(profile.ownedDroneCount)));
     if(Array.isArray(profile.droneLoadout)) store.state.droneLoadout = clone(profile.droneLoadout);
     if(profile.dronePermanentUpgrades && typeof profile.dronePermanentUpgrades === "object") store.state.dronePermanentUpgrades = clone(profile.dronePermanentUpgrades);
@@ -152,6 +154,8 @@ export function createProfileController({
     if(Array.isArray(profile.betaPackPurchases)) store.state.betaPackPurchases = [...new Set(profile.betaPackPurchases.map(String))];
     if(Array.isArray(profile.betaLaunchEntitlements)) store.state.betaLaunchEntitlements = [...new Set(profile.betaLaunchEntitlements.map(String))];
     if(profile.betaShipChoices && typeof profile.betaShipChoices === "object") store.state.betaShipChoices = clone(profile.betaShipChoices);
+    const playerLevelCap = Number(store.state.prestigeCount || 0) > 0 ? 100 : 50;
+    store.state.player.level = Math.max(1, Math.min(playerLevelCap, Math.floor(Number(store.state.player.level || 1))));
     store.state.player.xpNext = getXpNextForLevel(store.state.player.level);
     store.state.player.xp = Math.min(Math.max(0, Number(store.state.player.xp || 0)), store.state.player.xpNext);
     store.state.xpCurveVersion = xpCurveVersion;
@@ -168,13 +172,12 @@ export function createProfileController({
     store.state.craftingJob = profile.craftingJob ? clone(profile.craftingJob) : null;
     if(Number.isFinite(Number(profile.refineryLastTick))) store.state.refineryLastTick = Number(profile.refineryLastTick);
     if(keepLocalSelectedShip) store.state.selectedShip = localSelectedShip;
-    store.state.mmoProfileUpdatedAt = keepLocalPreferences
-      ? localPreferenceVersion
-      : incomingVersion || Date.now();
+    store.state.mmoProfileUpdatedAt = incomingVersion || Number(store.state.mmoProfileUpdatedAt || 0) || Date.now();
     const uiChanges = getProfileUiChanges(uiBefore, captureProfileUiState(store.state));
     const hasUiChanges = hasProfileUiChanges(uiChanges);
     saveState();
     if(keepLocalPreferences) syncMultiplayerProfile(store.state);
+    else syncMultiplayerProfile(store.state, {serverApplied:true});
     if(appMode === "game" && game.running){
       if(uiChanges.loadoutChanged) preserveScroll(()=>game.refreshActiveLoadout?.());
       game.updateHud?.();

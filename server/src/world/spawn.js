@@ -20,7 +20,38 @@ export function publicEnemyDefinition(enemy){
     particle:enemy.particle,
     projectileSpeed:enemy.projectileSpeed || 600,
     renderMode:enemy.renderMode || "",
-    static:Boolean(enemy.static)
+    static:Boolean(enemy.static),
+    anchored:Boolean(enemy.anchored),
+    damageImmune:Boolean(enemy.damageImmune),
+    ...(Number(enemy.vesperCageNumber || 0) > 0 ? {
+      number:Number(enemy.vesperCageNumber),
+      vesperCageNumber:Number(enemy.vesperCageNumber)
+    } : {}),
+    ...(enemy.noxEnemy ? {
+      noxEnemy:true,
+      noxKamikaze:Boolean(enemy.noxKamikaze),
+      noxBoss:Boolean(enemy.noxBoss),
+      noxWave:Math.max(1, Number(enemy.noxWave || 1)),
+      noxBlastRadius:Math.max(0, Number(enemy.noxBlastRadius || 0))
+    } : {}),
+    ...(enemy.prismaticEnemy ? {
+      prismaticEnemy:true,
+      prismaticPlanet:Boolean(enemy.prismaticPlanet),
+      prismaticGuardian:Boolean(enemy.prismaticGuardian),
+      prismaticBoss:Boolean(enemy.prismaticBoss),
+      prismaticElement:String(enemy.prismaticElement || ""),
+      prismaticColor:String(enemy.prismaticColor || ""),
+      prismaticPlanetId:String(enemy.prismaticPlanetId || ""),
+      prismaticAbility:String(enemy.prismaticAbility || "")
+    } : {}),
+    ...(enemy.precursorEnemy ? {
+      precursorEnemy:true,
+      precursorRole:String(enemy.precursorRole || ""),
+      precursorRoomId:String(enemy.precursorRoomId || ""),
+      precursorWhite:Boolean(enemy.precursorWhite),
+      precursorTalismanIcon:Boolean(enemy.precursorTalismanIcon),
+      precursorBoss:Boolean(enemy.precursorBoss)
+    } : {})
   };
 }
 

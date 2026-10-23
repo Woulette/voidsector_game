@@ -10,7 +10,7 @@ export const QUEST_BRIEFING_TEXT = Object.freeze({
   quest_daily_cleanup:"La route commerciale doit rester ouverte aujourd'hui. Élimine les intrus signalés avant la fin de la rotation et récupère ta prime au retour.",
   quest_lv4_place_au_combat:"Assez de théorie. Les sentinelles se multiplient et nos convois ont besoin d'espace. Va au combat et réduis leur nombre.",
   quest_lv3_prepare_future:"Notre avenir dépend autant des raffineries que des canons. Lance les améliorations des trois matériaux demandés afin de renforcer notre capacité industrielle.",
-  quest_lv3_new_range:"Ton équipement progresse, ton vaisseau doit suivre. Procure-toi un Velox, équipe-le et reviens confirmer que tu maîtrises ce changement de gamme.",
+  quest_lv3_new_range:"Ton équipement progresse, ton vaisseau doit suivre. Procure-toi un Velox et reviens au relais. Si tu en possèdes déjà un dans ton hangar, inutile d’en racheter un : sa possession suffit.",
   quest_lv3_one_step_after_another:"Je veux vérifier ta discipline de navigation autant que ton tir. Élimine les cibles puis rejoins précisément les deux coordonnées transmises.",
   quest_lv3_alert_vigilance:"Cette mission sanctionne la moindre imprudence. Détruis les cibles sans dépasser la perte de coque autorisée ; si tu encaisses trop, tout sera à recommencer.",
   quest_lv4_establish_recon:"Nous avons besoin d'une reconnaissance offensive rapide. Entre dans le secteur demandé, neutralise les groupes hostiles et respecte strictement le temps imparti.",
@@ -33,16 +33,16 @@ export const QUEST_BRIEFING_TEXT = Object.freeze({
   quest_astra03_spectral_hard_01:"Le troisième secteur subit une infestation persistante. Mène la purge jusqu'au quota demandé et sécurise la zone pour la semaine.",
   quest_astra04_spectral_hard_01:"Des Pondeuses astrales travaillent dans l'ombre du quatrième secteur. Détruis-les avant que leurs rejetons ne saturent nos routes.",
   quest_astra04_spectral_hard_02:"Le front spectral est devenu trop lourd pour une patrouille ordinaire. Réduis massivement les Pondeuses et reprends l'initiative.",
-  quest_astra05_boss_orb_01:"Les Boss Orbes coordonnent les sentinelles du secteur final. Élimine leurs unités de commandement et désorganise le réseau.",
-  quest_astra05_boss_raider_01:"Les Boss Vorak ouvrent la voie aux vagues de rushers. Abats-les avant le prochain assaut.",
-  quest_astra05_boss_spectral_01:"Les Boss Parasites renforcent toute la présence spectrale. Leur destruction est prioritaire pour nos analystes comme pour nos pilotes.",
-  quest_astra05_boss_nebular_01:"Les Traqueurs d'élite ont repéré nos itinéraires. Retourne la chasse contre eux et supprime les unités désignées.",
+  quest_astra05_boss_orb_01:"Les Éclanites occupent les routes du cinquième secteur. Élimine les cibles indiquées pour dégager le passage de nos patrouilles.",
+  quest_astra05_boss_raider_01:"Des Éclanites renforcent leur présence dans le cinquième secteur. Détruis le groupe demandé avant qu'il ne gêne nos convois.",
+  quest_astra05_boss_spectral_01:"Les Cristanites forment un front résistant dans le cinquième secteur. Prépare tes boucliers et neutralise les cibles désignées.",
+  quest_astra05_boss_nebular_01:"Les Cristanites du cinquième secteur menacent nos itinéraires. Détruis les unités demandées pour ouvrir une brèche à nos patrouilles.",
   quest_astra05_boss_crystal_01:"Les Astranites représentent une menace stratégique majeure. Engage-les seulement avec une configuration prête et reviens avec la confirmation de leur destruction.",
-  quest_astra05_boss_amber_01:"Les Cuirasses d'élite verrouillent le secteur. Brise leur ligne et ouvre un passage durable à nos forces.",
-  quest_astra05_boss_daily_01:"La prime du jour vise les Boss Orbes. Le quota est élevé, mais la route ne restera sûre que si quelqu'un l'accomplit.",
-  quest_astra05_boss_daily_02:"Les Boss Parasites sont la cible prioritaire de cette rotation. Réduis leur nombre avant la prochaine relève.",
-  quest_astra05_boss_weekly_01:"La semaine sera perdue si les Boss Vorak conservent leur rythme d'assaut. Organise un nettoyage massif et tiens jusqu'au dernier.",
-  quest_astra05_boss_weekly_02:"Le siège du secteur final commence. Les Cuirasses d'élite doivent tomber pour que notre firme conserve le contrôle territorial."
+  quest_astra05_boss_amber_01:"Les Astranites verrouillent le cinquième secteur. Engage ces cibles lourdes avec un équipement prêt et brise leur ligne.",
+  quest_astra05_boss_daily_01:"Cette prime vise les Éclanites du cinquième secteur. Élimine le quota indiqué pour sécuriser les routes de notre firme.",
+  quest_astra05_boss_daily_02:"Cette prime vise les Cristanites du cinquième secteur. Réduis leur présence jusqu'au quota demandé par le commandement.",
+  quest_astra05_boss_weekly_01:"Les Éclanites occupent le cinquième secteur en nombre. Ce contrat demande une purge prolongée : tiens jusqu'à la dernière cible.",
+  quest_astra05_boss_weekly_02:"Le siège du cinquième secteur commence. Les Astranites doivent tomber pour que notre firme conserve le contrôle territorial."
 });
 
 function rankIndex(rank){
@@ -128,6 +128,7 @@ export function getQuestBriefing({
     firm,
     representative,
     addressee:`${playerRank?.name || "Recrue"} ${String(playerName || "Pilote")}`,
+    summary:briefing.match(/^[^.!?]+[.!?]/)?.[0] || briefing,
     message
   };
 }

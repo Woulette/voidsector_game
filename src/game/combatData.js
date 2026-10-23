@@ -3,7 +3,7 @@ export {
   getClosedMapPortals,
   getMapPortals,
   isRickyPortalUnlocked
-} from "./combatData/maps.js";
+} from "./combatData/maps.js?v=20261022-helion-hub1";
 
 export { ENEMY_TYPES } from "./combatData/enemies.js";
 
@@ -17,7 +17,7 @@ export {
   RADAR_RANGE,
   RAW_DROP_TABLE,
   SAFE_ZONE_DELAY
-} from "./combatData/constants.js";
+} from "./combatData/constants.js?v=20260726-combat-authority1";
 
 export {
   DEFAULT_ENGINE_PROFILE,

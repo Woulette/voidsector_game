@@ -1,6 +1,6 @@
 import { isAuthenticatedGameplaySession } from "./gameplaySession.js";
 
-export function createSocialCommands({multiplayer, toast}){
+export function createSocialCommands({multiplayer, toast, backgroundSync}){
   function emit(event, payload = {}){
     if(!isAuthenticatedGameplaySession(multiplayer)){
       toast("Compte MMO synchronise requis pour utiliser les fonctions sociales.");
@@ -11,8 +11,12 @@ export function createSocialCommands({multiplayer, toast}){
   }
 
   return {
-    requestSocialSync:()=>emit("social:sync"),
-    requestFirmRankingSync:()=>emit("firm:sync"),
+    requestSocialSync:()=>backgroundSync?.request("social:sync", {
+      send:payload=>emit("social:sync", payload)
+    }) ?? emit("social:sync"),
+    requestFirmRankingSync:()=>backgroundSync?.request("firm:sync", {
+      send:payload=>emit("firm:sync", payload)
+    }) ?? emit("firm:sync"),
     sendFriendRequest:name=>emit("social:friend-request", {name}),
     respondFriendRequest:(key, accept)=>emit("social:friend-response", {key, accept}),
     setSocialCategory:(name, category)=>emit("social:set-category", {name, category}),

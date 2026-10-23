@@ -10,7 +10,7 @@ import { createPlatformAuthClient } from "./auth/platformAuthClient.js";
 import { createSocketSessionManager } from "./auth/socketSession.js";
 import { createSession, getSessionAccount, revokeSessionByToken, revokeSessionsForAccount } from "./auth/sessions.js";
 import { applyServerEliteLaserLifeSteal, resolveServerCombatFire } from "./combat/damage.js";
-import { getPlayerPvpBlockReason } from "./combat/playerPvp.js";
+import { getPlayerPvpBlockReason, isPreparedPlayerImpactValid } from "./combat/playerPvp.js";
 import { createShipAbilityEffectManager } from "./combat/shipAbilityEffects.js";
 import { activateServerShipAbility, applyServerShipLifeSteal } from "./combat/shipAbilities.js";
 import { config } from "./config.js";
@@ -23,6 +23,8 @@ import { logger } from "./logger.js";
 import { normalizeFirmId } from "../../src/data/firms.js";
 import { createEquipmentLocationManager } from "./players/equipmentLocation.js";
 import { createPlayerLifecycleManager } from "./players/playerLifecycle.js";
+import { createPlayerDirectoryEmitter } from "./players/playerDirectory.js";
+import { emitAuthoritativePlayerStateToMapRoom } from "./players/playerStateStream.js";
 import { canSharePlayerState } from "./players/visibility.js";
 import { createPresenceManager } from "./players/presence.js";
 import { createProfileManager } from "./players/profiles.js";
@@ -34,13 +36,21 @@ import { createKillQuestProgress } from "./quests/killProgress.js";
 import { createGracefulShutdown } from "./lifecycle/gracefulShutdown.js";
 import { installProcessErrorHandlers } from "./lifecycle/processErrorHandlers.js";
 import { buildSafeHealthStatus } from "./monitoring/health.js";
+import { createRuntimeMetrics } from "./monitoring/runtimeMetrics.js";
 import { buildAccountActionLimitWarning, buildAuthRequiredWarning, buildSocketRateLimitWarning } from "./monitoring/runtimeWarnings.js";
 import { createServerErrorLog } from "./monitoring/serverErrorLog.js";
 import { createAccountActionLocks } from "./security/accountActionLocks.js";
 import { createGameplayAccountGuard } from "./security/gameplayAccountGuard.js";
 import { pauseServerQuestTimers, resumeServerQuestTimers } from "./quests/questFailures.js";
 import { createSocketRateLimiter } from "./socket/rateLimit.js";
-import { createEnemyHitHandler } from "./combat/enemyHits.js";
+import {
+  createCombatRejectedPayload,
+  createCombatShotPayload,
+  createEnemyHitHandler,
+  emitCombatRejectedToPlayer,
+  emitCombatShotToAudience,
+  ensureCombatShotId
+} from "./combat/enemyHits.js";
 import { updateAccountModeration } from "./storage/authStore.js";
 import { registerAdminHandlers } from "./socket/adminHandlers.js";
 import { registerAuthHandlers } from "./socket/authHandlers.js";
@@ -72,6 +82,7 @@ import { createWorldStateManager } from "./world/state.js";
 const PORT = config.port;
 const players = new Map();
 const serverErrorLog = createServerErrorLog();
+const runtimeMetrics = createRuntimeMetrics();
 
 function recordRuntimeSignal(entry){
   try{
@@ -108,6 +119,10 @@ const httpServer = http.createServer(async (req, res)=>{
       databaseEnabled:dbEnabled,
       checkDatabase:checkDatabaseConnection,
       maxConcurrentGamePlayers:config.maxConcurrentGamePlayers,
+      getRuntimeMetrics:()=>({
+        ...runtimeMetrics.snapshot(),
+        persistence:profileManager.getPersistenceMetrics?.() || null
+      }),
       logger,
       onError:error=>serverErrorLog.record(error)
     });
@@ -128,6 +143,7 @@ const io = new Server(httpServer, {
 
 const allowSocketEvent = createSocketRateLimiter({
   limits:config.socketRateLimits,
+  onReject:({eventName})=>runtimeMetrics.recordRateLimit(eventName, "socket"),
   onLimit:({socket, eventName, count, limit, windowMs})=>{
     logger.warn("Socket rate limit", {
       socketId:socket.id,
@@ -163,6 +179,7 @@ const allowAccountAction = createAccountActionLocks({
   rules:config.accountActionLocks,
   players,
   logger,
+  onReject:({eventName})=>runtimeMetrics.recordRateLimit(eventName, "account"),
   onLimit:({socket, eventName, accountKey, count, limit, windowMs, retryAfterMs})=>{
     recordRuntimeSignal(buildAccountActionLimitWarning({
       socket,
@@ -202,7 +219,10 @@ await firmWarManager.load();
 logger.info(dbEnabled ? "PostgreSQL storage enabled." : "JSON storage enabled. Set DATABASE_URL to use PostgreSQL.");
 
 function publicPlayer(player, options = {}){
-  const profile = profileManager.getProfileForPlayer(player);
+  const profile = Object.hasOwn(options, "profile")
+    ? options.profile
+    : profileManager.getProfileSnapshotForPlayer?.(player)
+      || profileManager.getProfileForPlayer(player);
   const includeState = options?.includeState !== false;
   return {
     id:player.id,
@@ -222,16 +242,21 @@ function publicPlayer(player, options = {}){
 
 function isPlayerSafeOnMap(player, map){
   if(!player?.state) return false;
-  const profile = profileManager.getProfileForPlayer(player);
   return isPointInFriendlyWorldSafeArea(
     {x:player.state.x, y:player.state.y},
     map,
-    profile?.player?.firmId || player?.account?.firmId || "astra"
+    player.firmId || player.account?.firmId || "astra"
   );
 }
 
 let removeDisconnectedPlayerFromGroup = ()=>{};
 let playerGroups = new Map();
+const emitPlayers = createPlayerDirectoryEmitter({
+  io,
+  players,
+  publicPlayer,
+  canSharePlayerState
+});
 const presence = createPresenceManager({
   io,
   players,
@@ -381,6 +406,7 @@ const {
 });
 
 const {
+  cancelPendingEnemyAttacksForRoom,
   launchEnemyAttack,
   updatePendingEnemyAttacks
 } = createEnemyAttackManager({
@@ -415,15 +441,6 @@ const {
   getGroups:()=>playerGroups
 });
 
-function emitPlayers(){
-  const candidates = [...players.values()].filter(player=>Boolean(player.accountId));
-  for(const recipient of candidates){
-    io.to(recipient.id).emit("players:list", candidates.map(candidate=>
-      publicPlayer(candidate, {includeState:canSharePlayerState(recipient, candidate)})
-    ));
-  }
-}
-
 const {
   acceptInvite,
   createCoopInstance,
@@ -445,12 +462,14 @@ const {
   publicPlayer,
   publicEnemy,
   publicEnemyDelta,
-  emitPlayers
+  emitPlayers,
+  onPortalMemberLeave:(player, group)=>leaveGroupPortal(player, group)
 });
 playerGroups = groups;
-removeDisconnectedPlayerFromGroup = removePlayerFromGroup;
+removeDisconnectedPlayerFromGroup = playerId=>removePlayerFromGroup(playerId, {disconnected:true});
 
 const {
+  leaveGroupPortal,
   respawnPlayer,
   syncPlayerLifecycle,
   updatePlayerLifecycles
@@ -462,6 +481,7 @@ const {
   emitProfileSync:emitProfileSyncForPlayer,
   presence,
   setPlayerMap,
+  resetGroupInstance,
   logger
 });
 
@@ -524,12 +544,24 @@ const {
   portalWaveTotal,
   preparePortalInstance,
   startPortalInstance,
-  updateRickyCompanions
+  updateRickyCompanions,
+  getVesperNpcTargets,
+  updateVesperEncounters,
+  updateKharonEncounters,
+  updateEclaniteEncounters,
+  updateNoxEncounters,
+  updatePrismaticEncounters,
+  getPrecursorNpcTargets,
+  interactWithPrecursorPortal,
+  updatePrecursorEncounters
 } = createPortalInstanceManager({
   io,
   players,
   groups,
   profileManager,
+  presence,
+  launchEnemyAttack,
+  cancelPendingAttacksForRoom:cancelPendingEnemyAttacksForRoom,
   emitProfileSync:emitProfileSyncForPlayer,
   emitQuestClaims:emitQuestClaimsForPlayer,
   firmWarManager,
@@ -537,6 +569,8 @@ const {
   emitInstance,
   resetGroupInstance,
   setPlayerMap,
+  emitWorldReward,
+  progressServerQuestsForKill,
   portalWaveTotal:config.portalWaveTotal
 });
 
@@ -593,46 +627,52 @@ const {startShipAbilityEffect, updateShipAbilityEffects} = createShipAbilityEffe
 const {updatePlayerActivity} = createPlayerActivityManager({
   io,
   players,
+  groups,
   presence,
   profileManager,
   publicPlayer,
   applyEnemyHitForPlayer
 });
 
-function applyPlayerHit(socket, payload){
+function applyPlayerHit(socket, requestedPayload){
   const attacker = players.get(socket.id);
+  const shotId = ensureCombatShotId(requestedPayload, attacker?.id || socket.id);
+  const payload = {...(requestedPayload || {}), shotId};
   const target = players.get(String(payload?.targetPlayerId || ""));
-  const emitMiss = (reason = "")=>{
-    socket.emit("combat:hit", {
-      enemyId:`player:${String(payload?.targetPlayerId || "")}`,
-      weaponClass:String(payload?.weaponClass || ""),
-      ammoId:String(payload?.ammoId || ""),
-      consumed:0,
-      hit:false,
-      damage:0,
-      mapId:String(attacker?.mapId ?? ""),
-      x:Number(target?.state?.x ?? payload?.clientAimX ?? 0),
-      y:Number(target?.state?.y ?? payload?.clientAimY ?? 0),
-      radius:Number(target?.state?.radius ?? payload?.targetRadius ?? 48),
+  const reject = (
+    reason = "",
+    reasonCode = "COMBAT_REJECTED",
+    retryAfterMs = 0,
+    cooldownReadyAt = 0
+  )=>{
+    const rejection = createCombatRejectedPayload({
+      payload,
+      player:attacker,
+      target,
+      targetId:`player:${String(payload?.targetPlayerId || "")}`,
+      shotId,
       reason,
-      at:Date.now()
+      reasonCode,
+      retryAfterMs,
+      cooldownReadyAt
     });
+    emitCombatRejectedToPlayer({socket, player:attacker, rejection});
+    return {ok:false, ...rejection};
   };
   if(!attacker?.state || !target?.state || !presence.isActiveForWorld(target)){
-    emitMiss("Cible joueur introuvable.");
-    return;
+    return reject("Cible joueur introuvable.", "TARGET_NOT_FOUND");
   }
   if(attacker.id === target.id){
-    emitMiss("Auto-ciblage refuse.");
-    return;
+    return reject("Auto-ciblage refuse.", "SELF_TARGET");
   }
   if(String(attacker.mapId ?? "") !== String(target.mapId ?? "")){
-    emitMiss("Cible hors carte.");
-    return;
+    return reject("Cible hors carte.", "OUT_OF_MAP");
   }
-  if(attacker.mapRoom && target.mapRoom && attacker.mapRoom !== target.mapRoom){
-    emitMiss("Cible hors instance.");
-    return;
+  const launchMapId = String(attacker.mapId ?? attacker.state?.mapId ?? "");
+  const attackerLaunchRoom = String(attacker.mapRoom || `map:${launchMapId}`);
+  const targetLaunchRoom = String(target.mapRoom || `map:${String(target.mapId ?? target.state?.mapId ?? "")}`);
+  if(attackerLaunchRoom !== targetLaunchRoom){
+    return reject("Cible hors instance.", "OUT_OF_INSTANCE");
   }
   const attackerProfile = profileManager.getProfileForPlayer(attacker);
   const targetProfile = profileManager.getProfileForPlayer(target);
@@ -644,21 +684,16 @@ function applyPlayerHit(socket, payload){
     targetLevel
   });
   if(pvpBlockReason){
-    emitMiss(pvpBlockReason);
-    return;
+    return reject(pvpBlockReason, "PVP_BLOCKED");
   }
   const map = WORLD_MAPS[String(attacker.mapId)] || null;
   if(isPlayerSafeOnMap(attacker, map) || isPlayerSafeOnMap(target, map)){
-    emitMiss("Zone non-agression active.");
-    return;
+    return reject("Zone non-agression active.", "SAFE_ZONE");
   }
   if(Number(attacker.state.hp || 0) <= 0 || Number(target.state.hp || 0) <= 0){
-    emitMiss("Vaisseau deja detruit.");
-    return;
+    return reject("Vaisseau deja detruit.", "SHIP_DESTROYED");
   }
 
-  presence.markCombat(attacker, "attaque joueur");
-  presence.markCombat(target, "attaque joueur");
   const virtualTarget = {
     id:`player:${target.id}`,
     x:Number(target.state.x || 0),
@@ -681,34 +716,85 @@ function applyPlayerHit(socket, payload){
     })
   });
   if(!result.ok){
-    emitMiss(result.reason || "Tir joueur non valide.");
-    return;
+    return reject(
+      result.reason || "Tir joueur non valide.",
+      result.reasonCode || "COMBAT_REJECTED",
+      result.retryAfterMs || 0,
+      result.cooldownReadyAt || 0
+    );
   }
+  const travelTimeMs = Math.max(0, Math.min(5_000, Math.round(Number(result.travelTimeMs || 0))));
   const incoming = Math.max(0, Math.round(Number(result.damage || 0)));
-  io.to(attacker.mapRoom || `map:${String(attacker.mapId ?? "")}`).emit("combat:hit", {
-    enemyId:`player:${target.id}`,
-    attackerId:attacker.id,
-    targetPlayerId:target.id,
-    weaponClass:result.weaponClass,
-    ammoId:result.ammoId,
-    consumed:result.consumed,
-    ammoRemaining:result.ammoRemaining,
-    hit:result.hit,
-    damage:incoming,
-    missileHits:result.missileHits || 0,
-    missileMisses:result.missileMisses || 0,
-    doubleStrike:result.doubleStrike || null,
-    shipAbilityState:result.shipAbilityState || null,
-    eliteLaser:result.eliteLaser || null,
-    mapId:String(attacker.mapId ?? ""),
-    fromX:Number(attacker.state.x || 0),
-    fromY:Number(attacker.state.y || 0),
-    x:Number(target.state.x || 0),
-    y:Number(target.state.y || 0),
-    radius:Number(target.state.radius || 48),
-    at:Date.now()
+  const shot = createCombatShotPayload({
+    payload,
+    player:attacker,
+    target,
+    targetId:`player:${target.id}`,
+    result,
+    shotId,
+    travelTimeMs
   });
-  if(incoming <= 0) return;
+  presence.markCombat(attacker, "attaque joueur");
+  presence.markCombat(target, "attaque joueur");
+  emitCombatShotToAudience({io, socket, player:attacker, group:null, payload:shot});
+
+  const attackerLifeGenerationAtLaunch = Number(attacker.combatLifeGeneration || 0);
+  const targetLifeGenerationAtLaunch = Number(target.combatLifeGeneration || 0);
+  const applyPreparedPlayerImpact = ()=>{
+    const impactValid = isPreparedPlayerImpactValid({
+      players,
+      attacker,
+      target,
+      attackerLifeGeneration:attackerLifeGenerationAtLaunch,
+      targetLifeGeneration:targetLifeGenerationAtLaunch,
+      mapId:launchMapId,
+      mapRoom:attackerLaunchRoom,
+      isPvpBlocked:()=>{
+        const currentAttackerProfile = profileManager.getProfileForPlayer(attacker);
+        const currentTargetProfile = profileManager.getProfileForPlayer(target);
+        return Boolean(getPlayerPvpBlockReason({
+          sameGroup:Boolean(attacker.groupId && attacker.groupId === target.groupId),
+          attackerLevel:Math.max(1, Math.floor(Number(currentAttackerProfile?.player?.level || attacker.state?.level || 1))),
+          targetLevel:Math.max(1, Math.floor(Number(currentTargetProfile?.player?.level || target.state?.level || 1)))
+        }));
+      },
+      isSafe:()=>{
+        const currentMap = WORLD_MAPS[launchMapId] || null;
+        return isPlayerSafeOnMap(attacker, currentMap) || isPlayerSafeOnMap(target, currentMap);
+      }
+    });
+    if(!impactValid) return;
+    io.to(attackerLaunchRoom).emit("combat:hit", {
+      accepted:true,
+      outcome:result.hit ? "hit" : "miss",
+      shotId,
+      enemyId:`player:${target.id}`,
+      targetId:`player:${target.id}`,
+      attackerId:attacker.id,
+      targetPlayerId:target.id,
+      weaponClass:result.weaponClass,
+      ammoId:result.ammoId,
+      consumed:result.consumed,
+      ammoRemaining:result.ammoRemaining,
+      hit:Boolean(result.hit),
+      damage:incoming,
+      missileHits:result.missileHits || 0,
+      missileMisses:result.missileMisses || 0,
+      doubleStrike:result.doubleStrike || null,
+      shipAbilityState:result.shipAbilityState || null,
+      eliteLaser:result.eliteLaser || null,
+      mapId:shot.mapId,
+      fromX:shot.fromX,
+      fromY:shot.fromY,
+      x:shot.toX,
+      y:shot.toY,
+      radius:Number(target.state.radius || 48),
+      travelTimeMs,
+      cooldownMs:Math.max(0, Math.round(Number(result.cooldownMs || 0))),
+      cooldownReadyAt:Math.max(0, Number(result.cooldownReadyAt || 0)),
+      at:Date.now()
+    });
+    if(incoming <= 0) return;
 
   const hpBefore = Math.max(0, Number(target.state.hp || 0));
   const durabilityBefore = hpBefore + Math.max(0, Number(target.state.shield || 0));
@@ -840,7 +926,42 @@ function applyPlayerHit(socket, payload){
       }
     }
   }
-  emitPlayers();
+  const fanoutAt = Date.now();
+  emitAuthoritativePlayerStateToMapRoom({
+    io,
+    player:target,
+    publicPlayer,
+    profile:targetProfile,
+    room:attackerLaunchRoom,
+    now:fanoutAt
+  });
+  if(lifeSteal.healed > 0 || eliteLifeSteal.healed > 0){
+    emitAuthoritativePlayerStateToMapRoom({
+      io,
+      player:attacker,
+      publicPlayer,
+      profile:result.profile,
+      room:attackerLaunchRoom,
+      now:fanoutAt
+    });
+  }
+  };
+
+  if(travelTimeMs > 0) setTimeout(applyPreparedPlayerImpact, travelTimeMs);
+  else applyPreparedPlayerImpact();
+  return {
+    ok:true,
+    accepted:true,
+    outcome:result.hit ? "hit" : "miss",
+    shotId,
+    travelTimeMs,
+    hit:Boolean(result.hit),
+    ammoRemaining:result.ammoRemaining,
+    consumed:result.consumed,
+    cooldownMs:Math.max(0, Math.round(Number(result.cooldownMs || 0))),
+    cooldownReadyAt:Math.max(0, Number(result.cooldownReadyAt || 0)),
+    result
+  };
 }
 
 function activatePlayerShipAbility(socket, abilityId = ""){
@@ -866,8 +987,8 @@ function activatePlayerShipAbility(socket, abilityId = ""){
 function updateQuestTimers(now){
   const processedProfiles = new Set();
   for(const player of players.values()){
-    if(player.clientMode !== "game" || player.connected === false) continue;
-    const profileKey = player.accountId ? `account:${player.accountId}` : `guest:${player.name}`;
+    if(!player.accountId || player.clientMode !== "game" || player.connected === false) continue;
+    const profileKey = `account:${player.accountId}`;
     if(processedProfiles.has(profileKey)) continue;
     processedProfiles.add(profileKey);
     const result = profileManager.applyQuestAction({
@@ -904,9 +1025,18 @@ const serverTick = startServerTick({
   updateStatusEffects,
   updateQuestTimers,
   updateRickyCompanions,
+  getVesperNpcTargets,
+  updateVesperEncounters,
+  updateKharonEncounters,
+  updateEclaniteEncounters,
+  updateNoxEncounters,
+  updatePrismaticEncounters,
+  getPrecursorNpcTargets,
+  updatePrecursorEncounters,
   updateShipAbilityEffects,
   updateWorldEnemy,
   logger,
+  runtimeMetrics,
   onError:error=>serverErrorLog.record(error)
 });
 
@@ -918,6 +1048,7 @@ io.on("connection", socket=>{
   });
 
   function guard(eventName){
+    runtimeMetrics.recordSocketEvent(eventName);
     if(!allowSocketEvent(socket, eventName)) return false;
     if(!requireGameplayAccount(socket, eventName)) return false;
     return allowAccountAction(socket, eventName);
@@ -926,7 +1057,6 @@ io.on("connection", socket=>{
   players.set(socket.id, presence.createPlayer(socket.id));
 
   socket.emit("server:ready", {id:socket.id, port:PORT});
-  emitPlayers();
 
   const socketContext = {
     guard,
@@ -981,14 +1111,18 @@ io.on("connection", socket=>{
     ...socketContext,
     io
   });
-  registerProgressionHandlers(socket, socketContext);
+  registerProgressionHandlers(socket, {
+    ...socketContext,
+    preparePortalInstance
+  });
   registerSocialHandlers(socket, {
     ...socketContext,
     socialManager
   });
   registerFirmHandlers(socket, {
     ...socketContext,
-    firmWarManager
+    firmWarManager,
+    io
   });
   registerEconomyHandlers(socket, socketContext);
   registerEquipmentHandlers(socket, {
@@ -1017,13 +1151,15 @@ io.on("connection", socket=>{
     preparePortalInstance,
     startPortalInstance,
     activateRickyLever,
-    activateRickyHealBeacon
+    activateRickyHealBeacon,
+    interactWithPrecursorPortal
   });
   registerCombatHandlers(socket, {
     ...socketContext,
     applyEnemyHit,
     applyPlayerHit,
     activateShipAbility:abilityId=>activatePlayerShipAbility(socket, abilityId),
+    recordCombatResult:(outcome, reasonCode)=>runtimeMetrics.recordCombatResult(outcome, reasonCode),
     pickupLoot
   });
   registerDisconnectHandlers(socket, {
@@ -1035,8 +1171,8 @@ io.on("connection", socket=>{
   });
 });
 
-httpServer.listen(PORT, ()=>{
-  logger.info(`VoidSector realtime server listening on :${PORT}`);
+httpServer.listen(PORT, config.host, ()=>{
+  logger.info(`VoidSector realtime server listening on ${config.host}:${PORT}`);
 });
 
 const shutdown = createGracefulShutdown({
@@ -1044,6 +1180,7 @@ const shutdown = createGracefulShutdown({
   tickHandle:serverTick,
   players,
   profileManager,
+  firmWarManager,
   closeDatabase,
   logger
 });

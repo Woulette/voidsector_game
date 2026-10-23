@@ -11,6 +11,7 @@ import {
 import { consumeInventoryItemAmount } from "../economy/inventoryStacks.js";
 
 export { acceptServerQuest, trackServerQuest } from "./questState.js";
+export { abandonServerQuest } from "./questAbandon.js";
 export { claimCompletedServerQuests, claimServerQuest } from "./questRewards.js";
 
 export function progressServerQuestKill(profile, {kind, zoneName} = {}){
@@ -46,6 +47,7 @@ export function progressServerQuestAction(profile, action = {}){
   for(let step = 0; step < increment; step += 1){
     let progressedThisStep = false;
     for(const id of activeIds){
+      if(action.questId && action.questId !== id) continue;
       const quest = getQuest(id);
       const match = getQuestObjectives(quest)
         .map((objective, index)=>({objective, index}))

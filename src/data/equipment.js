@@ -1,4 +1,6 @@
-﻿export const equipment = [
+import { MAX_STANDARD_DRONES, MAX_TOTAL_DRONES } from "../shared/droneLimits.js";
+
+export const equipment = [
   {
     id:"laser_mk1",
     name:"Canon Laser MK-I",
@@ -66,7 +68,7 @@
     short:"Élite Vert",
     category:"canon",
     slotType:"weapon",
-    img:"assets/equipment/laser_elite_emerald.webp?v=green-cut-2",
+    img:"assets/equipment/laser_elite_emerald.webp?v=20260726-kharon1",
     rarity:"ÉLITE",
     rarityTier:"elite",
     shop:false,
@@ -127,8 +129,8 @@
   { id:"pistou_portgun", name:"Pistou Portgun", short:"Portgun", category:"extra", slotType:"extra", img:"assets/equipment/pistou_portgun.svg", rarity:"PORTAIL", priceType:"premium", price:0, shop:false, desc:"Une technologie expérimentale capable de déchirer l'espace et d'ouvrir un passage vers un autre secteur.", stats:{extra:"Téléportation avec fluide"}, effect:{portgun:true, teleportFluidItemId:"teleportation_fluid"}},
   { id:"teleportation_fluid", name:"Fluide de Téléportation", short:"Fluide TP", category:"quest_item", shopCategory:"extra", slotType:"questItem", img:"assets/quest_items/teleportation_fluid.png", rarity:"Rare", rarityTier:"rare", priceType:"premium", price:100, desc:"Une substance verdâtre et instable indispensable au fonctionnement du Portgun et aux expériences de Ricky.", stats:{extra:"Fluide verdatre requis par Ricky"}},
   { id:"portal_anchor_key", name:"Clé du portail Deadly", short:"Clé Deadly", category:"quest_item", shopCategory:"extra", slotType:"questItem", img:"assets/quest_items/portal_anchor_key.png", rarity:"QUETE", priceType:"premium", price:0, shop:false, desc:"Une clé chargée d'énergie dimensionnelle, utilisée pour ouvrir le portail Deadly.", stats:{extra:"Cle d'acces pour le portail Deadly"}},
-  { id:"drone_overdrive_chip", name:"Noyau Overdrive Drone", short:"Overdrive", category:"drone_upgrade", slotType:"droneUpgrade", img:"assets/equipment/extra_rocket_auto_chip.png", rarity:"PORTAIL", priceType:"premium", price:0, shop:false, desc:"Un noyau survolté qui transforme définitivement un drone ordinaire en véritable plateforme d'assaut.", stats:{extra:"Amélioration permanente : drone rouge, lasers du drone +50%"}, effect:{droneDamageMultiplier:1.5}},
-  { id:"ancestral_drone_core", name:"Noyau de Drone Ancestral", short:"Drone Anc.", category:"drone_blueprint", slotType:"future", img:"assets/drones/drone_test_sprite.webp", rarity:"ANCESTRAL", priceType:"premium", price:0, shop:false, desc:"Un vestige d'une technologie oubliée dont l'architecture pourrait donner naissance à une nouvelle génération de drones.", stats:{extra:"Prototype futur : drone à 2 emplacements"}},
+  { id:"drone_overdrive_chip", name:"Noyau Overdrive Drone", short:"Overdrive", category:"drone_upgrade", slotType:"droneUpgrade", img:"assets/drone_skins/puce_vesper.png?v=20260726-kharon1", rarity:"PORTAIL", priceType:"premium", price:0, shop:false, desc:"Un noyau rouge réservé au Drone de Combat à un emplacement. Il recolore le drone en rouge et augmente de 50% les dégâts d'un laser ou la capacité de bouclier d'un générateur équipé.", stats:{extra:"Drone rouge : +50% dégâts laser ou +50% bouclier générateur"}, effect:{droneDamageMultiplier:1.5, droneLaserDamageMultiplier:1.5, droneGeneratorShieldMultiplier:1.5, droneSkinColor:"red", compatibleDroneIds:["combat_drone"], requiredDroneSlots:1, unlockPortalId:"violet"}},
+  { id:"ancestral_drone_core", name:"Noyau de Drone Ancestral", short:"Drone Anc.", category:"drone_blueprint", slotType:"future", img:"assets/drones/ancestral_drone.png?v=20260726-prismatic1", rarity:"ANCESTRAL", priceType:"premium", price:0, shop:false, desc:"Un vestige d'une technologie oubliée dont l'architecture pourrait donner naissance à une nouvelle génération de drones.", stats:{extra:"Prototype futur : drone à 2 emplacements"}},
   { id:"ammo_module", name:"Module de Munitions", short:"Munitions", category:"module", slotType:"future", img:"assets/equipment/module_munitions.svg", rarity:"Commun", rarityTier:"common", priceType:"credits", price:8000, shop:false, desc:"Un module de stockage compact conçu pour sécuriser et optimiser les réserves de munitions embarquées.", stats:{bonusDegats:6}}
 ];
 
@@ -143,9 +145,10 @@ export const droneCatalog = [
     rarityTier:"rare",
     priceType:"credits",
     basePrice:200000,
-    maxOwned:10,
+    maxOwned:MAX_TOTAL_DRONES,
+    maxStandardOwned:MAX_STANDARD_DRONES,
     slots:1,
-    desc:"Drone orbital avec 1 emplacement. Il peut recevoir un laser ou un générateur. Un laser de drone consomme 1 munition laser supplémentaire par tir."
+    desc:"Drone orbital avec 1 emplacement pour un laser ou un générateur. Limite : 8 drones standards. Les 2 places restantes sont réservées aux futurs drones spéciaux à fabriquer. Un laser de drone consomme 1 munition laser supplémentaire par tir."
   }
 ];
 

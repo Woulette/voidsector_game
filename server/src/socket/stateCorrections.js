@@ -4,6 +4,7 @@ const VITAL_CORRECTION_FIELDS = new Set(["hp", "maxHp", "shield", "maxShield"]);
 
 export function isVitalOnlyStateCorrection(validation = {}){
   if(!validation?.corrected) return false;
+  if(validation.positionCorrected || validation.reason === "vaisseau detruit") return false;
   const details = Array.isArray(validation.correctionDetails) ? validation.correctionDetails : [];
   return details.length > 0 && details.every(detail=>VITAL_CORRECTION_FIELDS.has(String(detail?.field || "")));
 }

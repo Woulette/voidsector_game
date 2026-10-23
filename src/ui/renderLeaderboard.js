@@ -1,7 +1,7 @@
-import { portals } from "../data/catalog.js";
+import { portals } from "../data/catalog.js?v=20260726-prismatic1";
 import { getDeadlyEnemyDisplay } from "../data/deadlyEnemies.js";
 import { getEnemyAssetRotationStyle } from "../data/enemyVisuals.js";
-import { ENEMY_TYPES, MAPS } from "../game/combatData.js";
+import { ENEMY_TYPES, MAPS } from "../game/combatData.js?v=20261022-helion-hub1";
 import { fmt } from "../core/utils.js";
 import {
   RANK_TABLE,
@@ -14,10 +14,10 @@ import {
   getRankBreakdown,
   getRankProgress,
   store
-} from "../core/store.js";
-import { multiplayer } from "../multiplayer/client.js?v=crafting-1";
-import { rankIcon, rankInline } from "./renderShared.js";
-import { buildPreviewPilotProfile, installPilotProfileModal, registerPilotProfile } from "./playerProfileModal.js";
+} from "../core/store.js?v=20260726-kharon1";
+import { multiplayer } from "../multiplayer/client.js?v=20261018-map-transfer1";
+import { rankIcon, rankInline } from "./renderShared.js?v=20260726-kharon1";
+import { buildPreviewPilotProfile, installPilotProfileModal, registerPilotProfile } from "./playerProfileModal.js?v=20260726-kharon1";
 import { getLeaderboardPreviewRows } from "./leaderboardPreview.js";
 
 let rankDetailsOpen = false;

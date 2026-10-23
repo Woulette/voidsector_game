@@ -1,4 +1,4 @@
-import { getServerEnemyId } from "../../multiplayer/enemies.js";
+import { getServerEnemyId } from "../../multiplayer/enemies.js?v=20260905-motion3";
 
 export function createCombatInteractionSystem({
   store,

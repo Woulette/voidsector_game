@@ -4,11 +4,7 @@ import { ENEMY_THREAT_RECALC_MS, markEnemyAttackedByPlayer } from "../src/world/
 import { createWorldAiManager } from "../src/world/ai.js";
 import { COOP_ENEMY_TYPES, WORLD_ENEMY_TYPES } from "../src/world/definitions.js";
 import { DEADLY_ENEMY_TYPES } from "../src/portals/deadlyEnemies.js";
-import {
-  getEnemyRepathDelayMs,
-  isEnemyEngagementCrossing,
-  isEnemyEngagementHolding
-} from "../../src/game/systems/enemyTrajectory.js";
+import { getEnemyRepathDelayMs } from "../../src/game/systems/enemyTrajectory.js";
 
 function distanceFromOriginToSegment(from, to){
   const dx = to.x - from.x;
@@ -167,7 +163,7 @@ test("Astranite abandons an untouched distant target after fifteen seconds", ()=
   assert.equal(enemy.lockedPlayerId, null);
 });
 
-test("a moving enemy keeps its trajectory until its staggered repath", ()=>{
+test("pursuit keeps the last position until its reaction delay expires", ()=>{
   const player = {
     id:"player-facing",
     mapId:"0",
@@ -217,22 +213,28 @@ test("a moving enemy keeps its trajectory until its staggered repath", ()=>{
     enemy.x - beforeSecondX
   ) + Math.PI / 2;
   assert.ok(Math.abs(enemy.angle - expectedSecondMoveAngle) < 0.000001);
+  assert.ok(enemy.vx > 0 && enemy.vy > 0, "the enemy must keep its previous route before reacting");
+  assert.ok(Math.abs(Math.hypot(enemy.vx, enemy.vy) - enemy.speed) < .000001);
+  assert.equal(enemy.aiDecisionIndex, 1, "steering must not rescan all targets");
   assert.equal(enemy.aiDecision.targetX, firstDecision.targetX);
   assert.equal(enemy.aiDecision.targetY, firstDecision.targetY);
 
   const beforeRepathX = enemy.x;
   const beforeRepathY = enemy.y;
-  manager.updateWorldEnemy(enemy, {id:"0", width:10000, height:8000}, [player], .1, enemy.nextAiDecisionAt);
+  const reactionAt = enemy.nextPursuitAt;
+  assert.ok(reactionAt >= 1800 && reactionAt <= 2500);
+  manager.updateWorldEnemy(enemy, {id:"0", width:10000, height:8000}, [player], .1, reactionAt);
   const expectedRepathAngle = Math.atan2(
     enemy.y - beforeRepathY,
     enemy.x - beforeRepathX
   ) + Math.PI / 2;
   assert.ok(Math.abs(enemy.angle - expectedRepathAngle) < 0.000001);
+  assert.ok(enemy.vx < 0 && enemy.vy < 0, "the delayed reaction must still allow a clean U-turn");
   assert.notEqual(enemy.aiDecision.targetX, firstDecision.targetX);
   assert.notEqual(enemy.aiDecision.targetY, firstDecision.targetY);
 });
 
-test("an enemy holds position while its moving target stays in attack range", ()=>{
+test("a close enemy holds through small target movements and keeps aiming its attacks", ()=>{
   const player = {
     id:"player-stable",
     mapId:"0",
@@ -241,7 +243,7 @@ test("an enemy holds position while its moving target stays in attack range", ()
   const enemy = {
     id:"enemy-stable",
     kind:"deadly_intercepteur",
-    x:350,
+    x:208,
     y:0,
     homeX:350,
     homeY:0,
@@ -338,7 +340,7 @@ test("staggered enemies do not open attacks on the same server tick", ()=>{
   assert.equal(attacks.length, 2);
 });
 
-test("heavy enemies cross the player before stopping inside attack range", ()=>{
+test("heavy enemies approach the player and stop close without overshooting", ()=>{
   const player = {
     id:"player-heavy",
     mapId:"portal-ricky",
@@ -374,14 +376,14 @@ test("heavy enemies cross the player before stopping inside attack range", ()=>{
   assert.ok(enemy.x < 350);
 
   let now = 1100;
-  for(let step = 0; step < 80 && !isEnemyEngagementHolding(enemy); step++){
+  for(let step = 0; step < 80 && !enemy.pursuitHolding; step++){
     manager.updateWorldEnemy(enemy, {id:"portal-ricky", width:11000, height:8200}, [player], .1, now);
     now += 100;
   }
   manager.updateWorldEnemy(enemy, {id:"portal-ricky", width:11000, height:8200}, [player], .1, now);
 
-  assert.ok(enemy.x < 0);
-  assert.equal(isEnemyEngagementHolding(enemy), true);
+  assert.ok(Math.abs(enemy.x - 208) < .000001);
+  assert.equal(enemy.pursuitHolding, true);
   assert.equal(enemy.moving, false);
   assert.equal(enemy.vx, 0);
   assert.equal(enemy.vy, 0);
@@ -427,7 +429,7 @@ test("engagement movement keeps each enemy's configured speed", ()=>{
   assert.ok(Math.abs(moveOnce(360) - 36) < .000001);
 });
 
-test("every configured enemy family holds when engagement starts inside attack range", ()=>{
+test("every mobile enemy family keeps approaching when it starts inside firing range", ()=>{
   const configuredKinds = new Set([
     ...Object.values(WORLD_ENEMY_TYPES).map(enemy=>enemy.kind),
     ...Object.values(COOP_ENEMY_TYPES).map(enemy=>enemy.kind),
@@ -467,15 +469,15 @@ test("every configured enemy family holds when engagement starts inside attack r
 
     manager.updateWorldEnemy(enemy, {id:"0", width:10000, height:8000}, [player], .1, 1000);
 
-    assert.equal(enemy.moving, false, `${kind} moved while already in attack range`);
-    assert.equal(enemy.x, 350, `${kind} changed position inside attack range`);
-    assert.equal(isEnemyEngagementHolding(enemy), true);
-    assert.equal(enemy.vx, 0);
+    assert.equal(enemy.moving, true, `${kind} stopped too far from the target`);
+    assert.equal(enemy.x, 320);
+    assert.equal(enemy.pursuitHolding, false);
+    assert.equal(enemy.vx, -300);
     assert.equal(enemy.vy, 0);
   }
 });
 
-test("aggressive enemies take individual paths through the player center and may stack", ()=>{
+test("enemies pursue one shared target point while selection scans stay staggered", ()=>{
   const player = {
     id:"player-surrounded",
     mapId:"0",
@@ -514,7 +516,8 @@ test("aggressive enemies take individual paths through the player center and may
   const decisionTargets = new Set(enemies.map(enemy=>`${enemy.aiDecision.targetX.toFixed(2)}:${enemy.aiDecision.targetY.toFixed(2)}`));
   const repathTimes = new Set(enemies.map(enemy=>enemy.nextAiDecisionAt));
   assert.ok(movementAngles.size >= 6);
-  assert.equal(decisionTargets.size, enemies.length);
+  assert.equal(decisionTargets.size, 1);
+  assert.ok(enemies.every(enemy=>enemy.aiDecision.targetX === 0 && enemy.aiDecision.targetY === 0));
   assert.ok(repathTimes.size >= 4);
   for(const enemy of enemies){
     assert.ok(distanceFromOriginToSegment(
@@ -524,7 +527,7 @@ test("aggressive enemies take individual paths through the player center and may
   }
 });
 
-test("a held enemy starts a new center crossing only after the player leaves attack range", ()=>{
+test("a held enemy resumes pursuit after reacting to movement within firing range", ()=>{
   const player = {
     id:"player-resume",
     mapId:"0",
@@ -533,7 +536,7 @@ test("a held enemy starts a new center crossing only after the player leaves att
   const enemy = {
     id:"enemy-resume",
     kind:"cuirasse_nebulaire",
-    x:320,
+    x:208,
     y:0,
     homeX:320,
     homeY:0,
@@ -557,24 +560,64 @@ test("a held enemy starts a new center crossing only after the player leaves att
   const map = {id:"0", width:10000, height:8000};
 
   manager.updateWorldEnemy(enemy, map, [player], .1, 1000);
-  assert.equal(isEnemyEngagementHolding(enemy), true);
+  assert.equal(enemy.pursuitHolding, true);
   assert.equal(enemy.moving, false);
 
   player.state.x = 20;
   manager.updateWorldEnemy(enemy, map, [player], .1, 1100);
-  assert.equal(isEnemyEngagementHolding(enemy), true);
+  assert.equal(enemy.pursuitHolding, true);
   assert.equal(enemy.moving, false);
 
-  player.state.x = 800;
+  player.state.x = -40;
   manager.updateWorldEnemy(enemy, map, [player], .1, 1200);
-  assert.equal(isEnemyEngagementCrossing(enemy), true);
+  assert.equal(enemy.pursuitHolding, true);
+  assert.equal(enemy.moving, false);
+  assert.equal(enemy.x, 208);
+  manager.updateWorldEnemy(enemy, map, [player], .1, enemy.nextPursuitAt);
+  assert.equal(enemy.pursuitHolding, false);
   assert.equal(enemy.moving, true);
-  assert.ok(enemy.x > 320);
-  assert.ok(distanceFromOriginToSegment(
-    {x:320 - player.state.x, y:-player.state.y},
-    {
-      x:enemy.aiDecision.targetX - player.state.x,
-      y:enemy.aiDecision.targetY - player.state.y
+  assert.ok(enemy.x < 208);
+  assert.ok(Math.hypot(player.state.x - enemy.x, player.state.y - enemy.y) < enemy.attackRange);
+});
+
+test("safe-zone geometry is cached per player firm and server tick", ()=>{
+  const player = {
+    id:"cached-safe-player",
+    state:{mapId:"0", x:100, y:100, hp:1000}
+  };
+  const makeEnemy = id=>({
+    id,
+    kind:"chasseur_spectral",
+    x:0,
+    y:0,
+    homeX:0,
+    homeY:0,
+    hp:10000,
+    maxHp:10000,
+    speed:160,
+    attackRange:360,
+    attackDamage:100,
+    attackCooldown:1400
+  });
+  let safeChecks = 0;
+  const manager = createWorldAiManager({
+    players:new Map([[player.id, player]]),
+    presence:{isActiveForWorld:()=>true},
+    launchEnemyAttack(){},
+    isPlayerSafeOnMap(){
+      safeChecks += 1;
+      return false;
     }
-  ) < .000001);
+  });
+  const map = {id:"0", width:10000, height:8000};
+  const enemies = [makeEnemy("cache-enemy-a"), makeEnemy("cache-enemy-b")];
+  for(const enemy of enemies) manager.updateWorldEnemy(enemy, map, [player], .1, 1000);
+  assert.equal(safeChecks, 1);
+
+  player.firmId = "cyan";
+  manager.updateWorldEnemy(enemies[0], map, [player], .1, 1000);
+  assert.equal(safeChecks, 2);
+
+  for(const enemy of enemies) manager.updateWorldEnemy(enemy, map, [player], .1, 1001);
+  assert.equal(safeChecks, 3);
 });

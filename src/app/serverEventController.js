@@ -165,6 +165,8 @@ export function createServerEventController({
         showToast(`Fabrication lancee : ${event.recipe?.name || "recette"}.`);
       }else if(event.action === "job-claim"){
         showToast(`Fabrication recuperee : ${event.recipe?.name || "recette"}.`);
+      }else if(event.action === "job-refund"){
+        showToast(`Fabrication remboursée : ${event.recipe?.name || "recette"}. Ressources et paiement rendus, chantier libéré.`);
       }
     }
     renderAll();
@@ -173,7 +175,17 @@ export function createServerEventController({
 
   function applySpaceCasterEvents(){
     for(const event of consume(multiplayer.spaceCasterEvents)){
-      store.state.portalCasterResults = Array.isArray(event.rewards) ? event.rewards.map(reward=>({label:reward.label, amount:reward.amount, img:reward.img})) : [];
+      const portalId = String(event.portal?.id || store.state.selectedPortalCasterId || "");
+      const results = Array.isArray(event.rewards)
+        ? event.rewards.map(reward=>({label:reward.label, amount:reward.amount, img:reward.img}))
+        : [];
+      if(!store.state.portalCasterResultsByPortal || typeof store.state.portalCasterResultsByPortal !== "object"){
+        store.state.portalCasterResultsByPortal = {};
+      }
+      if(portalId) store.state.portalCasterResultsByPortal[portalId] = results;
+      if(!portalId || portalId === store.state.selectedPortalCasterId){
+        store.state.portalCasterResults = results;
+      }
       showToast(`Space Caster serveur : ${event.count || 1} lancement(s).`);
     }
     renderAll();

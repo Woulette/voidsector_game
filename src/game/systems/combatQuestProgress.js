@@ -4,6 +4,7 @@ export function createCombatQuestProgressSystem({
   multiplayer,
   getPlayer,
   getCurrentMap,
+  hasCoordinateObjective = ()=>true,
   progressServerQuest
 }){
   let coordinateCheckTimer = 0;
@@ -25,7 +26,7 @@ export function createCombatQuestProgressSystem({
     coordinateCheckTimer -= dt;
     const player = getPlayer();
     const currentMap = getCurrentMap();
-    if(coordinateCheckTimer > 0 || !player || !currentMap) return;
+    if(coordinateCheckTimer > 0 || !player || !currentMap || !hasCoordinateObjective()) return;
     coordinateCheckTimer = 1;
     progressServerQuest({type:"visit_coordinates", x:player.x, y:player.y, zoneName:currentMap.name});
   }

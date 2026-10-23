@@ -3,6 +3,10 @@ import { getXpNextForLevel } from "../../../src/data/xpCurve.js";
 
 export { getXpNextForLevel };
 
+export function getProgressionLevelCap(prestigeCount = 0){
+  return Math.max(0, Number(prestigeCount || 0)) >= 1 ? 100 : 50;
+}
+
 export const PROTECTED_PLAYER_FIELDS = [
   "name",
   "firmId",
@@ -24,25 +28,29 @@ export const PROTECTED_PLAYER_FIELDS = [
   "totalPlaySeconds",
   "laserShotsFired",
   "rocketShotsFired",
-  "missileShotsFired"
+  "missileShotsFired",
+  "activeTitleId",
+  "titleVisible"
 ];
 
-export function getProgressionSnapshot(player = {}){
-  const normalized = normalizeProgressionPlayer(player);
+export function getProgressionSnapshot(player = {}, levelCap = 100){
+  const normalized = normalizeProgressionPlayer(player, levelCap);
   return Object.fromEntries(PROTECTED_PLAYER_FIELDS.map(field=>[field, normalized[field]]));
 }
 
-export function normalizeProgressionPlayer(player = {}){
-  let level = Math.max(1, Math.floor(Number(player.level || 1)));
+export function normalizeProgressionPlayer(player = {}, levelCap = 100){
+  const cap = Math.max(1, Math.floor(Number(levelCap || 100)));
+  let level = Math.max(1, Math.min(cap, Math.floor(Number(player.level || 1))));
   let xp = Math.max(0, Math.round(Number(player.xp || 0)));
   let skillPoints = Math.max(0, Math.round(Number(player.skillPoints || 0)));
   let xpNext = getXpNextForLevel(level);
-  while(xp >= xpNext){
+  while(level < cap && xp >= xpNext){
     xp -= xpNext;
     level += 1;
     skillPoints += 1;
     xpNext = getXpNextForLevel(level);
   }
+  if(level >= cap) xp = Math.min(xp, xpNext);
   return {
     ...player,
     credits:Math.max(0, Math.round(Number(player.credits || 0))),
@@ -74,8 +82,9 @@ export function preserveProtectedProgression({incomingPlayer = {}, existingPlaye
   };
 }
 
-export function applyProgressionReward(player = {}, reward = {}){
-  const next = normalizeProgressionPlayer(player);
+export function applyProgressionReward(player = {}, reward = {}, levelCap = 100){
+  const cap = Math.max(1, Math.floor(Number(levelCap || 100)));
+  const next = normalizeProgressionPlayer(player, cap);
   const credits = Math.max(0, Math.round(Number(reward.credits || 0)));
   const premium = Math.max(0, Math.round(Number(reward.premium || 0)));
   let xp = Math.max(0, Math.round(Number(reward.xp || 0)));
@@ -83,17 +92,18 @@ export function applyProgressionReward(player = {}, reward = {}){
   next.premium += premium;
   next.totalXp += xp;
   next.xp += xp;
-  while(next.xp >= next.xpNext){
+  while(next.level < cap && next.xp >= next.xpNext){
     next.xp -= next.xpNext;
     next.level += 1;
     next.skillPoints += 1;
     next.xpNext = getXpNextForLevel(next.level);
   }
+  if(next.level >= cap) next.xp = Math.min(next.xp, next.xpNext);
   return next;
 }
 
-export function spendCurrency(player = {}, priceType = "credits", amount = 0){
-  const next = normalizeProgressionPlayer(player);
+export function spendCurrency(player = {}, priceType = "credits", amount = 0, levelCap = 100){
+  const next = normalizeProgressionPlayer(player, levelCap);
   const baseCost = Math.max(0, Math.round(Number(amount || 0)));
   const cost = priceType === "premium" ? getNovaDiscountedPrice(baseCost, next) : baseCost;
   const field = priceType === "premium" ? "premium" : "credits";

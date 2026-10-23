@@ -70,6 +70,7 @@ test("hull capacity is rebuilt from trusted stats without compounding stale Vesp
   const profile = createDefaultProfile();
   profile.activeShip = "vesperion";
   profile.ownedShips.push("vesperion");
+  profile.completedPortals.red = 1;
   profile.skillRanks.shield = [0, 0, 0, 0, 3];
   profile.worldSession = {
     mapId:"0",

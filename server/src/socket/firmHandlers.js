@@ -3,7 +3,7 @@ import { enrichFirmSnapshot } from "../firms/firmSnapshots.js";
 import { confirmProfileSave } from "./profileSaveGuard.js";
 
 export function registerFirmHandlers(socket, context){
-  const {emitProfileSync, firmWarManager, guard, players, profileManager} = context;
+  const {emitProfileSync, firmWarManager, guard, io, players, profileManager} = context;
 
   function getPlayerContext(){
     const player = players.get(socket.id);
@@ -15,9 +15,37 @@ export function registerFirmHandlers(socket, context){
 
   function emitSnapshot({includeShop = false} = {}){
     const current = getPlayerContext();
-    const snapshot = enrichFirmSnapshot(profileManager, current
-      ? firmWarManager.snapshot({...current, includeShop})
+    const accountId = String(current?.player?.accountId || "");
+    const accountPlayers = accountId
+      ? [...players.values()].filter(player=>
+          String(player?.accountId || "") === accountId
+          && player?.connected !== false
+        )
+      : [];
+    const activeGamePlayer = accountPlayers.find(player=>player.clientMode === "game") || current?.player || null;
+    const snapshotContext = activeGamePlayer
+      ? {
+          player:activeGamePlayer,
+          playerKey:profileManager.profileKeyForPlayer(activeGamePlayer),
+          profile:profileManager.getProfileForPlayer(activeGamePlayer)
+        }
+      : current;
+    const rawSnapshot = enrichFirmSnapshot(profileManager, snapshotContext
+      ? firmWarManager.snapshot({...snapshotContext, includeShop})
       : firmWarManager.snapshot());
+    const snapshot = {
+      ...rawSnapshot,
+      snapshotComplete:Boolean(snapshotContext),
+      includesShop:Boolean(includeShop)
+    };
+    const targetIds = [...new Set(accountPlayers.map(player=>player.id).filter(Boolean))];
+    if(io?.to && targetIds.length){
+      for(const socketId of targetIds){
+        io.to(socketId).emit("firm:snapshot", snapshot);
+        io.to(socketId).emit("firm:ranking", snapshot);
+      }
+      return;
+    }
     socket.emit("firm:snapshot", snapshot);
     socket.emit("firm:ranking", snapshot);
   }

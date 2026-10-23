@@ -1,6 +1,6 @@
 import { fmt } from "../core/utils.js";
 import { ammoTypes, droneCatalog, droneFormations, equipment } from "../data/equipment.js";
-import { portals, rawMaterialCatalog } from "../data/progression.js";
+import { portals, rawMaterialCatalog } from "../data/progression.js?v=20260726-prismatic1";
 import { ships } from "../data/ships.js";
 import { currencyIconHtml } from "./currencyIcons.js";
 import {
@@ -13,7 +13,7 @@ import {
   removeAdminInventoryItem,
   requestAdminSync,
   resetAdminInstance
-} from "../multiplayer/client.js?v=crafting-1";
+} from "../multiplayer/client.js?v=20261018-map-transfer1";
 
 const STAFF_ROLES = new Set(["moderator", "admin", "owner"]);
 const ADMIN_ACTIONS = new Set(["kick", "mute", "ban", "unmute", "unban", "adjust", "grant"]);

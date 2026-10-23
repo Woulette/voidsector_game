@@ -13,9 +13,7 @@ test("public player profile exposes equipped ship, weapons, drones and progressi
       reputation:180_000,
       totalKills:180,
       totalPlayerKills:7,
-      totalPlaySeconds:12_345,
-      activeTitleId:"hunter_100",
-      titleVisible:true
+      totalPlaySeconds:12_345
     },
     activeShip:"velox",
     ownedShips:["orion", "velox"],
@@ -39,7 +37,7 @@ test("public player profile exposes equipped ship, weapons, drones and progressi
     droneLoadout:["drone_laser_a", null],
     dronePermanentUpgrades:{0:"drone_overdrive_chip"},
     activeDroneFormation:"tir",
-    completedPortals:{blue:2},
+    completedPortals:{blue:2, violet:1, ionis:1},
     completedQuestClaims:{q1:true, q2:true},
     prestigeCount:1,
     lastLaserAmmoId:"ammo_x2"
@@ -53,7 +51,8 @@ test("public player profile exposes equipped ship, weapons, drones and progressi
 
   assert.equal(result.key, "account:alpha");
   assert.equal(result.name, "Alpha");
-  assert.equal(result.title, "Traqueur spatial");
+  assert.equal(result.title, null);
+  assert.deepEqual(result.titleEntitlements, []);
   assert.equal(result.ship.id, "velox");
   assert.equal(result.loadout.lasers[0].id, "laser_mk2");
   assert.equal(result.loadout.lasers[0].upgradeLevel, 3);
@@ -64,7 +63,7 @@ test("public player profile exposes equipped ship, weapons, drones and progressi
   assert.equal(result.drones.equipped, 1);
   assert.equal(result.drones.upgraded, 1);
   assert.equal(result.drones.formation.id, "tir");
-  assert.equal(result.progression.portalClears, 2);
+  assert.equal(result.progression.portalClears, 4);
   assert.equal(result.progression.questsCompleted, 2);
   assert.equal(result.progression.prestige, 1);
   assert.equal(result.ranking.displayRank, 2);

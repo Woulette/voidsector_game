@@ -1,6 +1,6 @@
-import { getClosedMapPortals, getMapPortals, SAFE_ZONE_DELAY } from "../combatData.js";
+import { getClosedMapPortals, getMapPortals, SAFE_ZONE_DELAY } from "../combatData.js?v=20261022-helion-hub1";
 import { getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
-import { buildMapState } from "./mapState.js";
+import { buildMapState } from "./mapState.js?v=20261022-helion-hub1";
 
 export function createCombatWorldStateSystem({
   store,
@@ -96,6 +96,7 @@ export function createCombatWorldStateSystem({
     if(gameMode !== "open" || !currentMap?.spawn || currentMap.spawn.kind === "portal") return [];
     if(!isFriendlyFirmMap(currentMap)) return [];
     const spawn = currentMap.spawn;
+    if(Array.isArray(currentMap.spawnStations)) return currentMap.spawnStations;
     const configuredStations = (Array.isArray(currentMap.questStations) ? currentMap.questStations : [])
       .map(station=>({
         ...station,

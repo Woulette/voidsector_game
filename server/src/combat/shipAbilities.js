@@ -4,6 +4,13 @@ import {
   getShipAbilityStatus,
   normalizeShipAbilityState
 } from "../../../src/shared/shipAbilities.js";
+import { ships } from "../../../src/data/ships.js";
+import { getShipProgressionLockReason } from "../../../src/shared/progressionUnlocks.js";
+
+function getAbilityShipLockReason(profile, shipId){
+  const ship = ships.find(candidate=>candidate.id === String(shipId || ""));
+  return ship ? getShipProgressionLockReason(profile, ship) : "Vaisseau inconnu du serveur.";
+}
 
 function ensureAbilityStates(profile){
   if(!profile.shipAbilityStates || typeof profile.shipAbilityStates !== "object" || Array.isArray(profile.shipAbilityStates)){
@@ -57,6 +64,8 @@ export function activateServerShipAbility({player, profile, abilityId = "", now 
   if(!Array.isArray(profile.ownedShips) || !profile.ownedShips.includes(shipId)){
     return {ok:false, reason:"Vaisseau non possédé."};
   }
+  const progressionLockReason = getAbilityShipLockReason(profile, shipId);
+  if(progressionLockReason) return {ok:false, reason:progressionLockReason};
   const states = ensureAbilityStates(profile);
   const previous = normalizeShipAbilityState(getStoredAbilityState(states[shipId], definition.id));
   if(previous.cooldownUntil > now){
@@ -86,6 +95,7 @@ export function applyServerShipLifeSteal({player, profile, damageDealt, weaponCl
   if(!player?.state || !profile || Number(player.state.hp || 0) <= 0) return {healed:0};
   const shipId = String(profile.activeShip || player.state.shipId || "");
   if(String(player.state.shipId || "") !== shipId) return {healed:0};
+  if(getAbilityShipLockReason(profile, shipId)) return {healed:0};
   const definitions = getShipAbilityDefinitions(shipId);
   if(!definitions.length) return {healed:0};
   const shipState = profile.shipAbilityStates?.[shipId];
@@ -119,6 +129,7 @@ export function applyServerLaserDoubleStrike({
   if(!player?.state || !profile || String(weaponClass || "") !== "laser") return {triggered:false, bonusDamage:0};
   const shipId = String(profile.activeShip || player.state.shipId || "");
   if(String(player.state.shipId || "") !== shipId) return {triggered:false, bonusDamage:0};
+  if(getAbilityShipLockReason(profile, shipId)) return {triggered:false, bonusDamage:0};
   const definitions = getShipAbilityDefinitions(shipId);
   const definition = definitions.find(candidate=>{
     if(candidate.effectType !== "laser_double_strike") return false;

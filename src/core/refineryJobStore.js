@@ -1,6 +1,6 @@
-import { refineryRecipes } from "../data/catalog.js";
-import { addMaterial, consumeMaterial, getMaterialCount } from "./cargoStore.js";
-import { getRawMaterial, store } from "./store.js";
+import { refineryRecipes } from "../data/catalog.js?v=20260726-kharon1";
+import { addMaterial, consumeMaterial, getMaterialCount } from "./cargoStore.js?v=20260726-kharon1";
+import { getRawMaterial, store } from "./store.js?v=20260726-kharon1";
 
 export function getRefineryJob(){
   return store.state.refineryJob || null;

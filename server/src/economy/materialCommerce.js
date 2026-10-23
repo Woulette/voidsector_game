@@ -1,4 +1,6 @@
 import { MATERIAL_COMMERCE_ORDER, getMaterialCommerceUnitPrice, getMaterialCommerceValue } from "../../../src/shared/materialCommerce.js";
+import { FIRMS, getFirmIdFromMapName, normalizeFirmId } from "../../../src/data/firms.js";
+import { WORLD_MAPS } from "../world/definitions.js";
 import { getRawMaterial, getShipCargo } from "./refineryProfile.js";
 
 function normalizeSaleAmount(amount){
@@ -8,6 +10,21 @@ function normalizeSaleAmount(amount){
 function ensureEconomyProfile(profile){
   if(!profile.player || typeof profile.player !== "object") profile.player = {};
   if(!profile.shipCargo || typeof profile.shipCargo !== "object") profile.shipCargo = {};
+}
+
+export function getServerMaterialCommerceAccess(profile, player){
+  if(!player?.state) return {ok:false, reason:"Vente de materiaux autorisee uniquement en jeu, dans les zones de ta firme."};
+  const profileFirmId = String(profile?.player?.firmId || "").trim().toLowerCase();
+  if(profile?.player?.firmSelected !== true || !FIRMS.some(firm=>firm.id === profileFirmId)){
+    return {ok:false, reason:"Selectionne d'abord ta firme avant de vendre des materiaux."};
+  }
+  const map = WORLD_MAPS[String(player.state.mapId ?? "")];
+  const mapFirmId = map?.firmId || getFirmIdFromMapName(map?.name);
+  const playerFirmId = normalizeFirmId(profileFirmId);
+  if(!mapFirmId || normalizeFirmId(mapFirmId) !== playerFirmId){
+    return {ok:false, reason:"Vente de materiaux autorisee uniquement dans les zones de ta firme."};
+  }
+  return {ok:true, mapId:String(map.id), firmId:playerFirmId};
 }
 
 function getCommerceCargo(profile, shipId){

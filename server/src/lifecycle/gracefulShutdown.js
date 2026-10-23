@@ -27,6 +27,7 @@ export function createGracefulShutdown({
   tickHandle,
   players,
   profileManager,
+  firmWarManager,
   closeDatabase,
   logger,
   clearIntervalFn = clearInterval
@@ -60,6 +61,11 @@ export function createGracefulShutdown({
         await profileManager?.flushPersistence?.();
       }catch(error){
         recordShutdownError({errors, logger, signal, step:"flush-persistence", error});
+      }
+      try{
+        await firmWarManager?.flushPersistence?.();
+      }catch(error){
+        recordShutdownError({errors, logger, signal, step:"flush-firm-persistence", error});
       }
       try{
         await closeDatabase?.();

@@ -1,8 +1,8 @@
-import { applyProfileTitleSelection } from "../players/profileTitles.js";
 import { confirmProfileSave } from "./profileSaveGuard.js";
+import { applyProfileTitleSelection } from "../players/profileTitles.js";
 
 export function registerProgressionHandlers(socket, context){
-  const {emitProfileSync, guard, players, profileManager} = context;
+  const {emitProfileSync, guard, players, preparePortalInstance, profileManager} = context;
 
   async function ensureSaved(result, eventName){
     return confirmProfileSave(socket, result, {eventName});
@@ -50,6 +50,7 @@ export function registerProgressionHandlers(socket, context){
       at:Date.now()
     });
     emitProfileSync(player, result.profile);
+    if(result.portal?.id) preparePortalInstance?.(socket, result.portal.id);
   });
 
   socket.on("prestige:perform", async ()=>{
@@ -61,7 +62,7 @@ export function registerProgressionHandlers(socket, context){
       action:{kind:"prestige"}
     });
     if(!result.ok){
-      socket.emit("prestige:error", {message:result.reason || "Prestige impossible."});
+      socket.emit("prestige:error", {message:result.reason || "Ascension impossible."});
       return;
     }
     if(!await ensureSaved(result, "prestige:error")) return;
@@ -75,16 +76,13 @@ export function registerProgressionHandlers(socket, context){
   socket.on("profile:title-set", async payload=>{
     if(!guard("profile:title-set")) return;
     const player = players.get(socket.id);
-    if(!player?.accountId){
-      socket.emit("profile:title-error", {message:"Compte MMO requis."});
-      return;
-    }
+    if(!player) return;
     const result = profileManager.updateProfileForPlayer({
       player,
-      update:profile=>applyProfileTitleSelection(profile, {
-        titleId:Object.hasOwn(payload || {}, "titleId") ? payload.titleId : undefined,
-        visible:Object.hasOwn(payload || {}, "visible") ? payload.visible : undefined
-      })
+      update:profile=>{
+        const selection = applyProfileTitleSelection(profile, payload || {});
+        return {...selection, profile};
+      }
     });
     if(!result.ok){
       socket.emit("profile:title-error", {message:result.reason || "Titre impossible."});
@@ -92,10 +90,11 @@ export function registerProgressionHandlers(socket, context){
     }
     if(!await ensureSaved(result, "profile:title-error")) return;
     socket.emit("profile:title-updated", {
-      titleId:result.titleId,
-      visible:result.visible,
+      titleId:result.titleId || null,
+      visible:result.visible !== false,
       at:Date.now()
     });
     emitProfileSync(player, result.profile);
   });
+
 }

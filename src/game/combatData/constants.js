@@ -2,7 +2,7 @@ export const RADAR_RANGE = 950;
 export const AGGRO_RANGE = 760;
 export const LEASH_RANGE = 1280;
 export const PLAYER_COLLISION_RADIUS = 38;
-export const PLAYER_HIT_CHANCE = 0.92;
+export const PLAYER_HIT_CHANCE = 0.8;
 export const SAFE_ZONE_DELAY = 5;
 export const RAW_DROP_TABLE = [
   {id:"cuivre_orbital", min:1, max:3, chance:0.78},

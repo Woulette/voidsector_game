@@ -4,7 +4,7 @@ function cleanBaseUrl(baseUrl){
 
 function authPayload(payload){
   const account = payload?.account || null;
-  if(!account) throw new Error("Session expiree.");
+  if(!account) throw new Error("Reponse d'authentification invalide.");
   return {
     account,
     token:payload?.token || "",
@@ -19,12 +19,15 @@ function authPayload(payload){
 async function readJsonResponse(response){
   const payload = await response.json().catch(()=>({ok:false, message:"Reponse serveur invalide."}));
   if(!response.ok || payload?.ok === false){
-    throw new Error(payload?.message || "Authentification impossible.");
+    const error = new Error(payload?.message || "Authentification impossible.");
+    error.status = Number(response.status || 0);
+    error.code = String(payload?.code || "");
+    throw error;
   }
   return payload;
 }
 
-export function createPlatformAuthClient({baseUrl, fetchImpl = globalThis.fetch} = {}){
+export function createPlatformAuthClient({baseUrl, fetchImpl = globalThis.fetch, timeoutMs = 8000} = {}){
   const root = cleanBaseUrl(baseUrl);
   if(!root) return null;
   if(typeof fetchImpl !== "function"){
@@ -34,12 +37,25 @@ export function createPlatformAuthClient({baseUrl, fetchImpl = globalThis.fetch}
   async function request(path, {method = "POST", body = null, token = ""} = {}){
     const headers = {"content-type":"application/json"};
     if(token) headers.authorization = `Bearer ${token}`;
-    const response = await fetchImpl(`${root}${path}`, {
-      method,
-      headers,
-      body:body ? JSON.stringify(body) : null
-    });
-    return readJsonResponse(response);
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const timeout = Math.max(10, Number(timeoutMs || 8000));
+    const timer = controller ? setTimeout(()=>controller.abort(), timeout) : null;
+    try{
+      const response = await fetchImpl(`${root}${path}`, {
+        method,
+        headers,
+        body:body ? JSON.stringify(body) : null,
+        signal:controller?.signal
+      });
+      return await readJsonResponse(response);
+    }catch(error){
+      if(controller?.signal?.aborted){
+        throw new Error("Le service d'authentification met trop de temps a repondre.");
+      }
+      throw error;
+    }finally{
+      if(timer) clearTimeout(timer);
+    }
   }
 
   return {

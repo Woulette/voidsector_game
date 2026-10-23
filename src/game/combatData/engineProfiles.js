@@ -223,6 +223,29 @@ export const SHIP_ENGINE_PROFILES = {
     turnAngleMax:.08,
     turnBendScale:.34
   },
+  imperial:{
+    // Cuirasse de commandement : cinq reacteurs rouges alignes sur la poupe.
+    ports:[
+      {x:-35, y:73, size:.92, length:.96, width:.82},
+      {x:-18, y:78, size:1.08, length:1.08, width:.94},
+      {x:0, y:80, size:1.15, length:1.12, width:1.0},
+      {x:18, y:78, size:1.08, length:1.08, width:.94},
+      {x:35, y:73, size:.92, length:.96, width:.82}
+    ],
+    colors:{core:"255,247,237", hot:"253,186,116", mid:"239,68,68", edge:"127,29,29", particle:"248,113,113", spark:"254,240,138"},
+    baseLength:25,
+    powerLength:42,
+    baseWidth:8.6,
+    powerWidth:10.2,
+    particleRate:1.5,
+    particleSpeed:.9,
+    particleSpread:.9,
+    particleSize:1.08,
+    particleLife:1.12,
+    turnAngleScale:.3,
+    turnAngleMax:.065,
+    turnBendScale:.28
+  },
   ricky_companion:{
     ports:[
       {x:-27, y:36, size:.70, length:.70, width:.88},

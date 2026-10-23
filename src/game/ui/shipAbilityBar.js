@@ -1,4 +1,4 @@
-import { keyCodeToLabel } from "../../core/keybinds.js?v=ship-abilities-1";
+import { keyCodeToLabel } from "../../core/keybinds.js?v=20260726-kharon1";
 
 function escapeAttr(value){
   return String(value ?? "").replace(/[&<>"]/g, char=>({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;"})[char]);

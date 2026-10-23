@@ -1,8 +1,8 @@
-import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js?v=craft-extras-1";
+import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js?v=20260726-ancient1";
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
-import { betaLaunchMessage, betaPacks, betaRewardCalendar, creditCurrencyPacks, getBetaRewardStatus, getPremiumRewardStatus, hasBetaPackPurchase, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js?v=beta-store-3";
+import { betaLaunchMessage, betaPacks, betaRewardCalendar, creditCurrencyPacks, getBetaRewardStatus, getPremiumRewardStatus, hasBetaPackPurchase, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js?v=20260726-kharon1";
 import { fmt } from "../core/utils.js";
-import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js?v=ship-abilities-2";
+import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js?v=20260726-kharon1";
 import {
   RANK_TABLE,
   RANK_POINT_RULES,
@@ -12,8 +12,8 @@ import {
   canAfford,
   findEquippedSlot,
   getAmmoCount,
+  getActiveDroneFormation,
   getCurrentRank,
-  getCompletedPortalCount,
   getDroneCatalog,
   getDroneLoadout,
   getDronePermanentUpgrade,
@@ -30,6 +30,7 @@ import {
   getMaterialCount,
   getLoadout,
   getNextRank,
+  getPlayerLevelCap,
   getPortalPieces,
   getPrestigeStatus,
   getRankAssetPath,
@@ -37,9 +38,7 @@ import {
   getRankProgress,
   getShip,
   getShipCombatStats,
-  getSkillBonus,
   getSkillProgress,
-  getRealSpeedFromStat,
   getGraphicsQuality,
   isDroneCompatibleEquipment,
   isDronePermanentUpgradeItem,
@@ -47,20 +46,21 @@ import {
   saveState,
   setGraphicsQuality,
   store
-} from "../core/store.js";
-import { ENEMY_TYPES } from "../game/combatData.js";
+} from "../core/store.js?v=20260726-kharon1";
 import { FIRM_REPRESENTATIVES } from "../data/firmRepresentatives.js";
 
-import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js";
-import { renderShop } from "./renderShop.js?v=craft-extras-1";
-import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=portal-prepare-1";
-import { renderRefinery } from "./renderRefinery.js?v=tutorial-refinery-lock-1";
-import { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
+import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js?v=20260726-kharon1";
+import { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
+import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261022-helion-hub1";
+import { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
+import { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";
 import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
-import { multiplayer } from "../multiplayer/client.js?v=crafting-1";
-import { renderAdminPanel } from "./adminPanel.js?v=currency-icons-2";
-import { currencyAmountHtml, currencyIconHtml, realMoneyPriceHtml } from "./currencyIcons.js?v=store-real-prices-1";
+import { multiplayer } from "../multiplayer/client.js?v=20261018-map-transfer1";
+import { renderAdminPanel } from "./adminPanel.js?v=20261018-map-transfer1";
+import { currencyAmountHtml, currencyIconHtml, realMoneyPriceHtml } from "./currencyIcons.js?v=20260726-kharon1";
 import { getRarityLabel, getRarityOrder, getRarityShort, getRarityTier, rarityClass } from "../shared/rarities.js";
+import { hasCompletedProgressionPortal, STELLAR_SYSTEM_TITLE } from "../shared/progressionUnlocks.js?v=20260726-kharon1";
+import { canAccountRoleAccessShip } from "../data/ships.js?v=20260726-imperial2";
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g, char=>({
@@ -175,7 +175,9 @@ export function renderShips(){
   const { state } = store;
   const grid = document.getElementById("shipGrid");
   if(!grid) return;
-  const list = state.ownedShips.map(getShip).filter(Boolean);
+  const list = state.ownedShips
+    .map(getShip)
+    .filter(ship=>ship && canAccountRoleAccessShip(ship, multiplayer.auth.account?.role));
   grid.innerHTML = list.map(ship=>{
     const active = state.activeShip === ship.id;
     const selected = state.selectedShip === ship.id;
@@ -509,13 +511,26 @@ export function renderLoadout(){
 
 function renderDroneSlot(uid, index){
   const item = getItemFromInventoryUid(uid);
-  const upgraded = Boolean(getDronePermanentUpgrade(index));
+  const vesperUnlocked = Math.max(0, Number(store.state?.completedPortals?.violet || 0)) > 0;
+  const vesperActive = vesperUnlocked && Boolean(getDronePermanentUpgrade(index));
   const multiSelected = item && selectedEquipmentUidSet().has(uid);
   const selected = item && (multiSelected || store.selectedInventoryUid === uid);
-  return `<article class="drone-slot-card ${upgraded ? "upgraded" : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""}" data-drop-part="drone" data-drop-index="${index}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""}>
-    <div class="drone-slot-head"><span class="badge">Drone ${index+1}</span><span>${upgraded ? "ROUGE +50%" : item ? item.category.toUpperCase() : "VIDE"}</span></div>
+  const vesperState = vesperUnlocked ? (vesperActive ? "active" : "available") : "locked";
+  const vesperTitle = vesperActive
+    ? "Noyau Overdrive actif : drone rouge, +50 % au laser ou au bouclier équipé"
+    : vesperUnlocked
+      ? "Emplacement de Noyau Overdrive disponible"
+      : "Termine La Faille de Vesper pour débloquer cet emplacement";
+  const vesperSlotContent = vesperActive
+    ? `<img src="assets/drone_skins/puce_vesper.png?v=20260726-kharon1" alt="Noyau Overdrive Drone" draggable="false"><small>OVER</small>`
+    : `<i aria-hidden="true">${vesperUnlocked ? "+" : "×"}</i><small>${vesperUnlocked ? "NOYAU" : "LOCK"}</small>`;
+  return `<article class="drone-slot-card ${vesperActive ? "vesper-active" : ""} ${!vesperUnlocked ? "vesper-locked" : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""}" data-drop-part="drone" data-drop-index="${index}" data-drone-slot-number="${index + 1}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""}>
+    <div class="drone-slot-head"><span class="badge">Drone ${index+1}</span><span>${vesperActive ? "NOYAU OVERDRIVE" : item ? item.category.toUpperCase() : "VIDE"}</span></div>
     <div class="drone-slot-body" data-drop-part="drone" data-drop-index="${index}">
       <img class="drone-preview" src="assets/drones/drone_test_sprite.webp" alt="Drone ${index+1}">
+      <div class="drone-cosmetic-slot ${vesperState}" data-drop-part="drone" data-drop-index="${index}" aria-label="${vesperTitle}" title="${vesperTitle}">
+        ${vesperSlotContent}
+      </div>
       <div class="drone-module ${item ? `filled ${rarityClass(item)}` : ""}">
         ${item ? `<img src="${item.img}" alt="${item.name}"><b>${equipmentSlotBadge(item)}</b><em data-unequip-part="drone" data-unequip-index="${index}">x</em>` : `<i>+</i><span>Ajouter un laser ou un générateur</span>`}
       </div>
@@ -535,7 +550,8 @@ export function renderDroneSection(){
   const {inventoryEntries, resourceEntries} = filterInventoryContent(allInventoryEntries, allResourceEntries);
   const inventoryCount = inventoryEntries.length + resourceEntries.length;
   const emptyCells = Array.from({length:Math.max(0, 40 - inventoryCount)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
-  const nextPrice = drones.length >= droneDef.maxOwned ? null : getDronePurchasePrice(drones.length);
+  const nextPrice = drones.length >= droneDef.maxStandardOwned ? null : getDronePurchasePrice(drones.length);
+  const visibleDroneSlots = drones.slice(0, 10);
   const selectedDetail = renderSelectedInventoryDetail();
   section.innerHTML = `
     <div class="drone-layout">
@@ -545,11 +561,13 @@ export function renderDroneSection(){
         <div class="stats-list">
           ${statLine("Drones possédés", drones.length, droneDef.maxOwned)}
           ${statLine("Max drones", droneDef.maxOwned, droneDef.maxOwned)}
+          <div class="stat-line special-line"><span>Drones standards</span><b>${droneDef.maxStandardOwned} maximum</b></div>
+          <div class="stat-line special-line"><span>Drones spéciaux</span><b>2 places réservées</b></div>
           <div class="stat-line special-line"><span>Emplacements</span><b>1 par drone</b></div>
-          <div class="stat-line special-line"><span>Compatibilité</span><b>Laser, bouclier ou overdrive</b></div>
+          <div class="stat-line special-line"><span>Compatibilité</span><b>Laser, bouclier ou Noyau Overdrive</b></div>
           <div class="stat-line special-line"><span>Prix suivant</span><b>${nextPrice ? currencyAmountHtml(droneDef.priceType, getCurrencyPrice(droneDef.priceType, nextPrice)) : "MAX"}</b></div>
         </div>
-        <button class="blue-button" data-buy-combat-drone ${(!nextPrice || !canAfford(droneDef.priceType, nextPrice)) ? "disabled" : ""}>${nextPrice ? "ACHETER UN DRONE" : "MAX DRONES"}</button>
+        <button class="blue-button" data-buy-combat-drone ${(!nextPrice || !canAfford(droneDef.priceType, nextPrice)) ? "disabled" : ""}>${nextPrice ? "ACHETER UN DRONE" : "MAX DRONES STANDARDS"}</button>
         <p class="panel-note">${droneDef.desc}</p>
       </aside>
       <section class="panel frame drone-loadout-panel">
@@ -557,7 +575,7 @@ export function renderDroneSection(){
         <div class="ship-equipment-layout drone-equipment-layout">
           <section class="equipped-compact-panel">
             <div class="compact-section-head"><h3>Drone Bay</h3><span>${drones.length}/${droneDef.maxOwned}</span></div>
-            <div class="drone-bay-grid">${drones.length ? drones.map((uid,i)=>renderDroneSlot(uid, i)).join("") : `<div class="empty-msg">Aucun drone acheté pour le moment.</div>`}</div>
+            <div class="drone-bay-grid">${visibleDroneSlots.length ? visibleDroneSlots.map((uid,i)=>renderDroneSlot(uid, i)).join("") : `<div class="empty-msg">Aucun drone acheté pour le moment.</div>`}</div>
           </section>
           <section class="rpg-inventory-panel">
             <div class="compact-section-head"><h3>Inventaire</h3><span>${inventoryCount} objets</span></div>
@@ -578,179 +596,147 @@ function formatDuration(seconds){
   return `${minutes}m ${String(total % 60).padStart(2, "0")}s`;
 }
 
-function formatPercentFromMultiplier(multiplier){
-  return `${Math.round((Number(multiplier || 1) - 1) * 100)}%`;
+function profileStatTile(label, value, suffix = ""){
+  return `<div class="profile-live-stat"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}${suffix}</b></div>`;
 }
 
-function profileCompareRow(label, before, after, suffix = ""){
-  const fmtValue = value=>typeof value === "number" ? fmt(Math.round(value)) : value;
-  const improved = Number(after || 0) > Number(before || 0);
-  return `<div class="profile-compare-row ${improved ? "improved" : ""}">
-    <span>${label}</span><b>${fmtValue(before)}${suffix}</b><i></i><strong>${fmtValue(after)}${suffix}</strong>
+function profileDetailRow(label, value, detail = ""){
+  return `<div class="profile-detail-row"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b>${detail ? `<small>${escapeHtml(detail)}</small>` : ""}</div>`;
+}
+
+function renderProfileShipVisual(ship){
+  return `<div class="profile-ship-visual">
+    <div class="profile-ship-aura" aria-hidden="true"></div>
+    <img src="${escapeHtml(ship.img)}" alt="${escapeHtml(ship.name)}">
+    <div class="profile-ship-caption"><span>Vaisseau actuellement utilisé</span><strong>${escapeHtml(ship.name)}</strong><small>${escapeHtml(ship.className || "")}</small></div>
   </div>`;
 }
 
-function getProfileStatsRows(){
-  const stats = getShipCombatStats(store.state.activeShip);
-  const skill = getSkillBonus();
-  const safeMultiplier = key=>Math.max(0.0001, Number(skill[key] || 1));
-  const speedStat = Math.max(0, (Number(stats.vitesseReelle || 0) - 120) / 2.15);
-  const beforeSpeed = getRealSpeedFromStat(speedStat / safeMultiplier("speedMultiplier"));
-  return [
-    profileCompareRow("Vie", stats.vie / safeMultiplier("hullMultiplier"), stats.vie, " PV"),
-    profileCompareRow("Bouclier", stats.bouclier / safeMultiplier("shieldMultiplier"), stats.bouclier),
-    profileCompareRow("Absorption bouclier", `${Math.round((Number(stats.shieldAbsorbRatio || 0) - Number(skill.shieldAbsorbBonus || 0)) * 100)}%`, `${Math.round(Number(stats.shieldAbsorbRatio || 0) * 100)}%`),
-    profileCompareRow("Régénération", stats.regen / safeMultiplier("regenMultiplier"), stats.regen, "/s"),
-    profileCompareRow("Vitesse réelle", beforeSpeed, stats.vitesseReelle),
-    profileCompareRow("Soute", stats.cargo / safeMultiplier("cargoMultiplier"), stats.cargo),
-    profileCompareRow("Dégâts laser", "0%", formatPercentFromMultiplier(skill.weaponDamageMultiplier || 1)),
-    profileCompareRow("Dégâts roquette", "0%", formatPercentFromMultiplier(skill.rocketDamageMultiplier || 1)),
-    profileCompareRow("Dégâts missile", "0%", formatPercentFromMultiplier(skill.missileDamageMultiplier || 1)),
-    profileCompareRow("Crédits gagnés", "0%", formatPercentFromMultiplier(skill.lootMultiplier || 1)),
-    profileCompareRow("NOVA gagnés", "0%", formatPercentFromMultiplier(skill.novaMultiplier || 1)),
-    profileCompareRow("Esquive", "0%", `${Math.round(Number(skill.evasionChance || 0) * 100)}%`),
-    profileCompareRow("Conversion vie", "0%", `${Math.round(Number(skill.damageToHpChance || 0) * 100)}%`)
-  ].join("");
+function activeProfileDrones(){
+  return getDroneLoadout()
+    .map((uid, index)=>({uid, index}))
+    .filter(entry=>Boolean(entry.uid));
 }
 
-function profileAchievements(){
-  const player = store.state.player;
-  const completedPortals = getCompletedPortalCount();
-  const completedQuests = Object.keys(store.state.completedQuestClaims || {}).length;
-  const spentSkills = skills.reduce((sum, skill)=>sum + Number(getSkillProgress(skill.id).completedRanks || 0), 0);
-  const weaponAchievement = (id, name, label, current, target, title)=>({
-    id,
-    name,
-    desc:`${label} ${fmt(target)} fois. Progression : ${fmt(current)} / ${fmt(target)}.`,
-    done:Number(current || 0) >= target,
-    title
-  });
-  const laserShots = Number(player.laserShotsFired || 0);
-  const rocketShots = Number(player.rocketShotsFired || 0);
-  const missileShots = Number(player.missileShotsFired || 0);
-  return [
-    {id:"first_contact", name:"Premier contact", desc:"Détruire ton premier monstre.", done:Number(player.totalKills || 0) >= 1, title:"Premier sang"},
-    {id:"hunter_100", name:"Chasseur confirmé", desc:"Détruire 100 monstres.", done:Number(player.totalKills || 0) >= 100, title:"Traqueur spatial"},
-    {id:"veteran_25", name:"Pilote vétéran", desc:"Atteindre le niveau 25.", done:Number(player.level || 1) >= 25, title:"Vétéran d'Astra"},
-    {id:"portal_mastery", name:"Maîtrise des portails", desc:"Terminer au moins un portail.", done:completedPortals > 0, title:"Nettoyeur d'Astra"},
-    {id:"quest_5", name:"Mercenaire fiable", desc:"Réclamer 5 récompenses de quête.", done:completedQuests >= 5, title:"Mercenaire fiable"},
-    {id:"inventory_30", name:"Ingénieur de bord", desc:"Posséder 30 objets d'équipement.", done:(store.state.inventoryItems || []).length >= 30, title:"Ingénieur de bord"},
-    {id:"skill_15", name:"Spécialiste", desc:"Investir 15 rangs de compétences.", done:spentSkills >= 15, title:"Spécialiste"},
-    {id:"drone_5", name:"Escadron drone", desc:"Posséder 5 drones.", done:Number(store.state.ownedDroneCount || 0) >= 5, title:"Chef d'escadron"},
-    {id:"hunter_500", name:"Chasseur abyssal", desc:"Détruire 500 monstres.", done:Number(player.totalKills || 0) >= 500, title:"Chasseur abyssal"},
-    weaponAchievement("laser_100k", "Canon chaud", "Tirer au laser", laserShots, 100000, "Canonnier laser"),
-    weaponAchievement("laser_1m", "Rideau laser", "Tirer au laser", laserShots, 1000000, "Deluge photonique"),
-    weaponAchievement("laser_10m", "Faisceau massif", "Tirer au laser", laserShots, 10000000, "Architecte de faisceaux"),
-    weaponAchievement("laser_100m", "Tempete laser", "Tirer au laser", laserShots, 100000000, "Tempete laser"),
-    weaponAchievement("laser_1b", "Milliard photonique", "Tirer au laser", laserShots, 1000000000, "Legende photonique"),
-    weaponAchievement("rocket_25k", "Soute explosive", "Utiliser une roquette", rocketShots, 25000, "Artilleur orbital"),
-    weaponAchievement("rocket_250k", "Salves lourdes", "Utiliser une roquette", rocketShots, 250000, "Maitre roquettes"),
-    weaponAchievement("rocket_25m", "Barrage orbital", "Utiliser une roquette", rocketShots, 25000000, "Barrage orbital"),
-    weaponAchievement("missile_10k", "Verrouillage", "Utiliser un missile", missileShots, 10000, "Artilleur guide"),
-    weaponAchievement("missile_1m", "Pluie guidee", "Utiliser un missile", missileShots, 1000000, "Commandant missile"),
-    weaponAchievement("missile_100m", "Doctrine orbitale", "Utiliser un missile", missileShots, 100000000, "Doctrine orbitale")
+function renderProfileDroneVisual(){
+  const drone = getDroneCatalog();
+  const activeDrones = activeProfileDrones();
+  const formation = getActiveDroneFormation();
+  if(!activeDrones.length){
+    return `<div class="profile-drone-empty"><img src="${escapeHtml(drone.img)}" alt=""><strong>Aucun drone utilisé</strong><span>Équipe un module sur un drone pour l'activer.</span></div>`;
+  }
+  return `<div class="profile-drone-visual">
+    <div class="profile-drone-summary"><span>Formation active</span><strong>${escapeHtml(formation?.name || "Formation Base")}</strong><b>${fmt(activeDrones.length)} actif${activeDrones.length > 1 ? "s" : ""}</b></div>
+    <div class="profile-drone-grid">${activeDrones.map(({uid, index})=>{
+      const item = getItemFromInventoryUid(uid);
+      const upgraded = Boolean(getDronePermanentUpgrade(index));
+      return `<article class="${upgraded ? "upgraded" : ""}">
+        <img src="${escapeHtml(drone.img)}" alt="Drone ${index + 1}">
+        <div><span>Drone ${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(item?.short || item?.name || "Module inconnu")}</strong><small>${upgraded ? "Noyau Overdrive actif · rouge" : escapeHtml(getRarityLabel(item))}</small></div>
+      </article>`;
+    }).join("")}</div>
+  </div>`;
+}
+
+function renderAscensionCallout(status){
+  const requirements = [
+    {label:"Niveau 50", done:status.levelOk},
+    {label:"9 portails terminés", done:status.portalOk}
   ];
+  return `<section class="profile-ascension-callout">
+    <div class="profile-ascension-symbol" aria-hidden="true"><i></i><b>A</b></div>
+    <div><span>ASCENSION UNIQUE</span><strong>Ouvre la progression jusqu'au niveau 100</strong><p>Ton niveau revient à 1, tes compétences sont conservées et ton dossier obtient un statut visuel permanent.</p></div>
+    <div class="profile-ascension-requirements">${requirements.map(requirement=>`<span class="${requirement.done ? "done" : ""}"><i>${requirement.done ? "OK" : "--"}</i>${requirement.label}</span>`).join("")}</div>
+    <button class="blue-button" data-prestige type="button" ${status.ok ? "" : "disabled"}>ACCOMPLIR L'ASCENSION</button>
+  </section>`;
 }
 
-function profileTitles(){
-  return profileAchievements()
-    .filter(achievement=>achievement.title)
-    .map(achievement=>({
-      id:achievement.id,
-      name:achievement.title,
-      desc:`Titre obtenu avec le succès : ${achievement.name}.`,
-      unlocked:achievement.done
-    }));
+function renderStellarSystemTitleControl(){
+  const unlocked = hasCompletedProgressionPortal(store.state, STELLAR_SYSTEM_TITLE.portalId);
+  const equipped = unlocked && store.state.player.activeTitleId === STELLAR_SYSTEM_TITLE.id;
+  const visible = store.state.player.titleVisible !== false;
+  const status = !unlocked ? "VERROUILLÉ" : equipped ? (visible ? "ÉQUIPÉ · VISIBLE" : "ÉQUIPÉ · MASQUÉ") : "DÉBLOQUÉ";
+  return `<section class="profile-title-control ${unlocked ? "unlocked" : "locked"} ${equipped ? "equipped" : ""}">
+    <div class="profile-title-ornament" aria-hidden="true"><i></i><b>S</b></div>
+    <div class="profile-title-copy">
+      <span>TITRE DE CONQUÊTE · ${status}</span>
+      <strong>${escapeHtml(STELLAR_SYSTEM_TITLE.name)}</strong>
+      <p>${unlocked
+        ? "Bonus serveur équipé : +5 % de dégâts pour les lasers, roquettes et missiles."
+        : "Termine le portail niveau 50, Le Cœur de l’Éternel, pour obtenir ce titre."}</p>
+    </div>
+    <div class="profile-title-actions">
+      ${unlocked ? `<button class="blue-button small" data-profile-title-toggle="${equipped ? "" : STELLAR_SYSTEM_TITLE.id}" type="button">${equipped ? "Retirer" : "Équiper"}</button>` : ""}
+      ${equipped ? `<button class="blue-button small" data-profile-title-visibility type="button">${visible ? "Masquer en jeu" : "Afficher en jeu"}</button>` : ""}
+    </div>
+  </section>`;
 }
 
-function getActiveProfileTitle(){
-  const player = store.state.player;
-  if(player.titleVisible === false || !player.activeTitleId) return null;
-  return profileTitles().find(title=>title.id === player.activeTitleId && title.unlocked) || null;
-}
-
-function renderProfileTabContent(tab){
+export function renderProfile(){
+  const section = document.getElementById("profileSection");
+  if(!section) return;
   const player = store.state.player;
   const rank = getCurrentRank();
   const nextRank = getNextRank();
   const rankProgress = getRankProgress();
   const activeShip = getShip(store.state.activeShip);
   const stats = getShipCombatStats(store.state.activeShip);
-  const completedPortals = getCompletedPortalCount();
-  const prestige = getPrestigeStatus();
-  if(tab === "stats"){
-    return `<section class="profile-card profile-wide">
-      <div class="profile-card-head"><span class="tiny">AVANT / APRÈS</span><h3>Impact des compétences</h3></div>
-      <div class="profile-compare-head"><span>Stat</span><b>Sans compétences</b><strong>Actuel</strong></div>
-      <div class="profile-compare-list">${getProfileStatsRows()}</div>
-    </section>`;
-  }
-  if(tab === "titles"){
-    const activeTitle = getActiveProfileTitle();
-    const titles = profileTitles();
-    return `<section class="profile-card profile-wide">
-      <div class="profile-card-head">
-        <span class="tiny">TITRES</span>
-        <h3>Identité pilote</h3>
-        <button class="blue-button small" data-profile-title-visibility type="button">${player.titleVisible === false ? "Afficher en jeu" : "Masquer en jeu"}</button>
-      </div>
-      <div class="profile-list">${titles.map(title=>{
-        const equipped = activeTitle?.id === title.id;
-        const state = equipped ? "Équipé" : (title.unlocked ? "Débloqué" : "Verrouillé");
-        const action = title.unlocked
-          ? `<button class="blue-button small" data-profile-title="${equipped ? "" : title.id}" type="button">${equipped ? "Retirer" : "Activer"}</button>`
-          : "";
-        return `<article><strong>${title.name}</strong><span>${state}</span><p>${title.desc}</p>${action}</article>`;
-      }).join("")}</div>
-    </section>`;
-  }
-  if(tab === "achievements"){
-    return `<section class="profile-card profile-wide"><div class="profile-card-head"><span class="tiny">SUCCÈS</span><h3>Achievements</h3></div><div class="profile-achievement-grid">${profileAchievements().map(achievement=>`<article class="${achievement.done ? "done" : ""}"><b>${achievement.done ? "OK" : "--"}</b><strong>${achievement.name}</strong><span>${achievement.desc}</span></article>`).join("")}</div></section>`;
-  }
-  if(tab === "bestiary"){
-    const entries = Object.entries(ENEMY_TYPES).map(([id, enemy])=>({id, name:enemy.name, count:Number(store.state.killStats?.[id] || 0)})).sort((a,b)=>b.count - a.count || a.name.localeCompare(b.name));
-    return `<section class="profile-card profile-wide"><div class="profile-card-head"><span class="tiny">BESTIAIRE</span><h3>Monstres détruits</h3></div><div class="profile-kill-table">${entries.map(entry=>`<div><span>${entry.name}</span><strong>${fmt(entry.count)}</strong></div>`).join("")}</div></section>`;
-  }
-  const activeTitle = getActiveProfileTitle();
-  return `<div class="profile-overview-grid">
-    <section class="profile-card hero">
-      <div class="profile-rank">${rankIcon(rank, rank.name)}</div>
-      <div><span class="tiny">COMMANDANT</span><h3>${escapeHtml(player.name)}</h3><p>${activeTitle ? `${activeTitle.name} · ` : ""}${rank.name} · Niveau ${fmt(player.level)}</p></div>
-      <div class="mini-bar"><span style="width:${rankProgress.progress}%"></span></div>
-      <small>${nextRank ? `Prochain grade : ${nextRank.name} · ${fmt(rankProgress.remaining)} points restants` : "Grade maximum atteint"}</small>
-    </section>
-    <section class="profile-card"><div class="profile-card-head"><span class="tiny">VAISSEAU</span><h3>${activeShip.name}</h3></div><div class="profile-stat-grid">
-      <div><span>PV</span><b>${fmt(stats.vie)}</b></div><div><span>Bouclier</span><b>${fmt(stats.bouclier)}</b></div><div><span>Vitesse</span><b>${fmt(stats.vitesseReelle)}</b></div><div><span>Soute</span><b>${fmt(stats.cargo)}</b></div>
-    </div></section>
-    <section class="profile-card"><div class="profile-card-head"><span class="tiny">PROGRESSION</span><h3>Compte</h3></div><div class="profile-stat-grid">
-      <div><span>Temps en jeu</span><b>${formatDuration(player.totalPlaySeconds)}</b></div><div><span>Reputation</span><b>${fmt(player.reputation || 0)}</b></div><div><span>Kills monstres</span><b>${fmt(player.totalKills || 0)}</b></div><div><span>Kills joueurs</span><b>${fmt(player.totalPlayerKills || 0)}</b></div><div><span>Portails finis</span><b>${fmt(completedPortals)}</b></div><div><span>Quêtes finies</span><b>${fmt(Object.keys(store.state.completedQuestClaims || {}).length)}</b></div><div><span>Prestige</span><b>${fmt(store.state.prestigeCount || 0)}</b></div>
-    </div></section>
-    <section class="profile-card"><div class="profile-card-head"><span class="tiny">PRESTIGE</span><h3>Boucle suivante</h3></div>
-      <p>${prestige.ok ? "Pret : retour niveau 1, competences conservees, cap niveau 100." : prestige.reason}</p>
-      <button class="blue-button" data-prestige type="button" ${prestige.ok ? "" : "disabled"}>PRESTIGE</button>
-    </section>
-  </div>`;
-}
-
-export function renderProfile(){
-  const section = document.getElementById("profileSection");
-  if(!section) return;
-  const tabs = [
-    {id:"overview", label:"Vue"},
-    {id:"stats", label:"Stats"},
-    {id:"titles", label:"Titres"},
-    {id:"achievements", label:"Succès"},
-    {id:"bestiary", label:"Bestiaire"}
-  ];
-  if(!tabs.some(tab=>tab.id === store.profileTab)) store.profileTab = "overview";
+  const ascension = getPrestigeStatus();
+  const ascended = Number(store.state.prestigeCount || 0) > 0;
+  const displayMode = store.profileDisplay === "drones" ? "drones" : "ship";
+  const completedQuests = Object.keys(store.state.completedQuestClaims || {}).length;
+  const xp = Math.max(0, Number(player.xp || 0));
+  const xpNext = Math.max(1, Number(player.xpNext || 1));
+  const xpPercent = Math.max(0, Math.min(100, xp / xpNext * 100));
   section.innerHTML = `
-    <div class="panel-head">
+    <div class="panel-head profile-panel-heading">
       <div><span class="tiny">PILOTE</span><h2>Profil</h2></div>
-      <span class="badge">Dossier commandant</span>
+      <span class="badge">${ascended ? "Dossier ascendant" : "Dossier commandant"}</span>
     </div>
-    <div class="profile-layout">
-      <nav class="profile-tabs">${tabs.map(tab=>`<button class="${store.profileTab === tab.id ? "active" : ""}" data-profile-tab="${tab.id}" type="button">${tab.label}</button>`).join("")}</nav>
-      <div class="profile-content">${renderProfileTabContent(store.profileTab)}</div>
+    <div class="profile-command-sheet ${ascended ? "ascended" : ""}">
+      ${ascended ? `<div class="profile-ascended-seal"><i></i><span>ASCENSION</span><b>ACCOMPLIE</b></div>` : ""}
+      <div class="profile-command-grid">
+        <section class="profile-visual-card">
+          <div class="profile-identity-lockup">
+            <div class="profile-rank-emblem">${rankIcon(rank, rank.name)}</div>
+            <span class="profile-grade-name">${escapeHtml(rank.name)}</span>
+            <h3>${escapeHtml(player.name)}</h3>
+            <p>Niveau ${fmt(player.level)} / ${fmt(getPlayerLevelCap())}</p>
+            <div class="mini-bar"><span style="width:${rankProgress.progress}%"></span></div>
+            <small>${nextRank ? `Prochain grade : ${escapeHtml(nextRank.name)} · ${fmt(rankProgress.remaining)} points` : "Grade maximum atteint"}</small>
+          </div>
+          <div class="profile-display-switch" role="group" aria-label="Affichage du profil">
+            <button class="${displayMode === "ship" ? "active" : ""}" data-profile-display="ship" type="button">Vaisseau</button>
+            <button class="${displayMode === "drones" ? "active" : ""}" data-profile-display="drones" type="button">Drones utilisés <b>${fmt(activeProfileDrones().length)}</b></button>
+          </div>
+          ${displayMode === "drones" ? renderProfileDroneVisual() : renderProfileShipVisual(activeShip)}
+        </section>
+        <section class="profile-live-stats">
+          <header><span>VAISSEAU ACTUEL</span><strong>STATISTIQUES</strong><small>Compétences, équipement et bonus actifs inclus</small></header>
+          <div class="profile-live-stat-grid">
+            ${profileStatTile("Points de vie", fmt(Math.round(stats.vie || 0)), " PV")}
+            ${profileStatTile("Bouclier", fmt(Math.round(stats.bouclier || 0)))}
+            ${profileStatTile("Régénération", fmt(Math.round(stats.regen || 0)), " /s")}
+            ${profileStatTile("Absorption", `${Math.round(Number(stats.shieldAbsorbRatio || 0) * 100)}%`)}
+            ${profileStatTile("Vitesse", fmt(Math.round(stats.vitesseReelle || 0)))}
+            ${profileStatTile("Soute", fmt(Math.round(stats.cargo || 0)))}
+          </div>
+        </section>
+        <aside class="profile-dossier">
+          <header><span>DÉTAILS PILOTE</span><strong>DOSSIER</strong></header>
+          <div class="profile-detail-list">
+            ${profileDetailRow("Temps de jeu", formatDuration(player.totalPlaySeconds))}
+            ${profileDetailRow("Kills monstres", fmt(player.totalKills || 0))}
+            ${profileDetailRow("Quêtes finies", fmt(completedQuests))}
+            ${profileDetailRow("Niveau du joueur", `${fmt(player.level)} / ${fmt(getPlayerLevelCap())}`, ascended ? "Progression ascendante" : "Première progression")}
+            ${profileDetailRow("Réputation", fmt(player.reputation || 0))}
+            ${profileDetailRow("Expérience", `${fmt(xp)} / ${fmt(xpNext)}`, `${fmt(player.totalXp || 0)} XP cumulée`)}
+          </div>
+          <div class="profile-xp-track"><span style="width:${xpPercent}%"></span></div>
+        </aside>
+      </div>
+      ${renderStellarSystemTitleControl()}
+      ${ascended ? "" : renderAscensionCallout(ascension)}
     </div>`;
 }
 
@@ -1189,10 +1175,10 @@ function renderFirmSetupGate(){
     </main>`;
 }
 
-export { renderShop } from "./renderShop.js?v=craft-extras-1";
-export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=portal-prepare-1";
-export { renderRefinery } from "./renderRefinery.js?v=tutorial-refinery-lock-1";
-export { renderFirm } from "./renderFirm.js?v=firm-collective-1-firm-nova-10-1";
+export { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
+export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261022-helion-hub1";
+export { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
+export { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";
 
 export function renderAll(){
   if(store.currentView !== "hangar") store.hangarDetailOpen = false;

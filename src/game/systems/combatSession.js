@@ -1,6 +1,6 @@
 import { applyCombatStatFields, createCombatPlayer, DEFAULT_COMBAT_EXTRA_BONUS } from "./combatPlayerStats.js";
-import { countCombatProfiler, maxCombatProfilerMetric, setCombatProfilerMetric } from "./combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
-import { queuePlayerVisualCorrection } from "./playerMovement.js?v=action-slots-save-1-fps-burst-1";
+import { countCombatProfiler, maxCombatProfilerMetric, setCombatProfilerMetric } from "./combatFrameProfiler.js?v=20260726-kharon1";
+import { queuePlayerVisualCorrection } from "./playerMovement.js?v=20260726-kharon1";
 import { getFirmHomeMapName } from "../../data/firms.js";
 
 export function createCombatSessionController({
@@ -61,7 +61,10 @@ export function createCombatSessionController({
     const stateBeforeCorrection = getState();
     const isSameMapCorrection = String(session.source || "") === "state-correction"
       && String(stateBeforeCorrection.currentMap?.id ?? "") === String(mapId);
-    if(isSameMapCorrection){
+    const vitalsOnly = isSameMapCorrection && session.vitalsOnly === true
+      && String(session.shipId || "") === String(stateBeforeCorrection.player?.shipId || "");
+    if(session.vitalsOnly === true && !vitalsOnly) return false;
+    if(isSameMapCorrection && !vitalsOnly){
       const previousX = Number(stateBeforeCorrection.player?.x || 0);
       const previousY = Number(stateBeforeCorrection.player?.y || 0);
       const correctionPx = Math.hypot(x - previousX, y - previousY);
@@ -76,14 +79,14 @@ export function createCombatSessionController({
       stateBeforeCorrection.player.y = y;
       stateBeforeCorrection.player.vx = Number(session.vx || 0);
       stateBeforeCorrection.player.vy = Number(session.vy || 0);
-    }else if(portalId){
+    }else if(!isSameMapCorrection && portalId){
       if(loadPortalArena(portalId, {...session, x, y}) === false) return false;
-    }else{
+    }else if(!isSameMapCorrection){
       loadMap(mapId, x, y, {safeNow:true});
     }
     const {player} = getState();
     const sessionShipId = String(session.shipId || store.state.activeShip || player.shipId || "");
-    player.angle = Number(session.angle || player.angle || 0);
+    if(!vitalsOnly) player.angle = Number(session.angle ?? player.angle ?? 0);
     const shipChanged = String(session.source || "") === "ship-change";
     if(shipChanged && sessionShipId){
       store.state.activeShip = sessionShipId;

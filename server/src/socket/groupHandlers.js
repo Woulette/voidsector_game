@@ -16,7 +16,8 @@ export function registerGroupHandlers(socket, context){
     preparePortalInstance,
     startPortalInstance,
     activateRickyLever,
-    activateRickyHealBeacon
+    activateRickyHealBeacon,
+    interactWithPrecursorPortal
   } = context;
 
   socket.on("group:create", ()=>{
@@ -72,12 +73,12 @@ export function registerGroupHandlers(socket, context){
 
   socket.on("portal:start", payload=>{
     if(!guard("portal:start")) return;
-    startPortalInstance(socket, payload?.portalId);
+    return startPortalInstance(socket, payload?.portalId);
   });
 
   socket.on("portal:prepare", payload=>{
     if(!guard("portal:prepare")) return;
-    preparePortalInstance?.(socket, payload?.portalId);
+    return preparePortalInstance?.(socket, payload?.portalId);
   });
 
   socket.on("portal:ricky-heal", ()=>{
@@ -88,5 +89,10 @@ export function registerGroupHandlers(socket, context){
   socket.on("portal:ricky-lever", payload=>{
     if(!guard("portal:ricky-lever")) return;
     activateRickyLever?.(socket, payload?.leverId);
+  });
+
+  socket.on("portal:precursor-interact", payload=>{
+    if(!guard("portal:precursor-interact")) return;
+    interactWithPrecursorPortal?.(socket, String(payload?.action || ""));
   });
 }

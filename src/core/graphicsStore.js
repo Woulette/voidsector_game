@@ -1,6 +1,6 @@
-import { store } from "./store.js";
+import { store } from "./store.js?v=20260726-kharon1";
 import { GRAPHICS_EFFECT_GROUPS, GRAPHICS_PRESET_EFFECTS, normalizeGraphicsBasePreset } from "./settingsSchema.js";
-import { getGameSettings, setGraphicsPreset } from "./settingsStore.js";
+import { getGameSettings, setGraphicsPreset } from "./settingsStore.js?v=20260726-kharon1";
 
 export const GRAPHICS_QUALITY_PRESETS = [
   {id:"low", name:"Bas", multiplier:.2, desc:"Effets essentiels uniquement"},

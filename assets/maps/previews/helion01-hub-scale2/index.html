@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hélion — QG agrandi</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#08090d;color:#eee5df;font:16px/1.5 system-ui,sans-serif}main{max-width:1320px;margin:auto;padding:26px 16px 40px}h1{font-size:clamp(25px,4vw,37px);margin:0 0 10px}p{color:#c2b7b2}.status{color:#e6bd9e;font-size:13px;border:1px solid #67483b;padding:7px 10px;display:inline-block}nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}button{font:inherit;padding:8px 16px;background:#21151c;color:#eee;border:1px solid #73434b;border-radius:5px;cursor:pointer}button[aria-pressed=true]{background:#843b35;border-color:#efb69b}img{display:block;width:100%;height:auto;border:1px solid #382830;border-radius:6px}a{color:#efbda1}
+</style>
+<main><h1>Un QG plus imposant</h1>
+<p>Le QG passe de 720 à 1 100 unités : environ 53 % plus large. Le commerce et le relais passent de 300 à 360 unités et sont répartis du côté intérieur de la map pour laisser de l’espace au QG.</p>
+<div class="status">Aperçu visuel — bâtiments non remplacés dans les parties</div>
+<nav aria-label="Comparer les proportions"><button id="enlarged" aria-pressed="true">QG agrandi</button><button id="initial" aria-pressed="false">Premier aperçu</button></nav>
+<img id="scene" src="enlarged.jpg" width="1880" height="950" alt="QG Hélion agrandi, avec le commerce et les missions disposés à droite">
+<p id="caption">Nouvelle proposition : QG de 1 100 unités. Même taille de vaisseau et même zoom que le premier aperçu.</p>
+<p><a href="../helion01-hub-concepts1/index.html">Voir les trois structures en détail et leurs sources</a></p>
+</main>
+<script>
+for(const mode of ['enlarged','initial'])document.getElementById(mode).onclick=()=>{
+ for(const id of ['enlarged','initial'])document.getElementById(id).setAttribute('aria-pressed',String(id===mode));
+ document.getElementById('scene').src=mode+'.jpg';
+ document.getElementById('scene').alt=mode==='enlarged'?'QG Hélion agrandi, avec le commerce et les missions disposés à droite':'Premier aperçu de la base Hélion, QG plus petit et services sur les côtés';
+ document.getElementById('caption').textContent=mode==='enlarged'?'Nouvelle proposition : QG de 1 100 unités. Même taille de vaisseau et même zoom que le premier aperçu.':'Premier aperçu : QG de 720 unités, services de 300 unités.';
+};
+</script>
+</html>

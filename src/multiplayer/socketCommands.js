@@ -38,6 +38,12 @@ export function createSocketCommands({multiplayer}){
     activateRickyPortalLever(leverId){
       return leverId ? emit(multiplayer, "portal:ricky-lever", {leverId}) : false;
     },
+    interactPrecursorPortal(action){
+      const normalizedAction = String(action || "");
+      return ["beacon", "rift", "god"].includes(normalizedAction)
+        ? emit(multiplayer, "portal:precursor-interact", {action:normalizedAction})
+        : false;
+    },
     activateRickyHealBeacon(){
       return emit(multiplayer, "portal:ricky-heal");
     },
@@ -74,11 +80,8 @@ export function createSocketCommands({multiplayer}){
     setupServerProfile({name, firmId} = {}){
       return emitAccountSetup(multiplayer, "profile:setup", {name, firmId});
     },
-    updateTutorial({kind, currentStep = ""} = {}){
-      return kind ? emit(multiplayer, "tutorial:update", {kind, currentStep}) : false;
-    },
-    setServerProfileTitle(payload = {}){
-      return emit(multiplayer, "profile:title-set", payload);
+    updateTutorial({kind, currentStep = "", revision} = {}){
+      return kind ? emit(multiplayer, "tutorial:update", {kind, currentStep, revision}) : false;
     },
     resetServerFirmDebug(){
       return emit(multiplayer, "profile:debug-reset-firm");
@@ -91,6 +94,9 @@ export function createSocketCommands({multiplayer}){
     },
     claimServerQuest(id){
       return id ? emit(multiplayer, "quest:claim", {id}) : false;
+    },
+    abandonServerQuest(id){
+      return id ? emit(multiplayer, "quest:abandon", {id}) : false;
     },
     trackServerQuest(id){
       return id ? emit(multiplayer, "quest:track", {id}) : false;
@@ -107,8 +113,16 @@ export function createSocketCommands({multiplayer}){
     performServerPrestige(){
       return emit(multiplayer, "prestige:perform");
     },
-    runServerSpaceCaster({portalId, count = 1} = {}){
-      return portalId ? emit(multiplayer, "space-caster:run", {portalId, count}) : false;
+    setServerProfileTitle({titleId, visible} = {}){
+      const payload = {};
+      if(titleId !== undefined) payload.titleId = titleId ? String(titleId) : "";
+      if(visible !== undefined) payload.visible = visible !== false;
+      return Object.keys(payload).length > 0
+        ? emit(multiplayer, "profile:title-set", payload)
+        : false;
+    },
+    runServerSpaceCaster({portalId, count = 1, repeat = 1} = {}){
+      return portalId ? emit(multiplayer, "space-caster:run", {portalId, count, repeat}) : false;
     },
     startServerRefineryUpgrade({type = "material", id} = {}){
       return id ? emit(multiplayer, "refinery:upgrade-start", {type, id}) : false;
@@ -137,20 +151,23 @@ export function createSocketCommands({multiplayer}){
     depositServerCombatBoostMaterial({target, materialId, amount = 1, shipId} = {}){
       return target && materialId ? emit(multiplayer, "refinery:combat-boost-deposit", {target, materialId, amount, shipId}) : false;
     },
-    startServerCraft(recipeId){
-      return recipeId ? emit(multiplayer, "craft:start", {recipeId}) : false;
+    startServerCraft(recipeId, paymentType = ""){
+      return recipeId ? emit(multiplayer, "craft:start", {
+        recipeId,
+        paymentType:String(paymentType || "")
+      }) : false;
     },
     claimServerCraft(){
       return emit(multiplayer, "craft:claim");
     },
-    buyServerAmmo(id, multiplier = 1){
-      return emit(multiplayer, "shop:buy-ammo", {id, multiplier});
+    buyServerAmmo(id, multiplier = 1, repeat = 1){
+      return emit(multiplayer, "shop:buy-ammo", {id, multiplier, repeat});
     },
-    buyServerItem(id, multiplier = 1){
-      return emit(multiplayer, "shop:buy-item", {id, multiplier});
+    buyServerItem(id, multiplier = 1, repeat = 1){
+      return emit(multiplayer, "shop:buy-item", {id, multiplier, repeat});
     },
-    buyServerBooster(id, quantity = 1){
-      return id ? emit(multiplayer, "shop:buy-booster", {id, quantity}) : false;
+    buyServerBooster(id, quantity = 1, repeat = 1){
+      return id ? emit(multiplayer, "shop:buy-booster", {id, quantity, repeat}) : false;
     },
     buyServerPremiumPack(id){
       return id ? emit(multiplayer, "shop:buy-premium-pack", {id}) : false;
@@ -176,8 +193,8 @@ export function createSocketCommands({multiplayer}){
     equipServerActiveShip(shipId){
       return shipId ? emit(multiplayer, "ship:equip-active", {shipId}) : false;
     },
-    buyServerDrone({id = "combat_drone", ownedCount = 0} = {}){
-      return emit(multiplayer, "shop:buy-drone", {id, ownedCount});
+    buyServerDrone({id = "combat_drone", expectedPrice} = {}){
+      return emit(multiplayer, "shop:buy-drone", {id, expectedPrice});
     },
     buyServerDroneFormation({id, owned = false} = {}){
       return emit(multiplayer, "shop:buy-drone-formation", {id, owned});

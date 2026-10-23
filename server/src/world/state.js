@@ -33,6 +33,7 @@ export function createWorldStateManager({io, players, presence, progressProfileQ
     const useDelta = Boolean(options.delta);
     emitter.emit("world:enemies", {
       mapId:map.id,
+      at:Date.now(),
       delta:useDelta,
       enemies:map.enemies.filter(enemy=>enemy.hp > 0).map(useDelta ? publicEnemyDelta : publicEnemy)
     });
@@ -42,6 +43,7 @@ export function createWorldStateManager({io, players, presence, progressProfileQ
     const map = getWorldMapState(mapId);
     socket.emit("world:enemies", {
       mapId:map.id,
+      at:Date.now(),
       full:true,
       enemies:map.enemies.filter(enemy=>enemy.hp > 0).map(publicEnemy)
     });

@@ -1,3 +1,10 @@
+export function isInvalidAuthSessionError(payload){
+  if(payload?.retryable === true) return false;
+  const code = String(payload?.code || "");
+  if(code) return code === "AUTH_SESSION_INVALID";
+  return /^Session expir[ée]e\.$/i.test(String(payload?.message || ""));
+}
+
 export function createMultiplayerAuthController({
   multiplayer,
   authTokenStorageKey,

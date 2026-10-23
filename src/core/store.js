@@ -1,9 +1,9 @@
-import { normalizeState } from "./stateNormalizer.js";
-export { getActiveDroneFormation, getAllRawMaterials, getAllRefineryMaterials, getAllQuests, getAmmo, getDroneCatalog, getDroneFormation, getDroneFormationBonus, getItem, getPortal, getQuest, getRawMaterial, getRefineryMaterial, getRefineryRecipe, getRefineryRecipes, getShip, isGenerator, isWeapon } from "./catalogStore.js";
-export { basePriceLabel, canAfford, enforcePlayerCurrencyMinimums, getCurrencyPrice, hasCurrencyDiscount, priceLabel, spend } from "./currencyStore.js";
-export { getSpentSkillPoints, getXpNextForLevel, syncSkillPoints, XP_CURVE_VERSION } from "./xpStore.js";
-export { addPortalPiece, getCompletedPortalCount, getCompletedPortalCountForId, getPlayerLevelCap, getPortalPieces, getPrestigeStatus, getShipPurchaseLockReason, getShipRequiredCompletedPortal, hasCompletedPortal, hasMaxedFirstLoopSkills, isEquipmentUpgradeUnlocked, isPortalUnlocked, isRecipeSystemUnlocked, isPrestigeUnlocked, isShipPurchaseUnlocked, markPortalCompleted, performPrestige, unlockPortal } from "./portalProgressStore.js";
-export { canAffordSkillCost, getNodeMaxRank, getSkillBonus, getSkillDefinition, getSkillLevel, getSkillNodeLockReason, getSkillNodePortalRequirement, getSkillProgress, getSkillRanks, getSkillUpgradeData, hasCompletedSkillNodePortal, isSkillNodeUnlocked, skillCostLabel, upgradeSkill } from "./skillStore.js";
+import { normalizeState } from "./stateNormalizer.js?v=20260726-kharon1";
+export { getActiveDroneFormation, getAllRawMaterials, getAllRefineryMaterials, getAllQuests, getAmmo, getDroneCatalog, getDroneFormation, getDroneFormationBonus, getItem, getPortal, getQuest, getRawMaterial, getRefineryMaterial, getRefineryRecipe, getRefineryRecipes, getShip, isGenerator, isWeapon } from "./catalogStore.js?v=20260726-kharon1";
+export { basePriceLabel, canAfford, enforcePlayerCurrencyMinimums, getCurrencyPrice, hasCurrencyDiscount, priceLabel, spend } from "./currencyStore.js?v=20260726-kharon1";
+export { getSpentSkillPoints, getXpNextForLevel, syncSkillPoints, XP_CURVE_VERSION } from "./xpStore.js?v=20260726-kharon1";
+export { addPortalPiece, getCompletedPortalCount, getCompletedPortalCountForId, getPlayerLevelCap, getPortalPieces, getPrestigeStatus, getShipPurchaseLockReason, getShipRequiredCompletedPortal, hasCompletedPortal, hasMaxedFirstLoopSkills, isEquipmentUpgradeUnlocked, isPortalUnlocked, isRecipeSystemUnlocked, isPrestigeUnlocked, isShipPurchaseUnlocked, markPortalCompleted, performPrestige, unlockPortal } from "./portalProgressStore.js?v=20260726-kharon1";
+export { canAffordSkillCost, getNodeMaxRank, getSkillBonus, getSkillDefinition, getSkillLevel, getSkillNodeLockReason, getSkillNodePortalRequirement, getSkillProgress, getSkillRanks, getSkillUpgradeData, hasCompletedSkillNodePortal, isSkillNodeUnlocked, skillCostLabel, upgradeSkill } from "./skillStore.js?v=20260726-kharon1";
 export {
   addAmmo,
   addInventoryItem,
@@ -33,8 +33,8 @@ export {
   setActionSlot,
   unequipInventoryItem,
   upgradeEquipment
-} from "./equipmentStore.js";
-export { acceptQuest, canClaimQuest, claimQuest, getActiveQuest, getActiveQuests, getQuestObjectiveProgress, getQuestProgress, recordQuestCoordinateVisit, recordQuestDeath, recordQuestHpLoss, recordQuestItemPickup, recordQuestKill, recordQuestMapVisit, recordQuestMissionControl, recordQuestNpcTalk, recordQuestRefineryMaterialUpgradeStart, recordQuestRefineryModuleUpgradeStart, recordQuestSpaceCasterUse, recordQuestTimeElapsed, rollQuestItemDropFromKill } from "./questStore.js";
+} from "./equipmentStore.js?v=20260726-kharon1";
+export { acceptQuest, canClaimQuest, claimQuest, getActiveQuest, getActiveQuests, getQuestObjectiveProgress, getQuestProgress, recordQuestCoordinateVisit, recordQuestDeath, recordQuestHpLoss, recordQuestItemPickup, recordQuestKill, recordQuestMapVisit, recordQuestMissionControl, recordQuestNpcTalk, recordQuestRefineryMaterialUpgradeStart, recordQuestRefineryModuleUpgradeStart, recordQuestSpaceCasterUse, recordQuestTimeElapsed, rollQuestItemDropFromKill } from "./questStore.js?v=20260726-kharon1";
 export {
   RANK_TABLE,
   RANK_POINT_RULES,
@@ -52,7 +52,7 @@ export {
   getRankProgress,
   getRankScore,
   registerKill
-} from "./rankStore.js";
+} from "./rankStore.js?v=20260726-kharon1";
 export {
   addMaterial,
   addShipCargoMaterial,
@@ -64,11 +64,11 @@ export {
   getShipCargo,
   getShipCargoCapacity,
   getShipCargoUsed
-} from "./cargoStore.js";
-export { GRAPHICS_EFFECT_GROUPS, GRAPHICS_PRESET_EFFECTS, GRAPHICS_QUALITY_PRESETS, getGraphicsEffects, getGraphicsPreset, getGraphicsQuality, isGraphicsEffectEnabled, normalizeGraphicsQuality, setGraphicsQuality } from "./graphicsStore.js";
-export { getGameSettings, setAudioSetting, setFpsLimit, setGraphicsEffect, setGraphicsPreset, setInterfaceSetting } from "./settingsStore.js";
-export { normalizeState } from "./stateNormalizer.js";
-export { addReputation, addReputationFromXp, addXP, getEquippedDroneGenerators, getEquippedDroneItems, getEquippedDroneLasers, getEquippedExtras, getEquippedGenerators, getEquippedLasers, getEquippedLauncher, getExtraBonus, getRealSpeedFromStat, getShipCombatStats, recordWeaponUse } from "./combatStatsStore.js";
+} from "./cargoStore.js?v=20260726-kharon1";
+export { GRAPHICS_EFFECT_GROUPS, GRAPHICS_PRESET_EFFECTS, GRAPHICS_QUALITY_PRESETS, getGraphicsEffects, getGraphicsPreset, getGraphicsQuality, isGraphicsEffectEnabled, normalizeGraphicsQuality, setGraphicsQuality } from "./graphicsStore.js?v=20260726-kharon1";
+export { getGameSettings, setAudioSetting, setFpsLimit, setGraphicsEffect, setGraphicsPreset, setInterfaceSetting } from "./settingsStore.js?v=20260726-kharon1";
+export { normalizeState } from "./stateNormalizer.js?v=20260726-kharon1";
+export { addReputation, addReputationFromXp, addXP, getEquippedDroneGenerators, getEquippedDroneItems, getEquippedDroneLasers, getEquippedExtras, getEquippedGenerators, getEquippedLasers, getEquippedLauncher, getExtraBonus, getRealSpeedFromStat, getShipCombatStats, recordWeaponUse } from "./combatStatsStore.js?v=20260726-kharon1";
 export {
   COMBAT_BOOST_DEFS,
   depositCombatBoostMaterial,
@@ -80,8 +80,8 @@ export {
   consumeCombatBoostCharges,
   normalizeCombatBoostTarget,
   tickCombatBoosts
-} from "./combatBoostStore.js";
-export { claimRefineryJob, getRefineryJob, isRefineryComplete, startRefineryJob } from "./refineryJobStore.js";
+} from "./combatBoostStore.js?v=20260726-kharon1";
+export { claimRefineryJob, getRefineryJob, isRefineryComplete, startRefineryJob } from "./refineryJobStore.js?v=20260726-kharon1";
 export {
   canShipRefineryMaterial,
   completeRefineryShipment,
@@ -118,7 +118,7 @@ export {
   toggleRefineryProduction,
   upgradeRefineryMaterial,
   upgradeRefineryModule
-} from "./refineryStore.js";
+} from "./refineryStore.js?v=20260726-kharon1";
 import { loadLocalPreferences, saveLocalPreferences } from "./localPreferencesStore.js";
 
 
@@ -133,7 +133,7 @@ export const store = {
   currentView:"hangar",
   hangarDetailOpen:false,
   hangarTab:"vaisseau",
-  profileTab:"overview",
+  profileDisplay:"ship",
   firmTab:"overview",
   firmQuestTab:"daily",
   firmShopFilter:"global",

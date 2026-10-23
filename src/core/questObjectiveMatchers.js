@@ -1,4 +1,4 @@
-import { getInventoryCount } from "./store.js";
+import { getInventoryCount } from "./store.js?v=20260726-kharon1";
 
 export function objectiveMatchesKill(objective, kind, zoneName){
   if(!objective || objective.type !== "kill") return false;

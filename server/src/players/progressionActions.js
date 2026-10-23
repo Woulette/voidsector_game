@@ -1,14 +1,13 @@
-import { portals, skills } from "../../../src/data/catalog.js";
+import { skills } from "../../../src/data/catalog.js";
 import { getNovaDiscountedPrice } from "../../../src/data/premium.js";
-import { getXpNextForLevel, normalizeProgressionPlayer } from "./progression.js";
+import { getServerPortalDefinition } from "../portals/portalDefinitions.js";
+import { getProgressionLevelCap, getXpNextForLevel, normalizeProgressionPlayer } from "./progression.js";
+import { getMissingProgressionPortalIds, PROGRESSION_PORTAL_NAMES } from "../../../src/shared/progressionUnlocks.js";
 
-const SKILL_PORTAL_REQUIREMENTS = [
-  {portalId:"blue", label:"Portail Bleu"},
-  {portalId:"violet", label:"Portail Violet"},
-  {portalId:"red", label:"Portail Rouge"},
-  {portalId:"emerald", label:"Portail Emeraude"},
-  {portalId:"void", label:"Portail du Neant"}
-];
+const SKILL_ACCESS_PORTAL_REQUIREMENT = Object.freeze({
+  portalId:"blue",
+  label:"Le Seuil d'Azuron"
+});
 
 function getSkillCostEntries(step){
   const costs = step?.costs;
@@ -36,7 +35,7 @@ function getNodeMaxRank(node){
 
 function ensureSkillState(profile){
   if(!profile.player || typeof profile.player !== "object") profile.player = {};
-  profile.player = normalizeProgressionPlayer(profile.player);
+  profile.player = normalizeProgressionPlayer(profile.player, getProgressionLevelCap(profile.prestigeCount));
   if(!profile.skillRanks || typeof profile.skillRanks !== "object" || Array.isArray(profile.skillRanks)) profile.skillRanks = {};
   if(!profile.skillLevels || typeof profile.skillLevels !== "object" || Array.isArray(profile.skillLevels)) profile.skillLevels = {};
   if(!profile.cargoHold || typeof profile.cargoHold !== "object" || Array.isArray(profile.cargoHold)) profile.cargoHold = {};
@@ -79,7 +78,7 @@ function hasCompletedPreviousSkillNode(profile, nodeIndex){
 }
 
 function getSkillNodeLockReason(profile, nodeIndex){
-  const requirement = SKILL_PORTAL_REQUIREMENTS[Math.max(0, Number(nodeIndex || 0))] || null;
+  const requirement = Number.isFinite(Number(nodeIndex)) ? SKILL_ACCESS_PORTAL_REQUIREMENT : null;
   if(requirement && Math.max(0, Number(profile?.completedPortals?.[requirement.portalId] || 0)) <= 0){
     return `Pre requis : ${requirement.label}`;
   }
@@ -103,7 +102,7 @@ function getSpentSkillPoints(profile){
 }
 
 function syncSkillPoints(profile){
-  profile.player = normalizeProgressionPlayer(profile.player || {});
+  profile.player = normalizeProgressionPlayer(profile.player || {}, getProgressionLevelCap(profile.prestigeCount));
   profile.player.skillPoints = Math.max(0, Math.floor(Number(profile.player.level || 1)) - getSpentSkillPoints(profile));
 }
 
@@ -154,39 +153,37 @@ export function upgradeServerSkill(profile, id){
 
 export function unlockServerPortal(profile, {id, method = "pieces"} = {}){
   if(!profile.player || typeof profile.player !== "object") profile.player = {};
-  profile.player = normalizeProgressionPlayer(profile.player);
+  profile.player = normalizeProgressionPlayer(profile.player, getProgressionLevelCap(profile.prestigeCount));
   if(!Array.isArray(profile.unlockedPortals)) profile.unlockedPortals = [];
   if(!profile.portalPieces || typeof profile.portalPieces !== "object" || Array.isArray(profile.portalPieces)) profile.portalPieces = {};
-  const portal = portals.find(entry=>entry.id === String(id || ""));
+  const portal = getServerPortalDefinition(id);
   if(!portal) return {ok:false, reason:"Portail introuvable."};
   if(Number(profile.player.level || 1) < Number(portal.requirement?.level || 1)){
     return {ok:false, reason:`Niveau ${portal.requirement.level} requis.`};
   }
   if(profile.unlockedPortals.includes(portal.id)) return {ok:false, reason:"Portail deja deverrouille."};
-  if(method === "nova") return {ok:false, reason:"Les portails se deverrouillent uniquement avec des pieces."};
+  const pieceUnit = portal.pieceUnit || "pièces";
+  if(method === "nova") return {ok:false, reason:`Ce portail se déverrouille uniquement avec des ${pieceUnit}.`};
   const required = Math.max(0, Number(portal.piecesRequired || 0));
-  if(Number(profile.portalPieces[portal.id] || 0) < required) return {ok:false, reason:`Il faut ${required} pieces.`};
+  if(Number(profile.portalPieces[portal.id] || 0) < required) return {ok:false, reason:`Il faut ${required} ${pieceUnit}.`};
   profile.portalPieces[portal.id] = Math.max(0, Number(profile.portalPieces[portal.id] || 0) - required);
   profile.unlockedPortals.push(portal.id);
   return {ok:true, portal:{id:portal.id, name:portal.name}, method:"pieces"};
 }
 
-function hasMaxedFirstLoopSkills(profile){
-  return skills.every(skill=>{
-    const ranks = getSkillRanks(profile, skill.id);
-    return skill.levels.every((node, index)=>Number(ranks[index] || 0) >= getNodeMaxRank(node));
-  });
-}
-
 export function performServerPrestige(profile){
   ensureSkillState(profile);
+  if(Math.max(0, Number(profile.prestigeCount || 0)) >= 1){
+    return {ok:false, reason:"Ascension deja accomplie."};
+  }
   const levelOk = Number(profile.player.level || 1) >= 50;
-  const portalOk = Math.max(0, Number(profile.completedPortals?.ancient || 0)) > 0;
-  const skillsOk = hasMaxedFirstLoopSkills(profile);
-  if(!portalOk) return {ok:false, reason:"Portail Ancestral termine requis."};
+  const missingPortalIds = getMissingProgressionPortalIds(profile);
+  if(missingPortalIds.length){
+    const missingNames = missingPortalIds.map(portalId=>PROGRESSION_PORTAL_NAMES[portalId] || portalId);
+    return {ok:false, reason:`Les 9 portails de progression doivent être terminés. Manquants : ${missingNames.join(", ")}.`};
+  }
   if(!levelOk) return {ok:false, reason:"Niveau 50 requis."};
-  if(!skillsOk) return {ok:false, reason:"Toutes les competences de premiere boucle doivent etre au maximum."};
-  profile.prestigeCount = Math.max(0, Number(profile.prestigeCount || 0)) + 1;
+  profile.prestigeCount = 1;
   profile.player.level = 1;
   profile.player.xp = 0;
   profile.player.xpNext = getXpNextForLevel(1);

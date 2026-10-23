@@ -48,13 +48,43 @@ export function resolveInitialServerUrl({
   configuredUrl = "",
   storedUrl = "",
   locationSearch = "",
+  pageOrigin = "",
   defaultUrl = DEFAULT_MULTIPLAYER_SERVER_URL
 } = {}){
-  const resolvedQueryUrl = queryUrl || getServerUrlFromSearch(locationSearch);
   const fallbackUrl = normalizeServerUrl(defaultUrl) || DEFAULT_MULTIPLAYER_SERVER_URL;
-  for(const value of [resolvedQueryUrl, configuredUrl, storedUrl, fallbackUrl]){
+  const localPage = isLocalServerUrl(pageOrigin);
+  const resolvedQueryUrl = localPage ? queryUrl || getServerUrlFromSearch(locationSearch) : "";
+  const candidates = localPage
+    ? [resolvedQueryUrl, configuredUrl, storedUrl].filter(isLocalServerUrl).concat(fallbackUrl)
+    : [configuredUrl, storedUrl, fallbackUrl];
+  for(const value of candidates){
     const normalized = normalizeServerUrl(value);
     if(normalized) return normalized;
   }
   return DEFAULT_MULTIPLAYER_SERVER_URL;
+}
+
+export function resolveConnectionServerUrl({
+  requestedUrl = "",
+  currentUrl = "",
+  configuredUrl = "",
+  pageOrigin = "",
+  defaultUrl = DEFAULT_MULTIPLAYER_SERVER_URL
+} = {}){
+  const normalizedPageOrigin = normalizeServerUrl(pageOrigin);
+  const fallbackUrl = normalizeServerUrl(defaultUrl) || DEFAULT_MULTIPLAYER_SERVER_URL;
+  if(isLocalServerUrl(normalizedPageOrigin)){
+    for(const value of [requestedUrl, currentUrl, configuredUrl, fallbackUrl]){
+      if(!isLocalServerUrl(value)) continue;
+      const normalized = normalizeServerUrl(value);
+      if(normalized) return normalized;
+    }
+    return DEFAULT_MULTIPLAYER_SERVER_URL;
+  }
+
+  for(const value of [configuredUrl, normalizedPageOrigin]){
+    const normalized = normalizeServerUrl(value);
+    if(normalized && !isLocalServerUrl(normalized)) return normalized;
+  }
+  return fallbackUrl;
 }

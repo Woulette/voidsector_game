@@ -1,7 +1,9 @@
 import { ammoTypes, droneFormations, equipment, ships } from "../../../src/data/catalog.js";
 import { getFirmDefinition, normalizeFirmId } from "../../../src/data/firms.js";
 import { calculateRankScore, getRankAssetPath, getRankForScore } from "../../../src/data/ranks.js";
-import { getActiveProfileTitleName } from "./profileTitles.js";
+import { getTrustedEquipmentUpgradeLevel } from "../economy/equipment.js";
+import { getShipProgressionLockReason } from "../../../src/shared/progressionUnlocks.js";
+import { getActiveProfileTitleName, getUnlockedProfileTitleEntitlements } from "./profileTitles.js";
 
 function completedPortalCount(completedPortals = {}){
   return Object.values(completedPortals || {}).reduce((sum, count)=>sum + Math.max(0, Number(count || 0)), 0);
@@ -25,7 +27,7 @@ function equipmentByUid(profile, uid){
     slotType:item.slotType,
     rarity:item.rarity || "",
     img:item.img || "",
-    upgradeLevel:Math.max(0, Number(profile?.equipmentUpgrades?.[item.id] || 0)),
+    upgradeLevel:getTrustedEquipmentUpgradeLevel(profile, item.id),
     stats:item.stats || {}
   };
 }
@@ -37,12 +39,19 @@ function compactItems(profile, uids = []){
 }
 
 function activeShipForProfile(profile){
-  const shipId = String(profile?.activeShip || profile?.selectedShip || profile?.ownedShips?.[0] || "orion");
-  return ships.find(ship=>ship.id === shipId) || ships.find(ship=>ship.id === "orion") || ships[0];
-}
-
-function activeTitle(profile){
-  return getActiveProfileTitleName(profile);
+  const ownedShipIds = new Set((Array.isArray(profile?.ownedShips) ? profile.ownedShips : ["orion"]).map(String));
+  ownedShipIds.add("orion");
+  const candidates = [
+    profile?.activeShip,
+    profile?.selectedShip,
+    ...(Array.isArray(profile?.ownedShips) ? profile.ownedShips : []),
+    "orion"
+  ].map(String);
+  for(const shipId of candidates){
+    const ship = ships.find(candidate=>candidate.id === shipId);
+    if(ship && ownedShipIds.has(ship.id) && !getShipProgressionLockReason(profile, ship)) return ship;
+  }
+  return ships.find(ship=>ship.id === "orion") || ships[0];
 }
 
 function activeAmmo(profile){
@@ -102,8 +111,9 @@ export function buildPublicPlayerProfile({key = "", profile = null, ranking = nu
   return {
     key:String(key || ranking?.key || player.name || ""),
     name:String(player.name || ranking?.name || "Pilote").trim() || "Pilote",
+    title:getActiveProfileTitleName(profile),
+    titleEntitlements:getUnlockedProfileTitleEntitlements(profile),
     firm:{id:firm.id, label:firm.label, color:firm.color},
-    title:activeTitle(profile),
     level:Math.max(1, Math.floor(Number(player.level || 1))),
     rank:{id:rank.id, name:rank.name, score:rankScore, asset:getRankAssetPath(rank)},
     ranking:ranking ? {
@@ -143,7 +153,7 @@ export function buildPublicPlayerProfile({key = "", profile = null, ranking = nu
       totalPlayerKills:Math.max(0, Number(player.totalPlayerKills || 0)),
       portalClears,
       questsCompleted:Object.keys(profile.completedQuestClaims || {}).length,
-      prestige:Math.max(0, Number(profile.prestigeCount || 0)),
+      prestige:Number(profile.prestigeCount || 0) > 0 ? 1 : 0,
       skillPoints:Math.max(0, Number(player.skillPoints || 0)),
       laserShots:Math.max(0, Number(player.laserShotsFired || 0)),
       rocketShots:Math.max(0, Number(player.rocketShotsFired || 0)),

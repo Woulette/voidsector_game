@@ -1,5 +1,5 @@
 import { refineryRecipes } from "../../../src/data/catalog.js";
-import { spendCurrency } from "../players/progression.js";
+import { getProgressionLevelCap, spendCurrency } from "../players/progression.js";
 import {
   REFINERY_MODULES,
   REFINERY_RAW_UPGRADE_COSTS,
@@ -56,7 +56,7 @@ function getMaterialUpgradeData(profile, id){
   return {id, material, name:material.name, kind:material.kind, level, nextLevel, credits, materials, duration:getUpgradeDuration("material", {nextLevel, kind:material.kind})};
 }
 
-function getModuleUpgradeData(profile, id){
+export function getServerRefineryModuleUpgradeData(profile, id){
   const def = REFINERY_MODULES[id];
   if(!def) return null;
   const level = getRefineryModuleLevel(profile, id);
@@ -104,10 +104,15 @@ export function completeServerRefineryUpgrades(profile, now = Date.now()){
 export function startServerRefineryUpgrade(profile, {type, id, now = Date.now()} = {}){
   const safeType = type === "module" ? "module" : "material";
   if(getRefineryUpgradeJob(profile, safeType, id)) return {ok:false, reason:"Amelioration deja en cours."};
-  const data = safeType === "module" ? getModuleUpgradeData(profile, id) : getMaterialUpgradeData(profile, id);
+  const data = safeType === "module" ? getServerRefineryModuleUpgradeData(profile, id) : getMaterialUpgradeData(profile, id);
   const costs = assertCosts(profile, data);
   if(!costs.ok) return costs;
-  profile.player = spendCurrency(profile.player || {}, "credits", data.credits).player;
+  profile.player = spendCurrency(
+    profile.player || {},
+    "credits",
+    data.credits,
+    getProgressionLevelCap(profile.prestigeCount)
+  ).player;
   for(const [materialId, amount] of Object.entries(data.materials || {})) consumeMaterial(profile, materialId, amount);
   if(!profile.refineryUpgradeJobs || typeof profile.refineryUpgradeJobs !== "object") profile.refineryUpgradeJobs = {};
   profile.refineryUpgradeJobs[refineryUpgradeKey(safeType, id)] = {
@@ -129,7 +134,7 @@ export function rushServerRefineryUpgrade(profile, {type, id, now = Date.now()} 
   if(!job) return {ok:false, reason:"Aucune amelioration en cours."};
   const remaining = Math.max(0, Number(job.endsAt || now) - now);
   const cost = Math.max(1, Math.ceil(remaining / 60000)) * REFINERY_RUSH_NOVA_PER_MINUTE;
-  const spend = spendCurrency(profile.player || {}, "premium", cost);
+  const spend = spendCurrency(profile.player || {}, "premium", cost, getProgressionLevelCap(profile.prestigeCount));
   if(!spend.ok) return {...spend, reason:"Pas assez de NOVA."};
   profile.player = spend.player;
   job.endsAt = now;

@@ -1,7 +1,8 @@
+import { getPlayerInstanceGroup } from "../portals/portalSessions.js";
 import { FIRMS } from "../../../src/data/firms.js";
 import { WORLD_MAPS } from "../world/definitions.js";
 import { getWorldSafePortals } from "../world/spawn.js";
-import { spendCurrency } from "./progression.js";
+import { getProgressionLevelCap, spendCurrency } from "./progression.js";
 
 const RADIATION_GRACE_MS = 30_000;
 const PORTAL_STARTING_LIVES = 3;
@@ -33,7 +34,7 @@ function getNearestPortal(point, map){
 }
 
 function getPortalContext(player, groups){
-  const group = player?.groupId ? groups.get(player.groupId) : null;
+  const group = getPlayerInstanceGroup(player, groups);
   const instance = group?.instance;
   if(!instance || instance.type !== "portal") return null;
   if(Array.isArray(instance.joinedMemberIds) && !instance.joinedMemberIds.includes(player.id)) return null;
@@ -65,6 +66,7 @@ export function createPlayerLifecycleManager({
   emitProfileSync,
   presence,
   setPlayerMap,
+  resetGroupInstance,
   logger
 }){
   function emitDeath(player){
@@ -96,6 +98,7 @@ export function createPlayerLifecycleManager({
     player.state.repairBotActive = false;
     player.state.updatedAt = Date.now();
     player.serverRepairBotTick = 0;
+    player.kharonBossPoison = null;
     player.statusEffects = {};
   }
 
@@ -120,6 +123,7 @@ export function createPlayerLifecycleManager({
     player.radiationStartedAt = 0;
     player.lastRadiationEmitAt = 0;
     player.serverRepairBotTick = 0;
+    player.kharonBossPoison = null;
     player.statusEffects = {};
     const socket = io.sockets.sockets.get(player.id);
     if(socket) setPlayerMap(socket, state.mapId);
@@ -133,9 +137,15 @@ export function createPlayerLifecycleManager({
   }
 
   function abandonPortal(player, context, message){
-    const {instance} = context;
+    const {group, instance} = context;
     if(!Array.isArray(instance.abandonedMemberIds)) instance.abandonedMemberIds = [];
     if(!instance.abandonedMemberIds.includes(player.id)) instance.abandonedMemberIds.push(player.id);
+    const ownerAccountId = String(instance.ownerAccountId || "");
+    const playerAccountId = String(player.accountId || player.account?.id || "");
+    const ownsPrivatePortal = Boolean(instance.privateOwner) && (
+      (ownerAccountId && ownerAccountId === playerAccountId)
+      || String(instance.ownerPlayerId || "") === String(player.id || "")
+    );
     const profile = profileManager.getProfileForPlayer(player);
     const home = getHomeMap(profile);
     applyRespawnState(player, {
@@ -147,10 +157,16 @@ export function createPlayerLifecycleManager({
       portalAbandoned:true,
       message
     });
+    const remaining = (instance.joinedMemberIds || []).some(id=>!instance.abandonedMemberIds.includes(id)
+      && Number(instance.playerLives?.[id] ?? PORTAL_STARTING_LIVES) > 0);
+    if(ownsPrivatePortal || !remaining){
+      resetGroupInstance?.(group?.id, "private-portal-abandoned");
+    }
   }
 
   function markPlayerDead(player, {reason = "combat", sourceId = ""} = {}){
     if(!player?.state || player.deathState || Number(player.state.hp || 0) > 0) return false;
+    player.combatLifeGeneration = Math.max(0, Math.floor(Number(player.combatLifeGeneration || 0))) + 1;
     clearTransientCombatState(player);
     presence.markCombat(player, "mort");
     const questResult = profileManager.applyQuestAction({
@@ -213,13 +229,25 @@ export function createPlayerLifecycleManager({
     return true;
   }
 
+  function leaveGroupPortal(player, group){
+    const context = getPortalContext(player, groups);
+    if(!context || context.group !== group || group.personalPortal) return false;
+    abandonPortal(player, context, "Portail Deadly abandonne en quittant le groupe.");
+    return true;
+  }
+
   function spendRespawnCost(player, choice){
     const cost = Math.max(0, Number(RESPAWN_COSTS[choice] || 0));
     if(cost <= 0) return {ok:true, profile:profileManager.getProfileForPlayer(player)};
     const result = profileManager.updateProfileForPlayer({
       player,
       update:profile=>{
-        const spent = spendCurrency(profile.player || {}, "premium", cost);
+        const spent = spendCurrency(
+          profile.player || {},
+          "premium",
+          cost,
+          getProgressionLevelCap(profile.prestigeCount)
+        );
         if(!spent.ok) return {ok:false, reason:"Pas assez de NOVA."};
         profile.player = spent.player;
         return {ok:true, changed:true};
@@ -345,6 +373,7 @@ export function createPlayerLifecycleManager({
   }
 
   return {
+    leaveGroupPortal,
     markPlayerDead,
     respawnPlayer,
     syncPlayerLifecycle,

@@ -1,15 +1,17 @@
-import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js";
-import { renderSpawnPanelContent } from "./spawnPanel.js?v=craft-extras-1";
-import { renderCombatFirmPanel } from "./combatFirmPanel.js?v=firm-panel-gift-3";
-import { renderCombatMapPanel } from "./combatMapPanel.js";
+import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js?v=20260726-kharon1";
+import { canOpenSpawnPanelMode, renderSpawnPanelContent } from "./spawnPanel.js?v=20260726-kharon1";
+import { renderCombatFirmPanel } from "./combatFirmPanel.js?v=20260726-kharon1";
+import { renderCombatMapPanel } from "./combatMapPanel.js?v=20260726-kharon1";
 import { renderCombatBoostersPanel } from "./combatBoostersPanel.js";
 import { createTypewriterTextController } from "./typewriterText.js";
+import { createQuestAbandonController } from "./questAbandon.js";
 import { FIRMS, getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.js";
 import { isPremiumActive } from "../../data/premium.js";
-import { getCurrentRank } from "../../core/store.js";
+import { getCurrentRank } from "../../core/store.js?v=20260726-kharon1";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import {
   multiplayer,
+  abandonServerQuest,
   claimFirmQuest,
   claimFirmRewards,
   claimFirmSeasonObjective,
@@ -26,7 +28,7 @@ import {
   sendFriendRequest,
   setSocialCategory,
   startPortgunTeleport
-} from "../../multiplayer/client.js?v=crafting-1";
+} from "../../multiplayer/client.js?v=20261018-map-transfer1";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
@@ -81,6 +83,12 @@ export function createCombatPanels({
   renderSettingsContent
 }){
   hydrateCombatUiLayout(store);
+  createQuestAbandonController({
+    getState:()=>store.state,
+    getQuests:getAllQuests,
+    send:abandonServerQuest,
+    showToast
+  });
   let spawnPanelMode = null;
   let spawnPanelRefreshT = 0;
   let utilityPanelRefreshT = 0;
@@ -93,6 +101,7 @@ export function createCombatPanels({
   let selectedCraftCategory = "all";
   let selectedCraftTabPage = 0;
   let selectedCraftRecipeId = null;
+  let selectedCraftPaymentType = "";
   let combatQuestDetailTab = "quest";
   let refineryPanelTab = "raffinage";
   let selectedShipRefineRecipeId = null;
@@ -116,6 +125,12 @@ export function createCombatPanels({
     return mapFirmId === normalizeFirmId(store.state?.player?.firmId || "astra");
   }
 
+  function canSellMaterialsOnCurrentMap(){
+    const mapFirmId = getFirmIdFromMapName(getCurrentMap()?.name);
+    if(!mapFirmId) return false;
+    return mapFirmId === normalizeFirmId(store.state?.player?.firmId || "astra");
+  }
+
   function reset(){
     groupMembers = [];
     const activeQuest = getActiveQuest();
@@ -125,6 +140,7 @@ export function createCombatPanels({
     selectedCraftCategory = "all";
     selectedCraftTabPage = 0;
     selectedCraftRecipeId = null;
+    selectedCraftPaymentType = "";
     combatQuestDetailTab = "quest";
     refineryPanelTab = "raffinage";
     selectedShipRefineRecipeId = null;
@@ -252,8 +268,10 @@ export function createCombatPanels({
   function applySpawnPanelLayout(panel){
     const layout = store.state?.uiLayout?.spawnInteractionPanel;
     if(!layout || !Number.isFinite(Number(layout.left)) || !Number.isFinite(Number(layout.top))) return;
-    panel.style.left = `${Math.max(0, Number(layout.left))}px`;
-    panel.style.top = `${Math.max(0, Number(layout.top))}px`;
+    const maxLeft = panel.classList.contains("quest-mode") ? Math.max(0, window.innerWidth - panel.offsetWidth) : Infinity;
+    const maxTop = panel.classList.contains("quest-mode") ? Math.max(0, window.innerHeight - panel.offsetHeight) : Infinity;
+    panel.style.left = `${Math.max(0, Math.min(maxLeft, Number(layout.left)))}px`;
+    panel.style.top = `${Math.max(0, Math.min(maxTop, Number(layout.top)))}px`;
     panel.style.right = "auto";
     panel.style.bottom = "auto";
   }
@@ -326,7 +344,9 @@ export function createCombatPanels({
       rawMaterials:getAllRawMaterials(),
       getQuestProgress,
       getQuestObjectiveProgress,
-      questFailProgress:store.state.questFailProgress || {}
+      questFailProgress:store.state.questFailProgress || {},
+      tutorial:store.state.tutorial,
+      firmId:store.state.player?.firmId
     });
   }
 
@@ -820,6 +840,12 @@ export function createCombatPanels({
 
   window.addEventListener("voidsector:multiplayer-change", event=>{
     const reason = String(event.detail?.reason || "");
+    if(reason === "quest:abandoned"){
+      const questsPanel = getUtilityPanel("quests");
+      if(questsPanel && !questsPanel.classList.contains("hidden")) refreshQuestUtilityPanel();
+      if(spawnPanelMode === "quests") renderSpawnInteractionPanel("quests");
+      updateHud();
+    }
     const forceGroupRefresh = reason.startsWith("group:");
     const panel = getUtilityPanel("group");
     if(panel && !panel.classList.contains("hidden") && (forceGroupRefresh || !isInteractingWithUtilityPanel("group"))) refreshGroupUtilityPanel({show:true});
@@ -1086,7 +1112,7 @@ export function createCombatPanels({
       spawnPanelMode = null;
       return;
     }
-    if(mode && mode !== "crafting" && !canUseCurrentMapFirmServices()){
+    if(!canOpenSpawnPanelMode(mode, canUseCurrentMapFirmServices())){
       spawnPanelMode = null;
       panel.classList.add("hidden");
       saveSpawnPanelOpenState(null, false);
@@ -1095,6 +1121,9 @@ export function createCombatPanels({
       return;
     }
     const questListScrollTop = mode === "quests" ? content.querySelector(".quest-strip-list")?.scrollTop : null;
+    const oldQuestId = content.querySelector("[data-quest-detail]")?.dataset.questDetail;
+    const detailScrollTop = content.querySelector(".quest-detail-scroll")?.scrollTop || 0;
+    const transmissionOpen = content.querySelector(".quest-transmission-details")?.open || false;
     spawnPanelMode = mode;
     spawnPanelRefreshT = 1;
     panel.classList.toggle("refinery-mode", mode === "refinery");
@@ -1140,11 +1169,14 @@ export function createCombatPanels({
       enemyTypes,
       rawMaterials:getAllRawMaterials(),
       getQuestProgress,
+      getQuestObjectiveProgress,
+      mapName:getCurrentMap()?.name,
       completedQuestClaims:store.state.completedQuestClaims,
       profile:store.state,
       selectedCraftCategory,
       selectedCraftTabPage,
       selectedCraftRecipeId,
+      selectedCraftPaymentType,
       job:getRefineryJob(),
       recipes:getRefineryRecipes(),
       materials:getAllRawMaterials(),
@@ -1152,6 +1184,7 @@ export function createCombatPanels({
       shipCargo:getShipCargo(store.state.activeShip),
       shipCargoUsed:getShipCargoUsed(store.state.activeShip),
       shipCargoCapacity:getShipCargoCapacity(store.state.activeShip),
+      commerceSaleAllowed:canSellMaterialsOnCurrentMap(),
       refineryTab:refineryPanelTab,
       selectedShipRefineRecipeId,
       upgradeables,
@@ -1163,8 +1196,15 @@ export function createCombatPanels({
       isRefineryComplete,
       formatDuration
     });
-    title.textContent = rendered.title;
+    if(rendered.titleHtml) title.innerHTML = rendered.titleHtml;
+    else title.textContent = rendered.title;
     content.innerHTML = rendered.html;
+    if(oldQuestId && oldQuestId === content.querySelector("[data-quest-detail]")?.dataset.questDetail){
+      const transmission = content.querySelector(".quest-transmission-details");
+      if(transmission) transmission.open = transmissionOpen;
+      const detailScroll = content.querySelector(".quest-detail-scroll");
+      if(detailScroll) detailScroll.scrollTop = detailScrollTop;
+    }
     questBriefingTypewriter.sync(content);
     content.querySelector("[data-quest-briefing-skip]")?.addEventListener("click", event=>{
       if(event.target.closest("button")) return;
@@ -1228,6 +1268,7 @@ export function createCombatPanels({
   function selectCraftCategory(category){
     selectedCraftCategory = category || "all";
     selectedCraftRecipeId = null;
+    selectedCraftPaymentType = "";
     renderSpawnInteractionPanel("crafting");
   }
 
@@ -1238,6 +1279,12 @@ export function createCombatPanels({
 
   function selectCraftRecipe(recipeId){
     selectedCraftRecipeId = recipeId || null;
+    selectedCraftPaymentType = "";
+    renderSpawnInteractionPanel("crafting");
+  }
+
+  function selectCraftPayment(paymentType){
+    selectedCraftPaymentType = paymentType === "credits" || paymentType === "premium" ? paymentType : "";
     renderSpawnInteractionPanel("crafting");
   }
 
@@ -1270,7 +1317,7 @@ export function createCombatPanels({
     if(spawnPanelMode){
       const spawnPanel = document.getElementById("spawnInteractionPanel");
       spawnPanelRefreshT -= dt;
-      if(spawnPanelRefreshT <= 0 && !spawnPanel.matches(":hover")){
+      if(spawnPanelRefreshT <= 0 && !spawnPanel.matches(":hover, :focus-within")){
         renderSpawnInteractionPanel(spawnPanelMode);
         spawnPanelRefreshT = 1;
       }
@@ -1370,6 +1417,7 @@ export function createCombatPanels({
     selectCraftCategory,
     selectCraftTabPage,
     selectCraftRecipe,
+    selectCraftPayment,
     setRefineryPanelTab,
     openShipRefineRecipe,
     closeShipRefineRecipe

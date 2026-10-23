@@ -31,7 +31,7 @@ function fireLaser({profile, now = 2_000, playerId = `elite-player-${Math.random
 
 test("elite laser items stay defined while hidden from the temporary shop", ()=>{
   const expected = [
-    ["laser_elite_green", "assets/equipment/laser_elite_emerald.webp?v=green-cut-2", "green"],
+    ["laser_elite_green", "assets/equipment/laser_elite_emerald.webp?v=20260726-kharon1", "green"],
     ["laser_elite_blue", "assets/equipment/laser_elite_azure.webp", "blue"],
     ["laser_elite_red", "assets/equipment/laser_elite_crimson.webp", "red"]
   ];

@@ -1,7 +1,7 @@
-import { questCatalog } from "../data/catalog.js";
+import { questCatalog } from "../data/catalog.js?v=20260726-kharon1";
 import { normalizeFirmId } from "../data/firms.js";
 import { isPremiumActive } from "../data/premium.js";
-import { getQuest, removeInventoryItems, store } from "./store.js";
+import { getQuest, removeInventoryItems, store } from "./store.js?v=20260726-kharon1";
 
 export const MAX_ACTIVE_QUESTS = 5;
 

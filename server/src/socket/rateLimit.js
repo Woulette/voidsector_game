@@ -1,6 +1,7 @@
 export function createSocketRateLimiter({
   limits,
   onLimit,
+  onReject,
   now = ()=>Date.now(),
   pruneIntervalMs = 60000
 } = {}){
@@ -41,6 +42,29 @@ export function createSocketRateLimiter({
     const currentTime = now();
     if(currentTime >= nextPruneAt) prune(currentTime);
     const bucket = buckets.get(key);
+    if(Number(rule.burst) > limit){
+      // Movement can arrive in a burst after a transport stall. Keep the sustained
+      // rate bounded while allowing the legitimate backlog to drain.
+      const capacity = Number(rule.burst);
+      const active = bucket || {tokens:capacity, updatedAt:currentTime, warned:false, count:0};
+      active.tokens = Math.min(capacity, active.tokens + Math.max(0, currentTime - active.updatedAt) * limit / windowMs);
+      active.updatedAt = currentTime;
+      active.resetAt = currentTime + capacity * windowMs / limit;
+      buckets.set(key, active);
+      if(active.tokens >= 1){
+        active.tokens -= 1;
+        active.warned = false;
+        active.count = 0;
+        return true;
+      }
+      active.count += 1;
+      if(!active.warned){
+        active.warned = true;
+        onLimit?.({socket, eventName, count:capacity + active.count, limit, windowMs});
+      }
+      onReject?.({socket, eventName, count:capacity + active.count, limit, windowMs});
+      return false;
+    }
     if(!bucket || currentTime >= bucket.resetAt){
       buckets.set(key, {count:1, resetAt:currentTime + windowMs, warned:false});
       return true;
@@ -51,6 +75,7 @@ export function createSocketRateLimiter({
       bucket.warned = true;
       if(typeof onLimit === "function") onLimit({socket, eventName, count:bucket.count, limit, windowMs});
     }
+    if(typeof onReject === "function") onReject({socket, eventName, count:bucket.count, limit, windowMs});
     return false;
   }
 

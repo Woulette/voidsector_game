@@ -1,3 +1,92 @@
+import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1";
+
+export const PREPARED_PORTAL_ASSETS = Object.freeze({
+  blue:{
+    src:"assets/portals/seuil_azuron.png?v=20260726-kharon1",
+    haloCore:"rgba(34,211,238,.30)",
+    haloMid:"rgba(14,165,233,.12)",
+    shadow:"rgba(34,211,238,.88)"
+  },
+  violet:{
+    src:"assets/portals/faille_vesper.png?v=20260726-kharon1",
+    haloCore:"rgba(192,132,252,.34)",
+    haloMid:"rgba(139,92,246,.14)",
+    shadow:"rgba(168,85,247,.92)"
+  },
+  red:{
+    src:"assets/portals/forge_kharon.png?v=20260726-kharon1",
+    haloCore:"rgba(251,113,133,.34)",
+    haloMid:"rgba(249,115,22,.14)",
+    shadow:"rgba(244,63,94,.92)"
+  },
+  ionis:{
+    src:"assets/portals/tempete_ionis.png?v=20260726-kharon1",
+    haloCore:"rgba(103,232,249,.34)",
+    haloMid:"rgba(14,165,233,.14)",
+    shadow:"rgba(34,211,238,.92)"
+  },
+  emerald:{
+    src:"assets/portals/ruche_eclanite.png?v=20260726-kharon1",
+    haloCore:"rgba(74,222,128,.32)",
+    haloMid:"rgba(16,185,129,.14)",
+    shadow:"rgba(34,197,94,.92)"
+  },
+  void:{
+    src:"assets/portals/abime_nox.png?v=20260726-kharon1",
+    haloCore:"rgba(129,140,248,.34)",
+    haloMid:"rgba(79,70,229,.14)",
+    shadow:"rgba(99,102,241,.94)"
+  },
+  prismatic:{
+    src:"assets/portals/nexus_prismatique.png?v=20260726-kharon1",
+    haloCore:"rgba(232,121,249,.34)",
+    haloMid:"rgba(34,211,238,.14)",
+    shadow:"rgba(217,70,239,.94)"
+  },
+  ancient:{
+    src:"assets/portals/sanctuaire_precurseurs.png?v=20260726-kharon1",
+    haloCore:"rgba(253,224,71,.34)",
+    haloMid:"rgba(245,158,11,.14)",
+    shadow:"rgba(250,204,21,.94)"
+  },
+  eternal:{
+    src:"assets/portals/coeur_eternel.png?v=20260726-kharon1",
+    haloCore:"rgba(255,255,255,.38)",
+    haloMid:"rgba(196,181,253,.16)",
+    shadow:"rgba(254,240,138,.96)"
+  }
+});
+
+function getPreparedPortalAsset(portal){
+  if(!portal?.prepared) return null;
+  const portalId = String(portal?.portalId || portal?.portal?.id || "");
+  return PREPARED_PORTAL_ASSETS[portalId] || null;
+}
+
+function drawPreparedPortalAsset({ctx, portal, now, image, asset, simplified = false}){
+  const radius = Number(portal.r || 115);
+  const pulse = simplified ? 1 : 1 + Math.sin(now / 520) * .025;
+  const size = radius * 2.5 * pulse;
+
+  ctx.save();
+  ctx.translate(portal.x, portal.y);
+  if(!simplified){
+    const halo = ctx.createRadialGradient(0, 0, radius * .18, 0, 0, radius * 1.9);
+    halo.addColorStop(0, asset.haloCore);
+    halo.addColorStop(.48, asset.haloMid);
+    halo.addColorStop(1, "rgba(2,8,23,0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 1.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowColor = asset.shadow;
+    ctx.shadowBlur = 26;
+  }
+  ctx.drawImage(image, -size / 2, -size / 2, size, size);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
 function drawPortalVisual({ctx, portal, now}){
   const safeR = portal.safeRadius || Math.max(180, (portal.r || 90) * 2.2);
   const pulse = .92 + Math.sin(now / 430) * .08;
@@ -118,12 +207,19 @@ function drawSimplifiedPortal({ctx, portal}){
   ctx.restore();
 }
 
-export function drawMapPortals({ctx, currentMap, getMapPortals, simplified = false}){
+export function drawMapPortals({ctx, cache = {}, currentMap, getMapPortals, simplified = false}){
   const now = performance.now();
   for(const portal of getMapPortals(currentMap)){
     const safeR = portal.safeRadius || Math.max(180, (portal.r || 90) * 2.2);
-    if(simplified) drawSimplifiedPortal({ctx, portal});
-    else drawPortalVisual({ctx, portal, now});
+    const preparedAsset = getPreparedPortalAsset(portal);
+    const preparedImage = preparedAsset ? getCachedCombatImage(cache, preparedAsset.src) : null;
+    if(preparedImage?.complete && Number(preparedImage.naturalWidth || 0) > 0){
+      drawPreparedPortalAsset({ctx, portal, now, image:preparedImage, asset:preparedAsset, simplified});
+    }else if(simplified){
+      drawSimplifiedPortal({ctx, portal});
+    }else{
+      drawPortalVisual({ctx, portal, now});
+    }
     ctx.fillStyle = "#e9d5ff";
     ctx.font = "700 16px Rajdhani, Arial";
     if(portal.closed){

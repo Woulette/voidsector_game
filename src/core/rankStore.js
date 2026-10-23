@@ -13,8 +13,8 @@ import {
   getRankById,
   getRankForScore as findRankForScore,
   getRankProgressForScore
-} from "../data/ranks.js";
-import { getCompletedPortalCount, store } from "./store.js";
+} from "../data/ranks.js?v=20260726-kharon1";
+import { getCompletedPortalCount, store } from "./store.js?v=20260726-kharon1";
 
 export { RANK_TABLE, RANK_POINT_RULES, LOCAL_LEADERBOARD_PREVIEW, calculateMonsterKillRankPoints, calculateMonsterRankPointsForKills, getMonsterRankPointRule, getRankAssetPath, getRankById };
 export function getRankForScore(score){

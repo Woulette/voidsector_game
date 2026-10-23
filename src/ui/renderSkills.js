@@ -1,5 +1,5 @@
-import { skills } from "../data/catalog.js";
-import { canAffordSkillCost, getNodeMaxRank, getSkillLevel, getSkillNodeLockReason, getSkillProgress, getSkillUpgradeData, isSkillNodeUnlocked, skillCostLabel, store } from "../core/store.js";
+import { skills } from "../data/catalog.js?v=20260726-kharon1";
+import { canAffordSkillCost, getNodeMaxRank, getSkillLevel, getSkillNodeLockReason, getSkillProgress, getSkillUpgradeData, isSkillNodeUnlocked, skillCostLabel, store } from "../core/store.js?v=20260726-kharon1";
 
 const BRANCH_META = {
   damage:{label:"Dégâts", code:"DMG", desc:"Armes laser, cadence offensive et rendement des tirs."},

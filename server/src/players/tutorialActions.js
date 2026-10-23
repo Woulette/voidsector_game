@@ -1,13 +1,13 @@
-import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
+import { addInventoryItemAmount, getInventoryItemCount } from "../economy/inventoryStacks.js";
 import {
-  TUTORIAL_QUEST_IDS,
   TUTORIAL_STEPS,
   createTutorialState,
   getNextTutorialStep,
-  hasTutorialQuestActivity,
+  getTutorialQuestIds,
   sanitizeTutorialState
 } from "../../../src/shared/tutorial.js";
-import { getProfileFirmQuestId } from "../quests/questState.js";
+import { validateTutorialStep } from "./tutorialValidation.js";
+import { getMissingTutorialRocketTrainingStep } from "./tutorialRocketTraining.js";
 
 export const TUTORIAL_REWARD_ITEM_ID = "laser_mk3";
 
@@ -15,25 +15,60 @@ function tutorialStepIndex(step){
   return TUTORIAL_STEPS.indexOf(step);
 }
 
-function tutorialQuestIds(profile, sourceQuestId){
-  const sourceId = String(sourceQuestId || "");
-  const firmQuestId = getProfileFirmQuestId(profile, sourceId);
-  return [...new Set([sourceId, firmQuestId].filter(Boolean))];
-}
-
 function questStarted(profile, questId){
-  const expectedIds = tutorialQuestIds(profile, questId);
-  return Array.isArray(profile?.activeQuestIds) && profile.activeQuestIds.some(id=>expectedIds.includes(String(id || "")));
+  return Array.isArray(profile?.activeQuestIds) && profile.activeQuestIds.includes(questId);
 }
 
 function questCompleted(profile, questId){
-  return tutorialQuestIds(profile, questId).some(id=>Boolean(profile?.completedQuestClaims?.[id]));
+  return Boolean(profile?.completedQuestClaims?.[questId]);
+}
+
+function updateTutorial(profile, tutorial, changes){
+  profile.tutorial = {...tutorial, ...changes, revision:tutorial.revision + 1, updatedAt:Date.now()};
+  return profile.tutorial;
+}
+
+function checkExpectedState(tutorial, action){
+  if(!action.currentStep || !Number.isSafeInteger(action.revision) || action.revision < 0){
+    return {ok:false, code:"TUTORIAL_SYNC_REQUIRED", reason:"Synchronise le tutoriel avant de continuer."};
+  }
+  if(action.currentStep !== tutorial.step || action.revision !== tutorial.revision){
+    return {ok:true, tutorial, recovered:true};
+  }
+  return null;
+}
+
+function firstMissingTutorialMilestone(profile){
+  const [passQuest, storageQuest, raiderQuest, yellowQuest] = getTutorialQuestIds(profile?.player?.firmId);
+  if(!questCompleted(profile, passQuest)) return questStarted(profile, passQuest) ? "game_hunt_pass" : "game_open_quests_1";
+  if(!profile.ownedShips?.includes("velox")) return "launcher_open_shop";
+  if(getInventoryItemCount(profile,"laser_mk1") < 2) return "launcher_open_weapons";
+  if(!questCompleted(profile, storageQuest)) return questStarted(profile, storageQuest) ? "launcher_open_refinery" : "game_open_quests_2";
+  const trainingStepIndex = tutorialStepIndex(profile?.tutorial?.step);
+  const inRocketTraining = trainingStepIndex >= tutorialStepIndex("game_open_quick_shop")
+    && trainingStepIndex <= tutorialStepIndex("game_bind_rockets");
+  if(inRocketTraining || (!questCompleted(profile, raiderQuest) && questStarted(profile, raiderQuest))
+    || (trainingStepIndex <= tutorialStepIndex("game_bind_rockets") && questCompleted(profile, raiderQuest))){
+    return getMissingTutorialRocketTrainingStep(profile);
+  }
+  if(!questCompleted(profile, raiderQuest)) return "game_open_quests_3";
+  if(!questCompleted(profile, yellowQuest)) return questStarted(profile, yellowQuest) ? "game_reach_map_2" : "game_open_quests_4";
+  return "game_tutorial_complete";
+}
+
+function reviewLegacyTutorialProgress(profile, tutorial){
+  if(!tutorial.needsReview) return false;
+  const firstMissing = firstMissingTutorialMilestone(profile);
+  const step = tutorialStepIndex(tutorial.step) > tutorialStepIndex(firstMissing) ? firstMissing : tutorial.step;
+  updateTutorial(profile, tutorial, {needsReview:false,step});
+  return true;
 }
 
 export function reconcileTutorialProgress(profile){
   const tutorial = sanitizeTutorialState(profile?.tutorial, {missingStatus:"abandoned"});
   if(tutorial.status !== "active") return false;
-  const [passQuest, storageQuest, raiderQuest, yellowQuest] = TUTORIAL_QUEST_IDS;
+  if(reviewLegacyTutorialProgress(profile,tutorial)) return true;
+  const [passQuest, storageQuest, raiderQuest, yellowQuest] = getTutorialQuestIds(profile?.player?.firmId);
   const passCompleted = questCompleted(profile, passQuest);
   const storageCompleted = questCompleted(profile, storageQuest);
   const raiderCompleted = questCompleted(profile, raiderQuest);
@@ -48,59 +83,62 @@ export function reconcileTutorialProgress(profile){
   else if(passCompleted) recoveredStep = "game_repair_drone_intro";
   else if(questStarted(profile, passQuest)) recoveredStep = "game_hunt_pass";
 
+  const firstMissing = firstMissingTutorialMilestone(profile);
+  if(recoveredStep && tutorialStepIndex(recoveredStep) > tutorialStepIndex(firstMissing)) recoveredStep = firstMissing;
   if(!recoveredStep || tutorialStepIndex(recoveredStep) <= tutorialStepIndex(tutorial.step)) return false;
-  profile.tutorial = {...tutorial, step:recoveredStep, updatedAt:Date.now()};
+  updateTutorial(profile, tutorial, {step:recoveredStep});
   return true;
 }
 
 export function abandonTutorialAfterOutsideQuestAction(profile){
   const tutorial = sanitizeTutorialState(profile?.tutorial, {missingStatus:"abandoned"});
   if(tutorial.status === "active") return reconcileTutorialProgress(profile);
-  if(!["pending", "paused"].includes(tutorial.status)) return false;
-  if(!hasTutorialQuestActivity(profile)) return false;
-  profile.tutorial = {...tutorial, status:"abandoned", updatedAt:Date.now()};
-  return true;
+  // Ordinary play and reconnections never imply a permanent abandonment.
+  return false;
 }
 
-export function applyTutorialAction(profile, action = {}){
+export function applyTutorialAction(profile, action = {}, context = {}){
   if(!profile || typeof profile !== "object") return {ok:false, reason:"Profil introuvable."};
   const now = Date.now();
   const tutorial = sanitizeTutorialState(profile.tutorial, {missingStatus:"abandoned"});
   const kind = String(action.kind || "");
 
+  if(tutorial.status === "active" && tutorial.needsReview && ["advance", "claim-reward"].includes(kind)){
+    reconcileTutorialProgress(profile);
+    return {ok:true,tutorial:profile.tutorial,recovered:true};
+  }
+
   if(kind === "start"){
     if(tutorial.status === "completed") return {ok:false, reason:"Tutoriel deja termine."};
     if(tutorial.status === "abandoned") return {ok:false, reason:"Tutoriel indisponible pour ce profil."};
-    if(tutorial.status === "pending" && hasTutorialQuestActivity(profile)){
-      profile.tutorial = {...tutorial, status:"abandoned", updatedAt:now};
-      return {ok:true, tutorial:profile.tutorial, abandoned:true};
-    }
-    profile.tutorial = {...tutorial, status:"active", updatedAt:now};
+    if(tutorial.status !== "active") updateTutorial(profile, tutorial, {status:"active"});
     reconcileTutorialProgress(profile);
     return {ok:true, tutorial:profile.tutorial};
   }
 
   if(kind === "pause"){
     if(tutorial.status !== "active") return {ok:false, reason:"Tutoriel non actif."};
-    profile.tutorial = {...tutorial, status:"paused", updatedAt:now};
+    updateTutorial(profile, tutorial, {status:"paused"});
     return {ok:true, tutorial:profile.tutorial};
   }
 
   if(kind === "abandon"){
     if(["completed", "abandoned"].includes(tutorial.status)) return {ok:true, tutorial};
-    profile.tutorial = {...tutorial, status:"abandoned", updatedAt:now};
+    updateTutorial(profile, tutorial, {status:"abandoned"});
     return {ok:true, tutorial:profile.tutorial};
   }
 
   if(kind === "advance"){
     if(tutorial.status !== "active") return {ok:false, reason:"Tutoriel en pause."};
-    const expectedCurrent = String(action.currentStep || "");
+    const expected = checkExpectedState(tutorial, action);
+    if(expected) return expected;
     if(reconcileTutorialProgress(profile)) return {ok:true, tutorial:profile.tutorial, recovered:true};
     const current = sanitizeTutorialState(profile.tutorial, {missingStatus:"abandoned"});
-    if(expectedCurrent && expectedCurrent !== current.step) return {ok:true, tutorial:current, recovered:true};
+    const validation = validateTutorialStep(profile, current.step, context);
+    if(!validation.ok) return validation;
     const nextStep = getNextTutorialStep(current.step);
     if(!nextStep) return {ok:false, reason:"Derniere etape atteinte."};
-    profile.tutorial = {...current, step:nextStep, updatedAt:now};
+    updateTutorial(profile, current, {step:nextStep});
     return {ok:true, tutorial:profile.tutorial};
   }
 
@@ -108,17 +146,17 @@ export function applyTutorialAction(profile, action = {}){
     if(tutorial.status !== "active" || tutorial.step !== "game_open_gift"){
       return {ok:false, reason:"Cadeau de tutoriel indisponible."};
     }
-    if(!TUTORIAL_QUEST_IDS.every(id=>questCompleted(profile, id))){
+    const expected = checkExpectedState(tutorial, action);
+    if(expected) return expected;
+    if(!getTutorialQuestIds(profile.player?.firmId).every(id=>questCompleted(profile, id))){
       return {ok:false, reason:"Termine les quatre missions du tutoriel avant d'ouvrir le cadeau."};
     }
     if(!tutorial.rewardClaimed) addInventoryItemAmount(profile, TUTORIAL_REWARD_ITEM_ID, 1);
-    profile.tutorial = {
-      ...tutorial,
+    updateTutorial(profile, tutorial, {
       status:"completed",
       rewardClaimed:true,
-      updatedAt:now,
       completedAt:now
-    };
+    });
     return {ok:true, tutorial:profile.tutorial, rewardItemId:TUTORIAL_REWARD_ITEM_ID};
   }
 
@@ -126,6 +164,8 @@ export function applyTutorialAction(profile, action = {}){
 }
 
 export function resetTutorialForNewFirm(profile){
-  profile.tutorial = createTutorialState("pending");
+  const tutorial = sanitizeTutorialState(profile.tutorial);
+  if(["abandoned", "completed"].includes(tutorial.status)) return tutorial;
+  profile.tutorial = {...createTutorialState("pending"), revision:tutorial.revision + 1};
   return profile.tutorial;
 }

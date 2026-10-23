@@ -63,11 +63,11 @@ export const betaPacks = [
     name:"Pack Beta Valkyrie",
     price:"0,99 EUR",
     tag:"BETA I",
-    img:"assets/ships/Valkyrie.png?v=valkyrie-cutout-2",
+    img:"assets/ships/Valkyrie.png?v=20260726-kharon1",
     desc:"Pack beta abordable pour demarrer les tests avec un vrai vaisseau de progression.",
     officialReward:"Lancement officiel : 1 semaine Premium offerte.",
     contents:[
-      {label:"Vaisseau Valkyrie", quantity:"x1", img:"assets/ships/Valkyrie.png?v=valkyrie-cutout-2", kind:"ship"},
+      {label:"Vaisseau Valkyrie", quantity:"x1", img:"assets/ships/Valkyrie.png?v=20260726-kharon1", kind:"ship"},
       {label:"Canon Laser MK-III", quantity:"x5", img:"assets/equipment/laser_mk3_slot_v2.png", kind:"equipment"},
       {label:"Munition M-3", quantity:"x50 000", img:"assets/equipment/ammo_laser_x3_same_preview.png", kind:"ammo"},
       {label:"Generateur A II", quantity:"x3", img:"assets/equipment/generator_shield_omega.png", kind:"equipment"}

@@ -2,6 +2,10 @@ import {ammoTypes, equipment, droneCatalog} from "../../../src/data/equipment.js
 import { rawMaterialCatalog } from "../../../src/data/progression.js";
 import {ships} from "../../../src/data/ships.js";
 import { findMatchingExtraGroupIndex, getExtraEquipGroup } from "../../../src/shared/equipmentRules.js";
+import { hasCompletedProgressionPortal, PROGRESSION_UNLOCKS } from "../../../src/shared/progressionUnlocks.js";
+
+export const DRONE_OVERDRIVE_UPGRADE_ID = "drone_overdrive_chip";
+export const DRONE_OVERDRIVE_UNLOCK_PORTAL_ID = "violet";
 
 export function getServerItem(id){
   return equipment.find(item=>item.id === id) || null;
@@ -16,7 +20,7 @@ export function getServerShip(id){
 }
 
 export function getServerDroneCatalog(){
-  return droneCatalog[0] || {maxOwned:0};
+  return droneCatalog.find(drone=>drone.id === "combat_drone") || {id:"combat_drone", maxOwned:0, slots:0};
 }
 
 export function isDroneCompatibleEquipment(item){
@@ -27,6 +31,78 @@ export function isDroneCompatibleEquipment(item){
 
 export function isDronePermanentUpgradeItem(item){
   return item?.slotType === "droneUpgrade" || item?.category === "drone_upgrade";
+}
+
+export function isSingleSlotCombatDrone(drone = getServerDroneCatalog()){
+  return drone?.id === "combat_drone" && Number(drone?.slots || 0) === 1;
+}
+
+export function isSupportedDronePermanentUpgradeItem(item, drone = getServerDroneCatalog()){
+  if(!isDronePermanentUpgradeItem(item) || !isSingleSlotCombatDrone(drone)) return false;
+  const compatibleDroneIds = Array.isArray(item?.effect?.compatibleDroneIds)
+    ? item.effect.compatibleDroneIds.map(String)
+    : [];
+  const requiredSlots = Math.max(0, Math.floor(Number(item?.effect?.requiredDroneSlots || 0)));
+  return item.id === DRONE_OVERDRIVE_UPGRADE_ID
+    && compatibleDroneIds.includes(drone.id)
+    && requiredSlots === Number(drone.slots);
+}
+
+export function hasDronePermanentUpgradeAccess(profile){
+  const completions = Number(profile?.completedPortals?.[DRONE_OVERDRIVE_UNLOCK_PORTAL_ID] || 0);
+  return Number.isFinite(completions) && completions >= 1;
+}
+
+function getOwnedServerDroneCount(profile){
+  const drone = getServerDroneCatalog();
+  const maximum = Math.max(0, Math.floor(Number(drone.maxOwned || 0)));
+  const owned = Number(profile?.ownedDroneCount || 0);
+  if(!Number.isFinite(owned)) return 0;
+  return Math.max(
+    0,
+    Math.min(
+      maximum,
+      Math.floor(owned)
+    )
+  );
+}
+
+export function getDronePermanentUpgradeItem(profile, index){
+  const targetIndex = Number(index);
+  if(!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= getOwnedServerDroneCount(profile)) return null;
+  if(!hasDronePermanentUpgradeAccess(profile)) return null;
+  const upgradeId = profile?.dronePermanentUpgrades?.[targetIndex];
+  const item = upgradeId ? getServerItem(String(upgradeId)) : null;
+  return isSupportedDronePermanentUpgradeItem(item) ? item : null;
+}
+
+export function getDroneLaserDamageMultiplier(profile, index){
+  const upgrade = getDronePermanentUpgradeItem(profile, index);
+  return Math.max(
+    1,
+    Number(upgrade?.effect?.droneLaserDamageMultiplier ?? upgrade?.effect?.droneDamageMultiplier ?? 1)
+  );
+}
+
+export function getDroneGeneratorStatMultiplier(profile, index, statKey){
+  if(String(statKey || "") !== "bouclier") return 1;
+  const upgrade = getDronePermanentUpgradeItem(profile, index);
+  return Math.max(1, Number(upgrade?.effect?.droneGeneratorShieldMultiplier || 1));
+}
+
+export function sanitizeDronePermanentUpgrades(value, {ownedDroneCount = 0, completedPortals = {}} = {}){
+  const profile = {ownedDroneCount, completedPortals};
+  if(!hasDronePermanentUpgradeAccess(profile)) return {};
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const sanitized = {};
+  for(const [rawIndex, rawUpgradeId] of Object.entries(source)){
+    if(!/^(0|[1-9]\d*)$/.test(rawIndex)) continue;
+    const index = Number(rawIndex);
+    if(!Number.isInteger(index) || index < 0 || index >= getOwnedServerDroneCount(profile)) continue;
+    const item = getServerItem(String(rawUpgradeId || ""));
+    if(isSupportedDronePermanentUpgradeItem(item)) sanitized[index] = item.id;
+  }
+  return sanitized;
 }
 
 export function makeEmptyLoadout(shipId){
@@ -280,15 +356,20 @@ export function unequipShipLoadout(profile, {shipId} = {}){
 
 export function applyDronePermanentUpgrade(profile, {index = 0, inventoryUid} = {}){
   const uid = String(inventoryUid || "");
-  const targetIndex = Math.max(0, Math.floor(Number(index || 0)));
+  const requestedIndex = Number(index);
+  if(!Number.isInteger(requestedIndex) || requestedIndex < 0) return {ok:false, reason:"Emplacement de drone invalide."};
+  const targetIndex = requestedIndex;
   const drones = ensureDroneLoadout(profile);
   if(targetIndex >= drones.length) return {ok:false, reason:"Aucun drone a cet emplacement."};
+  if(!isSingleSlotCombatDrone()) return {ok:false, reason:"Cette amelioration exige un drone de combat a un emplacement."};
   const entryIndex = Array.isArray(profile.inventoryItems) ? profile.inventoryItems.findIndex(entry=>entry.uid === uid) : -1;
   const entry = entryIndex >= 0 ? profile.inventoryItems[entryIndex] : null;
   const item = entry ? getServerItem(entry.itemId) : null;
-  if(!isDronePermanentUpgradeItem(item)) return {ok:false, reason:"Cet objet n'est pas une amelioration de drone."};
+  if(!isSupportedDronePermanentUpgradeItem(item)) return {ok:false, reason:"Cet objet n'est pas compatible avec ce drone de combat."};
+  if(!hasDronePermanentUpgradeAccess(profile)) return {ok:false, reason:"Terminez d'abord La Faille de Vesper."};
   if(!profile.dronePermanentUpgrades || typeof profile.dronePermanentUpgrades !== "object") profile.dronePermanentUpgrades = {};
-  if(profile.dronePermanentUpgrades[targetIndex]) return {ok:false, reason:`Drone ${targetIndex + 1} deja ameliore.`};
+  if(getDronePermanentUpgradeItem(profile, targetIndex)) return {ok:false, reason:`Drone ${targetIndex + 1} deja ameliore.`};
+  delete profile.dronePermanentUpgrades[targetIndex];
   profile.dronePermanentUpgrades[targetIndex] = item.id;
   profile.inventoryItems.splice(entryIndex, 1);
   return {ok:true, item, target:{location:"drone", type:"upgrade", index:targetIndex}};
@@ -298,12 +379,45 @@ function getUpgradeableItem(id){
   return getServerItem(id) || getServerAmmo(id);
 }
 
-function getEquipmentUpgradeLevel(profile, itemId){
-  return Math.max(0, Number(profile?.equipmentUpgrades?.[itemId] || 0));
+function isUpgradeableItem(item){
+  return Boolean(
+    item
+    && (
+      ["canon", "generateur"].includes(item.category)
+      || (item.category === "munition" && item.weaponClass === "rocket")
+    )
+  );
+}
+
+function getStoredEquipmentUpgradeLevel(profile, itemId){
+  const value = Number(profile?.equipmentUpgrades?.[itemId] || 0);
+  if(!Number.isFinite(value)) return 0;
+  return Math.min(10, Math.max(0, Math.floor(value)));
+}
+
+export function sanitizeEquipmentUpgrades(value){
+  const sanitized = {};
+  if(!value || typeof value !== "object" || Array.isArray(value)) return sanitized;
+  for(const [itemId, rawLevel] of Object.entries(value)){
+    const item = getUpgradeableItem(String(itemId || ""));
+    if(!isUpgradeableItem(item)) continue;
+    const level = Number(rawLevel);
+    if(!Number.isFinite(level)) continue;
+    const cleanLevel = Math.min(10, Math.max(0, Math.floor(level)));
+    if(cleanLevel > 0) sanitized[item.id] = cleanLevel;
+  }
+  return sanitized;
+}
+
+export function getTrustedEquipmentUpgradeLevel(profile, itemId){
+  if(!hasCompletedProgressionPortal(profile, PROGRESSION_UNLOCKS.equipmentUpgrades.portalId)) return 0;
+  const item = getUpgradeableItem(String(itemId || ""));
+  if(!isUpgradeableItem(item)) return 0;
+  return getStoredEquipmentUpgradeLevel(profile, item.id);
 }
 
 function getEquipmentUpgradeCost(profile, item){
-  const level = getEquipmentUpgradeLevel(profile, item.id);
+  const level = getStoredEquipmentUpgradeLevel(profile, item.id);
   if(item.category === "canon") return {materialId:"conducteur_renforce", amount:1 + level};
   if(item.category === "generateur") return {materialId:"blindage_composite", amount:1 + level};
   if(item.category === "munition" && item.weaponClass === "rocket") return {materialId:"catalyseur_quantique", amount:1 + level};
@@ -348,13 +462,13 @@ function consumeShipCargoMaterial(profile, materialId, amount, shipId = profile.
 
 export function applyEquipmentUpgrade(profile, {itemId, materialSource = "cargoHold", shipId} = {}){
   const item = getUpgradeableItem(String(itemId || ""));
-  if(!item || !(["canon", "generateur"].includes(item.category) || (item.category === "munition" && item.weaponClass === "rocket"))){
+  if(!isUpgradeableItem(item)){
     return {ok:false, reason:"Equipement non ameliorable."};
   }
-  if(Math.max(0, Number(profile.completedPortals?.emerald || 0)) <= 0){
-    return {ok:false, reason:"Portail Emeraude termine requis pour ameliorer l'equipement."};
+  if(!hasCompletedProgressionPortal(profile, PROGRESSION_UNLOCKS.equipmentUpgrades.portalId)){
+    return {ok:false, reason:`Terminez ${PROGRESSION_UNLOCKS.equipmentUpgrades.portalName} pour améliorer l'équipement.`};
   }
-  const current = getEquipmentUpgradeLevel(profile, item.id);
+  const current = getStoredEquipmentUpgradeLevel(profile, item.id);
   if(current >= 10) return {ok:false, reason:"Niveau maximum atteint."};
   const cost = getEquipmentUpgradeCost(profile, item);
   if(!cost) return {ok:false, reason:"Cout introuvable."};

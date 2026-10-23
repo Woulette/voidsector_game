@@ -5,7 +5,7 @@ import { questCatalog } from "../../src/data/progression.js";
 import { renderSpawnPanelContent } from "../../src/game/ui/spawnPanel.js";
 
 const css = fs.readFileSync(new URL("../../src/styles/questRelay.css", import.meta.url),"utf8");
-const panel = fs.readFileSync(new URL("../../src/game/ui/spawnPanel.js", import.meta.url),"utf8");
+const panel = fs.readFileSync(new URL("../../src/game/ui/questRelayPanel.js", import.meta.url),"utf8");
 
 test("rare and red quest colors are visible before quest selection", ()=>{
   assert.match(panel,/function questToneClass/);

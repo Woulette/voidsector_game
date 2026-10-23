@@ -1,10 +1,10 @@
-import { getDroneFormationBonus, getShip } from "./catalogStore.js";
-import { getCombatTimedBoostPercent } from "./combatBoostStore.js";
-import { getDroneDamageMultiplier, getDroneLoadout, getEquipmentUpgradeLevel, getItemFromInventoryUid, getLoadout } from "./equipmentStore.js";
-import { getRankScore } from "./rankStore.js";
-import { saveState, store } from "./store.js";
-import { getSkillBonus } from "./skillStore.js";
-import { getXpNextForLevel, syncSkillPoints } from "./xpStore.js";
+import { getDroneFormationBonus, getShip } from "./catalogStore.js?v=20260726-kharon1";
+import { getCombatTimedBoostPercent } from "./combatBoostStore.js?v=20260726-kharon1";
+import { getDroneDamageMultiplier, getDroneGeneratorStatMultiplier, getDroneLoadout, getEquipmentUpgradeLevel, getItemFromInventoryUid, getLoadout } from "./equipmentStore.js?v=20260726-kharon1";
+import { getRankScore } from "./rankStore.js?v=20260726-kharon1";
+import { saveState, store } from "./store.js?v=20260726-kharon1";
+import { getSkillBonus } from "./skillStore.js?v=20260726-kharon1";
+import { getXpNextForLevel, syncSkillPoints } from "./xpStore.js?v=20260726-kharon1";
 import { isPremiumActive, PREMIUM_REPAIR_BOT_MULTIPLIER } from "../data/premium.js";
 import { getActivePersonalFirmBoosters } from "./firmBoosterStore.js";
 import { calculateShieldAbsorbRatio } from "../shared/shieldAbsorption.js";
@@ -88,7 +88,14 @@ export function getEquippedDroneLasers(){
 }
 
 export function getEquippedDroneGenerators(){
-  return getDroneLoadout().map(getItemFromInventoryUid).filter(item=>item?.category === "generateur");
+  return getDroneLoadout()
+    .map((uid, index)=>{
+      const item = getItemFromInventoryUid(uid);
+      return item?.category === "generateur"
+        ? {...item, droneIndex:index, droneGeneratorShieldMultiplier:getDroneGeneratorStatMultiplier(index, "bouclier")}
+        : null;
+    })
+    .filter(Boolean);
 }
 
 export function getShipCombatStats(shipId = store.state.activeShip){
@@ -102,7 +109,11 @@ export function getShipCombatStats(shipId = store.state.activeShip){
   const droneGenerators = getEquippedDroneGenerators();
   const statFromGenerator = (item, key, upgradeValue)=>{
     const base = Number(item.stats?.[key] || 0);
-    return base + (base ? getEquipmentUpgradeLevel(item.id) * upgradeValue : 0);
+    const upgraded = base + (base ? getEquipmentUpgradeLevel(item.id) * upgradeValue : 0);
+    const droneShieldMultiplier = key === "bouclier"
+      ? Math.max(1, Number(item.droneGeneratorShieldMultiplier || 1))
+      : 1;
+    return upgraded * droneShieldMultiplier;
   };
   const generatorValue = (items, key, upgradeValue, multiplier = 1)=>{
     return items.reduce((sum, item)=>sum + statFromGenerator(item, key, upgradeValue) * multiplier, 0);
@@ -137,6 +148,10 @@ export function getShipCombatStats(shipId = store.state.activeShip){
   const extraBonus = getExtraBonus(shipId);
   extraBonus.rocketDamageMultiplier = Number(formationBonus.rocketDamageMultiplier || 1) * Number(skill.rocketDamageMultiplier || 1);
   extraBonus.missileDamageMultiplier = Number(formationBonus.missileDamageMultiplier || 1) * Number(skill.missileDamageMultiplier || 1);
+  const shipDamageMultiplier = Math.max(1, Number(ship.stats.damageMultiplier || 1));
+  const weaponDamageMultiplier = shipDamageMultiplier
+    * Number(skill.weaponDamageMultiplier || 1)
+    * Number(formationBonus.laserDamageMultiplier || 1);
   return {
     vie: (ship.stats.vie + (skill.vie || 0))
       * Number(skill.hullMultiplier || 1)
@@ -151,8 +166,8 @@ export function getShipCombatStats(shipId = store.state.activeShip){
     bouclier,
     regen: (regen + (skill.regen || 0)) * Number(formationBonus.regenMultiplier || 1) * Number(skill.regenMultiplier || 1) * generatorMultiplier,
     weaponDamage: skill.weaponDamage || 0,
-    weaponDamageMultiplier: Number(skill.weaponDamageMultiplier || 1) * Number(formationBonus.laserDamageMultiplier || 1),
-    weaponDamagePercent: Number(skill.weaponDamageMultiplier || 1) * Number(formationBonus.laserDamageMultiplier || 1) - 1,
+    weaponDamageMultiplier,
+    weaponDamagePercent:weaponDamageMultiplier - 1,
     shieldAbsorbRatio,
     evasionChance: Math.max(0, Math.min(0.75, Number(skill.evasionChance || 0))),
     damageToHpChance: Math.max(0, Math.min(0.5, Number(skill.damageToHpChance || 0))),

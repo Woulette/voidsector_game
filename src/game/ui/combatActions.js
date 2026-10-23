@@ -1,8 +1,8 @@
-import { renderActionBarHtml, updateActionBarDom } from "./actionBar.js?v=tutorial-repair-drone-1";
-import { renderShipAbilityBarHtml } from "./shipAbilityBar.js?v=ship-charge-1";
-import { renderNpcAbilityBarHtml } from "./npcAbilityBar.js?v=npc-abilities-1";
-import { renderQuickPanelContent, updateQuickPanelTabs } from "./quickPanel.js?v=ship-charge-1";
-import { describeAmmo, getAmmoCooldown as readAmmoCooldown, setAmmoCooldown as writeAmmoCooldown } from "../systems/projectiles.js?v=action-slots-save-1-fps-burst-1";
+import { renderActionBarHtml, updateActionBarDom } from "./actionBar.js?v=20260726-kharon1";
+import { renderShipAbilityBarHtml } from "./shipAbilityBar.js?v=20260726-kharon1";
+import { renderNpcAbilityBarHtml } from "./npcAbilityBar.js?v=20260726-kharon1";
+import { renderQuickPanelContent, updateQuickPanelTabs } from "./quickPanel.js?v=20260726-kharon1";
+import { describeAmmo, getAmmoCooldown as readAmmoCooldown, setAmmoCooldown as writeAmmoCooldown } from "../systems/projectiles.js?v=20260726-kharon1";
 import { requireMmoConnection } from "../../app/mmoGate.js";
 
 export function createCombatActions({
@@ -566,9 +566,11 @@ export function createCombatActions({
   function saveAndSyncActionSlots(){
     if(!store.state.actionSlotsByShip || typeof store.state.actionSlotsByShip !== "object") store.state.actionSlotsByShip = {};
     store.state.actionSlotsByShip[String(store.state.activeShip || "orion")] = Array.from({length:9}, (_,index)=>store.state.actionSlots?.[index] || null);
-    const updatedAt = Date.now();
+    const updatedAt = Math.max(
+      Date.now(),
+      Math.max(0, Number(store.state.actionSlotsUpdatedAt || 0)) + 1
+    );
     store.state.actionSlotsUpdatedAt = updatedAt;
-    store.state.mmoProfileUpdatedAt = updatedAt;
     saveState();
     syncProfile?.();
   }
@@ -602,15 +604,12 @@ export function createCombatActions({
     if(!player.extraBonus?.autoMissile) return false;
     const state = getMissileLauncherState();
     if(!state.ready) return false;
-    const fired = fireManualMissile(state.ammo, state.capacity);
-    if(fired){
+    return fireManualMissile(state.ammo, state.capacity, {onAccepted:response=>{
       missileLoaded = 0;
-      missileReload = 0;
+      missileReload = Math.max(0, Number(response?.requestElapsedMs || 0)) / 1000;
       renderCombatQuickPanel();
       updateGameActionBar();
-      return true;
-    }
-    return false;
+    }});
   }
 
   function fireMissileLauncher(){
@@ -618,13 +617,12 @@ export function createCombatActions({
     if(!state.launcher) return showToast("Aucun lance-missile equipe.");
     if(!state.ammo) return showToast("Selectionne un missile dans Munitions.");
     if(!state.ready) return showToast(`Lance-missile en charge : ${state.loaded}/${state.capacity}.`);
-    const fired = fireManualMissile(state.ammo, state.capacity);
-    if(fired){
+    fireManualMissile(state.ammo, state.capacity, {onAccepted:response=>{
       missileLoaded = 0;
-      missileReload = 0;
+      missileReload = Math.max(0, Number(response?.requestElapsedMs || 0)) / 1000;
       renderCombatQuickPanel();
       updateGameActionBar();
-    }
+    }});
   }
 
   function assignMissileLauncherToActionSlot(index){

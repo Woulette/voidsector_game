@@ -1,4 +1,4 @@
-export function createCombatPerfSystem({getState, update, draw}){
+export function createCombatPerfSystem({getState, update, draw, getNetworkSummary = ()=>"--"}){
   const perf = {frames:0, elapsed:0, frameTotal:0, frameMax:0, updateMs:0, drawMs:0, overlayT:0};
 
   function measuredUpdate(dt){
@@ -24,7 +24,18 @@ export function createCombatPerfSystem({getState, update, draw}){
 
   function updatePerfPanel(){
     const panel = document.getElementById("combatPerfPanel");
-    if(!panel) return;
+    if(!panel){
+      perf.overlayT = .35;
+      return;
+    }
+    if(panel.hidden || panel.classList?.contains?.("hidden")){
+      perf.frames = 0;
+      perf.elapsed = 0;
+      perf.frameTotal = 0;
+      perf.frameMax = 0;
+      perf.overlayT = .35;
+      return;
+    }
     const {enemies, particles, bullets, beams, impactEffects} = getState();
     const seconds = Math.max(.001, perf.elapsed);
     const fps = perf.frames / seconds;
@@ -41,6 +52,8 @@ export function createCombatPerfSystem({getState, update, draw}){
     panel.querySelector("[data-perf-update]").textContent = perf.updateMs.toFixed(1);
     panel.querySelector("[data-perf-draw]").textContent = perf.drawMs.toFixed(1);
     panel.querySelector("[data-perf-objects]").textContent = objects;
+    const networkNode = panel.querySelector("[data-perf-network]");
+    if(networkNode) networkNode.textContent = String(getNetworkSummary() || "--");
     perf.frames = 0;
     perf.elapsed = 0;
     perf.frameTotal = 0;

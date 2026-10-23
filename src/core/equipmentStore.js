@@ -1,6 +1,11 @@
-import { consumeMaterial, consumeShipCargoMaterial, getMaterialCount, getShipCargo } from "./cargoStore.js";
-import { getAmmo, getDroneCatalog, getDroneFormation, getItem, getShip, store } from "./store.js";
+import { consumeMaterial, consumeShipCargoMaterial, getMaterialCount, getShipCargo } from "./cargoStore.js?v=20260726-kharon1";
+import { getAmmo, getDroneCatalog, getDroneFormation, getItem, getShip, store } from "./store.js?v=20260726-kharon1";
 import { getExtraEquipGroup } from "../shared/equipmentRules.js";
+import { hasCompletedProgressionPortal, PROGRESSION_UNLOCKS } from "../shared/progressionUnlocks.js?v=20260726-kharon1";
+
+const DRONE_VESPER_UPGRADE_ID = "drone_overdrive_chip";
+const DRONE_VESPER_UNLOCK_PORTAL_ID = "violet";
+
 export function getInventoryItem(uid){ return store.state?.inventoryItems?.find(entry=>entry.uid === uid) || null; }
 export function getItemFromInventoryUid(uid){ return getItem(getInventoryItem(uid)?.itemId); }
 function getItemFromInventoryUidIn(uid, inventoryItems = store.state?.inventoryItems || []){
@@ -17,18 +22,45 @@ export function isDronePermanentUpgradeItem(item){
   return item?.slotType === "droneUpgrade" || item?.category === "drone_upgrade";
 }
 
+export function hasDronePermanentUpgradeAccess(){
+  return Math.max(0, Number(store.state?.completedPortals?.[DRONE_VESPER_UNLOCK_PORTAL_ID] || 0)) > 0;
+}
+
+export function isSupportedDronePermanentUpgradeItem(item, drone = getDroneCatalog()){
+  const compatibleDroneIds = Array.isArray(item?.effect?.compatibleDroneIds)
+    ? item.effect.compatibleDroneIds.map(String)
+    : [];
+  return isDronePermanentUpgradeItem(item)
+    && item?.id === DRONE_VESPER_UPGRADE_ID
+    && drone?.id === "combat_drone"
+    && Number(drone?.slots || 0) === 1
+    && Number(item?.effect?.requiredDroneSlots || 0) === 1
+    && compatibleDroneIds.includes(drone.id);
+}
+
 export function getDronePermanentUpgrade(index){
+  if(!hasDronePermanentUpgradeAccess()) return null;
   const upgrades = store.state?.dronePermanentUpgrades;
-  return upgrades && typeof upgrades === "object" ? upgrades[index] || null : null;
+  const upgradeId = upgrades && typeof upgrades === "object" ? upgrades[index] || null : null;
+  const item = upgradeId ? getItem(upgradeId) : null;
+  return isSupportedDronePermanentUpgradeItem(item) ? item.id : null;
 }
 
 export function getDroneDamageMultiplier(index){
   const upgradeId = getDronePermanentUpgrade(index);
   const item = upgradeId ? getItem(upgradeId) : null;
-  return Math.max(1, Number(item?.effect?.droneDamageMultiplier || 1));
+  return Math.max(1, Number(item?.effect?.droneLaserDamageMultiplier ?? item?.effect?.droneDamageMultiplier ?? 1));
+}
+
+export function getDroneGeneratorStatMultiplier(index, statKey){
+  if(String(statKey || "") !== "bouclier") return 1;
+  const upgradeId = getDronePermanentUpgrade(index);
+  const item = upgradeId ? getItem(upgradeId) : null;
+  return Math.max(1, Number(item?.effect?.droneGeneratorShieldMultiplier || 1));
 }
 
 export function getEquipmentUpgradeLevel(itemId){
+  if(!hasCompletedProgressionPortal(store.state, PROGRESSION_UNLOCKS.equipmentUpgrades.portalId)) return 0;
   return Math.max(0, Number(store.state?.equipmentUpgrades?.[itemId] || 0));
 }
 
@@ -58,7 +90,9 @@ function consumeUpgradeMaterial(materialId, amount, options = {}){
 export function upgradeEquipment(itemId, options = {}){
   const item = getItem(itemId) || getAmmo(itemId);
   if(!item || !(["canon","generateur"].includes(item.category) || (item.category === "munition" && item.weaponClass === "rocket"))) return {ok:false, reason:"Equipement non ameliorable."};
-  if(Math.max(0, Number(store.state?.completedPortals?.emerald || 0)) <= 0) return {ok:false, reason:"Portail Emeraude termine requis pour ameliorer l'equipement."};
+  if(!hasCompletedProgressionPortal(store.state, PROGRESSION_UNLOCKS.equipmentUpgrades.portalId)){
+    return {ok:false, reason:`Terminez ${PROGRESSION_UNLOCKS.equipmentUpgrades.portalName} pour améliorer l'équipement.`};
+  }
   const current = getEquipmentUpgradeLevel(itemId);
   if(current >= 10) return {ok:false, reason:"Niveau maximum atteint."};
   const cost = getEquipmentUpgradeCost(item);
@@ -248,12 +282,15 @@ export function removeInventoryItems(itemId, amount){
 }
 
 export function applyDronePermanentUpgrade(index, inventoryUid){
-  const target = Math.max(0, Number(index || 0));
+  const requestedIndex = Number(index);
+  if(!Number.isInteger(requestedIndex) || requestedIndex < 0) return {ok:false, reason:"Emplacement de drone invalide."};
+  const target = requestedIndex;
   if(target >= getDroneLoadout().length) return {ok:false, reason:"Aucun drone a cet emplacement."};
   const entryIndex = store.state.inventoryItems.findIndex(entry=>entry.uid === inventoryUid);
   const entry = entryIndex >= 0 ? store.state.inventoryItems[entryIndex] : null;
   const item = entry ? getItem(entry.itemId) : null;
-  if(!isDronePermanentUpgradeItem(item)) return {ok:false, reason:"Cet objet n'est pas une amelioration de drone."};
+  if(!isSupportedDronePermanentUpgradeItem(item)) return {ok:false, reason:"Cet objet n'est pas compatible avec ce drone de combat."};
+  if(!hasDronePermanentUpgradeAccess()) return {ok:false, reason:"Terminez d'abord La Faille de Vesper."};
   if(getDronePermanentUpgrade(target)) return {ok:false, reason:`Drone ${target + 1} deja ameliore.`};
   if(!store.state.dronePermanentUpgrades || typeof store.state.dronePermanentUpgrades !== "object") store.state.dronePermanentUpgrades = {};
   store.state.dronePermanentUpgrades[target] = item.id;
@@ -264,7 +301,8 @@ export function applyDronePermanentUpgrade(index, inventoryUid){
 
 export function getDronePurchasePrice(index = store.state.ownedDroneCount){
   const drone = getDroneCatalog();
-  return drone.basePrice * Math.pow(2, Math.max(0, Number(index || 0)));
+  const count = Math.max(0, Number(index || 0));
+  return count >= drone.maxStandardOwned ? null : drone.basePrice * Math.pow(2, count);
 }
 
 export function getDroneLoadout(){

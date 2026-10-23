@@ -1,4 +1,4 @@
-export const XP_CURVE_VERSION = 4;
+export const XP_CURVE_VERSION = 5;
 
 const XP_FIXED_NEXT_BY_LEVEL = {
   1:3000,
@@ -19,6 +19,7 @@ const XP_FIXED_NEXT_BY_LEVEL = {
 const XP_FIXED_LAST_LEVEL = 13;
 const XP_TARGET_LEVEL = 49;
 const XP_TARGET_NEXT = 2000000000;
+const XP_SECOND_LOOP_MULTIPLIER = 1.15;
 const XP_GROWTH_AFTER_FIXED = Math.pow(
   XP_TARGET_NEXT / XP_FIXED_NEXT_BY_LEVEL[XP_FIXED_LAST_LEVEL],
   1 / (XP_TARGET_LEVEL - XP_FIXED_LAST_LEVEL)
@@ -27,8 +28,11 @@ const XP_GROWTH_AFTER_FIXED = Math.pow(
 export function getXpNextForLevel(level = 1){
   const targetLevel = Math.max(1, Math.floor(Number(level || 1)));
   if(XP_FIXED_NEXT_BY_LEVEL[targetLevel]) return XP_FIXED_NEXT_BY_LEVEL[targetLevel];
-  return Math.round(
+  const baseThreshold = Math.round(
     XP_FIXED_NEXT_BY_LEVEL[XP_FIXED_LAST_LEVEL]
       * Math.pow(XP_GROWTH_AFTER_FIXED, targetLevel - XP_FIXED_LAST_LEVEL)
   );
+  return targetLevel >= 50
+    ? Math.round(baseThreshold * XP_SECOND_LOOP_MULTIPLIER)
+    : baseThreshold;
 }

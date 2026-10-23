@@ -6,39 +6,113 @@
   <meta name="voidsector-server-url" content="https://avosoma.absyrion.com" />
   <title>Avosoma - MMO</title>
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="styles.css?v=craft-extras-1" />
-  <script>
-    document.documentElement.dataset.appMode = new URLSearchParams(location.search).get("mode") === "game" ? "game" : "launcher";
-  </script>
-<script type="importmap">
+  <link rel="stylesheet" href="styles.css?v=20261022-quest-console2" />
+  <script type="importmap">
 {
   "imports": {
-    "/src/game/systems/minimapState.js": "/src/game/systems/minimapState.js?v=20261023-minimap4",
+    "/src/shared/helionOneHub.js": "/src/shared/helionOneHub.js?v=20261022-helion-hub3",
+    "/src/shared/helionOneHub.js?v=20261022-helion-hub1": "/src/shared/helionOneHub.js?v=20261022-helion-hub3",
+    "/src/app.js": "/src/app.js?v=20261022-tutorial2",
+    "/src/app.js?v=20261022-helion-light1": "/src/app.js?v=20261022-tutorial2",
+    "/src/app/refinerySyncController.js": "/src/app/refinerySyncController.js?v=20261022-tutorial2",
+    "/src/shared/tutorial.js": "/src/shared/tutorial.js?v=20261022-tutorial3",
+    "/src/shared/tutorial.js?v=20260726-kharon1": "/src/shared/tutorial.js?v=20261022-tutorial3",
+    "/src/ui/tutorialController.js": "/src/ui/tutorialController.js?v=20261022-tutorial3",
+    "/src/ui/tutorialController.js?v=20260726-kharon1": "/src/ui/tutorialController.js?v=20261022-tutorial3",
+    "/src/ui/tutorialStages.js": "/src/ui/tutorialStages.js?v=20261022-tutorial3",
+    "/src/ui/tutorialView.js": "/src/ui/tutorialView.js?v=20261022-tutorial3",
+    "/src/ui/tutorialGuidance.js": "/src/ui/tutorialGuidance.js?v=20261022-tutorial4",
+    "/src/ui/renderRefinery.js": "/src/ui/renderRefinery.js?v=20261022-tutorial2",
+    "/src/ui/renderRefinery.js?v=20260726-kharon1": "/src/ui/renderRefinery.js?v=20261022-tutorial2",
+    "/src/multiplayer/socketCommands.js": "/src/multiplayer/socketCommands.js?v=20261023-drones1",
+    "/src/multiplayer/socketCommands.js?v=20260726-ancient1": "/src/multiplayer/socketCommands.js?v=20261023-drones1",
+    "/src/game/ui/spawnPanel.js": "/src/game/ui/spawnPanel.js?v=20261022-quest-console1",
+    "/src/game/ui/spawnPanel.js?v=20260726-kharon1": "/src/game/ui/spawnPanel.js?v=20261022-quest-console1",
+    "/src/game/combatOrchestrator.js": "/src/game/combatOrchestrator.js?v=20261022-helion-hover1",
+    "/src/game/combatOrchestrator.js?v=20261022-helion-light1": "/src/game/combatOrchestrator.js?v=20261022-helion-hover1",
+    "/src/game/systems/tutorialWorldGuidance.js": "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial4",
+    "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial-guidance1": "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial4",
+    "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial2": "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial4",
+    "/src/shared/tutorial.js?v=20261022-tutorial2": "/src/shared/tutorial.js?v=20261022-tutorial3",
+    "/src/ui/tutorialController.js?v=20261022-tutorial2": "/src/ui/tutorialController.js?v=20261022-tutorial3",
+    "/src/ui/tutorialGuidance.js?v=20261022-tutorial2": "/src/ui/tutorialGuidance.js?v=20261022-tutorial4",
+    "/src/ui/tutorialStages.js?v=20261022-tutorial2": "/src/ui/tutorialStages.js?v=20261022-tutorial3",
+    "/src/ui/tutorialView.js?v=20261022-tutorial2": "/src/ui/tutorialView.js?v=20261022-tutorial3",
+    "/src/shared/helionOneHub.js?v=20261022-helion-hub2": "/src/shared/helionOneHub.js?v=20261022-helion-hub3",
+    "/src/game/render/spawnHub.js": "/src/game/render/spawnHub.js?v=20261022-helion-hover1",
+    "/src/game/render/spawnHub.js?v=20261022-helion-hub1": "/src/game/render/spawnHub.js?v=20261022-helion-hover1",
+    "/src/game/render/spawnHub.js?v=20261022-helion-hub2": "/src/game/render/spawnHub.js?v=20261022-helion-hover1",
+    "/src/game/combatOrchestrator.js?v=20261022-helion-hub1": "/src/game/combatOrchestrator.js?v=20261022-helion-hover1",
+    "/src/game/render/combatScene.js": "/src/game/render/combatScene.js?v=20261023-minimap4",
+    "/src/game/render/combatScene.js?v=20261022-helion-hub1": "/src/game/render/combatScene.js?v=20261023-minimap4",
+    "/src/game/render/spawnStationHighlight.js": "/src/game/render/spawnStationHighlight.js?v=20261022-helion-hover1",
+    "/src/game/render/world.js": "/src/game/render/world.js?v=20261022-helion-hover1",
+    "/src/game/render/world.js?v=20261022-helion-hub1": "/src/game/render/world.js?v=20261022-helion-hover1",
+    "/src/game/ui/spawnStationHover.js": "/src/game/ui/spawnStationHover.js?v=20261022-helion-hover1",
+    "/src/multiplayer/progressionSocketListeners.js": "/src/multiplayer/progressionSocketListeners.js?v=20261022-quests1",
+    "/src/game/ui/questAbandon.js": "/src/game/ui/questAbandon.js?v=20261022-quests1",
+    "/src/data/questBriefings.js": "/src/data/questBriefings.js?v=20261022-quest-console1",
+    "/src/data/progression.js": "/src/data/progression.js?v=20261022-quests1",
+    "/src/multiplayer/client.js": "/src/multiplayer/client.js?v=20261022-quests1",
+    "/src/game/ui/questTracker.js": "/src/game/ui/questTracker.js?v=20261022-quests1",
+    "/src/game/ui/combatPanels.js": "/src/game/ui/combatPanels.js?v=20261022-quest-console1",
+    "/src/shared/quests/catalogRevision.js": "/src/shared/quests/catalogRevision.js?v=20261022-quests1",
+    "/src/multiplayer/client.js?v=20261018-map-transfer1": "/src/multiplayer/client.js?v=20261022-quests1",
+    "/src/data/progression.js?v=20260726-ancient1": "/src/data/progression.js?v=20261022-quests1",
+    "/src/game/ui/combatPanels.js?v=20261018-map-transfer1": "/src/game/ui/combatPanels.js?v=20261022-quest-console1",
+    "/src/game/ui/questTracker.js?v=20260726-kharon1": "/src/game/ui/questTracker.js?v=20261022-quests1",
+    "/src/multiplayer/progressionSocketListeners.js?v=20260726-kharon1": "/src/multiplayer/progressionSocketListeners.js?v=20261022-quests1",
+    "/src/data/progression.js?v=20260726-prismatic1": "/src/data/progression.js?v=20261022-quests1",
+    "/src/app/serverEventController.js": "/src/app/serverEventController.js?v=20261022-crafting1",
+    "/src/data/craftingRecipes.js": "/src/data/craftingRecipes.js?v=20261023-drones1",
+    "/src/app/serverEventController.js?v=20260726-economy-burst1": "/src/app/serverEventController.js?v=20261022-crafting1",
+    "/src/data/craftingRecipes.js?v=20260726-kharon1": "/src/data/craftingRecipes.js?v=20261023-drones1",
+    "/src/game/ui/questRelayObjectives.js": "/src/game/ui/questRelayObjectives.js?v=20261023-quest-icons1",
+    "/src/game/ui/questRelayPanel.js": "/src/game/ui/questRelayPanel.js?v=20261023-quest-icons1",
+    "/src/game/ui/questCategories.js": "/src/game/ui/questCategories.js?v=20261023-quest-icons1",
+    "/src/data/equipment.js": "/src/data/equipment.js?v=20261023-drones1",
+    "/src/ui/renderShop.js": "/src/ui/renderShop.js?v=20261023-drones1",
+    "/src/shared/droneLimits.js": "/src/shared/droneLimits.js?v=20261023-drones1",
+    "/src/core/equipmentStore.js": "/src/core/equipmentStore.js?v=20261023-drones1",
+    "/src/ui/render.js": "/src/ui/render.js?v=20261023-drones1",
+    "/src/app/shopActions.js": "/src/app/shopActions.js?v=20261023-drones1",
+    "/src/ui/render.js?v=20261022-helion-hub1": "/src/ui/render.js?v=20261023-drones1",
+    "/src/app/shopActions.js?v=20260726-economy-burst1": "/src/app/shopActions.js?v=20261023-drones1",
+    "/src/core/equipmentStore.js?v=20260726-kharon1": "/src/core/equipmentStore.js?v=20261023-drones1",
+    "/src/data/equipment.js?v=20260726-prismatic1": "/src/data/equipment.js?v=20261023-drones1",
+    "/src/data/equipment.js?v=20260726-kharon1": "/src/data/equipment.js?v=20261023-drones1",
+    "/src/ui/renderShop.js?v=20261018-map-transfer1": "/src/ui/renderShop.js?v=20261023-drones1",
+    "/src/ui/renderPortals.js": "/src/ui/renderPortals.js?v=20261023-portals1",
+    "/src/game/systems/combatServerEvents.js": "/src/game/systems/combatServerEvents.js?v=20261023-portals1",
+    "/src/game/systems/combatServerEvents.js?v=20261022-helion-hub1": "/src/game/systems/combatServerEvents.js?v=20261023-portals1",
+    "/src/ui/renderPortals.js?v=20260726-ancient1": "/src/ui/renderPortals.js?v=20261023-portals1",
+    "/src/game/combatAssets.js": "/src/game/combatAssets.js?v=20261023-minimap4",
+    "/src/game/render/mapSceneryProjection.js": "/src/game/render/mapSceneryProjection.js?v=20261023-minimap4",
+    "/src/game/combatData/miniMapVisuals.js": "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap4",
+    "/src/game/render/canvasHud.js": "/src/game/render/canvasHud.js?v=20261023-minimap4",
     "/src/game/render/miniMapChrome.js": "/src/game/render/miniMapChrome.js?v=20261023-minimap4",
     "/src/game/systems/miniMapLayout.js": "/src/game/systems/miniMapLayout.js?v=20261023-minimap4",
     "/src/game/ui/inputBindings.js": "/src/game/ui/inputBindings.js?v=20261023-minimap4",
-    "/src/game/render/canvasHud.js": "/src/game/render/canvasHud.js?v=20261023-minimap4",
-    "/src/game/render/mapSceneryProjection.js": "/src/game/render/mapSceneryProjection.js?v=20261023-minimap4",
-    "/src/game/combatAssets.js": "/src/game/combatAssets.js?v=20261023-minimap4",
     "/src/game/render/miniMapScenery.js": "/src/game/render/miniMapScenery.js?v=20261023-minimap4",
-    "/src/game/combatData/miniMapVisuals.js": "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap4",
-    "/src/game/render/combatScene.js": "/src/game/render/combatScene.js?v=20261023-minimap4",
+    "/src/game/systems/minimapState.js": "/src/game/systems/minimapState.js?v=20261023-minimap4",
     "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap4": "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap4",
-    "/src/game/render/canvasHud.js?v=level-up-2": "/src/game/render/canvasHud.js?v=20261023-minimap4",
-    "/src/game/render/combatScene.js?v=craft-extras-1": "/src/game/render/combatScene.js?v=20261023-minimap4",
-    "/src/game/ui/inputBindings.js?v=craft-ui-6": "/src/game/ui/inputBindings.js?v=20261023-minimap4",
+    "/src/game/combatAssets.js?v=20261022-helion-hub1": "/src/game/combatAssets.js?v=20261023-minimap4",
+    "/src/game/render/canvasHud.js?v=20260726-ancient1": "/src/game/render/canvasHud.js?v=20261023-minimap4",
+    "/src/game/ui/inputBindings.js?v=20260726-kharon1": "/src/game/ui/inputBindings.js?v=20261023-minimap4",
     "/src/game/render/miniMapScenery.js?v=20261023-minimap4": "/src/game/render/miniMapScenery.js?v=20261023-minimap4",
     "/src/game/render/miniMapChrome.js?v=20261023-minimap4": "/src/game/render/miniMapChrome.js?v=20261023-minimap4",
     "/src/game/render/canvasHud.js?v=20261023-minimap4": "/src/game/render/canvasHud.js?v=20261023-minimap4",
     "/src/game/systems/miniMapLayout.js?v=20261023-minimap4": "/src/game/systems/miniMapLayout.js?v=20261023-minimap4",
     "/src/game/render/mapSceneryProjection.js?v=20261018-helion-depth1": "/src/game/render/mapSceneryProjection.js?v=20261023-minimap4",
-    "/src/game/combatAssets.js?v=20261022-helion-hub1": "/src/game/combatAssets.js?v=20261023-minimap4",
-    "/src/game/render/canvasHud.js?v=20260726-ancient1": "/src/game/render/canvasHud.js?v=20261023-minimap4",
-    "/src/game/render/combatScene.js?v=20261022-helion-hub1": "/src/game/render/combatScene.js?v=20261023-minimap4",
-    "/src/game/ui/inputBindings.js?v=20260726-kharon1": "/src/game/ui/inputBindings.js?v=20261023-minimap4"
+    "/src/game/render/canvasHud.js?v=level-up-2": "/src/game/render/canvasHud.js?v=20261023-minimap4",
+    "/src/game/render/combatScene.js?v=craft-extras-1": "/src/game/render/combatScene.js?v=20261023-minimap4",
+    "/src/game/ui/inputBindings.js?v=craft-ui-6": "/src/game/ui/inputBindings.js?v=20261023-minimap4"
   }
 }
-</script>
+  </script>
+  <script>
+    document.documentElement.dataset.appMode = new URLSearchParams(location.search).get("mode") === "game" ? "game" : "launcher";
+  </script>
 </head>
 <body class="app-booting auth-locked">
   <section id="appBootScreen" class="app-boot-screen" aria-live="polite">
@@ -418,6 +492,15 @@
       <strong>30</strong>
       <span>Vague suivante</span>
     </div>
+    <div id="portalObjectiveHud" class="portal-objective-hud hidden" aria-live="polite">
+      <div class="portal-objective-hud-head">
+        <span>OBJECTIF VESPER</span>
+        <strong data-vesper-lives>3/3 VIES</strong>
+      </div>
+      <b data-vesper-objective-title>LIBÉREZ LES CAGES 0/4</b>
+      <p data-vesper-objective-detail>Neutralisez les tourelles avant de détruire les cages.</p>
+      <span class="portal-objective-progress"><i data-vesper-objective-progress></i></span>
+    </div>
     <div id="poisonStatus" class="poison-status hidden" aria-live="polite">
       <div class="poison-status-icon">!</div>
       <div class="poison-status-body">
@@ -504,6 +587,7 @@
       <span>Update <b data-perf-update>--</b> ms</span>
       <span>Draw <b data-perf-draw>--</b> ms</span>
       <span>Objets <b data-perf-objects>--</b></span>
+      <span>Réseau <b data-perf-network title="R=joueurs J=jitter B=buffer L=pertes U=sous-alimentations">--</b></span>
     </div>
     <div id="combatUtilityDock" class="combat-utility-dock frame" aria-label="Modules rapides">
       <button data-utility-panel="group" type="button" title="Groupe" aria-label="Groupe"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="9" r="2.6"></circle><path d="M3.5 19c.7-3.5 2.8-5.2 6.3-5.2s5.6 1.7 6.3 5.2"></path><path d="M13.8 14.1c2.8.2 4.7 1.8 5.4 4.9"></path></svg></button>
@@ -604,6 +688,6 @@
   </section>
 
   <div id="toast" class="toast"></div>
-    <script type="module" src="game.js?v=craft-extras-1"></script>
+    <script type="module" src="game.js?v=20261023-quest-icons1"></script>
 </body>
 </html>

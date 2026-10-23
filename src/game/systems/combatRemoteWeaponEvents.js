@@ -1,5 +1,5 @@
-import { ammoTypes } from "../../data/catalog.js";
-import { createProjectile } from "./projectiles.js?v=action-slots-save-1-fps-burst-1";
+import { ammoTypes } from "../../data/catalog.js?v=20260726-kharon1";
+import { createProjectile } from "./projectiles.js?v=20260726-kharon1";
 
 export function createRemoteWeaponEventProcessor({
   multiplayer,
@@ -25,14 +25,27 @@ export function createRemoteWeaponEventProcessor({
       const toY = Number(event.toY || 0);
       if(kind === "laser"){
         const start = starts[0] || {};
+        const startX = Number(start.x ?? event.fromX ?? 0);
+        const startY = Number(start.y ?? event.fromY ?? 0);
         beams.add({
           ammoId:ammo?.id || event.ammoId || "ammo_x1",
-          fromX:Number(start.x ?? event.fromX ?? 0),
-          fromY:Number(start.y ?? event.fromY ?? 0),
+          fromX:startX,
+          fromY:startY,
           toX,
           toY,
           targetId:event.targetId || null,
           blueLaser:Boolean(event.blueLaser)
+        });
+        particles.push({
+          kind:"muzzle",
+          x:startX,
+          y:startY,
+          life:.16,
+          max:.16,
+          size:14,
+          color:event.blueLaser
+            ? "rgba(56,189,248,.65)"
+            : ammo?.particle || "rgba(255,218,72,.62)"
         });
         continue;
       }

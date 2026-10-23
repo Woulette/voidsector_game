@@ -1,6 +1,6 @@
 import { refineryRecipes } from "../../../src/data/catalog.js";
 import { isPremiumActive, PREMIUM_REFINERY_SHIPMENT_DURATION_MULTIPLIER } from "../../../src/data/premium.js";
-import { spendCurrency } from "../players/progression.js";
+import { getProgressionLevelCap, spendCurrency } from "../players/progression.js";
 import {
   REFINERY_MODULES,
   REFINERY_RUSH_NOVA_PER_MINUTE,
@@ -69,7 +69,12 @@ export function startServerRefineryShipment(profile, {materialId, amount, shipId
   if(safeAmount <= 0) return {ok:false, reason:"Aucune place ou stock insuffisant."};
   const credits = getRefineryShipmentCredits(material.id, safeAmount);
   if(Number(profile.player?.credits || 0) < credits) return {ok:false, reason:"Credits insuffisants."};
-  profile.player = spendCurrency(profile.player || {}, "credits", credits).player;
+  profile.player = spendCurrency(
+    profile.player || {},
+    "credits",
+    credits,
+    getProgressionLevelCap(profile.prestigeCount)
+  ).player;
   consumeMaterial(profile, material.id, safeAmount);
   const duration = getRefineryShipmentDuration(safeAmount, profile);
   profile.refineryShipmentJob = {
@@ -100,7 +105,7 @@ export function rushServerRefineryShipment(profile, {now = Date.now()} = {}){
   if(!job) return {ok:false, reason:"Aucune expedition en cours."};
   const remaining = Math.max(0, Number(job.endsAt || now) - now);
   const cost = Math.max(1, Math.ceil(remaining / 60000)) * REFINERY_RUSH_NOVA_PER_MINUTE;
-  const spend = spendCurrency(profile.player || {}, "premium", cost);
+  const spend = spendCurrency(profile.player || {}, "premium", cost, getProgressionLevelCap(profile.prestigeCount));
   if(!spend.ok) return {...spend, reason:"Pas assez de NOVA."};
   profile.player = spend.player;
   job.endsAt = now;

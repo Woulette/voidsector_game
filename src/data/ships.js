@@ -1,3 +1,22 @@
+export function normalizeShipAccessRole(role){
+  return String(role || "player").trim().toLowerCase();
+}
+
+export function getShipAllowedRoles(ship){
+  if(!Array.isArray(ship?.allowedRoles)) return [];
+  return [...new Set(ship.allowedRoles.map(normalizeShipAccessRole).filter(Boolean))];
+}
+
+export function canAccountRoleAccessShip(ship, role){
+  const allowedRoles = getShipAllowedRoles(ship);
+  return allowedRoles.length === 0 || allowedRoles.includes(normalizeShipAccessRole(role));
+}
+
+export function getShipRoleLockReason(ship, role){
+  if(canAccountRoleAccessShip(ship, role)) return "";
+  return `${ship?.name || "Ce vaisseau"} est reserve aux comptes OWN et admin.`;
+}
+
 export const ships = [
   {
     id:"orion",
@@ -30,7 +49,7 @@ export const ships = [
     id:"valkyrie",
     name:"Valkyrie",
     className:"Croiseur d'assaut",
-    img:"assets/ships/Valkyrie.png?v=valkyrie-cutout-2",
+    img:"assets/ships/Valkyrie.png?v=20260726-kharon1",
     rarity:"Rare",
     rarityTier:"rare",
     priceType:"credits",
@@ -101,7 +120,7 @@ export const ships = [
       maxRocketLaunchers:1,
       maxMissileLaunchers:1
     },
-    requiresCompletedPortal:"violet",
+    requiresCompletedPortal:"red",
     skillShip:true,
     abilityId:"absorbing_fire",
     special:"Tir absorbant · 50 % vol de vie · 20 s · recharge 180 s"
@@ -129,7 +148,7 @@ export const ships = [
       maxRocketLaunchers:1,
       maxMissileLaunchers:1
     },
-    requiresCompletedPortal:"violet",
+    requiresCompletedPortal:"red",
     skillShip:true,
     abilityId:"poison_bomb",
     special:"Bombe poison - 5 vagues / 10 s - 10 000 HP/s pendant 10 s - recharge 180 s"
@@ -157,9 +176,36 @@ export const ships = [
       maxRocketLaunchers:1,
       maxMissileLaunchers:1
     },
-    requiresCompletedPortal:"violet",
+    requiresCompletedPortal:"red",
     skillShip:true,
     abilityId:"spectral_double_shot",
     special:"Salve spectrale - charge 3 s puis prochain tir laser double - 30 s - recharge 180 s"
+  },
+  {
+    id:"imperial",
+    name:"Impérial",
+    className:"Cuirassé de commandement",
+    img:"assets/ships/Imperial.png",
+    combatImg:"assets/ships/Imperial.png",
+    rarity:"Mythique",
+    rarityTier:"mythic",
+    renderWidth:170,
+    renderHeight:170,
+    priceType:"credits",
+    price:0,
+    allowedRoles:["owner", "admin"],
+    desc:"Un cuirassé de commandement réservé aux comptes OWN et admin. Sa coque titanesque et ses systèmes impériaux multiplient par dix les dégâts de toutes les armes.",
+    stats:{
+      vie:1_000_000,
+      vitesse:400,
+      cargo:5_000,
+      maxLasers:15,
+      maxGenerators:15,
+      maxExtras:10,
+      maxRocketLaunchers:1,
+      maxMissileLaunchers:1,
+      damageMultiplier:10
+    },
+    special:"Puissance impériale · dégâts de toutes les armes ×10"
   }
 ];

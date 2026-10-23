@@ -1,5 +1,5 @@
 import { buildPersonalFirmSeasonSnapshot, emitThrottledFirmRanking } from "../firms/firmBroadcasts.js";
-import { getProgressionSnapshot } from "../players/progression.js";
+import { getProgressionLevelCap, getProgressionSnapshot } from "../players/progression.js";
 
 function canAwardFirmMonsterPoint(playerLevel, enemyLevel){
   const level = Math.max(1, Math.floor(Number(playerLevel || 1)));
@@ -8,23 +8,27 @@ function canAwardFirmMonsterPoint(playerLevel, enemyLevel){
 }
 
 export function createWorldRewardManager({io, players, groups, profileManager, emitProfileSync, firmWarManager}){
-  function getSameMapRewardRecipients(attacker, mapId){
+  function getSameMapRewardRecipients(attacker, mapId, recipientIds = null){
     const attackerGroup = attacker.groupId ? groups.get(attacker.groupId) : null;
-    const ids = attackerGroup?.members?.length ? attackerGroup.members : [attacker.id];
+    const ids = Array.isArray(recipientIds) && recipientIds.length
+      ? recipientIds
+      : attackerGroup?.members?.length
+        ? attackerGroup.members
+        : [attacker.id];
     const recipients = ids
       .map(id=>players.get(id))
       .filter(player=>player && player.mapId === String(mapId) && player.connected !== false && player.clientMode === "game");
     return recipients.length ? recipients : [attacker];
   }
 
-  function emitWorldReward({enemy, mapId, attackerId, firmAttackerId = attackerId}){
+  function emitWorldReward({enemy, mapId, attackerId, firmAttackerId = attackerId, recipientIds = null}){
     const attacker = players.get(attackerId);
-    if(!attacker || !enemy || enemy.rewardGranted) return;
+    if(!attacker || !enemy || enemy.noReward || enemy.rewardGranted) return;
     enemy.rewardGranted = true;
     enemy.rewardGrantedAt = Date.now();
     enemy.rewardGrantedBy = attackerId;
     const rewardId = `${enemy.id}:${attackerId}:${enemy.rewardGrantedAt}`;
-    const recipients = getSameMapRewardRecipients(attacker, mapId);
+    const recipients = getSameMapRewardRecipients(attacker, mapId, recipientIds);
     const share = recipients.length > 1 ? 1 / recipients.length : 1;
     const reward = enemy.reward || {credits:0, xp:0, premium:0};
     for(const player of recipients){
@@ -65,7 +69,7 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
         reputation,
         rankPoints,
         firmBoosters,
-        progression:getProgressionSnapshot(profile?.player),
+        progression:getProgressionSnapshot(profile?.player, getProgressionLevelCap(profile?.prestigeCount)),
         rewardAppliedByServer:true,
         at:Date.now()
       });

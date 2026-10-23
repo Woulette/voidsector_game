@@ -22,6 +22,38 @@ export function rollPortalAnchorKeyDrop(mapId, {random = Math.random} = {}){
   return {...PORTAL_ANCHOR_KEY_DROP};
 }
 
+export function portalRuleMatchesMap(rule, map){
+  if((rule.dropZones || []).includes(map?.name)) return true;
+  if(rule.includeCore && (String(map?.id || "") === "50" || String(map?.name || "").toUpperCase() === "CORE")){
+    return true;
+  }
+  const mapNumber = Number(String(map?.name || "").match(/-(\d{2})$/)?.[1] || 0);
+  if(mapNumber > 0 && (rule.dropMapNumbers || []).includes(mapNumber)) return true;
+  const dropLevelRange = Array.isArray(rule.dropLevelRange) ? rule.dropLevelRange : null;
+  const mapLevelRange = Array.isArray(map?.level) ? map.level : null;
+  if(!dropLevelRange || !mapLevelRange) return false;
+  const dropMin = Number(dropLevelRange[0]);
+  const dropMax = Number(dropLevelRange[1]);
+  const mapMin = Number(mapLevelRange[0]);
+  const mapMax = Number(mapLevelRange[1]);
+  if(![dropMin, dropMax, mapMin, mapMax].every(Number.isFinite)) return false;
+  return mapMax >= dropMin && mapMin <= dropMax;
+}
+
+export function rollPortalPieceDrop(mapId, {random = Math.random} = {}){
+  const map = WORLD_MAPS[String(mapId)] || null;
+  if(!map) return null;
+  const eligibleRules = PORTAL_DROP_RULES.filter(rule=>Number(rule.dropChance) > 0 && portalRuleMatchesMap(rule, map));
+  const roll = Number(random());
+  if(!Number.isFinite(roll) || roll < 0 || roll > 1) return null;
+  let cumulativeChance = 0;
+  for(const rule of eligibleRules){
+    cumulativeChance += Number(rule.dropChance);
+    if(roll <= cumulativeChance) return {...rule};
+  }
+  return null;
+}
+
 export function createWorldLootManager({io, players, profileManager, emitProfileSync, getGroups}){
   const activeLootDrops = new Map();
 
@@ -42,15 +74,6 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
     }
   }
 
-  function rollPortalPieceDrop(mapId){
-    const mapName = WORLD_MAPS[String(mapId)]?.name || String(mapId);
-    for(const rule of PORTAL_DROP_RULES){
-      if(!rule.dropChance || !(rule.dropZones || []).includes(mapName)) continue;
-      if(Math.random() <= rule.dropChance) return rule;
-    }
-    return null;
-  }
-
   function emitPrivatePortalPieceDrop({enemy, mapId, ownerId}){
     const owner = players.get(ownerId);
     if(!enemy || enemy.portalPieceDropRolled || !owner || String(owner.mapId) !== String(mapId)) return;
@@ -67,6 +90,7 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
       kind:"portalPiece",
       portalId:drop.id,
       portalName:drop.name,
+      name:drop.pieceName || `Fragment ${drop.name}`,
       mapId:String(mapId),
       x,
       y,
@@ -77,6 +101,7 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
       kind:"portalPiece",
       portalId:drop.id,
       portalName:drop.name,
+      name:drop.pieceName || `Fragment ${drop.name}`,
       img:drop.img,
       mapId,
       x,
@@ -92,12 +117,19 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
     if(!enemy || enemy.questItemDropRolled || !owner || String(owner.mapId) !== String(mapId)) return;
     enemy.questItemDropRolled = true;
     const mapName = WORLD_MAPS[String(mapId)]?.name || String(mapId);
-    const drop = getGroupQuestItemRecipients(owner)
-      .map(player=>findServerQuestItemDrop(profileManager.getProfileForPlayer?.(player), {
+    const candidates = getGroupQuestItemRecipients(owner).map(player=>{
+      const profile = profileManager.getProfileForPlayer?.(player);
+      const itemDrop = findServerQuestItemDrop(profile, {
         enemyKind:enemy.kind || enemy.type,
         zoneName:mapName
-      }))
-      .find(Boolean);
+      });
+      return itemDrop ? {
+        playerId:player.id,
+        drop:itemDrop,
+        runId:String(profile.questFailProgress?.[itemDrop.questId]?.runId || "")
+      } : null;
+    }).filter(Boolean);
+    const drop = candidates[0]?.drop;
     if(!drop?.itemId || Math.random() > Number(drop.dropChance || 0)) return;
     const x = Number(enemy.x || 0) + (Math.random() - .5) * 70;
     const y = Number(enemy.y || 0) + (Math.random() - .5) * 70;
@@ -109,6 +141,8 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
       kind:"questItem",
       questId:drop.questId,
       objectiveId:drop.objectiveId,
+      questRuns:Object.fromEntries(candidates.filter(entry=>entry.drop.itemId === drop.itemId)
+        .map(entry=>[entry.playerId, {questId:entry.drop.questId, runId:entry.runId}])),
       itemId:drop.itemId,
       name:drop.itemName,
       img:drop.itemImg,
@@ -140,7 +174,8 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
     const owner = players.get(ownerId);
     if(!enemy || enemy.resourceDropRolled || !owner || String(owner.mapId) !== String(mapId)) return;
     enemy.resourceDropRolled = true;
-    const drops = rollResourceDrops(enemy.level);
+    const resourceDropBand = WORLD_MAPS[String(mapId)]?.resourceDropBand || "";
+    const drops = rollResourceDrops(enemy.level, {resourceDropBand});
     for(const drop of drops){
       const x = Number(enemy.x || 0) + (Math.random() - .5) * 90;
       const y = Number(enemy.y || 0) + (Math.random() - .5) * 90;
@@ -259,9 +294,16 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
         at:Date.now()
       });
       for(const recipient of getGroupQuestItemRecipients(player, drop.groupId)){
+        const run = drop.questRuns?.[recipient.id];
+        const profile = profileManager.getProfileForPlayer?.(recipient);
+        // A ground item belongs to the attempts active when the monster died.
+        // Abandon/reaccept (including within the same millisecond) gets a new ID.
+        if(!run || !profile?.activeQuestIds?.includes(run.questId)
+          || profile.completedQuestClaims?.[run.questId]
+          || String(profile.questFailProgress?.[run.questId]?.runId || "") !== run.runId) continue;
         const questResult = profileManager.applyQuestAction({
           player:recipient,
-          action:{kind:"progress", type:"quest_item_drop", itemId:drop.itemId}
+          action:{kind:"progress", type:"quest_item_drop", itemId:drop.itemId, questId:run.questId}
         });
         if(!questResult.ok) continue;
         if(questResult.updates?.length){

@@ -45,7 +45,6 @@ export function createGroupCommands({multiplayer, toast, emitChange}){
     multiplayer.coopInstanceId = null;
     multiplayer.coopSpawn = null;
     multiplayer.portalInstance = null;
-    multiplayer.preparedPortal = null;
     multiplayer.portalAlly = null;
     multiplayer.portalBeacons = [];
     multiplayer.portalObjective = null;

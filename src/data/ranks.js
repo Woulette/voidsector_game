@@ -31,7 +31,7 @@ export const RANK_POINT_RULES = [
   {id:"reputation", label:"Réputation", source:"Réputation totale gagnée", rate:"1 point par 10 000 réputation", multiplier:0.0001},
   {id:"kill", label:"Monstres détruits", source:"Barème fixe propre à chaque monstre", rate:"Points attribués par paliers de kills", multiplier:1},
   {id:"level", label:"Niveaux pilote", source:"Progression du niveau du commandant", rate:"1 000 points par niveau gagné après le niveau 1", multiplier:1000},
-  {id:"portal", label:"Portails terminés", source:"Nettoyage complet des 30 vagues d'un portail", rate:"2 500 points par portail terminé", multiplier:2500}
+  {id:"portal", label:"Portails terminés", source:"Nettoyage complet d'un portail", rate:"2 500 points par portail terminé", multiplier:2500}
 ];
 
 export const MONSTER_RANK_POINT_RULES = Object.freeze({

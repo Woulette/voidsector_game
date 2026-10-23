@@ -1,7 +1,8 @@
+import { getPlayerInstanceGroup } from "../portals/portalSessions.js";
 export function getPlayerMapRoom(player, mapId, groups){
   const cleanMapId = String(mapId ?? "0");
   const defaultRoom = `map:${cleanMapId}`;
-  const group = player?.groupId ? groups?.get(player.groupId) : null;
+  const group = getPlayerInstanceGroup(player, groups);
   const instance = group?.instance;
   if(!instance?.id) return defaultRoom;
   if(instance.abandonedMemberIds?.includes(player?.id)) return defaultRoom;
@@ -18,9 +19,13 @@ export function getPlayerMapRoom(player, mapId, groups){
 export function canSharePlayerState(recipient, candidate){
   if(!recipient || !candidate) return false;
   if(recipient.id === candidate.id) return true;
-  if(recipient.mapRoom && recipient.mapRoom === candidate.mapRoom) return true;
+  if(recipient.mapRoom && recipient.mapRoom === candidate.mapRoom){
+    const portalMap = [recipient,candidate].some(p=>String(p.state?.mapId ?? p.mapId ?? "").startsWith("portal-"));
+    return !portalMap || String(recipient.mapRoom).startsWith("instance:");
+  }
   if(!recipient.groupId || recipient.groupId !== candidate.groupId) return false;
   const recipientMapId = String(recipient.state?.mapId ?? recipient.mapId ?? "");
   const candidateMapId = String(candidate.state?.mapId ?? candidate.mapId ?? "");
+  if(recipientMapId.startsWith("portal-") || candidateMapId.startsWith("portal-")) return false;
   return Boolean(recipientMapId && candidateMapId && recipientMapId === candidateMapId);
 }

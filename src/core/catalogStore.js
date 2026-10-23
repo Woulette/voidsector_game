@@ -1,5 +1,5 @@
-import { ammoTypes, droneCatalog, droneFormations, equipment, portals, questCatalog, rawMaterialCatalog, refineryMaterialCatalog, refineryRecipes, ships } from "../data/catalog.js";
-import { store } from "./store.js";
+import { ammoTypes, droneCatalog, droneFormations, equipment, portals, questCatalog, rawMaterialCatalog, refineryMaterialCatalog, refineryRecipes, ships } from "../data/catalog.js?v=20260726-kharon1";
+import { store } from "./store.js?v=20260726-kharon1";
 
 export function getShip(id){ return ships.find(ship=>ship.id === id) || ships[0]; }
 export function getItem(id){ return equipment.find(item=>item.id === id); }

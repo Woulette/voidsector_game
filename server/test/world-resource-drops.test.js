@@ -17,6 +17,11 @@ test("world maps use the requested monster level bands", ()=>{
   assert.deepEqual(WORLD_MAPS["3"].level, [15, 19]);
   assert.deepEqual(WORLD_MAPS["4"].level, [20, 24]);
   assert.deepEqual(WORLD_MAPS["50"].level, [25, 34]);
+  assert.equal(WORLD_MAPS["0"].resourceDropBand, "early");
+  assert.equal(WORLD_MAPS["2"].resourceDropBand, "early");
+  assert.equal(WORLD_MAPS["3"].resourceDropBand, "mid");
+  assert.equal(WORLD_MAPS["4"].resourceDropBand, "mid");
+  assert.equal(WORLD_MAPS["50"].resourceDropBand, "core");
 });
 
 test("Helion-02, Helion-03 and Helion-05 keep their fixed elite counts", ()=>{
@@ -314,19 +319,45 @@ test("early boss health and damage are exactly twice their same-level normal ver
   }
 });
 
-test("resource rarity chances follow map level bands including future black-hole levels", ()=>{
-  assert.equal(getResourceDropChance("common", 14), 0.05);
-  assert.equal(getResourceDropChance("common", 15), 0);
-  assert.equal(getResourceDropChance("rare", 14), 0.01);
-  assert.equal(getResourceDropChance("rare", 15), 0.05);
-  assert.equal(getResourceDropChance("veryRare", 24), 0.01);
-  assert.equal(getResourceDropChance("veryRare", 25), 0.05);
-  assert.equal(getResourceDropChance("elite", 34), 0.01);
-  assert.equal(getResourceDropChance("elite", 35), 0.05);
-  assert.equal(getResourceDropChance("mythic", 44), 0.001);
-  assert.equal(getResourceDropChance("mythic", 45), 0.01);
-  assert.equal(getResourceDropChance("mythic", 51), 0);
-  assert.deepEqual(rollResourceDrops(1, {random:()=>0}).map(drop=>drop.rarity), ["common", "rare"]);
+test("resource rarity chances follow the explicit map bands", ()=>{
+  assert.equal(getResourceDropChance("common", 1, "early"), 0.05);
+  assert.equal(getResourceDropChance("common", 14, "early"), 0.05);
+  assert.equal(getResourceDropChance("rare", 14, "early"), 0.01);
+  assert.equal(getResourceDropChance("veryRare", 14, "early"), 0);
+  assert.equal(getResourceDropChance("elite", 14, "early"), 0);
+  assert.equal(getResourceDropChance("mythic", 14, "early"), 0);
+
+  assert.equal(getResourceDropChance("common", 15, "mid"), 0);
+  assert.equal(getResourceDropChance("rare", 15, "mid"), 0.05);
+  assert.equal(getResourceDropChance("rare", 24, "mid"), 0.05);
+  assert.equal(getResourceDropChance("veryRare", 24, "mid"), 0.01);
+  assert.equal(getResourceDropChance("elite", 24, "mid"), 0);
+
+  assert.equal(getResourceDropChance("common", 25, "core"), 0);
+  assert.equal(getResourceDropChance("rare", 25, "core"), 0.05);
+  assert.equal(getResourceDropChance("veryRare", 34, "core"), 0.01);
+  assert.equal(getResourceDropChance("elite", 34, "core"), 0.001);
+  assert.equal(getResourceDropChance("mythic", 34, "core"), 0);
+
+  assert.equal(getResourceDropChance("common", 35, "frontier35_50"), 0);
+  assert.equal(getResourceDropChance("rare", 35, "frontier35_50"), 0.05);
+  assert.equal(getResourceDropChance("veryRare", 50, "frontier35_50"), 0.05);
+  assert.equal(getResourceDropChance("elite", 50, "frontier35_50"), 0.01);
+  assert.equal(getResourceDropChance("mythic", 35, "frontier35_50"), 0.001);
+  assert.equal(getResourceDropChance("mythic", 50, "frontier35_50"), 0.001);
+
+  assert.equal(getResourceDropChance("rare", 15, "early"), 0);
+  assert.equal(getResourceDropChance("elite", 35, "core"), 0);
+  assert.equal(getResourceDropChance("mythic", 51, "frontier35_50"), 0);
+  assert.equal(getResourceDropChance("rare", 10, "unknown"), 0);
+  assert.deepEqual(
+    rollResourceDrops(1, {resourceDropBand:"early", random:()=>0}).map(drop=>drop.rarity),
+    ["common", "rare"]
+  );
+  assert.deepEqual(
+    rollResourceDrops(35, {resourceDropBand:"frontier35_50", random:()=>0}).map(drop=>drop.rarity),
+    ["rare", "veryRare", "elite", "mythic"]
+  );
 });
 
 test("resource drop pools expose eight optimized assets per rarity", ()=>{

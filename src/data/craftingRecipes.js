@@ -1,13 +1,15 @@
-import { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=craft-extras-1";
-import { ships } from "./ships.js?v=craft-extras-1";
+import { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=20260726-kharon1";
+import { getNovaDiscountedPrice } from "./premium.js?v=20260726-kharon1";
+import { ships } from "./ships.js?v=20260726-kharon1";
 import {
   COMMON_CRAFT_RESOURCES,
   ELITE_CRAFT_RESOURCES,
   MYTHIC_CRAFT_RESOURCES,
   RARE_CRAFT_RESOURCES,
   VERY_RARE_CRAFT_RESOURCES
-} from "./resources.js?v=craft-extras-1";
-import { S1_BOOSTER_DURATION_MS, S1_BOOSTER_SHOP } from "../shared/firmBoosters.js?v=craft-extras-1";
+} from "./resources.js?v=20260726-kharon1";
+import { S1_BOOSTER_DURATION_MS, S1_BOOSTER_SHOP } from "../shared/firmBoosters.js?v=20260726-kharon1";
+import { PROGRESSION_PORTAL_NAMES, PROGRESSION_UNLOCKS } from "../shared/progressionUnlocks.js?v=20260726-kharon1";
 
 export const CRAFT_DURATION_MS = 60_000;
 
@@ -63,12 +65,19 @@ const FORCE_CRAFTABLE_ITEM_IDS = new Set([
   "laser_elite_blue",
   "laser_elite_red"
 ]);
+const CRAFT_RECIPE_PORTAL_UNLOCKS = Object.freeze({
+  laser_mk4:Object.freeze({portalId:"blue", portalName:"Le Seuil d’Azuron"}),
+  laser_elite_green:PROGRESSION_UNLOCKS.eliteLaserRecipes,
+  laser_elite_blue:PROGRESSION_UNLOCKS.eliteLaserRecipes,
+  laser_elite_red:PROGRESSION_UNLOCKS.eliteLaserRecipes
+});
 
-function costs(materials = {}, credits = 0, premium = 0){
+function costs(materials = {}, credits = 0, premium = 0, currencyMode = ""){
   return {
     materials:{...materials},
     credits:Math.max(0, Math.floor(Number(credits || 0))),
-    premium:Math.max(0, Math.floor(Number(premium || 0)))
+    premium:Math.max(0, Math.floor(Number(premium || 0))),
+    ...(currencyMode === "either" ? {currencyMode:"either"} : {})
   };
 }
 
@@ -83,7 +92,7 @@ const CRAFT_RECIPE_OVERRIDES = Object.freeze({
     polymere_isolant:5,
     bobine_supraconductrice:3,
     gyroscope_stabilise:2
-  }, 2_500_000)},
+  })},
   astralis:{costs:costs({
     gyroscope_stabilise:4,
     ruban_carbone_ceramique:3,
@@ -135,25 +144,25 @@ const CRAFT_RECIPE_OVERRIDES = Object.freeze({
     lentille_focalisation_dopee:4,
     micro_heatpipe_quantique:3,
     prisme_phase:2
-  })},
+  }, 5_000_000, 5_000, "either")},
   laser_elite_green:{costs:costs({
     prisme_phase:8,
     tresse_optique_quantique:6,
     bobine_plasma_solaire:3,
     capsule_nanoreparation:3
-  }, 25_000_000)},
+  }, 25_000_000, 25_000, "either")},
   laser_elite_blue:{costs:costs({
     capsule_fluide_neutronique:8,
     micro_heatpipe_quantique:6,
     cristal_phase_encapsule:4,
     injecteur_vide:3
-  }, 25_000_000)},
+  }, 25_000_000, 25_000, "either")},
   laser_elite_red:{costs:costs({
     cartouche_plasma_condense:8,
     ruban_alliage_memoire:6,
     noyau_fusion_miniature:4,
     bobine_plasma_solaire:3
-  }, 25_000_000)},
+  }, 25_000_000, 25_000, "either")},
   shield_gen:{costs:costs({
     plaques_acier:2,
     condensateurs_ceramiques:1,
@@ -292,7 +301,8 @@ function normalizeCosts(value){
       .map(([id, amount])=>[id, Math.max(0, Math.floor(Number(amount || 0)))])
       .filter(([, amount])=>amount > 0))),
     credits:Math.max(0, Math.floor(Number(source.credits || 0))),
-    premium:Math.max(0, Math.floor(Number(source.premium || 0)))
+    premium:Math.max(0, Math.floor(Number(source.premium || 0))),
+    ...(source.currencyMode === "either" ? {currencyMode:"either"} : {})
   });
 }
 
@@ -309,6 +319,11 @@ function classifyEquipment(item){
 function recipeFromSource(source, category, output, options = {}){
   const rarityTier = normalizeRarityTier(options.rarityTier || source.rarityTier || source.rarity);
   const override = CRAFT_RECIPE_OVERRIDES[source.id] || null;
+  const sourcePortalId = String(source.requiresCompletedPortal || source.requiresPortalCompletion || "");
+  const portalUnlock = CRAFT_RECIPE_PORTAL_UNLOCKS[source.id] || (sourcePortalId ? {
+    portalId:sourcePortalId,
+    portalName:PROGRESSION_PORTAL_NAMES[sourcePortalId] || sourcePortalId
+  } : null);
   const recipeCosts = normalizeCosts(override?.costs || buildCosts(source, category, rarityTier));
   const finalCosts = options.freeCurrency ? normalizeCosts({...recipeCosts, credits:0, premium:0}) : recipeCosts;
   const idCategory = options.idCategory || category;
@@ -323,6 +338,10 @@ function recipeFromSource(source, category, output, options = {}){
     desc:source.desc || source.shopDesc || "",
     durationMs:CRAFT_DURATION_MS,
     costs:finalCosts,
+    ...(portalUnlock ? {
+      requiresCompletedPortal:portalUnlock.portalId,
+      requiresCompletedPortalName:portalUnlock.portalName
+    } : {}),
     output:Object.freeze(output)
   });
 }
@@ -416,6 +435,7 @@ export function getCraftRecipes(){
 
 export function shouldHideCraftRecipeForProfile(recipe, profile = {}){
   if(!recipe?.output) return true;
+  if(getCraftRecipePortalLockReason(recipe, profile)) return true;
   const outputId = String(recipe.output.id || "");
   if(recipe.output.type === "ship"){
     return Array.isArray(profile.ownedShips) && profile.ownedShips.map(String).includes(outputId);
@@ -428,6 +448,13 @@ export function shouldHideCraftRecipeForProfile(recipe, profile = {}){
 
 export function getVisibleCraftRecipes(profile = {}){
   return craftingRecipes.filter(recipe=>!shouldHideCraftRecipeForProfile(recipe, profile));
+}
+
+export function getCraftRecipePortalLockReason(recipe, profile = {}){
+  const portalId = String(recipe?.requiresCompletedPortal || "");
+  if(!portalId) return "";
+  if(Math.max(0, Number(profile?.completedPortals?.[portalId] || 0)) > 0) return "";
+  return `${recipe.requiresCompletedPortalName || portalId} terminé requis.`;
 }
 
 export function getCraftJobProgress(job, now = Date.now()){
@@ -447,35 +474,81 @@ export function getCraftJobProgress(job, now = Date.now()){
   };
 }
 
-export function getCraftRecipeAvailability(recipe, profile = {}, now = Date.now()){
+export function normalizeCraftPaymentType(value){
+  const type = String(value || "").trim().toLowerCase();
+  return type === "credits" || type === "premium" ? type : "";
+}
+
+export function getCraftCurrencySelection(recipe, paymentType = ""){
+  const costs = recipe?.costs || {};
+  const credits = Math.max(0, Math.floor(Number(costs.credits || 0)));
+  const premium = Math.max(0, Math.floor(Number(costs.premium || 0)));
+  if(costs.currencyMode !== "either"){
+    return {ok:true, paymentType:"all", credits, premium};
+  }
+  const requested = String(paymentType || "").trim();
+  const selected = normalizeCraftPaymentType(requested);
+  if(!selected){
+    return {
+      ok:false,
+      reason:requested ? "Moyen de paiement invalide." : "Choisis un paiement en credits ou en NOVA.",
+      paymentType:"",
+      credits:0,
+      premium:0
+    };
+  }
+  const amount = selected === "premium" ? premium : credits;
+  if(amount <= 0){
+    return {
+      ok:false,
+      reason:"Ce moyen de paiement n'est pas disponible pour cette recette.",
+      paymentType:selected,
+      credits:0,
+      premium:0
+    };
+  }
+  return {
+    ok:true,
+    paymentType:selected,
+    credits:selected === "credits" ? credits : 0,
+    premium:selected === "premium" ? premium : 0
+  };
+}
+
+export function getRedundantCraftOutputReason(recipe, profile = {}){
+  const outputId = String(recipe?.output?.id || "");
+  if(recipe?.output?.type === "ship" && Array.isArray(profile.ownedShips) && profile.ownedShips.map(String).includes(outputId)) return "Vaisseau deja possede.";
+  if(recipe?.output?.type === "formation" && Array.isArray(profile.ownedDroneFormations) && profile.ownedDroneFormations.map(String).includes(outputId)) return "Formation deja possedee.";
+  if(recipe?.output?.type === "drone"){
+    const maxOwned = Number(droneCatalog.find(drone=>drone.id === outputId)?.maxStandardOwned || 8);
+    if(Math.max(0, Number(profile.ownedDroneCount || 0)) >= maxOwned) return `Limite de drones standards atteinte (${maxOwned}/${maxOwned}).`;
+  }
+  return "";
+}
+
+export function getCraftRecipeAvailability(recipe, profile = {}, now = Date.now(), paymentType = ""){
   if(!recipe) return {ok:false, reason:"Recette introuvable."};
+  const portalLockReason = getCraftRecipePortalLockReason(recipe, profile);
+  if(portalLockReason) return {ok:false, reason:portalLockReason};
   const job = getCraftJobProgress(profile.craftingJob, now);
   if(job.active) return {ok:false, reason:job.done ? "Recupere le craft termine avant d'en lancer un autre." : "Une fabrication est deja en cours."};
-  const outputId = String(recipe.output?.id || "");
-  if(recipe.output?.type === "ship" && Array.isArray(profile.ownedShips) && profile.ownedShips.map(String).includes(outputId)){
-    return {ok:false, reason:"Vaisseau deja possede."};
-  }
-  if(recipe.output?.type === "formation" && Array.isArray(profile.ownedDroneFormations) && profile.ownedDroneFormations.map(String).includes(outputId)){
-    return {ok:false, reason:"Formation deja possedee."};
-  }
-  if(recipe.output?.type === "drone"){
-    const maxOwned = Math.max(0, Number(droneCatalog.find(drone=>drone.id === outputId)?.maxOwned || 10));
-    if(Math.max(0, Number(profile.ownedDroneCount || 0)) >= maxOwned){
-      return {ok:false, reason:`Limite de drones atteinte (${maxOwned}/${maxOwned}).`};
-    }
-  }
+  const redundantReason = getRedundantCraftOutputReason(recipe, profile);
+  if(redundantReason) return {ok:false, reason:redundantReason};
   const cargoHold = profile.cargoHold && typeof profile.cargoHold === "object" ? profile.cargoHold : {};
   for(const [materialId, amount] of Object.entries(recipe.costs?.materials || {})){
     if(Math.max(0, Number(cargoHold[materialId] || 0)) < Math.max(0, Number(amount || 0))){
       return {ok:false, reason:"Ressources insuffisantes."};
     }
   }
+  const currency = getCraftCurrencySelection(recipe, paymentType);
+  if(!currency.ok) return currency;
   const player = profile.player || {};
-  if(Math.max(0, Number(player.credits || 0)) < Math.max(0, Number(recipe.costs?.credits || 0))){
+  if(Math.max(0, Number(player.credits || 0)) < currency.credits){
     return {ok:false, reason:"Credits insuffisants."};
   }
-  if(Math.max(0, Number(player.premium || 0)) < Math.max(0, Number(recipe.costs?.premium || 0))){
+  const premiumCost = getNovaDiscountedPrice(currency.premium, player, now);
+  if(Math.max(0, Number(player.premium || 0)) < premiumCost){
     return {ok:false, reason:"NOVA insuffisants."};
   }
-  return {ok:true, reason:""};
+  return {ok:true, reason:"", paymentType:currency.paymentType};
 }

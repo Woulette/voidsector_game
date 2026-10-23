@@ -8,15 +8,19 @@ import {
   saveSession
 } from "../storage/authStore.js";
 import { isAccountBanned, publicAccount } from "./accounts.js";
+import { createSessionCleanupScheduler } from "./sessionCleanup.js";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const expiredSessionCleanup = createSessionCleanupScheduler({
+  deleteExpired:deleteExpiredSessions
+});
 
 function tokenHash(token){
   return crypto.createHash("sha256").update(String(token || "")).digest("hex");
 }
 
 export async function createSession(accountId){
-  await deleteExpiredSessions();
+  await expiredSessionCleanup.cleanup();
   const token = crypto.randomBytes(32).toString("base64url");
   const now = Date.now();
   const session = {
@@ -34,9 +38,13 @@ export async function createSession(accountId){
 }
 
 export async function getSessionAccount(token){
-  await deleteExpiredSessions();
+  await expiredSessionCleanup.cleanup();
   const session = await findSessionByTokenHash(tokenHash(token));
   if(!session) return null;
+  if(Number(session.expiresAt || 0) <= Date.now()){
+    await deleteSession(session.id);
+    return null;
+  }
   const account = await findAccountById(session.accountId);
   if(!account){
     await deleteSession(session.id);

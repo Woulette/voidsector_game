@@ -1,6 +1,8 @@
+import { getInstanceGroup, getPlayerInstanceGroup } from "../portals/portalSessions.js";
 import { getShipAbilityDefinition } from "../../../src/shared/shipAbilities.js";
 import { getFirmHitOwner, markFirmHitOwner } from "../firms/firmHitOwnership.js";
 import { markEnemyAttackedByPlayer } from "../world/aggro.js";
+import { scaleEclaniteEnemyDamage } from "../portals/eclanitePortal.js";
 
 const POISON_BOMB_EFFECT_TYPE = "enemy_poison_bomb";
 
@@ -71,7 +73,7 @@ export function createShipAbilityEffectManager({
   function resolvePlayerScope(player){
     if(!player?.state) return null;
     const mapId = String(player.state.mapId || player.mapId || "");
-    const group = player.groupId ? groups?.get(player.groupId) : null;
+    const group = getPlayerInstanceGroup(player, groups);
     const instance = group?.instance || null;
     if(instance && !instance.completed && getInstanceMapId(instance) === mapId){
       return {
@@ -96,7 +98,7 @@ export function createShipAbilityEffectManager({
   function resolvePoisonRecord(record){
     if(!record) return null;
     if(record.scope === "instance"){
-      const group = groups?.get(record.groupId);
+      const group = getInstanceGroup(groups, record.groupId);
       const instance = group?.instance || null;
       if(!instance || instance.completed) return null;
       const enemy = instance.enemies?.find(entry=>String(entry.id) === String(record.enemyId));
@@ -174,7 +176,7 @@ export function createShipAbilityEffectManager({
     const player = players?.get(record.attackerId);
     if(!player) return;
     if(record.scope === "instance"){
-      const group = groups?.get(record.groupId);
+      const group = getInstanceGroup(groups, record.groupId);
       if(group?.instance){
         handlePortalEnemyDeath?.(group, enemy, record.attackerId);
         emitInstance?.(group);
@@ -187,7 +189,7 @@ export function createShipAbilityEffectManager({
   function applyPoisonToEnemy({enemy, player, scope, definition, now}){
     const radius = Math.max(1, Number(definition.radius || 300));
     const distance = Math.hypot(finite(enemy.x) - finite(player.state.x), finite(enemy.y) - finite(player.state.y));
-    if(distance > radius || Number(enemy.hp || 0) <= 0) return false;
+    if(distance > radius || Number(enemy.hp || 0) <= 0 || enemy.damageImmune) return false;
     markEnemyAttackedByPlayer(enemy, player.id, 0, now);
     markFirmHitOwner(enemy, player);
     updateLootOwner?.(enemy, player.id);
@@ -288,7 +290,7 @@ export function createShipAbilityEffectManager({
       && poison.nextTickAt <= poison.expiresAt
       && Number(enemy.hp || 0) > 0){
       const player = players?.get(record.attackerId);
-      const damage = Math.max(0, Math.round(Number(poison.damagePerTick || 0)));
+      const damage = Math.max(0, Math.round(scaleEclaniteEnemyDamage(enemy, poison.damagePerTick || 0)));
       const before = Math.max(0, Number(enemy.hp || 0));
       const dealt = Math.min(before, damage);
       enemy.hp = Math.max(0, before - dealt);

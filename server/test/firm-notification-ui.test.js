@@ -31,9 +31,9 @@ test("firm navigation displays totals on firm, quests, rewards and each quest ca
   globalThis.BroadcastChannel = undefined;
   t.after(()=>Object.assign(globalThis, previous));
 
-  const { multiplayer } = await import("../../src/multiplayer/client.js");
-  const { store } = await import("../../src/core/store.js");
-  const { renderFirm } = await import("../../src/ui/renderFirm.js");
+  const { multiplayer } = await import("../../src/multiplayer/client.js?v=20260726-kharon1");
+  const { store } = await import("../../src/core/store.js?v=20260726-kharon1");
+  const { renderFirm } = await import("../../src/ui/renderFirm.js?v=20260726-kharon1");
   const previousSnapshot = multiplayer.firmSnapshot;
   const previousTab = store.firmTab;
   const previousQuestTab = store.firmQuestTab;

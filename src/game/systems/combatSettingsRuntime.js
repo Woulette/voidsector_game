@@ -1,4 +1,4 @@
-import { getGameSettings } from "../../core/settingsStore.js";
+import { getGameSettings } from "../../core/settingsStore.js?v=20260726-kharon1";
 
 export function createCombatSettingsRuntime({
   store,

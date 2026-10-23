@@ -11,6 +11,7 @@ import { getFirmDefinition, getFirmMapId, normalizeFirmId } from "../../../src/d
 import { pilotNameKey, sanitizePilotName } from "./profileIdentity.js";
 import { reconcileTutorialProgress, resetTutorialForNewFirm } from "./tutorialActions.js";
 import { reservePilotIdentity as defaultReservePilotIdentity } from "../storage/pilotIdentityStore.js";
+import { refundRedundantCraftingJob } from "../economy/craftingRecovery.js";
 
 export { sanitizeProfile } from "./profileSanitize.js";
 
@@ -25,7 +26,13 @@ export function createProfileManager({
   const profiles = new Map();
   const persistenceVersions = new Map();
   const deferredPersistenceTimers = new Map();
+  const pendingPersistence = new Map();
+  const persistenceByKey = new Map();
+  const readOnlyProfileSnapshots = new WeakMap();
   let persistenceTail = Promise.resolve();
+  let nextPersistenceId = 1;
+  let maxPersistencePending = 0;
+  let lastPersistenceDurationMs = 0;
   let identityTail = Promise.resolve();
 
   function errorText(error){
@@ -63,12 +70,34 @@ export function createProfileManager({
 
   async function load(){
     try{
-      const entries = await loadProfileEntries(sanitizeProfile);
+      const repairedProfiles = new WeakSet();
+      const entries = await loadProfileEntries(rawProfile=>{
+        const profile = sanitizeProfile(rawProfile);
+        if(Number(rawProfile?.questCatalogRevision || 0) < profile.questCatalogRevision
+          && Array.isArray(rawProfile?.activeQuestIds)
+          && rawProfile.activeQuestIds.some(id=>!profile.activeQuestIds.includes(id))){
+          repairedProfiles.add(profile);
+        }
+        return profile;
+      });
       profiles.clear();
       persistenceVersions.clear();
       for(const [key, profile] of entries){
         profiles.set(key, profile);
         persistenceVersions.set(key, Math.max(0, Number(profile?.updatedAt || 0)));
+      }
+      // Persist repairs even for offline accounts. A failed financial repair
+      // restores the unpaid snapshot so it can be retried without double gain.
+      for(const [key, profile] of entries){
+        const previous = profile.craftingJob ? cloneProfileSnapshot(profile) : null;
+        const recovery = refundRedundantCraftingJob(profile);
+        if(!repairedProfiles.has(profile) && !recovery.ok) continue;
+        try{
+          await persist(key);
+        }catch(error){
+          if(recovery.ok && previous) profiles.set(key, previous);
+          throw error;
+        }
       }
     }catch(error){
       logger?.warn?.("Unable to load profiles", {error:error?.message || String(error)});
@@ -96,10 +125,23 @@ export function createProfileManager({
         return [entryKey, JSON.parse(JSON.stringify(profile))];
       }).filter(Boolean);
       if(!entries.length) return Promise.resolve();
+      const persistenceId = nextPersistenceId++;
+      const enqueuedAt = Date.now();
+      pendingPersistence.set(persistenceId, enqueuedAt);
+      maxPersistencePending = Math.max(maxPersistencePending, pendingPersistence.size);
       const operation = persistenceTail
         .catch(()=>{})
         .then(()=>persistProfileEntries(entries));
       persistenceTail = operation;
+      for(const entryKey of keys) persistenceByKey.set(entryKey, operation);
+      const completePersistence = ()=>{
+        pendingPersistence.delete(persistenceId);
+        lastPersistenceDurationMs = Math.max(0, Date.now() - enqueuedAt);
+        for(const entryKey of keys){
+          if(persistenceByKey.get(entryKey) === operation) persistenceByKey.delete(entryKey);
+        }
+      };
+      operation.then(completePersistence, completePersistence);
       operation.catch(error=>{
         logger?.warn?.("Unable to save profiles", {error:error?.message || String(error)});
         recordProfileError("profiles:persist", error, {profileKeys:keys});
@@ -110,6 +152,17 @@ export function createProfileManager({
       recordProfileError("profiles:persist", error, {profileKeys:key === null ? ["*"] : [String(key || "")]});
       return Promise.reject(error);
     }
+  }
+
+  function getPersistenceMetrics(){
+    const queuedAt = [...pendingPersistence.values()];
+    const oldestQueuedAt = queuedAt.length ? Math.min(...queuedAt) : 0;
+    return {
+      pending:pendingPersistence.size,
+      maxPending:maxPersistencePending,
+      oldestAgeMs:oldestQueuedAt ? Math.max(0, Date.now() - oldestQueuedAt) : 0,
+      lastDurationMs:lastPersistenceDurationMs
+    };
   }
 
   function persistDeferred(key, delayMs = 500){
@@ -171,8 +224,8 @@ export function createProfileManager({
       && JSON.stringify(left.lastLaserAmmoId ?? null) === JSON.stringify(right.lastLaserAmmoId ?? null);
   }
 
-  function clientPreferenceUpdatedAt(profile = {}, fallback = 0){
-    return Math.max(0, Number(profile.actionSlotsUpdatedAt || fallback || 0));
+  function clientPreferenceUpdatedAt(profile = {}){
+    return Math.max(0, Number(profile.actionSlotsUpdatedAt || 0));
   }
 
   function ensureProfileIdentity(profile, player){
@@ -267,16 +320,33 @@ export function createProfileManager({
     const incomingHasPreferenceTimestamp = Object.hasOwn(rawProfile, "actionSlotsUpdatedAt");
     const incoming = sanitizeProfile(rawProfile);
     const existing = profiles.get(key);
+    const previousSnapshot = existing ? sanitizeProfile(existing) : null;
     const refineryChanged = existing ? advanceRefineryState(existing) : false;
-    const incomingPreferenceUpdatedAt = clientPreferenceUpdatedAt(incoming, incoming.updatedAt);
-    const existingPreferenceUpdatedAt = existing ? clientPreferenceUpdatedAt(existing, 0) : 0;
-    const hasNewerClientPreferences = incomingPreferenceUpdatedAt > existingPreferenceUpdatedAt;
-    if(existing && Number(incoming.updatedAt || 0) < Number(existing.updatedAt || 0) && !hasNewerClientPreferences){
+    const incomingPreferenceUpdatedAt = clientPreferenceUpdatedAt(incoming);
+    const existingPreferenceUpdatedAt = existing ? clientPreferenceUpdatedAt(existing) : 0;
+    const preferencesMatch = existing ? sameClientPreferenceFields(existing, incoming) : false;
+    const hasStaleClientPreferences = existing && incomingPreferenceUpdatedAt < existingPreferenceUpdatedAt;
+    const hasDivergentSameVersionPreferences = existing
+      && incomingPreferenceUpdatedAt === existingPreferenceUpdatedAt
+      && !preferencesMatch;
+    if(hasStaleClientPreferences || hasDivergentSameVersionPreferences){
+      let persistence = persistenceByKey.get(key) || Promise.resolve();
       if(refineryChanged){
         profiles.set(key, sanitizeProfile(existing));
-        persist(key);
+        persistence = persist(key);
       }
-      return null;
+      const canonical = sanitizeProfile(existing);
+      return {
+        profile:canonical,
+        claimedQuests:[],
+        conflict:true,
+        status:"conflict",
+        reason:hasStaleClientPreferences ? "stale-preferences" : "divergent-preferences",
+        acknowledgedAt:Math.max(0, Number(incoming.updatedAt || 0)),
+        serverUpdatedAt:Math.max(0, Number(canonical.updatedAt || 0)),
+        actionSlotsUpdatedAt:existingPreferenceUpdatedAt,
+        persistence
+      };
     }
     const base = existing ? sanitizeProfile(existing) : createDefaultProfile();
     const starterChanged = ensureStarterRepairDrone(base);
@@ -294,21 +364,49 @@ export function createProfileManager({
     const preferencesChanged = !sameClientPreferenceFields(base, next);
     const preferenceTimestampChanged = incomingHasPreferenceTimestamp && Number(next.actionSlotsUpdatedAt || 0) > Number(base.actionSlotsUpdatedAt || 0);
     if(!refineryChanged && !starterChanged && !starterShipChanged && !identityChanged && !claimedQuests.length && !preferencesChanged && !preferenceTimestampChanged){
-      return {profile:base, claimedQuests:[], unchanged:true, acknowledgedAt:Math.max(Number(incoming.updatedAt || 0), Number(base.updatedAt || 0))};
+      return {
+        profile:base,
+        claimedQuests:[],
+        unchanged:true,
+        status:"unchanged",
+        acknowledgedAt:Math.max(0, Number(incoming.updatedAt || 0)),
+        serverUpdatedAt:Math.max(0, Number(base.updatedAt || 0)),
+        actionSlotsUpdatedAt:existingPreferenceUpdatedAt,
+        persistence:persistenceByKey.get(key) || Promise.resolve()
+      };
     }
     if(starterChanged || starterShipChanged) next.updatedAt = Date.now();
     profiles.set(key, next);
-    persist(key);
-    return {profile:next, claimedQuests, acknowledgedAt:Math.max(Number(incoming.updatedAt || 0), Number(next.updatedAt || 0))};
+    const persistence = persist(key).catch(error=>{
+      if(profiles.get(key) === next){
+        if(previousSnapshot) profiles.set(key, previousSnapshot);
+        else profiles.delete(key);
+      }
+      throw error;
+    });
+    persistenceByKey.set(key, persistence);
+    const clearTrackedPersistence = ()=>{
+      if(persistenceByKey.get(key) === persistence) persistenceByKey.delete(key);
+    };
+    persistence.then(clearTrackedPersistence, clearTrackedPersistence);
+    return {
+      profile:next,
+      claimedQuests,
+      status:"saved",
+      acknowledgedAt:Math.max(0, Number(incoming.updatedAt || 0)),
+      serverUpdatedAt:Math.max(0, Number(next.updatedAt || 0)),
+      actionSlotsUpdatedAt:Math.max(0, Number(next.actionSlotsUpdatedAt || 0)),
+      persistence
+    };
   }
 
-  function getExistingProfile(player){
+  function getExistingProfile(player, {advanceRefinery = true} = {}){
     const key = player.accountId ? accountProfileKey(player.accountId) : profileKey(player.name);
     const existing = profiles.get(key);
     if(existing){
       const starterChanged = ensureStarterRepairDrone(existing);
       const starterShipChanged = ensureStarterShipSelection(existing);
-      const refineryChanged = advanceRefineryState(existing);
+      const refineryChanged = advanceRefinery ? advanceRefineryState(existing) : false;
       if(refineryChanged || starterChanged || starterShipChanged){
         if(starterChanged || starterShipChanged) existing.updatedAt = Date.now();
         profiles.set(key, sanitizeProfile(existing));
@@ -320,6 +418,16 @@ export function createProfileManager({
       key,
       profile:createDefaultProfile()
     };
+  }
+
+  function getProfileSnapshotForPlayer(player, {advanceRefinery = false} = {}){
+    if(!player) return null;
+    const {profile} = getExistingProfile(player, {advanceRefinery});
+    const cached = readOnlyProfileSnapshots.get(profile);
+    if(cached) return cached;
+    const snapshot = sanitizeProfile(profile);
+    readOnlyProfileSnapshots.set(profile, snapshot);
+    return snapshot;
   }
 
   const profileKeyForPlayer = player=>player?.accountId ? accountProfileKey(player.accountId) : profileKey(player?.name || "Pilote");
@@ -393,6 +501,7 @@ export function createProfileManager({
       firmId:nextFirm,
       firmSelected:true
     };
+    let homeMap = null;
     if(currentFirm !== nextFirm){
       profile.activeQuestIds = [];
       profile.activeQuestId = null;
@@ -400,13 +509,10 @@ export function createProfileManager({
       profile.questFailProgress = {};
       resetTutorialForNewFirm(profile);
       const firm = getFirmDefinition(nextFirm);
-      const homeMap = String(getFirmMapId(firm.id, 1));
+      homeMap = String(getFirmMapId(firm.id, 1));
       profile.worldSession = null;
       profile.shipWorldSessions = {};
-      player.mapId = homeMap;
     }
-    player.name = pilotName;
-    if(player.account) player.account.firmId = nextFirm;
     profile.updatedAt = Date.now();
     ensureStarterRepairDrone(profile);
     ensureStarterShipSelection(profile);
@@ -418,6 +524,10 @@ export function createProfileManager({
       restoreProfileSnapshot(profiles, key, previous);
       throw error;
     }
+    player.name = pilotName;
+    player.firmId = nextFirm;
+    if(player.account) player.account.firmId = nextFirm;
+    if(homeMap !== null) player.mapId = homeMap;
     return {ok:true, profile:profiles.get(key), firm:getFirmDefinition(nextFirm), firmChanged:currentFirm !== nextFirm};
   }
 
@@ -492,9 +602,11 @@ export function createProfileManager({
     applyEconomyAction,
     applyProgressionAction,
     getProfileForPlayer,
+    getProfileSnapshotForPlayer,
     getShipWorldSessionForPlayer,
     getWorldSessionForPlayer,
     saveWorldSession,
+    getPersistenceMetrics,
     setupProfileForPlayer,
     findProfileEntryByPilotName,
     getProfileEntry,

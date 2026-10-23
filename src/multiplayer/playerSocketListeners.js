@@ -1,28 +1,25 @@
-import { markProfileSaveAcknowledged } from "./profileSync.js?v=action-slots-save-1-fps-burst-1";
-import { countCombatProfiler } from "../game/systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
+import { markProfileSaveAcknowledged } from "./profileSync.js?v=20260726-kharon1";
+import { countCombatProfiler } from "../game/systems/combatFrameProfiler.js?v=20260726-kharon1";
 
 function pushEvent(target, event, limit){
   target.push({...event, receivedAt:performance.now()});
   if(target.length > limit) target.splice(0, target.length - limit);
 }
 
-const SOCIAL_PROFILE_SYNC_INTERVAL_MS = 60 * 1000;
-
-function requestSocialSyncFromProfile(socket, multiplayer){
-  const now = Date.now();
-  const last = Number(multiplayer.socialSync?.lastProfileSyncRequestedAt || 0);
-  if(last && now - last < SOCIAL_PROFILE_SYNC_INTERVAL_MS) return;
-  multiplayer.socialSync = {
-    ...(multiplayer.socialSync || {}),
-    lastProfileSyncRequestedAt:now
-  };
-  socket.emit("social:sync");
+function isPreTransferCorrection(session, lastMapChange){
+  if(session?.source !== "state-correction" || !lastMapChange) return false;
+  if(session.isDead || Number(session.hp) <= 0) return false;
+  const sourceSeq = Number(session.sourceSeq);
+  return Number.isSafeInteger(sourceSeq) && sourceSeq > 0
+    && sourceSeq < lastMapChange.sourceSeq
+    && String(session.mapId ?? "") === lastMapChange.fromMapId;
 }
 
 export function installPlayerSocketListeners({
   socket,
   multiplayer,
-  requestLeaderboardSync,
+  requestSocialSync,
+  backgroundSync,
   upsertRemotePlayer,
   addRemoteEffect,
   emitChange,
@@ -35,9 +32,14 @@ export function installPlayerSocketListeners({
   });
   socket.on("profile:sync", profile=>{
     multiplayer.auth.profileReady = true;
-    requestSocialSyncFromProfile(socket, multiplayer);
-    requestLeaderboardSync?.();
+    if(profile && Object.hasOwn(profile, "preparedPortal")){
+      multiplayer.preparedPortal = profile.preparedPortal
+        ? {...profile.preparedPortal, receivedAt:performance.now()}
+        : null;
+    }
+    requestSocialSync?.();
     window.dispatchEvent(new CustomEvent("voidsector:profile-sync", {detail:{profile}}));
+    emitChange("profile:sync", profile);
   });
   socket.on("profile:setup-complete", event=>{
     toast(event?.firmLabel ? `Profil pilote pret : ${event.firmLabel}.` : "Profil pilote pret.");
@@ -70,6 +72,9 @@ export function installPlayerSocketListeners({
   });
   socket.on("player:state-correction", session=>{
     countCombatProfiler("socket.playerStateCorrection", 1);
+    // Only discard corrections produced before the map request; its rejection stays authoritative.
+    if(multiplayer.lastPlayerMapChange?.socketId === socket.id
+      && isPreTransferCorrection(session, multiplayer.lastPlayerMapChange)) return;
     window.dispatchEvent(new CustomEvent("voidsector:player-resume", {detail:{session}}));
     emitChange("player:state-correction", session);
   });
@@ -92,6 +97,7 @@ export function installPlayerSocketListeners({
     emitChange();
   });
   socket.on("leaderboard:ranking", payload=>{
+    backgroundSync?.markReceived("leaderboard:sync");
     multiplayer.leaderboardRanking = payload || null;
     multiplayer.leaderboardSync = {
       ...(multiplayer.leaderboardSync || {}),

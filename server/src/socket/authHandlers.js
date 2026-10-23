@@ -1,6 +1,7 @@
 import { loginAccount, registerAccount } from "../auth/accounts.js";
 import { createSession, getSessionAccount, revokeSessionByToken, revokeSessionsForAccount } from "../auth/sessions.js";
 import { ensureExternalAccountRecord } from "../storage/authStore.js";
+import { sessionAuthErrorPayload } from "../auth/sessionErrors.js";
 
 const EXPECTED_AUTH_ERROR_PATTERNS = [
   /^Email invalide\.$/,
@@ -179,7 +180,7 @@ export function registerAuthHandlers(socket, context){
       syncProfileForPlayer(socket);
     }catch(error){
       recordUnexpectedAuthError("auth:session", error);
-      socket.emit("auth:error", {message:authErrorMessage(error, "Session invalide.")});
+      socket.emit("auth:error", sessionAuthErrorPayload(error));
     }
   });
 

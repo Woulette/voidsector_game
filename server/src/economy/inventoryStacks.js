@@ -25,11 +25,19 @@ export function addInventoryItemAmount(profile, itemId, amount = 1){
     }
   }
   const nextUid = Math.max(1, Math.floor(Number(profile.nextInventoryUid || 1)));
-  const entry = {uid:`inv_${itemId}_${nextUid}`, itemId};
-  if(isStackableInventoryItem(itemId)) entry.quantity = count;
-  profile.inventoryItems.push(entry);
-  profile.nextInventoryUid = nextUid + 1;
-  return entry;
+  if(isStackableInventoryItem(itemId)){
+    const entry = {uid:`inv_${itemId}_${nextUid}`, itemId, quantity:count};
+    profile.inventoryItems.push(entry);
+    profile.nextInventoryUid = nextUid + 1;
+    return entry;
+  }
+  const entries = Array.from({length:count}, (_, index)=>({
+    uid:`inv_${itemId}_${nextUid + index}`,
+    itemId
+  }));
+  profile.inventoryItems.push(...entries);
+  profile.nextInventoryUid = nextUid + entries.length;
+  return entries[0] || null;
 }
 
 export function consumeInventoryItemAmount(profile, itemId, amount){

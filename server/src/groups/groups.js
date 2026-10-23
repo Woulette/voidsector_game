@@ -1,8 +1,16 @@
 import { COOP_ENEMY_TYPES } from "../world/definitions.js";
+import { getInstanceGroup, getInstanceGroups, getPersonalPortalGroup, getPlayerInstanceGroup, releasePersonalPortalGroup } from "../portals/portalSessions.js";
+import { publicVesperAllies, publicVesperObjective } from "../portals/vesperPortalState.js";
+import { publicKharonObjective } from "../portals/kharonPortal.js";
+import { publicIonisObjective } from "../portals/ionisPortal.js";
+import { publicEclaniteObjective } from "../portals/eclanitePortal.js";
+import { publicNoxObjective } from "../portals/noxPortal.js";
+import { publicPrismaticObjective } from "../portals/prismaticPortal.js";
+import { publicPrecursorObjective } from "../portals/ancientPortal.js";
 
 export const MAX_GROUP_MEMBERS = 4;
 
-export function createGroupManager({io, players, publicPlayer, publicEnemy, publicEnemyDelta = publicEnemy, emitPlayers}){
+export function createGroupManager({io, players, publicPlayer, publicEnemy, publicEnemyDelta = publicEnemy, emitPlayers, onPortalMemberLeave}){
   const groups = new Map();
   let groupSeq = 1;
   let instanceSeq = 1;
@@ -12,29 +20,7 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
     return {
       id:group.id,
       leaderId:group.leaderId,
-      members:group.members.map(id=>players.get(id)).filter(Boolean).map(publicPlayer),
-      preparedPortal:publicPreparedPortal(group.preparedPortal)
-    };
-  }
-
-  function publicPreparedPortal(preparedPortal){
-    if(!preparedPortal) return null;
-    return {
-      id:String(preparedPortal.id || ""),
-      portalId:String(preparedPortal.portalId || preparedPortal.portal?.id || ""),
-      portal:preparedPortal.portal || null,
-      mapId:String(preparedPortal.mapId || ""),
-      mapName:String(preparedPortal.mapName || ""),
-      x:Number(preparedPortal.x || 0),
-      y:Number(preparedPortal.y || 0),
-      r:Number(preparedPortal.r || 115),
-      safeRadius:Number(preparedPortal.safeRadius || 280),
-      activationRadius:Number(preparedPortal.activationRadius || 430),
-      label:String(preparedPortal.label || preparedPortal.portal?.name || "PORTAIL").toUpperCase(),
-      displayLabel:String(preparedPortal.displayLabel || preparedPortal.portal?.name || "PORTAIL").toUpperCase(),
-      dungeonPortal:true,
-      prepared:true,
-      preparedAt:Number(preparedPortal.preparedAt || 0)
+      members:group.members.map(id=>players.get(id)).filter(Boolean).map(publicPlayer)
     };
   }
 
@@ -43,22 +29,45 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
     const useDelta = Boolean(options.delta);
     const payload = {
       instanceId:group.instance.id,
+      at:Date.now(),
       spawn:group.instance.spawn,
       portal:group.instance.portal || null,
       wave:group.instance.wave || 0,
+      waveTotal:Number(group.instance.portal?.totalWaves || 0),
+      nextWaveAt:Number(group.instance.nextWaveAt || 0),
+      nextWaveDelayMs:Math.max(0, Number(group.instance.nextWaveAt || 0) - Date.now()),
+      waveState:String(group.instance.waveState || ""),
       completed:Boolean(group.instance.completed),
+      playerLives:{...(group.instance.playerLives || {})},
       delta:useDelta,
       full:!useDelta,
       enemies:group.instance.enemies.filter(enemy=>enemy.hp > 0).map(useDelta ? publicEnemyDelta : publicEnemy),
       ally:publicInstanceAlly(group.instance),
+      allies:publicVesperAllies(group.instance),
       beacons:publicInstanceBeacons(group.instance),
-      objective:publicInstanceObjective(group.instance)
+      objective:publicVesperObjective(group.instance)
+        || publicKharonObjective(group.instance)
+        || publicIonisObjective(group.instance)
+        || publicEclaniteObjective(group.instance)
+        || publicNoxObjective(group.instance)
+        || publicPrismaticObjective(group.instance)
+        || publicPrecursorObjective(group.instance)
+        || publicInstanceObjective(group.instance)
     };
     if(group.instance.type === "portal" && Array.isArray(group.instance.joinedMemberIds)){
       for(const memberId of group.instance.joinedMemberIds){
         if(group.instance.abandonedMemberIds?.includes(memberId)) continue;
         if(group.instance.objective?.returnedMemberIds?.includes(memberId)) continue;
         const channel = io.to(memberId);
+        const emitter = options.volatile && channel.volatile ? channel.volatile : channel;
+        emitter.emit("coop:enemies", payload);
+      }
+      return;
+    }
+    const soloMembers = group.members.filter(id=>getPlayerInstanceGroup(players.get(id),groups)?.personalPortal);
+    if(soloMembers.length){
+      for(const id of group.members.filter(id=>!soloMembers.includes(id))){
+        const channel = io.to(id);
         const emitter = options.volatile && channel.volatile ? channel.volatile : channel;
         emitter.emit("coop:enemies", payload);
       }
@@ -168,11 +177,15 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
   }
 
   function resetGroupInstance(groupId, reason = ""){
-    const group = groups.get(String(groupId || ""));
+    const group = getInstanceGroup(groups, String(groupId || ""));
     if(!group?.instance) return false;
+    const recipients = group.personalPortal ? [...group.members]
+      : group.instance.type === "portal" && Array.isArray(group.instance.joinedMemberIds)
+        ? group.instance.joinedMemberIds.filter(id=>!getPlayerInstanceGroup(players.get(id), groups)?.personalPortal)
+        : [group.id];
     const previousInstanceId = group.instance.id || null;
     group.instance = null;
-    io.to(group.id).emit("coop:enemies", {
+    for(const recipient of recipients) io.to(recipient).emit("coop:enemies", {
       instanceId:null,
       previousInstanceId,
       spawn:null,
@@ -181,24 +194,33 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
       completed:false,
       enemies:[]
     });
-    io.to(group.id).emit("group:instance-reset", {
+    for(const recipient of recipients) io.to(recipient).emit("group:instance-reset", {
       groupId:group.id,
       previousInstanceId,
       reason:String(reason || ""),
       at:Date.now()
     });
+    releasePersonalPortalGroup(groups, group);
     emitGroup(group.id);
     return true;
   }
 
-  function removePlayerFromGroup(playerId){
+  function removePlayerFromGroup(playerId, {disconnected = false} = {}){
     const player = players.get(playerId);
+    if(disconnected){
+      const personal = getPersonalPortalGroup(player, groups);
+      if(personal?.members.includes(playerId)){
+        resetGroupInstance(personal.id, "owner-disconnected");
+        releasePersonalPortalGroup(groups, personal);
+      }
+    }
     if(!player?.groupId) return;
     const group = groups.get(player.groupId);
     if(!group){
       player.groupId = null;
       return;
     }
+    onPortalMemberLeave?.(player, group);
     group.members = group.members.filter(id=>id !== playerId);
     player.groupId = null;
     io.sockets.sockets.get(playerId)?.leave(group.id);
@@ -211,7 +233,7 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
   }
 
   function replaceGroupMemberId(oldId, nextId){
-    for(const group of groups.values()){
+    for(const group of getInstanceGroups(groups)){
       let changed = false;
       group.members = group.members.map(memberId=>{
         if(memberId !== oldId) return memberId;
@@ -242,7 +264,72 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
           changed = true;
         }
       }
-      if(changed) emitGroup(group.id);
+      if(group.instance?.objective?.kind === "prismatic"){
+        for(const effect of [
+          ...(group.instance.objective.activeBurns || []),
+          ...(group.instance.objective.activeSlows || [])
+        ]){
+          if(String(effect?.targetId || "") !== String(oldId)) continue;
+          effect.targetId = nextId;
+          changed = true;
+        }
+        for(const enemy of group.instance.enemies || []){
+          if(String(enemy?.lockedPlayerId || "") === String(oldId)){
+            enemy.lockedPlayerId = nextId;
+            changed = true;
+          }
+          if(String(enemy?.attackedPlayerId || "") === String(oldId)){
+            enemy.attackedPlayerId = nextId;
+            changed = true;
+          }
+          if(enemy?.damageThreat && Object.hasOwn(enemy.damageThreat, oldId)){
+            enemy.damageThreat[nextId] = Math.max(0, Number(enemy.damageThreat[nextId] || 0))
+              + Math.max(0, Number(enemy.damageThreat[oldId] || 0));
+            delete enemy.damageThreat[oldId];
+            changed = true;
+          }
+        }
+      }
+      if(group.instance?.objective?.kind === "precursors"){
+        for(const effect of group.instance.objective.effects || []){
+          if(String(effect?.targetId || "") !== String(oldId)) continue;
+          effect.targetId = nextId;
+          changed = true;
+        }
+        for(const enemy of group.instance.enemies || []){
+          if(String(enemy?.lockedPlayerId || "") === String(oldId)){
+            enemy.lockedPlayerId = nextId;
+            changed = true;
+          }
+          if(String(enemy?.attackedPlayerId || "") === String(oldId)){
+            enemy.attackedPlayerId = nextId;
+            changed = true;
+          }
+          if(enemy?.damageThreat && Object.hasOwn(enemy.damageThreat, oldId)){
+            enemy.damageThreat[nextId] = Math.max(0, Number(enemy.damageThreat[nextId] || 0))
+              + Math.max(0, Number(enemy.damageThreat[oldId] || 0));
+            delete enemy.damageThreat[oldId];
+            changed = true;
+          }
+        }
+        const previousPlayer = players.get(oldId);
+        const nextPlayer = players.get(nextId);
+        if(previousPlayer?.precursorBlessing?.sourceInstanceId === group.instance.id && nextPlayer){
+          nextPlayer.precursorBlessing = {...previousPlayer.precursorBlessing};
+          delete previousPlayer.precursorBlessing;
+          changed = true;
+        }
+        if(previousPlayer?.precursorActiveInstanceId === group.instance.id && nextPlayer){
+          nextPlayer.precursorActiveInstanceId = group.instance.id;
+          delete previousPlayer.precursorActiveInstanceId;
+          changed = true;
+        }
+      }
+      if(group.instance?.ownerPlayerId === oldId) group.instance.ownerPlayerId = nextId;
+      if(changed){
+        if(group.personalPortal) emitInstance(group);
+        else emitGroup(group.id);
+      }
     }
   }
 
@@ -326,6 +413,7 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
     const group = leader?.groupId ? groups.get(leader.groupId) : null;
     if(!group || group.leaderId !== socket.id || targetId === socket.id || !group.members.includes(targetId)) return false;
     const target = players.get(targetId);
+    if(target) onPortalMemberLeave?.(target, group);
     group.members = group.members.filter(id=>id !== targetId);
     if(target){
       target.groupId = null;
@@ -350,9 +438,18 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
   function createCoopInstance(socket){
     const player = players.get(socket.id);
     if(!player) return;
+    const currentInstance = getPlayerInstanceGroup(player, groups)?.instance;
+    if(currentInstance?.type === "portal" && !currentInstance.completed){
+      socket.emit("group:error", {message:"Termine le portail actif avant de lancer une autre instance."});
+      return;
+    }
     let group = player.groupId ? groups.get(player.groupId) : null;
     if(!group) group = createGroup(socket);
     if(!group || group.leaderId !== socket.id) return;
+    if(group.instance?.type === "portal" && !group.instance.completed){
+      socket.emit("group:error", {message:"Termine le portail actif avant de lancer une autre instance."});
+      return;
+    }
     const originX = Number.isFinite(player.state?.x) ? player.state.x : 0;
     const originY = Number.isFinite(player.state?.y) ? player.state.y : 0;
     const layouts = [

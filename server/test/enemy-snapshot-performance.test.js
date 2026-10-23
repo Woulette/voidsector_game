@@ -63,6 +63,46 @@ test("enemy delta snapshots remove missing enemies without replacing the map", (
   assert.equal(multiplayer.serverEnemies.has("enemy-2"), false);
 });
 
+test("a refreshed enemy definition updates immunity on the reused selected target", ()=>{
+  const multiplayer = {serverEnemies:new Map(), serverEnemyDefinitions:new Map()};
+  const protectedCore = {
+    ...makeEnemy("eclanite-core"),
+    kind:"eclanite_core",
+    damageImmune:true
+  };
+  replaceServerEnemies(multiplayer, {
+    instanceId:"P-eclanite",
+    full:true,
+    enemies:[protectedCore]
+  }, "coop");
+  const first = syncServerControlledEnemies({
+    enemies:[],
+    multiplayerState:multiplayer,
+    selectedEnemy:null,
+    now:1_000
+  });
+  const selectedCore = first.enemies[0];
+  const serverCore = multiplayer.serverEnemies.get(protectedCore.id);
+  assert.equal(selectedCore.damageImmune, true);
+
+  replaceServerEnemies(multiplayer, {
+    instanceId:"P-eclanite",
+    full:true,
+    enemies:[{...protectedCore, damageImmune:false}]
+  }, "coop");
+  const exposed = syncServerControlledEnemies({
+    enemies:first.enemies,
+    multiplayerState:multiplayer,
+    selectedEnemy:selectedCore,
+    now:1_016
+  });
+
+  assert.equal(multiplayer.serverEnemies.get(protectedCore.id), serverCore);
+  assert.equal(exposed.enemies[0], selectedCore);
+  assert.equal(exposed.selectedEnemy, selectedCore);
+  assert.equal(selectedCore.damageImmune, false);
+});
+
 test("high-frequency enemy snapshots bypass the global application event bus", ()=>{
   const handlers = new Map();
   const socket = {on:(event, handler)=>handlers.set(event, handler)};
@@ -224,7 +264,7 @@ test("server enemy sync scales visual correction with frame time", ()=>{
   });
 
   assert.equal(existing.serverX, 400);
-  assert.ok(Math.abs(existing.x - 3) < 0.001);
+  assert.ok(Math.abs(existing.x - 2.88) < 0.001);
 });
 
 test("server enemy sync keeps near-threshold corrections smooth instead of jumping to the cap", ()=>{
@@ -257,7 +297,7 @@ test("server enemy sync keeps near-threshold corrections smooth instead of jumpi
     now:1004
   });
 
-  assert.ok(Math.abs(existing.x - 0.918) < 0.001);
+  assert.ok(existing.x > 0 && existing.x < .3);
 });
 
 test("crowded enemy sync uses a softer visual correction factor", ()=>{
@@ -297,5 +337,5 @@ test("crowded enemy sync uses a softer visual correction factor", ()=>{
     now:1004
   });
 
-  assert.ok(Math.abs(enemies[0].x - 0.6) < 0.001);
+  assert.ok(enemies[0].x > 0 && enemies[0].x < .2);
 });

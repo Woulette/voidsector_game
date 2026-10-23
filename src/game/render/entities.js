@@ -1,8 +1,10 @@
-import { drawRotatedImage } from "./player.js?v=elite-lasers-1";
+import { drawRotatedImage } from "./player.js?v=20261022-helion-hub1";
 import { canEnemyRotateFully, getEnemyRenderRotation } from "../../data/enemyVisuals.js";
-import { getCachedCombatImage } from "../combatAssets.js";
+import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1";
 import { drawTargetSelectionOverlay, getEntityTargetSelectionRadius } from "./targetOverlay.js";
 import { drawDeadlyEnemyEngines } from "./enemyEngines.js";
+import { drawVesperEnemyVisual } from "./vesperEncounter.js?v=20261022-helion-hub1";
+import { drawPrismaticEnemyVisual } from "./prismaticEncounter.js?v=20261022-helion-hub1";
 
 const impactSpriteCache = new Map();
 const DEFAULT_CULL_MARGIN = 140;
@@ -626,7 +628,7 @@ function drawSelectedEnemyOverlay({ctx, enemy, sx, sy}){
   });
 }
 
-function drawEnemyStatusBars({ctx, enemy, sx, sy}){
+function drawEnemyStatusBars({ctx, enemy, sx, sy, selected = false}){
   sx = Math.round(sx);
   sy = Math.round(sy);
   const maxShield = Number(enemy.maxShield || 0);
@@ -654,7 +656,28 @@ function drawEnemyStatusBars({ctx, enemy, sx, sy}){
   ctx.shadowBlur = 0;
   ctx.font = "700 11px Rajdhani, Arial";
   ctx.textAlign = "center";
-  ctx.fillText(`NIV ${enemy.level}`, sx, topY - 5);
+  const level = `NIV ${enemy.level}`;
+  const name = selected ? String(enemy.name || enemy.type || "").trim() : "";
+  if(name){
+    const levelWidth = ctx.measureText(level).width;
+    ctx.font = "700 14px Rajdhani, Arial";
+    const nameWidth = Math.min(260, ctx.measureText(name).width);
+    const gap = 8;
+    const labelX = sx - (nameWidth + gap + levelWidth) / 2;
+    const labelY = topY - 7;
+    ctx.textAlign = "left";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(0,0,0,.9)";
+    ctx.fillStyle = "#f1f5f9";
+    ctx.strokeText(name, labelX, labelY, 260);
+    ctx.fillText(name, labelX, labelY, 260);
+    ctx.font = "700 11px Rajdhani, Arial";
+    ctx.fillStyle = "#fecaca";
+    ctx.fillText(level, labelX + nameWidth + gap, labelY);
+  }else{
+    ctx.fillText(level, sx, topY - 5);
+  }
   ctx.restore();
 }
 
@@ -682,7 +705,9 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
     const attackScale = 1 + attackPulse * .10;
     const renderAngle = getEnemyRenderRotation(enemy.kind, enemy.angle)
       + (canEnemyRotateFully(enemy.kind) ? idleAngle : 0);
-    if(enemy.renderMode !== "deadly_cage"){
+    const vesperVisualHandled = drawVesperEnemyVisual({ctx, camera, cache, enemy});
+    const prismaticVisualHandled = drawPrismaticEnemyVisual({ctx, camera, cache, enemy});
+    if(enemy.renderMode !== "deadly_cage" && !vesperVisualHandled && !prismaticVisualHandled){
       const enemyImg = getCachedCombatImage(cache, enemy.img)
         || getCachedCombatImage(cache, "assets/ships/intercepteur.png");
       drawDeadlyEnemyEngines({
@@ -713,7 +738,8 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
         ctx,
         enemy,
         sx:enemy.x + idleX - camera.x,
-        sy:enemy.y + idleY - camera.y
+        sy:enemy.y + idleY - camera.y,
+        selected:isSelected
       });
     }
     if(isSelected){

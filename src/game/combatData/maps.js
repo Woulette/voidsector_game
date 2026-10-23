@@ -1,13 +1,19 @@
-import { MAPS } from "./mapDefinitions.js";
+import { MAPS as MAP_TEMPLATES } from "./mapDefinitions.js";
 import { applyMapDisplayNames } from "./mapDisplayNames.js";
 import { getRickyUnlockedPortal, installFirmRickyPortals, isRickyPortalUnlocked } from "./rickyPortalClient.js";
 import { installSectorGraph } from "./sectorGraph.js";
+import { installHelionOneHub } from "../../shared/helionOneHub.js?v=20261022-helion-hub1";
+
+// A versioned import can initialize this module again. Never feed a previously
+// customized Helion hub back into the shared templates for the other firms.
+const MAPS = structuredClone(MAP_TEMPLATES);
 
 export { MAPS, isRickyPortalUnlocked };
 
 installSectorGraph(MAPS);
 installFirmRickyPortals(MAPS);
 applyMapDisplayNames(MAPS);
+MAPS.forEach(installHelionOneHub);
 
 function getBaseMapPortals(map){
   if(!map) return [];

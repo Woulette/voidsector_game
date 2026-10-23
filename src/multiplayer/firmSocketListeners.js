@@ -45,8 +45,22 @@ function mergeFirmSnapshot(previous, payload){
   };
 }
 
-export function installFirmSocketListeners({socket, multiplayer, emitChange, toast}){
+function isCompletePersonalSnapshot(payload){
+  return Boolean(
+    payload?.personal?.key
+    && Array.isArray(payload?.firms)
+    && Array.isArray(payload?.individualRanking)
+    && Array.isArray(payload?.dailyQuests)
+  );
+}
+
+export function installFirmSocketListeners({socket, multiplayer, backgroundSync, emitChange, toast}){
   socket.on("firm:snapshot", payload=>{
+    if(isCompletePersonalSnapshot(payload)){
+      backgroundSync?.markReceived("firm:sync", {
+        includeShop:payload?.includesShop === true || Array.isArray(payload?.shop)
+      });
+    }
     const merged = mergeFirmSnapshot(multiplayer.firmSnapshot, payload);
     multiplayer.firmSnapshot = merged || null;
     multiplayer.firmRanking = merged || null;

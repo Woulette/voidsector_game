@@ -1,7 +1,12 @@
-import { getClosedMapPortals as getDefaultClosedMapPortals, getMapPortals as getDefaultMapPortals } from "../combatData.js";
-import { drawMapPortals } from "./mapPortals.js";
-import { ships } from "../../data/catalog.js";
-import { countCombatProfiler, recordCombatProfilerTiming, timeCombatProfiler } from "../systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
+import { drawSpawnHub, drawSpawnStations, drawSpawnStationPrompts } from "./spawnHub.js?v=20261022-helion-hub1";
+import { getClosedMapPortals as getDefaultClosedMapPortals, getMapPortals as getDefaultMapPortals } from "../combatData.js?v=20261022-helion-hub1";
+import { drawMapPortals } from "./mapPortals.js?v=20261022-helion-hub1";
+import { ships } from "../../data/catalog.js?v=20260726-kharon1";
+import { countCombatProfiler, recordCombatProfilerTiming, timeCombatProfiler } from "../systems/combatFrameProfiler.js?v=20260726-kharon1";
+import { beginMapSceneryClip, drawMapSceneryBoundary, getMapSceneryEdgeOpacity } from "./mapSceneryBounds.js?v=20261018-helion-ambient1";
+import { projectMapSceneryLayer, isMapSceneryLayerVisible } from "./mapSceneryProjection.js?v=20261018-helion-depth1";
+import { getMapSceneryLightSprite } from "./mapSceneryLights.js?v=20261022-helion-relics1";
+import { drawMapScenerySkyFade } from "./mapScenerySky.js?v=20261022-helion-clarity1";
 
 function viewWidth(canvas){ return canvas.__renderWidth || canvas.__viewWidth || canvas.clientWidth || canvas.width; }
 function viewHeight(canvas){ return canvas.__renderHeight || canvas.__viewHeight || canvas.clientHeight || canvas.height; }
@@ -178,6 +183,14 @@ function drawParallaxStars({ctx, canvas, camera, stars, dust}){
   ctx.restore();
 }
 
+export function isParallaxCircleVisible({x, y, radius, width, height}){
+  const safeRadius = Math.max(0, Number(radius || 0));
+  return Number(x || 0) + safeRadius >= 0
+    && Number(x || 0) - safeRadius <= Number(width || 0)
+    && Number(y || 0) + safeRadius >= 0
+    && Number(y || 0) - safeRadius <= Number(height || 0);
+}
+
 function drawParallaxNebulae({ctx, canvas, currentMap, camera}){
   const scene = currentMap?.parallaxScene;
   if(!scene?.nebulae?.length) return;
@@ -188,7 +201,9 @@ function drawParallaxNebulae({ctx, canvas, currentMap, camera}){
     const p = Number.isFinite(n.p) ? n.p : .08;
     const sx = n.x - camera.x * p + w / 2;
     const sy = n.y - camera.y * p + h / 2;
-    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, n.r);
+    const radius = Math.max(0, Number(n.r || 0));
+    if(!isParallaxCircleVisible({x:sx, y:sy, radius, width:w, height:h})) continue;
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, radius);
     g.addColorStop(0, n.color || "rgba(56,189,248,.2)");
     g.addColorStop(.42, n.mid || "rgba(59,130,246,.08)");
     g.addColorStop(1, n.edge || "rgba(0,0,0,0)");
@@ -203,7 +218,13 @@ function drawCenteredLayerImage({ctx, img, layer, sx, sy, width, height}){
   ctx.translate(sx, sy);
   if(layer.rotation) ctx.rotate(layer.rotation);
   ctx.scale(layer.flipX ? -1 : 1, layer.flipY ? -1 : 1);
-  ctx.drawImage(img, -width / 2, -height / 2, width, height);
+  if(layer.frame){
+    const {x, y, w, h} = layer.frame;
+    ctx.drawImage(img, x * img.naturalWidth, y * img.naturalHeight,
+      w * img.naturalWidth, h * img.naturalHeight, -width / 2, -height / 2, width, height);
+  }else{
+    ctx.drawImage(img, -width / 2, -height / 2, width, height);
+  }
   ctx.restore();
 }
 
@@ -217,12 +238,11 @@ function drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera}){
   for(const layer of layers){
     const img = cache[layer.src];
     if(!img || !img.complete || !img.naturalWidth) continue;
-    const p = Number.isFinite(layer.p) ? layer.p : .04;
+    const worldSpace = layer.space === "world";
     const width = layer.w || img.naturalWidth;
     const height = layer.h || img.naturalHeight;
-    const sx = (layer.x || 0) - camera.x * p + w / 2;
-    const sy = (layer.y || 0) - camera.y * p + h / 2;
-    if(sx + width / 2 < -160 || sx - width / 2 > w + 160 || sy + height / 2 < -160 || sy - height / 2 > h + 160) continue;
+    const {x:sx, y:sy} = projectMapSceneryLayer({layer, camera, viewWidth:w, viewHeight:h, defaultParallax:worldSpace ? 1 : .04});
+    if(!isMapSceneryLayerVisible({layer, x:sx, y:sy, width, height, viewWidth:w, viewHeight:h, padding:160})) continue;
     ctx.globalAlpha = Number.isFinite(layer.alpha) ? layer.alpha : 1;
     ctx.filter = layer.filter || "none";
     ctx.globalCompositeOperation = layer.blend || "source-over";
@@ -234,7 +254,7 @@ function drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera}){
   ctx.restore();
 }
 
-function drawParallaxImages({ctx, canvas, cache, currentMap, camera}){
+function drawParallaxImages({ctx, canvas, cache, currentMap, camera, graphicsEffects = null, allowNebulae = true, allowStarGlow = true}){
   const layers = currentMap?.parallaxScene?.images || [];
   if(!layers.length) return;
   const w = viewWidth(canvas), h = viewHeight(canvas);
@@ -242,15 +262,19 @@ function drawParallaxImages({ctx, canvas, cache, currentMap, camera}){
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "medium";
   for(const layer of layers){
+    if(layer.effect && graphicsEffects?.[layer.effect] === false) continue;
+    if(layer.effect === "nebulae" && !allowNebulae) continue;
+    if(layer.effect === "starGlow" && !allowStarGlow) continue;
     const img = cache[layer.src];
     if(!img || !img.complete || !img.naturalWidth) continue;
-    const p = Number.isFinite(layer.p) ? layer.p : .35;
     const width = layer.w || img.naturalWidth;
     const height = layer.h || img.naturalHeight;
-    const sx = layer.x - camera.x * p + w / 2;
-    const sy = layer.y - camera.y * p + h / 2;
-    if(sx + width / 2 < -120 || sx - width / 2 > w + 120 || sy + height / 2 < -120 || sy - height / 2 > h + 120) continue;
-    ctx.globalAlpha = Number.isFinite(layer.alpha) ? layer.alpha : 1;
+    const {x:sx, y:sy} = projectMapSceneryLayer({layer, camera, viewWidth:w, viewHeight:h, defaultParallax:.35});
+    if(!isMapSceneryLayerVisible({layer, x:sx, y:sy, width, height, viewWidth:w, viewHeight:h, padding:120})) continue;
+    const edgeAlpha = layer.edgeFade ? getMapSceneryEdgeOpacity({map:currentMap,
+      x:sx + camera.x, y:sy + camera.y, width, height, rotation:layer.rotation || 0}) : 1;
+    if(edgeAlpha <= 0) continue;
+    ctx.globalAlpha = (Number.isFinite(layer.alpha) ? layer.alpha : 1) * edgeAlpha;
     ctx.filter = layer.filter || "none";
     if(layer.blend) ctx.globalCompositeOperation = layer.blend;
     else ctx.globalCompositeOperation = "source-over";
@@ -489,10 +513,15 @@ function drawParallaxStarLights({ctx, canvas, currentMap, camera}){
   const now = performance.now();
   for(const light of lights){
     const p = Number.isFinite(light.p) ? light.p : .03;
-    const sx = light.x - camera.x * p + w / 2;
-    const sy = light.y - camera.y * p + h / 2;
+    const {x:sx,y:sy} = light.space === "map"
+      ? projectMapSceneryLayer({layer:light,camera,viewWidth:w,viewHeight:h,defaultParallax:p})
+      : {x:light.x-camera.x*p+w/2,y:light.y-camera.y*p+h/2};
     const r = light.r || 760;
     if(sx + r < -120 || sx - r > w + 120 || sy + r < -120 || sy - r > h + 120) continue;
+    if(light.static){
+      ctx.drawImage(getMapSceneryLightSprite(light), sx-r, sy-r, r*2, r*2);
+      continue;
+    }
     const flicker = .92 + Math.sin(now / (light.speed || 1500) + (light.seed || 0)) * .08;
     const alpha = (Number.isFinite(light.alpha) ? light.alpha : .62) * flicker;
     const coreRadius = Math.max(10, r * (light.coreRadius || .035));
@@ -745,7 +774,7 @@ function graphicsQualityStep(value){
   return 1;
 }
 
-function drawCloseSpeedStars({ctx, canvas, camera, asteroids, player, graphicsQuality = "high"}){
+function drawCloseSpeedStars({ctx, canvas, camera, currentMap, asteroids, player, graphicsQuality = "high"}){
   if(!asteroids?.length) return;
   const w = viewWidth(canvas);
   const h = viewHeight(canvas);
@@ -762,8 +791,10 @@ function drawCloseSpeedStars({ctx, canvas, camera, asteroids, player, graphicsQu
     const x = star.x + driftX;
     const y = star.y + driftY;
     if(x < camera.x-100 || x > camera.x+w+100 || y < camera.y-100 || y > camera.y+h+100) continue;
+    const edgeAlpha = getMapSceneryEdgeOpacity({map:currentMap,x,y,width:(star.r || 1)*2,height:(star.r || 1)*2});
+    if(edgeAlpha <= 0) continue;
     const pulse = .78 + Math.sin(now * (star.twinkleSpeed || 1.1) + (star.phase || 0)) * .22;
-    const alpha = (star.a || .45) * pulse;
+    const alpha = (star.a || .45) * pulse * edgeAlpha;
     const radius = (star.r || 1) * (.92 + pulse * .08);
     const blue = (star.tint || 0) > .72;
     ctx.fillStyle = blue ? `rgba(186,230,253,${alpha})` : `rgba(255,255,255,${alpha})`;
@@ -775,7 +806,7 @@ function drawCloseSpeedStars({ctx, canvas, camera, asteroids, player, graphicsQu
   ctx.restore();
 }
 
-function drawParallaxVignette({ctx, canvas}){
+function drawParallaxVignette({ctx, canvas, currentMap}){
   const w = viewWidth(canvas), h = viewHeight(canvas);
   if(!vignetteCache || vignetteCache.w !== w || vignetteCache.h !== h){
     const buffer = document.createElement("canvas");
@@ -790,7 +821,10 @@ function drawParallaxVignette({ctx, canvas}){
     bctx.fillRect(0,0,w,h);
     vignetteCache = {w, h, buffer};
   }
+  ctx.save();
+  ctx.globalAlpha = Number.isFinite(currentMap?.parallaxScene?.vignetteOpacity) ? currentMap.parallaxScene.vignetteOpacity : 1;
   ctx.drawImage(vignetteCache.buffer, 0, 0, w, h);
+  ctx.restore();
 }
 
 function drawParallaxBackground({ctx, canvas, cache, currentMap, camera, stars, dust, graphicsQuality = "high"}){
@@ -801,11 +835,12 @@ function drawParallaxBackground({ctx, canvas, cache, currentMap, camera, stars, 
   timeCombatProfiler("bg.parallax.tiles", ()=>drawParallaxTiles({ctx, canvas, cache, currentMap, camera}));
   timeCombatProfiler("bg.parallax.lightClouds", ()=>drawParallaxLightClouds({ctx, canvas, currentMap, camera}));
   if(graphicsQuality === "high") timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera}));
+  drawMapScenerySkyFade({ctx, map:currentMap, camera, width:viewWidth(canvas), height:viewHeight(canvas)});
   timeCombatProfiler("bg.parallax.images", ()=>drawParallaxImages({ctx, canvas, cache, currentMap, camera}));
   timeCombatProfiler("bg.parallax.foregroundClouds", ()=>drawParallaxForegroundClouds({ctx, canvas, currentMap, camera}));
   timeCombatProfiler("bg.parallax.asteroids", ()=>drawParallaxAsteroids({ctx, canvas, currentMap, camera}));
   timeCombatProfiler("bg.parallax.glowSpots", ()=>drawParallaxGlowSpots({ctx, canvas, currentMap, camera}));
-  timeCombatProfiler("bg.parallax.vignette", ()=>drawParallaxVignette({ctx, canvas}));
+  timeCombatProfiler("bg.parallax.vignette", ()=>drawParallaxVignette({ctx, canvas, currentMap}));
 }
 
 function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars, dust, graphicsQuality = "high", graphicsEffects = null}){
@@ -828,11 +863,13 @@ function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars,
     if(effect("cosmicClouds", quality !== "low")) timeCombatProfiler("bg.parallax.tiles", ()=>drawParallaxTiles({ctx, canvas, cache, currentMap, camera}));
     if(effect("cosmicClouds", quality !== "low")) timeCombatProfiler("bg.parallax.lightClouds", ()=>drawParallaxLightClouds({ctx, canvas, currentMap, camera}));
     if(effect("starGlow", quality === "high")) timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera}));
-    timeCombatProfiler("bg.parallax.images", ()=>drawParallaxImages({ctx, canvas, cache, currentMap, camera}));
+    drawMapScenerySkyFade({ctx, map:currentMap, camera, width:w, height:h});
+    timeCombatProfiler("bg.parallax.images", ()=>drawParallaxImages({ctx, canvas, cache, currentMap, camera, graphicsEffects,
+      allowNebulae:effect("nebulae", quality !== "low"), allowStarGlow:effect("starGlow", quality === "high")}));
     if(effect("cosmicClouds", quality === "high")) timeCombatProfiler("bg.parallax.foregroundClouds", ()=>drawParallaxForegroundClouds({ctx, canvas, currentMap, camera}));
     if(effect("backgroundAsteroids", quality !== "low")) timeCombatProfiler("bg.parallax.asteroids", ()=>drawParallaxAsteroids({ctx, canvas, currentMap, camera}));
     if(effect("starGlow", quality !== "low")) timeCombatProfiler("bg.parallax.glowSpots", ()=>drawParallaxGlowSpots({ctx, canvas, currentMap, camera}));
-    if(effect("vignette", quality !== "low")) timeCombatProfiler("bg.parallax.vignette", ()=>drawParallaxVignette({ctx, canvas}));
+    if(effect("vignette", quality !== "low")) timeCombatProfiler("bg.parallax.vignette", ()=>drawParallaxVignette({ctx, canvas, currentMap}));
     return;
   }
 
@@ -922,232 +959,6 @@ function drawGrid({ctx, canvas, camera, currentMap}){
   ctx.restore();
 }
 
-function drawSpawnAsset({ctx, cache, src, x, y, width, height, alpha = 1, rotation = 0}){
-  const img = cache?.[src];
-  if(!img || !img.complete || !img.naturalWidth) return false;
-  ctx.save();
-  ctx.translate(x, y);
-  if(rotation) ctx.rotate(rotation);
-  ctx.globalAlpha = alpha;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, -width / 2, -height / 2, width, height);
-  ctx.restore();
-  return true;
-}
-
-function drawSpawnPath({ctx, from, to, color = "56,189,248"}){
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const distance = Math.hypot(dx, dy) || 1;
-  const nx = -dy / distance;
-  const ny = dx / distance;
-  ctx.save();
-  ctx.lineCap = "round";
-  ctx.strokeStyle = `rgba(${color},.10)`;
-  ctx.lineWidth = 38;
-  ctx.beginPath();
-  ctx.moveTo(from.x, from.y);
-  ctx.lineTo(to.x, to.y);
-  ctx.stroke();
-  ctx.strokeStyle = `rgba(${color},.28)`;
-  ctx.lineWidth = 3;
-  ctx.setLineDash([18, 12]);
-  ctx.beginPath();
-  ctx.moveTo(from.x + nx * 13, from.y + ny * 13);
-  ctx.lineTo(to.x + nx * 13, to.y + ny * 13);
-  ctx.moveTo(from.x - nx * 13, from.y - ny * 13);
-  ctx.lineTo(to.x - nx * 13, to.y - ny * 13);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawSpawnHub({ctx, cache, spawn, stations}){
-  if(!spawn) return;
-  const now = performance.now();
-  const pulse = .5 + Math.sin(now / 260) * .5;
-  const dockBob = Math.sin(now / 2200) * 18;
-  ctx.save();
-  for(const station of stations){
-    drawSpawnPath({
-      ctx,
-      from:{x:spawn.x, y:spawn.y - 20},
-      to:{x:station.x, y:station.y + 20},
-      color:station.id === "quests" ? "56,189,248" : "250,204,21"
-    });
-  }
-  ctx.globalCompositeOperation = "screen";
-  const dockGlow = ctx.createRadialGradient(spawn.x, spawn.y, 40, spawn.x, spawn.y, 198);
-  dockGlow.addColorStop(0, `rgba(34,211,238,${.18 + pulse * .08})`);
-  dockGlow.addColorStop(.52, "rgba(14,165,233,.08)");
-  dockGlow.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = dockGlow;
-  ctx.beginPath();
-  ctx.arc(spawn.x, spawn.y, 198, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalCompositeOperation = "source-over";
-  const drawn = drawSpawnAsset({
-    ctx,
-    cache,
-    src:"assets/spawn/spawn_dock.png",
-    x:spawn.x,
-    y:spawn.y - 2 + dockBob,
-    width:1460,
-    height:1460
-  });
-  if(!drawn){
-    ctx.strokeStyle = "rgba(125,211,252,.22)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(spawn.x-92, spawn.y-32, 184, 64);
-    ctx.strokeRect(spawn.x-42, spawn.y-118, 84, 236);
-    ctx.fillStyle = "rgba(2,132,199,.10)";
-    ctx.fillRect(spawn.x-88, spawn.y-28, 176, 56);
-  }
-  ctx.restore();
-}
-
-function getSpawnStationBob(station, now){
-  const phase = station.id === "quests" ? .45 : 2.15;
-  return Math.sin(now / 900 + phase) * 10;
-}
-
-function drawSpawnStations({ctx, cache, stations}){
-  const now = performance.now();
-  for(const station of stations){
-    const bob = getSpawnStationBob(station, now);
-    const glow = 6 + Math.sin(now/220 + station.x*0.002) * 4;
-    ctx.save();
-    ctx.translate(station.x, station.y + bob);
-    const color = station.color || (station.id === "quests" ? "56,189,248" : "250,204,21");
-    const assetDrawn = drawSpawnAsset({
-      ctx,
-      cache,
-      src:station.asset,
-      x:0,
-      y:0,
-      width:station.assetWidth || 180,
-      height:station.assetHeight || 180
-    });
-    if(!assetDrawn){
-      ctx.fillStyle = station.id === "quests" ? "rgba(14,165,233,.22)" : "rgba(251,191,36,.18)";
-      ctx.strokeStyle = station.id === "quests" ? "rgba(56,189,248,.92)" : "rgba(250,204,21,.92)";
-      ctx.shadowColor = station.id === "quests" ? "rgba(56,189,248,.75)" : "rgba(250,204,21,.65)";
-      ctx.shadowBlur = 18;
-      ctx.beginPath();
-      ctx.roundRect(-38,-28,76,56,14);
-      ctx.fill();
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "rgba(226,232,240,.95)";
-      ctx.font = "700 18px Rajdhani, Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(station.id === "quests" ? "Q" : "R", 0, 7);
-    }
-    ctx.strokeStyle = "rgba(255,255,255,.14)";
-    ctx.beginPath();
-    ctx.arc(0, 0, station.radius + glow, 0, Math.PI*2);
-    ctx.stroke();
-    ctx.strokeStyle = `rgba(${color},.52)`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(0, 0, station.radius, 0, Math.PI*2);
-    ctx.stroke();
-    const labelY = Math.max(48, (station.assetHeight || 76) / 2 + 16);
-    ctx.font = "700 12px Rajdhani, Arial";
-    ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(248,250,252,.94)";
-    ctx.fillText(station.title, 0, labelY);
-    ctx.restore();
-  }
-}
-
-function drawSpawnStationPrompts({ctx, stations}){
-  const now = performance.now();
-  for(const station of stations){
-    const marker = station.marker;
-    if(!marker) continue;
-    const pulse = .5 + Math.sin(now / 210 + station.x * .003) * .5;
-    const color = station.color || (station.id === "quests" ? "56,189,248" : "250,204,21");
-    const dark = station.dark || (station.id === "quests" ? "4,20,35" : "28,18,4");
-    const label = station.promptLabel || (station.id === "quests" ? "MISSIONS" : "RAFFINAGE");
-    const r = marker.radius || 42;
-    const bob = getSpawnStationBob(station, now);
-    ctx.save();
-    ctx.translate(marker.x, marker.y + bob - pulse * 5);
-
-    ctx.globalCompositeOperation = "screen";
-    const glow = ctx.createRadialGradient(0, 0, 10, 0, 0, r + 54);
-    glow.addColorStop(0, `rgba(${color},${.24 + pulse * .10})`);
-    glow.addColorStop(.55, `rgba(${color},.08)`);
-    glow.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(0, 0, r + 54, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.globalCompositeOperation = "source-over";
-    ctx.strokeStyle = `rgba(${color},.30)`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, r + 32);
-    ctx.lineTo(0, r + 80);
-    ctx.stroke();
-
-    ctx.shadowColor = `rgba(${color},.85)`;
-    ctx.shadowBlur = 16 + pulse * 10;
-    ctx.fillStyle = `rgba(${dark},.94)`;
-    ctx.strokeStyle = `rgba(${color},${.82 + pulse * .14})`;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(-r * .82, -r * .58);
-    ctx.lineTo(-r * .40, -r);
-    ctx.lineTo(r * .40, -r);
-    ctx.lineTo(r * .82, -r * .58);
-    ctx.lineTo(r * .82, r * .44);
-    ctx.lineTo(0, r + 24);
-    ctx.lineTo(-r * .82, r * .44);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = `rgba(${color},.34)`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(0, -2, r * .62, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.strokeStyle = `rgba(${color},.48)`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(-r - 12, -r * .36);
-    ctx.lineTo(-r - 28, -r * .36);
-    ctx.lineTo(-r - 28, r * .12);
-    ctx.moveTo(r + 12, -r * .36);
-    ctx.lineTo(r + 28, -r * .36);
-    ctx.lineTo(r + 28, r * .12);
-    ctx.stroke();
-
-    ctx.fillStyle = `rgba(${color},.96)`;
-    ctx.font = station.id === "quests" ? "900 48px Rajdhani, Arial" : "900 36px Rajdhani, Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(marker.text || (station.id === "quests" ? "!" : "R"), 0, station.id === "quests" ? -5 : -4);
-
-    ctx.fillStyle = "rgba(226,242,255,.94)";
-    ctx.font = "800 10px Rajdhani, Arial";
-    ctx.textBaseline = "alphabetic";
-    ctx.fillText(label, 0, r * .68);
-
-    ctx.strokeStyle = `rgba(${color},${.22 + pulse * .14})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(0, -2, r + 16 + pulse * 7, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
 function drawQuestNpcs({ctx, cache, currentMap}){
   const npcs = Array.isArray(currentMap?.questNpcs) ? currentMap.questNpcs : [];
   if(!npcs.length) return;
@@ -1213,6 +1024,7 @@ function drawWorldMarkers({
   safeReady,
   spawnProtected,
   stations,
+  hoveredStation = null,
   cache,
   getMapPortals = getDefaultMapPortals,
   getClosedMapPortals = getDefaultClosedMapPortals,
@@ -1255,16 +1067,17 @@ function drawWorldMarkers({
       drawSpawnHub({ctx, cache, spawn, stations});
     }
     if(stations.length){
-      drawSpawnStations({ctx, cache, stations});
+      drawSpawnStations({ctx, cache, stations, hoveredStation, camera});
       drawSpawnStationPrompts({ctx, stations});
     }
   }
 
-  drawMapPortals({ctx, currentMap, getMapPortals, simplified:graphicsEffects?.portalEffects === false});
+  drawMapPortals({ctx, cache, currentMap, getMapPortals, simplified:graphicsEffects?.portalEffects === false});
   const closedPortals = getClosedMapPortals(currentMap);
   if(closedPortals.length){
     drawMapPortals({
       ctx,
+      cache,
       currentMap:{...currentMap, portal:null, portals:closedPortals},
       getMapPortals:map=>map.portals || [],
       simplified:graphicsEffects?.portalEffects === false
@@ -1276,8 +1089,19 @@ function drawWorldMarkers({
 
 export function drawWorldLayer(options){
   resetBackgroundCacheBuildBudget();
+  const {ctx, currentMap:map, camera, canvas} = options;
+  const bounded = map?.parallaxScene?.clipToBounds === true;
+  if(bounded && !beginMapSceneryClip({ctx, map, camera, width:viewWidth(canvas), height:viewHeight(canvas)})){
+    ctx.restore();
+    drawMapSceneryBoundary({ctx, map, camera});
+    return;
+  }
   timeCombatProfiler("bg.layer.background", ()=>drawBackground(options));
   if(!options.currentMap?.parallaxScene?.hideGrid) timeCombatProfiler("bg.layer.grid", ()=>drawGrid(options));
   timeCombatProfiler("bg.layer.markers", ()=>drawWorldMarkers(options));
   if(options.graphicsEffects?.backgroundAsteroids !== false) timeCombatProfiler("bg.layer.speedStars", ()=>drawCloseSpeedStars(options));
+  if(bounded){
+    ctx.restore();
+    drawMapSceneryBoundary({ctx, map, camera});
+  }
 }

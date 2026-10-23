@@ -1,13 +1,13 @@
-export { ships } from "./ships.js?v=craft-extras-1";
-export { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=craft-extras-1";
+export { ships } from "./ships.js?v=20260726-imperial2";
+export { ammoTypes, droneCatalog, droneFormations, equipment } from "./equipment.js?v=20260726-prismatic1";
 export { FIRMS, getCanonicalMapName, getFirmDefinition, getFirmHomeMapName, getFirmIdFromMapName, getFirmMapId, getFirmMapName, getFirmMapPrefix, normalizeFirmId } from "./firms.js";
-export { craftResourceCatalog, pageText, portals, questCatalog, rawMaterialCatalog, refineryMaterialCatalog, refineryRecipes, skills } from "./progression.js";
+export { craftResourceCatalog, pageText, portals, PRESTIGE_PORTAL_META, questCatalog, rawMaterialCatalog, refineryMaterialCatalog, refineryRecipes, skills } from "./progression.js?v=20260726-ancient1";
 export { COMMON_CRAFT_RESOURCES, ELITE_CRAFT_RESOURCES, MYTHIC_CRAFT_RESOURCES, RARE_CRAFT_RESOURCES, RESOURCE_DROP_POOLS, VERY_RARE_CRAFT_RESOURCES } from "./resources.js";
 
 export const defaultState = {
   economyVersion:1,
   rankKillPointsVersion:3,
-  player:{name:"NOVA-37", firmId:"astra", firmSelected:false, level:1, xp:0, xpNext:3000, credits:0, premium:0, premiumUntil:0, premiumActive:false, skillPoints:1, totalXp:0, reputation:0, totalKills:0, monsterRankPoints:0, totalPlayerKills:0, totalPlaySeconds:0, laserShotsFired:0, rocketShotsFired:0, missileShotsFired:0, rankScore:0, activeTitleId:null, titleVisible:true},
+  player:{name:"NOVA-37", firmId:"astra", firmSelected:false, level:1, xp:0, xpNext:3000, credits:0, premium:0, premiumUntil:0, premiumActive:false, skillPoints:1, totalXp:0, reputation:0, totalKills:0, monsterRankPoints:0, totalPlayerKills:0, totalPlaySeconds:0, laserShotsFired:0, rocketShotsFired:0, missileShotsFired:0, rankScore:0},
   premiumRewardState:{monthKey:"", claimedDays:[], lastClaimDate:""},
   betaRewardState:{claimedDays:[], lastClaimDate:"", randomShipRewards:{}},
   betaPackPurchases:[],
@@ -35,7 +35,7 @@ export const defaultState = {
   slotKeybinds:["Digit1","Digit2","Digit3","Digit4","Digit5","Digit6","Digit7","Digit8","Digit9"],
   abilityKeybinds:["KeyC","KeyV","KeyB"],
   graphicsQuality:"high",
-  portalPieces:{blue:0,violet:0,red:0,emerald:0,void:0,ancient:0},
+  portalPieces:{blue:0,violet:0,red:0,ionis:0,emerald:0,void:0,prismatic:0,ancient:0,eternal:0},
   portalRuns:{},
   unlockedPortals:[],
   completedPortals:{},

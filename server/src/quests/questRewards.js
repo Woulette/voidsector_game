@@ -1,6 +1,6 @@
 import { skills } from "../../../src/data/progression.js";
 import { isPremiumActive } from "../../../src/data/premium.js";
-import { applyProgressionReward } from "../players/progression.js";
+import { applyProgressionReward, getProgressionLevelCap } from "../players/progression.js";
 import { canClaimQuest, deepClone, getQuest, normalizeQuestFields, MAX_ACTIVE_QUESTS } from "./questState.js";
 import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
 
@@ -51,7 +51,7 @@ function addQuestRewards(profile, quest){
     credits:summary.credits,
     premium:summary.premium,
     xp:summary.xp
-  });
+  }, getProgressionLevelCap(profile.prestigeCount));
   addMaterials(profile, summary.materials || {});
   addMaterials(profile, summary.shipCargoMaterialsForced || {});
   if(!profile.portalPieces || typeof profile.portalPieces !== "object") profile.portalPieces = {};

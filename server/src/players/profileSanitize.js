@@ -1,6 +1,6 @@
-import { normalizeProgressionPlayer } from "./progression.js";
+import { getProgressionLevelCap, normalizeProgressionPlayer } from "./progression.js";
 import { getInventoryEntryQuantity, isStackableInventoryItem } from "../economy/inventoryStacks.js";
-import { cleanupDuplicateEquippedInventoryUids } from "../economy/equipment.js";
+import { cleanupDuplicateEquippedInventoryUids, sanitizeDronePermanentUpgrades, sanitizeEquipmentUpgrades } from "../economy/equipment.js";
 import { normalizeFirmId } from "../../../src/data/firms.js";
 import { normalizeBetaPackPurchases, normalizeBetaRewardState, normalizePremiumRewardState, normalizeStarterPackPurchases } from "../../../src/data/premium.js";
 import { sanitizeActivityLog } from "./activityLog.js";
@@ -10,14 +10,31 @@ import { sanitizeTutorialState } from "../../../src/shared/tutorial.js";
 import { calculateMonsterRankPointsForKills, calculateRankScore } from "../../../src/data/ranks.js";
 import { sanitizePlayerBoosterState } from "../../../src/shared/firmBoosters.js";
 import { ships } from "../../../src/data/ships.js";
-import { getCraftRecipe } from "../../../src/data/craftingRecipes.js";
+import { sanitizeCraftingJob } from "../economy/craftingJobs.js";
+import { getShipProgressionLockReason } from "../../../src/shared/progressionUnlocks.js";
+import { sanitizeProfileTitleState } from "./profileTitles.js";
+import { migrateQuestCatalog, questCatalogRevision } from "../quests/questCatalogMigration.js";
 
 const EMPTY_ACTION_SLOTS = Array(9).fill(null);
 const STARTER_ACTION_SLOTS = ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
+const CLIENT_TIMESTAMP_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 const SHIP_ID_ALIASES = Object.freeze({
   astra_3d_test:"astralis"
 });
 const VALID_SHIP_IDS = new Set(ships.map(ship=>ship.id));
+
+function sanitizeTimestamp(value, fallback = 0){
+  const numeric = Number(value);
+  if(!Number.isFinite(numeric)) return Math.max(0, Math.floor(Number(fallback || 0)));
+  return Math.max(
+    0,
+    Math.min(
+      Number.MAX_SAFE_INTEGER,
+      Date.now() + CLIENT_TIMESTAMP_FUTURE_TOLERANCE_MS,
+      Math.floor(numeric)
+    )
+  );
+}
 
 function normalizeShipId(id){
   const clean = String(id || "");
@@ -68,6 +85,37 @@ export function sanitizeWorldSession(value){
     shipId,
     shipImg:String(value.shipImg || ""),
     updatedAt:Math.max(0, Number(value.updatedAt || Date.now()))
+  };
+}
+
+export function sanitizePreparedPortal(value){
+  if(!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const portalId = String(value.portalId || value.portal?.id || "").trim();
+  const mapId = String(value.mapId ?? "").trim();
+  const x = Number(value.x);
+  const y = Number(value.y);
+  if(!portalId || !mapId || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const portalName = String(value.portal?.name || value.displayLabel || value.label || "Portail").slice(0, 120);
+  return {
+    id:String(value.id || `prepared-${portalId}`).slice(0, 160),
+    portalId,
+    portal:{
+      id:portalId,
+      name:portalName,
+      totalWaves:Math.max(0, Math.floor(Number(value.portal?.totalWaves || 0)))
+    },
+    mapId,
+    mapName:String(value.mapName || mapId).slice(0, 120),
+    x:Math.max(-100_000, Math.min(100_000, x)),
+    y:Math.max(-100_000, Math.min(100_000, y)),
+    r:Math.max(20, Math.min(500, Number(value.r || 115))),
+    safeRadius:Math.max(20, Math.min(1500, Number(value.safeRadius || 280))),
+    activationRadius:Math.max(20, Math.min(2000, Number(value.activationRadius || 430))),
+    label:String(value.label || portalName).slice(0, 120).toUpperCase(),
+    displayLabel:String(value.displayLabel || portalName).slice(0, 120).toUpperCase(),
+    dungeonPortal:true,
+    prepared:true,
+    preparedAt:sanitizeTimestamp(value.preparedAt, Date.now())
   };
 }
 
@@ -133,16 +181,6 @@ function sanitizeFirmRewardHistory(value){
   }));
 }
 
-function sanitizeCraftingJob(value){
-  if(!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const recipe = getCraftRecipe(value.recipeId);
-  if(!recipe) return null;
-  const startedAt = Math.max(0, Number(value.startedAt || Date.now()));
-  const durationMs = Math.max(1, Number(value.durationMs || recipe.durationMs || 60_000));
-  const endsAt = Math.max(startedAt, Number(value.endsAt || value.finishAt || startedAt + durationMs));
-  return {recipeId:recipe.id, startedAt, endsAt, durationMs};
-}
-
 function rebuildMonsterRankStats(profile){
   const killStats = profile.killStats || {};
   const rankKillStats = profile.rankKillStats || {};
@@ -171,6 +209,9 @@ function rebuildMonsterRankStats(profile){
 
 export function sanitizeProfile(profile = {}){
   const inventoryItems = [];
+  const prestigeCount = Math.min(1, Math.max(0, Math.floor(Number(profile.prestigeCount || 0))));
+  const ownedDroneCount = Math.max(0, Math.floor(Number(profile.ownedDroneCount || 0)));
+  const sanitizedPlayer = sanitizeObject(profile.player);
   for(const entry of Array.isArray(profile.inventoryItems) ? profile.inventoryItems : []){
     if(!entry?.uid || !entry?.itemId) continue;
     const itemId = String(entry.itemId);
@@ -181,8 +222,8 @@ export function sanitizeProfile(profile = {}){
     }else inventoryItems.push({uid:String(entry.uid), itemId});
   }
   const sanitized = {
-    updatedAt:Math.max(0, Number(profile.updatedAt || Date.now())),
-    player:normalizeProgressionPlayer(sanitizeObject(profile.player)),
+    updatedAt:sanitizeTimestamp(profile.updatedAt, Date.now()),
+    player:normalizeProgressionPlayer(sanitizedPlayer, getProgressionLevelCap(prestigeCount)),
     premiumRewardState:normalizePremiumRewardState(profile.premiumRewardState),
     betaRewardState:normalizeBetaRewardState(profile.betaRewardState),
     betaPackPurchases:normalizeBetaPackPurchases(profile.betaPackPurchases),
@@ -198,13 +239,16 @@ export function sanitizeProfile(profile = {}){
     ammoInventory:sanitizeObject(profile.ammoInventory),
     actionSlots:sanitizeActionSlots(profile.actionSlots),
     actionSlotsByShip:sanitizeActionSlotsByShip(profile.actionSlotsByShip),
-    actionSlotsUpdatedAt:Math.max(0, Number(profile.actionSlotsUpdatedAt || 0)),
+    actionSlotsUpdatedAt:sanitizeTimestamp(profile.actionSlotsUpdatedAt, 0),
     lastLaserAmmoId:typeof profile.lastLaserAmmoId === "string" ? profile.lastLaserAmmoId : null,
     shipLoadouts:sanitizeShipKeyedObject(profile.shipLoadouts),
-    ownedDroneCount:Math.max(0, Math.floor(Number(profile.ownedDroneCount || 0))),
+    ownedDroneCount,
     droneLoadout:Array.isArray(profile.droneLoadout) ? profile.droneLoadout.map(value=>value === null ? null : String(value)) : undefined,
-    dronePermanentUpgrades:sanitizeObject(profile.dronePermanentUpgrades),
-    equipmentUpgrades:sanitizeObject(profile.equipmentUpgrades),
+    dronePermanentUpgrades:sanitizeDronePermanentUpgrades(profile.dronePermanentUpgrades, {
+      ownedDroneCount,
+      completedPortals:profile.completedPortals
+    }),
+    equipmentUpgrades:sanitizeEquipmentUpgrades(profile.equipmentUpgrades),
     ownedDroneFormations:Array.isArray(profile.ownedDroneFormations) ? profile.ownedDroneFormations.map(String) : undefined,
     activeDroneFormation:typeof profile.activeDroneFormation === "string" ? profile.activeDroneFormation : null,
     cargoHold:sanitizeObject(profile.cargoHold),
@@ -218,7 +262,8 @@ export function sanitizeProfile(profile = {}){
     unlockedPortals:Array.isArray(profile.unlockedPortals) ? profile.unlockedPortals.map(String) : [],
     completedPortals:sanitizeObject(profile.completedPortals),
     portalPieces:sanitizeObject(profile.portalPieces),
-    prestigeCount:Math.max(0, Math.floor(Number(profile.prestigeCount || 0))),
+    preparedPortal:sanitizePreparedPortal(profile.preparedPortal),
+    prestigeCount,
     refineryLevels:sanitizeObject(profile.refineryLevels),
     refineryModules:sanitizeObject(profile.refineryModules),
     refineryUpgradeJobs:sanitizeObject(profile.refineryUpgradeJobs),
@@ -233,6 +278,7 @@ export function sanitizeProfile(profile = {}){
     questProgress:sanitizeObject(profile.questProgress),
     questFailProgress:sanitizeObject(profile.questFailProgress),
     completedQuestClaims:sanitizeObject(profile.completedQuestClaims),
+    questCatalogRevision:questCatalogRevision(profile.questCatalogRevision),
     tutorial:sanitizeTutorialState(profile.tutorial, {missingStatus:"abandoned"}),
     killStats:sanitizeObject(profile.killStats),
     rankKillStats:sanitizeObject(profile.rankKillStats),
@@ -248,12 +294,35 @@ export function sanitizeProfile(profile = {}){
   sanitized.player.name = sanitizePilotName(sanitized.player.name, "NOVA-37");
   sanitized.player.firmId = normalizeFirmId(sanitized.player.firmId || sanitized.player.firm || sanitized.player.company || sanitized.player.faction || "astra");
   sanitized.player.firmSelected = Boolean(sanitized.player.firmSelected);
+  sanitizeProfileTitleState(sanitized);
   if(!Array.isArray(sanitized.ownedShips) || sanitized.ownedShips.length === 0) sanitized.ownedShips = ["orion"];
   if(!sanitized.ownedShips.includes("orion")) sanitized.ownedShips.unshift("orion");
-  if(sanitized.activeShip && !sanitized.ownedShips.includes(sanitized.activeShip)) sanitized.activeShip = sanitized.ownedShips[0] || "orion";
-  if(sanitized.selectedShip && !sanitized.ownedShips.includes(sanitized.selectedShip)) sanitized.selectedShip = sanitized.activeShip || sanitized.ownedShips[0] || "orion";
+  const availableOwnedShipIds = sanitized.ownedShips.filter(shipId=>{
+    const ship = ships.find(candidate=>candidate.id === shipId);
+    return ship && !getShipProgressionLockReason(sanitized, ship);
+  });
+  const fallbackShipId = availableOwnedShipIds.includes("orion")
+    ? "orion"
+    : availableOwnedShipIds[0] || "orion";
+  const activeShipDefinition = ships.find(ship=>ship.id === sanitized.activeShip);
+  if(
+    !activeShipDefinition
+    || !sanitized.ownedShips.includes(activeShipDefinition.id)
+    || getShipProgressionLockReason(sanitized, activeShipDefinition)
+  ){
+    sanitized.activeShip = fallbackShipId;
+  }
+  const selectedShipDefinition = ships.find(ship=>ship.id === sanitized.selectedShip);
+  if(
+    !selectedShipDefinition
+    || !sanitized.ownedShips.includes(selectedShipDefinition.id)
+    || getShipProgressionLockReason(sanitized, selectedShipDefinition)
+  ){
+    sanitized.selectedShip = sanitized.activeShip;
+  }
   rebuildMonsterRankStats(sanitized);
   cleanupDuplicateEquippedInventoryUids(sanitized);
+  migrateQuestCatalog(sanitized);
   return sanitized;
 }
 
@@ -281,6 +350,7 @@ export function preserveProtectedOwnership(incoming, existing){
     "unlockedPortals",
     "completedPortals",
     "portalPieces",
+    "preparedPortal",
     "prestigeCount",
     "firmatons",
     "firmBoxes",
@@ -300,16 +370,17 @@ export function preserveProtectedOwnership(incoming, existing){
     "refineryProductionRemainders",
     "craftingJob",
     "starterRepairGranted",
-    "tutorial"
+    "tutorial",
+    "questCatalogRevision"
   ]);
   for(const field of [
     "ownedShips", "activeShip", "selectedShip", "inventoryItems", "nextInventoryUid",
     "ammoInventory", "shipLoadouts", "ownedDroneCount", "droneLoadout",
     "dronePermanentUpgrades", "equipmentUpgrades", "ownedDroneFormations",
     "activeDroneFormation", "activeQuestIds", "activeQuestId", "questProgress",
-    "questFailProgress", "completedQuestClaims", "worldSession", "shipWorldSessions", "cargoHold",
+    "questFailProgress", "completedQuestClaims", "questCatalogRevision", "worldSession", "shipWorldSessions", "cargoHold",
     "shipCargo", "combatBoosts", "shipAbilityStates", "eliteLaserStates", "boosters", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
-    "portalPieces", "prestigeCount", "premiumRewardState", "betaRewardState", "betaPackPurchases", "betaLaunchEntitlements", "betaLaunchPremiumDays", "betaShipChoices", "refineryLevels", "refineryModules",
+    "portalPieces", "preparedPortal", "prestigeCount", "premiumRewardState", "betaRewardState", "betaPackPurchases", "betaLaunchEntitlements", "betaLaunchPremiumDays", "betaShipChoices", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
     "craftingJob",
     "refineryProductionDisabled", "refineryProductionRemainders", "refineryLastTick", "killStats", "rankKillStats",

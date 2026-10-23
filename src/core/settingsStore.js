@@ -1,4 +1,4 @@
-import { store } from "./store.js";
+import { store } from "./store.js?v=20260726-kharon1";
 import {
   FPS_LIMIT_VALUES,
   UI_SCALE_VALUES,

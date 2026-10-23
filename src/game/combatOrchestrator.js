@@ -1,5 +1,6 @@
-import { ammoTypes, droneFormations, equipment, portals, ships } from "../data/catalog.js";
-import { getCraftRecipe } from "../data/craftingRecipes.js";
+import { ammoTypes, droneFormations, equipment, portals, ships } from "../data/catalog.js?v=20260726-ancient1";
+import { getCraftRecipe } from "../data/craftingRecipes.js?v=20260726-kharon1";
+import { getAncientInteractionTarget, isAncientPortal } from "../data/ancientPortal.js?v=20260726-ancient1";
 import { fmt } from "../core/utils.js";
 import {
   canAfford,
@@ -47,76 +48,81 @@ import {
   setActionSlot,
   store,
   tickCombatBoosts
-} from "../core/store.js";
+} from "../core/store.js?v=20260726-kharon1";
 
 import {
   DEFAULT_ENGINE_PROFILE,
   ENEMY_TYPES,
-  MAPS,
+  MAPS as BASE_MAPS,
   getClosedMapPortals,
   getMapPortals,
   PLAYER_HIT_CHANCE,
+  PORTAL_WAVE_TOTAL,
   RADAR_RANGE,
   SAFE_ZONE_DELAY,
   SHIP_ENGINE_PROFILES
-} from "./combatData.js?v=engine-trail-41";
-import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js";
-import { COMBAT_PROFILE_TITLES } from "./combatProfileTitles.js";
-import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=level-up-2";
-import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=elite-lasers-1";
-import { createCombatSceneRenderer } from "./render/combatScene.js?v=craft-extras-1";
-import { createCombatLoop } from "./systems/combatLoop.js?v=action-slots-save-1-fps-burst-1";
-import { createCombatBeamSystem } from "./systems/combatBeams.js?v=ship-charge-1";
-import { createCombatCargoSystem } from "./systems/combatCargo.js?v=loot-rarity-1";
+} from "./combatData.js?v=20261022-helion-hub1";
+import { createHelionOneVisualMaps } from "./combatData/helionOneVisuals.js?v=20261022-helion-light1";
+import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js?v=20261022-helion-hub1";
+import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=20260726-ancient1";
+import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=20261022-helion-hub1";
+import { createCombatSceneRenderer } from "./render/combatScene.js?v=20261022-helion-hub1";
+import { createCombatLoop } from "./systems/combatLoop.js?v=20260726-kharon1";
+import { createCombatBeamSystem } from "./systems/combatBeams.js?v=20260726-kharon1";
+import { createCombatCargoSystem } from "./systems/combatCargo.js?v=20260726-kharon1";
 import { installCombatDebugCommands } from "./systems/combatDebug.js";
-import { createCombatDeathRespawnSystem } from "./systems/combatDeathRespawn.js";
-import { createCombatFrameUpdateSystem } from "./systems/combatFrameUpdate.js?v=level-up-2";
-import { createCombatHitResolutionSystem } from "./systems/combatHitResolution.js?v=action-slots-save-1-fps-burst-1";
-import { createCombatEnemyRuntime } from "./systems/combatEnemyRuntime.js?v=action-slots-save-1-fps-burst-1";
+import { createCombatDeathRespawnSystem } from "./systems/combatDeathRespawn.js?v=20260726-kharon1";
+import { createCombatFrameUpdateSystem } from "./systems/combatFrameUpdate.js?v=20261022-helion-hub1";
+import { createCombatHitResolutionSystem } from "./systems/combatHitResolution.js?v=20261022-helion-hub1";
+import { createCombatEnemyRuntime } from "./systems/combatEnemyRuntime.js?v=20261022-helion-hub1";
 import { createCombatEnemyDamageSystem } from "./systems/combatEnemyDamage.js";
 import { createCombatRemoteTargetResolver } from "./systems/combatRemoteTargets.js";
-import { createCombatInteractionSystem } from "./systems/combatInteractions.js";
+import { createCombatInteractionSystem } from "./systems/combatInteractions.js?v=20260905-motion3";
 import { createCombatMapAssetStreamingSystem } from "./systems/combatMapAssetStreaming.js";
 import { createCombatMultiplayerSyncSystem } from "./systems/combatMultiplayerSync.js";
-import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=loot-rarity-1";
+import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v=20261022-helion-hub1";
 import { createCombatServerActions } from "./systems/combatServerActions.js";
-import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js";
+import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js?v=20261022-helion-hub1";
 import { createCombatPortalNavigationSystem } from "./systems/combatPortalNavigation.js";
-import { createLevelUpEffectSystem } from "./systems/levelUpEffects.js?v=craft-extras-1";
+import { getPreparedDungeonPortalForMap } from "./systems/preparedDungeonPortal.js?v=20260726-nox1";
+import { createLevelUpEffectSystem } from "./systems/levelUpEffects.js?v=20260726-kharon1";
 import { applyCombatStatFields } from "./systems/combatPlayerStats.js";
-import { createCombatQuestProgressSystem } from "./systems/combatQuestProgress.js";
-import { createCombatSessionController } from "./systems/combatSession.js?v=action-slots-save-1-fps-burst-1";
-import { createCombatStatusEffectSystem } from "./systems/combatStatusEffects.js?v=craft-extras-1";
-import { createCombatWorldStateSystem } from "./systems/combatWorldState.js";
-import { createCombatPerfSystem } from "./systems/combatPerf.js";
-import { timeCombatProfiler } from "./systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
-import { createCombatSettingsRuntime } from "./systems/combatSettingsRuntime.js";
+import { createCombatQuestProgressSystem } from "./systems/combatQuestProgress.js?v=20260726-kharon1";
+import { createCombatSessionController } from "./systems/combatSession.js?v=20260905-motion3";
+import { createCombatStatusEffectSystem } from "./systems/combatStatusEffects.js?v=20260726-kharon1";
+import { createCombatWorldStateSystem } from "./systems/combatWorldState.js?v=20261022-helion-hub1";
+import { createTutorialWorldGuidance } from "./systems/tutorialWorldGuidance.js?v=20261022-tutorial-guidance1";
+import { createCombatPerfSystem } from "./systems/combatPerf.js?v=20260804-motion2";
+import { timeCombatProfiler } from "./systems/combatFrameProfiler.js?v=20260726-kharon1";
+import { createCombatSettingsRuntime } from "./systems/combatSettingsRuntime.js?v=20260726-kharon1";
 import { advanceMapPortalTransition, createMapPortalTransition, findMapPortalAt } from "./systems/mapPortalTransfer.js";
 import { createMiniMapState } from "./systems/minimapState.js";
 import { createPlayerLifecycle } from "./systems/playerLifecycle.js";
-import { clampPlayerToMap as clampPlayerToMapSystem, tickPlayerVisualCorrection, updateCamera, updatePlayerMovement, worldFromScreen as screenToWorld } from "./systems/playerMovement.js?v=action-slots-save-1-fps-burst-1";
+import { clampPlayerToMap as clampPlayerToMapSystem, tickPlayerVisualCorrection, updateCamera, updatePlayerMovement, worldFromScreen as screenToWorld } from "./systems/playerMovement.js?v=20260726-kharon1";
 import { createRepairBotSystem } from "./systems/repairBot.js";
 import { createRewardSystem } from "./systems/rewards.js";
-import { createWeaponSystem } from "./systems/weapons.js?v=action-slots-save-1-fps-burst-1";
+import { createWeaponSystem } from "./systems/weapons.js?v=20260726-combat-authority1";
 import { updatePoisonStatus, updateSlowStatus } from "./ui/hud.js";
-import { createCombatHudController } from "./ui/combatHudController.js";
-import { createCombatChat } from "./ui/combatChat.js?v=loot-rarity-1";
-import { createCombatLogoutController } from "./ui/combatLogoutController.js";
-import { installCombatInputHandlers } from "./ui/inputBindings.js?v=craft-ui-6";
+import { createCombatHudController } from "./ui/combatHudController.js?v=20261022-helion-hub1";
+import { createCombatChat } from "./ui/combatChat.js?v=20260726-kharon1";
+import { createCombatLogoutController } from "./ui/combatLogoutController.js?v=20260726-kharon1";
+import { installCombatInputHandlers } from "./ui/inputBindings.js?v=20260726-kharon1";
+import { createSpawnStationHover } from "./ui/spawnStationHover.js";
 import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
-import { createCombatActions } from "./ui/combatActions.js?v=action-slots-save-1-fps-burst-1";
-import { createCombatPanels } from "./ui/combatPanels.js?v=craft-extras-1";
-import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=ship-abilities-1";
-import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerCraft, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerCraft, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=crafting-1";
+import { createCombatActions } from "./ui/combatActions.js?v=20260726-combat-authority1";
+import { createCombatPanels } from "./ui/combatPanels.js?v=20261018-map-transfer1";
+import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=20260726-kharon1";
+import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerCraft, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, interactPrecursorPortal, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerCraft, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=20261018-map-transfer1";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
-import { getShipAbilityStatuses } from "../shared/shipAbilities.js?v=ship-charge-1";
+import { getShipAbilityStatuses } from "../shared/shipAbilities.js?v=20260726-kharon1";
 import {
   getServerEnemyId,
   hasServerControlledEnemies,
   isServerControlledEnemy,
   syncServerControlledEnemies as syncMultiplayerEnemies
-} from "../multiplayer/enemies.js?v=action-slots-save-1-fps-burst-1";
+} from "../multiplayer/enemies.js?v=20260905-motion3";
 export function createCombatGame({renderAll, showToast}){
+  const MAPS = createHelionOneVisualMaps(BASE_MAPS);
   const PORTAL_STARTING_LIVES = 3;
   const PORTAL_WAVE_DELAY = 30;
   const canvas = document.getElementById("gameCanvas");
@@ -142,6 +148,28 @@ export function createCombatGame({renderAll, showToast}){
   function getCombatState(){
     return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portgunChannel, portalTransition, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
   }
+
+  function getNetworkPerfSummary(){
+    const now = Date.now();
+    let count = 0;
+    let jitterTotal = 0;
+    let delayTotal = 0;
+    let dropped = 0;
+    let underruns = 0;
+    for(const remote of multiplayer.remotePlayers.values()){
+      if(now - Number(remote.lastReceivedAt || 0) > 10000) continue;
+      const diagnostics = remote.networkDiagnostics;
+      if(!diagnostics) continue;
+      count += 1;
+      jitterTotal += Number(diagnostics.jitterMs || 0);
+      delayTotal += Number(diagnostics.adaptiveDelayMs || 0);
+      dropped += Number(diagnostics.droppedSequences || 0);
+      underruns += Number(diagnostics.bufferUnderruns || 0);
+    }
+    if(!count) return "R0";
+    return `R${count} J${Math.round(jitterTotal / count)} B${Math.round(delayTotal / count)} L${dropped} U${underruns}`;
+  }
+
   function setCombatState(patch){
     if(Object.hasOwn(patch, "player")) player = patch.player;
     if(Object.hasOwn(patch, "camera")) camera = patch.camera;
@@ -201,6 +229,7 @@ export function createCombatGame({renderAll, showToast}){
   });
   let actions;
   const weapons = createWeaponSystem({
+    getPlayerId:()=>multiplayer.playerId,
     getPlayer:()=>player,
     getBullets:()=>bullets,
     getParticles:()=>particles,
@@ -221,6 +250,8 @@ export function createCombatGame({renderAll, showToast}){
     getEquippedLasers,
     getEquippedDroneLasers,
     getEquippedLauncher,
+    sendServerEnemyHit,
+    sendServerPlayerHit,
     markCombatActivity,
     addLaserBeam:beam=>beams.add(beam),
     sendPlayerWeaponEffect:sendPlayerLaserEffect,
@@ -467,6 +498,24 @@ export function createCombatGame({renderAll, showToast}){
   });
   window.addEventListener("voidsector:multiplayer-change", event=>{
     const reason = String(event.detail?.reason || "");
+    if(reason === "portal:failed"){
+      const payload = event.detail?.payload || {};
+      const failedPortalId = String(payload?.portal?.id || activePortal?.id || "");
+      if(running && gameMode === "portal" && failedPortalId === "void"){
+        const homeMap = getHomeMapForPlayer();
+        const returnMap = MAPS.find(map=>
+          String(map.id) === String(payload?.spawn?.mapId ?? "")
+          || String(map.name || "").toUpperCase() === String(payload?.spawn?.mapName || "").toUpperCase()
+        ) || homeMap;
+        loadMap(
+          returnMap.id,
+          Number.isFinite(Number(payload?.spawn?.x)) ? Number(payload.spawn.x) : returnMap.spawn?.x,
+          Number.isFinite(Number(payload?.spawn?.y)) ? Number(payload.spawn.y) : returnMap.spawn?.y,
+          {safeNow:true}
+        );
+      }
+      return;
+    }
     if(reason === "firm:snapshot" || reason === "firm:ranking"){
       if(running && player){
         refreshPlayerStatsFromLoadout();
@@ -532,8 +581,16 @@ export function createCombatGame({renderAll, showToast}){
     getActivePortal:()=>activePortal,
     getCurrentMap:()=>currentMap,
     getPortalWave:()=>portalWave,
+    getPortalWaveTotal:()=>Math.max(
+      1,
+      Number(multiplayer.portalInstance?.waveTotal || activePortal?.waves || activePortal?.totalWaves || PORTAL_WAVE_TOTAL)
+    ),
     getPortalDelay:()=>portalDelay,
+    getPortalWaitingForClear:()=>Boolean(multiplayer.portalInstance?.waitingForClear),
+    getPortalWaveState:()=>String(multiplayer.portalInstance?.waveState || ""),
     getPortalCompleted:()=>portalCompleted,
+    getPortalObjective:()=>portalObjective,
+    getPortalLives:()=>portalLives,
     getCombatCargoExpanded:()=>combatCargoExpanded,
     getCurrentRank,
     getRankAssetPath,
@@ -543,6 +600,10 @@ export function createCombatGame({renderAll, showToast}){
     isPlayerOutsideMap,
     isRepairBotReady:canRepairBotActivate,
     validSelectedEnemy
+  });
+  const stationHover = createSpawnStationHover({
+    canvas, worldFromScreen, getStationAt, miniMapHitTest:miniMap.hitTest,
+    isEnabled:()=>running && !cargo.isMovementLocked?.() && !portalCinematic && !settingsController?.isOpen?.()
   });
   const sceneRenderer = createCombatSceneRenderer({
     ctx,
@@ -555,6 +616,7 @@ export function createCombatGame({renderAll, showToast}){
     getGraphicsQuality,
     getGraphicsEffects,
     getSpawnStations:()=>worldState.getSpawnStations(),
+    getHoveredStation:stationHover.getHoveredStation,
     getSafeAreas:()=>worldState.getSafeAreas(),
     isSafeModeActive,
     isPlayerOutsideMap,
@@ -568,7 +630,6 @@ export function createCombatGame({renderAll, showToast}){
     getDroneLoadout,
     getItemFromInventoryUid,
     getDronePermanentUpgrade,
-    getPlayerTitle:()=>store.state.player.titleVisible === false ? "" : (COMBAT_PROFILE_TITLES[store.state.player.activeTitleId] || ""),
     getLocalPlayerRole:()=>multiplayer.auth?.account?.role || "",
     getGroupRemotePlayers,
     getGroupPingTarget:()=>multiplayer.groupPing,
@@ -662,7 +723,9 @@ export function createCombatGame({renderAll, showToast}){
     },
     applyServerDeath:event=>deathRespawn.applyServerDeath(event),
     applyServerRespawn:event=>deathRespawn.applyServerRespawn(event),
-    markAuthoritativeDamageReceived
+    markAuthoritativeDamageReceived,
+    confirmAuthoritativeShot:event=>weapons.confirmAuthoritativeShot(event),
+    rejectAuthoritativeShot:event=>weapons.rejectAuthoritativeShot(event)
   });
   const multiplayerSync = createCombatMultiplayerSyncSystem({
     multiplayer,
@@ -724,7 +787,8 @@ export function createCombatGame({renderAll, showToast}){
   const perf = createCombatPerfSystem({
     getState:getCombatState,
     update,
-    draw
+    draw,
+    getNetworkSummary:getNetworkPerfSummary
   });
   const frameLoop = createCombatLoop({
     isRunning:()=>running,
@@ -763,7 +827,7 @@ export function createCombatGame({renderAll, showToast}){
     requestServerLogout,
     disconnectMultiplayer,
     getRunning:()=>running,
-    setRunning:value=>{ running = value; },
+    setRunning:value=>{ running = value; if(!value) stationHover.clear(); },
     getPlayer:()=>player,
     getPortalTransition:()=>portalTransition,
     getTeleportLock:()=>teleportLock,
@@ -782,6 +846,12 @@ export function createCombatGame({renderAll, showToast}){
     multiplayer,
     getPlayer:()=>player,
     getCurrentMap:()=>currentMap,
+    hasCoordinateObjective:()=>getActiveQuests().some(quest=>{
+      const objectives = Array.isArray(quest?.objectives)
+        ? quest.objectives
+        : [quest?.objective].filter(Boolean);
+      return objectives.some(objective=>objective?.type === "visit_coordinates");
+    }),
     progressServerQuest
   });
   const session = createCombatSessionController({
@@ -789,7 +859,7 @@ export function createCombatGame({renderAll, showToast}){
     mapList:MAPS,
     radarRange:RADAR_RANGE,
     getRunning:()=>running,
-    setRunning:value=>{ running = value; },
+    setRunning:value=>{ running = value; if(!value) stationHover.clear(); },
     getState:getCombatState,
     setState:setCombatState,
     getShipCombatStats,
@@ -850,21 +920,7 @@ export function createCombatGame({renderAll, showToast}){
   function getCompletedQuestClaims(){ return store.state.completedQuestClaims || {}; }
   function getQuestProgressState(){ return store.state.questProgress || {}; }
   function getPreparedDungeonPortal(map = currentMap){
-    const prepared = multiplayer.preparedPortal;
-    if(!prepared || !map || String(prepared.mapId || "") !== String(map.id || "")) return null;
-    const portalId = String(prepared.portalId || prepared.portal?.id || "");
-    if(!portalId) return null;
-    return {
-      ...prepared,
-      portalId,
-      dungeonPortal:true,
-      prepared:true,
-      r:Number(prepared.r || 115),
-      safeRadius:Number(prepared.safeRadius || 280),
-      activationRadius:Number(prepared.activationRadius || 430),
-      label:prepared.label || prepared.portal?.name || "PORTAIL PREPARE",
-      displayLabel:prepared.displayLabel || prepared.portal?.name || "PORTAIL PREPARE"
-    };
+    return getPreparedDungeonPortalForMap(multiplayer.preparedPortal, map);
   }
 
   function getAccessibleMapPortals(map = currentMap){
@@ -906,53 +962,15 @@ export function createCombatGame({renderAll, showToast}){
     return false;
   }
 
-  function getTutorialSnapshot(target = {}){
-    if(!running || !player || !camera || !currentMap) return null;
-    const type = String(target.type || "player");
-    let point = null;
-    if(type === "station"){
-      point = worldState.getSpawnStations().find(station=>station.id === target.id) || null;
-    }else if(type === "hq"){
-      point = currentMap.spawn || null;
-    }else if(type === "enemy"){
-      const kinds = new Set((target.kinds || []).map(String));
-      point = enemies
-        .filter(enemy=>enemy.hp > 0 && (!kinds.size || kinds.has(String(enemy.kind || ""))))
-        .sort((a,b)=>Math.hypot(a.x-player.x,a.y-player.y)-Math.hypot(b.x-player.x,b.y-player.y))[0] || null;
-    }else if(type === "map2"){
-      const currentMapName = String(currentMap.name || "");
-      const currentPrefix = currentMapName.replace(/-\d{2}$/,"");
-      const targetMapName = currentPrefix && currentPrefix !== currentMapName ? `${currentPrefix}-02` : "";
-      const targetMap = MAPS.find(map=>String(map.name || "") === targetMapName)
-        || MAPS.find(map=>String(map.name || "").endsWith("-02"));
-      const mapPortals = Array.isArray(currentMap.portals) ? currentMap.portals : currentMap.portal ? [currentMap.portal] : [];
-      point = getAccessibleMapPortals().find(portal=>Number(portal.targetMap) === Number(targetMap?.id))
-        || mapPortals.find(portal=>Number(portal.targetMap) === Number(targetMap?.id))
-        || null;
-    }else{
-      point = player;
-    }
-    if(!point) return {mapName:currentMap.name, player:{x:player.x,y:player.y,repairBotActive:Boolean(player.repairBotActive)}, target:null};
-    const canvasRect = canvas.getBoundingClientRect();
-    const zoom = Number(camera.zoom || 1);
-    const playerScreenX = canvasRect.left + (Number(player.x || 0) - camera.x) * zoom;
-    const playerScreenY = canvasRect.top + (Number(player.y || 0) - camera.y) * zoom;
-    const screenX = canvasRect.left + (Number(point.x || 0) - camera.x) * zoom;
-    const screenY = canvasRect.top + (Number(point.y || 0) - camera.y) * zoom;
-    return {
-      mapName:currentMap.name,
-      player:{x:player.x,y:player.y,screenX:playerScreenX,screenY:playerScreenY,repairBotActive:Boolean(player.repairBotActive)},
-      target:{
-        x:Number(point.x || 0),
-        y:Number(point.y || 0),
-        screenX,
-        screenY,
-        distance:Math.hypot(Number(point.x || 0)-player.x, Number(point.y || 0)-player.y),
-        kind:String(point.kind || point.id || type)
-      },
-      canvas:{left:canvasRect.left,top:canvasRect.top,right:canvasRect.right,bottom:canvasRect.bottom}
-    };
-  }
+  const tutorialWorldGuidance = createTutorialWorldGuidance({
+    getState:()=>({running, player, camera, currentMap, enemies, firmId:store.state.player?.firmId, tutorialStep:store.state.tutorial?.step}),
+    maps:MAPS,
+    enemyTypes:ENEMY_TYPES,
+    getStations:()=>worldState.getSpawnStations(),
+    getPortals:map=>getAccessibleMapPortals(map),
+    getViewport:()=>canvas.getBoundingClientRect()
+  });
+  function getTutorialSnapshot(target = {}){ return tutorialWorldGuidance.getTutorialSnapshot(target); }
 
   function previewTutorialTarget(target = {}, durationMs = 2600){
     const snapshot = getTutorialSnapshot(target);
@@ -1058,17 +1076,35 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function findPortalObjectiveAt(world){
-    if(gameMode !== "portal" || activePortal?.id !== "ricky") return null;
+    if(gameMode !== "portal") return null;
+    if(isAncientPortal(activePortal)){
+      return getAncientInteractionTarget(portalObjective, world);
+    }
+    if(activePortal?.id !== "ricky") return null;
     return (portalObjective?.levers || []).find(lever=>
       !lever.active && Math.hypot(Number(lever.x || 0) - world.x, Number(lever.y || 0) - world.y) <= 125
     ) || null;
   }
 
-  function interactPortalObjective(lever){
-    if(!lever?.id) return false;
-    moveTarget = {x:Number(lever.x || 0), y:Number(lever.y || 0)};
-    activateRickyPortalLever(lever.id);
-    showToast(`${lever.label || "Balise"} : approche et reste immobile pendant 10 secondes.`);
+  function interactPortalObjective(target){
+    if(isAncientPortal(activePortal)){
+      if(!target?.action) return false;
+      moveTarget = {x:Number(target.x || 0), y:Number(target.y || 0)};
+      const closeEnough = Math.hypot(
+        Number(player?.x || 0) - Number(target.x || 0),
+        Number(player?.y || 0) - Number(target.y || 0)
+      ) <= Math.max(80, Number(target.radius || 180));
+      if(closeEnough){
+        interactPrecursorPortal(target.action);
+      }else{
+        showToast(`${target.label || "Objectif"} : approche-toi puis clique de nouveau.`);
+      }
+      return true;
+    }
+    if(!target?.id) return false;
+    moveTarget = {x:Number(target.x || 0), y:Number(target.y || 0)};
+    activateRickyPortalLever(target.id);
+    showToast(`${target.label || "Balise"} : approche et reste immobile pendant 10 secondes.`);
     return true;
   }
 
@@ -1144,8 +1180,8 @@ export function createCombatGame({renderAll, showToast}){
     return weapons.fireManualRocket(index, ammo);
   }
 
-  function fireManualMissile(ammo, count){
-    return weapons.fireManualMissile(ammo, count);
+  function fireManualMissile(ammo, count, callbacks){
+    return weapons.fireManualMissile(ammo, count, callbacks);
   }
 
   function findRemotePlayerTargetById(playerId){
@@ -1220,6 +1256,7 @@ export function createCombatGame({renderAll, showToast}){
 
   function draw(){
     timeCombatProfiler("render.scene", ()=>sceneRenderer.draw());
+    tutorialWorldGuidance.renderFrame();
   }
   function updateHud(){
     timeCombatProfiler("hud.updateHud", ()=>hudController.updateHud());
@@ -1298,6 +1335,7 @@ export function createCombatGame({renderAll, showToast}){
     selectCraftCategory:panels.selectCraftCategory,
     selectCraftTabPage:panels.selectCraftTabPage,
     selectCraftRecipe:panels.selectCraftRecipe,
+    selectCraftPayment:panels.selectCraftPayment,
     setRefineryPanelTab:panels.setRefineryPanelTab,
     openShipRefineRecipe:panels.openShipRefineRecipe,
     closeShipRefineRecipe:panels.closeShipRefineRecipe,
@@ -1323,8 +1361,8 @@ export function createCombatGame({renderAll, showToast}){
     useShipAbility:actions.useShipAbility,
     acceptQuest:acceptQuestAction,
     claimQuest:claimQuestAction,
-    startCraft:recipeId=>{
-      if(isMmoConnected(multiplayer) && startServerCraft?.(recipeId)){
+    startCraft:(recipeId, paymentType = "")=>{
+      if(isMmoConnected(multiplayer) && startServerCraft?.(recipeId, paymentType)){
         const recipe = getCraftRecipe(recipeId) || {id:recipeId, name:"recette serveur"};
         return {ok:true, recipe, serverPending:true};
       }
@@ -1410,6 +1448,8 @@ export function createCombatGame({renderAll, showToast}){
     resumeWorldSession:session.resumeWorldSession,
     refreshActiveLoadout:session.refreshActiveLoadout,
     getTutorialSnapshot,
+    getTutorialRenderSnapshot:tutorialWorldGuidance.getRenderSnapshot,
+    subscribeTutorialFrame:tutorialWorldGuidance.subscribeFrame,
     previewTutorialTarget,
     closeTutorialInteractionPanel:()=>panels.closeSpawnPanel(),
     updateHud,

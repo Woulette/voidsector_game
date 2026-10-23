@@ -1,10 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { droneFormations } from "../../../src/data/equipment.js";
 import { rawMaterialCatalog } from "../../../src/data/progression.js";
-import { getCraftRecipe } from "../../../src/data/craftingRecipes.js";
+import { getCraftCurrencySelection, getCraftRecipe, getCraftRecipePortalLockReason } from "../../../src/data/craftingRecipes.js";
 import { addPlayerBoosterUnits } from "../../../src/shared/firmBoosters.js";
 import { addInventoryItemAmount } from "./inventoryStacks.js";
 import { getServerAmmo, getServerDroneCatalog, getServerItem, getServerShip, makeEmptyLoadout } from "./equipment.js";
-import { spendCurrency } from "../players/progression.js";
+import { getProgressionLevelCap, spendCurrency } from "../players/progression.js";
+import { getShipProgressionLockReason } from "../../../src/shared/progressionUnlocks.js";
+import { sanitizeCraftingJob } from "./craftingJobs.js";
+import { refundRedundantCraftingJob } from "./craftingRecovery.js";
 
 function getCraftMaterial(id){
   return rawMaterialCatalog.find(material=>material.id === id) || null;
@@ -35,35 +39,28 @@ function publicRecipe(recipe){
     rarityTier:recipe.rarityTier,
     durationMs:recipe.durationMs,
     costs:recipe.costs,
+    requiresCompletedPortal:recipe.requiresCompletedPortal || null,
+    requiresCompletedPortalName:recipe.requiresCompletedPortalName || "",
     output:recipe.output
   };
 }
 
-function sanitizeCraftingJob(job, recipe){
-  const startedAt = Math.max(0, Number(job?.startedAt || Date.now()));
-  const durationMs = Math.max(1, Number(job?.durationMs || recipe?.durationMs || 60_000));
-  const endsAt = Math.max(startedAt, Number(job?.endsAt || job?.finishAt || startedAt + durationMs));
-  return {
-    recipeId:recipe.id,
-    startedAt,
-    endsAt,
-    durationMs
-  };
-}
-
-function spendCraftCurrency(profile, recipe){
-  const costs = recipe.costs || {};
+function spendCraftCurrency(profile, recipe, paymentType = ""){
+  const selected = getCraftCurrencySelection(recipe, paymentType);
+  if(!selected.ok) return selected;
+  const levelCap = getProgressionLevelCap(profile.prestigeCount);
   let player = profile.player || {};
-  const credits = spendCurrency(player, "credits", costs.credits || 0);
-  if(!credits.ok) return credits;
+  const credits = spendCurrency(player, "credits", selected.credits, levelCap);
+  if(!credits.ok) return {...credits, reason:"Credits insuffisants."};
   player = credits.player;
-  const premium = spendCurrency(player, "premium", costs.premium || 0);
-  if(!premium.ok) return premium;
+  const premium = spendCurrency(player, "premium", selected.premium, levelCap);
+  if(!premium.ok) return {...premium, reason:"NOVA insuffisants."};
   profile.player = premium.player;
   return {
     ok:true,
     credits:credits.cost || 0,
-    premium:premium.cost || 0
+    premium:premium.cost || 0,
+    paymentType:selected.paymentType
   };
 }
 
@@ -81,15 +78,21 @@ function validateCraftMaterials(profile, recipe){
 function validateCraftOutputAvailability(profile, recipe){
   const output = recipe?.output || {};
   const outputId = String(output.id || "");
-  if(output.type === "ship" && Array.isArray(profile.ownedShips) && profile.ownedShips.map(String).includes(outputId)){
-    return {ok:false, reason:"Vaisseau deja possede."};
+  if(output.type === "ship"){
+    const ship = getServerShip(outputId);
+    if(!ship) return {ok:false, reason:"Vaisseau introuvable."};
+    const progressionLockReason = getShipProgressionLockReason(profile, ship);
+    if(progressionLockReason) return {ok:false, reason:progressionLockReason};
+    if(Array.isArray(profile.ownedShips) && profile.ownedShips.map(String).includes(outputId)){
+      return {ok:false, reason:"Vaisseau deja possede."};
+    }
   }
   if(output.type === "formation" && Array.isArray(profile.ownedDroneFormations) && profile.ownedDroneFormations.map(String).includes(outputId)){
     return {ok:false, reason:"Formation deja possedee."};
   }
   if(output.type === "drone"){
     const drone = getServerDroneCatalog();
-    const maxOwned = Math.max(0, Number(drone.maxOwned || 10));
+    const maxOwned = Math.max(0, Number(drone.maxStandardOwned));
     if(Math.max(0, Math.floor(Number(profile.ownedDroneCount || 0))) >= maxOwned){
       return {ok:false, reason:`Limite de drones atteinte (${maxOwned}/${maxOwned}).`};
     }
@@ -139,7 +142,7 @@ function grantAmmoOutput(profile, ammoId, amount){
 function grantDroneOutput(profile, droneId){
   const drone = getServerDroneCatalog();
   if(String(drone.id || "combat_drone") !== String(droneId || "combat_drone")) return {ok:false, reason:"Drone introuvable."};
-  const maxOwned = Math.max(0, Number(drone.maxOwned || 10));
+  const maxOwned = Math.max(0, Number(drone.maxStandardOwned));
   const current = Math.max(0, Math.floor(Number(profile.ownedDroneCount || 0)));
   if(current >= maxOwned) return {ok:false, reason:`Limite de drones atteinte (${maxOwned}/${maxOwned}).`};
   profile.ownedDroneCount = current + 1;
@@ -182,26 +185,31 @@ function grantCraftOutput(profile, recipe){
   return {ok:false, reason:"Sortie de craft invalide."};
 }
 
-export function startServerCraftingJob(profile, {recipeId, now = Date.now()} = {}){
+export function startServerCraftingJob(profile, {recipeId, paymentType = "", now = Date.now()} = {}){
   const recipe = getCraftRecipe(recipeId);
   if(!recipe) return {ok:false, reason:"Recette introuvable."};
   if(profile.craftingJob) return {ok:false, reason:"Une fabrication est deja en cours."};
+  const portalLockReason = getCraftRecipePortalLockReason(recipe, profile);
+  if(portalLockReason) return {ok:false, reason:portalLockReason};
 
   const availability = validateCraftOutputAvailability(profile, recipe);
   if(!availability.ok) return availability;
   const materialCheck = validateCraftMaterials(profile, recipe);
   if(!materialCheck.ok) return materialCheck;
 
-  const currency = spendCraftCurrency(profile, recipe);
+  const currency = spendCraftCurrency(profile, recipe, paymentType);
   if(!currency.ok) return currency;
   const materials = consumeCraftMaterials(profile, recipe);
   if(!materials.ok) return materials;
 
   profile.craftingJob = sanitizeCraftingJob({
+    id:randomUUID(),
     recipeId:recipe.id,
     startedAt:now,
     endsAt:now + Math.max(1, Number(recipe.durationMs || 60_000)),
-    durationMs:Math.max(1, Number(recipe.durationMs || 60_000))
+    durationMs:Math.max(1, Number(recipe.durationMs || 60_000)),
+    paidCosts:{version:1, credits:currency.credits, premium:currency.premium,
+      paymentType:currency.paymentType, materials:materials.consumed || {}}
   }, recipe);
 
   return {
@@ -209,7 +217,12 @@ export function startServerCraftingJob(profile, {recipeId, now = Date.now()} = {
     action:"job-start",
     recipe:publicRecipe(recipe),
     job:profile.craftingJob,
-    costs:{credits:currency.credits, premium:currency.premium, materials:materials.consumed || {}}
+    costs:{
+      credits:currency.credits,
+      premium:currency.premium,
+      paymentType:currency.paymentType,
+      materials:materials.consumed || {}
+    }
   };
 }
 
@@ -218,8 +231,12 @@ export function claimServerCraftingJob(profile, {now = Date.now()} = {}){
   if(!job) return {ok:false, reason:"Aucune fabrication en cours."};
   const recipe = getCraftRecipe(job.recipeId);
   if(!recipe) return {ok:false, reason:"Recette de fabrication invalide."};
+  const recovery = refundRedundantCraftingJob(profile, {now});
+  if(recovery.ok || recovery.code !== "CRAFT_NOT_REDUNDANT") return recovery;
   const cleanJob = sanitizeCraftingJob(job, recipe);
   if(Number(cleanJob.endsAt || 0) > Number(now || Date.now())) return {ok:false, reason:"Fabrication non terminee."};
+  const portalLockReason = getCraftRecipePortalLockReason(recipe, profile);
+  if(portalLockReason) return {ok:false, reason:portalLockReason};
 
   const availability = validateCraftOutputAvailability({...profile, craftingJob:null}, recipe);
   if(!availability.ok) return availability;

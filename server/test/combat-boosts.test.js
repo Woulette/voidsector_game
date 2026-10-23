@@ -55,6 +55,7 @@ test("server perfection rejects an incompatible material without consuming it", 
 
 test("generator boost multiplies total speed after base ship and generator speed", ()=>{
   const profile = createDefaultProfile();
+  profile.ownedShips.push("valkyrie");
   profile.activeShip = "valkyrie";
   const generatorUids = Array.from({length:4}, (_, index)=>addInventoryItem(profile, `engine-${index}`, "engine_ion"));
   profile.shipLoadouts.valkyrie = {lasers:[], generators:generatorUids, extras:[]};

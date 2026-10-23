@@ -85,6 +85,23 @@ export function registerQuestHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
+  socket.on("quest:abandon", async payload=>{
+    if(!guard("quest:abandon")) return;
+    const player = players.get(socket.id);
+    if(!player) return;
+    const result = profileManager.applyQuestAction({
+      player,
+      action:{kind:"abandon", questId:payload?.id}
+    });
+    if(!result.ok){
+      socket.emit("quest:error", {message:result.reason || "Abandon impossible.", ...(result.code ? {code:result.code} : {})});
+      return;
+    }
+    if(!await ensureSaved(result)) return;
+    emitProfileSync(player, result.profile);
+    socket.emit("quest:abandoned", {id:result.quest?.id, title:result.quest?.title, at:Date.now()});
+  });
+
   socket.on("quest:claim", async payload=>{
     if(!guard("quest:claim")) return;
     const player = players.get(socket.id);

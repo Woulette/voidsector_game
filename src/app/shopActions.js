@@ -1,5 +1,6 @@
 import { getPremiumPack } from "../data/premium.js";
 import { sendMmoCommand } from "./mmoGate.js";
+import { createServerActionBurstQueue } from "./serverActionBurstQueue.js?v=20260726-economy-burst1";
 
 export function createShopActions({
   multiplayer,
@@ -22,10 +23,14 @@ export function createShopActions({
   claimServerBetaReward,
   showToast
 }){
+  const purchaseQueue = createServerActionBurstQueue({
+    onSendFailure:()=>showToast("Connexion perdue : achat en attente annule.")
+  });
+
   function buyShip(id){
     const ship = getShip(id);
     if(store.state.ownedShips.includes(id)) return;
-    const lockReason = getShipPurchaseLockReason(ship);
+    const lockReason = getShipPurchaseLockReason(ship, multiplayer.auth.account?.role);
     if(lockReason) return showToast(lockReason);
     sendMmoCommand({
       multiplayer,
@@ -42,9 +47,13 @@ export function createShopActions({
     const count = item.id === "teleportation_fluid" && [1, 10, 100, 1000].includes(Number(multiplier)) ? Number(multiplier) : 1;
     sendMmoCommand({
       multiplayer,
-      send:()=>buyServerItem?.(id, count),
+      send:()=>purchaseQueue.enqueue({
+        channel:"shop:buy-item",
+        key:`${id}:${count}`,
+        send:repeat=>buyServerItem?.(id, count, repeat)
+      }),
       showToast,
-      sentMessage:"Achat envoye au serveur.",
+      sentMessage:"Achat pris en compte.",
       failedMessage:"Achat d'objet impossible."
     });
   }
@@ -53,7 +62,11 @@ export function createShopActions({
     const count = [1, 10, 50, 100].includes(Number(quantity)) ? Number(quantity) : 1;
     sendMmoCommand({
       multiplayer,
-      send:()=>buyServerBooster?.(id, count),
+      send:()=>purchaseQueue.enqueue({
+        channel:"shop:buy-booster",
+        key:`${id}:${count}`,
+        send:repeat=>buyServerBooster?.(id, count, repeat)
+      }),
       showToast,
       sentMessage:"Achat du booster S1 envoyé au serveur.",
       failedMessage:"Achat du booster S1 impossible."
@@ -66,9 +79,13 @@ export function createShopActions({
     const count = [1, 10, 100, 1000].includes(Number(multiplier)) ? Number(multiplier) : 1;
     sendMmoCommand({
       multiplayer,
-      send:()=>buyServerAmmo?.(id, count),
+      send:()=>purchaseQueue.enqueue({
+        channel:"shop:buy-ammo",
+        key:`${id}:${count}`,
+        send:repeat=>buyServerAmmo?.(id, count, repeat)
+      }),
       showToast,
-      sentMessage:"Achat envoye au serveur.",
+      sentMessage:"Achat pris en compte.",
       failedMessage:"Achat de munitions impossible."
     });
   }
@@ -76,10 +93,10 @@ export function createShopActions({
   function buyCombatDrone(){
     const drone = getDroneCatalog();
     const count = store.state.ownedDroneCount || 0;
-    if(count >= drone.maxOwned) return showToast("Nombre maximum de drones atteint.");
+    if(count >= drone.maxStandardOwned) return showToast(`Limite de ${drone.maxStandardOwned} drones standards atteinte.`);
     sendMmoCommand({
       multiplayer,
-      send:()=>buyServerDrone?.({id:drone.id, ownedCount:count}),
+      send:()=>buyServerDrone?.({id:drone.id, expectedPrice:Math.round(drone.basePrice * Math.pow(2, count))}),
       showToast,
       sentMessage:"Achat envoye au serveur.",
       failedMessage:"Achat de drone impossible."

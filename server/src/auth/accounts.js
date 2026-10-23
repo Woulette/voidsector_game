@@ -46,15 +46,24 @@ function moderationDateText(timestamp){
   return new Date(timestamp).toLocaleString("fr-FR");
 }
 
-function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")){
-  const hash = crypto.scryptSync(String(password || ""), salt, PASSWORD_KEYLEN).toString("hex");
+function derivePasswordKey(password, salt){
+  return new Promise((resolve, reject)=>{
+    crypto.scrypt(String(password || ""), salt, PASSWORD_KEYLEN, (error, key)=>{
+      if(error) reject(error);
+      else resolve(key);
+    });
+  });
+}
+
+export async function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")){
+  const hash = (await derivePasswordKey(password, salt)).toString("hex");
   return `${PASSWORD_ALGO}:${salt}:${hash}`;
 }
 
-function verifyPassword(password, storedHash){
+export async function verifyPassword(password, storedHash){
   const [algo, salt, expected] = String(storedHash || "").split(":");
   if(algo !== PASSWORD_ALGO || !salt || !expected) return false;
-  const actual = crypto.scryptSync(String(password || ""), salt, PASSWORD_KEYLEN);
+  const actual = await derivePasswordKey(password, salt);
   const expectedBuffer = Buffer.from(expected, "hex");
   return actual.length === expectedBuffer.length && crypto.timingSafeEqual(actual, expectedBuffer);
 }
@@ -76,7 +85,7 @@ export async function registerAccount({email, username, password} = {}){
     email:cleanMail,
     username:cleanName,
     usernameKey:cleanName.toLowerCase(),
-    passwordHash:hashPassword(rawPassword),
+    passwordHash:await hashPassword(rawPassword),
     role:"player",
     createdAt:now,
     lastLoginAt:now,
@@ -94,7 +103,7 @@ export async function loginAccount({login, password} = {}){
   const account = cleanLogin.includes("@")
     ? await findAccountByEmail(cleanLogin)
     : await findAccountByUsername(cleanLogin);
-  if(!account || !verifyPassword(password, account.passwordHash)) throw new Error("Identifiants invalides.");
+  if(!account || !await verifyPassword(password, account.passwordHash)) throw new Error("Identifiants invalides.");
   if(isAccountBanned(account)){
     throw new Error(`Compte banni jusqu'au ${moderationDateText(account.bannedUntil)}.`);
   }

@@ -76,6 +76,7 @@ function makeForgedProfile(overrides = {}){
     firmBoxes:{mythic:99},
     actionSlots:["ammo_x6", null, null, null, null, null, null, null, "extra_repair_bot"],
     actionSlotsByShip:{orion:["ammo_x6", null, null, null, null, null, null, null, "extra_repair_bot"]},
+    actionSlotsUpdatedAt:Date.now() + 10_000,
     lastLaserAmmoId:"ammo_x6",
     ...overrides
   };
@@ -125,7 +126,17 @@ test("profile save cannot forge critical account progression or ownership", ()=>
   assert.deepEqual(profile.skillRanks, {});
   assert.deepEqual(profile.unlockedPortals, []);
   assert.deepEqual(profile.completedPortals, {});
-  assert.deepEqual(profile.portalPieces, {blue:0, violet:0, red:0, emerald:0, void:0, ancient:0});
+  assert.deepEqual(profile.portalPieces, {
+    blue:0,
+    violet:0,
+    red:0,
+    ionis:0,
+    emerald:0,
+    void:0,
+    prismatic:0,
+    ancient:0,
+    eternal:0
+  });
   assert.equal(profile.prestigeCount, 0);
   assert.deepEqual(profile.refineryLevels, {});
   assert.deepEqual(profile.refineryModules, {});
@@ -153,6 +164,29 @@ test("profile save only keeps non-critical client preferences", ()=>{
   assert.equal(result.profile.actionSlotsByShip.orion[0], "ammo_x6");
   assert.ok(result.profile.actionSlotsUpdatedAt > 0);
   assert.equal(result.profile.lastLaserAmmoId, "ammo_x6");
+});
+
+test("profile save bounds invalid and forged action-slot timestamps", ()=>{
+  const {manager} = createTestProfileManager();
+  const player = {id:"timestamp-socket", name:"Normal", accountId:44, account:{username:"Normal", firmId:"astra"}};
+  manager.syncForSocket({emit(){}}, player);
+
+  const invalid = manager.saveFromPayload({
+    player,
+    payload:{profile:makeForgedProfile({actionSlotsUpdatedAt:Infinity})}
+  });
+  assert.equal(Number.isFinite(invalid.profile.actionSlotsUpdatedAt), true);
+
+  const before = Date.now();
+  const oversized = manager.saveFromPayload({
+    player,
+    payload:{profile:makeForgedProfile({
+      actionSlotsUpdatedAt:Number.MAX_SAFE_INTEGER,
+      actionSlots:["ammo_x5", null, null, null, null, null, null, null, "extra_repair_starter"],
+      actionSlotsByShip:{orion:["ammo_x5", null, null, null, null, null, null, null, "extra_repair_starter"]}
+    })}
+  });
+  assert.ok(oversized.profile.actionSlotsUpdatedAt <= before + 5 * 60 * 1000 + 1000);
 });
 
 test("profile save accepts newer action-slot preferences even when profile timestamp is older", ()=>{
@@ -190,6 +224,45 @@ test("profile save accepts newer action-slot preferences even when profile times
   assert.equal(result.profile.lastLaserAmmoId, "ammo_x2");
 });
 
+test("stale action-slot preferences return a terminal conflict without persistence", async ()=>{
+  const {manager, persisted} = createTestProfileManager();
+  const player = {id:"account-socket", name:"Normal", accountId:47, account:{username:"Normal", firmId:"astra"}};
+  manager.syncForSocket({emit(){}}, player);
+  manager.updateProfileForPlayer({
+    player,
+    update:profile=>{
+      profile.actionSlotsUpdatedAt = 2000;
+      profile.actionSlots = ["ammo_x2", null, null, null, null, null, null, null, "extra_repair_starter"];
+      profile.actionSlotsByShip = {orion:[...profile.actionSlots]};
+      profile.lastLaserAmmoId = "ammo_x2";
+      return {ok:true};
+    }
+  });
+  await manager.flushPersistence();
+  persisted.length = 0;
+
+  const result = manager.saveFromPayload({
+    player,
+    payload:{
+      profile:{
+        updatedAt:1000,
+        actionSlotsUpdatedAt:1000,
+        actionSlots:["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"],
+        actionSlotsByShip:{orion:["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"]},
+        lastLaserAmmoId:"ammo_x1"
+      }
+    }
+  });
+  await manager.flushPersistence();
+
+  assert.equal(result.status, "conflict");
+  assert.equal(result.conflict, true);
+  assert.equal(result.reason, "stale-preferences");
+  assert.equal(result.profile.actionSlotsUpdatedAt, 2000);
+  assert.equal(result.profile.actionSlots[0], "ammo_x2");
+  assert.equal(persisted.length, 0);
+});
+
 test("unchanged profile save acknowledges without writing another profile row", async ()=>{
   const {manager, persisted} = createTestProfileManager();
   const player = {id:"account-socket", name:"Normal", accountId:45, account:{username:"Normal", firmId:"astra"}};
@@ -205,6 +278,7 @@ test("unchanged profile save acknowledges without writing another profile row", 
         updatedAt:Date.now() + 10_000,
         actionSlots:profile.actionSlots,
         actionSlotsByShip:profile.actionSlotsByShip,
+        actionSlotsUpdatedAt:profile.actionSlotsUpdatedAt,
         lastLaserAmmoId:profile.lastLaserAmmoId
       }
     }
@@ -212,8 +286,9 @@ test("unchanged profile save acknowledges without writing another profile row", 
   await manager.flushPersistence();
 
   assert.equal(result.unchanged, true);
+  assert.equal(result.status, "unchanged");
   assert.equal(result.profile.updatedAt, profile.updatedAt);
-  assert.ok(result.acknowledgedAt >= profile.updatedAt);
+  assert.ok(result.acknowledgedAt > 0);
   assert.equal(persisted.length, 0);
 });
 

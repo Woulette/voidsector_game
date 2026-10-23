@@ -72,6 +72,16 @@ export const GAME_MAP_BRIDGES = [
   {from:"Sylva-05", to:"CORE", label:"Acces noyau Sylva"}
 ];
 
+const CORE_MAP_POSITION = Object.freeze({x:5.15, y:4.1});
+const DEFAULT_ENEMY_LEVELS_BY_MAP_NUMBER = Object.freeze({
+  1:Object.freeze([1, 4]),
+  2:Object.freeze([5, 9]),
+  3:Object.freeze([10, 14]),
+  4:Object.freeze([15, 19]),
+  5:Object.freeze([20, 24])
+});
+const DEFAULT_CORE_ENEMY_LEVELS = Object.freeze([25, 34]);
+
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
     "&":"&amp;",
@@ -89,6 +99,64 @@ function getMapByName(maps, name){
 
 function getCurrentMapName(getCurrentMap){
   return String(getCurrentMap?.()?.name || "").toUpperCase();
+}
+
+export function getMapEnemyLevelRange(map, fallbackMapNumber = 0){
+  const source = Array.isArray(map?.enemyLevel)
+    ? map.enemyLevel
+    : Array.isArray(map?.level)
+      ? map.level
+      : String(map?.name || "").toUpperCase() === "CORE"
+        ? DEFAULT_CORE_ENEMY_LEVELS
+        : DEFAULT_ENEMY_LEVELS_BY_MAP_NUMBER[Number(fallbackMapNumber)] || [];
+  if(source.length < 2) return [];
+  const min = Math.max(1, Math.floor(Number(source[0] || 1)));
+  const max = Math.max(min, Math.floor(Number(source[1] || min)));
+  return [min, max];
+}
+
+function renderEnemyLevelLabel(range){
+  if(!Array.isArray(range) || range.length < 2) return "";
+  return `<em class="sector-map-level">LV ${range[0]}&ndash;${range[1]}</em>`;
+}
+
+function getMapPosition(mapName){
+  const normalized = String(mapName || "").toUpperCase();
+  if(normalized === "CORE") return CORE_MAP_POSITION;
+  for(const sector of GAME_MAP_SECTORS){
+    for(const cell of sector.cells){
+      const candidate = `${sector.name}-${String(cell.n).padStart(2, "0")}`.toUpperCase();
+      if(candidate === normalized) return {x:cell.x, y:cell.y, theme:sector.theme};
+    }
+  }
+  return null;
+}
+
+function renderConnectionLine(fromName, toName, className){
+  const from = getMapPosition(fromName);
+  const to = getMapPosition(toName);
+  if(!from || !to) return "";
+  return `<line class="${className}" x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" vector-effect="non-scaling-stroke"></line>`;
+}
+
+function renderMapConnections(){
+  const sectorLines = GAME_MAP_SECTORS.flatMap(sector=>
+    sector.links.map(([from, to])=>renderConnectionLine(
+      `${sector.name}-${String(from).padStart(2, "0")}`,
+      `${sector.name}-${String(to).padStart(2, "0")}`,
+      `sector-route ${sector.theme}`
+    ))
+  ).join("");
+  const bridgeLines = GAME_MAP_BRIDGES
+    .map(route=>renderConnectionLine(route.from, route.to, "sector-route bridge"))
+    .join("");
+  return `<svg class="sector-map-links" viewBox="0 0 10 8" preserveAspectRatio="none" aria-hidden="true">${sectorLines}${bridgeLines}</svg>`;
+}
+
+function renderRegionLabels(){
+  return `<div class="sector-map-regions" aria-hidden="true">
+    ${GAME_MAP_SECTORS.map(sector=>`<span class="${sector.theme}">${escapeHtml(sector.name)}</span>`).join("")}
+  </div>`;
 }
 
 export function getPortgunMapLevelRequirement(map){
@@ -144,6 +212,7 @@ function renderGameMapNode({maps, getCurrentMap, sector, cell, mode, playerLevel
   const status = portgunMode && existing
     ? current ? "Position actuelle" : unlocked ? "Destination" : `LV ${requirement}`
     : displayName;
+  const enemyLevelRange = getMapEnemyLevelRange(existing, cell.n);
   const classes = [
     "sector-map-node",
     sector.theme,
@@ -154,7 +223,9 @@ function renderGameMapNode({maps, getCurrentMap, sector, cell, mode, playerLevel
     portgunMode && existing && !unlocked ? "locked" : ""
   ].filter(Boolean).join(" ");
   const targetAttr = selectable ? ` data-portgun-target-map="${escapeHtml(existing.id)}"` : "";
-  return `<button class="${classes}" style="--grid-x:${cell.x};--grid-y:${cell.y}" type="button"${targetAttr} ${selectable ? "" : "disabled"}>
+  const levelTitle = enemyLevelRange.length >= 2 ? ` · Ennemis LV ${enemyLevelRange[0]}-${enemyLevelRange[1]}` : "";
+  return `<button class="${classes}" style="--grid-x:${cell.x};--grid-y:${cell.y}" type="button"${targetAttr} title="${escapeHtml(displayName)}${levelTitle}" ${selectable ? "" : "disabled"}>
+    ${renderEnemyLevelLabel(enemyLevelRange)}
     <span>${cell.n}</span>
     <small>${escapeHtml(status)}</small>
     ${renderGameMapPortals(existing, cell)}
@@ -177,10 +248,11 @@ function renderCoreNode({maps, getCurrentMap, mode, playerLevel}){
     portgunMode && existing && !unlocked ? "locked" : ""
   ].filter(Boolean).join(" ");
   const targetAttr = selectable ? ` data-portgun-target-map="${escapeHtml(existing.id)}"` : "";
+  const enemyLevelRange = getMapEnemyLevelRange(existing || {name:"CORE"});
   const label = portgunMode && existing
     ? current ? "Position actuelle" : "Destination"
-    : "Carte speciale";
-  return `<button class="${classes}" style="--grid-x:5.15;--grid-y:4.1" type="button"${targetAttr} ${selectable ? "" : "disabled"}><span>CORE</span><small>${escapeHtml(label)}</small>${renderGameMapPortals(existing)}</button>`;
+    : "Noyau";
+  return `<button class="${classes}" style="--grid-x:${CORE_MAP_POSITION.x};--grid-y:${CORE_MAP_POSITION.y}" type="button"${targetAttr} title="CORE · Ennemis LV ${enemyLevelRange[0]}-${enemyLevelRange[1]}" ${selectable ? "" : "disabled"}>${renderEnemyLevelLabel(enemyLevelRange)}<span>CORE</span><small>${escapeHtml(label)}</small>${renderGameMapPortals(existing)}</button>`;
 }
 
 export function renderCombatMapPanel({maps = [], getCurrentMap, mode = "view", playerLevel = 1} = {}){
@@ -195,6 +267,8 @@ export function renderCombatMapPanel({maps = [], getCurrentMap, mode = "view", p
       <small>${portgunMode ? "1 fluide sera consomme a l'arrivee" : `${existingCount}/${mapCount} secteurs actifs`}</small>
     </div>
     <div class="sector-map-board" aria-label="Carte des firmes">
+      ${renderMapConnections()}
+      ${renderRegionLabels()}
       ${renderCoreNode({maps, getCurrentMap, mode, playerLevel})}
       ${GAME_MAP_SECTORS.map(sector=>sector.cells.map(cell=>renderGameMapNode({maps, getCurrentMap, sector, cell, mode, playerLevel})).join("")).join("")}
     </div>
@@ -204,9 +278,7 @@ export function renderCombatMapPanel({maps = [], getCurrentMap, mode = "view", p
       <span class="auric">AUREON</span>
       <span class="verdant">SYLVA</span>
       <span class="future">A creer</span>
-    </div>
-    <div class="sector-map-routes">
-      ${GAME_MAP_BRIDGES.map(route=>`<div><b>${escapeHtml(route.from)}</b><span>${escapeHtml(route.label)}</span><b>${escapeHtml(route.to)}</b></div>`).join("")}
+      <span class="level-key">LV = NIVEAU DES ENNEMIS</span>
     </div>
   </div>`;
 }

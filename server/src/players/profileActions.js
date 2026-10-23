@@ -1,23 +1,27 @@
 import { appendFileSync, mkdirSync } from "node:fs";
-import { applyDronePermanentUpgrade, applyEquipmentUpgrade, equipInventoryUid, findEquippedSlot, getServerItem, unequipInventoryUid, unequipShipLoadout, unequipSlot } from "../economy/equipment.js";
+import { applyDronePermanentUpgrade, applyEquipmentUpgrade, equipInventoryUid, findEquippedSlot, getServerItem, getServerShip, unequipInventoryUid, unequipShipLoadout, unequipSlot } from "../economy/equipment.js";
 import { claimServerCraftingJob, startServerCraftingJob } from "../economy/crafting.js";
+import { purchaseServerDrone } from "../economy/dronePurchases.js";
 import { claimServerRefineryJob, completeServerRefineryShipment, completeServerRefineryUpgrades, refineServerShipCargoRecipe, rushServerRefineryShipment, rushServerRefineryUpgrade, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, toggleServerRefineryProduction } from "../economy/refinery.js";
 import { runServerSpaceCaster } from "../economy/spaceCaster.js";
-import { acceptServerQuest, claimCompletedServerQuests, claimServerQuest, progressServerQuestAction, progressServerQuestKill, trackServerQuest } from "../quests/quests.js";
+import { abandonServerQuest, acceptServerQuest, claimCompletedServerQuests, claimServerQuest, progressServerQuestAction, progressServerQuestKill, trackServerQuest } from "../quests/quests.js";
 import { checkServerQuestTimers, recordServerQuestDeath, recordServerQuestHpLoss } from "../quests/questFailures.js";
-import { spendCurrency } from "./progression.js";
+import { getProgressionLevelCap, spendCurrency } from "./progression.js";
 import { performServerPrestige, unlockServerPortal, upgradeServerSkill } from "./progressionActions.js";
 import { sanitizeProfile } from "./profileSanitize.js";
 import { addInventoryItemAmount, isStackableInventoryItem } from "../economy/inventoryStacks.js";
+import { getShipProgressionLockReason } from "../../../src/shared/progressionUnlocks.js";
 import { appendProfileActivity } from "./activityLog.js";
 import { depositServerCombatBoostMaterial } from "../economy/combatBoosts.js";
 import { sellServerCommerceMaterials } from "../economy/materialCommerce.js";
 import { applyPremiumPackToPlayer, claimBetaRewardState, claimPremiumRewardState } from "../../../src/data/premium.js";
 import { BOOSTER_TYPE_IDS, addPlayerBoosterUnits } from "../../../src/shared/firmBoosters.js";
-import { getTutorialExpectedQuestId } from "../../../src/shared/tutorial.js";
+import { canAcceptQuestDuringTutorial } from "../../../src/shared/tutorial.js";
 import { abandonTutorialAfterOutsideQuestAction } from "./tutorialActions.js";
 import { attachProfileSave, cloneProfileSnapshot, restoreProfileSnapshot } from "./profilePersistenceResult.js";
-import { getProfileFirmQuestId } from "../quests/questState.js";
+import { getShipRoleLockReason } from "../../../src/data/ships.js";
+import { rejectRepeatedTutorialLaserPurchase, validateTutorialEconomyChange } from "./tutorialEconomyPolicy.js";
+import { recordTutorialRocketPurchase, rejectRepeatedTutorialRocketPurchase } from "./tutorialRocketTraining.js";
 
 const BETA_PURCHASE_LOG_DIR = new URL("../../data/", import.meta.url);
 const BETA_PURCHASE_LOG_FILE = new URL("../../data/betaPurchases.jsonl", import.meta.url);
@@ -42,7 +46,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       persistResult = Promise.reject(error);
     }
     const save = Promise.resolve(persistResult).catch(error=>{
-      restoreProfileSnapshot(profiles, key, previous);
+      if(profiles.get(key) === finalProfile) restoreProfileSnapshot(profiles, key, previous);
       throw error;
     });
     save.catch(()=>{});
@@ -50,6 +54,11 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
   }
 
   function commitProfileResult(result, key, previous, next){
+    const tutorialPolicy = validateTutorialEconomyChange(previous, next);
+    if(!tutorialPolicy.ok){
+      restoreProfileSnapshot(profiles, key, previous);
+      return tutorialPolicy;
+    }
     const committed = commitProfileChange(key, previous, next);
     return attachProfileSave({...result, profile:committed.profile}, committed.save);
   }
@@ -64,6 +73,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
 
   function rejectTutorialEconomyAction(profile, action = {}){
     if(profile?.tutorial?.status !== "active") return null;
+    if(action?.kind === "refinery-production-toggle") return null;
     const step = String(profile.tutorial.step || "");
     if(step === "launcher_upgrade_storage"){
       return {ok:false, reason:"Tutoriel actif : clique d'abord sur AMELIORER pour le stockage."};
@@ -77,11 +87,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
   }
 
   function canAcceptQuestDuringActiveTutorial(profile, questId){
-    if(profile?.tutorial?.status !== "active") return true;
-    const expectedSourceId = getTutorialExpectedQuestId(profile.tutorial);
-    const expectedFirmId = getProfileFirmQuestId(profile, expectedSourceId);
-    const candidate = String(questId || "");
-    return Boolean(expectedSourceId && (candidate === expectedSourceId || candidate === expectedFirmId));
+    return canAcceptQuestDuringTutorial(profile?.tutorial, questId, profile?.player?.firmId);
   }
 
   function spendAndUpdate({player, priceType, amount, update, activity} = {}){
@@ -90,7 +96,12 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     const tutorialBlocked = rejectTutorialSelectionPurchase(profile);
     if(tutorialBlocked) return tutorialBlocked;
     const previous = cloneProfileSnapshot(profile);
-    const result = spendCurrency(profile.player || {}, priceType, amount);
+    const result = spendCurrency(
+      profile.player || {},
+      priceType,
+      amount,
+      getProgressionLevelCap(profile.prestigeCount)
+    );
     if(!result.ok) return result;
     const next = sanitizeProfile({
       ...profile,
@@ -103,6 +114,9 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
   }
 
   function addAmmoPurchase({player, purchase} = {}){
+    if(!player) return {ok:false,reason:"Joueur introuvable."};
+    const tutorialBlocked = rejectRepeatedTutorialRocketPurchase(getExistingProfile(player).profile,purchase);
+    if(tutorialBlocked) return tutorialBlocked;
     return spendAndUpdate({
       player,
       priceType:purchase?.priceType,
@@ -110,6 +124,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       update:profile=>{
         if(!profile.ammoInventory || typeof profile.ammoInventory !== "object") profile.ammoInventory = {};
         profile.ammoInventory[purchase.id] = Math.max(0, Number(profile.ammoInventory[purchase.id] || 0)) + Math.max(0, Number(purchase.totalAmount || 0));
+        recordTutorialRocketPurchase(profile,purchase);
       },
       activity:{
         type:"shop_purchase",
@@ -121,6 +136,9 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
   }
   
   function addItemPurchase({player, purchase} = {}){
+    if(!player) return {ok:false,reason:"Joueur introuvable."};
+    const tutorialBlocked = rejectRepeatedTutorialLaserPurchase(getExistingProfile(player).profile, purchase);
+    if(tutorialBlocked) return tutorialBlocked;
     return spendAndUpdate({
       player,
       priceType:purchase?.priceType,
@@ -196,11 +214,18 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(Array.isArray(profile.ownedShips) && profile.ownedShips.includes(purchase.id)){
       return {ok:false, reason:"Vaisseau déjà possédé."};
     }
-    const requiredPortal = String(purchase.requiresCompletedPortal || "");
-    if(requiredPortal && Math.max(0, Number(profile.completedPortals?.[requiredPortal] || 0)) <= 0){
-      return {ok:false, reason:`Pré requis : portail ${requiredPortal} terminé.`};
-    }
-    const result = spendCurrency(profile.player || {}, purchase.priceType, purchase.totalPrice);
+    const ship = getServerShip(purchase.id);
+    if(!ship) return {ok:false, reason:"Vaisseau inconnu du serveur."};
+    const roleLockReason = getShipRoleLockReason(ship, player.account?.role);
+    if(roleLockReason) return {ok:false, reason:roleLockReason};
+    const progressionLockReason = getShipProgressionLockReason(profile, ship);
+    if(progressionLockReason) return {ok:false, reason:progressionLockReason};
+    const result = spendCurrency(
+      profile.player || {},
+      purchase.priceType,
+      purchase.totalPrice,
+      getProgressionLevelCap(profile.prestigeCount)
+    );
     if(!result.ok) return result;
     profile.player = result.player;
     if(!Array.isArray(profile.ownedShips)) profile.ownedShips = ["orion"];
@@ -226,24 +251,17 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     return commitProfileResult({...result, claimedQuests}, key, previous, next);
   }
   
-  function addDronePurchase({player, purchase} = {}){
-    return spendAndUpdate({
-      player,
-      priceType:purchase?.priceType,
-      amount:purchase?.totalPrice,
-      update:profile=>{
-        profile.ownedDroneCount = Math.max(Number(profile.ownedDroneCount || 0), Number(purchase.nextCount || 0));
-        if(!Array.isArray(profile.droneLoadout)) profile.droneLoadout = [];
-        while(profile.droneLoadout.length < profile.ownedDroneCount) profile.droneLoadout.push(null);
-        if(profile.droneLoadout.length > profile.ownedDroneCount) profile.droneLoadout.length = profile.ownedDroneCount;
-      },
-      activity:{
-        type:"drone_purchase",
-        label:"Achat drone",
-        detail:`Drone ${Math.max(0, Number(purchase?.nextCount || 0))} pour ${Math.max(0, Number(purchase?.totalPrice || 0))} ${purchase?.priceType || "credits"}.`,
-        data:{nextCount:Number(purchase?.nextCount || 0), price:Number(purchase?.totalPrice || 0), priceType:purchase?.priceType || "credits"}
-      }
-    });
+  function addDronePurchase({player, id = "combat_drone", expectedPrice, expectedCount} = {}){
+    if(!player) return {ok:false, reason:"Joueur introuvable."};
+    const {key, profile} = getExistingProfile(player);
+    const tutorialBlocked = rejectTutorialSelectionPurchase(profile);
+    if(tutorialBlocked) return tutorialBlocked;
+    const previous = cloneProfileSnapshot(profile);
+    const next = cloneProfileSnapshot(profile);
+    const result = purchaseServerDrone(next, {id, expectedPrice, expectedCount});
+    if(!result.ok) return {...result, profile};
+    next.updatedAt = Date.now();
+    return commitProfileResult(result, key, previous, next);
   }
   
   function addDroneFormationPurchase({player, purchase} = {}){
@@ -253,7 +271,12 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(tutorialBlocked) return tutorialBlocked;
     const previous = cloneProfileSnapshot(profile);
     const alreadyOwned = Array.isArray(profile.ownedDroneFormations) && profile.ownedDroneFormations.includes(purchase.id);
-    const result = spendCurrency(profile.player || {}, purchase?.priceType, alreadyOwned ? 0 : purchase?.totalPrice);
+    const result = spendCurrency(
+      profile.player || {},
+      purchase?.priceType,
+      alreadyOwned ? 0 : purchase?.totalPrice,
+      getProgressionLevelCap(profile.prestigeCount)
+    );
     if(!result.ok) return result;
     const next = sanitizeProfile({
       ...profile,
@@ -579,6 +602,12 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(!Array.isArray(profile.ownedShips) || !profile.ownedShips.map(String).includes(cleanShipId)){
       return {ok:false, reason:"Vaisseau non possede."};
     }
+    const ship = getServerShip(cleanShipId);
+    if(!ship) return {ok:false, reason:"Vaisseau inconnu du serveur."};
+    const roleLockReason = getShipRoleLockReason(ship, player.account?.role);
+    if(roleLockReason) return {ok:false, reason:roleLockReason};
+    const progressionLockReason = getShipProgressionLockReason(profile, ship);
+    if(progressionLockReason) return {ok:false, reason:progressionLockReason};
     const draft = sanitizeProfile({
       ...profile,
       activeShip:cleanShipId,
@@ -608,7 +637,10 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
 
   function applyQuestAction({player, action} = {}){
     if(!player) return {ok:false, reason:"Joueur introuvable."};
-    const {key, profile} = getExistingProfile(player);
+    const {key, profile:storedProfile} = getExistingProfile(player, {
+      advanceRefinery:action?.kind !== "progress"
+    });
+    const profile = cloneProfileSnapshot(storedProfile);
     if(action?.kind === "accept" && !canAcceptQuestDuringActiveTutorial(profile, action.questId)){
       return {ok:false, reason:"Tutoriel actif : accepte uniquement la mission indiquee."};
     }
@@ -618,6 +650,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     let claimedQuests = [];
     if(action?.kind === "accept"){
       result = acceptServerQuest(profile, action.questId);
+    }else if(action?.kind === "abandon"){
+      result = abandonServerQuest(profile, action.questId, {mapId:player.state?.mapId || player.mapId});
     }else if(action?.kind === "track"){
       result = trackServerQuest(profile, action.questId);
     }else if(action?.kind === "claim"){
@@ -639,7 +673,6 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       result = {ok:false, reason:"Action quete invalide."};
     }
     if(!result.ok){
-      restoreProfileSnapshot(profiles, key, previous);
       return result;
     }
     if(action?.kind === "claim") claimedQuests = result.claimedQuests || [];
@@ -653,9 +686,24 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
         .filter(Boolean))];
       if(completedIds.length) claimedQuests = claimCompletedServerQuests(profile, completedIds).claimed || [];
     }
-    abandonTutorialAfterOutsideQuestAction(profile);
-    if((action?.kind === "timer-check" || action?.kind === "death" || action?.kind === "hp-loss") && !result.changed){
-      return {...result, profile};
+    if(action?.kind !== "abandon") abandonTutorialAfterOutsideQuestAction(profile);
+    const tutorialChanged = tutorialBefore !== tutorialSnapshot(profile);
+    const noQuestProgress = action?.kind === "progress"
+      && !result.updates?.length
+      && !claimedQuests.length
+      && !tutorialChanged;
+    if(noQuestProgress){
+      return {
+        ...result,
+        changed:false,
+        claimedQuests:[],
+        profile:storedProfile,
+        tutorial:storedProfile?.tutorial,
+        tutorialChanged:false
+      };
+    }
+    if((action?.kind === "timer-check" || action?.kind === "death" || action?.kind === "hp-loss") && !result.changed && !tutorialChanged){
+      return {...result, profile:storedProfile};
     }
     if(action?.kind !== "timer-check" && action?.kind !== "hp-loss"){
       appendProfileActivity(profile, {
@@ -669,12 +717,12 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       ...profile,
       updatedAt:Date.now()
     });
-    const tutorialChanged = tutorialBefore !== tutorialSnapshot(next);
+    const committedTutorialChanged = tutorialBefore !== tutorialSnapshot(next);
     return commitProfileResult({
       ...result,
       claimedQuests,
       tutorial:next.tutorial,
-      tutorialChanged
+      tutorialChanged:committedTutorialChanged
     }, key, previous, next);
   }
   

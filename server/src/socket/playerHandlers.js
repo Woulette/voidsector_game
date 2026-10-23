@@ -5,7 +5,7 @@ import { config } from "../config.js";
 import { isLoadTestAccount } from "../loadtest/provisionBot.js";
 import { checkGameCapacity, publicGameCapacity } from "../players/playerCapacity.js";
 import { applyTutorialAction } from "../players/tutorialActions.js";
-import { shouldEmitPlayerStateCorrection } from "./stateCorrections.js";
+import { isVitalOnlyStateCorrection, shouldEmitPlayerStateCorrection } from "./stateCorrections.js";
 import { confirmProfileSave } from "./profileSaveGuard.js";
 import {
   PORTGUN_FLUID_ITEM_ID,
@@ -17,6 +17,30 @@ import {
 
 const LEADERBOARD_BROADCAST_INTERVAL_MS = 15 * 60 * 1000;
 let lastLeaderboardBroadcastAt = 0;
+
+export function advancePlayerStateSourceAt({
+  hasSourceAt,
+  rawSourceAt,
+  lastRawSourceAt,
+  lastClientNormalizedAt,
+  previousSourceAt,
+  sourceDelta,
+  now
+} = {}){
+  const previous = Number(previousSourceAt);
+  const lastRaw = Number(lastRawSourceAt);
+  const lastNormalized = Number(lastClientNormalizedAt);
+  const candidate = hasSourceAt
+    && Number.isFinite(lastRaw)
+    && Number.isFinite(lastNormalized)
+    ? lastNormalized + Number(sourceDelta || 0)
+    : hasSourceAt
+      ? Number(rawSourceAt)
+      : Number.isFinite(previous)
+        ? previous + Number(sourceDelta || 0)
+        : Number(now);
+  return Number.isFinite(previous) ? Math.max(previous + 1, candidate) : candidate;
+}
 
 export function registerPlayerHandlers(socket, context){
   const {
@@ -62,6 +86,24 @@ export function registerPlayerHandlers(socket, context){
     target?.emit?.("leaderboard:ranking", buildGlobalLeaderboardSnapshotFromManager(profileManager, {currentKey}));
   }
 
+  function emitLeaderboardForAccount(){
+    const currentPlayer = players.get(socket.id);
+    const accountId = String(currentPlayer?.accountId || "");
+    const currentKey = profileManager.profileKeyForPlayer?.(currentPlayer) || "";
+    const snapshot = buildGlobalLeaderboardSnapshotFromManager(profileManager, {currentKey});
+    const targetIds = accountId
+      ? [...new Set([...players.values()]
+          .filter(player=>String(player?.accountId || "") === accountId && player?.connected !== false)
+          .map(player=>player.id)
+          .filter(Boolean))]
+      : [];
+    if(io?.to && targetIds.length){
+      for(const socketId of targetIds) io.to(socketId).emit("leaderboard:ranking", snapshot);
+      return;
+    }
+    socket.emit("leaderboard:ranking", snapshot);
+  }
+
   function broadcastLeaderboard(){
     const now = Date.now();
     if(lastLeaderboardBroadcastAt && now - lastLeaderboardBroadcastAt < LEADERBOARD_BROADCAST_INTERVAL_MS) return;
@@ -80,6 +122,71 @@ export function registerPlayerHandlers(socket, context){
   function finiteNumber(value){
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
+  }
+
+  function normalizeStateSource(player, payload, previousState, now){
+    const hasSequence = Object.hasOwn(payload || {}, "sourceSeq");
+    const rawSequence = Number(payload?.sourceSeq);
+    if(hasSequence && (!Number.isSafeInteger(rawSequence) || rawSequence <= 0)) return null;
+    const storedSequence = Number(player.lastClientStateSourceSeq);
+    const lastClientSequence = Number.isSafeInteger(storedSequence) && storedSequence > 0
+      ? storedSequence
+      : 0;
+    const sourceSeq = hasSequence ? rawSequence : lastClientSequence + 1;
+    if(sourceSeq <= lastClientSequence || !Number.isSafeInteger(sourceSeq)) return null;
+
+    const hasSourceAt = Object.hasOwn(payload || {}, "sourceAt");
+    const rawSourceAt = Number(payload?.sourceAt);
+    if(hasSourceAt && (!Number.isFinite(rawSourceAt) || rawSourceAt < 0 || rawSourceAt > Number.MAX_SAFE_INTEGER)){
+      return null;
+    }
+    const lastRawSourceAt = Number(player.lastClientStateRawAt);
+    if(hasSourceAt && Number.isFinite(lastRawSourceAt) && rawSourceAt <= lastRawSourceAt) return null;
+
+    const lastStreamAt = Number(player.lastStateStreamAt || previousState?.serverAt || previousState?.updatedAt || now - 50);
+    const fallbackDelta = Math.max(1, Math.min(1000, now - lastStreamAt));
+    const rawDelta = hasSourceAt && Number.isFinite(lastRawSourceAt)
+      ? rawSourceAt - lastRawSourceAt
+      : fallbackDelta;
+    const sourceDelta = Math.max(1, Math.min(1000, rawDelta));
+    const previousSourceAt = Number(previousState?.sourceAt);
+    const lastClientNormalizedAt = Number(player.lastClientStateNormalizedAt);
+    const sourceAt = advancePlayerStateSourceAt({
+      hasSourceAt,
+      rawSourceAt,
+      lastRawSourceAt,
+      lastClientNormalizedAt,
+      previousSourceAt,
+      sourceDelta,
+      now
+    });
+    const streamSeq = Math.max(0, Number(player.stateStreamSeq || 0)) + 1;
+    if(!Number.isSafeInteger(streamSeq)) return null;
+    return {
+      sourceSeq,
+      sourceAt,
+      streamSeq,
+      serverAt:now,
+      rawSourceAt:hasSourceAt ? rawSourceAt : null
+    };
+  }
+
+  function stateIsMoving(state){
+    return Boolean(state?.moveTarget)
+      || Math.hypot(Number(state?.vx || 0), Number(state?.vy || 0)) > .5
+      || Number(state?.enginePower || 0) > .02;
+  }
+
+  function requiresReliableStateBroadcast(player, previous, next, payload, now){
+    if(!previous) return true;
+    if(now - Number(player.lastReliableStateBroadcastAt || 0) >= 1000) return true;
+    if(String(previous.mapId ?? "") !== String(next.mapId ?? "")) return true;
+    const visualNext = {...next, vx:payload?.vx, vy:payload?.vy, enginePower:payload?.enginePower};
+    if(stateIsMoving(previous) !== stateIsMoving(visualNext)) return true;
+    return Math.hypot(
+      Number(next.x || 0) - Number(previous.x || 0),
+      Number(next.y || 0) - Number(previous.y || 0)
+    ) > 240;
   }
 
   function canEmitWeaponVisual(player, payload, starts){
@@ -229,6 +336,7 @@ export function registerPlayerHandlers(socket, context){
       const capacity = checkGameCapacity({
         players,
         accountId:player.accountId,
+        account:player.account,
         socketId:player.id,
         maxConcurrentGamePlayers
       });
@@ -270,29 +378,75 @@ export function registerPlayerHandlers(socket, context){
 
   socket.on("leaderboard:sync", ()=>{
     if(!guard("leaderboard:sync")) return;
-    emitLeaderboard();
+    emitLeaderboardForAccount();
   });
 
-  socket.on("profile:save", payload=>{
+  socket.on("profile:refresh", ()=>{
+    if(!guard("profile:refresh")) return;
+    const player = players.get(socket.id);
+    if(!player?.accountId) return;
+    const profile = profileManager.getProfileForPlayer(player);
+    if(profile) emitProfileSync?.(player, profile);
+  });
+
+  socket.on("profile:save", async payload=>{
     if(!guard("profile:save")) return;
     const player = players.get(socket.id);
     const saveResult = profileManager.saveFromPayload({player, payload});
     const incoming = saveResult?.profile || saveResult;
-    if(incoming){
-      if(saveResult?.claimedQuests?.length){
-        for(const claim of saveResult.claimedQuests){
-          socket.emit("quest:claimed", {
-            id:claim.quest?.id,
-            title:claim.quest?.title,
-            reward:claim.reward || {},
-            auto:true,
-            at:Date.now()
-          });
-        }
+    const requestId = cleanClientId(payload?.requestId);
+    if(!incoming){
+      socket.emit("profile:saved", {
+        requestId,
+        status:"rejected",
+        reason:"invalid-profile-save",
+        updatedAt:Math.max(0, Number(payload?.profile?.updatedAt || 0)),
+        at:Date.now()
+      });
+      return;
+    }
+    try{
+      await saveResult?.persistence;
+    }catch{
+      socket.emit("profile:saved", {
+        requestId,
+        status:"rejected",
+        reason:"profile-persistence-failed",
+        updatedAt:Math.max(0, Number(payload?.profile?.updatedAt || 0)),
+        at:Date.now()
+      });
+      return;
+    }
+    if(saveResult?.claimedQuests?.length){
+      for(const claim of saveResult.claimedQuests){
+        socket.emit("quest:claimed", {
+          id:claim.quest?.id,
+          title:claim.quest?.title,
+          reward:claim.reward || {},
+          auto:true,
+          at:Date.now()
+        });
       }
-      socket.emit("profile:saved", {updatedAt:saveResult?.acknowledgedAt || incoming.updatedAt});
+    }
+    socket.emit("profile:saved", {
+      requestId,
+      status:saveResult?.status || (saveResult?.unchanged ? "unchanged" : "saved"),
+      reason:saveResult?.reason || "",
+      updatedAt:Math.max(0, Number(saveResult?.acknowledgedAt || payload?.profile?.updatedAt || 0)),
+      serverUpdatedAt:Math.max(0, Number(saveResult?.serverUpdatedAt || incoming.updatedAt || 0)),
+      actionSlotsUpdatedAt:Math.max(0, Number(saveResult?.actionSlotsUpdatedAt || incoming.actionSlotsUpdatedAt || 0)),
+      at:Date.now()
+    });
+    if(saveResult?.conflict){
+      socket.emit("profile:sync", {
+        ...incoming,
+        profileSyncReason:"profile-save-conflict"
+      });
+      return;
+    }
+    if(!saveResult?.unchanged){
       emitProfileSync?.(player, incoming);
-      broadcastLeaderboard();
+      if(saveResult?.claimedQuests?.length) broadcastLeaderboard();
     }
   });
 
@@ -327,6 +481,7 @@ export function registerPlayerHandlers(socket, context){
       const accountPlayers = [...players.values()].filter(candidate=>candidate.accountId === player.accountId);
       let syncedProfile = result.profile;
       for(const accountPlayer of accountPlayers){
+        accountPlayer.firmId = result.firm?.id || result.profile?.player?.firmId || "astra";
         accountPlayer.account = accountPlayer.account ? {...accountPlayer.account, firmId:result.firm?.id} : accountPlayer.account;
         accountPlayer.mapId = String(result.firm?.baseMapId ?? "0");
         if(accountPlayer.clientMode !== "game") continue;
@@ -368,15 +523,26 @@ export function registerPlayerHandlers(socket, context){
   socket.on("tutorial:update", async payload=>{
     if(!guard("tutorial:update")) return;
     const player = players.get(socket.id);
+    const gamePlayer = player?.clientMode === "game" && player.connected !== false && player.state
+      ? player
+      : [...players.values()]
+        .filter(candidate=>player?.accountId && candidate.accountId === player.accountId
+          && candidate.clientMode === "game" && candidate.connected !== false && candidate.state)
+        .sort((a,b)=>Number(b.state.updatedAt || 0) - Number(a.state.updatedAt || 0))[0];
     const result = profileManager.updateProfileForPlayer({
       player,
       update:profile=>applyTutorialAction(profile, {
         kind:payload?.kind,
-        currentStep:payload?.currentStep
-      })
+        currentStep:payload?.currentStep,
+        revision:payload?.revision
+      }, {player:gamePlayer})
     });
     if(!result?.ok){
-      socket.emit("tutorial:error", {message:result?.reason || "Mise a jour du tutoriel impossible."});
+      socket.emit("tutorial:error", {
+        message:result?.reason || "Mise a jour du tutoriel impossible.",
+        code:result?.code || "",
+        tutorial:result?.profile?.tutorial || profileManager.getProfileSnapshotForPlayer?.(player)?.tutorial
+      });
       if(result?.changed && result?.profile) emitProfileSync?.(player, result.profile);
       return;
     }
@@ -384,6 +550,7 @@ export function registerPlayerHandlers(socket, context){
     socket.emit("tutorial:updated", {
       tutorial:result.profile?.tutorial,
       rewardItemId:result.rewardItemId || null,
+      recovered:result.recovered === true,
       at:Date.now()
     });
     emitProfileSync?.(player, result.profile);
@@ -415,6 +582,7 @@ export function registerPlayerHandlers(socket, context){
     }
     if(!await confirmProfileSave(socket, result, {eventName:"profile:setup-error"})) return;
     player.state = null;
+    player.firmId = result.profile?.player?.firmId || player.account?.firmId || "astra";
     socket.emit("profile:debug-firm-reset", {firmId:result.profile?.player?.firmId, at:Date.now()});
     emitProfileSync?.(player, result.profile);
     broadcastLeaderboard();
@@ -433,7 +601,14 @@ export function registerPlayerHandlers(socket, context){
     player.shipSwitchLockUntil = 0;
     const now = Date.now();
     const previousState = player.state || null;
-    const backgroundSnapshot = payload?.pageHidden === true && previousState;
+    const source = normalizeStateSource(player, payload, previousState, now);
+    if(!source) return;
+    player.clientPageHidden = payload?.pageHidden === true;
+    const requestedMapChange = previousState
+      && String(payload?.mapId ?? previousState.mapId) !== String(previousState.mapId ?? player.mapId);
+    // Portal stops and arrivals still need normal validation when the tab is hidden.
+    const backgroundSnapshot = payload?.pageHidden === true && previousState
+      && !requestedMapChange && payload?.portalTransfer !== true;
     const validationPayload = backgroundSnapshot
       ? {
           ...payload,
@@ -456,7 +631,8 @@ export function registerPlayerHandlers(socket, context){
     }else{
       player.lastClientStateAt = now;
     }
-    const profile = profileManager.getProfileForPlayer(player);
+    const profile = profileManager.getProfileSnapshotForPlayer?.(player)
+      || profileManager.getProfileForPlayer(player);
     const validation = validatePlayerState({
       player,
       payload:validationPayload,
@@ -470,6 +646,21 @@ export function registerPlayerHandlers(socket, context){
       ) || {},
       now
     });
+    const motionDiscontinuity = !previousState
+      || String(previousState.mapId ?? "") !== String(validation.state.mapId ?? "");
+    Object.assign(validation.state, {
+      sourceSeq:source.sourceSeq,
+      sourceAt:source.sourceAt,
+      streamSeq:source.streamSeq,
+      serverAt:source.serverAt,
+      motionDiscontinuity
+    });
+    player.lastClientStateSourceSeq = source.sourceSeq;
+    if(source.rawSourceAt !== null) player.lastClientStateRawAt = source.rawSourceAt;
+    player.lastClientStateNormalizedAt = source.sourceAt;
+    player.stateStreamSeq = source.streamSeq;
+    player.lastStateStreamAt = now;
+    const reliableStateBroadcast = requiresReliableStateBroadcast(player, previousState, validation.state, payload, now);
     player.state = validation.state;
     const moved = !previousState
       || Math.hypot(
@@ -492,13 +683,22 @@ export function registerPlayerHandlers(socket, context){
         reason:validation.reason,
         details:validation.correctionDetails || []
       });
-      socket.emit("player:state-correction", {...validation.state, source:"state-correction"});
+      socket.emit("player:state-correction", {
+        ...validation.state,
+        source:"state-correction",
+        vitalsOnly:isVitalOnlyStateCorrection(validation)
+      });
     }
     profileManager.saveWorldSession({player, state:player.state, force:mapChanged});
     presence.syncMovementLogoutState(player);
     setPlayerMap(socket, nextMapId);
     const visibilityRooms = [...new Set([player.mapRoom].filter(Boolean))];
-    if(visibilityRooms.length) socket.to(visibilityRooms).emit("player:state", publicPlayer(player));
+    if(visibilityRooms.length){
+      const target = socket.to(visibilityRooms);
+      const emitter = reliableStateBroadcast ? target : target?.volatile || target;
+      emitter.emit("player:state", publicPlayer(player, {profile}));
+      if(reliableStateBroadcast) player.lastReliableStateBroadcastAt = now;
+    }
   });
 
   socket.on("player:activity", payload=>{

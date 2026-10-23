@@ -50,10 +50,11 @@
 #droneSection .drone-art-large img{width:min(250px,84%)}
 #droneSection .ship-equipment-layout{grid-template-columns:minmax(390px,1fr) 370px;grid-template-areas:"equipped inventory" "detail detail"}
 #droneSection .drone-bay-grid{column-gap:9px;row-gap:6px}
-#droneSection .drone-slot-card{grid-template-columns:82px 1fr;gap:8px;padding:7px}
-#droneSection .drone-slot-body{grid-template-columns:1fr 56px;min-height:62px}
+#droneSection .drone-slot-card{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;gap:4px;padding:6px}
+#droneSection .drone-slot-body{grid-template-columns:minmax(48px,1fr) 52px 34px;gap:5px;min-height:56px}
 #droneSection .drone-preview{width:58px;height:58px}
-#droneSection .drone-module{width:56px;height:56px;min-height:56px}
+#droneSection .drone-module{width:52px;height:52px;min-height:52px}
+#droneSection .drone-cosmetic-slot{width:34px;height:52px}
 #droneSection .drone-module.filled{
   background:
     radial-gradient(circle at 50% 48%,rgba(56,189,248,.30),rgba(7,24,42,.84) 66%,rgba(2,10,19,.96) 100%),

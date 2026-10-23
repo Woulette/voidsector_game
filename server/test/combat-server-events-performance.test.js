@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createCombatServerEventSystem } from "../../src/game/systems/combatServerEvents.js";
-import { clearCombatFrameProfiler, disableCombatFrameProfiler, enableCombatFrameProfiler, setCombatProfilerFlag } from "../../src/game/systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
+import { clearCombatFrameProfiler, disableCombatFrameProfiler, enableCombatFrameProfiler, setCombatProfilerFlag } from "../../src/game/systems/combatFrameProfiler.js?v=20260726-kharon1";
 
 function createSystem({
   multiplayer,
@@ -10,14 +10,17 @@ function createSystem({
   applyPlayerPoison = ()=>{},
   applyPlayerSlow = ()=>{},
   pushDamageText = ()=>{},
-  markAuthoritativeDamageReceived
+  beams = {clear(){}, add(){}, getBeams(){ return []; }},
+  markAuthoritativeDamageReceived,
+  confirmAuthoritativeShot,
+  rejectAuthoritativeShot
 }){
   return createCombatServerEventSystem({
     multiplayer,
     getState:()=>state,
     setState:patch=>Object.assign(state, patch),
     cargo:{clear(){}, spawnPortalPieceDrop(){}, spawnServerLootDrop(){}},
-    beams:{clear(){}, add(){}, getBeams(){ return []; }},
+    beams,
     rewards:{showLootNotice(){}},
     panels:{closeSpawnPanel(){}},
     damagePlayer,
@@ -31,7 +34,9 @@ function createSystem({
     updateHud(){},
     updateLootPopup(){},
     portalStartingLives:3,
-    markAuthoritativeDamageReceived
+    markAuthoritativeDamageReceived,
+    confirmAuthoritativeShot,
+    rejectAuthoritativeShot
   });
 }
 
@@ -133,6 +138,209 @@ test("server combat hit texts merge only near-simultaneous damage on the same ta
   assert.equal(state.store.state.ammoInventory.ammo_x1, 9);
   assert.equal(state.store.state.ammoInventory.rocket_r1, 9);
   assert.equal(state.store.state.ammoInventory.missile_m1, 7);
+});
+
+test("server fire rejections never render as MISS or consume client ammo", ()=>{
+  const texts = [];
+  const state = {
+    enemies:[{id:"enemy-rejected", x:100, y:200, radius:40}],
+    store:{state:{ammoInventory:{ammo_x1:10}}}
+  };
+  const multiplayer = {
+    playerId:"player-1",
+    combatEvents:[{
+      accepted:false,
+      outcome:"rejected",
+      enemyId:"enemy-rejected",
+      attackerId:"player-1",
+      weaponClass:"laser",
+      ammoId:"ammo_x1",
+      consumed:0,
+      hit:false,
+      damage:0,
+      reasonCode:"cooldown",
+      reason:"Arme en recharge.",
+      mapId:"0",
+      at:Date.now()
+    }]
+  };
+  const system = createSystem({
+    multiplayer,
+    state,
+    pushDamageText:text=>texts.push(text)
+  });
+
+  system.applyCombatHitEvents();
+
+  assert.deepEqual(texts, []);
+  assert.equal(state.store.state.ammoInventory.ammo_x1, 10);
+  assert.equal(multiplayer.combatEvents.length, 0);
+});
+
+test("only an accepted local accuracy miss renders MISS", ()=>{
+  const texts = [];
+  const state = {
+    enemies:[{id:"enemy-miss", x:100, y:200, radius:40}],
+    store:{state:{ammoInventory:{ammo_x1:10}}}
+  };
+  const multiplayer = {
+    playerId:"player-1",
+    combatEvents:[
+      {
+        accepted:true,
+        outcome:"miss",
+        enemyId:"enemy-miss",
+        attackerId:"player-1",
+        weaponClass:"laser",
+        ammoId:"ammo_x1",
+        consumed:1,
+        ammoRemaining:9,
+        hit:false,
+        damage:0,
+        mapId:"0",
+        at:Date.now()
+      },
+      {
+        accepted:true,
+        outcome:"miss",
+        enemyId:"enemy-miss",
+        attackerId:"another-player",
+        weaponClass:"laser",
+        ammoId:"ammo_x1",
+        consumed:1,
+        hit:false,
+        damage:0,
+        mapId:"0",
+        at:Date.now()
+      }
+    ]
+  };
+  const system = createSystem({
+    multiplayer,
+    state,
+    pushDamageText:text=>texts.push(text)
+  });
+
+  system.applyCombatHitEvents();
+
+  assert.deepEqual(texts.map(entry=>entry.value), ["MISS"]);
+  assert.equal(state.store.state.ammoInventory.ammo_x1, 9);
+});
+
+test("stale combat results still synchronize ammo without replaying old text", ()=>{
+  const texts = [];
+  const state = {
+    enemies:[{id:"enemy-stale-hit", x:100, y:200, radius:40}],
+    store:{state:{ammoInventory:{ammo_x1:10}}}
+  };
+  const multiplayer = {
+    playerId:"player-1",
+    combatEvents:[{
+      accepted:true,
+      outcome:"hit",
+      enemyId:"enemy-stale-hit",
+      attackerId:"player-1",
+      weaponClass:"laser",
+      ammoId:"ammo_x1",
+      consumed:1,
+      ammoRemaining:9,
+      hit:true,
+      damage:1200,
+      mapId:"0",
+      at:Date.now() - 5000
+    }]
+  };
+  const system = createSystem({
+    multiplayer,
+    state,
+    pushDamageText:text=>texts.push(text)
+  });
+
+  system.applyCombatHitEvents();
+
+  assert.deepEqual(texts, []);
+  assert.equal(state.store.state.ammoInventory.ammo_x1, 9);
+});
+
+test("an accepted combat shot updates ammo and creates its visual once", ()=>{
+  const addedBeams = [];
+  const confirmedShots = [];
+  const state = {
+    currentMap:{id:"0"},
+    bullets:[],
+    particles:[],
+    enemies:[{id:"enemy-shot", x:100, y:0, radius:40}],
+    store:{state:{ammoInventory:{ammo_x1:10}}}
+  };
+  const multiplayer = {
+    playerId:"player-1",
+    combatShotEvents:[{
+      accepted:true,
+      outcome:"accepted",
+      shotId:"shot-1",
+      attackerId:"player-1",
+      enemyId:"enemy-shot",
+      targetId:"enemy-shot",
+      weaponClass:"laser",
+      kind:"laser",
+      ammoId:"ammo_x1",
+      consumed:1,
+      ammoRemaining:9,
+      starts:[{x:0, y:0}],
+      fromX:0,
+      fromY:0,
+      toX:100,
+      toY:0,
+      mapId:"0",
+      at:Date.now()
+    }],
+    remoteEffects:[]
+  };
+  const system = createSystem({
+    multiplayer,
+    state,
+    beams:{
+      clear(){},
+      add:beam=>addedBeams.push(beam),
+      getBeams(){ return addedBeams; }
+    },
+    confirmAuthoritativeShot:event=>confirmedShots.push(event)
+  });
+
+  system.applyCombatShotEvents();
+  system.applyRemoteWeaponEvents();
+
+  assert.equal(state.store.state.ammoInventory.ammo_x1, 9);
+  assert.equal(addedBeams.length, 1);
+  assert.equal(confirmedShots.length, 1);
+  assert.equal(confirmedShots[0].shotId, "shot-1");
+  assert.equal(state.particles.filter(entry=>entry.kind === "muzzle").length, 1);
+  assert.equal(multiplayer.combatShotEvents.length, 0);
+  assert.equal(multiplayer.remoteEffects.length, 0);
+});
+
+test("an authoritative combat rejection is consumed as an acknowledgement fallback", ()=>{
+  const rejectedShots = [];
+  const multiplayer = {
+    playerId:"player-1",
+    combatRejectedEvents:[{
+      accepted:false,
+      outcome:"rejected",
+      shotId:"shot-rejected-1",
+      reasonCode:"OUT_OF_RANGE"
+    }]
+  };
+  const system = createSystem({
+    multiplayer,
+    state:{},
+    rejectAuthoritativeShot:event=>rejectedShots.push(event)
+  });
+
+  system.applyCombatRejectedEvents();
+
+  assert.equal(rejectedShots.length, 1);
+  assert.equal(rejectedShots[0].shotId, "shot-rejected-1");
+  assert.equal(multiplayer.combatRejectedEvents.length, 0);
 });
 
 test("status effect events only apply the latest state per type in a frame", ()=>{

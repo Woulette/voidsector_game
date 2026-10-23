@@ -11,6 +11,22 @@ function cleanAccountId(value){
   return String(value || "").trim();
 }
 
+function cleanAccountRole(value){
+  return String(value || "player").trim().toLowerCase();
+}
+
+export function isGameCapacityExemptRole(role){
+  return ["owner", "admin"].includes(cleanAccountRole(role));
+}
+
+export function isGameCapacityExemptAccount(account){
+  return isGameCapacityExemptRole(account?.role);
+}
+
+export function isGameCapacityExemptPlayer(player){
+  return isGameCapacityExemptAccount(player?.account);
+}
+
 export function isLiveGamePlayer(player){
   return player
     && player.clientMode === "game"
@@ -23,6 +39,16 @@ export function countLiveGameAccounts(players, {excludeSocketId = ""} = {}){
   for(const player of players?.values?.() || []){
     if(String(player?.id || "") === String(excludeSocketId || "")) continue;
     if(!isLiveGamePlayer(player)) continue;
+    accounts.add(cleanAccountId(player.accountId));
+  }
+  return accounts.size;
+}
+
+export function countCapacityLimitedGameAccounts(players, {excludeSocketId = ""} = {}){
+  const accounts = new Set();
+  for(const player of players?.values?.() || []){
+    if(String(player?.id || "") === String(excludeSocketId || "")) continue;
+    if(!isLiveGamePlayer(player) || isGameCapacityExemptPlayer(player)) continue;
     accounts.add(cleanAccountId(player.accountId));
   }
   return accounts.size;
@@ -42,13 +68,17 @@ export function hasLiveGameAccount(players, accountId, {excludeSocketId = ""} = 
 export function checkGameCapacity({
   players,
   accountId,
+  account,
   socketId,
   maxConcurrentGamePlayers = 0
 } = {}){
   const max = Math.max(0, Math.floor(Number(maxConcurrentGamePlayers || 0)));
-  const current = countLiveGameAccounts(players, {excludeSocketId:socketId});
+  const current = countCapacityLimitedGameAccounts(players, {excludeSocketId:socketId});
   if(max <= 0){
     return {ok:true, current, max, limited:false};
+  }
+  if(isGameCapacityExemptAccount(account)){
+    return {ok:true, current, max, limited:true, capacityExempt:true};
   }
   if(hasLiveGameAccount(players, accountId, {excludeSocketId:socketId})){
     return {ok:true, current, max, limited:true, existingAccount:true};

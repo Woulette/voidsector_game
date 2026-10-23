@@ -1,4 +1,4 @@
-import { getProgressionSnapshot } from "../players/progression.js";
+import { getProgressionLevelCap, getProgressionSnapshot } from "../players/progression.js";
 import { ENEMY_THREAT_RECALC_MS, markEnemyAttackedByPlayer } from "../world/aggro.js";
 import { getFirmMapId, normalizeFirmId } from "../../../src/data/firms.js";
 import {
@@ -294,7 +294,7 @@ export function createRickyPortalRuntime({
         reputation,
         rankPoints,
         firmBoosters,
-        progression:getProgressionSnapshot(profile?.player),
+        progression:getProgressionSnapshot(profile?.player, getProgressionLevelCap(profile?.prestigeCount)),
         rewardAppliedByServer:true,
         at:Date.now()
       });

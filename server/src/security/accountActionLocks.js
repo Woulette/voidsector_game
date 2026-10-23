@@ -3,6 +3,7 @@ export function createAccountActionLocks({
   players,
   logger,
   onLimit,
+  onReject,
   now = ()=>Date.now(),
   staleAfterMs = 120000,
   pruneIntervalMs = 60000
@@ -64,18 +65,19 @@ export function createAccountActionLocks({
       return true;
     }
 
+    const payload = {
+      socketId:socket.id,
+      accountKey:key.split(":").slice(0, 2).join(":"),
+      eventName,
+      count:entry.count,
+      limit,
+      windowMs,
+      retryAfterMs:Math.max(0, Number(entry.nextAllowedAt || currentTime) - currentTime)
+    };
+    if(typeof onReject === "function") onReject({socket, ...payload});
     if(!entry.warned || (overLimit && !entry.overLimitWarned)){
       entry.warned = true;
       if(overLimit) entry.overLimitWarned = true;
-      const payload = {
-        socketId:socket.id,
-        accountKey:key.split(":").slice(0, 2).join(":"),
-        eventName,
-        count:entry.count,
-        limit,
-        windowMs,
-        retryAfterMs:Math.max(0, Number(entry.nextAllowedAt || currentTime) - currentTime)
-      };
       logger?.warn?.("Account action limited", payload);
       if(typeof onLimit === "function") onLimit({socket, ...payload});
     }

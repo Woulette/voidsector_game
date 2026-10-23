@@ -1,5 +1,5 @@
-import { consumeShipCargoMaterial, getShipCargo } from "./cargoStore.js";
-import { store } from "./store.js";
+import { consumeShipCargoMaterial, getShipCargo } from "./cargoStore.js?v=20260726-kharon1";
+import { store } from "./store.js?v=20260726-kharon1";
 import {
   COMBAT_BOOST_DEFS,
   getCombatBoostMaterialInfo,

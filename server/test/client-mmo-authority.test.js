@@ -3,17 +3,23 @@ import test from "node:test";
 import { createCombatCargoSystem } from "../../src/game/systems/combatCargo.js";
 import { createRewardSystem } from "../../src/game/systems/rewards.js";
 import { createWeaponSystem } from "../../src/game/systems/weapons.js";
-import { markProfileSaveAcknowledged, syncMultiplayerProfile } from "../../src/multiplayer/profileSync.js";
+import { markProfileSaveAcknowledged, resetProfileSaveState, syncMultiplayerProfile } from "../../src/multiplayer/profileSync.js";
 
 function createWeaponFixture(enemy, {
   shipLasers = [{id:"laser_mk1", weapon:{minDamage:10, maxDamage:10, range:1000, speed:900}}],
-  droneLasers = []
+  droneLasers = [],
+  autoAcknowledge = true
 } = {}){
   let consumed = 0;
   let saved = 0;
   let resolved = 0;
   let actionBarRefreshes = 0;
   let quickPanelRefreshes = 0;
+  let combatMarks = 0;
+  let cooldownWrites = 0;
+  let lastCooldownSeconds = 0;
+  let pendingAcknowledge = null;
+  let lastShotContext = null;
   const ammo = {id:"ammo_x1", name:"M1", weaponClass:"laser", multiplier:1};
   const system = createWeaponSystem({
     getPlayer:()=>({x:0, y:0, damageBonus:0, damageMultiplier:1, extraBonus:{}}),
@@ -30,7 +36,10 @@ function createWeaponFixture(enemy, {
     getAmmoCount:()=>100,
     getCombatAmmo:()=>ammo,
     getAmmoCooldown:()=>0,
-    setAmmoCooldown(){},
+    setAmmoCooldown(_ammo, seconds){
+      cooldownWrites += 1;
+      lastCooldownSeconds = seconds;
+    },
     getEffectiveAmmoCooldown:()=>1,
     tickAmmoCooldowns(){},
     getEquippedLasers:()=>shipLasers,
@@ -43,12 +52,16 @@ function createWeaponFixture(enemy, {
       consumed += count;
       return true;
     },
-    markCombatActivity(){},
+    markCombatActivity(){ combatMarks += 1; },
     addLaserBeam(){},
     sendPlayerWeaponEffect(){},
     getNetworkTargetId:()=>enemy.id,
-    resolveLaserHit(){
+    sendServerEnemyHit(_enemyId, context, acknowledge){
       resolved += 1;
+      lastShotContext = context;
+      pendingAcknowledge = acknowledge;
+      if(autoAcknowledge) acknowledge({accepted:true, outcome:"hit", shotId:"shot-1"});
+      return true;
     },
     saveState(){
       saved += 1;
@@ -65,6 +78,11 @@ function createWeaponFixture(enemy, {
     saved:()=>saved,
     actionBarRefreshes:()=>actionBarRefreshes,
     quickPanelRefreshes:()=>quickPanelRefreshes,
+    combatMarks:()=>combatMarks,
+    cooldownWrites:()=>cooldownWrites,
+    lastCooldownSeconds:()=>lastCooldownSeconds,
+    lastShotContext:()=>lastShotContext,
+    acknowledge:response=>pendingAcknowledge?.(response),
     system,
     ammo
   };
@@ -80,6 +98,103 @@ test("server-controlled targets never consume MMO ammunition locally", ()=>{
   assert.equal(fixture.resolved(), 1);
   assert.equal(fixture.actionBarRefreshes(), 0);
   assert.equal(fixture.quickPanelRefreshes(), 0);
+});
+
+test("an unconfirmed or rejected laser shot creates no local combat state", ()=>{
+  const enemy = {id:"server-enemy-pending", x:100, y:0, hp:100, serverControlled:true};
+  const fixture = createWeaponFixture(enemy, {autoAcknowledge:false});
+
+  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), true);
+  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), false);
+  assert.equal(fixture.resolved(), 1);
+  assert.equal(fixture.combatMarks(), 0);
+  assert.equal(fixture.cooldownWrites(), 0);
+  assert.equal(enemy.aggro, undefined);
+
+  fixture.acknowledge({
+    accepted:false,
+    outcome:"rejected",
+    reasonCode:"cooldown",
+    reason:"Arme en recharge."
+  });
+
+  assert.equal(fixture.combatMarks(), 0);
+  assert.equal(fixture.cooldownWrites(), 0);
+  assert.equal(enemy.aggro, undefined);
+  assert.equal(fixture.system.hasPendingShot("laser"), false);
+});
+
+test("an accepted laser shot starts local cooldown only after server acknowledgement", ()=>{
+  const enemy = {id:"server-enemy-accepted", x:100, y:0, hp:100, serverControlled:true};
+  const fixture = createWeaponFixture(enemy, {autoAcknowledge:false});
+
+  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), true);
+  assert.equal(fixture.cooldownWrites(), 0);
+  fixture.acknowledge({accepted:true, outcome:"accepted", shotId:"shot-accepted"});
+
+  assert.equal(fixture.combatMarks(), 1);
+  assert.equal(fixture.cooldownWrites(), 1);
+  assert.equal(enemy.aggro, true);
+});
+
+test("an authoritative combat shot confirms a fire when the socket acknowledgement is lost", ()=>{
+  const enemy = {id:"server-enemy-shot-fallback", x:100, y:0, hp:100, serverControlled:true};
+  const fixture = createWeaponFixture(enemy, {autoAcknowledge:false});
+
+  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), true);
+  const shotId = fixture.lastShotContext()?.shotId;
+  assert.ok(shotId);
+  assert.equal(fixture.cooldownWrites(), 0);
+
+  assert.equal(fixture.system.confirmAuthoritativeShot({
+    accepted:true,
+    shotId,
+    consumed:1,
+    ammoRemaining:99,
+    cooldownMs:2000
+  }), true);
+  assert.equal(fixture.combatMarks(), 1);
+  assert.equal(fixture.cooldownWrites(), 1);
+  assert.ok(fixture.lastCooldownSeconds() > 1.9 && fixture.lastCooldownSeconds() <= 2);
+  assert.equal(fixture.system.hasPendingShot("laser"), false);
+
+  fixture.acknowledge({accepted:true, shotId});
+  assert.equal(fixture.cooldownWrites(), 1, "late ack must not confirm the same shot twice");
+});
+
+test("an authoritative rejection clears a pending fire when the socket acknowledgement is lost", ()=>{
+  const enemy = {id:"server-enemy-reject-fallback", x:100, y:0, hp:100, serverControlled:true};
+  const fixture = createWeaponFixture(enemy, {autoAcknowledge:false});
+
+  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), true);
+  const shotId = fixture.lastShotContext()?.shotId;
+  assert.ok(shotId);
+  assert.equal(fixture.system.rejectAuthoritativeShot({
+    accepted:false,
+    outcome:"rejected",
+    shotId,
+    reasonCode:"OUT_OF_RANGE"
+  }), true);
+  assert.equal(fixture.combatMarks(), 0);
+  assert.equal(fixture.cooldownWrites(), 0);
+  assert.equal(fixture.system.hasPendingShot("laser"), false);
+});
+
+test("damage-immune targets are blocked before any authoritative fire request", ()=>{
+  const enemy = {
+    id:"server-enemy-immune",
+    x:100,
+    y:0,
+    hp:100,
+    damageImmune:true,
+    serverControlled:true
+  };
+  const fixture = createWeaponFixture(enemy);
+
+  assert.equal(fixture.system.shootAt(enemy, fixture.ammo, 0), false);
+  assert.equal(fixture.resolved(), 0);
+  assert.equal(fixture.cooldownWrites(), 0);
+  assert.equal(fixture.combatMarks(), 0);
 });
 
 test("client laser range uses the shortest equipped ship laser", ()=>{
@@ -180,7 +295,7 @@ test("only server-controlled ground loot can request a pickup", ()=>{
   assert.equal(toasts.at(-1)?.options?.trustedHtml, true);
   assert.match(toasts.at(-1)?.message || "", /loot-rarity-token rarity-rare/);
   assert.match(toasts.at(-1)?.message || "", /Rare<\/span> : Butin serveur/);
-  assert.equal(lootNotices.at(-1)?.piece, "Rare : Butin serveur envoye au serveur");
+  assert.equal(lootNotices.at(-1)?.piece, "Rare : Butin serveur envoyé au serveur");
 });
 
 test("profile sync sends preferences only, never critical MMO progression", ()=>{
@@ -212,7 +327,7 @@ test("profile sync sends preferences only, never critical MMO progression", ()=>
   markProfileSaveAcknowledged({updatedAt:sent[0].payload.profile.updatedAt});
 });
 
-test("profile sync uses the local preference timestamp for action bar saves", ()=>{
+test("profile sync keeps the action-slot version separate from the full profile version", ()=>{
   const sent = [];
   const multiplayer = {
     connected:true,
@@ -221,16 +336,22 @@ test("profile sync uses the local preference timestamp for action bar saves", ()
     name:"Pilote"
   };
   syncMultiplayerProfile(multiplayer, {
-    mmoProfileUpdatedAt:424242,
+    actionSlotsUpdatedAt:424242,
+    mmoProfileUpdatedAt:999999,
     actionSlots:["ammo_x2"],
     actionSlotsByShip:{razorion:["ammo_x2"]},
     lastLaserAmmoId:"ammo_x2"
   });
 
   assert.equal(sent.length, 1);
-  assert.equal(sent[0].payload.profile.updatedAt, 424242);
+  assert.ok(sent[0].payload.profile.updatedAt > 0);
   assert.equal(sent[0].payload.profile.actionSlotsUpdatedAt, 424242);
-  markProfileSaveAcknowledged({updatedAt:424242});
+  assert.ok(sent[0].payload.requestId);
+  markProfileSaveAcknowledged({
+    requestId:sent[0].payload.requestId,
+    status:"saved",
+    updatedAt:sent[0].payload.profile.updatedAt
+  });
 });
 
 test("profile sync emits nothing before an authenticated profile is ready", ()=>{
@@ -247,6 +368,148 @@ test("profile sync emits nothing before an authenticated profile is ready", ()=>
     actionSlotsByShip:{orion:["ammo_x1"]},
     lastLaserAmmoId:"ammo_x1"
   });
+
+  assert.deepEqual(sent, []);
+});
+
+test("a terminal stale-save conflict cancels every scheduled retry", ()=>{
+  const sent = [];
+  const timers = [];
+  const previousSetTimeout = globalThis.setTimeout;
+  const previousClearTimeout = globalThis.clearTimeout;
+  globalThis.setTimeout = callback=>{
+    const timer = {callback, cleared:false, unref(){}};
+    timers.push(timer);
+    return timer;
+  };
+  globalThis.clearTimeout = timer=>{
+    if(timer) timer.cleared = true;
+  };
+  const multiplayer = {
+    connected:true,
+    clientId:"conflict-client",
+    socket:{emit:(event, payload)=>sent.push({event, payload})},
+    auth:{token:"token", account:{id:"conflict-account"}, profileReady:true},
+    name:"Pilote"
+  };
+
+  try{
+    syncMultiplayerProfile(multiplayer, {
+      actionSlotsUpdatedAt:1000,
+      actionSlots:["ammo_x1"],
+      actionSlotsByShip:{orion:["ammo_x1"]},
+      lastLaserAmmoId:"ammo_x1"
+    });
+    assert.equal(sent.length, 1);
+    assert.equal(timers.length, 1);
+
+    const request = sent[0].payload;
+    assert.equal(markProfileSaveAcknowledged({
+      requestId:request.requestId,
+      status:"conflict",
+      updatedAt:request.profile.updatedAt
+    }), true);
+    timers[0].callback();
+
+    assert.equal(timers[0].cleared, true);
+    assert.equal(sent.length, 1);
+  }finally{
+    globalThis.setTimeout = previousSetTimeout;
+    globalThis.clearTimeout = previousClearTimeout;
+  }
+});
+
+test("a pending profile retry cannot cross an account or socket session boundary", ()=>{
+  const sent = [];
+  const timers = [];
+  const previousSetTimeout = globalThis.setTimeout;
+  const previousClearTimeout = globalThis.clearTimeout;
+  globalThis.setTimeout = callback=>{
+    const timer = {callback, cleared:false, unref(){}};
+    timers.push(timer);
+    return timer;
+  };
+  globalThis.clearTimeout = timer=>{
+    if(timer) timer.cleared = true;
+  };
+  const multiplayer = {
+    connected:true,
+    clientId:"account-switch-client",
+    socket:{id:"socket-a", emit:(event, payload)=>sent.push({event, payload})},
+    auth:{token:"token", account:{id:"account-a"}, profileReady:true},
+    name:"Pilote"
+  };
+  const state = {
+    actionSlotsUpdatedAt:6000,
+    actionSlots:["ammo_x2"],
+    actionSlotsByShip:{orion:["ammo_x2"]},
+    lastLaserAmmoId:"ammo_x2"
+  };
+
+  try{
+    syncMultiplayerProfile(multiplayer, state);
+    assert.equal(sent.length, 1);
+    multiplayer.auth.account = {id:"account-b"};
+    multiplayer.socket.id = "socket-b";
+    timers[0].callback();
+    assert.equal(sent.length, 1);
+
+    syncMultiplayerProfile(multiplayer, state);
+    assert.equal(sent.length, 2);
+    assert.equal(sent[1].payload.requestId.includes("account-switch-client"), true);
+  }finally{
+    resetProfileSaveState();
+    globalThis.setTimeout = previousSetTimeout;
+    globalThis.clearTimeout = previousClearTimeout;
+  }
+});
+
+test("a rejected profile save rearms the same preference signature", ()=>{
+  const sent = [];
+  const multiplayer = {
+    connected:true,
+    clientId:"rejected-save-client",
+    socket:{id:"socket-rejected", emit:(event, payload)=>sent.push({event, payload})},
+    auth:{token:"token", account:{id:"rejected-account"}, profileReady:true},
+    name:"Pilote"
+  };
+  const state = {
+    actionSlotsUpdatedAt:7000,
+    actionSlots:["ammo_x3"],
+    actionSlotsByShip:{orion:["ammo_x3"]},
+    lastLaserAmmoId:"ammo_x3"
+  };
+
+  syncMultiplayerProfile(multiplayer, state);
+  assert.equal(markProfileSaveAcknowledged({
+    requestId:sent[0].payload.requestId,
+    status:"rejected",
+    reason:"invalid-profile-save"
+  }), true);
+  syncMultiplayerProfile(multiplayer, state);
+  assert.equal(sent.length, 2);
+  resetProfileSaveState();
+});
+
+test("marking a server profile as applied prevents an unchanged preference echo", ()=>{
+  const sent = [];
+  const multiplayer = {
+    connected:true,
+    clientId:"server-sync-client",
+    socket:{emit:(event, payload)=>sent.push({event, payload})},
+    auth:{token:"token", account:{id:"server-sync-account"}, profileReady:true},
+    name:"Pilote"
+  };
+  const state = {
+    actionSlotsUpdatedAt:5000,
+    mmoProfileUpdatedAt:9000,
+    actionSlots:["ammo_x2"],
+    actionSlotsByShip:{orion:["ammo_x2"]},
+    lastLaserAmmoId:"ammo_x2"
+  };
+
+  syncMultiplayerProfile(multiplayer, state, {serverApplied:true});
+  syncMultiplayerProfile(multiplayer, state);
 
   assert.deepEqual(sent, []);
 });

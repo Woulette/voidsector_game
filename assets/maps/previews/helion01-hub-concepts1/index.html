@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Avosoma — proposition de base Hélion</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#08090d;color:#eee7e2;font:16px/1.5 system-ui,sans-serif}main{max-width:1300px;margin:auto;padding:28px 18px 50px}h1{font-size:clamp(25px,4vw,38px);margin:0 0 10px}h2{font-size:22px;margin:28px 0 12px}p{color:#bcb6b3;margin:0 0 16px}.eyebrow{color:#e7a197;text-transform:uppercase;font-size:12px;letter-spacing:2px;margin-bottom:8px}.status{display:inline-block;border:1px solid #765145;border-radius:5px;background:#211711;color:#eac19e;padding:6px 10px;font-size:13px;margin:3px 0 18px}nav{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}button{font:inherit;padding:8px 18px;border:1px solid #754951;border-radius:5px;background:#23151c;color:#eee;cursor:pointer}button[aria-pressed=true]{background:#843b35;border-color:#efaf8e}figure{margin:0}img{display:block;width:100%;height:auto}.scene{border:1px solid #36282f;border-radius:7px;background:#000}figcaption{color:#bcb6b3;font-size:14px;margin-top:8px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.card{border:1px solid #36313a;border-radius:7px;overflow:hidden;background:#0e1118}.card img{background:radial-gradient(ellipse at center,#29303b,#0c1017 75%);aspect-ratio:1;object-fit:contain}.copy{padding:16px}.copy h3{margin:0 0 8px;font-size:20px}.copy p{font-size:14px;min-height:63px}.copy a{font-size:14px}a{color:#efbda1}details{margin-top:24px;border-top:1px solid #3b2b32;padding-top:16px}summary{cursor:pointer;color:#d3bab1}.refs{font-size:13px;margin-top:16px}@media(max-width:720px){.cards{grid-template-columns:1fr}.copy p{min-height:0}main{padding:20px 12px}}
+</style>
+<main>
+<div class="eyebrow">Avosoma · Hélion · 22 octobre 2026</div>
+<h1>Une base orbitale, trois fonctions lisibles</h1>
+<p>Coques titane et graphite, accents rouges et éclairage sobre. Le QG est plus compact ; le commerce et le relais de missions partagent ses matériaux.</p>
+<div class="status">Proposition visuelle — stations non remplacées dans les parties</div>
+<section><h2>Au spawn, à l’échelle du jeu</h2>
+<nav aria-label="Comparer les bases"><button id="after" aria-pressed="true">Proposition</button><button id="before" aria-pressed="false">Base actuelle</button></nav>
+<figure><img id="scene" class="scene" src="overview-after.jpg" width="1880" height="950" alt="Proposition Hélion : QG compact ouvert au centre, commerce à gauche et relais de missions à droite"><figcaption id="caption">Proposition assemblée dans le moteur de décor réel. Le vaisseau conserve sa taille ; le QG passe de 1 460 à 720 unités.</figcaption></figure>
+</section>
+<section><h2>Les trois structures en détail</h2><div class="cards">
+<article class="card"><img src="headquarters.png" width="1254" height="1254" loading="lazy" alt="Nouveau QG orbital Hélion à deux bras d’accostage et coque titane rouge"><div class="copy"><h3>QG orbital</h3><p>Une coque de commandement et deux bras ouverts encadrent l’approche du vaisseau. La structure laisse de l’espace visible au centre.</p><a href="headquarters.png">Ouvrir le PNG transparent</a></div></article>
+<article class="card"><img src="commerce.png" width="1254" height="1254" loading="lazy" alt="Comptoir de commerce avec cargos, modules de stockage et quais"><div class="copy"><h3>Comptoir commercial</h3><p>Quais de fret, conteneurs et modules de stockage. Des balises ambre distinguent le commerce.</p><a href="commerce.png">Ouvrir le PNG transparent</a></div></article>
+<article class="card"><img src="mission-relay.png" width="1254" height="1254" loading="lazy" alt="Relais de missions à trois paraboles et modules reliés par des treillis"><div class="copy"><h3>Relais de missions</h3><p>Paraboles et capteurs donnent une fonction claire au relais. Les indicateurs cyan restent discrets.</p><a href="mission-relay.png">Ouvrir le PNG transparent</a></div></article>
+</div></section>
+<section><h2>Autre point de vue</h2><figure><img class="scene" src="approach-after.jpg" width="1880" height="950" loading="lazy" alt="Vue d’approche montrant les trois structures Hélion devant la planète"><figcaption>Autre cadrage de la même proposition, avec la planète et le fond actuels.</figcaption></figure></section>
+<details><summary>Fichiers sources et direction artistique</summary><p>Trois sprites RGBA séparés, de 1 254 × 1 254 pixels, générés avec imagegen. Les vues d’ensemble proviennent du renderer du jeu dans un aperçu isolé. Les structures, échelles, positions et libellés restent des propositions visuelles.</p>
+<p>Prompts complets : <a href="qg-prompt.txt">QG</a> · <a href="commerce-prompt.txt">Commerce</a> · <a href="mission-relay-prompt.txt">Missions</a>.</p>
+<p class="refs">Références d’organisation et de silhouettes consultées : <a href="https://board-en.darkorbit.com/threads/homebase-redesign-concept.1031/">archives officielles des bases DarkOrbit</a> et <a href="https://board-en.darkorbit.com/threads/nyx-faq.847/">station de missions Nyx</a>. Les trois designs présentés ici sont nouveaux.</p></details>
+</main>
+<script>
+for(const mode of ['before','after'])document.getElementById(mode).onclick=()=>{
+ for(const id of ['before','after'])document.getElementById(id).setAttribute('aria-pressed',String(id===mode));
+ document.getElementById('scene').src='overview-'+mode+'.jpg';
+ document.getElementById('caption').textContent=mode==='after'?'Proposition assemblée dans le moteur de décor réel. Le vaisseau conserve sa taille ; le QG passe de 1 460 à 720 unités.':'Base actuelle — même cadrage et même taille de vaisseau.';
+};
+</script>
+</html>

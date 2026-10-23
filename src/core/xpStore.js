@@ -1,6 +1,6 @@
-import { skills } from "../data/catalog.js";
-import { XP_CURVE_VERSION, getXpNextForLevel } from "../data/xpCurve.js";
-import { store } from "./store.js";
+import { skills } from "../data/catalog.js?v=20260726-kharon1";
+import { XP_CURVE_VERSION, getXpNextForLevel } from "../data/xpCurve.js?v=20260726-kharon1";
+import { store } from "./store.js?v=20260726-kharon1";
 
 export { XP_CURVE_VERSION, getXpNextForLevel };
 

@@ -64,7 +64,7 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
     }
   }
 
-  function launchEnemyAttack({enemy, map, target, amount, now = Date.now(), attackStyle}){
+  function launchEnemyAttack({enemy, map, target, amount, now = Date.now(), attackStyle, eliteLaser = null}){
     if(!target?.npcTarget) presence.markCombat(target, "attaque ennemi");
     enemy.attackAnimUntil = now + 320;
     const fromX = Number(enemy.x || 0);
@@ -76,7 +76,13 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
     const impactAt = now + travelTime * 1000;
     const enemySnapshot = {
       id:enemy.id,
-      onHitEffect:enemy.onHitEffect
+      onHitEffect:enemy.onHitEffect,
+      sourceRef:enemy?.kharonBoss || enemy?.eclaniteBoss ? enemy : null,
+      eliteLaser:eliteLaser ? {
+        color:String(eliteLaser.color || ""),
+        triggered:Boolean(eliteLaser.triggered),
+        lifeStealPercent:Math.max(0, Number(eliteLaser.lifeStealPercent || 0))
+      } : null
     };
 
     pendingAttacks.push({
@@ -112,6 +118,7 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
         impactAt,
         enemyKind:enemy.kind,
         attackStyle,
+        eliteLaser,
         life:.22
       });
     }
@@ -158,12 +165,80 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
     return strongest;
   }
 
+  function applyKharonBossLifeSteal(attacks, durabilityLost, totalIncoming, now){
+    if(durabilityLost <= 0 || totalIncoming <= 0) return;
+    for(const attack of attacks){
+      const boss = attack?.enemy?.sourceRef;
+      const ability = boss?.kharonAbility;
+      if(!boss?.kharonBoss
+        || Number(boss.hp || 0) <= 0
+        || ability?.abilityId !== "absorbing_fire"
+        || !ability.active
+        || now >= Number(ability.activeUntil || 0)){
+        continue;
+      }
+      const share = Math.max(0, Number(attack.amount || 0)) / totalIncoming;
+      const requested = durabilityLost * share * .5;
+      const before = Math.max(0, Number(boss.hp || 0));
+      boss.hp = Math.min(Math.max(1, Number(boss.maxHp || before || 1)), before + requested);
+      const healed = Math.max(0, Number(boss.hp || 0) - before);
+      if(healed <= 0) continue;
+      io.to(attack.room || `map:${attack.mapId}`).emit("npc:heal", {
+        targetId:boss.id,
+        sourceId:boss.id,
+        abilityId:"absorbing_fire",
+        amount:healed,
+        hp:Number(boss.hp || 0),
+        maxHp:Number(boss.maxHp || 0),
+        at:now
+      });
+    }
+  }
+
+  function applyEclaniteEliteLaserLifeSteal(attacks, durabilityLost, totalIncoming, now){
+    if(durabilityLost <= 0 || totalIncoming <= 0) return;
+    for(const attack of attacks){
+      const boss = attack?.enemy?.sourceRef;
+      const eliteLaser = attack?.enemy?.eliteLaser;
+      if(!boss?.eclaniteBoss
+        || Number(boss.hp || 0) <= 0
+        || eliteLaser?.color !== "green"
+        || !eliteLaser.triggered){
+        continue;
+      }
+      const ratio = Math.max(0, Math.min(.25, Number(eliteLaser.lifeStealPercent || 0)));
+      const share = Math.max(0, Number(attack.amount || 0)) / totalIncoming;
+      const requested = Math.max(0, Math.round(durabilityLost * share * ratio));
+      const before = Math.max(0, Number(boss.hp || 0));
+      boss.hp = Math.min(Math.max(1, Number(boss.maxHp || before || 1)), before + requested);
+      const healed = Math.max(0, Math.round(Number(boss.hp || 0) - before));
+      if(healed <= 0) continue;
+      boss.updatedAt = now;
+      io.to(attack.room || `map:${attack.mapId}`).emit("npc:heal", {
+        targetId:boss.id,
+        sourceId:boss.id,
+        abilityId:"elite_laser_green",
+        amount:healed,
+        hp:Number(boss.hp || 0),
+        maxHp:Number(boss.maxHp || 0),
+        at:now
+      });
+    }
+  }
+
   function resolvePlayerAttackBatch(target, attacks, now){
     if(!targetIsValidForPlayerAttack(attacks[0], target, now)) return;
     const amount = attacks.reduce((sum, attack)=>sum + Math.max(0, Number(attack.amount || 0)), 0);
     if(amount <= 0) return;
     presence.markCombat(target, "impact ennemi");
+    const durabilityBefore = Math.max(0, Number(target.state.hp || 0))
+      + Math.max(0, Number(target.state.shield || 0));
     const hpLost = presence.applyDamageToPlayerState(target, amount, now);
+    const durabilityAfter = Math.max(0, Number(target.state.hp || 0))
+      + Math.max(0, Number(target.state.shield || 0));
+    const durabilityLost = Math.max(0, durabilityBefore - durabilityAfter);
+    applyKharonBossLifeSteal(attacks, durabilityLost, amount, now);
+    applyEclaniteEliteLaserLifeSteal(attacks, durabilityLost, amount, now);
     emitQuestHpLoss(target, hpLost, now);
     profileManager.saveWorldSession({player:target, state:target.state, force:Number(target.state.hp || 0) <= 0});
     io.to(target.id).emit("player:damage", {
@@ -218,7 +293,20 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
     }
   }
 
+  function cancelPendingEnemyAttacksForRoom(room){
+    const targetRoom = String(room || "");
+    if(!targetRoom) return 0;
+    let removed = 0;
+    for(let index = pendingAttacks.length - 1; index >= 0; index -= 1){
+      if(String(pendingAttacks[index]?.room || "") !== targetRoom) continue;
+      pendingAttacks.splice(index, 1);
+      removed += 1;
+    }
+    return removed;
+  }
+
   return {
+    cancelPendingEnemyAttacksForRoom,
     launchEnemyAttack,
     updatePendingEnemyAttacks
   };

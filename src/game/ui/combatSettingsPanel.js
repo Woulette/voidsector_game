@@ -11,8 +11,8 @@ import {
   setGraphicsEffect,
   setGraphicsPreset,
   setInterfaceSetting
-} from "../../core/settingsStore.js";
-import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "../../core/keybinds.js?v=ship-abilities-1";
+} from "../../core/settingsStore.js?v=20260726-kharon1";
+import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "../../core/keybinds.js?v=20260726-kharon1";
 
 const TABS = [
   {id:"graphics", label:"Graphisme"},

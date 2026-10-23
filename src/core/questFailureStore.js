@@ -1,5 +1,5 @@
-import { getQuest, store } from "./store.js";
-import { MAX_ACTIVE_QUESTS, canClaimQuest, getInitialQuestFailProgress, getQuestObjectives } from "./questProgressStore.js";
+import { getQuest, store } from "./store.js?v=20260726-kharon1";
+import { MAX_ACTIVE_QUESTS, canClaimQuest, getInitialQuestFailProgress, getQuestObjectives } from "./questProgressStore.js?v=20260726-kharon1";
 
 export function resetQuestRun(quest){
   if(!quest) return;

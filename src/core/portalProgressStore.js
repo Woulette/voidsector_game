@@ -1,7 +1,14 @@
-import { portals, skills } from "../data/catalog.js";
-import { getPortal } from "./catalogStore.js";
-import { store } from "./store.js";
-import { getXpNextForLevel, syncSkillPoints, XP_CURVE_VERSION } from "./xpStore.js";
+import { portals, skills } from "../data/catalog.js?v=20260726-kharon1";
+import { getPortal } from "./catalogStore.js?v=20260726-kharon1";
+import { store } from "./store.js?v=20260726-kharon1";
+import { getXpNextForLevel, syncSkillPoints, XP_CURVE_VERSION } from "./xpStore.js?v=20260726-kharon1";
+import {
+  getRequiredPortalForShip,
+  getShipProgressionLockReason,
+  hasCompletedAllProgressionPortals,
+  PROGRESSION_UNLOCKS
+} from "../shared/progressionUnlocks.js?v=20260726-kharon1";
+import { getShipRoleLockReason } from "../data/ships.js?v=20260726-imperial2";
 
 export function getCompletedPortalCountForId(id){
   return Math.max(0, Number(store.state?.completedPortals?.[id] || 0));
@@ -11,25 +18,27 @@ export function hasCompletedPortal(id){
   return getCompletedPortalCountForId(id) > 0;
 }
 
-export function isEquipmentUpgradeUnlocked(){ return hasCompletedPortal("emerald"); }
-export function isRecipeSystemUnlocked(){ return hasCompletedPortal("void"); }
-export function isPrestigeUnlocked(){ return hasCompletedPortal("ancient"); }
-export function getPlayerLevelCap(){ return isPrestigeUnlocked() ? 100 : 50; }
+export function isEquipmentUpgradeUnlocked(){ return hasCompletedPortal(PROGRESSION_UNLOCKS.equipmentUpgrades.portalId); }
+export function isRecipeSystemUnlocked(){ return hasCompletedPortal(PROGRESSION_UNLOCKS.eliteLaserRecipes.portalId); }
+export function isPrestigeUnlocked(){ return hasCompletedAllProgressionPortals(store.state); }
+export function getPlayerLevelCap(){ return Number(store.state?.prestigeCount || 0) > 0 ? 100 : 50; }
 
 export function getShipRequiredCompletedPortal(ship){
-  if(!ship) return null;
-  return ship.requiresCompletedPortal || ship.requiresPortalCompletion || (ship.skillShip ? "violet" : null);
+  return getRequiredPortalForShip(ship)?.portalId || null;
 }
 
-export function getShipPurchaseLockReason(ship){
+export function getShipPurchaseLockReason(ship, accountRole = "player"){
+  const roleLockReason = getShipRoleLockReason(ship, accountRole);
+  if(roleLockReason) return roleLockReason;
+  const lockReason = getShipProgressionLockReason(store.state, ship);
+  if(!lockReason) return "";
   const portalId = getShipRequiredCompletedPortal(ship);
-  if(!portalId || getCompletedPortalCountForId(portalId) > 0) return "";
-  const portalName = getPortal(portalId)?.name || portalId;
-  return `Pré requis : ${portalName} terminé`;
+  const portalName = getPortal(portalId)?.name;
+  return `Pré requis : ${portalName ? `${portalName} terminé` : lockReason}`;
 }
 
-export function isShipPurchaseUnlocked(ship){
-  return !getShipPurchaseLockReason(ship);
+export function isShipPurchaseUnlocked(ship, accountRole = "player"){
+  return !getShipPurchaseLockReason(ship, accountRole);
 }
 
 export function getPortalPieces(id){
@@ -72,22 +81,24 @@ export function hasMaxedFirstLoopSkills(state = store.state){
 }
 
 export function getPrestigeStatus(){
+  const ascended = Number(store.state?.prestigeCount || 0) > 0;
   const levelOk = Number(store.state?.player?.level || 1) >= 50;
   const portalOk = isPrestigeUnlocked();
   const skillsOk = hasMaxedFirstLoopSkills();
   return {
-    ok:levelOk && portalOk && skillsOk,
+    ok:!ascended && levelOk && portalOk,
+    ascended,
     levelOk,
     portalOk,
     skillsOk,
-    reason:!portalOk ? "Portail Ancestral termine requis." : !levelOk ? "Niveau 50 requis." : !skillsOk ? "Toutes les competences de premiere boucle doivent etre au maximum." : ""
+    reason:ascended ? "Ascension deja accomplie." : !portalOk ? "Les 9 portails de progression doivent etre termines." : !levelOk ? "Niveau 50 requis." : ""
   };
 }
 
 export function performPrestige(){
   const status = getPrestigeStatus();
   if(!status.ok) return {ok:false, reason:status.reason};
-  store.state.prestigeCount = Math.max(0, Number(store.state.prestigeCount || 0)) + 1;
+  store.state.prestigeCount = 1;
   store.state.player.level = 1;
   store.state.player.xp = 0;
   store.state.player.xpNext = getXpNextForLevel(1);

@@ -1,4 +1,4 @@
-import { store } from "../../core/store.js";
+import { store } from "../../core/store.js?v=20260726-kharon1";
 import { isPremiumActive, PREMIUM_LOGOUT_DELAY_MS } from "../../data/premium.js";
 
 export function createCombatLogoutController({

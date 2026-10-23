@@ -1,6 +1,6 @@
 import { isAuthenticatedGameplaySession } from "./gameplaySession.js";
 
-export function createFirmCommands({multiplayer, toast}){
+export function createFirmCommands({multiplayer, toast, backgroundSync}){
   function emit(event, payload = {}){
     if(!isAuthenticatedGameplaySession(multiplayer)){
       toast("Compte MMO synchronise requis pour utiliser les fonctions de firme.");
@@ -11,7 +11,11 @@ export function createFirmCommands({multiplayer, toast}){
   }
 
   return {
-    requestFirmSync:({includeShop = false} = {})=>emit("firm:sync", {includeShop}),
+    requestFirmSync:({includeShop = false, force = false} = {})=>backgroundSync?.request("firm:sync", {
+      payload:{includeShop},
+      force,
+      send:payload=>emit("firm:sync", payload)
+    }) ?? emit("firm:sync", {includeShop}),
     buyFirmShopItem:id=>id ? emit("firm:shop-buy", {id}) : false,
     openFirmBox:rarity=>rarity ? emit("firm:box-open", {rarity}) : false,
     claimFirmRewards:()=>emit("firm:reward-claim"),

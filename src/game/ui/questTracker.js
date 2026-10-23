@@ -1,6 +1,7 @@
 import { fmt, fmtCompact } from "../../core/utils.js";
-import { ammoTypes, equipment, portals } from "../../data/catalog.js";
+import { ammoTypes, equipment, portals } from "../../data/catalog.js?v=20260726-kharon1";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
+import { renderQuestAbandonAction } from "./questAbandon.js";
 
 function questProgressState(quest, getQuestProgress){
   const progress = getQuestProgress(quest.id);
@@ -113,10 +114,10 @@ function renderObjectiveIcon(objective = {}, targetType = null){
     return `<span class="combat-quest-objective-icon"><img src="${objective.itemImg || "assets/quest_items/teleportation_fluid.png"}" alt=""></span>`;
   }
   if(objective.type === "space_caster_use"){
-    return `<span class="combat-quest-objective-icon"><img src="assets/portals/portail_bleu.svg" alt=""></span>`;
+    return `<span class="combat-quest-objective-icon"><img src="assets/portals/seuil_azuron.png" alt=""></span>`;
   }
   if(objective.type === "portal_complete"){
-    return `<span class="combat-quest-objective-icon"><img src="assets/portals/portail_bleu.svg" alt=""></span>`;
+    return `<span class="combat-quest-objective-icon"><img src="assets/portals/seuil_azuron.png" alt=""></span>`;
   }
   const img = objective.type === "visit_coordinates" || objective.type === "visit_map" ? "assets/icons/coordinate_marker.svg" : targetType?.img || "assets/enemies/drone_pirate.png";
   const rotationStyle = getEnemyAssetRotationStyle(objective.target);
@@ -181,7 +182,7 @@ function renderRewardsTab({quest, rawMaterials}){
   const portalRows = portalPieces.map(([id, amount])=>{
       const portal = portals.find(entry=>entry.id === id);
       return `<div class="combat-quest-reward-row item">
-        <img src="${portal?.pieceImg || portal?.img || "assets/portal_pieces/portal_piece_blue.png"}" alt="">
+        <img src="${portal?.pieceImg || portal?.img || "assets/portal_pieces/fragment_azuron.png"}" alt="">
         <span>Piece</span>
         <b>${fmtCompact(amount)} Piece ${portal?.name || id}</b>
       </div>`;
@@ -245,7 +246,9 @@ export function renderCombatQuestTracker({
   rawMaterials,
   getQuestProgress,
   getQuestObjectiveProgress,
-  questFailProgress = {}
+  questFailProgress = {},
+  tutorial = null,
+  firmId = "astra"
 }){
   const selected = activeQuests.find(quest=>quest.id === selectedQuestId)
     || activeQuests.find(quest=>quest.id === trackedQuest?.id)
@@ -283,6 +286,7 @@ export function renderCombatQuestTracker({
         <button class="${tab === "description" ? "active" : ""}" data-combat-quest-tab="description" type="button">Info</button>
       </div>
       ${renderTabContent({quest:selected, tab, enemyTypes, rawMaterials, getQuestProgress, getQuestObjectiveProgress, questFailProgress})}
+      ${tab === "description" ? renderQuestAbandonAction({questId:selected.id, tutorial, firmId}) : ""}
     </article>
   `;
 }

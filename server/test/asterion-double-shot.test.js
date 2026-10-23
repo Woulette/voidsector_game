@@ -8,13 +8,13 @@ import { getShipPurchase } from "../src/economy/shop.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { createProfileActions } from "../src/players/profileActions.js";
 
-test("Asterion exposes the requested premium stats and violet portal gate", ()=>{
+test("Asterion exposes the requested premium stats and Kharon portal gate", ()=>{
   const ship = ships.find(entry=>entry.id === "asterion");
   assert.ok(ship);
   assert.equal(ship.name, "Asterion");
   assert.equal(ship.priceType, "premium");
   assert.equal(ship.price, 150_000);
-  assert.equal(ship.requiresCompletedPortal, "violet");
+  assert.equal(ship.requiresCompletedPortal, "red");
   assert.equal(ship.abilityId, "spectral_double_shot");
   assert.equal(ship.renderWidth, 122);
   assert.equal(ship.renderHeight, 132);
@@ -30,7 +30,7 @@ test("Asterion exposes the requested premium stats and violet portal gate", ()=>
   });
 });
 
-test("server refuses Asterion before the violet portal and charges it only once", ()=>{
+test("server refuses Asterion before Kharon and charges it only once", ()=>{
   const purchase = getShipPurchase("asterion");
   const profile = createDefaultProfile();
   profile.player.premium = 200_000;
@@ -44,10 +44,10 @@ test("server refuses Asterion before the violet portal and charges it only once"
 
   const locked = actions.addShipPurchase({player, purchase});
   assert.equal(locked.ok, false);
-  assert.match(locked.reason, /violet/i);
+  assert.match(locked.reason, /Kharon/i);
   assert.equal(profiles.get("account:asterion-shop").player.premium, 200_000);
 
-  profiles.get("account:asterion-shop").completedPortals.violet = 1;
+  profiles.get("account:asterion-shop").completedPortals.red = 1;
   const bought = actions.addShipPurchase({player, purchase});
   assert.equal(bought.ok, true);
   assert.equal(bought.profile.player.premium, 50_000);
@@ -62,6 +62,7 @@ test("Asterion spectral volley activates for 30 seconds and cools down for 3 min
   const profile = createDefaultProfile();
   profile.ownedShips.push("asterion");
   profile.activeShip = "asterion";
+  profile.completedPortals.red = 1;
   const player = {
     id:"socket-asterion-ability",
     state:{shipId:"asterion", hp:180_000, maxHp:180_000}
@@ -91,6 +92,7 @@ test("Asterion spectral volley stores a 3 second charge consumed by the next las
   const profile = createDefaultProfile();
   profile.ownedShips.push("asterion");
   profile.activeShip = "asterion";
+  profile.completedPortals.red = 1;
   const player = {
     id:"socket-asterion-sequence",
     state:{shipId:"asterion", hp:180_000, maxHp:180_000}
@@ -134,6 +136,7 @@ test("server combat resolution reports the Asterion double strike when the charg
   const profile = createDefaultProfile();
   profile.ownedShips.push("asterion");
   profile.activeShip = "asterion";
+  profile.completedPortals.red = 1;
   profile.inventoryItems.push({uid:"asterion_laser_1", itemId:"laser_mk1"});
   profile.shipLoadouts.asterion = {
     lasers:["asterion_laser_1"],
@@ -180,6 +183,7 @@ test("Asterion double strike stacks with elite red laser burst damage", ()=>{
   const profile = createDefaultProfile();
   profile.ownedShips.push("asterion");
   profile.activeShip = "asterion";
+  profile.completedPortals.red = 1;
   const laserUids = Array.from({length:10}, (_,index)=>{
     const uid = `asterion_elite_red_${index + 1}`;
     profile.inventoryItems.push({uid, itemId:"laser_elite_red"});

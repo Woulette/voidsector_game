@@ -1,4 +1,4 @@
-import { applyProgressionReward, getXpNextForLevel } from "../players/progression.js";
+import { applyProgressionReward, getProgressionLevelCap, getXpNextForLevel } from "../players/progression.js";
 import { buildPublicPlayerProfile } from "../players/publicProfile.js";
 import { appendProfileActivity } from "../players/activityLog.js";
 import {
@@ -13,7 +13,8 @@ import {
 import { addInventoryItemAmount, getInventoryEntryQuantity, isStackableInventoryItem } from "../economy/inventoryStacks.js";
 import { ENEMY_TYPES } from "../../../src/game/combatData.js";
 import { droneFormations } from "../../../src/data/equipment.js";
-import { portals, rawMaterialCatalog } from "../../../src/data/progression.js";
+import { rawMaterialCatalog } from "../../../src/data/progression.js";
+import { getServerPortalDefinition } from "../portals/portalDefinitions.js";
 
 const ROLE_POWER = {
   player:0,
@@ -400,7 +401,8 @@ function applyGrantToProfile(profile, {type, id, amount, destination, shipId} = 
     const drone = getServerDroneCatalog();
     if(cleanId !== drone.id) return {ok:false, reason:"Drone introuvable."};
     const current = Math.max(0, Math.floor(Number(profile.ownedDroneCount || 0)));
-    const maxOwned = Math.max(0, Math.floor(Number(drone.maxOwned || 0)));
+    const maxOwned = Math.max(0, Math.floor(Number(drone.maxStandardOwned || 0)));
+    if(current >= maxOwned) return {ok:false, reason:`Limite de ${maxOwned} drones standards atteinte.`};
     const count = clampGrantAmount(amount, Math.max(1, maxOwned));
     const nextCount = Math.min(maxOwned, current + count);
     const grantedCount = Math.max(0, nextCount - current);
@@ -422,14 +424,23 @@ function applyGrantToProfile(profile, {type, id, amount, destination, shipId} = 
   }
 
   if(cleanType === "portalPiece"){
-    const portal = portals.find(entry=>entry.id === cleanId);
+    const portal = getServerPortalDefinition(cleanId);
     if(!portal) return {ok:false, reason:"Portail introuvable."};
     const count = clampGrantAmount(amount);
     if(!profile.portalPieces || typeof profile.portalPieces !== "object" || Array.isArray(profile.portalPieces)){
       profile.portalPieces = {};
     }
     profile.portalPieces[portal.id] = Math.max(0, Number(profile.portalPieces[portal.id] || 0)) + count;
-    return {ok:true, granted:{type:"portalPiece", id:portal.id, name:`Piece ${portal.name || portal.id}`, amount:count, destination:"portalPieces"}};
+    return {
+      ok:true,
+      granted:{
+        type:"portalPiece",
+        id:portal.id,
+        name:portal.pieceName || `Fragment ${portal.name || portal.id}`,
+        amount:count,
+        destination:"portalPieces"
+      }
+    };
   }
 
   if(cleanType === "firmBox"){
@@ -660,7 +671,11 @@ export function createAdminManager({
     const nextProfile = profileManager.updateProfileByKey?.(target.key, profile=>{
       if(!profile.player || typeof profile.player !== "object") profile.player = {};
       if(cleanField === "xp" && cleanMode === "add"){
-        profile.player = applyProgressionReward(profile.player, {xp:cleanAmount});
+        profile.player = applyProgressionReward(
+          profile.player,
+          {xp:cleanAmount},
+          getProgressionLevelCap(profile.prestigeCount)
+        );
         return true;
       }
       if(cleanField === "xp" && cleanMode === "set"){

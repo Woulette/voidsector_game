@@ -1,5 +1,5 @@
 import { fmt } from "../../core/utils.js";
-import { getCurrencyPrice, hasCurrencyDiscount } from "../../core/store.js";
+import { getCurrencyPrice, hasCurrencyDiscount } from "../../core/store.js?v=20260726-kharon1";
 import { currencyAmountHtml } from "../../ui/currencyIcons.js";
 
 function priceHtml(priceType, price){

@@ -87,7 +87,6 @@ test("Reflets du néant counts crystals globally, resets on death and has reques
     premium:1400,
     xp:125000,
     materials:{},
-    portalPieces:{blue:2},
     ammo:{rocket_r2:150}
   });
   assert.equal(quest.failConditions.deathResets, true);

@@ -63,6 +63,12 @@ export function installEconomySocketListeners({socket, multiplayer, emitChange, 
     pushEvent(multiplayer.combatEvents, event, 80);
     // Combat consumes this high-frequency event directly in its frame update.
   });
+  socket.on("combat:shot", event=>{
+    pushEvent(multiplayer.combatShotEvents, event, 80);
+  });
+  socket.on("combat:rejected", event=>{
+    pushEvent(multiplayer.combatRejectedEvents, event, 40);
+  });
   socket.on("refinery:updated", event=>{
     pushEvent(multiplayer.refineryEvents, event, 40);
     emitChange("refinery:updated", event);

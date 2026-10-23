@@ -1,24 +1,31 @@
-import { createCombatCommands } from "./combatCommands.js";
+import { createCombatCommands } from "./combatCommands.js?v=20261018-map-transfer1";
 import { installChatSocketListeners } from "./chatSocketListeners.js";
-import { createMultiplayerAuthController } from "./authController.js";
+import { createMultiplayerAuthController, isInvalidAuthSessionError } from "./authController.js?v=20261018-connection-enemies1";
+import { createBackgroundSyncCoordinator, getRateLimitToastMessage } from "./backgroundSync.js?v=20260726-kharon1";
 import { installMultiplayerDomHandlers as installDomHandlers } from "./domHandlers.js";
-import { installEconomySocketListeners } from "./economySocketListeners.js?v=crafting-1";
-import { createFirmCommands } from "./firmCommands.js";
-import { installFirmSocketListeners } from "./firmSocketListeners.js?v=firm-shop-sync-1";
-import { createGroupCommands } from "./groupCommands.js?v=portal-prepare-1";
-import { syncMultiplayerProfile as syncProfile } from "./profileSync.js?v=action-slots-save-1-fps-burst-1";
-import { installPlayerSocketListeners } from "./playerSocketListeners.js?v=action-slots-save-1-fps-burst-1";
-import { installProgressionSocketListeners } from "./progressionSocketListeners.js";
-import { createSocketCommands } from "./socketCommands.js?v=crafting-1";
-import { createSocialCommands } from "./socialCommands.js";
-import { installSocialSocketListeners } from "./socialSocketListeners.js";
+import { installEconomySocketListeners } from "./economySocketListeners.js?v=20260726-combat-authority1";
+import { createFirmCommands } from "./firmCommands.js?v=20260726-kharon1";
+import { installFirmSocketListeners } from "./firmSocketListeners.js?v=20260726-kharon1";
+import { createGroupCommands } from "./groupCommands.js?v=20260726-nox1";
+import { resetProfileSaveState, syncMultiplayerProfile as syncProfile } from "./profileSync.js?v=20260726-kharon1";
+import { installPlayerSocketListeners } from "./playerSocketListeners.js?v=20261018-map-transfer1";
+import { installProgressionSocketListeners } from "./progressionSocketListeners.js?v=20260726-kharon1";
+import { createSocketCommands } from "./socketCommands.js?v=20260726-ancient1";
+import { createSocialCommands } from "./socialCommands.js?v=20260726-kharon1";
+import { installSocialSocketListeners } from "./socialSocketListeners.js?v=20260726-kharon1";
 import {
   addRemoteEffect as addRemoteEffectState,
   replaceServerEnemies as replaceServerEnemiesState,
   upsertRemotePlayer as upsertRemotePlayerState
-} from "./socketState.js";
-import { DEFAULT_MULTIPLAYER_SERVER_URL, isLocalServerUrl, normalizeServerUrl, resolveInitialServerUrl } from "./serverUrlConfig.js";
-import { installWorldSocketListeners } from "./worldSocketListeners.js?v=portal-prepare-1";
+} from "./socketState.js?v=20260905-motion3";
+import {
+  DEFAULT_MULTIPLAYER_SERVER_URL,
+  isLocalServerUrl,
+  normalizeServerUrl,
+  resolveConnectionServerUrl,
+  resolveInitialServerUrl
+} from "./serverUrlConfig.js?v=20260726-kharon1";
+import { installWorldSocketListeners } from "./worldSocketListeners.js?v=20260726-ancient1";
 import { setPersonalFirmBoosterReward, setPersonalPlayerBoosters } from "../core/firmBoosterStore.js";
 
 const DEFAULT_SERVER_URL = DEFAULT_MULTIPLAYER_SERVER_URL;
@@ -31,7 +38,6 @@ const LEGACY_AUTH_REMEMBER_STORAGE_KEY = "avosomanox-auth-remember";
 const AUTH_SYNC_CHANNEL_NAME = "avosoma-auth-sync";
 const CLIENT_ID_STORAGE_KEY = "voidsector-client-id";
 const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
-const LEADERBOARD_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const MULTIPLAYER_STATE_KEY = "__voidsectorMultiplayerState";
 
 let authSyncChannel = null;
@@ -189,6 +195,7 @@ function createMultiplayerState(){
   clientId:getClientId(),
   serverUrl:resolveInitialServerUrl({
     locationSearch:window.location?.search || "",
+    pageOrigin:window.location?.origin || "",
     configuredUrl:readConfiguredServerUrl(),
     storedUrl:readStoredServerUrl(),
     defaultUrl:readDefaultServerUrl()
@@ -222,6 +229,8 @@ function createMultiplayerState(){
   shopDroneEvents:[],
   shopDroneFormationEvents:[],
   equipmentEvents:[],
+  combatShotEvents:[],
+  combatRejectedEvents:[],
   combatEvents:[],
   lootPickupEvents:[],
   questProgressEvents:[],
@@ -257,6 +266,7 @@ function createMultiplayerState(){
   groupPing:null,
   social:{friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]},
   socialSync:{lastProfileSyncRequestedAt:0},
+  backgroundSync:{entries:{}, limits:[], lastLimited:null},
   leaderboardRanking:null,
   leaderboardSync:{lastRequestedAt:0, lastReceivedAt:0},
   admin:{
@@ -368,8 +378,9 @@ const {
 } = createGroupCommands({multiplayer, toast, emitChange});
 
 const socketCommands = createSocketCommands({multiplayer});
-const socialCommands = createSocialCommands({multiplayer, toast});
-const firmCommands = createFirmCommands({multiplayer, toast});
+const backgroundSync = createBackgroundSyncCoordinator({multiplayer});
+const socialCommands = createSocialCommands({multiplayer, toast, backgroundSync});
+const firmCommands = createFirmCommands({multiplayer, toast, backgroundSync});
 const upsertRemotePlayer = player=>upsertRemotePlayerState(multiplayer, player);
 const replaceServerEnemies = (payload, scope)=>replaceServerEnemiesState(multiplayer, payload, scope);
 const addRemoteEffect = effect=>addRemoteEffectState(multiplayer, effect);
@@ -395,22 +406,29 @@ export function setAuthRememberEnabled(remember = true){
 }
 
 export function requestLeaderboardSync({force = false} = {}){
-  if(!multiplayer.connected || !multiplayer.socket) return false;
-  const now = Date.now();
-  const lastRequestedAt = Number(multiplayer.leaderboardSync?.lastRequestedAt || 0);
-  if(!force && lastRequestedAt && now - lastRequestedAt < LEADERBOARD_SYNC_INTERVAL_MS) return false;
-  const sent = socketCommands.requestLeaderboardSync();
-  if(sent){
-    multiplayer.leaderboardSync = {
-      ...(multiplayer.leaderboardSync || {}),
-      lastRequestedAt:now
-    };
-  }
-  return sent;
+  return backgroundSync.request("leaderboard:sync", {
+    force,
+    send:()=>{
+      const sent = socketCommands.requestLeaderboardSync();
+      if(sent){
+        multiplayer.leaderboardSync = {
+          ...(multiplayer.leaderboardSync || {}),
+          lastRequestedAt:Date.now()
+        };
+      }
+      return sent;
+    }
+  });
 }
 
 function loadSocketIo(serverUrl = multiplayer.serverUrl){
-  const resolvedServerUrl = normalizeServerUrl(serverUrl) || readDefaultServerUrl();
+  const resolvedServerUrl = resolveConnectionServerUrl({
+    requestedUrl:serverUrl,
+    currentUrl:multiplayer.serverUrl,
+    configuredUrl:readConfiguredServerUrl(),
+    pageOrigin:window.location?.origin || "",
+    defaultUrl:readDefaultServerUrl()
+  });
   if(window.io) return Promise.resolve(window.io);
   return new Promise((resolve, reject)=>{
     const existing = document.querySelector("script[data-socket-io-client]");
@@ -456,7 +474,13 @@ export function initMultiplayer({showToast = null, getDefaultName = null, autoCo
 
 export async function connectMultiplayer({serverUrl, name} = {}){
   if(multiplayer.connected || multiplayer.connecting) return;
-  multiplayer.serverUrl = normalizeServerUrl(serverUrl) || normalizeServerUrl(multiplayer.serverUrl) || readDefaultServerUrl();
+  multiplayer.serverUrl = resolveConnectionServerUrl({
+    requestedUrl:serverUrl,
+    currentUrl:multiplayer.serverUrl,
+    configuredUrl:readConfiguredServerUrl(),
+    pageOrigin:window.location?.origin || "",
+    defaultUrl:readDefaultServerUrl()
+  });
   multiplayer.name = String(name || multiplayer.name || "Pilote").trim().replace(/\s+/g, " ").slice(0, 24) || "Pilote";
   localStorage.setItem(SERVER_STORAGE_KEY, multiplayer.serverUrl);
   localStorage.setItem(NAME_STORAGE_KEY, multiplayer.name);
@@ -466,6 +490,7 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     const io = await loadSocketIo(multiplayer.serverUrl);
     const socket = io(multiplayer.serverUrl, {
       transports:["websocket", "polling"],
+      tryAllTransports:true,
       reconnection:true,
       reconnectionAttempts:Infinity,
       timeout:8000
@@ -477,6 +502,8 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       multiplayer.connecting = false;
       multiplayer.authoritativeSession = true;
       multiplayer.playerId = socket.id;
+      multiplayer.auth.profileReady = false;
+      multiplayer.auth.pending = Boolean(multiplayer.auth.token);
       socket.emit("player:hello", {
         name:multiplayer.name,
         clientMode:multiplayer.clientMode,
@@ -497,6 +524,11 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     socket.on("disconnect", socketReason=>{
       const disconnectIntent = multiplayer.disconnectIntent || "";
       multiplayer.connected = false;
+      multiplayer.authoritativeSession = false;
+      multiplayer.auth.profileReady = false;
+      multiplayer.auth.pending = false;
+      resetProfileSaveState();
+      backgroundSync.reset();
       multiplayer.group = null;
       multiplayer.preparedPortal = null;
       multiplayer.logout = {pending:false, completeAt:null, reason:""};
@@ -511,25 +543,23 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       emitChange("server:ready");
     });
     socket.on("rate:limited", payload=>{
-      const eventName = String(payload?.eventName || "");
-      const message = eventName === "profile:setup"
-        ? "Choix de firme deja envoye, attends quelques secondes."
-        : "Commande envoyee trop vite, attends quelques secondes.";
-      toast(message);
+      const message = getRateLimitToastMessage("rate:limited", payload);
+      if(message) toast(message);
+      else backgroundSync.recordLimited("rate:limited", payload);
       emitChange("rate:limited", payload);
     });
     socket.on("account:action-limited", payload=>{
-      const eventName = String(payload?.eventName || "");
-      const message = eventName === "profile:setup"
-        ? "Choix de firme deja en cours, attends la reponse du serveur."
-        : "Action envoyee trop vite, attends quelques secondes.";
-      toast(message);
+      const message = getRateLimitToastMessage("account:action-limited", payload);
+      if(message) toast(message);
+      else backgroundSync.recordLimited("account:action-limited", payload);
       emitChange("account:action-limited", payload);
     });
     socket.on("auth:success", payload=>{
       const previousAccountId = String(multiplayer.auth.account?.id || "");
       const nextAccountId = String(payload?.account?.id || "");
       if(previousAccountId !== nextAccountId){
+        resetProfileSaveState();
+        backgroundSync.reset();
         multiplayer.firmSnapshot = null;
         multiplayer.firmRanking = null;
         setPersonalFirmBoosterReward(null);
@@ -560,10 +590,13 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       emitChange("auth:moderation", payload);
     });
     socket.on("auth:error", payload=>{
-      if(multiplayer.auth.token && String(payload?.message || "").toLowerCase().includes("session")){
+      const invalidSession = isInvalidAuthSessionError(payload);
+      if(payload?.action === "session" || invalidSession) multiplayer.auth.profileReady = false;
+      if(multiplayer.auth.token && invalidSession){
         clearStoredAuthToken();
         multiplayer.auth.token = "";
         multiplayer.auth.account = null;
+        resetProfileSaveState();
       }
       auth.setError(payload?.message);
     });
@@ -575,12 +608,14 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     });
     socket.on("auth:logout", ()=>{
       clearStoredAuthToken();
+      resetProfileSaveState();
       multiplayer.auth = {...multiplayer.auth, account:null, token:"", expiresAt:null, pending:false, error:"", profileReady:false};
       toast("Compte deconnecte.");
       emitChange("auth:logout");
       setTimeout(()=>disconnectMultiplayer("account-logout"), 0);
     });
     socket.on("auth:replaced", payload=>{
+      resetProfileSaveState();
       multiplayer.auth = {...multiplayer.auth, account:null, expiresAt:null, pending:false, error:"", profileReady:false};
       multiplayer.disconnectIntent = "session-replaced";
       toast(String(payload?.message || "Ce compte a ete connecte depuis une autre session."));
@@ -588,6 +623,7 @@ export async function connectMultiplayer({serverUrl, name} = {}){
     });
     socket.on("admin:banned", payload=>{
       clearStoredAuthToken();
+      resetProfileSaveState();
       multiplayer.auth = {...multiplayer.auth, account:null, token:"", expiresAt:null, pending:false, error:String(payload?.message || "Compte banni."), profileReady:false};
       multiplayer.disconnectIntent = "account-banned";
       toast(String(payload?.message || "Compte banni temporairement."));
@@ -680,13 +716,22 @@ export async function connectMultiplayer({serverUrl, name} = {}){
       toast(multiplayer.admin.error);
       emitChange("admin:error", payload);
     });
-    installPlayerSocketListeners({socket, multiplayer, requestLeaderboardSync, upsertRemotePlayer, addRemoteEffect, emitChange, toast});
+    installPlayerSocketListeners({
+      socket,
+      multiplayer,
+      requestSocialSync:socialCommands.requestSocialSync,
+      backgroundSync,
+      upsertRemotePlayer,
+      addRemoteEffect,
+      emitChange,
+      toast
+    });
     installChatSocketListeners({socket, multiplayer, emitChange, toast});
     installEconomySocketListeners({socket, multiplayer, emitChange, toast});
     installProgressionSocketListeners({socket, multiplayer, emitChange, toast});
     installWorldSocketListeners({socket, multiplayer, replaceServerEnemies, emitChange, toast});
-    installSocialSocketListeners({socket, multiplayer, emitChange, toast});
-    installFirmSocketListeners({socket, multiplayer, emitChange, toast});
+    installSocialSocketListeners({socket, multiplayer, backgroundSync, emitChange, toast});
+    installFirmSocketListeners({socket, multiplayer, backgroundSync, emitChange, toast});
   }catch(error){
     multiplayer.connected = false;
     multiplayer.connecting = false;
@@ -700,6 +745,7 @@ export function disconnectMultiplayer(intent = "manual"){
   const disconnectIntent = String(intent || "manual");
   multiplayer.disconnectIntent = disconnectIntent;
   multiplayer.socket?.disconnect();
+  resetProfileSaveState();
   multiplayer.socket = null;
   multiplayer.connected = false;
   multiplayer.connecting = false;
@@ -710,6 +756,7 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.groupPing = null;
   multiplayer.social = {friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]};
   multiplayer.socialSync = {lastProfileSyncRequestedAt:0};
+  backgroundSync.reset();
   multiplayer.leaderboardRanking = null;
   multiplayer.leaderboardSync = {lastRequestedAt:0, lastReceivedAt:0};
   multiplayer.admin = {snapshot:null, inspect:null, pending:false, error:"", lastSyncAt:0, lastAction:null};
@@ -743,6 +790,8 @@ export function disconnectMultiplayer(intent = "manual"){
   multiplayer.shopDroneEvents = [];
   multiplayer.shopDroneFormationEvents = [];
   multiplayer.equipmentEvents = [];
+  multiplayer.combatShotEvents = [];
+  multiplayer.combatRejectedEvents = [];
   multiplayer.combatEvents = [];
   multiplayer.lootPickupEvents = [];
   multiplayer.questProgressEvents = [];
@@ -815,11 +864,11 @@ export const requestServerLogout = socketCommands.requestServerLogout;
 export const requestPlayerRespawn = socketCommands.requestPlayerRespawn;
 export const startPortgunTeleport = socketCommands.startPortgunTeleport;
 export const activateRickyPortalLever = socketCommands.activateRickyPortalLever;
+export const interactPrecursorPortal = socketCommands.interactPrecursorPortal;
 export const activateRickyHealBeacon = socketCommands.activateRickyHealBeacon;
 export const activateShipAbility = socketCommands.activateShipAbility;
 export const setupServerProfile = socketCommands.setupServerProfile;
 export const updateTutorial = socketCommands.updateTutorial;
-export const setServerProfileTitle = socketCommands.setServerProfileTitle;
 export const resetServerFirmDebug = socketCommands.resetServerFirmDebug;
 export const sendChatMessage = socketCommands.sendChatMessage;
 export const requestSocialSync = socialCommands.requestSocialSync;
@@ -838,16 +887,18 @@ export const claimFirmSeasonObjective = firmCommands.claimFirmSeasonObjective;
 export const acceptFirmQuest = firmCommands.acceptFirmQuest;
 export {sendPlayerSnapshot, sendPlayerActivity, sendServerEnemyHit, sendServerPlayerHit, sendPlayerLaserEffect};
 
-export const syncMultiplayerProfile = state=>syncProfile(multiplayer, state);
+export const syncMultiplayerProfile = (state, options = {})=>syncProfile(multiplayer, state, options);
 
 export const {
   acceptServerQuest,
   claimServerQuest,
+  abandonServerQuest,
   trackServerQuest,
   progressServerQuest,
   upgradeServerSkill,
   unlockServerPortal,
   performServerPrestige,
+  setServerProfileTitle,
   runServerSpaceCaster,
   startServerRefineryUpgrade,
   rushServerRefineryUpgrade,

@@ -1,7 +1,7 @@
-import { refineryMaterialCatalog, refineryRecipes } from "../data/catalog.js";
+import { refineryMaterialCatalog, refineryRecipes } from "../data/catalog.js?v=20260726-kharon1";
 import { isPremiumActive, PREMIUM_REFINERY_SHIPMENT_DURATION_MULTIPLIER } from "../data/premium.js";
-import { addMaterial, addShipCargoMaterial, consumeMaterial, consumeShipCargoMaterial, getMaterialCount, getShipCargo, getShipCargoCapacity, getShipCargoUsed } from "./cargoStore.js";
-import { enforcePlayerCurrencyMinimums, getCurrencyPrice, getRawMaterial, getShip, store } from "./store.js";
+import { addMaterial, addShipCargoMaterial, consumeMaterial, consumeShipCargoMaterial, getMaterialCount, getShipCargo, getShipCargoCapacity, getShipCargoUsed } from "./cargoStore.js?v=20260726-kharon1";
+import { enforcePlayerCurrencyMinimums, getCurrencyPrice, getRawMaterial, getShip, store } from "./store.js?v=20260726-kharon1";
 import {
   REFINERY_MODULES,
   REFINERY_RUSH_NOVA_PER_MINUTE,

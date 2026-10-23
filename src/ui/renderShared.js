@@ -1,4 +1,4 @@
-import { getRankAssetPath, getShip } from "../core/store.js";
+import { getRankAssetPath, getShip } from "../core/store.js?v=20260726-kharon1";
 
 export function statLine(label, value, max=700){
   return `<div class="stat-line"><span>${label}</span><div class="stat-track"><span style="width:${Math.min(100, Number(value)/max*100)}%"></span></div><b>${value}</b></div>`;

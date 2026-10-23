@@ -23,6 +23,22 @@
 }
 .portal-card{cursor:pointer}
 .portal-card.selected{border-color:rgba(56,255,79,.78);box-shadow:0 0 22px rgba(86,255,79,.12),inset 0 0 18px rgba(86,255,79,.05)}
+.portal-card.content-pending>img{opacity:.72;filter:grayscale(.2) drop-shadow(0 0 10px rgba(192,132,252,.2))}
+.portal-content-status{
+  position:relative;
+  z-index:2;
+  width:max-content;
+  max-width:100%;
+  padding:3px 8px;
+  border:1px solid currentColor;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.65px;
+  text-transform:uppercase;
+}
+.portal-content-status.ready{color:#86efac;background:rgba(34,197,94,.09)}
+.portal-content-status.pending{color:#fde68a;background:rgba(245,158,11,.09)}
 .skill-grid-full{grid-template-columns:repeat(3,minmax(0,1fr))}
 .product-card{padding:10px;min-height:245px;display:flex;flex-direction:column;justify-content:space-between;gap:8px}
 .product-card .product-top{position:relative;z-index:2;display:flex;justify-content:space-between;gap:8px;align-items:flex-start;min-height:34px}
@@ -416,6 +432,10 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
 }
 .enemy-selected-ring{pointer-events:none}
 .portal-caster-box{position:relative;z-index:1;display:grid;gap:14px}
+.portal-caster-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;min-height:54px}
+.portal-caster-piece-count{display:grid;justify-items:end;gap:2px;min-width:112px;padding:7px 10px;border:1px solid rgba(56,189,248,.72);background:linear-gradient(135deg,rgba(2,132,199,.16),rgba(2,10,19,.72));box-shadow:inset 0 0 18px rgba(56,189,248,.08),0 0 14px rgba(56,189,248,.08);color:#e8f8ff}
+.portal-caster-piece-count small{max-width:190px;color:#7dd3fc;font-size:8px;line-height:1.1;letter-spacing:.65px;text-align:right;text-transform:uppercase}
+.portal-caster-piece-count span{font-size:18px;letter-spacing:1px;white-space:nowrap}
 .portal-caster-orb{height:185px;display:grid;place-items:center;background:radial-gradient(circle at 50% 48%,rgba(56,189,248,.12),rgba(2,10,19,.15) 58%,rgba(2,10,19,.6));border:1px solid rgba(56,189,248,.14)}
 .portal-caster-orb img{width:150px;height:150px;object-fit:contain;filter:drop-shadow(0 0 20px rgba(56,189,248,.36))}
 .portal-caster-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -443,6 +463,9 @@ button.combat-pick-card{grid-template-columns:58px 1fr}
   .action-slot{height:60px}.action-slot img{width:48px;height:38px}
 }
 @media (max-width:760px){
+  .portal-caster-heading{align-items:stretch}
+  .portal-caster-piece-count{min-width:96px}
+  .portal-caster-piece-count small{max-width:105px}
   .shop-grid-full,.portal-grid-full,.skill-grid-full,.slot-config-grid,.inventory-list-full{grid-template-columns:1fr}
   .shop-head{display:block}.shop-filters{justify-content:flex-start;margin-top:10px}
   .action-bar{left:8px;right:8px;bottom:8px;transform:none;grid-template-columns:repeat(9,1fr);gap:4px;padding:6px}

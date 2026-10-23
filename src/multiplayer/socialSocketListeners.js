@@ -4,8 +4,9 @@ function pushPrivateMessage(multiplayer, message){
   if(multiplayer.chatMessages.length > 120) multiplayer.chatMessages.splice(0, multiplayer.chatMessages.length - 120);
 }
 
-export function installSocialSocketListeners({socket, multiplayer, emitChange, toast}){
+export function installSocialSocketListeners({socket, multiplayer, backgroundSync, emitChange, toast}){
   socket.on("social:update", social=>{
+    backgroundSync?.markReceived("social:sync");
     multiplayer.social = social || {friends:[], incoming:[], outgoing:[], enemies:[], ignored:[], firmMembers:[]};
     emitChange("social:update", social);
   });

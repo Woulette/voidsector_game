@@ -1,4 +1,5 @@
-import { countCombatProfiler, maxCombatProfilerMetric } from "../game/systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
+import { sampleBufferedState, frameRateIndependentBlend } from "./remoteInterpolation.js?v=20260905-motion3";
+import { countCombatProfiler, maxCombatProfilerMetric } from "../game/systems/combatFrameProfiler.js?v=20260726-kharon1";
 
 export function getServerEnemyList(multiplayerState){
   return [...(multiplayerState?.serverEnemies?.values?.() || [])];
@@ -16,25 +17,19 @@ export function getServerEnemyId(enemy){
   return enemy?.serverId || enemy?.id || null;
 }
 
-function lerp(a, b, t){
-  return a + (b - a) * t;
-}
-
 function lerpAngle(a, b, t){
   const delta = Math.atan2(Math.sin(b - a), Math.cos(b - a));
   return a + delta * t;
 }
 
-const SERVER_ENEMY_INTERPOLATION_DELAY_MS = 220;
-const SERVER_ENEMY_MAX_EXTRAPOLATION_SECONDS = 0.05;
 const SERVER_ENEMY_SNAP_DISTANCE = 900;
 const SERVER_ENEMY_MAX_VISUAL_CORRECTION_PER_SECOND = 720;
 const SERVER_ENEMY_POSITION_SMOOTH_FACTOR = .18;
 const SERVER_ENEMY_CROWDED_POSITION_SMOOTH_FACTOR = .12;
 const SERVER_ENEMY_CROWDED_COUNT = 24;
 const SERVER_ENEMY_DEFAULT_VISUAL_DT_SECONDS = 1 / 60;
-const SERVER_ENEMY_MIN_VISUAL_DT_SECONDS = 1 / 240;
-const SERVER_ENEMY_MAX_VISUAL_DT_SECONDS = 1 / 30;
+const SERVER_ENEMY_MIN_VISUAL_DT_SECONDS = 0;
+const SERVER_ENEMY_MAX_VISUAL_DT_SECONDS = .25;
 
 function getNowMs(){
   const perf = globalThis.performance;
@@ -52,36 +47,6 @@ function getVisualCorrectionLimit(existing, nowMs){
     Math.max(SERVER_ENEMY_MIN_VISUAL_DT_SECONDS, rawDtSeconds)
   );
   return SERVER_ENEMY_MAX_VISUAL_CORRECTION_PER_SECOND * dtSeconds;
-}
-
-function sampleBufferedState(samples, delayMs = SERVER_ENEMY_INTERPOLATION_DELAY_MS){
-  if(!Array.isArray(samples) || samples.length <= 0) return null;
-  const ordered = samples;
-  if(!ordered.length) return null;
-  const targetTime = getNowMs() - delayMs;
-  if(targetTime <= ordered[0].at) return ordered[0];
-  for(let i = 0; i < ordered.length - 1; i++){
-    const from = ordered[i];
-    const to = ordered[i + 1];
-    if(targetTime < from.at || targetTime > to.at) continue;
-    const span = Math.max(1, to.at - from.at);
-    const t = Math.max(0, Math.min(1, (targetTime - from.at) / span));
-    return {
-      x:lerp(Number(from.x || 0), Number(to.x || 0), t),
-      y:lerp(Number(from.y || 0), Number(to.y || 0), t),
-      angle:lerpAngle(Number(from.angle || 0), Number(to.angle || 0), t),
-      vx:lerp(Number(from.vx || 0), Number(to.vx || 0), t),
-      vy:lerp(Number(from.vy || 0), Number(to.vy || 0), t),
-      moving:Boolean(to.moving || Math.hypot(Number(to.vx || 0), Number(to.vy || 0)) > 4)
-    };
-  }
-  const latest = ordered[ordered.length - 1];
-  const extrapolateSeconds = Math.max(0, Math.min(SERVER_ENEMY_MAX_EXTRAPOLATION_SECONDS, (targetTime - latest.at) / 1000));
-  return {
-    ...latest,
-    x:Number(latest.x || 0) + Number(latest.vx || 0) * extrapolateSeconds,
-    y:Number(latest.y || 0) + Number(latest.vy || 0) * extrapolateSeconds
-  };
 }
 
 function getPositionSmoothFactor(syncCount = 0){
@@ -108,7 +73,14 @@ function smoothVectorPosition(previousX, previousY, targetX, targetY, factor, ma
 
 function normalizeServerEnemy(serverEnemy, existing = null, nowMs = getNowMs(), syncCount = 0){
   const id = serverEnemy.id;
-  const buffered = sampleBufferedState(serverEnemy.samples);
+  // Fixed-step catch-up may call sync several times inside one rendered frame.
+  const frameMs = existing ? Math.max(0, nowMs - Number(existing.lastServerVisualAt ?? nowMs - 1000 / 60)) : 1000 / 60;
+  const discontinuity = serverEnemy.serverMotionDiscontinuity
+    && existing?.__serverSnapshotRevision !== serverEnemy.serverSnapshotRevision;
+  const timing = discontinuity ? {} : existing?.serverInterpolationState || {};
+  const buffered = existing && frameMs < 1 && !discontinuity
+    ? {x:existing.serverX, y:existing.serverY, angle:existing.angle, vx:existing.vx, vy:existing.vy}
+    : sampleBufferedState(serverEnemy.samples, {now:nowMs, timing});
   const serverX = Number(buffered?.x ?? serverEnemy.x ?? 0);
   const serverY = Number(buffered?.y ?? serverEnemy.y ?? 0);
   const serverAngle = Number(buffered?.angle ?? serverEnemy.angle ?? 0);
@@ -116,10 +88,15 @@ function normalizeServerEnemy(serverEnemy, existing = null, nowMs = getNowMs(), 
   const previousY = Number(existing?.y ?? serverY);
   const previousAngle = Number(existing?.angle ?? serverAngle);
   const distance = Math.hypot(serverX - previousX, serverY - previousY);
-  const smooth = existing && distance < SERVER_ENEMY_SNAP_DISTANCE;
+  const smooth = existing && !discontinuity && distance < SERVER_ENEMY_SNAP_DISTANCE;
   const target = existing || {};
-  if(target.__serverSnapshot !== serverEnemy) Object.assign(target, serverEnemy);
+  const snapshotRevision = Math.max(0, Number(serverEnemy.serverSnapshotRevision || 0));
+  if(target.__serverSnapshot !== serverEnemy
+    || Number(target.__serverSnapshotRevision || 0) !== snapshotRevision){
+    Object.assign(target, serverEnemy);
+  }
   target.__serverSnapshot = serverEnemy;
+  target.__serverSnapshotRevision = snapshotRevision;
   target.id = id;
   target.serverId = id;
   target.serverControlled = true;
@@ -128,7 +105,7 @@ function normalizeServerEnemy(serverEnemy, existing = null, nowMs = getNowMs(), 
   target.shield = Number(serverEnemy.shield || 0);
   target.maxShield = Number(serverEnemy.maxShield || 0);
   const maxVisualCorrection = smooth ? getVisualCorrectionLimit(existing, nowMs) : Number.POSITIVE_INFINITY;
-  const smoothFactor = getPositionSmoothFactor(syncCount);
+  const smoothFactor = frameMs < 1 ? 0 : frameRateIndependentBlend(frameMs, getPositionSmoothFactor(syncCount));
   const nextPosition = smooth
     ? smoothVectorPosition(previousX, previousY, serverX, serverY, smoothFactor, maxVisualCorrection)
     : {x:serverX, y:serverY};
@@ -142,10 +119,11 @@ function normalizeServerEnemy(serverEnemy, existing = null, nowMs = getNowMs(), 
   }
   target.x = nextX;
   target.y = nextY;
-  target.lastServerVisualAt = nowMs;
+  if(frameMs >= 1 || !existing) target.lastServerVisualAt = nowMs;
+  target.serverInterpolationState = !existing || smooth ? timing : {};
   target.serverX = serverX;
   target.serverY = serverY;
-  target.angle = smooth ? lerpAngle(previousAngle, serverAngle, .30) : serverAngle;
+  target.angle = smooth ? lerpAngle(previousAngle, serverAngle, frameRateIndependentBlend(frameMs, .30)) : serverAngle;
   target.vx = Number(buffered?.vx ?? serverEnemy.vx ?? 0);
   target.vy = Number(buffered?.vy ?? serverEnemy.vy ?? 0);
   target.aggro = Boolean(serverEnemy.aggro);

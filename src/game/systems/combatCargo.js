@@ -30,8 +30,8 @@ export function createCombatCargoSystem({
       kind:"portalPiece",
       portalId:portal.id,
       id:portal.id,
-      name:`Piece ${portal.name}`,
-      label:"PIECE",
+      name:source.name || portal.pieceName || `Fragment ${portal.name}`,
+      label:source.label || (portal.pieceUnit === "fragments" ? "FRAGMENT" : "PIÈCE"),
       img:portal.pieceImg || portal.img,
       x:Number(source.x ?? enemy.x) + (source.x === undefined ? (Math.random() - .5) * 70 : 0),
       y:Number(source.y ?? enemy.y) + (source.y === undefined ? (Math.random() - .5) * 70 : 0),
@@ -125,7 +125,7 @@ export function createCombatCargoSystem({
         const labelText = lootNameWithRarityText(node);
         const labelHtml = lootNameWithRarityHtml(node);
         showToast(`Ramassage serveur : ${labelHtml}.`, {trustedHtml:true});
-        rewards.showLootNotice({piece:`${labelText} envoye au serveur`});
+        rewards.showLootNotice({piece:`${labelText} envoyé au serveur`});
         pendingGroundMaterial = null;
         onCargoChanged?.();
         return true;

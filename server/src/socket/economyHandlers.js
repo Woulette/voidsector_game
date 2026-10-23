@@ -1,4 +1,5 @@
-import { getAmmoPurchase, getBetaPackPurchase, getBoosterPurchase, getDroneFormationPurchase, getDronePurchase, getItemPurchase, getPremiumPackPurchase, getShipPurchase } from "../economy/shop.js";
+import { getAmmoPurchase, getBetaPackPurchase, getBoosterPurchase, getDroneFormationPurchase, getItemPurchase, getPremiumPackPurchase, getShipPurchase } from "../economy/shop.js";
+import { getServerMaterialCommerceAccess } from "../economy/materialCommerce.js";
 import { premiumRemainingLabel } from "../../../src/data/premium.js";
 import { confirmProfileSave } from "./profileSaveGuard.js";
 
@@ -28,7 +29,7 @@ export function registerEconomyHandlers(socket, context){
     if(!player) return;
     const result = profileManager.applyEconomyAction({
       player,
-      action:{kind:"space-caster", portalId:payload?.portalId, count:payload?.count}
+      action:{kind:"space-caster", portalId:payload?.portalId, count:payload?.count, repeat:payload?.repeat}
     });
     if(!result.ok){
       socket.emit("space-caster:error", {message:result.reason || "Space Caster impossible."});
@@ -38,6 +39,7 @@ export function registerEconomyHandlers(socket, context){
     socket.emit("space-caster:result", {
       portal:result.portal,
       count:result.count,
+      repeat:result.repeat,
       cost:result.cost,
       rewards:result.rewards,
       at:Date.now()
@@ -277,7 +279,11 @@ export function registerEconomyHandlers(socket, context){
     if(!player) return;
     const result = profileManager.applyEconomyAction({
       player,
-      action:{kind:"craft-start", recipeId:payload?.recipeId}
+      action:{
+        kind:"craft-start",
+        recipeId:payload?.recipeId,
+        paymentType:String(payload?.paymentType || "")
+      }
     });
     if(!result.ok){
       socket.emit("craft:error", {message:result.reason || "Fabrication impossible."});
@@ -308,9 +314,10 @@ export function registerEconomyHandlers(socket, context){
     }
     if(!await ensureSaved(socket, result, "craft:error")) return;
     socket.emit("craft:updated", {
-      action:"job-claim",
+      action:result.action || "job-claim",
       recipe:result.recipe,
       output:result.output,
+      ...(result.refund ? {refund:result.refund} : {}),
       at:Date.now()
     });
     emitProfileSync(player, result.profile);
@@ -320,6 +327,11 @@ export function registerEconomyHandlers(socket, context){
     if(!guard("commerce:sell-material")) return;
     const player = players.get(socket.id);
     if(!player) return;
+    const access = getServerMaterialCommerceAccess(profileManager.getProfileForPlayer?.(player), player);
+    if(!access.ok){
+      socket.emit("commerce:error", {message:access.reason});
+      return;
+    }
     const result = profileManager.applyEconomyAction({
       player,
       action:{
@@ -352,7 +364,7 @@ export function registerEconomyHandlers(socket, context){
     if(!guard("shop:buy-ammo")) return;
     const player = players.get(socket.id);
     if(!player) return;
-    const purchase = getAmmoPurchase(payload?.id, payload?.multiplier);
+    const purchase = getAmmoPurchase(payload?.id, payload?.multiplier, payload?.repeat);
     if(!purchase){
       socket.emit("shop:error", {message:"Munition inconnue."});
       return;
@@ -370,6 +382,7 @@ export function registerEconomyHandlers(socket, context){
       priceType:purchase.priceType,
       price:purchase.totalPrice,
       multiplier:purchase.multiplier,
+      repeat:purchase.repeat,
       at:Date.now()
     });
     emitProfileSync(player, result.profile);
@@ -379,7 +392,7 @@ export function registerEconomyHandlers(socket, context){
     if(!guard("shop:buy-item")) return;
     const player = players.get(socket.id);
     if(!player) return;
-    const purchase = getItemPurchase(payload?.id, payload?.multiplier);
+    const purchase = getItemPurchase(payload?.id, payload?.multiplier, payload?.repeat);
     if(!purchase){
       socket.emit("shop:error", {message:"Objet inconnu."});
       return;
@@ -395,6 +408,7 @@ export function registerEconomyHandlers(socket, context){
       name:purchase.name,
       quantity:purchase.quantity,
       multiplier:purchase.multiplier,
+      repeat:purchase.repeat,
       priceType:purchase.priceType,
       price:purchase.totalPrice,
       at:Date.now()
@@ -406,7 +420,7 @@ export function registerEconomyHandlers(socket, context){
     if(!guard("shop:buy-booster")) return;
     const player = players.get(socket.id);
     if(!player) return;
-    const purchase = getBoosterPurchase(payload?.id, payload?.quantity);
+    const purchase = getBoosterPurchase(payload?.id, payload?.quantity, payload?.repeat);
     if(!purchase){
       socket.emit("shop:error", {message:"Booster S1 inconnu."});
       return;
@@ -423,6 +437,7 @@ export function registerEconomyHandlers(socket, context){
       name:purchase.name,
       series:"S1",
       quantity:purchase.quantity,
+      repeat:purchase.repeat,
       durationMs:purchase.totalDurationMs,
       priceType:purchase.priceType,
       price:purchase.totalPrice,
@@ -555,21 +570,16 @@ export function registerEconomyHandlers(socket, context){
     if(!guard("shop:buy-drone")) return;
     const player = players.get(socket.id);
     if(!player) return;
-    const purchase = getDronePurchase({id:payload?.id || "combat_drone", ownedCount:payload?.ownedCount});
-    if(!purchase){
-      socket.emit("shop:error", {message:"Drone inconnu."});
-      return;
-    }
-    if(purchase.locked){
-      socket.emit("shop:error", {message:purchase.reason || "Drone indisponible."});
-      return;
-    }
-    const result = profileManager.addDronePurchase({player, purchase});
+    const result = profileManager.addDronePurchase({
+      player, id:payload?.id ?? "combat_drone", expectedPrice:payload?.expectedPrice, expectedCount:payload?.ownedCount
+    });
     if(!result.ok){
+      if(result.profile) emitProfileSync(player, result.profile);
       socket.emit("shop:error", {message:result.reason || "Achat impossible."});
       return;
     }
     if(!await ensureSaved(socket, result, "shop:error")) return;
+    const purchase = result.purchase;
     socket.emit("shop:drone-bought", {
       id:purchase.id,
       name:purchase.name,
