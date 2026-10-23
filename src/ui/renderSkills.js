@@ -2,7 +2,7 @@ import { rawMaterialCatalog, skills } from "../data/catalog.js?v=20260726-kharon
 import { canAffordSkillCost, getSkillNodeLockReason, getSkillNodePortalRequirement, getSkillProgress, getSkillUpgradeData, hasCompletedSkillNodePortal, isSkillNodeUnlocked, store } from "../core/store.js?v=20260726-kharon1";
 import { currencyIconHtml } from "./currencyIcons.js";
 import { createSkillTreeModel, resolveSkillTreeSelection, skillTreeRoman } from "./skillTreeModel.js?v=20261023-skills1";
-import { skillTreeIcon } from "./skillTreeIcons.js?v=20261023-skills1";
+import { skillTreeBranchIcon, skillTreeIcon } from "./skillTreeIcons.js?v=20261023-skillemblems1";
 
 let selectedSkillNode = null;
 const renderedMarkup = new WeakMap();
@@ -32,7 +32,7 @@ function renderNode(node){
 
 function renderBranch(branch){
   return `<section class="skill-tree-lane ${escapeHtml(branch.id)}" data-skill-branch="${escapeHtml(branch.id)}" aria-label="Branche ${escapeHtml(branch.label)}">
-    <aside class="skill-tree-branch-info">${skillTreeIcon(branch.icon)}<div><h3>${escapeHtml(branch.label)}</h3><p>${escapeHtml(branch.description)}</p></div></aside>
+    <aside class="skill-tree-branch-info">${skillTreeBranchIcon(branch.icon)}<div><h3>${escapeHtml(branch.label)}</h3><p>${escapeHtml(branch.description)}</p></div></aside>
     <div class="skill-tree-node-rail">${branch.nodes.map(renderNode).join("")}</div>
   </section>`;
 }
