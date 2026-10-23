@@ -1,8 +1,8 @@
-import { drawMiniMapScenery } from "./miniMapScenery.js?v=20261023-minimap4";
+import { drawMiniMapScenery } from "./miniMapScenery.js?v=20261023-minimap5";
 import {
   drawMiniMapFrame, drawMiniMapBorder,
   drawMiniMapService, drawMiniMapHome, drawMiniMapPortal, drawMiniMapPilot, drawMiniMapRoute
-} from "./miniMapChrome.js?v=20261023-minimap4";
+} from "./miniMapChrome.js?v=20261023-minimap5";
 
 const DAMAGE_TEXT_DETAIL_LIMIT = 8;
 
@@ -455,7 +455,7 @@ export function drawMiniMap({
   }
   ctx.strokeStyle = "rgba(126,219,242,.24)";
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(mapX(player.x),mapY(player.y),Math.max(5,player.radar*sx),0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(mapX(player.x),mapY(player.y),Math.max(5,player.radar*sx),Math.max(3,player.radar*sy),0,0,Math.PI*2); ctx.stroke();
   if(moveTarget){
     drawMiniMapRoute({ctx, fromX:mapX(player.x), fromY:mapY(player.y),
       toX:mapX(moveTarget.x), toY:mapY(moveTarget.y)});

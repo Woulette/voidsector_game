@@ -1,4 +1,4 @@
-import { getMiniMapVisualDefinition } from "../combatData/miniMapVisuals.js?v=20261023-minimap4";
+import { getMiniMapVisualDefinition } from "../combatData/miniMapVisuals.js?v=20261023-minimap5";
 import { projectMapSceneryLayer } from "./mapSceneryProjection.js?v=20261018-helion-depth1";
 
 const scenePlans = new WeakMap();
@@ -87,12 +87,14 @@ function createSurface(width, height){
 
 function isReady(image){ return Boolean(image?.complete && image.naturalWidth > 0 && image.naturalHeight > 0); }
 
-function drawImageLayer({ctx, map, layer, cache}){
+function drawImageLayer({ctx, map, layer, cache, verticalScale}){
   const image = cache[layer.src];
   if(!isReady(image)) return;
   const width = layer.w || image.naturalWidth, height = layer.h || image.naturalHeight;
   ctx.save();
   ctx.translate(layer.x + map.width / 2, layer.y + map.height / 2);
+  // The navigation plane is wide; illustrations retain their native proportions.
+  ctx.scale(1, verticalScale);
   if(layer.rotation) ctx.rotate(layer.rotation);
   ctx.scale(layer.flipX ? -1 : 1, layer.flipY ? -1 : 1);
   ctx.globalAlpha = Number.isFinite(layer.alpha) ? layer.alpha : 1;
@@ -102,6 +104,7 @@ function drawImageLayer({ctx, map, layer, cache}){
 }
 
 function paintSurface({ctx, surface, map, plan, cache}){
+  const verticalScale = surface.width * map.height / (surface.height * map.width);
   ctx.setTransform(surface.width / map.width, 0, 0, surface.height / map.height, 0, 0);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
@@ -118,10 +121,10 @@ function paintSurface({ctx, surface, map, plan, cache}){
   }else if(!plan.scene?.enabled && isReady(cache[map.bg])){
     ctx.drawImage(cache[map.bg], 0, 0, map.width, map.height);
   }else{
-    for(const layer of plan.backdrops) drawImageLayer({ctx, map, layer, cache});
-    for(const layer of plan.images) drawImageLayer({ctx, map, layer, cache});
+    for(const layer of plan.backdrops) drawImageLayer({ctx, map, layer, cache, verticalScale});
+    for(const layer of plan.images) drawImageLayer({ctx, map, layer, cache, verticalScale});
   }
-  for(const layer of plan.facilities) drawImageLayer({ctx, map, layer, cache});
+  for(const layer of plan.facilities) drawImageLayer({ctx, map, layer, cache, verticalScale});
 }
 
 // The background is rebuilt for assets, map or size changes, never for movement or zoom.

@@ -8,6 +8,7 @@ test("minimap draws closed portals with their dedicated marker", ()=>{
     save(){}, restore(){}, fillRect(){}, strokeRect(){}, fillText(){}, beginPath(){}, rect(){}, clip(){}, translate(){}, rotate(){},
     createLinearGradient(){return {addColorStop(){}};},
     createRadialGradient(){return {addColorStop(){}};},
+    ellipse(){},
     moveTo(){}, lineTo(){}, stroke(){}, fill(){}, setLineDash(){}, closePath(){},
     arc(x, y, radius){ arcs.push({x, y, radius}); }
   };
@@ -32,6 +33,7 @@ test("minimap makes a freshly prepared portal large, luminous and labelled", ()=
     save(){}, restore(){}, fillRect(){}, strokeRect(){}, beginPath(){}, rect(){}, clip(){}, translate(){}, rotate(){},
     createLinearGradient(){return {addColorStop(){}};},
     createRadialGradient(){return {addColorStop(){}};},
+    ellipse(){},
     moveTo(){}, lineTo(){}, stroke(){}, fill(){}, setLineDash(){}, closePath(){},
     arc(x, y, radius){ arcs.push({x, y, radius}); },
     fillText(text, x, y){ labels.push({text, x, y}); }

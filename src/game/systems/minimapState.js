@@ -1,15 +1,14 @@
-import { MINI_MAP_FRAME, getMiniMapLayout } from "./miniMapLayout.js?v=20261023-minimap4";
+import { MINI_MAP_FRAME, MINI_MAP_CONTENT_RATIO, getMiniMapLayout } from "./miniMapLayout.js?v=20261023-minimap5";
 
 export function createMiniMapState({canvas, getCurrentMap, initialLayout = null, onChange}){
-  const state = {x:null, y:92, w:340, h:333, minW:220, minH:120, maxW:720, maxH:430};
+  const state = {x:null, y:92, w:380, h:228, minW:300, minH:120, maxW:720, maxH:430};
   applyLayout(initialLayout, false);
 
   function viewWidth(){ return canvas.__viewWidth || canvas.clientWidth || canvas.width; }
   function viewHeight(){ return canvas.__viewHeight || canvas.clientHeight || canvas.height; }
 
   function fitSize(){
-    const map = getCurrentMap();
-    const ratio = map?.width > 0 && map?.height > 0 ? map.height / map.width : .8;
+    const ratio = MINI_MAP_CONTENT_RATIO;
     const {header, footer, inset} = MINI_MAP_FRAME;
     const maxWidth = Math.max(1, Math.min(state.maxW, viewWidth(),
       (Math.min(state.maxH, viewHeight()) - header - footer) / ratio + inset * 2));
@@ -31,7 +30,7 @@ export function createMiniMapState({canvas, getCurrentMap, initialLayout = null,
     if(Number.isFinite(Number(layout.x))) state.x = Number(layout.x);
     if(Number.isFinite(Number(layout.y))) state.y = Number(layout.y);
     if(Number.isFinite(Number(layout.w))) state.w = Math.max(state.minW, Math.min(state.maxW, Number(layout.w)));
-    // Width migrates existing layouts; the sector aspect ratio determines height.
+    // Migrate narrow saved widgets to the new landscape minimum.
     fitSize();
     if(shouldNotify) notify();
   }

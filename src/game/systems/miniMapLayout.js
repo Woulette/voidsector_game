@@ -1,5 +1,6 @@
 // One geometry for drawing, dragging, resizing and converting navigation clicks.
-export const MINI_MAP_FRAME = Object.freeze({header:44, footer:30, inset:8});
+export const MINI_MAP_FRAME = Object.freeze({header:40, footer:24, inset:8});
+export const MINI_MAP_CONTENT_RATIO = 9 / 20;
 
 export function getMiniMapLayout({x, y, w, h}){
   const {header, footer, inset} = MINI_MAP_FRAME;

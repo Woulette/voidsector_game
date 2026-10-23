@@ -7,7 +7,7 @@ import {getMiniMapVisualDefinition} from "../../src/game/combatData/miniMapVisua
 import {createMiniMapSceneryRenderer, getMiniMapLandmarkPosition} from "../../src/game/render/miniMapScenery.js";
 import {drawMiniMapFrame} from "../../src/game/render/miniMapChrome.js";
 import {createMiniMapState} from "../../src/game/systems/minimapState.js";
-import {getMiniMapLayout} from "../../src/game/systems/miniMapLayout.js";
+import {getMiniMapLayout, MINI_MAP_CONTENT_RATIO} from "../../src/game/systems/miniMapLayout.js";
 
 const helion=MAPS.find(map=>map.id===0);
 function context(){
@@ -19,13 +19,13 @@ function context(){
  return ctx;
 }
 
-test("Helion's fixed atlas is preloaded and has a valid 1200 by 960 PNG",()=>{
+test("Helion's fixed atlas is preloaded and has a valid 1200 by 540 PNG",()=>{
  const path=getMiniMapVisualDefinition(helion).image;
  assert.ok(getCombatMapAssetPaths(helion).includes(path));
  assert.equal(getMiniMapVisualDefinition({...helion,name:"BRECHE DE RICKY"}),null);
  const data=readFileSync(new URL('../../'+path,import.meta.url));
  assert.equal(data.subarray(1,4).toString(),'PNG');
- assert.equal(data.readUInt32BE(16),1200);assert.equal(data.readUInt32BE(20),960);
+ assert.equal(data.readUInt32BE(16),1200);assert.equal(data.readUInt32BE(20),540);
 });
 
 test("movement and zoom never rebuild or move the captured minimap background",()=>{
@@ -51,7 +51,7 @@ test("map proportions and navigation coordinates survive migration, resize and s
  const mini=createMiniMapState({canvas,getCurrentMap:()=>map,initialLayout:{x:900,y:400,w:366,h:170}});
  for(const step of [()=>{},()=>mini.resize(28),()=>mini.resize(1000),()=>{map={width:11000,height:8200};}]){
   step();const rect=mini.rect();const {content,minus,plus,footer}=getMiniMapLayout(rect);
-  assert.ok(Math.abs(content.h/content.w-map.height/map.width)<=1/content.w);
+  assert.ok(Math.abs(content.h/content.w-MINI_MAP_CONTENT_RATIO)<=1/content.w);
   assert.ok(rect.x>=0&&rect.x+rect.w<=canvas.width&&rect.y>=0&&rect.y+rect.h<=canvas.height);
   assert.deepEqual(mini.worldFromPoint(content.x,content.y),{x:-map.width/2,y:-map.height/2});
   assert.deepEqual(mini.worldFromPoint(content.x+content.w,content.y+content.h),{x:map.width/2,y:map.height/2});
@@ -68,4 +68,17 @@ test("the header planet follows the sector, independently of the player's factio
   const icons=ctx.calls.filter(call=>call.name==='drawImage');
   assert.equal(icons.length,1);assert.equal(icons[0].args[0].firm,firm);
  }
+});
+
+test("the old 220 px minimum migrates to a wider 300 by 192 widget and stays compact at minimum", ()=>{
+  const canvas = {width:1920, height:950};
+  const mini = createMiniMapState({canvas, getCurrentMap:()=>helion,
+    initialLayout:{x:1530, y:700, w:220, h:237}});
+  for(let i = 0; i < 20; i++) mini.resize(-28);
+  const rect = mini.rect();
+  assert.equal(rect.w, 300);
+  assert.equal(rect.h, 192);
+  assert.ok(rect.h < 237 && rect.w > 220);
+  const restored = createMiniMapState({canvas, getCurrentMap:()=>helion, initialLayout:mini.snapshot()});
+  assert.deepEqual(restored.snapshot(), mini.snapshot());
 });
