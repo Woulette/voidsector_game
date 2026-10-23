@@ -1289,3 +1289,9 @@ Mini-carte panoramique : le ratio 9/20 est partage dans `miniMapLayout.js`, et l
 - Le Hangar présente les trois branches et cinq paliers de la maquette validée. Tous les nœuds sont consultables ; seul le prochain rang admissible sélectionné propose la commande d'amélioration existante.
 - `skillTreeModel.js` porte la projection pure des données ; `skillTreeIcons.js` les pictogrammes ; `renderSkills.js` la sélection et le rendu ; `skillTree.css` les styles limités au Hangar. Les façades et la délégation restent fines. Aucun changement des bonus, prix, prérequis, achats serveur ou combat.
 - Validation et preuves : `docs/COMPETENCES_REFONTE_2026-10-23.md`, `output/skills-refonte-2026-10-23/`. Version frontend `20261023-skills1`.
+
+## 2026-10-23 — Dossier du pilote et grades réels
+
+- Le Profil du Hangar reprend la maquette avec les grades, insignes SVG, compteurs, vaisseau, drones, statistiques et conditions réels. L'ascension annonce le retour au niveau 1 ; le titre conserve équipement, retrait et visibilité avec leurs commandes serveur existantes.
+- Le rendu est extrait de `render.js` vers `renderProfile.js`, la projection vers `profilePresentation.js` et les pictogrammes vers `profileIcons.js`. Styles limités au Profil dans `profileDossier.css`. Les façades restent fines et les règles métier inchangées.
+- Validation et preuves : `docs/PROFIL_REFONTE_2026-10-23.md`, `output/profile-refonte-2026-10-23/`. Version frontend `20261023-profile1`.

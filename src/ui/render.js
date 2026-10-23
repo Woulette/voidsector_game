@@ -13,7 +13,6 @@ import {
   canAfford,
   findEquippedSlot,
   getAmmoCount,
-  getActiveDroneFormation,
   getCurrentRank,
   getDroneCatalog,
   getDroneLoadout,
@@ -31,9 +30,7 @@ import {
   getMaterialCount,
   getLoadout,
   getNextRank,
-  getPlayerLevelCap,
   getPortalPieces,
-  getPrestigeStatus,
   getRankAssetPath,
   getRankBreakdown,
   getRankProgress,
@@ -54,6 +51,7 @@ import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderSha
 import { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
 import { updateHangarShowcase } from "./renderHangarShowcase.js?v=20261023-hangar1";
 import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261023-skills1";
+import { renderProfile } from "./renderProfile.js?v=20261023-profile1";
 import { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
 import { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";
 import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
@@ -61,7 +59,6 @@ import { multiplayer } from "../multiplayer/client.js?v=20261018-map-transfer1";
 import { renderAdminPanel } from "./adminPanel.js?v=20261018-map-transfer1";
 import { currencyAmountHtml, currencyIconHtml, realMoneyPriceHtml } from "./currencyIcons.js?v=20260726-kharon1";
 import { getRarityLabel, getRarityOrder, getRarityShort, getRarityTier, rarityClass } from "../shared/rarities.js";
-import { hasCompletedProgressionPortal, STELLAR_SYSTEM_TITLE } from "../shared/progressionUnlocks.js?v=20260726-kharon1";
 import { canAccountRoleAccessShip } from "../data/ships.js?v=20260726-imperial2";
 
 function escapeHtml(value){
@@ -594,150 +591,6 @@ function formatDuration(seconds){
   return `${minutes}m ${String(total % 60).padStart(2, "0")}s`;
 }
 
-function profileStatTile(label, value, suffix = ""){
-  return `<div class="profile-live-stat"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}${suffix}</b></div>`;
-}
-
-function profileDetailRow(label, value, detail = ""){
-  return `<div class="profile-detail-row"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b>${detail ? `<small>${escapeHtml(detail)}</small>` : ""}</div>`;
-}
-
-function renderProfileShipVisual(ship){
-  return `<div class="profile-ship-visual">
-    <div class="profile-ship-aura" aria-hidden="true"></div>
-    <img src="${escapeHtml(ship.img)}" alt="${escapeHtml(ship.name)}">
-    <div class="profile-ship-caption"><span>Vaisseau actuellement utilisé</span><strong>${escapeHtml(ship.name)}</strong><small>${escapeHtml(ship.className || "")}</small></div>
-  </div>`;
-}
-
-function activeProfileDrones(){
-  return getDroneLoadout()
-    .map((uid, index)=>({uid, index}))
-    .filter(entry=>Boolean(entry.uid));
-}
-
-function renderProfileDroneVisual(){
-  const drone = getDroneCatalog();
-  const activeDrones = activeProfileDrones();
-  const formation = getActiveDroneFormation();
-  if(!activeDrones.length){
-    return `<div class="profile-drone-empty"><img src="${escapeHtml(drone.img)}" alt=""><strong>Aucun drone utilisé</strong><span>Équipe un module sur un drone pour l'activer.</span></div>`;
-  }
-  return `<div class="profile-drone-visual">
-    <div class="profile-drone-summary"><span>Formation active</span><strong>${escapeHtml(formation?.name || "Formation Base")}</strong><b>${fmt(activeDrones.length)} actif${activeDrones.length > 1 ? "s" : ""}</b></div>
-    <div class="profile-drone-grid">${activeDrones.map(({uid, index})=>{
-      const item = getItemFromInventoryUid(uid);
-      const upgraded = Boolean(getDronePermanentUpgrade(index));
-      return `<article class="${upgraded ? "upgraded" : ""}">
-        <img src="${escapeHtml(drone.img)}" alt="Drone ${index + 1}">
-        <div><span>Drone ${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(item?.short || item?.name || "Module inconnu")}</strong><small>${upgraded ? "Noyau Overdrive actif · rouge" : escapeHtml(getRarityLabel(item))}</small></div>
-      </article>`;
-    }).join("")}</div>
-  </div>`;
-}
-
-function renderAscensionCallout(status){
-  const requirements = [
-    {label:"Niveau 50", done:status.levelOk},
-    {label:"9 portails terminés", done:status.portalOk}
-  ];
-  return `<section class="profile-ascension-callout">
-    <div class="profile-ascension-symbol" aria-hidden="true"><i></i><b>A</b></div>
-    <div><span>ASCENSION UNIQUE</span><strong>Ouvre la progression jusqu'au niveau 100</strong><p>Ton niveau revient à 1, tes compétences sont conservées et ton dossier obtient un statut visuel permanent.</p></div>
-    <div class="profile-ascension-requirements">${requirements.map(requirement=>`<span class="${requirement.done ? "done" : ""}"><i>${requirement.done ? "OK" : "--"}</i>${requirement.label}</span>`).join("")}</div>
-    <button class="blue-button" data-prestige type="button" ${status.ok ? "" : "disabled"}>ACCOMPLIR L'ASCENSION</button>
-  </section>`;
-}
-
-function renderStellarSystemTitleControl(){
-  const unlocked = hasCompletedProgressionPortal(store.state, STELLAR_SYSTEM_TITLE.portalId);
-  const equipped = unlocked && store.state.player.activeTitleId === STELLAR_SYSTEM_TITLE.id;
-  const visible = store.state.player.titleVisible !== false;
-  const status = !unlocked ? "VERROUILLÉ" : equipped ? (visible ? "ÉQUIPÉ · VISIBLE" : "ÉQUIPÉ · MASQUÉ") : "DÉBLOQUÉ";
-  return `<section class="profile-title-control ${unlocked ? "unlocked" : "locked"} ${equipped ? "equipped" : ""}">
-    <div class="profile-title-ornament" aria-hidden="true"><i></i><b>S</b></div>
-    <div class="profile-title-copy">
-      <span>TITRE DE CONQUÊTE · ${status}</span>
-      <strong>${escapeHtml(STELLAR_SYSTEM_TITLE.name)}</strong>
-      <p>${unlocked
-        ? "Bonus serveur équipé : +5 % de dégâts pour les lasers, roquettes et missiles."
-        : "Termine le portail niveau 50, Le Cœur de l’Éternel, pour obtenir ce titre."}</p>
-    </div>
-    <div class="profile-title-actions">
-      ${unlocked ? `<button class="blue-button small" data-profile-title-toggle="${equipped ? "" : STELLAR_SYSTEM_TITLE.id}" type="button">${equipped ? "Retirer" : "Équiper"}</button>` : ""}
-      ${equipped ? `<button class="blue-button small" data-profile-title-visibility type="button">${visible ? "Masquer en jeu" : "Afficher en jeu"}</button>` : ""}
-    </div>
-  </section>`;
-}
-
-export function renderProfile(){
-  const section = document.getElementById("profileSection");
-  if(!section) return;
-  const player = store.state.player;
-  const rank = getCurrentRank();
-  const nextRank = getNextRank();
-  const rankProgress = getRankProgress();
-  const activeShip = getShip(store.state.activeShip);
-  const stats = getShipCombatStats(store.state.activeShip);
-  const ascension = getPrestigeStatus();
-  const ascended = Number(store.state.prestigeCount || 0) > 0;
-  const displayMode = store.profileDisplay === "drones" ? "drones" : "ship";
-  const completedQuests = Object.keys(store.state.completedQuestClaims || {}).length;
-  const xp = Math.max(0, Number(player.xp || 0));
-  const xpNext = Math.max(1, Number(player.xpNext || 1));
-  const xpPercent = Math.max(0, Math.min(100, xp / xpNext * 100));
-  section.innerHTML = `
-    <div class="panel-head profile-panel-heading">
-      <div><span class="tiny">PILOTE</span><h2>Profil</h2></div>
-      <span class="badge">${ascended ? "Dossier ascendant" : "Dossier commandant"}</span>
-    </div>
-    <div class="profile-command-sheet ${ascended ? "ascended" : ""}">
-      ${ascended ? `<div class="profile-ascended-seal"><i></i><span>ASCENSION</span><b>ACCOMPLIE</b></div>` : ""}
-      <div class="profile-command-grid">
-        <section class="profile-visual-card">
-          <div class="profile-identity-lockup">
-            <div class="profile-rank-emblem">${rankIcon(rank, rank.name)}</div>
-            <span class="profile-grade-name">${escapeHtml(rank.name)}</span>
-            <h3>${escapeHtml(player.name)}</h3>
-            <p>Niveau ${fmt(player.level)} / ${fmt(getPlayerLevelCap())}</p>
-            <div class="mini-bar"><span style="width:${rankProgress.progress}%"></span></div>
-            <small>${nextRank ? `Prochain grade : ${escapeHtml(nextRank.name)} · ${fmt(rankProgress.remaining)} points` : "Grade maximum atteint"}</small>
-          </div>
-          <div class="profile-display-switch" role="group" aria-label="Affichage du profil">
-            <button class="${displayMode === "ship" ? "active" : ""}" data-profile-display="ship" type="button">Vaisseau</button>
-            <button class="${displayMode === "drones" ? "active" : ""}" data-profile-display="drones" type="button">Drones utilisés <b>${fmt(activeProfileDrones().length)}</b></button>
-          </div>
-          ${displayMode === "drones" ? renderProfileDroneVisual() : renderProfileShipVisual(activeShip)}
-        </section>
-        <section class="profile-live-stats">
-          <header><span>VAISSEAU ACTUEL</span><strong>STATISTIQUES</strong><small>Compétences, équipement et bonus actifs inclus</small></header>
-          <div class="profile-live-stat-grid">
-            ${profileStatTile("Points de vie", fmt(Math.round(stats.vie || 0)), " PV")}
-            ${profileStatTile("Bouclier", fmt(Math.round(stats.bouclier || 0)))}
-            ${profileStatTile("Régénération", fmt(Math.round(stats.regen || 0)), " /s")}
-            ${profileStatTile("Absorption", `${Math.round(Number(stats.shieldAbsorbRatio || 0) * 100)}%`)}
-            ${profileStatTile("Vitesse", fmt(Math.round(stats.vitesseReelle || 0)))}
-            ${profileStatTile("Soute", fmt(Math.round(stats.cargo || 0)))}
-          </div>
-        </section>
-        <aside class="profile-dossier">
-          <header><span>DÉTAILS PILOTE</span><strong>DOSSIER</strong></header>
-          <div class="profile-detail-list">
-            ${profileDetailRow("Temps de jeu", formatDuration(player.totalPlaySeconds))}
-            ${profileDetailRow("Kills monstres", fmt(player.totalKills || 0))}
-            ${profileDetailRow("Quêtes finies", fmt(completedQuests))}
-            ${profileDetailRow("Niveau du joueur", `${fmt(player.level)} / ${fmt(getPlayerLevelCap())}`, ascended ? "Progression ascendante" : "Première progression")}
-            ${profileDetailRow("Réputation", fmt(player.reputation || 0))}
-            ${profileDetailRow("Expérience", `${fmt(xp)} / ${fmt(xpNext)}`, `${fmt(player.totalXp || 0)} XP cumulée`)}
-          </div>
-          <div class="profile-xp-track"><span style="width:${xpPercent}%"></span></div>
-        </aside>
-      </div>
-      ${renderStellarSystemTitleControl()}
-      ${ascended ? "" : renderAscensionCallout(ascension)}
-    </div>`;
-}
-
 export function renderSettingsSection(){
   const settings = document.getElementById("settingsPanel");
   if(!settings) return;
@@ -1175,6 +1028,7 @@ function renderFirmSetupGate(){
 
 export { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
 export { renderLeaderboard, renderPortals, renderSkills, selectSkillNode } from "./renderProgression.js?v=20261023-skills1";
+export { renderProfile } from "./renderProfile.js?v=20261023-profile1";
 export { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
 export { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";
 
