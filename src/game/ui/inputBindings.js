@@ -1,5 +1,6 @@
 import { abilityIndexFromEvent, isEditableTarget, slotIndexFromEvent } from "../../core/keybinds.js?v=ship-abilities-1";
 import { installCombatActionBarInputHandlers, setCombatAssetDragImage } from "./combatActionBarInput.js";
+import { cycleCombatMeterMode } from "./combatMeterModes.js";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
@@ -390,6 +391,7 @@ export function installCombatInputHandlers({
   windowRef.addEventListener("keydown", e=>{
     if(!isRunning()) return;
     if(isSettingsOpen() || isEditableTarget(e.target)) return;
+    if(e.target.closest?.("[data-combat-meter]") && (e.key === " " || e.key === "Enter")) return;
     if(e.key === "Escape" && hasSelectedEnemy()){
       e.preventDefault();
       clearSelectedEnemy();
@@ -561,7 +563,7 @@ export function installCombatInputHandlers({
     const modes = getCombatMetricModes();
     const metric = meter.dataset.combatMeter;
     if(!Object.prototype.hasOwnProperty.call(modes, metric)) return;
-    modes[metric] = modes[metric] === "text" ? "bar" : "text";
+    if(!cycleCombatMeterMode(modes, metric)) return;
     updateHud();
   });
 

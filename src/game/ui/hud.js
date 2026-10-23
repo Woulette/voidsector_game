@@ -1,4 +1,5 @@
 import { fmt } from "../../core/utils.js";
+import { nextCombatMeterMode, normalizeCombatMeterMode } from "./combatMeterModes.js";
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g, char=>({
@@ -21,10 +22,13 @@ let safeZoneNoticeKey = "";
 let safeZoneNoticeVisibleUntil = 0;
 
 export function updateCombatMeter({metric, value, max, label, mode}){
-  const safeValue = Math.max(0, Math.round(Number(value) || 0));
-  const safeMax = Math.max(0, Math.round(Number(max) || 0));
+  const safeValue = Number.isFinite(Number(value)) ? Math.max(0, Math.round(Number(value))) : 0;
+  const safeMax = Number.isFinite(Number(max)) ? Math.max(0, Math.round(Number(max))) : 0;
   const percent = clampPercent(safeValue, safeMax);
   const text = `${fmt(safeValue)} / ${fmt(safeMax)}`;
+  const displayMode = normalizeCombatMeterMode(mode);
+  const modeLabels = {value:"valeur seule", fraction:"valeur / maximum", bar:"barre seule"};
+  const hint = `Affichage : ${modeLabels[displayMode]}. Cliquer pour ${modeLabels[nextCombatMeterMode(displayMode)]}.`;
   const metricName = metric === "hp" ? "Hp" : metric === "shield" ? "Shield" : "Xp";
   const meter = document.querySelector(`[data-combat-meter="${metric}"]`);
   const fill = document.getElementById(`game${metricName}Fill`);
@@ -32,13 +36,17 @@ export function updateCombatMeter({metric, value, max, label, mode}){
   const valueEl = document.getElementById(`game${metricName}`);
   const tooltip = document.getElementById(`game${metricName}Tooltip`);
   if(fill) fill.style.width = `${percent}%`;
-  if(percentEl) percentEl.textContent = `${Math.round(percent)}%`;
-  if(valueEl) valueEl.textContent = text;
-  if(tooltip) tooltip.textContent = text;
+  if(percentEl){ percentEl.textContent = `${Math.round(percent)}%`; percentEl.hidden = true; }
+  if(valueEl){
+    valueEl.textContent = displayMode === "bar" ? "" : displayMode === "value" ? fmt(safeValue) : text;
+    valueEl.hidden = displayMode === "bar";
+  }
+  if(tooltip){ tooltip.textContent = displayMode === "bar" ? "" : text; tooltip.hidden = displayMode === "bar"; }
   if(meter){
     meter.classList.remove("is-numeric");
-    meter.title = text;
-    meter.setAttribute("aria-label", `Afficher ${label}`);
+    meter.setAttribute("data-meter-mode", displayMode);
+    meter.title = displayMode === "bar" ? hint : `${text} · ${Math.round(percent)}%. ${hint}`;
+    meter.setAttribute("aria-label", `${label} : ${text} (${Math.round(percent)}%). ${hint}`);
   }
 }
 

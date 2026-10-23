@@ -3,6 +3,7 @@ import { getCraftRecipe } from "../data/craftingRecipes.js?v=20260726-kharon1";
 import { getAncientInteractionTarget, isAncientPortal } from "../data/ancientPortal.js?v=20260726-ancient1";
 import { isPremiumActive } from "../data/premium.js";
 import { fmt } from "../core/utils.js";
+import { readCombatMeterModes } from "./ui/combatMeterModes.js";
 import {
   canAfford,
   getActiveQuest,
@@ -149,7 +150,7 @@ export function createCombatGame({renderAll, showToast}){
   let mouseMoveHeld = false;
   let combatCargoExpanded = false;
   let deathState = null;
-  const combatMetricModes = {hp:"bar", shield:"bar", xp:"bar"};
+  const combatMetricModes = readCombatMeterModes();
   function getCombatState(){
     return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portgunChannel, portalTransition, autoTravelTransition:sectorTravel?.getTransition() || null, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
   }
@@ -634,7 +635,7 @@ export function createCombatGame({renderAll, showToast}){
     getState:getCombatState,
     getGraphicsQuality,
     getGraphicsEffects,
-    getSpawnStations:()=>worldState.getSpawnStations(),
+    getSpawnStations:()=>worldState.getVisibleSpawnStations(),
     getHoveredStation:stationHover.getHoveredStation,
     getSafeAreas:()=>worldState.getSafeAreas(),
     isSafeModeActive,
