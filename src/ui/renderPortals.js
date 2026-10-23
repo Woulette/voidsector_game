@@ -2,6 +2,8 @@ import { ammoTypes, portals } from "../data/catalog.js?v=20260726-ancient1";
 import { fmt } from "../core/utils.js";
 import { canAfford, getCurrencyPrice, getPortalPieces, hasCurrencyDiscount, isPortalUnlocked, store } from "../core/store.js?v=20260726-kharon1";
 import { currencyAmountHtml } from "./currencyIcons.js";
+import { getPortalPresentation } from "./portalPresentation.js?v=20261023-portals-ui1";
+import { renderFocusedCaster, renderPortalDetail, renderPortalNavigation, updatePortalPanel } from "./renderPortalWorkspace.js?v=20261023-portals-ui1";
 
 function getCasterCost(){
   return 100;
@@ -103,13 +105,7 @@ function renderCasterPanel(portal){
   </div>`;
 }
 
-export function renderPortals(){
-  const grid = document.getElementById("portalGrid");
-  const caster = document.getElementById("portalCasterPanel");
-  if(!grid) return;
-  const selectedId = store.state.selectedPortalCasterId || portals[0]?.id;
-  const selectedPortal = portals.find(p=>p.id === selectedId) || portals[0];
-  grid.innerHTML = portals.map(p=>{
+function renderLegacyPortalCard(p, selectedPortal){
     const pieces = getPortalPieces(p.id);
     const unlocked = isPortalUnlocked(p.id);
     const reqLevelOk = store.state.player.level >= p.requirement.level;
@@ -139,6 +135,29 @@ export function renderPortals(){
       <div class="portal-actions">${actionHtml}</div>
       <small class="portal-history">${clearCount ? `${clearCount} nettoyage(s)` : "Jamais termine"}</small>
     </article>`;
-  }).join("");
-  if(caster) caster.innerHTML = renderCasterPanel(selectedPortal);
+}
+
+export function renderPortals(){
+  const grid = document.getElementById("portalGrid");
+  const caster = document.getElementById("portalCasterPanel");
+  const detail = document.getElementById("portalDetailPanel");
+  if(!grid) return;
+  const selectedId = store.state.selectedPortalCasterId || portals[0]?.id;
+  const selectedPortal = portals.find(p=>p.id === selectedId) || portals[0];
+  if(!detail){
+    updatePortalPanel(grid, portals.map(portal=>renderLegacyPortalCard(portal, selectedPortal)).join(""));
+    updatePortalPanel(caster, renderCasterPanel(selectedPortal));
+    return;
+  }
+  const focused = Boolean(getPortalPresentation(selectedPortal));
+  const otherOpen = Boolean(grid.querySelector(".portal-other-list")?.open) || !focused;
+  updatePortalPanel(grid, renderPortalNavigation(portals, selectedPortal.id, store.state, otherOpen));
+  updatePortalPanel(detail, focused ? renderPortalDetail(selectedPortal, store.state) : renderLegacyPortalCard(selectedPortal, selectedPortal));
+  caster?.classList.toggle("has-focused-caster", focused);
+  updatePortalPanel(caster, focused ? renderFocusedCaster(selectedPortal, store.state, {
+    cost:getCasterCost(),
+    priceHtml:novaPriceHtml,
+    canPay:price=>canAfford("premium", price),
+    renderResult:renderCasterResult
+  }) : renderCasterPanel(selectedPortal));
 }
