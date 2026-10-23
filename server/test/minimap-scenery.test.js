@@ -70,15 +70,18 @@ test("the header planet follows the sector, independently of the player's factio
  }
 });
 
-test("the old 220 px minimum migrates to a wider 300 by 192 widget and stays compact at minimum", ()=>{
+test("the old 220 px minimum migrates to a wider 280 by 183 widget and stays compact at minimum", ()=>{
   const canvas = {width:1920, height:950};
   const mini = createMiniMapState({canvas, getCurrentMap:()=>helion,
     initialLayout:{x:1530, y:700, w:220, h:237}});
   for(let i = 0; i < 20; i++) mini.resize(-28);
   const rect = mini.rect();
-  assert.equal(rect.w, 300);
-  assert.equal(rect.h, 192);
+  assert.equal(rect.w, 280);
+  assert.equal(rect.h, 183);
   assert.ok(rect.h < 237 && rect.w > 220);
   const restored = createMiniMapState({canvas, getCurrentMap:()=>helion, initialLayout:mini.snapshot()});
   assert.deepEqual(restored.snapshot(), mini.snapshot());
+  const previousMinimum = createMiniMapState({canvas, getCurrentMap:()=>helion, initialLayout:{w:300, h:192}});
+  assert.equal(previousMinimum.rect().w, 280);
+  assert.equal(previousMinimum.rect().h, 183);
 });

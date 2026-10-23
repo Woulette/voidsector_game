@@ -1,7 +1,7 @@
 import { MINI_MAP_FRAME, MINI_MAP_CONTENT_RATIO, getMiniMapLayout } from "./miniMapLayout.js?v=20261023-minimap5";
 
 export function createMiniMapState({canvas, getCurrentMap, initialLayout = null, onChange}){
-  const state = {x:null, y:92, w:380, h:228, minW:300, minH:120, maxW:720, maxH:430};
+  const state = {x:null, y:92, w:360, h:219, minW:280, minH:120, maxW:720, maxH:430};
   applyLayout(initialLayout, false);
 
   function viewWidth(){ return canvas.__viewWidth || canvas.clientWidth || canvas.width; }
@@ -29,8 +29,11 @@ export function createMiniMapState({canvas, getCurrentMap, initialLayout = null,
     if(!layout || typeof layout !== "object") return;
     if(Number.isFinite(Number(layout.x))) state.x = Number(layout.x);
     if(Number.isFinite(Number(layout.y))) state.y = Number(layout.y);
-    if(Number.isFinite(Number(layout.w))) state.w = Math.max(state.minW, Math.min(state.maxW, Number(layout.w)));
-    // Migrate narrow saved widgets to the new landscape minimum.
+    if(Number.isFinite(Number(layout.w))){
+      const width = Number(layout.w) <= 300 ? state.minW : Number(layout.w);
+      state.w = Math.max(state.minW, Math.min(state.maxW, width));
+    }
+    // The previous 300 px minimum becomes 280 px once; saved compact widths stay stable.
     fitSize();
     if(shouldNotify) notify();
   }
