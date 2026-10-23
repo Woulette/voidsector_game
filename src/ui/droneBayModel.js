@@ -5,7 +5,7 @@ export const DRONE_BAY_FILTERS = Object.freeze([
   {id:"all", label:"Tous"},
   {id:"lasers", label:"Lasers"},
   {id:"shields", label:"Boucliers"},
-  {id:"overdrive", label:"Overdrive"}
+  {id:"overdrive", label:"Skins"}
 ]);
 
 const number = value=>Math.max(0, Number(value) || 0);
@@ -28,7 +28,7 @@ export function droneEquipmentStats(item){
   if(!item) return [];
   if(droneEquipmentKind(item) === "overdrive") return [
     {label:"Laser ou bouclier", value:"+50 %"},
-    {label:"Installation", value:"Définitive"}
+    {label:"Emplacement", value:"Skin du drone"}
   ];
   if(item.category === "canon" && item.weapon){
     const min = number(item.weapon.minDamage ?? item.weapon.damage);
@@ -66,22 +66,23 @@ export function droneBayEquipAction(entry, selectedDrone, portalComplete){
   const kind = droneEquipmentKind(entry.item);
   if(!kind) return {allowed:false, reason:"Équipement incompatible avec les drones."};
   if(kind === "overdrive"){
-    if(!portalComplete) return {allowed:false, reason:"Terminez La Faille de Vesper pour installer ce noyau."};
-    if(selectedDrone.upgrade) return {allowed:false, reason:"Ce drone possède déjà un Noyau Overdrive."};
-    if(entry.item.id !== "drone_overdrive_chip") return {allowed:false, reason:"Noyau incompatible avec ce drone."};
-    return {allowed:true, label:`Installer sur Drone ${String(selectedDrone.index + 1).padStart(2, "0")}`, permanent:true};
+    if(!portalComplete) return {allowed:false, reason:"Terminez La Faille de Vesper pour équiper ce skin."};
+    if(entry.item.id !== "drone_overdrive_chip") return {allowed:false, reason:"Skin incompatible avec ce drone."};
+    if(entry.uid === selectedDrone.skinUid) return {allowed:false, reason:"Ce skin est déjà équipé sur ce drone.", label:"Déjà équipé", targetType:"droneSkin"};
+    return {allowed:true, targetType:"droneSkin", replacing:!!selectedDrone.skinUid,
+      label:`${entry.equipped ? "Déplacer" : "Équiper"} sur Drone ${String(selectedDrone.index + 1).padStart(2, "0")}`};
   }
   if(entry.uid === selectedDrone.uid) return {allowed:false, reason:"Déjà équipé sur ce drone.", label:"Déjà équipé"};
   return {
-    allowed:true, replacing:!!selectedDrone.uid,
+    allowed:true, targetType:"drone", replacing:!!selectedDrone.uid,
     label:`${entry.equipped ? "Déplacer" : "Équiper"} sur Drone ${String(selectedDrone.index + 1).padStart(2, "0")}`
   };
 }
 
-// Read-only projection. Actual ownership, prices and permanent upgrades come from the existing game getters.
-export function createDroneBayModel({drone, drones = [], inventoryEntries = [], selectedDroneIndex = 0,
+// Read-only projection. Module and skin ownership come from two independent UID loadouts.
+export function createDroneBayModel({drone, drones = [], droneSkins = [], inventoryEntries = [], selectedDroneIndex = 0,
   filter = "all", selectedUid = null, selectedUids = [], portalComplete = false,
-  getPermanentUpgrade = ()=>null, getItem = ()=>null, getLocationLabel, compatible, nextPrice = null,
+  getLocationLabel, compatible, nextPrice = null,
   canPurchase = false}){
   const maxStandard = Math.min(MAX_STANDARD_DRONES, Math.floor(number(drone?.maxStandardOwned)) || MAX_STANDARD_DRONES);
   const maxTotal = Math.min(MAX_TOTAL_DRONES, Math.floor(number(drone?.maxOwned)) || MAX_TOTAL_DRONES);
@@ -91,11 +92,14 @@ export function createDroneBayModel({drone, drones = [], inventoryEntries = [], 
   const slots = Array.from({length:maxTotal}, (_, index)=>{
     const uid = index < owned ? drones[index] || null : null;
     const item = uid ? inventoryEntries.find(entry=>entry.uid === uid)?.item || null : null;
-    const upgradeId = index < owned ? getPermanentUpgrade(index) : null;
+    const requestedSkinUid = index < owned ? droneSkins[index] || null : null;
+    const skinEntry = requestedSkinUid ? inventoryEntries.find(entry=>entry.uid === requestedSkinUid && droneEquipmentKind(entry.item) === "overdrive") : null;
+    const skinUid = skinEntry?.uid || null;
     return {index, number:String(index + 1).padStart(2, "0"), owned:index < owned, reserved:index >= maxStandard,
       selected:selectedIndex === index, uid, item, multiSelected:!!uid && multi.has(uid),
-      itemSelected:!!uid && selectedUid === uid,
-      upgrade:upgradeId ? getItem(upgradeId) : null};
+      itemSelected:!!uid && selectedUid === uid, skinUid, skin:skinEntry?.item || null,
+      skinMultiSelected:!!skinUid && multi.has(skinUid), skinSelected:!!skinUid && selectedUid === skinUid,
+      skinActive:!!skinUid && !!portalComplete};
   });
   const compatibleEntries = getCompatibleDroneInventory(inventoryEntries, {getLocationLabel, compatible});
   const availableEntries = compatibleEntries.filter(entry=>!entry.equipped);

@@ -5,6 +5,7 @@ import {
   getDroneCatalog,
   getDroneFormation,
   getDroneLoadout,
+  getDroneSkinLoadout,
   getInventoryItem,
   getItem,
   getItemFromInventoryUid,
@@ -210,7 +211,7 @@ function bulkEquipInventoryItems(inventoryUids){
       getItem:getItemFromInventoryUid,
       findEquipped:findEquippedSlot,
       drones:getDroneLoadout(),
-      dronePermanentUpgrades:store.state.dronePermanentUpgrades,
+      droneSkinLoadout:getDroneSkinLoadout(),
       isDroneCompatibleEquipment,
       isDronePermanentUpgradeItem
     })
@@ -390,6 +391,7 @@ const {equipPart, autoEquipInventoryItem, unequipPart, unequipSelectedShipLoadou
   getShip,
   getLoadout,
   getDroneLoadout,
+  getDroneSkinLoadout,
   isDronePermanentUpgradeItem,
   isDroneCompatibleEquipment,
   applyServerDroneUpgrade,

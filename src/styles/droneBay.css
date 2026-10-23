@@ -63,15 +63,13 @@
 #dashboard #droneSection .db-purchase-reason,
 #dashboard #droneSection .db-ammo-note{color:#91b4c8;font-size:12px;line-height:1.3;overflow-wrap:anywhere}
 #dashboard #droneSection .db-purchase-reason{color:#d7bd8e}
-#dashboard #droneSection .db-buy,
-#dashboard #droneSection .db-equip-action{
+#dashboard #droneSection .db-buy{
   display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:40px;margin:0;padding:8px 10px;
   border:1px solid #3ce1f5;background:linear-gradient(180deg,#098bae,#03415f);box-shadow:inset 0 0 0 2px #2bd3f219,inset 0 0 15px #09a5d52b;
   color:#eefbff;font-size:14px;font-weight:800;line-height:1.2;letter-spacing:.7px;text-transform:uppercase;
   clip-path:polygon(7px 0,calc(100% - 7px) 0,100% 7px,100% calc(100% - 7px),calc(100% - 7px) 100%,7px 100%,0 calc(100% - 7px),0 7px);
 }
-#dashboard #droneSection .db-buy:hover:not(:disabled),
-#dashboard #droneSection .db-equip-action:hover:not(:disabled){background:linear-gradient(180deg,#10a3c5,#075774)}
+#dashboard #droneSection .db-buy:hover:not(:disabled){background:linear-gradient(180deg,#10a3c5,#075774)}
 #dashboard #droneSection .db-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;min-width:0;margin:0 0 15px}
 #dashboard #droneSection .db-panel-head h3,
 #dashboard #droneSection .db-equipment-panel>h3,
@@ -128,39 +126,20 @@
 #dashboard #droneSection .db-detail{gap:0;padding:16px 14px 14px}
 #dashboard #droneSection .db-equipment-panel{display:flex;flex-direction:column;gap:9px;flex:none;min-width:0;margin:0;padding:0 0 11px;border-bottom:1px solid var(--db-rule);background:none;box-shadow:none}
 #dashboard #droneSection .db-equipment-panel>h3{margin:0 0 4px;white-space:normal;overflow-wrap:anywhere}
-#dashboard #droneSection .db-equipped-card,
-#dashboard #droneSection .db-overdrive-card{display:grid;grid-template-columns:88px minmax(0,1fr) auto;align-items:center;gap:11px;min-width:0;min-height:98px;padding:5px;border:1px solid #20506b;background:linear-gradient(145deg,#082a3d55,#02131fbb);clip-path:polygon(7px 0,calc(100% - 7px) 0,100% 7px,100% calc(100% - 7px),calc(100% - 7px) 100%,7px 100%,0 calc(100% - 7px),0 7px)}
+#dashboard #droneSection .db-equipped-card{display:grid;grid-template-columns:88px minmax(0,1fr) auto;align-items:center;gap:11px;min-width:0;min-height:98px;padding:5px;border:1px solid #20506b;background:linear-gradient(145deg,#082a3d55,#02131fbb);clip-path:polygon(7px 0,calc(100% - 7px) 0,100% 7px,100% calc(100% - 7px),calc(100% - 7px) 100%,7px 100%,0 calc(100% - 7px),0 7px)}
 #dashboard #droneSection .db-equipped-card>img,
-#dashboard #droneSection .db-overdrive-card>img,
 #dashboard #droneSection .db-equipped-art{display:grid;place-items:center;flex:none;width:88px;height:88px;padding:4px;border:1px solid color-mix(in srgb,var(--rarity-color,#43738a) 65%,#0a3043);background:radial-gradient(circle,color-mix(in srgb,var(--rarity-color,#38bdf8) 16%,transparent),#031523 73%);object-fit:contain}
 #dashboard #droneSection .db-equipped-art img{display:block;width:100%;height:100%;object-fit:contain}
 #dashboard #droneSection .db-equipped-art svg{width:35px;height:35px;color:#78b8d5}
 #dashboard #droneSection .db-equipped-copy{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0}
 #dashboard #droneSection .db-equipped-copy strong,
-#dashboard #droneSection .db-equipped-card h4,
-#dashboard #droneSection .db-overdrive-card h4{color:#e9f4fd;font-size:16px;font-weight:700;line-height:1.15;letter-spacing:.2px;overflow-wrap:anywhere}
+#dashboard #droneSection .db-equipped-card h4{color:#e9f4fd;font-size:16px;font-weight:700;line-height:1.15;letter-spacing:.2px;overflow-wrap:anywhere}
 #dashboard #droneSection .db-equipped-copy p,
 #dashboard #droneSection .db-equipped-copy small{color:#a3c5dc;font-size:12px;line-height:1.25;overflow-wrap:anywhere}
 #dashboard #droneSection .db-equipped-stats{display:flex;flex-wrap:wrap;gap:3px 10px;color:#a9d1e4;font-size:12px;line-height:1.25}
-#dashboard #droneSection .db-remove,
-#dashboard #droneSection .db-overdrive-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;max-width:100%;min-height:33px;padding:6px 9px;margin:0 7px 0 0;border:1px solid #a4475a;border-radius:3px;background:linear-gradient(180deg,#451d2b88,#1c1320);color:#f1b9c3;font-size:12px;font-weight:700;line-height:1.2;letter-spacing:.4px;text-align:center;text-transform:uppercase}
+#dashboard #droneSection .db-remove{display:inline-flex;align-items:center;justify-content:center;gap:6px;max-width:100%;min-height:33px;padding:6px 9px;margin:0 7px 0 0;border:1px solid #a4475a;border-radius:3px;background:linear-gradient(180deg,#451d2b88,#1c1320);color:#f1b9c3;font-size:12px;font-weight:700;line-height:1.2;letter-spacing:.4px;text-align:center;text-transform:uppercase}
 #dashboard #droneSection .db-remove:hover:not(:disabled){border-color:#ff91a3;background:#542036}
-#dashboard #droneSection .db-remove svg,
-#dashboard #droneSection .db-overdrive-action svg{width:17px;height:17px}
-#dashboard #droneSection .db-overdrive-card{position:relative;grid-template-columns:58px minmax(0,1fr);min-height:69px;gap:10px}
-#dashboard #droneSection .db-overdrive-card>img,
-#dashboard #droneSection .db-overdrive-card .db-equipped-art{width:58px;height:58px}
-#dashboard #droneSection .db-overdrive-card .db-equipped-copy{gap:4px}
-#dashboard #droneSection .db-overdrive-card>div{display:flex;flex-direction:column;gap:4px;min-width:0;padding-right:17px}
-#dashboard #droneSection .db-overdrive-card h4{display:flex;align-items:center;flex-wrap:wrap;gap:5px 9px}
-#dashboard #droneSection .db-overdrive-card h4>span{display:inline-flex;align-items:center;gap:3px;color:#ffb0b5;font-size:11px;font-weight:600}
-#dashboard #droneSection .db-overdrive-card h4>span svg{width:14px;height:14px}
-#dashboard #droneSection .db-overdrive-card p{color:#a3c5dc;font-size:12px;line-height:1.25}
-#dashboard #droneSection .db-overdrive-card small{color:#86a9bf;font-size:11px;line-height:1.2}
-#dashboard #droneSection .db-overdrive-card>svg{position:absolute;right:9px;top:9px;width:18px;height:18px;color:#7fa4bb}
-#dashboard #droneSection .db-overdrive-card .db-overdrive-action{min-height:29px;font-size:11px;padding:5px 7px;max-width:130px}
-#dashboard #droneSection .db-overdrive-card.active{border-color:#a34e5e;background:linear-gradient(130deg,#481a2d66,#151423cc)}
-#dashboard #droneSection .db-overdrive-card.active .db-overdrive-action{border-color:#c16973;color:#ffc3c8}
+#dashboard #droneSection .db-remove svg{width:17px;height:17px}
 #dashboard #droneSection .db-inventory-panel{display:flex;flex-direction:column;flex:1;gap:8px;min-width:0;min-height:0;grid-area:auto;margin:0;padding:12px 0 0;border:0;background:none;box-shadow:none;clip-path:none}
 #dashboard #droneSection .db-inventory-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;min-width:0}
 #dashboard #droneSection .db-inventory-heading h3{font-size:19px}
@@ -184,34 +163,43 @@
 #dashboard #droneSection .db-inventory-cell.inventory-cell.multi-selected::after{content:"✓";position:absolute;z-index:4;display:grid;place-items:center;top:auto;left:auto;right:3px;bottom:3px;width:13px;height:13px;border:1px solid #e3c65a;border-radius:2px;background:#211c0e;color:#ffe395;font-size:10px;font-weight:800;line-height:1}
 #dashboard #droneSection .db-inventory-cell.inventory-cell:active{cursor:grabbing}
 #dashboard #droneSection .db-inventory-cell.inventory-cell.empty{border-color:#244459;background:#03111ccc;box-shadow:inset 0 0 8px #1530441c;opacity:.34;pointer-events:none;cursor:default}
-#dashboard #droneSection .db-inventory-detail{flex:0 1 auto;min-width:0;min-height:0;max-height:245px;margin:0;padding:0;border:1px solid #24556c;border-radius:4px;background:#041e2de6;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:thin}
-#dashboard #droneSection .db-inspection{display:flex;flex-direction:column;align-items:stretch;gap:7px;min-width:0;margin:0;padding:9px;border:0;background:none}
-#dashboard #droneSection .db-inspection-heading{display:grid;grid-template-columns:46px minmax(0,1fr);align-items:center;gap:10px;min-width:0}
-#dashboard #droneSection .db-inspection-heading>img{display:block;width:46px;height:46px;padding:2px;border:1px solid color-mix(in srgb,var(--rarity-color,#38bdf8) 55%,#173c50);border-radius:3px;background:#03121f;object-fit:contain}
-#dashboard #droneSection .db-inspection-heading>div{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
-#dashboard #droneSection .db-inspection-heading h4,
-#dashboard #droneSection .db-inspection-heading strong{color:#e5f5fc;font-size:15px;font-weight:700;line-height:1.2;overflow-wrap:anywhere}
-#dashboard #droneSection .db-inspection-heading .db-rarity{min-height:0;padding:0;border:0;background:none;font-size:12px}
-#dashboard #droneSection .db-inspection-location{color:#85adca;font-size:12px;line-height:1.3}
-#dashboard #droneSection .db-inspection .db-equip-action{min-height:34px;font-size:12px;padding:6px 8px}
-#dashboard #droneSection .db-item-actions{display:flex;align-items:stretch;gap:6px;min-width:0}
-#dashboard #droneSection .db-item-actions>.db-equip-action{flex:1;min-width:0}
-#dashboard #droneSection .db-sell-action.blue-button{display:flex;align-items:center;justify-content:center;flex:0 1 auto;width:auto;min-width:0;min-height:30px;max-width:42%;margin:0;padding:6px 8px;border:1px solid #426174;border-radius:3px;background:linear-gradient(180deg,#16304188,#071b2a);color:#adc7d8;font-size:12px;font-weight:600;line-height:1.2;letter-spacing:.3px;text-align:center}
-#dashboard #droneSection .db-sell-action:hover{border-color:#6c98ae;background:#153348;color:#e2f3ff}
-#dashboard #droneSection .db-item-passive{color:#94d6d7;font-size:12px;line-height:1.3}
 #dashboard #droneSection .db-item-stats{display:flex;flex-wrap:wrap;gap:5px 12px;min-width:0;margin:0;padding:0}
 #dashboard #droneSection .db-item-stats>div{display:flex;align-items:baseline;gap:5px;min-width:0;color:#acd2e6;font-size:12px;line-height:1.2}
 #dashboard #droneSection .db-item-stats dt{color:#8fb6ce;margin:0}
 #dashboard #droneSection .db-item-stats dd{color:#dceef8;font-weight:600;margin:0;white-space:nowrap}
-#dashboard #droneSection .db-item-description{color:#b4d2e4;font-size:13px;line-height:1.35}
-#dashboard #droneSection .db-base-stats-note,
-#dashboard #droneSection .db-action-reason{color:#8cb3ca;font-size:11px;line-height:1.3}
-#dashboard #droneSection .db-action-reason{color:#d7bf96}
-#dashboard #droneSection .db-permanent-note,
-#dashboard #droneSection .db-replace-note{color:#d5c0a0;font-size:12px;line-height:1.3}
 #dashboard #droneSection .db-inventory-note{flex:none;color:#83abc2;font-size:11px;line-height:1.25}
 #dashboard #droneSection .db-empty-inventory{display:flex;flex:1;align-items:center;justify-content:center;min-width:0;min-height:130px;margin:0;padding:16px 12px;border:1px dashed #28516b;border-radius:4px;background:#02132077;color:#92bdd7;font-size:14px;line-height:1.4;text-align:center}
-/* Share the launcher's remaining height; the item grid and its detail scroll internally. */
+/* Equipment and skin are separate removable UID slots. */
+#dashboard #droneSection .db-equipped-copy .db-slot-label{color:#83bfd4;font-size:10px;font-weight:700;line-height:1.1;letter-spacing:1px;text-transform:uppercase}
+#dashboard #droneSection .db-equipped-card.db-skin-card{grid-template-columns:58px minmax(0,1fr) auto;min-height:70px;gap:9px}
+#dashboard #droneSection .db-equipped-card.db-skin-card.empty{grid-template-columns:58px minmax(0,1fr)}
+#dashboard #droneSection .db-skin-card .db-equipped-art{width:58px;height:58px}
+#dashboard #droneSection .db-skin-card .db-equipped-copy{gap:4px}
+#dashboard #droneSection .db-skin-card.active{border-color:#a34e5e;background:linear-gradient(130deg,#481a2d66,#151423cc)}
+#dashboard #droneSection .db-skin-card.active .db-skin-bonus{color:#f4b8c1}
+#dashboard #droneSection .db-drone-skin{position:absolute;right:8px;bottom:48px;display:grid;place-items:center;width:27px;height:27px;padding:3px;border:1px dashed #4c8aa4;border-radius:3px;background:#031723e8;color:#81bed5;z-index:2}
+#dashboard #droneSection .db-drone-skin svg{width:16px;height:16px}
+#dashboard #droneSection .db-drone-skin img{display:block;width:100%;height:100%;object-fit:contain}
+#dashboard #droneSection .db-drone-skin.filled{border-style:solid;border-color:#b55f74;background:#361d2ae8;cursor:grab}
+#dashboard #droneSection .db-drone-skin.selected{border-color:#60efff;box-shadow:0 0 0 1px #60efff66}
+#dashboard #droneSection .db-drone-skin.multi-selected{border-color:#e3c65a;box-shadow:0 0 0 1px #e3c65a88}
+#dashboard #droneSection .db-special-tile.owned .db-drone-skin{width:22px;height:22px;right:7px;bottom:7px}
+@media(min-width:1101px) and (max-height:850px){
+  #dashboard #droneSection .db-equipped-card.db-skin-card{grid-template-columns:46px minmax(0,1fr) auto;min-height:59px;gap:7px}
+  #dashboard #droneSection .db-equipped-card.db-skin-card.empty{grid-template-columns:46px minmax(0,1fr)}
+  #dashboard #droneSection .db-skin-card .db-equipped-art{width:46px;height:46px}
+  #dashboard #droneSection .db-skin-card .db-equipped-copy h4{font-size:13px}
+  #dashboard #droneSection .db-skin-card .db-equipped-copy p{font-size:11px}
+  #dashboard #droneSection .db-drone-skin{width:23px;height:23px;bottom:39px;right:6px}
+}
+@media(max-width:720px){
+  #dashboard #droneSection .db-equipped-card.db-skin-card,
+  #dashboard #droneSection .db-equipped-card.db-skin-card.empty{grid-template-columns:52px minmax(0,1fr);min-height:0}
+  #dashboard #droneSection .db-skin-card .db-equipped-art{width:52px;height:52px}
+  #dashboard #droneSection .db-skin-card .db-remove{grid-column:1/-1}
+  #dashboard #droneSection .db-drone-skin{width:21px;height:21px;bottom:50px;right:5px;padding:2px}
+}
+/* Share the launcher's remaining height; the inventory grid keeps all remaining space. */
 @media(min-width:1101px) and (min-height:720px){
   #dashboard.launcher-dashboard:has(.hangar-view.active #droneSection:not(.hidden)){height:100svh;display:flex;flex-direction:column;padding-bottom:12px}
   #dashboard:has(.hangar-view.active #droneSection:not(.hidden)) .launcher-header{flex:none}
@@ -225,8 +213,7 @@
   #dashboard #droneSection .drone-bay-grid{min-height:0}
   #dashboard #droneSection .db-drone-art{min-height:0}
   #dashboard #droneSection .db-drone-art img{min-height:0;max-height:112px}
-  #dashboard #droneSection .db-inventory-list.db-inventory-grid.rpg-inventory-grid{flex:1 1 95px;min-height:66px;max-height:none;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;scrollbar-width:thin;padding-right:5px}
-  #dashboard #droneSection .db-inventory-detail{flex:0 1 auto;max-height:49%;min-height:0;overflow-y:auto}
+  #dashboard #droneSection .db-inventory-list.db-inventory-grid.rpg-inventory-grid{flex:1 1 auto;min-height:66px;max-height:none;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;scrollbar-width:thin;padding-right:5px}
 }
 @media(min-width:1101px) and (max-width:1450px){
   #dashboard #droneSection .drone-bay-layout.ship-equipment-layout{grid-template-columns:minmax(0,.23fr) minmax(0,.39fr) minmax(0,.38fr);gap:10px}
@@ -251,13 +238,8 @@
   #dashboard #droneSection .db-equipped-card>img,
   #dashboard #droneSection .db-equipped-art{width:66px;height:66px}
   #dashboard #droneSection .db-equipped-copy strong,
-  #dashboard #droneSection .db-equipped-card h4,
-  #dashboard #droneSection .db-overdrive-card h4{font-size:14px}
+  #dashboard #droneSection .db-equipped-card h4{font-size:14px}
   #dashboard #droneSection .db-remove{padding:6px;font-size:11px;margin-right:3px}
-  #dashboard #droneSection .db-overdrive-card{grid-template-columns:49px minmax(0,1fr);gap:7px;min-height:60px}
-  #dashboard #droneSection .db-overdrive-card>img,
-  #dashboard #droneSection .db-overdrive-card .db-equipped-art{width:49px;height:49px}
-  #dashboard #droneSection .db-overdrive-card .db-overdrive-action{font-size:10px;max-width:100px;margin-right:3px}
 }
 @media(min-width:1101px) and (max-height:850px){
   #dashboard #droneSection .db-overview,
@@ -301,9 +283,6 @@
   #dashboard #droneSection .db-equipped-copy small,
   #dashboard #droneSection .db-equipped-copy p,
   #dashboard #droneSection .db-equipped-stats{font-size:11px}
-  #dashboard #droneSection .db-overdrive-card{min-height:58px;grid-template-columns:47px minmax(0,1fr);gap:8px}
-  #dashboard #droneSection .db-overdrive-card>img,
-  #dashboard #droneSection .db-overdrive-card .db-equipped-art{width:47px;height:47px}
   #dashboard #droneSection .db-inventory-panel{padding-top:9px;gap:6px}
   #dashboard #droneSection .db-inventory-heading h3{font-size:18px}
   #dashboard #droneSection .db-inventory-filters button{min-height:29px;font-size:11px}
@@ -331,7 +310,6 @@
   #dashboard #droneSection .db-equipped-art{width:76px;height:76px}
   #dashboard #droneSection .db-inventory-panel{gap:9px}
   #dashboard #droneSection .db-inventory-list.db-inventory-grid.rpg-inventory-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));max-height:330px;overflow-y:auto;padding:2px 5px 2px 2px}
-  #dashboard #droneSection .db-inventory-detail{max-height:none;overflow:visible}
 }
 @media(max-width:720px){
   #dashboard #droneSection .drone-bay-layout.ship-equipment-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:none;gap:12px}
@@ -371,21 +349,12 @@
   #dashboard #droneSection .db-equipped-art{width:65px;height:65px;grid-column:1;grid-row:1}
   #dashboard #droneSection .db-equipped-copy{grid-column:2;grid-row:1;gap:4px}
   #dashboard #droneSection .db-equipped-copy strong,
-  #dashboard #droneSection .db-equipped-card h4,
-  #dashboard #droneSection .db-overdrive-card h4{font-size:15px}
-  #dashboard #droneSection .db-remove,
-  #dashboard #droneSection .db-overdrive-action{grid-column:1/-1;justify-self:stretch;margin:0;min-height:32px;font-size:12px}
-  #dashboard #droneSection .db-overdrive-card{grid-template-columns:52px minmax(0,1fr);gap:8px;min-height:0;padding:6px}
-  #dashboard #droneSection .db-overdrive-card>img,
-  #dashboard #droneSection .db-overdrive-card .db-equipped-art{width:52px;height:52px;grid-column:1;grid-row:1}
-  #dashboard #droneSection .db-overdrive-card .db-overdrive-action{grid-column:1/-1;max-width:none;min-height:31px;font-size:12px}
+  #dashboard #droneSection .db-equipped-card h4{font-size:15px}
+  #dashboard #droneSection .db-remove{grid-column:1/-1;justify-self:stretch;margin:0;min-height:32px;font-size:12px}
   #dashboard #droneSection .db-inventory-heading h3{font-size:19px}
   #dashboard #droneSection .db-inventory-filters{gap:4px}
   #dashboard #droneSection .db-inventory-filters button{min-height:32px;padding:5px 3px;font-size:11px;letter-spacing:0}
   #dashboard #droneSection .db-inventory-list.db-inventory-grid.rpg-inventory-grid{grid-template-columns:repeat(auto-fill,minmax(56px,1fr));max-height:275px;gap:6px}
-  #dashboard #droneSection .db-inspection{padding:8px;gap:7px}
-  #dashboard #droneSection .db-item-actions{flex-direction:column}
-  #dashboard #droneSection .db-sell-action.blue-button{width:100%;max-width:none}
 }
 @media(max-width:360px){
   #dashboard #droneSection .db-overview,

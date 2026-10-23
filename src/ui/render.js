@@ -365,9 +365,9 @@ function selectedItemStatsHtml(item){
   }
   if(isDronePermanentUpgradeItem(item)){
     return `<div class="selected-item-stat-lines">
-      <span><b>Drone</b><strong>+50% degats laser</strong></span>
-      <span><b>Statut</b><strong>Permanent</strong></span>
-      <span><b>Retrait</b><strong>Impossible</strong></span>
+      <span><b>Type</b><strong>Skin de drone</strong></span>
+      <span><b>Bonus</b><strong>+50% laser ou bouclier</strong></span>
+      <span><b>Retrait</b><strong>Retour dans l'inventaire</strong></span>
     </div>`;
   }
   return `<p>${statLabelForItem(item)}</p>`;

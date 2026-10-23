@@ -8,9 +8,9 @@ export function createEquipmentActions({
   getShip,
   getLoadout,
   getDroneLoadout,
+  getDroneSkinLoadout = ()=>store.state.droneSkinLoadout || [],
   isDronePermanentUpgradeItem,
   isDroneCompatibleEquipment,
-  applyServerDroneUpgrade,
   equipServerInventoryItem,
   unequipServerSlot,
   unequipServerShip,
@@ -20,16 +20,9 @@ export function createEquipmentActions({
     const item = getItemFromInventoryUid(inventoryUid);
     if(!item) return;
     if(!requireMmoConnection(multiplayer, showToast)) return;
-    if(type === "drone" && isDronePermanentUpgradeItem(item)){
-      if(applyServerDroneUpgrade?.({index, inventoryUid})){
-        showToast("Amelioration drone envoyee au serveur.");
-        return;
-      }
-      showToast("Amelioration drone impossible.");
-      return;
-    }
+    const targetType = type === "drone" && isDronePermanentUpgradeItem(item) ? "droneSkin" : type;
     const ship = getShip(store.state.selectedShip);
-    if(equipServerInventoryItem?.({type, index, inventoryUid, shipId:ship?.id})){
+    if(equipServerInventoryItem?.({type:targetType, index, inventoryUid, shipId:ship?.id})){
       showToast("Equipement envoye au serveur.");
       return;
     }
@@ -44,8 +37,11 @@ export function createEquipmentActions({
       const drones = getDroneLoadout();
       if(!drones.length) return showToast("Achete d'abord un drone.");
       if(isDronePermanentUpgradeItem(item)){
-        const index = drones.findIndex((_, i)=>!store.state.dronePermanentUpgrades?.[i]);
-        return index < 0 ? showToast("Tous les drones sont deja ameliores.") : equipPart("drone", index, inventoryUid);
+        const skins = getDroneSkinLoadout();
+        const currentIndex = skins.indexOf(inventoryUid);
+        let index = currentIndex >= 0 ? currentIndex : drones.findIndex((_, i)=>!skins[i]);
+        if(index < 0) index = 0;
+        return equipPart("droneSkin", index, inventoryUid);
       }
       if(!isDroneCompatibleEquipment(item)) return showToast("Cet equipement n'est pas compatible avec les drones.");
       const currentIndex = drones.indexOf(inventoryUid);

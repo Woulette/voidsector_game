@@ -3,7 +3,7 @@ import { normalizeFirmId } from "../data/firms.js";
 import { normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./keybinds.js?v=20260726-kharon1";
 import { getDroneCatalog, getItem, getQuest, getRawMaterial, getShip } from "./catalogStore.js?v=20260726-kharon1";
 import { enforcePlayerCurrencyMinimums } from "./currencyStore.js?v=20260726-kharon1";
-import { cleanDroneLoadout, ensureShipLoadout, getDroneLoadout, getInventoryItem, getItemFromInventoryUid } from "./equipmentStore.js?v=20260726-kharon1";
+import { cleanDroneLoadout, ensureShipLoadout, getDroneLoadout, getInventoryItem, getItemFromInventoryUid, normalizeDroneSkinState } from "./equipmentStore.js?v=20260726-kharon1";
 import { normalizeGraphicsQuality } from "./graphicsStore.js?v=20260726-kharon1";
 import { isPremiumActive, normalizePremiumRewardState, normalizeStarterPackPurchases } from "../data/premium.js";
 import { calculateMonsterRankPointsForKills } from "../data/ranks.js";
@@ -55,7 +55,7 @@ function normalizeShipKeyedObject(value){
   return normalized;
 }
 
-export function normalizeState(saved){
+export function normalizeState(saved, {migrateLegacyDroneSkins = false} = {}){
   const base = clone(defaultState);
   const merged = {...base, ...(saved || {})};
   merged.player = {...base.player, ...(saved?.player || {})};
@@ -216,6 +216,8 @@ export function normalizeState(saved){
     : null;
   merged.player.titleVisible = saved?.player?.titleVisible !== false;
   merged.dronePermanentUpgrades = saved?.dronePermanentUpgrades && typeof saved.dronePermanentUpgrades === "object" ? {...saved.dronePermanentUpgrades} : {...(base.dronePermanentUpgrades || {})};
+  merged.droneSkinLoadout = Array.isArray(saved?.droneSkinLoadout) ? [...saved.droneSkinLoadout] : null;
+  merged.droneSkinLoadoutVersion = Math.max(0, Math.floor(Number(saved?.droneSkinLoadoutVersion) || 0));
   merged.killStats = saved?.killStats && typeof saved.killStats === "object" ? {...saved.killStats} : {};
   merged.rankKillStats = {};
   if(saved?.rankKillStats && typeof saved.rankKillStats === "object"){
@@ -375,6 +377,7 @@ export function normalizeState(saved){
   merged.ownedDroneCount = Math.max(0, Math.min(getDroneCatalog().maxOwned || 8, Number(saved?.ownedDroneCount ?? base.ownedDroneCount ?? 0)));
   merged.droneLoadout = cleanDroneLoadout(saved?.droneLoadout || base.droneLoadout || [], merged.inventoryItems);
   while(merged.droneLoadout.length < merged.ownedDroneCount) merged.droneLoadout.push(null);
+  normalizeDroneSkinState(merged, {migrateLegacy:migrateLegacyDroneSkins && !(Number(saved?.mmoProfileUpdatedAt) > 0)});
   const starterShipId = "orion";
   const accidentalVeloxStarterOnly = Array.isArray(saved?.ownedShips)
     && saved.ownedShips.length === 1

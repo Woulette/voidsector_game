@@ -23,6 +23,8 @@ export const defaultState = {
   shipLoadouts:{orion:{lasers:["inv_laser_mk1_1"], generators:[], extras:["inv_repair_starter_2", null, null]}},
   boosters:{s1:{}, s2:{}},
   droneLoadout:[],
+  droneSkinLoadout:[],
+  droneSkinLoadoutVersion:1,
   dronePermanentUpgrades:{},
   ownedDroneCount:0,
   ownedDroneFormations:["base"],

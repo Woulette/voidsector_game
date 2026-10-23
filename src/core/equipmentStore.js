@@ -40,10 +40,61 @@ export function isSupportedDronePermanentUpgradeItem(item, drone = getDroneCatal
 
 export function getDronePermanentUpgrade(index){
   if(!hasDronePermanentUpgradeAccess()) return null;
-  const upgrades = store.state?.dronePermanentUpgrades;
-  const upgradeId = upgrades && typeof upgrades === "object" ? upgrades[index] || null : null;
-  const item = upgradeId ? getItem(upgradeId) : null;
+  const uid = getDroneSkinUid(index);
+  const item = uid ? getItemFromInventoryUid(uid) : null;
   return isSupportedDronePermanentUpgradeItem(item) ? item.id : null;
+}
+
+export function cleanDroneSkinLoadout(raw, ownedCount, inventoryItems = store.state?.inventoryItems || []){
+  const owned = Math.max(0, Math.min(getDroneCatalog().maxOwned || 10, Math.floor(Number(ownedCount) || 0)));
+  const source = Array.isArray(raw) ? raw : [];
+  const used = new Set();
+  return Array.from({length:owned}, (_, index)=>{
+    const uid = typeof source[index] === "string" ? source[index] : null;
+    const item = uid ? getItemFromInventoryUidIn(uid, inventoryItems) : null;
+    if(!uid || used.has(uid) || !isSupportedDronePermanentUpgradeItem(item)) return null;
+    used.add(uid);
+    return uid;
+  });
+}
+
+// The legacy item-ID map remains a derived compatibility view, never the skin authority.
+export function normalizeDroneSkinState(state, {migrateLegacy = false} = {}){
+  if(!state || typeof state !== "object") return [];
+  const hadLoadout = Array.isArray(state.droneSkinLoadout);
+  const skins = cleanDroneSkinLoadout(state.droneSkinLoadout, state.ownedDroneCount, state.inventoryItems || []);
+  if(migrateLegacy && !hadLoadout && Number(state.droneSkinLoadoutVersion || 0) < 1){
+    const inventory = Array.isArray(state.inventoryItems) ? state.inventoryItems : (state.inventoryItems = []);
+    const existing = new Set(inventory.map(entry=>entry.uid));
+    let next = Math.max(1, Math.floor(Number(state.nextInventoryUid) || 1));
+    for(let index = 0; index < skins.length; index += 1){
+      const item = getItem(state.dronePermanentUpgrades?.[index]);
+      if(!isSupportedDronePermanentUpgradeItem(item)) continue;
+      let uid;
+      do{ uid = `inv_${item.id}_${next++}`; }while(existing.has(uid));
+      inventory.push({uid, itemId:item.id});
+      existing.add(uid);
+      skins[index] = uid;
+    }
+    state.nextInventoryUid = next;
+  }
+  state.droneSkinLoadout = skins;
+  state.droneSkinLoadoutVersion = 1;
+  state.dronePermanentUpgrades = Object.fromEntries(skins.flatMap((uid, index)=>{
+    const item = uid ? getItemFromInventoryUidIn(uid, state.inventoryItems || []) : null;
+    return item ? [[index, item.id]] : [];
+  }));
+  return skins;
+}
+
+export function getDroneSkinLoadout(){
+  return normalizeDroneSkinState(store.state);
+}
+
+export function getDroneSkinUid(index){
+  const requested = Number(index);
+  if(!Number.isInteger(requested) || requested < 0) return null;
+  return getDroneSkinLoadout()[requested] || null;
 }
 
 export function getDroneDamageMultiplier(index){
@@ -286,17 +337,14 @@ export function applyDronePermanentUpgrade(index, inventoryUid){
   if(!Number.isInteger(requestedIndex) || requestedIndex < 0) return {ok:false, reason:"Emplacement de drone invalide."};
   const target = requestedIndex;
   if(target >= getDroneLoadout().length) return {ok:false, reason:"Aucun drone a cet emplacement."};
-  const entryIndex = store.state.inventoryItems.findIndex(entry=>entry.uid === inventoryUid);
-  const entry = entryIndex >= 0 ? store.state.inventoryItems[entryIndex] : null;
+  const entry = getInventoryItem(inventoryUid);
   const item = entry ? getItem(entry.itemId) : null;
   if(!isSupportedDronePermanentUpgradeItem(item)) return {ok:false, reason:"Cet objet n'est pas compatible avec ce drone de combat."};
   if(!hasDronePermanentUpgradeAccess()) return {ok:false, reason:"Terminez d'abord La Faille de Vesper."};
-  if(getDronePermanentUpgrade(target)) return {ok:false, reason:`Drone ${target + 1} deja ameliore.`};
-  if(!store.state.dronePermanentUpgrades || typeof store.state.dronePermanentUpgrades !== "object") store.state.dronePermanentUpgrades = {};
-  store.state.dronePermanentUpgrades[target] = item.id;
-  store.state.inventoryItems.splice(entryIndex, 1);
-  if(store.selectedInventoryUid === inventoryUid) store.selectedInventoryUid = null;
-  return {ok:true, item, index:target};
+  unequipInventoryItem(inventoryUid);
+  getDroneSkinLoadout()[target] = inventoryUid;
+  normalizeDroneSkinState(store.state);
+  return {ok:true, item, index:target, inventoryUid};
 }
 
 export function getDronePurchasePrice(index = store.state.ownedDroneCount){
@@ -314,6 +362,7 @@ export function getDroneLoadout(){
 }
 
 export function findEquippedSlot(uid){
+  if(typeof uid !== "string" || !uid) return null;
   for(const shipId of Object.keys(store.state.shipLoadouts || {})){
     const loadout = getLoadout(shipId);
     const laserIndex = loadout?.lasers?.indexOf(uid) ?? -1;
@@ -331,6 +380,8 @@ export function findEquippedSlot(uid){
     const item = getItemFromInventoryUid(uid);
     return {location:"drone", type:item?.category === "canon" ? "laser" : "generator", index:droneIndex};
   }
+  const skinIndex = getDroneSkinLoadout().indexOf(uid);
+  if(uid && skinIndex >= 0) return {location:"drone", type:"droneSkin", index:skinIndex};
   return null;
 }
 
@@ -338,7 +389,10 @@ export function unequipInventoryItem(uid){
   const equipped = findEquippedSlot(uid);
   if(!equipped) return false;
   if(equipped.location === "drone"){
-    getDroneLoadout()[equipped.index] = null;
+    if(equipped.type === "droneSkin"){
+      getDroneSkinLoadout()[equipped.index] = null;
+      normalizeDroneSkinState(store.state);
+    }else getDroneLoadout()[equipped.index] = null;
     return true;
   }
   const loadout = getLoadout(equipped.shipId);

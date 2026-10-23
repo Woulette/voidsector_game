@@ -1308,3 +1308,9 @@ Mini-carte panoramique : le ratio 9/20 est partage dans `miniMapLayout.js`, et l
 
 - À la demande du créateur, la liste groupée est remplacée par une vraie grille : chaque exemplaire disponible a sa case et son image, avec une fiche unique au clic. Les équipements déjà installés ne sont plus présentés comme stock disponible.
 - Le domaine de rendu et ses styles existants portent cette correction ; les contrôleurs et l'autorité du serveur sont conservés. Détails et preuves : `docs/DRONES_INVENTAIRE_GRILLE_2026-10-23.md`, `output/drone-grid-correction-2026-10-23/`. Version frontend `20261023-dronegrid1`.
+
+## 2026-10-23 â€” Skins de drones Ã©quipables et rÃ©cupÃ©rables
+
+Le Noyau Overdrive occupe dÃ©sormais un slot de skin distinct de l'arme ou du bouclier. Il reste dans l'inventaire avec son UID et redevient disponible aprÃ¨s retrait ; dÃ©placement et remplacement prÃ©servent l'Ã©quipement principal. La baie affiche les vrais objets possÃ©dÃ©s dans une grille et un emplacement de skin par drone. Les anciennes installations consommÃ©es sont converties une seule fois en exemplaires Ã©quipÃ©s, sans prendre le stock libre. Les bonus et le prÃ©requis Vesper restent inchangÃ©s, les mutations et la migration sont protÃ©gÃ©es cÃ´tÃ© serveur.
+
+Documentation : `docs/DRONES_SKINS_2026-10-23.md`. Release : `20261023-droneskin1` ; validation du candidat isolÃ©, essais Socket et visuels sur comptes locaux, sauvegarde du runtime et contrÃ´le des empreintes publiques avant publication confirmÃ©e.

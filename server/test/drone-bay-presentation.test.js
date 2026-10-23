@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { equipment, droneCatalog } from "../../src/data/equipment.js";
 import { getDronePurchasePrice, store } from "../../src/core/store.js?v=20260726-kharon1";
-import { createDroneBayModel, droneBayEquipAction, droneEquipmentKind, droneEquipmentStats, getCompatibleDroneInventory, resolveDroneBaySelection } from "../../src/ui/droneBayModel.js?v=20261023-dronegrid1";
+import { createDroneBayModel, droneBayEquipAction, droneEquipmentKind, droneEquipmentStats, getCompatibleDroneInventory, resolveDroneBaySelection } from "../../src/ui/droneBayModel.js?v=20261023-droneskin1";
 import { equipDroneBayInventoryItem, getDroneBayPresentationModel, handleDroneBayInteraction, renderDroneBayMarkup, selectDroneBayDrone, setDroneBayFilter, updateDroneBayPresentation } from "../../src/ui/renderDroneBay.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { createProfileActions } from "../src/players/profileActions.js";
@@ -14,7 +14,7 @@ const location = equipped=>!equipped ? "Disponible" : equipped.location === "dro
 function model(options = {}){
   const drones = options.drones || [null, null];
   return createDroneBayModel({drone, drones, inventoryEntries:[], nextPrice:drone.basePrice * 2 ** drones.length,
-    canPurchase:true, getItem:item, getLocationLabel:location, ...options});
+    canPurchase:true, getLocationLabel:location, ...options});
 }
 
 function withProfile(profile, callback){
@@ -104,44 +104,53 @@ test("each available copy is an image cell while equipped copies stay out of the
   assert.equal((markup.match(/inventory-cell empty/g) || []).length, 38);
   assert.match(markup, /<div class="db-inventory-cell inventory-cell empty" aria-hidden="true"><\/div>/);
   assert.doesNotMatch(markup, /db-inventory-group|data-drone-group|db-group-copies|aria-expanded|Exemplaire 0/);
-  assert.ok(markup.indexOf('class="db-inventory-detail"') > markup.indexOf('class="db-inventory-list db-inventory-grid rpg-inventory-grid"'));
-  assert.match(markup, /db-inspection-heading/);
-  assert.match(markup, /data-drone-equip-uid="unique-a"/);
-  assert.match(markup, /data-inventory-sell="unique-a"/);
+  assert.doesNotMatch(markup, /db-inventory-detail|db-inspection|data-drone-equip-uid|data-inventory-sell/);
+  assert.match(markup, /Double clic ou glisser-déposer pour équiper/);
   assert.doesNotMatch(markup, /data-inventory-uid="laser_mk1"|data-inventory-equip=|data-equip-part=/);
-  assert.equal((markup.match(/data-drone-equip-uid=/g) || []).length, 1);
+  assert.equal((markup.match(/data-drone-equip-uid=/g) || []).length, 0);
   assert.equal(view.action.label, "Équiper sur Drone 01");
 });
 
-test("moving an exact equipped copy targets the selected drone and explains replacement", ()=>{
+test("moving an exact equipped copy still targets the selected drone without a duplicate detail panel", ()=>{
   const entries = [entry("ship-copy", "laser_mk2", {location:"ship", shipId:"velox"}), entry("previous", "shield_gen", {location:"drone", index:1})];
   const view = model({drones:[null, "previous"], inventoryEntries:entries, selectedDroneIndex:1, selectedUid:"ship-copy"});
   assert.equal(view.action.allowed, true);
   assert.equal(view.action.replacing, true);
   assert.equal(view.action.label, "Déplacer sur Drone 02");
   const markup = renderDroneBayMarkup(view);
-  assert.match(markup, /module actuel retournera/);
-  assert.match(markup, /data-drone-equip-uid="ship-copy"/);
+  assert.doesNotMatch(markup, /db-inspection|data-drone-equip-uid=/);
   assert.match(markup, /data-drone-unequip="1"/);
   const same = model({drones:[null, "ship-copy"], inventoryEntries:entries, selectedDroneIndex:1, selectedUid:"ship-copy"});
   assert.equal(same.action.allowed, false);
   assert.equal(same.action.label, "Déjà équipé");
 });
 
-test("Overdrive retains its Vesper gate, consumed permanent status and shield-only generator bonus", ()=>{
-  const chip = entry("permanent-core", "drone_overdrive_chip");
+test("Overdrive is a real removable skin in its own slot, gated by Vesper without a phantom item", ()=>{
+  const empty = renderDroneBayMarkup(model());
+  assert.match(empty, /Aucun skin équipé/);
+  assert.match(empty, /data-drop-part="droneSkin"/);
+  assert.doesNotMatch(empty, /Noyau Overdrive|puce_vesper|db-overdrive-card|permanent|noyau consomm|skin consomm|définitive|irretirable/i);
+  const chip = entry("skin-copy", "drone_overdrive_chip");
   const locked = model({inventoryEntries:[chip], selectedUid:chip.uid});
   assert.equal(locked.action.allowed, false);
   assert.match(locked.action.reason, /Faille de Vesper/);
   const open = model({inventoryEntries:[chip], selectedUid:chip.uid, portalComplete:true});
   assert.equal(open.action.allowed, true);
-  assert.equal(open.action.permanent, true);
-  assert.match(renderDroneBayMarkup(open), /Noyau consommé/);
+  assert.equal(open.action.targetType, "droneSkin");
+  assert.equal(open.action.replacing, false);
+  assert.match(renderDroneBayMarkup(open), /data-inventory-uid="skin-copy"/);
   assert.doesNotMatch(renderDroneBayMarkup(open), /data-inventory-sell=/);
-  const active = model({inventoryEntries:[chip], selectedUid:chip.uid, portalComplete:true, getPermanentUpgrade:()=>chip.itemId});
+  const equippedChip = {...chip, equipped:{location:"drone", type:"droneSkin", index:0}};
+  const active = model({inventoryEntries:[equippedChip], selectedUid:chip.uid, portalComplete:true, droneSkins:[chip.uid, null]});
   assert.equal(active.action.allowed, false);
-  assert.match(renderDroneBayMarkup(active), /Permanent · retrait impossible · régénération inchangée/);
+  assert.equal(active.selectedDrone.skinActive, true);
+  assert.equal(active.selectedDrone.skinUid, chip.uid);
+  assert.match(renderDroneBayMarkup(active), /data-drone-unequip-type="droneSkin"/);
   assert.match(renderDroneBayMarkup(active), /\+50 % dégâts laser ou capacité de bouclier/);
+  assert.doesNotMatch(renderDroneBayMarkup(active), /data-inventory-uid="skin-copy"|permanent|noyau consomm|skin consomm|définitive|retrait impossible/i);
+  const accessLost = model({inventoryEntries:[equippedChip], selectedUid:chip.uid, portalComplete:false, droneSkins:[chip.uid, null]});
+  assert.equal(accessLost.selectedDrone.skinActive, false);
+  assert.match(renderDroneBayMarkup(accessLost), /data-drone-unequip-type="droneSkin"/);
   assert.equal(droneBayEquipAction(chip, null, true).allowed, false);
 });
 
@@ -156,12 +165,11 @@ test("filters retain availability and selected drone without fake or incompatibl
   assert.equal(model({filter:"forged"}).filter, "all");
 });
 
-test("rendered descriptions, names, art paths and UIDs are escaped", ()=>{
+test("rendered names, art paths and UIDs are escaped", ()=>{
   const unsafe = {uid:'uid"<bad>', item:{...item("laser_mk1"), id:'id"<bad>', name:'<script>bad</script>', desc:'<b>unsafe</b>', img:'x" onerror="bad'}};
   const view = model({inventoryEntries:[unsafe], selectedUid:unsafe.uid});
   const markup = renderDroneBayMarkup(view);
   assert.match(markup, /&lt;script&gt;bad&lt;\/script&gt;/);
-  assert.match(markup, /&lt;b&gt;unsafe&lt;\/b&gt;/);
   assert.match(markup, /uid&quot;&lt;bad&gt;/);
   assert.doesNotMatch(markup, /<script>| onerror="bad"/);
 });
@@ -208,7 +216,7 @@ test("identical redraws retain DOM and changed selection restores focus and inve
   } finally { globalThis.document = previousDocument; }
 });
 
-test("the explicit action passes the exact UID and selected drone while UID clicks fall through", ()=>{
+test("single UID clicks only select through the existing controller and never create an inspection panel or equip", ()=>{
   const profile = createDefaultProfile();
   profile.ownedDroneCount = 2;
   profile.droneLoadout = [null, null];
@@ -218,18 +226,18 @@ test("the explicit action passes the exact UID and selected drone while UID clic
   try {
     withProfile(profile, ()=>{
       selectDroneBayDrone(1);
-      store.selectedInventoryUid = "chosen-copy";
       const calls = [];
-      const button = {disabled:false, dataset:{droneEquipUid:"chosen-copy"}};
-      const target = {closest:selector=>selector === "#droneSection" ? {} : selector === "[data-drone-equip-uid]" ? button : null};
-      assert.equal(handleDroneBayInteraction({target}, {equipPart:(...args)=>calls.push(args)}), true);
-      assert.deepEqual(calls, [["drone", 1, "chosen-copy"]]);
+      const target = {closest:selector=>selector === "#droneSection" ? {} : null};
+      assert.equal(handleDroneBayInteraction({target}, {equipPart:(...args)=>calls.push(args)}), false);
+      assert.deepEqual(calls, []);
       assert.deepEqual(profile.droneLoadout, [null, null]);
-      button.dataset.droneEquipUid = "stale-copy";
-      handleDroneBayInteraction({target}, {equipPart:(...args)=>calls.push(args)});
-      assert.equal(calls.length, 1);
-      const uidTarget = {closest:selector=>selector === "#droneSection" ? {} : null};
-      assert.equal(handleDroneBayInteraction({target:uidTarget}, {}), false);
+      const initial = renderDroneBayMarkup(getDroneBayPresentationModel());
+      store.selectedInventoryUid = "chosen-copy";
+      const selected = renderDroneBayMarkup(getDroneBayPresentationModel());
+      assert.match(selected, /inventory-cell rarity-rare selected/);
+      assert.doesNotMatch(selected, /db-inspection|db-inventory-detail|data-drone-equip-uid|data-inventory-sell/);
+      assert.equal((initial.match(/inventory-cell empty/g) || []).length, (selected.match(/inventory-cell empty/g) || []).length);
+      assert.equal((initial.match(/data-inventory-uid=/g) || []).length, (selected.match(/data-inventory-uid=/g) || []).length);
     });
   } finally { globalThis.document = previousDocument; }
 });
@@ -280,14 +288,14 @@ test("single-copy shortcut uses the selected drone across filters and refuses in
       assert.equal(calls.length, 1, "Vesper refusal must not choose another drone");
       profile.completedPortals.violet = 1;
       assert.equal(equipDroneBayInventoryItem("shortcut-core", actions), true);
-      assert.deepEqual(calls[1], ["drone", 1, "shortcut-core"]);
+      assert.deepEqual(calls[1], ["droneSkin", 1, "shortcut-core"]);
       assert.equal(profile.inventoryItems.some(copy=>copy.uid === "shortcut-core"), true);
       assert.deepEqual(profile.dronePermanentUpgrades, {});
       assert.equal(equipDroneBayInventoryItem("stale-uid", actions), true);
       assert.equal(calls.length, 2);
-      profile.dronePermanentUpgrades = {1:"drone_overdrive_chip"};
+      profile.droneSkinLoadout = [null, "shortcut-core"];
       assert.equal(equipDroneBayInventoryItem("shortcut-core", actions), true);
-      assert.equal(calls.length, 2, "an already upgraded selected drone must not redirect the core");
+      assert.equal(calls.length, 2, "a skin already equipped on the selected drone must not redirect to another drone");
       profile.ownedDroneCount = 0;
       profile.droneLoadout = [];
       assert.equal(equipDroneBayInventoryItem("shortcut-laser", actions), true);
@@ -340,4 +348,79 @@ test("authoritative equip and remove acknowledgements take the exact copy out of
   await removed.save;
   assert.ok(available(removed.profile).includes("grid-first"));
   assert.equal(available(removed.profile).filter(uid=>uid === "grid-first").length, 1);
+});
+
+test("a skin uses its own server UID slot and returns to inventory on removal without replacing either module", async()=>{
+  const profile = createDefaultProfile();
+  profile.ownedDroneCount = 2;
+  profile.droneLoadout = ["module-laser", "module-shield"];
+  profile.droneSkinLoadout = [null, null];
+  profile.completedPortals.violet = 1;
+  profile.inventoryItems.push({uid:"module-laser", itemId:"laser_mk2"}, {uid:"module-shield", itemId:"shield_gen"}, {uid:"real-skin", itemId:"drone_overdrive_chip"});
+  const profiles = new Map([["SkinPilot", profile]]);
+  const actions = createProfileActions({profiles, persist:()=>{}, getExistingProfile:()=>({key:"SkinPilot", profile:profiles.get("SkinPilot")})});
+  const read = current=>withProfile(current, ()=>{
+    selectDroneBayDrone(1);
+    return getDroneBayPresentationModel({filter:"all"});
+  });
+  assert.ok(read(profile).availableEntries.some(copy=>copy.uid === "real-skin"));
+  const equipped = actions.applyEquipmentAction({player:{name:"SkinPilot"}, action:{kind:"equip", type:"droneSkin", index:1, inventoryUid:"real-skin"}});
+  assert.equal(equipped.ok, true);
+  await equipped.save;
+  assert.deepEqual(equipped.profile.droneLoadout, ["module-laser", "module-shield"]);
+  assert.deepEqual(equipped.profile.droneSkinLoadout, [null, "real-skin"]);
+  assert.equal(equipped.profile.inventoryItems.filter(copy=>copy.uid === "real-skin").length, 1);
+  const view = read(equipped.profile);
+  assert.equal(view.selectedDrone.skinUid, "real-skin");
+  assert.equal(view.selectedDrone.skinActive, true);
+  assert.ok(!view.availableEntries.some(copy=>copy.uid === "real-skin"));
+  const markup = renderDroneBayMarkup(view);
+  assert.match(markup, /data-slot-uid="real-skin" data-drop-part="droneSkin" data-drop-index="1"/);
+  assert.match(markup, /data-drone-unequip="1" data-drone-unequip-type="droneSkin"/);
+  const moved = actions.applyEquipmentAction({player:{name:"SkinPilot"}, action:{kind:"equip", type:"droneSkin", index:0, inventoryUid:"real-skin"}});
+  assert.equal(moved.ok, true);
+  await moved.save;
+  assert.deepEqual(moved.profile.droneSkinLoadout, ["real-skin", null]);
+  assert.deepEqual(moved.profile.droneLoadout, ["module-laser", "module-shield"]);
+  const removed = actions.applyEquipmentAction({player:{name:"SkinPilot"}, action:{kind:"unequip-slot", type:"droneSkin", index:0}});
+  assert.equal(removed.ok, true);
+  await removed.save;
+  const final = read(removed.profile);
+  assert.deepEqual(removed.profile.droneSkinLoadout, [null, null]);
+  assert.deepEqual(removed.profile.droneLoadout, ["module-laser", "module-shield"]);
+  assert.equal(final.availableEntries.filter(copy=>copy.uid === "real-skin").length, 1);
+  assert.equal(final.standardSlots.some(slot=>slot.skinActive), false);
+});
+
+test("skin replacement and removal target the skin type even when a laser occupies the same drone", ()=>{
+  const profile = createDefaultProfile();
+  profile.ownedDroneCount = 2;
+  profile.droneLoadout = [null, "same-drone-laser"];
+  profile.droneSkinLoadout = [null, "equipped-skin"];
+  profile.droneSkinLoadoutVersion = 1;
+  profile.completedPortals.violet = 1;
+  profile.inventoryItems.push({uid:"same-drone-laser", itemId:"laser_mk2"}, {uid:"equipped-skin", itemId:"drone_overdrive_chip"}, {uid:"replacement-skin", itemId:"drone_overdrive_chip"});
+  const previousDocument = globalThis.document;
+  globalThis.document = {getElementById:()=>null};
+  try {
+    withProfile(profile, ()=>{
+      selectDroneBayDrone(1);
+      store.selectedInventoryUid = "replacement-skin";
+      const view = getDroneBayPresentationModel();
+      assert.equal(view.action.allowed, true);
+      assert.equal(view.action.targetType, "droneSkin");
+      assert.equal(view.action.replacing, true);
+      assert.doesNotMatch(renderDroneBayMarkup(view), /db-inventory-detail|db-inspection/);
+      const calls = [];
+      const remove = {dataset:{droneUnequip:"1", droneUnequipType:"droneSkin"}};
+      const target = {closest:selector=>selector === "#droneSection" ? {} : selector === "[data-drone-unequip]" ? remove : null};
+      assert.equal(handleDroneBayInteraction({target}, {unequipPart:(...args)=>calls.push(args)}), true);
+      assert.deepEqual(calls, [["droneSkin", 1]]);
+      assert.deepEqual(profile.droneLoadout, [null, "same-drone-laser"]);
+      assert.deepEqual(profile.droneSkinLoadout, [null, "equipped-skin"]);
+      profile.completedPortals = {};
+      handleDroneBayInteraction({target}, {unequipPart:(...args)=>calls.push(args)});
+      assert.deepEqual(calls[1], ["droneSkin", 1], "removing a skin stays possible even when Vesper access is lost");
+    });
+  } finally { globalThis.document = previousDocument; }
 });

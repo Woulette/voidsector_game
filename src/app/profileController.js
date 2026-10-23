@@ -146,6 +146,8 @@ export function createProfileController({
     if(Object.hasOwn(profile, "prestigeCount")) store.state.prestigeCount = Math.min(1, Math.max(0, Math.floor(Number(profile.prestigeCount || 0))));
     if(Number.isFinite(Number(profile.ownedDroneCount))) store.state.ownedDroneCount = Math.max(0, Math.floor(Number(profile.ownedDroneCount)));
     if(Array.isArray(profile.droneLoadout)) store.state.droneLoadout = clone(profile.droneLoadout);
+    if(Array.isArray(profile.droneSkinLoadout)) store.state.droneSkinLoadout = clone(profile.droneSkinLoadout);
+    if(Number.isFinite(Number(profile.droneSkinLoadoutVersion))) store.state.droneSkinLoadoutVersion = Math.max(0, Math.floor(Number(profile.droneSkinLoadoutVersion)));
     if(profile.dronePermanentUpgrades && typeof profile.dronePermanentUpgrades === "object") store.state.dronePermanentUpgrades = clone(profile.dronePermanentUpgrades);
     if(profile.equipmentUpgrades && typeof profile.equipmentUpgrades === "object") store.state.equipmentUpgrades = clone(profile.equipmentUpgrades);
     if(Array.isArray(profile.ownedDroneFormations)) store.state.ownedDroneFormations = [...new Set(profile.ownedDroneFormations.map(String))];

@@ -22,6 +22,8 @@ export function createDefaultProfile(){
     shipLoadouts:{orion:{lasers:["inv_laser_mk1_1"], generators:[], extras:["inv_repair_starter_2", null, null]}},
     ownedDroneCount:0,
     droneLoadout:[],
+    droneSkinLoadout:[],
+    droneSkinLoadoutVersion:1,
     dronePermanentUpgrades:{},
     equipmentUpgrades:{},
     ownedDroneFormations:["base"],
