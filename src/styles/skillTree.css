@@ -1,0 +1,282 @@
+/* Pilot skills in the launcher. Combat keeps its separate skill presentation. */
+#dashboard #hangarSkillsSection{
+  --skill-branch-width:220px;
+  --skill-tile-size:96px;
+  --skill-branch-color:#ff7952;
+  width:100%;min-width:0;min-height:0;padding:0;border:0;
+  background:none;box-shadow:none;clip-path:none;
+}
+#dashboard #hangarSkillsSection::after{display:none}
+#dashboard #hangarSkillsSection #hangarSkillGrid{display:block;min-width:0;min-height:0;width:100%;padding:0}
+#dashboard #hangarSkillsSection .skill-tree-layout{display:grid;grid-template-columns:minmax(0,2.44fr) minmax(320px,1fr);gap:12px;align-items:stretch;min-width:0}
+#dashboard #hangarSkillsSection .skill-tree-main,
+#dashboard #hangarSkillsSection .skill-tree-detail{
+  position:relative;min-width:0;padding:18px 17px;
+  border:1px solid #24536c;
+  background:linear-gradient(135deg,rgba(4,25,41,.97),rgba(1,13,24,.98));
+  box-shadow:inset 0 0 0 4px #061623,0 12px 30px #0003;
+  clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px);
+}
+#dashboard #hangarSkillsSection .skill-tree-main{display:flex;flex-direction:column;gap:0}
+#dashboard #hangarSkillsSection .skill-tree-heading{display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px;margin:0 0 15px}
+#dashboard #hangarSkillsSection .skill-tree-heading-title{min-width:0}
+#dashboard #hangarSkillsSection .skill-tree-heading-title .tiny{display:block;font-size:10px;line-height:1.2;letter-spacing:3px;color:#a0d9f6}
+#dashboard #hangarSkillsSection .skill-tree-heading h2{margin:3px 0 2px;font-size:clamp(23px,1.8vw,32px);font-weight:800;line-height:1.15;letter-spacing:1.1px;text-transform:uppercase;color:#f3f7fc}
+#dashboard #hangarSkillsSection .skill-tree-heading-title p{font-size:17px;line-height:1.3;letter-spacing:.9px;color:#b2d6ee}
+#dashboard #hangarSkillsSection .skill-tree-points{display:flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:7px 16px;border:1px solid #00d5f1;background:linear-gradient(180deg,#00455a55,#00111f);box-shadow:inset 0 0 12px #07c9e91c;color:#31efff;font-size:15px;font-weight:700;line-height:1.2;letter-spacing:.6px;text-align:center;text-transform:uppercase;clip-path:polygon(7px 0,calc(100% - 7px) 0,100% 7px,100% calc(100% - 7px),calc(100% - 7px) 100%,7px 100%,0 calc(100% - 7px),0 7px)}
+#dashboard #hangarSkillsSection .skill-tree-points b,
+#dashboard #hangarSkillsSection .skill-tree-points strong{font-size:19px;font-variant-numeric:tabular-nums}
+#dashboard #hangarSkillsSection .skill-tree-access{display:flex;align-items:center;gap:10px;margin-left:auto;color:#3cf3d0;font-size:15px;line-height:1.3}
+#dashboard #hangarSkillsSection .skill-tree-access.locked{color:#edc887}
+#dashboard #hangarSkillsSection .skill-tree-access>.skill-tree-icon{width:28px;height:28px;flex:none}
+#dashboard #hangarSkillsSection .skill-tree-icon{display:block;width:24px;height:24px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#dashboard #hangarSkillsSection .skill-tree-board{display:flex;flex-direction:column;gap:0;width:100%;min-width:0;min-height:0;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-gutter:auto}
+#dashboard #hangarSkillsSection .skill-tree-tier-head{display:grid;grid-template-columns:var(--skill-branch-width) repeat(5,minmax(0,1fr));min-height:55px;border:1px solid #24536c;border-bottom:0;background:linear-gradient(180deg,#07283d77,#041624aa);clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% 100%,0 100%,0 8px)}
+#dashboard #hangarSkillsSection .skill-tree-tier-head>span{display:flex;align-items:center;justify-content:center;min-width:0;margin:7px 0;border-left:1px solid #16415b66;color:#add9f6;font-size:13px;font-weight:700;letter-spacing:1.7px;line-height:1.2;text-transform:uppercase}
+#dashboard #hangarSkillsSection .skill-tree-tier-head>.skill-tree-tier-spacer{border-left:0}
+#dashboard #hangarSkillsSection .skill-tree-lanes{display:grid;grid-template-rows:repeat(3,minmax(145px,1fr));gap:8px;min-height:0}
+#dashboard #hangarSkillsSection .skill-tree-lane{position:relative;display:grid;grid-template-columns:var(--skill-branch-width) minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-width:0;min-height:0;border:1px solid #204c64;background:linear-gradient(180deg,#051b2c77,#01101df2);clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px)}
+#dashboard #hangarSkillsSection .skill-tree-lane::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--skill-branch-color);box-shadow:0 0 12px color-mix(in srgb,var(--skill-branch-color) 55%,transparent);pointer-events:none}
+#dashboard #hangarSkillsSection .skill-tree-lane.damage,
+#dashboard #hangarSkillsSection .skill-tree-detail.damage,
+#dashboard #hangarSkillsSection .skill-tree-detail[data-skill-branch="damage"]{--skill-branch-color:#ff7952}
+#dashboard #hangarSkillsSection .skill-tree-lane.shield,
+#dashboard #hangarSkillsSection .skill-tree-detail.shield,
+#dashboard #hangarSkillsSection .skill-tree-detail[data-skill-branch="shield"]{--skill-branch-color:#53bdff}
+#dashboard #hangarSkillsSection .skill-tree-lane.utility,
+#dashboard #hangarSkillsSection .skill-tree-detail.utility,
+#dashboard #hangarSkillsSection .skill-tree-detail[data-skill-branch="utility"]{--skill-branch-color:#35f0d5}
+#dashboard #hangarSkillsSection .skill-tree-branch-info{display:grid;grid-template-columns:55px minmax(0,1fr);align-content:center;column-gap:12px;padding:17px 13px 17px 20px;border-right:1px solid #16415b88;background:linear-gradient(110deg,color-mix(in srgb,var(--skill-branch-color) 8%,transparent),transparent)}
+#dashboard #hangarSkillsSection .skill-tree-branch-info>.skill-tree-icon{grid-column:1;grid-row:1/3;align-self:center;width:52px;height:58px;color:var(--skill-branch-color);filter:drop-shadow(0 0 7px color-mix(in srgb,var(--skill-branch-color) 15%,transparent))}
+#dashboard #hangarSkillsSection .skill-tree-branch-info>div{grid-column:2;grid-row:1/3;min-width:0;align-self:center}
+#dashboard #hangarSkillsSection .skill-tree-branch-info h3{grid-column:2;margin:0 0 5px;color:var(--skill-branch-color);font-size:21px;font-weight:700;letter-spacing:.5px;line-height:1.2;text-transform:uppercase}
+#dashboard #hangarSkillsSection .skill-tree-branch-info p{grid-column:2;color:#a8c7de;font-size:14px;line-height:1.4}
+#dashboard #hangarSkillsSection .skill-tree-node-rail{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:minmax(0,1fr);align-items:stretch;min-width:0;min-height:0}
+#dashboard #hangarSkillsSection .skill-tree-node-rail::before{content:"";position:absolute;left:9%;right:9%;top:calc(50% - 12px);height:2px;background:#6d9cbba8;box-shadow:0 0 3px #83b9e333;pointer-events:none}
+#dashboard #hangarSkillsSection .skill-tree-node{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:0;margin:0;padding:8px 4px 7px;border:0;border-right:1px solid #16415b66;background:none;box-shadow:none;color:#b7d8ed;cursor:pointer;text-align:center;transition:background .15s}
+#dashboard #hangarSkillsSection .skill-tree-node:last-child{border-right:0}
+#dashboard #hangarSkillsSection .skill-tree-node-tile{position:relative;display:flex;flex:0 0 auto;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;width:var(--skill-tile-size);height:var(--skill-tile-size);max-width:100%;padding:10px 7px 7px;border:1px solid #4c7691;border-radius:5px;background:linear-gradient(145deg,#0b2232,#020c17);box-shadow:inset 0 0 0 3px #071522;color:var(--skill-branch-color);transition:border-color .15s,box-shadow .15s}
+#dashboard #hangarSkillsSection .skill-tree-node-tile>.skill-tree-icon{width:39px;height:39px;margin:auto 0 0}
+#dashboard #hangarSkillsSection .skill-tree-node-tile>b{font-size:13px;font-weight:700;line-height:1.2;letter-spacing:.7px;color:#e8f4ff;font-variant-numeric:tabular-nums}
+#dashboard #hangarSkillsSection .skill-tree-rank-dots{display:flex;align-items:center;justify-content:center;gap:6px;min-height:11px;color:#66a2c9}
+#dashboard #hangarSkillsSection .skill-tree-rank-dots i{display:block;width:10px;height:10px;border:1px solid currentColor;border-radius:50%;background:#031320}
+#dashboard #hangarSkillsSection .skill-tree-rank-dots i.filled,
+#dashboard #hangarSkillsSection .skill-tree-rank-dots i.earned{border-color:#3ef4d4;background:#25c7af;box-shadow:0 0 6px #26e7cb55}
+#dashboard #hangarSkillsSection .skill-tree-node-label{display:flex;align-items:flex-start;justify-content:center;flex:0 0 auto;min-height:0;max-width:100%;font-size:14px;font-weight:600;line-height:1.2;overflow-wrap:anywhere}
+#dashboard #hangarSkillsSection .skill-tree-node.locked .skill-tree-node-tile{color:#7297b1}
+#dashboard #hangarSkillsSection .skill-tree-node.locked .skill-tree-node-tile>.skill-tree-icon{width:28px;height:30px}
+#dashboard #hangarSkillsSection .skill-tree-node.available .skill-tree-node-tile{border-color:#00cfec;box-shadow:inset 0 0 0 2px #06566c,inset 0 0 18px #00cbe51a,0 0 10px #00caed22}
+#dashboard #hangarSkillsSection .skill-tree-node.done .skill-tree-node-tile{border-color:#2eddb6;box-shadow:inset 0 0 15px #12bd8c22;color:#3bf2c7}
+#dashboard #hangarSkillsSection .skill-tree-node.selected .skill-tree-node-tile{border-color:#3deaff;box-shadow:inset 0 0 0 1px #2fe8ff,inset 0 0 20px #09c6eb33,0 0 16px #02c8ec77}
+#dashboard #hangarSkillsSection .skill-tree-node.selected .skill-tree-node-label{color:#f0f9ff}
+#dashboard #hangarSkillsSection .skill-tree-node:hover{background:#1e90be0b}
+#dashboard #hangarSkillsSection .skill-tree-node:hover .skill-tree-node-tile{border-color:#b4ebff}
+#dashboard #hangarSkillsSection .skill-tree-node:focus-visible{outline:2px solid #c8f7ff;outline-offset:-4px;background:#3eb6db12}
+#dashboard #hangarSkillsSection .skill-tree-prerequisite{display:flex;align-items:center;justify-content:center;gap:10px;margin:14px 0 0;padding:0 5px;color:#a3c8e3;font-size:13px;line-height:1.35;letter-spacing:.2px;text-align:center}
+#dashboard #hangarSkillsSection .skill-tree-prerequisite>.skill-tree-icon{width:20px;height:20px;color:#8fd8ff;flex:none}
+#dashboard #hangarSkillsSection .skill-tree-detail{display:flex;flex-direction:column;padding:30px 24px 23px;gap:0}
+#dashboard #hangarSkillsSection .skill-tree-detail-heading{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:start;gap:19px;padding:4px 0 18px;border-bottom:1px solid #245a74}
+#dashboard #hangarSkillsSection .skill-tree-detail-icon{display:grid;place-items:center;width:96px;height:98px;border:1px solid var(--skill-branch-color);border-radius:6px;background:radial-gradient(circle,color-mix(in srgb,var(--skill-branch-color) 12%,transparent),#02111d 75%);box-shadow:inset 0 0 0 3px #081722;color:var(--skill-branch-color)}
+#dashboard #hangarSkillsSection .skill-tree-detail-icon>.skill-tree-icon{width:58px;height:58px}
+#dashboard #hangarSkillsSection .skill-tree-detail-heading h3{margin:0 0 5px;color:#f1f6fe;font-size:clamp(20px,1.6vw,27px);font-weight:800;line-height:1.13;letter-spacing:.8px;text-transform:uppercase;overflow-wrap:anywhere}
+#dashboard #hangarSkillsSection .skill-tree-detail-heading p{color:var(--skill-branch-color);font-size:14px;font-weight:700;line-height:1.2;letter-spacing:1.6px;text-transform:uppercase}
+#dashboard #hangarSkillsSection .skill-tree-detail-rank{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:19px;color:#d0e6f5;font-size:16px;line-height:1.25;letter-spacing:.6px}
+#dashboard #hangarSkillsSection .skill-tree-detail-rank strong{color:#f6f8ff;font-weight:700}
+#dashboard #hangarSkillsSection .skill-tree-detail-rank .skill-tree-rank-dots{gap:9px}
+#dashboard #hangarSkillsSection .skill-tree-detail-rank .skill-tree-rank-dots i{width:15px;height:15px}
+#dashboard #hangarSkillsSection .skill-tree-description{margin:12px 0 17px;color:#b3d1e6;font-size:15px;line-height:1.45;letter-spacing:.2px}
+#dashboard #hangarSkillsSection .skill-tree-detail h4{margin:0 0 6px;color:#9edbfb;font-size:12px;font-weight:700;line-height:1.25;letter-spacing:2.3px;text-transform:uppercase}
+#dashboard #hangarSkillsSection .skill-tree-effect{margin:0 0 12px}
+#dashboard #hangarSkillsSection .skill-tree-effect-box{display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);align-items:center;gap:10px;min-height:83px;padding:12px;border:1px solid #25607e;border-radius:5px;background:linear-gradient(145deg,#082c4270,#01101b);box-shadow:inset 0 0 0 3px #061b2a;text-align:center}
+#dashboard #hangarSkillsSection .skill-tree-effect-box>div{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}
+#dashboard #hangarSkillsSection .skill-tree-effect-box span{color:#a9c8df;font-size:14px;line-height:1.25}
+#dashboard #hangarSkillsSection .skill-tree-effect-box strong{color:#f1f6fc;font-size:17px;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
+#dashboard #hangarSkillsSection .skill-tree-effect-box>div:last-child strong{color:#43f1cf}
+#dashboard #hangarSkillsSection .skill-tree-effect-box>.skill-tree-icon{color:#759fc6;width:22px;height:24px}
+#dashboard #hangarSkillsSection .skill-tree-cost{margin:0 0 10px}
+#dashboard #hangarSkillsSection .skill-tree-cost-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:62px;padding:11px 7px;border:1px solid #205773;border-radius:5px;background:#01101c}
+#dashboard #hangarSkillsSection .skill-tree-cost-entry{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0;padding:0 8px}
+#dashboard #hangarSkillsSection .skill-tree-cost-entry+.skill-tree-cost-entry{border-left:1px solid #16415b99}
+#dashboard #hangarSkillsSection .skill-tree-cost-entry:nth-child(odd){border-left:0}
+#dashboard #hangarSkillsSection .skill-tree-cost-entry:nth-child(n+3){margin-top:9px;padding-top:9px;border-top:1px solid #16415b99}
+#dashboard #hangarSkillsSection .skill-tree-cost-entry>.skill-tree-icon,
+#dashboard #hangarSkillsSection .skill-tree-cost-entry>img{width:35px;height:35px;object-fit:contain;color:#8cddff;flex:none}
+#dashboard #hangarSkillsSection .skill-tree-cost-entry>div{min-width:0}
+#dashboard #hangarSkillsSection .skill-tree-cost-entry strong{display:block;color:#edf4ff;font-size:16px;font-weight:700;line-height:1.2;letter-spacing:.6px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+#dashboard #hangarSkillsSection .skill-tree-cost-entry small{display:block;margin-top:3px;color:#9fc7e3;font-size:14px;line-height:1.2}
+#dashboard #hangarSkillsSection .skill-tree-cost-entry.insufficient strong{color:#ffc58c}
+#dashboard #hangarSkillsSection .skill-tree-complete-label{color:#9cebd3;font-size:14px;line-height:1.4}
+#dashboard #hangarSkillsSection .skill-tree-upgrade-reason{margin:9px 0 0;color:#e8c78e;font-size:13px;line-height:1.35}
+#dashboard #hangarSkillsSection .skill-tree-upgrade{display:flex;align-items:center;justify-content:center;gap:15px;min-height:53px;width:100%;margin:0;padding:10px 16px;border:1px solid #20e4fc;background:linear-gradient(180deg,#0488b1,#034564);box-shadow:inset 0 0 0 2px #009eb66b,inset 0 0 20px #08b3e233;color:#f2fcff;font-size:20px;font-weight:700;line-height:1.2;letter-spacing:1.3px;text-transform:uppercase;cursor:pointer;clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px)}
+#dashboard #hangarSkillsSection .skill-tree-upgrade>.skill-tree-icon{width:28px;height:28px}
+#dashboard #hangarSkillsSection .skill-tree-upgrade:hover:not(:disabled){background:linear-gradient(180deg,#09a0cb,#065675);box-shadow:inset 0 0 0 2px #6bedff33,inset 0 0 18px #03cdeb55}
+#dashboard #hangarSkillsSection .skill-tree-upgrade:focus-visible{outline:2px solid #d7fbff;outline-offset:-5px}
+#dashboard #hangarSkillsSection .skill-tree-upgrade:disabled{border-color:#35677f;background:linear-gradient(180deg,#12374b,#061d2e);box-shadow:inset 0 0 0 2px #1c40533d;color:#95b3c7;cursor:not-allowed}
+#dashboard #hangarSkillsSection .skill-tree-ranks{margin-top:24px}
+#dashboard #hangarSkillsSection .skill-tree-rank-row{display:grid;grid-template-columns:34px minmax(0,1fr) 25px;align-items:center;gap:8px;min-height:40px;margin-bottom:2px;padding:6px 12px;border:1px solid #153f59;border-radius:5px;background:linear-gradient(100deg,#041727cc,#02101c);color:#89a9c1;font-size:14px;line-height:1.3}
+#dashboard #hangarSkillsSection .skill-tree-rank-row>b{text-align:center;color:#a6cce5;font-size:15px}
+#dashboard #hangarSkillsSection .skill-tree-rank-row>.skill-tree-icon{justify-self:end;color:#809fba;width:22px;height:22px}
+#dashboard #hangarSkillsSection .skill-tree-rank-row.next{color:#e3edf8;border-color:#1c5977}
+#dashboard #hangarSkillsSection .skill-tree-rank-row.next>.skill-tree-icon{color:#41c5f9}
+#dashboard #hangarSkillsSection .skill-tree-rank-row.earned{color:#a8f1d7;border-color:#247362}
+#dashboard #hangarSkillsSection .skill-tree-rank-row.earned>.skill-tree-icon{color:#43e7b9}
+
+@media(min-width:1101px) and (min-height:720px){
+  /* This tab shares the launcher's available viewport without affecting ships. */
+  #dashboard.launcher-dashboard:has(.hangar-view.active #hangarSkillsSection:not(.hidden)){height:100svh;display:flex;flex-direction:column;padding-bottom:12px}
+  #dashboard:has(.hangar-view.active #hangarSkillsSection:not(.hidden)) .launcher-header{flex:none}
+  #dashboard:has(.hangar-view.active #hangarSkillsSection:not(.hidden)) .page-container{flex:1;min-height:0}
+  #dashboard .hangar-view.active:has(#hangarSkillsSection:not(.hidden)){display:flex;flex-direction:column;height:100%;min-height:0;gap:0}
+  #dashboard .hangar-view.active:has(#hangarSkillsSection:not(.hidden)) .hangar-tabs{flex:none}
+  #dashboard #hangarSkillsSection:not(.hidden){display:flex;flex:1;min-height:0}
+  #dashboard #hangarSkillsSection #hangarSkillGrid{display:flex;flex:1;min-height:0}
+  #dashboard #hangarSkillsSection .skill-tree-layout{flex:1;min-height:0}
+  #dashboard #hangarSkillsSection .skill-tree-main{min-height:0}
+  #dashboard #hangarSkillsSection .skill-tree-heading,
+  #dashboard #hangarSkillsSection .skill-tree-tier-head,
+  #dashboard #hangarSkillsSection .skill-tree-prerequisite{flex:none}
+  #dashboard #hangarSkillsSection .skill-tree-board{flex:1}
+  #dashboard #hangarSkillsSection .skill-tree-lanes{flex:1;grid-template-rows:repeat(3,minmax(0,1fr))}
+  #dashboard #hangarSkillsSection .skill-tree-detail{min-height:0;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+  #dashboard #hangarSkillsSection .skill-tree-detail>*{flex-shrink:0}
+}
+@media(min-width:1101px) and (max-height:850px){
+  #dashboard #hangarSkillsSection{--skill-tile-size:78px}
+  #dashboard #hangarSkillsSection .skill-tree-main{padding:12px 14px}
+  #dashboard #hangarSkillsSection .skill-tree-heading{gap:7px 15px;margin-bottom:10px}
+  #dashboard #hangarSkillsSection .skill-tree-heading h2{font-size:25px}
+  #dashboard #hangarSkillsSection .skill-tree-heading-title p{font-size:14px}
+  #dashboard #hangarSkillsSection .skill-tree-points{min-height:33px;padding:6px 12px;font-size:13px}
+  #dashboard #hangarSkillsSection .skill-tree-access{font-size:13px;gap:7px}
+  #dashboard #hangarSkillsSection .skill-tree-access>.skill-tree-icon{width:23px;height:23px}
+  #dashboard #hangarSkillsSection .skill-tree-tier-head{min-height:39px}
+  #dashboard #hangarSkillsSection .skill-tree-branch-info{padding-top:10px;padding-bottom:10px}
+  #dashboard #hangarSkillsSection .skill-tree-node{gap:4px;padding-top:5px;padding-bottom:4px}
+  #dashboard #hangarSkillsSection .skill-tree-node-rail::before{top:calc(50% - 9px)}
+  #dashboard #hangarSkillsSection .skill-tree-node-tile{gap:3px;padding:6px}
+  #dashboard #hangarSkillsSection .skill-tree-node-tile>.skill-tree-icon{width:31px;height:31px}
+  #dashboard #hangarSkillsSection .skill-tree-node.locked .skill-tree-node-tile>.skill-tree-icon{width:23px;height:25px}
+  #dashboard #hangarSkillsSection .skill-tree-node-tile>b{font-size:12px}
+  #dashboard #hangarSkillsSection .skill-tree-node-label{min-height:0;font-size:12px}
+  #dashboard #hangarSkillsSection .skill-tree-prerequisite{margin-top:9px;font-size:12px}
+  #dashboard #hangarSkillsSection .skill-tree-detail{padding:17px 18px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-heading{grid-template-columns:73px minmax(0,1fr);gap:14px;padding:0 0 12px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-icon{width:73px;height:78px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-icon>.skill-tree-icon{width:46px;height:46px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-heading h3{font-size:22px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-heading p{font-size:12px;letter-spacing:1px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-rank{gap:9px;margin-top:11px;font-size:14px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-rank .skill-tree-rank-dots{gap:6px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-rank .skill-tree-rank-dots i{width:12px;height:12px}
+  #dashboard #hangarSkillsSection .skill-tree-description{margin:9px 0 12px;font-size:13px}
+  #dashboard #hangarSkillsSection .skill-tree-effect{margin-bottom:10px}
+  #dashboard #hangarSkillsSection .skill-tree-effect-box{min-height:65px;padding:9px;gap:6px}
+  #dashboard #hangarSkillsSection .skill-tree-effect-box>div{gap:5px}
+  #dashboard #hangarSkillsSection .skill-tree-effect-box span{font-size:12px}
+  #dashboard #hangarSkillsSection .skill-tree-effect-box strong{font-size:14px}
+  #dashboard #hangarSkillsSection .skill-tree-cost-grid{min-height:54px;padding:8px 4px}
+  #dashboard #hangarSkillsSection .skill-tree-cost-entry{gap:7px;padding:0 6px}
+  #dashboard #hangarSkillsSection .skill-tree-cost-entry>.skill-tree-icon,
+  #dashboard #hangarSkillsSection .skill-tree-cost-entry>img{width:29px;height:29px}
+  #dashboard #hangarSkillsSection .skill-tree-cost-entry strong{font-size:14px}
+  #dashboard #hangarSkillsSection .skill-tree-cost-entry small{font-size:12px}
+  #dashboard #hangarSkillsSection .skill-tree-upgrade{min-height:44px;font-size:17px;gap:10px;padding:8px 12px}
+  #dashboard #hangarSkillsSection .skill-tree-upgrade>.skill-tree-icon{width:24px;height:24px}
+  #dashboard #hangarSkillsSection .skill-tree-ranks{margin-top:15px}
+  #dashboard #hangarSkillsSection .skill-tree-rank-row{min-height:32px;padding:5px 8px;font-size:12px;grid-template-columns:26px minmax(0,1fr) 22px}
+}
+@media(min-width:1101px) and (max-width:1500px){
+  #dashboard #hangarSkillsSection{--skill-branch-width:175px;--skill-tile-size:80px}
+  #dashboard #hangarSkillsSection .skill-tree-layout{grid-template-columns:minmax(0,2.4fr) minmax(305px,1fr);gap:10px}
+  #dashboard #hangarSkillsSection .skill-tree-heading{gap:8px 14px}
+  #dashboard #hangarSkillsSection .skill-tree-heading h2{font-size:24px;letter-spacing:.5px}
+  #dashboard #hangarSkillsSection .skill-tree-access{font-size:12px;gap:7px}
+  #dashboard #hangarSkillsSection .skill-tree-points{font-size:12px;padding:6px 10px}
+  #dashboard #hangarSkillsSection .skill-tree-branch-info{grid-template-columns:40px minmax(0,1fr);gap:9px;padding-left:13px;padding-right:9px}
+  #dashboard #hangarSkillsSection .skill-tree-branch-info>.skill-tree-icon{width:39px;height:48px}
+  #dashboard #hangarSkillsSection .skill-tree-branch-info h3{font-size:18px}
+  #dashboard #hangarSkillsSection .skill-tree-branch-info p{font-size:12px}
+  #dashboard #hangarSkillsSection .skill-tree-node-label{font-size:12px}
+  #dashboard #hangarSkillsSection .skill-tree-tier-head>span{font-size:11px;letter-spacing:1.2px}
+  #dashboard #hangarSkillsSection .skill-tree-detail{padding-left:17px;padding-right:17px}
+}
+@media(min-width:1101px) and (max-height:800px){
+  #dashboard #hangarSkillsSection .skill-tree-detail{padding-top:13px;padding-bottom:13px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-heading{padding-bottom:10px}
+  #dashboard #hangarSkillsSection .skill-tree-description{margin:8px 0 9px}
+  #dashboard #hangarSkillsSection .skill-tree-effect-box{min-height:60px}
+  #dashboard #hangarSkillsSection .skill-tree-cost-grid{min-height:50px}
+  #dashboard #hangarSkillsSection .skill-tree-ranks{margin-top:10px}
+  #dashboard #hangarSkillsSection .skill-tree-rank-row{min-height:30px;padding-top:4px;padding-bottom:4px}
+}
+@media(min-width:1101px) and (max-height:760px){
+  #dashboard #hangarSkillsSection{--skill-tile-size:64px}
+  #dashboard #hangarSkillsSection .skill-tree-node{padding-top:3px;padding-bottom:3px}
+  #dashboard #hangarSkillsSection .skill-tree-node-tile{padding:4px;gap:2px}
+  #dashboard #hangarSkillsSection .skill-tree-node-tile>.skill-tree-icon{width:24px;height:24px}
+  #dashboard #hangarSkillsSection .skill-tree-node.locked .skill-tree-node-tile>.skill-tree-icon{width:22px;height:23px}
+  #dashboard #hangarSkillsSection .skill-tree-node-tile .skill-tree-rank-dots{min-height:8px;gap:4px}
+  #dashboard #hangarSkillsSection .skill-tree-node-tile .skill-tree-rank-dots i{width:7px;height:7px}
+  #dashboard #hangarSkillsSection .skill-tree-node-tile>b{font-size:11px}
+}
+@media(max-width:1100px){
+  #dashboard #hangarSkillsSection{--skill-branch-width:190px;--skill-tile-size:85px}
+  #dashboard #hangarSkillsSection .skill-tree-layout{grid-template-columns:minmax(0,1fr);gap:12px}
+  #dashboard #hangarSkillsSection .skill-tree-main{padding:17px 15px}
+  #dashboard #hangarSkillsSection .skill-tree-heading{gap:12px 18px}
+  #dashboard #hangarSkillsSection .skill-tree-access{margin-left:0;flex-basis:100%}
+  #dashboard #hangarSkillsSection .skill-tree-tier-head,
+  #dashboard #hangarSkillsSection .skill-tree-lanes{min-width:850px}
+  #dashboard #hangarSkillsSection .skill-tree-lanes{grid-template-rows:repeat(3,minmax(135px,1fr))}
+  #dashboard #hangarSkillsSection .skill-tree-branch-info{grid-template-columns:43px minmax(0,1fr);gap:10px;padding-left:15px}
+  #dashboard #hangarSkillsSection .skill-tree-branch-info>.skill-tree-icon{width:42px;height:51px}
+  #dashboard #hangarSkillsSection .skill-tree-branch-info h3{font-size:19px}
+  #dashboard #hangarSkillsSection .skill-tree-branch-info p{font-size:13px}
+  #dashboard #hangarSkillsSection .skill-tree-node-label{font-size:13px}
+  #dashboard #hangarSkillsSection .skill-tree-detail{padding:22px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-heading{grid-template-columns:86px minmax(0,1fr)}
+  #dashboard #hangarSkillsSection .skill-tree-detail-icon{width:86px;height:89px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-heading h3{font-size:25px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-rank{margin-top:15px}
+}
+@media(max-width:620px){
+  #dashboard #hangarSkillsSection .skill-tree-main{padding:14px 10px}
+  #dashboard #hangarSkillsSection .skill-tree-heading{gap:11px;margin-bottom:14px}
+  #dashboard #hangarSkillsSection .skill-tree-heading h2{font-size:24px;letter-spacing:.5px}
+  #dashboard #hangarSkillsSection .skill-tree-heading-title p{font-size:14px;letter-spacing:.4px}
+  #dashboard #hangarSkillsSection .skill-tree-points{min-height:33px;padding:6px 11px;font-size:12px}
+  #dashboard #hangarSkillsSection .skill-tree-points b,
+  #dashboard #hangarSkillsSection .skill-tree-points strong{font-size:17px}
+  #dashboard #hangarSkillsSection .skill-tree-access{gap:7px;font-size:13px}
+  #dashboard #hangarSkillsSection .skill-tree-access>.skill-tree-icon{width:22px;height:22px}
+  #dashboard #hangarSkillsSection .skill-tree-board{padding-bottom:5px}
+  #dashboard #hangarSkillsSection .skill-tree-prerequisite{align-items:flex-start;font-size:12px;gap:7px;text-align:left}
+  #dashboard #hangarSkillsSection .skill-tree-prerequisite>.skill-tree-icon{width:18px;height:18px}
+  #dashboard #hangarSkillsSection .skill-tree-detail{padding:19px 14px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-heading{grid-template-columns:65px minmax(0,1fr);gap:12px;padding:0 0 13px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-icon{width:65px;height:73px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-icon>.skill-tree-icon{width:44px;height:44px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-heading h3{font-size:21px;letter-spacing:.4px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-heading p{font-size:11px;letter-spacing:1px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-rank{font-size:13px;gap:8px;margin-top:12px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-rank .skill-tree-rank-dots{gap:6px}
+  #dashboard #hangarSkillsSection .skill-tree-detail-rank .skill-tree-rank-dots i{width:11px;height:11px}
+  #dashboard #hangarSkillsSection .skill-tree-description{font-size:14px}
+  #dashboard #hangarSkillsSection .skill-tree-detail h4{font-size:11px;letter-spacing:1.5px}
+  #dashboard #hangarSkillsSection .skill-tree-effect-box{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr);gap:5px;padding:10px 6px}
+  #dashboard #hangarSkillsSection .skill-tree-effect-box span{font-size:12px}
+  #dashboard #hangarSkillsSection .skill-tree-effect-box strong{font-size:14px}
+  #dashboard #hangarSkillsSection .skill-tree-cost-grid{padding:9px 3px}
+  #dashboard #hangarSkillsSection .skill-tree-cost-entry{gap:6px;padding:0 5px}
+  #dashboard #hangarSkillsSection .skill-tree-cost-entry>.skill-tree-icon,
+  #dashboard #hangarSkillsSection .skill-tree-cost-entry>img{width:27px;height:27px}
+  #dashboard #hangarSkillsSection .skill-tree-cost-entry strong{font-size:14px;letter-spacing:0}
+  #dashboard #hangarSkillsSection .skill-tree-cost-entry small{font-size:12px}
+  #dashboard #hangarSkillsSection .skill-tree-upgrade{min-height:49px;font-size:18px}
+  #dashboard #hangarSkillsSection .skill-tree-ranks{margin-top:20px}
+  #dashboard #hangarSkillsSection .skill-tree-rank-row{grid-template-columns:24px minmax(0,1fr) 21px;padding:7px;font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  #dashboard #hangarSkillsSection .skill-tree-node,
+  #dashboard #hangarSkillsSection .skill-tree-node-tile{transition:none}
+}

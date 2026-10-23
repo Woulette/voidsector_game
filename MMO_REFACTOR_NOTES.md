@@ -1283,3 +1283,9 @@ Mini-carte du 23 octobre 2026 : `miniMapScenery.js` affiche la capture fixe ; `m
 - Les 167 tests cibles ont reussi sur la base de production isolee. Details et preuves : `docs/HANGAR_REFONTE_2026-10-23.md`.
 
 Mini-carte panoramique : le ratio 9/20 est partage dans `miniMapLayout.js`, et les illustrations de `miniMapScenery.js` compensent la projection pour rester proportionnees. Details : `docs/MINICARTE_FORMAT_LARGE_2026-10-23.md`.
+
+## 2026-10-23 — Compétences du pilote, arbre et fiche détaillée
+
+- Le Hangar présente les trois branches et cinq paliers de la maquette validée. Tous les nœuds sont consultables ; seul le prochain rang admissible sélectionné propose la commande d'amélioration existante.
+- `skillTreeModel.js` porte la projection pure des données ; `skillTreeIcons.js` les pictogrammes ; `renderSkills.js` la sélection et le rendu ; `skillTree.css` les styles limités au Hangar. Les façades et la délégation restent fines. Aucun changement des bonus, prix, prérequis, achats serveur ou combat.
+- Validation et preuves : `docs/COMPETENCES_REFONTE_2026-10-23.md`, `output/skills-refonte-2026-10-23/`. Version frontend `20261023-skills1`.

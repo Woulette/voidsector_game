@@ -27,7 +27,7 @@ import {
 import { createCombatGame } from "./game/combat.js?v=20261022-helion-hub1";
 import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, prepareServerPortal, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=20261018-map-transfer1";
 import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=20261018-map-transfer1";
-import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=20261022-helion-hub1";
+import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderSkills, renderTop, selectSkillNode, setView } from "./ui/render.js?v=20261022-helion-hub1";
 import { showToast } from "./ui/toast.js?v=20260726-kharon1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=20260726-kharon1";
 import { createProfileController } from "./app/profileController.js?v=20260726-kharon1";
@@ -687,6 +687,11 @@ document.addEventListener("click", (e)=>{
   const droneFormationBuy = e.target.closest("[data-buy-drone-formation]");
   if(droneFormationBuy){ buyDroneFormation(droneFormationBuy.dataset.buyDroneFormation); return; }
 
+  const skillNode = e.target.closest("[data-skill-select][data-skill-node]");
+  if(skillNode){
+    if(selectSkillNode(skillNode.dataset.skillSelect, Number(skillNode.dataset.skillNode))) renderSkills();
+    return;
+  }
   const skillCard = e.target.closest("[data-unlock-skill]");
   if(skillCard){ unlockSkill(skillCard.dataset.unlockSkill); return; }
 

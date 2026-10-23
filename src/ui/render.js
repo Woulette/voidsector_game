@@ -53,7 +53,7 @@ import { FIRM_REPRESENTATIVES } from "../data/firmRepresentatives.js";
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js?v=20260726-kharon1";
 import { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
 import { updateHangarShowcase } from "./renderHangarShowcase.js?v=20261023-hangar1";
-import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261022-helion-hub1";
+import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261023-skills1";
 import { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
 import { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";
 import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
@@ -1174,7 +1174,7 @@ function renderFirmSetupGate(){
 }
 
 export { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
-export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261022-helion-hub1";
+export { renderLeaderboard, renderPortals, renderSkills, selectSkillNode } from "./renderProgression.js?v=20261023-skills1";
 export { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
 export { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";
 
