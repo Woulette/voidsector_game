@@ -460,6 +460,7 @@ export function installCombatInputHandlers({
           updateHud();
           return;
         }
+        return;
       }
       const station = getStationAt(world);
       if(station){

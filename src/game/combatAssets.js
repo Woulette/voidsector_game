@@ -1,3 +1,5 @@
+import { getMiniMapVisualDefinition } from "./combatData/miniMapVisuals.js?v=20261023-minimap4";
+
 function uniqueAssetPaths(paths){
   return [...new Set(paths.filter(Boolean))];
 }
@@ -61,6 +63,7 @@ export function getCombatMapAssetPaths(map){
   }
   return uniqueAssetPaths([
     map.bg,
+    getMiniMapVisualDefinition(map)?.image,
     ...(map.parallaxScene?.backdrops?.map(layer=>layer.src) || []),
     ...(map.parallaxScene?.images?.map(layer=>layer.src) || []),
     ...(map.parallaxScene?.tiles?.map(layer=>layer.src) || []),

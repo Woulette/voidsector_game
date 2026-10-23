@@ -1,3 +1,9 @@
+import { drawMiniMapScenery } from "./miniMapScenery.js?v=20261023-minimap4";
+import {
+  drawMiniMapFrame, drawMiniMapBorder,
+  drawMiniMapService, drawMiniMapHome, drawMiniMapPortal, drawMiniMapPilot, drawMiniMapRoute
+} from "./miniMapChrome.js?v=20261023-minimap4";
+
 const DAMAGE_TEXT_DETAIL_LIMIT = 8;
 
 export function drawDamageTexts({ctx, camera, damageTexts}){
@@ -123,15 +129,12 @@ function getDefaultMapPortals(map){
   return map.portal ? [map.portal] : [];
 }
 
-function formatCompactCoord({x, y}){
-  const shortX = Math.round(Number(x || 0) / 10);
-  const shortY = Math.round(Number(y || 0) / 10);
-  return `X ${shortX}  Y ${shortY}`;
-}
-
 export function drawMiniMap({
   ctx,
+  canvas,
+  cache,
   currentMap,
+  stations = currentMap?.spawnStations || currentMap?.questStations || [],
   player,
   enemies,
   rect,
@@ -140,47 +143,30 @@ export function drawMiniMap({
   collisionWalls = [],
   objectiveMarkers = [],
   beacons = [],
+  allies = [],
   groupPlayers = [],
   groupPingTarget = null,
   closedPortals = [],
   getMapPortals = getDefaultMapPortals
 }){
-  const {x, y, w, h} = rect;
-  const headerH = 22;
+  ctx.save();
+  const contentRect = drawMiniMapFrame({ctx, rect, currentMap, player, cache});
+  const {x, y, w, h} = contentRect;
   const sx = w/currentMap.width, sy = h/currentMap.height;
   const mapX = wx => x + (wx + currentMap.width/2)*sx;
-  const mapY = wy => y + headerH + (wy + currentMap.height/2)*((h - headerH)/currentMap.height);
+  const mapY = wy => y + (wy + currentMap.height/2)*sy;
   ctx.save();
-  ctx.fillStyle = "rgba(3,12,24,.86)";
-  ctx.strokeStyle = "rgba(56,189,248,.36)";
-  ctx.lineWidth = 1;
-  ctx.fillRect(x,y,w,h);
-  ctx.strokeRect(x,y,w,h);
-  ctx.fillStyle = "rgba(7,24,42,.88)";
-  ctx.fillRect(x, y, w, headerH);
-  ctx.fillStyle = "#8ee7ff";
-  ctx.font = "700 11px Rajdhani, Arial";
-  ctx.fillText(currentMap.displayName || currentMap.name, x+9, y+15);
-  ctx.fillStyle = "#bfefff";
-  ctx.font = "600 12px Rajdhani, Arial";
-  ctx.fillText(formatCompactCoord(player), x + 88, y + 15);
-  const minus = {x:x+w-42, y:y+4, w:16, h:14};
-  const plus = {x:x+w-22, y:y+4, w:16, h:14};
-  for(const [label, box] of [["-", minus], ["+", plus]]){
-    ctx.strokeStyle = "rgba(56,189,248,.42)";
-    ctx.fillStyle = "rgba(2,10,19,.78)";
-    ctx.fillRect(box.x, box.y, box.w, box.h);
-    ctx.strokeRect(box.x, box.y, box.w, box.h);
-    ctx.fillStyle = "#dff6ff";
-    ctx.font = "900 12px Rajdhani, Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(label, box.x + box.w / 2, box.y + 10);
-  }
-  ctx.textAlign = "left";
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.fillStyle = "#050c15"; ctx.fillRect(x, y, w, h);
+  drawMiniMapScenery({ctx, currentMap, stations, cache,
+    rect:contentRect, pixelRatio:canvas?.__dpr || 1});
 
-  ctx.strokeStyle = "rgba(56,189,248,.16)";
-  for(let i=1;i<5;i++){ ctx.beginPath(); ctx.moveTo(x+i*w/5,y+headerH); ctx.lineTo(x+i*w/5,y+h); ctx.stroke(); }
-  for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(x,y+headerH+i*(h-headerH)/4); ctx.lineTo(x+w,y+headerH+i*(h-headerH)/4); ctx.stroke(); }
+  for(const station of stations){
+    if(station.id !== "quests" && station.id !== "commerce") continue;
+    const px = Math.max(x + 8, Math.min(x + w - 8, mapX(station.x)));
+    const py = Math.max(y + 8, Math.min(y + h - 8, mapY(station.y)));
+    drawMiniMapService({ctx, x:px, y:py, kind:station.id});
+  }
 
   for(const wall of collisionWalls || []){
     const left = mapX(wall.minX);
@@ -196,7 +182,181 @@ export function drawMiniMap({
   for(const marker of objectiveMarkers || []){
     const mx = mapX(marker.x);
     const my = mapY(marker.y);
+    const markerKind = String(marker.markerKind || "");
     ctx.save();
+    if(markerKind.startsWith("prismatic_")){
+      const pulse = .5 + .5 * Math.sin(performance.now() / 135);
+      const planetColor = markerKind.endsWith("_fire")
+        ? "#fb923c"
+        : markerKind.endsWith("_water")
+          ? "#38bdf8"
+          : markerKind.endsWith("_red")
+            ? "#fb7185"
+            : "";
+      const isRift = markerKind === "prismatic_rift";
+      const isBoss = markerKind === "prismatic_boss";
+      ctx.fillStyle = isRift
+        ? "rgba(3,2,12,.98)"
+        : isBoss
+          ? "rgba(127,29,29,.98)"
+          : planetColor || "rgba(126,34,206,.98)";
+      ctx.strokeStyle = isRift ? "#d8b4fe" : isBoss ? "#fecaca" : marker.active ? "#f8fafc" : "#64748b";
+      ctx.shadowColor = isRift ? "#a855f7" : isBoss ? "#ef4444" : planetColor;
+      ctx.shadowBlur = 8 + pulse * 5;
+      ctx.globalAlpha = marker.active ? 1 : .42;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(mx, my, isBoss ? 8 + pulse * 2 : isRift ? 8 + pulse * 2 : 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      if(isRift){
+        ctx.setLineDash([4, 3]);
+        ctx.lineDashOffset = -performance.now() / 40;
+        ctx.beginPath();
+        ctx.arc(mx, my, 12 + pulse * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 9px Rajdhani, Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(marker.number || ""), mx, my + .5);
+      ctx.restore();
+      continue;
+    }
+    if(markerKind.startsWith("nox_")){
+      const pulse = .5 + .5 * Math.sin(performance.now() / 145);
+      if(markerKind === "nox_shield"){
+        const radius = Math.max(
+          8,
+          Number(marker.radius || 0) * Math.min(sx, sy)
+        );
+        ctx.fillStyle = marker.active ? "rgba(34,211,238,.10)" : "rgba(127,29,29,.08)";
+        ctx.strokeStyle = marker.active ? `rgba(103,232,249,${.66 + pulse * .28})` : "#ef4444";
+        ctx.shadowColor = marker.active ? "#22d3ee" : "#ef4444";
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = 2;
+        ctx.setLineDash(marker.active ? [5, 3] : [3, 5]);
+        ctx.beginPath();
+        ctx.arc(mx, my, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+        continue;
+      }
+      const isCore = markerKind === "nox_core";
+      const color = isCore
+        ? "#c084fc"
+        : markerKind === "nox_laser"
+          ? "#22d3ee"
+          : markerKind === "nox_missile"
+            ? "#fbbf24"
+            : "#e879f9";
+      ctx.globalAlpha = marker.active ? 1 : .45;
+      ctx.fillStyle = marker.active ? color : "#7f1d1d";
+      ctx.strokeStyle = marker.active ? "#f8fafc" : "#fecaca";
+      ctx.shadowColor = marker.active ? color : "#ef4444";
+      ctx.shadowBlur = 7 + pulse * 4;
+      ctx.lineWidth = 1.5;
+      if(isCore){
+        ctx.beginPath();
+        ctx.arc(mx, my, 8 + pulse * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }else{
+        ctx.translate(mx, my);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillRect(-5.5, -5.5, 11, 11);
+        ctx.strokeRect(-5.5, -5.5, 11, 11);
+        ctx.rotate(-Math.PI / 4);
+        ctx.translate(-mx, -my);
+      }
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `900 ${isCore ? 9 : 8}px Rajdhani, Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(marker.number || ""), mx, my + .5);
+      ctx.restore();
+      continue;
+    }
+    if(markerKind.startsWith("ancient_")){
+      const pulse = .5 + .5 * Math.sin(performance.now() / 125);
+      const isBomb = markerKind === "ancient_bomb";
+      const isAngel = markerKind === "ancient_angel";
+      const isTalisman = markerKind === "ancient_talisman" || markerKind === "ancient_beacon";
+      const isRift = markerKind === "ancient_rift";
+      const isGod = markerKind === "ancient_god";
+      const color = isBomb
+        ? "#ef4444"
+        : isAngel
+          ? "#fef3c7"
+          : isTalisman
+            ? "#fbbf24"
+            : isRift
+              ? "#c084fc"
+              : isGod
+                ? "#ffffff"
+                : markerKind === "ancient_room_discovered"
+                  ? "#f97316"
+                  : "#7c2d12";
+      ctx.globalAlpha = marker.active === false ? .44 : 1;
+      ctx.fillStyle = isRift ? "rgba(20,3,35,.98)" : color;
+      ctx.strokeStyle = isBomb ? "#fecaca" : isGod || isAngel ? "#ffffff" : "#ffedd5";
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 7 + pulse * 5;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      if(isTalisman){
+        ctx.rect(mx - 6, my - 6, 12, 12);
+      }else{
+        ctx.arc(mx, my, isBomb || isGod || isRift ? 8 + pulse * 1.6 : 7, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.stroke();
+      if(isRift || isGod){
+        ctx.setLineDash([3, 3]);
+        ctx.lineDashOffset = -performance.now() / 45;
+        ctx.beginPath();
+        ctx.arc(mx, my, 12 + pulse * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = isRift ? "#f5d0fe" : "#1c0a08";
+      if(isBomb || markerKind === "ancient_room_unknown") ctx.fillStyle = "#ffffff";
+      ctx.font = "900 9px Rajdhani, Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(marker.number || ""), mx, my + .5);
+      ctx.restore();
+      continue;
+    }
+    if(markerKind === "vesper_boss"){
+      const pulse = .5 + .5 * Math.sin(performance.now() / 120);
+      ctx.fillStyle = "rgba(127,29,29,.98)";
+      ctx.strokeStyle = "#fecaca";
+      ctx.shadowColor = "rgba(239,68,68,.95)";
+      ctx.shadowBlur = 8 + pulse * 5;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(mx, my, 8 + pulse * 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#fff1f2";
+      ctx.font = "900 10px Rajdhani, Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("!", mx, my + .5);
+      ctx.restore();
+      continue;
+    }
     ctx.fillStyle = marker.active
       ? "rgba(34,197,94,.98)"
       : marker.unlocked
@@ -206,10 +366,15 @@ export function drawMiniMap({
     ctx.shadowColor = "rgba(56,189,248,.92)";
     ctx.shadowBlur = 7;
     ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(mx, my, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    if(markerKind === "vesper_cage"){
+      ctx.fillRect(mx - 6, my - 6, 12, 12);
+      ctx.strokeRect(mx - 6, my - 6, 12, 12);
+    }else{
+      ctx.beginPath();
+      ctx.arc(mx, my, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
     ctx.shadowBlur = 0;
     ctx.fillStyle = "#f8fafc";
     ctx.font = "900 9px Rajdhani, Arial";
@@ -221,7 +386,7 @@ export function drawMiniMap({
   for(const beacon of beacons || []){
     const bx = mapX(beacon.x);
     const by = mapY(beacon.y);
-    const radius = Math.max(4, Number(beacon.radius || 250) * Math.min(sx, (h - headerH) / currentMap.height));
+    const radius = Math.max(4, Number(beacon.radius || 250) * Math.min(sx, sy));
     ctx.save();
     ctx.strokeStyle = "rgba(56,189,248,.95)";
     ctx.fillStyle = "rgba(14,165,233,.22)";
@@ -236,12 +401,38 @@ export function drawMiniMap({
   }
 
   if(currentMap.spawn && currentMap.spawn.kind !== "portal"){
-    ctx.fillStyle = "rgba(86,255,79,.55)";
-    ctx.beginPath(); ctx.arc(mapX(currentMap.spawn.x),mapY(currentMap.spawn.y),5,0,Math.PI*2); ctx.fill();
+    drawMiniMapHome({ctx, x:mapX(currentMap.spawn.x), y:mapY(currentMap.spawn.y)});
   }
   for(const portal of getMapPortals(currentMap)){
-    ctx.fillStyle = "rgba(168,85,247,.95)";
-    ctx.beginPath(); ctx.arc(mapX(portal.x),mapY(portal.y),5,0,Math.PI*2); ctx.fill();
+    const px = mapX(portal.x);
+    const py = mapY(portal.y);
+    if(portal?.prepared || portal?.dungeonPortal){
+      const pulse = .5 + .5 * Math.sin(performance.now() / 180);
+      ctx.save();
+      ctx.fillStyle = "rgba(168,85,247,.98)";
+      ctx.strokeStyle = "#f5d0fe";
+      ctx.shadowColor = "rgba(216,180,254,.98)";
+      ctx.shadowBlur = 9 + pulse * 5;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(px, py, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(216,180,254,${.55 + pulse * .4})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(px, py, 11 + pulse * 3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 5;
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 9px Rajdhani, Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("PORTAIL", px, py - 13);
+      ctx.restore();
+      continue;
+    }
+    drawMiniMapPortal({ctx, x:px, y:py});
   }
   for(const portal of closedPortals || []){
     const px = mapX(portal.x);
@@ -262,24 +453,48 @@ export function drawMiniMap({
     ctx.stroke();
     ctx.restore();
   }
-  ctx.strokeStyle = "rgba(56,189,248,.25)";
+  ctx.strokeStyle = "rgba(126,219,242,.24)";
+  ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(mapX(player.x),mapY(player.y),Math.max(5,player.radar*sx),0,Math.PI*2); ctx.stroke();
   if(moveTarget){
-    ctx.strokeStyle = "rgba(250,204,21,.85)";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5,4]);
-    ctx.beginPath();
-    ctx.moveTo(mapX(player.x), mapY(player.y));
-    ctx.lineTo(mapX(moveTarget.x), mapY(moveTarget.y));
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = "rgba(250,204,21,.95)";
-    ctx.beginPath(); ctx.arc(mapX(moveTarget.x), mapY(moveTarget.y),4,0,Math.PI*2); ctx.fill();
+    drawMiniMapRoute({ctx, fromX:mapX(player.x), fromY:mapY(player.y),
+      toX:mapX(moveTarget.x), toY:mapY(moveTarget.y)});
   }
   for(const e of enemies){
     if(!revealAllEnemies && Math.hypot(e.x-player.x,e.y-player.y) > player.radar) continue;
-    ctx.fillStyle = "#ef4444";
-    ctx.fillRect(mapX(e.x)-2,mapY(e.y)-2,4,4);
+    const renderMode = String(e?.renderMode || "");
+    if(renderMode === "vesper_cage" || renderMode === "prismatic_planet" || renderMode === "prismatic_boss") continue;
+    const ex = mapX(e.x);
+    const ey = mapY(e.y);
+    ctx.fillStyle = renderMode === "vesper_turret" ? "#fb923c" : "#ef4444";
+    const size = renderMode === "vesper_boss" ? 7 : renderMode === "vesper_turret" ? 5 : 4;
+    ctx.fillRect(ex - size / 2, ey - size / 2, size, size);
+    if(renderMode === "vesper_boss"){
+      ctx.strokeStyle = "#fecaca";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(ex, ey, 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  for(const ally of allies || []){
+    if(ally?.alive === false || Number(ally?.hp || 0) <= 0) continue;
+    const ax = mapX(ally.x);
+    const ay = mapY(ally.y);
+    ctx.save();
+    const isNoxDrone = String(ally?.renderMode || "") === "nox_ally_drone";
+    ctx.fillStyle = isNoxDrone ? "#7e22ce" : "#dc2626";
+    ctx.strokeStyle = isNoxDrone ? "#e9d5ff" : "#fee2e2";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay - 5);
+    ctx.lineTo(ax + 5, ay);
+    ctx.lineTo(ax, ay + 5);
+    ctx.lineTo(ax - 5, ay);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
   }
   for(const remote of groupPlayers || []){
     const state = remote.state;
@@ -314,7 +529,8 @@ export function drawMiniMap({
     ctx.fillText(String(remote.name || "ALLY").slice(0, 8).toUpperCase(), gx, gy - 9);
     ctx.restore();
   }
-  ctx.fillStyle = "#38bdf8";
-  ctx.beginPath(); ctx.arc(mapX(player.x),mapY(player.y),4,0,Math.PI*2); ctx.fill();
+  drawMiniMapPilot({ctx, x:mapX(player.x), y:mapY(player.y), angle:player.angle});
+  ctx.restore();
+  drawMiniMapBorder({ctx, rect:contentRect});
   ctx.restore();
 }

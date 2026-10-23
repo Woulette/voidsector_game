@@ -1272,3 +1272,6 @@ Checks effectues :
 - `npm test` dans `server/` : 433/433 OK ;
 - verification visuelle locale a 1280x720 : OK ;
 - `git diff --check` : OK, uniquement des avertissements CRLF.
+
+
+Mini-carte du 23 octobre 2026 : `miniMapScenery.js` affiche la capture fixe ; `miniMapChrome.js` dessine le cadre et la planete du secteur. `miniMapLayout.js` partage les proportions et les clics entre le rendu et `minimapState.js`. Details : `docs/MINICARTE_REPERES_VISUELS_2026-10-23.md`.

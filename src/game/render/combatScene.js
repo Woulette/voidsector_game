@@ -1,4 +1,4 @@
-import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./canvasHud.js?v=level-up-2";
+import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./canvasHud.js?v=20261023-minimap4";
 import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=level-up-3";
 import { drawPlayerLayer } from "./player.js?v=elite-lasers-1";
 import { drawPortalTransitionOverlay } from "./portalTransition.js?v=action-slots-save-1-fps-burst-1";
@@ -108,7 +108,9 @@ export function createCombatSceneRenderer({
     drawMiniMapCanvas({
       ctx,
       canvas,
+      cache,
       currentMap,
+      stations:getSpawnStations?.() || [],
       player,
       enemies,
       rect:miniMap.rect(),
