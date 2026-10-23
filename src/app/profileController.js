@@ -94,10 +94,10 @@ export function createProfileController({
     const localActionSlotsByShip = normalizeActionSlotsByShip(store.state.actionSlotsByShip || {});
     const localLastLaserAmmoId = store.state.lastLaserAmmoId;
     const localSelectedShip = store.state.selectedShip;
+    const localOwnedShips = store.state.ownedShips;
     const incomingOwnedShips = Array.isArray(profile.ownedShips) ? profile.ownedShips.map(String) : null;
     const keepLocalSelectedShip = store.currentView === "hangar"
       && store.hangarTab === "vaisseau"
-      && store.hangarDetailOpen
       && typeof localSelectedShip === "string"
       && (incomingOwnedShips ? incomingOwnedShips.includes(localSelectedShip) : store.state.ownedShips.includes(localSelectedShip));
     if(profile.player) store.state.player = {...store.state.player, ...clone(profile.player)};
@@ -172,9 +172,16 @@ export function createProfileController({
     store.state.craftingJob = profile.craftingJob ? clone(profile.craftingJob) : null;
     if(Number.isFinite(Number(profile.refineryLastTick))) store.state.refineryLastTick = Number(profile.refineryLastTick);
     if(keepLocalSelectedShip) store.state.selectedShip = localSelectedShip;
+    else if(incomingOwnedShips && !store.state.ownedShips.includes(store.state.selectedShip)){
+      store.state.selectedShip = store.state.ownedShips.includes(store.state.activeShip)
+        ? store.state.activeShip : store.state.ownedShips[0] || null;
+    }
     store.state.mmoProfileUpdatedAt = incomingVersion || Number(store.state.mmoProfileUpdatedAt || 0) || Date.now();
     const uiChanges = getProfileUiChanges(uiBefore, captureProfileUiState(store.state));
-    const hasUiChanges = hasProfileUiChanges(uiChanges);
+    const hangarShipsChanged = store.currentView === "hangar" && store.hangarTab === "vaisseau"
+      && (localSelectedShip !== store.state.selectedShip
+        || (incomingOwnedShips && JSON.stringify(localOwnedShips) !== JSON.stringify(store.state.ownedShips)));
+    const hasUiChanges = hasProfileUiChanges(uiChanges) || hangarShipsChanged;
     saveState();
     if(keepLocalPreferences) syncMultiplayerProfile(store.state);
     else syncMultiplayerProfile(store.state, {serverApplied:true});

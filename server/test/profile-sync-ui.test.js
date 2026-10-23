@@ -23,6 +23,72 @@ function changes(before, after){
   return getProfileUiChanges(captureProfileUiState(before), captureProfileUiState(after));
 }
 
+function withShipSelection(run,{appMode="launcher",currentView="hangar",hangarDetailOpen=false}={}){
+  const originals={window:globalThis.window,localStorage:globalThis.localStorage,CustomEvent:globalThis.CustomEvent};
+  globalThis.localStorage={getItem:()=>null,setItem(){}};
+  globalThis.CustomEvent=class {constructor(type,options={}){this.type=type;this.detail=options.detail;}};
+  globalThis.window={dispatchEvent(){}};
+  const store={state:{...baseState(),ownedShips:["orion","velox"],selectedShip:"velox"},currentView,hangarTab:"vaisseau",hangarDetailOpen};
+  let renders=0,topRenders=0;
+  const controller=createProfileController({
+    store,game:{running:appMode==="game",refreshActiveLoadout(){},updateHud(){}},appMode,
+    profileScopeStorageKey:"test-profile-scope",getXpNextForLevel:()=>3000,xpCurveVersion:1,
+    ensureShipLoadout(){},setStateStorageScope(){},loadState(){},saveState(){},syncMultiplayerProfile(){},
+    renderAll(){renders++;},renderTop(){topRenders++;},showToast(){}
+  });
+  try{run({store,controller,renders:()=>renders,topRenders:()=>topRenders});}
+  finally{
+    for(const [name,original] of Object.entries(originals)){
+      if(original===undefined)delete globalThis[name];
+      else globalThis[name]=original;
+    }
+  }
+}
+
+test("profile sync keeps an owned preview selected while applying authoritative active ship and balances",()=>{
+  for(const hangarDetailOpen of [false,true]){
+    withShipSelection(({store,controller,renders,topRenders})=>{
+      for(let revision=1;revision<=3;revision++){
+        controller.applyServerProfile({updatedAt:revision,selectedShip:"orion",activeShip:"orion",ownedShips:["orion","velox"],
+          player:{credits:revision*5000}});
+        assert.equal(store.state.selectedShip,"velox");
+        assert.equal(store.state.activeShip,"orion","preview selection cannot equip a ship");
+        assert.equal(store.state.player.credits,revision*5000);
+        assert.equal(store.hangarDetailOpen,hangarDetailOpen,"profile updates do not open or close an inventory");
+      }
+      assert.equal(renders(),0,"unchanged owned preview must not rebuild the focused button");
+      assert.equal(topRenders(),3);
+    },{hangarDetailOpen});
+  }
+});
+
+test("removing the previewed ship falls back to an owned ship and refreshes the visible hangar",()=>{
+  withShipSelection(({store,controller,renders})=>{
+    controller.applyServerProfile({updatedAt:2,activeShip:"orion",ownedShips:["orion"]});
+    assert.equal(store.state.selectedShip,"orion");
+    assert.deepEqual(store.state.ownedShips,["orion"]);
+    assert.equal(store.state.activeShip,"orion");
+    assert.equal(renders(),1,"ownership-only updates must refresh the list and selected stats");
+  });
+});
+
+test("owned ship list changes refresh the showcase without changing a still-owned selection",()=>{
+  withShipSelection(({store,controller,renders})=>{
+    controller.applyServerProfile({updatedAt:2,selectedShip:"orion",activeShip:"orion",ownedShips:["orion","velox","razorion"]});
+    assert.equal(store.state.selectedShip,"velox");
+    assert.equal(store.state.activeShip,"orion");
+    assert.equal(renders(),1);
+  });
+});
+
+test("game profile synchronization applies the server's active ship independently of launcher previews",()=>{
+  withShipSelection(({store,controller})=>{
+    controller.applyServerProfile({updatedAt:2,selectedShip:"orion",activeShip:"orion",ownedShips:["orion","velox"]});
+    assert.equal(store.state.selectedShip,"orion");
+    assert.equal(store.state.activeShip,"orion");
+  },{appMode:"game",currentView:"game"});
+});
+
 test("repeated monster reward profile syncs do not rebuild combat UI", ()=>{
   let previous = baseState();
   for(let kill = 1; kill <= 100; kill += 1){
@@ -485,6 +551,7 @@ test("profile sync keeps newer local action slots when stale server profile arri
       actionSlots:[...localSlots],
       actionSlotsByShip:{razorion:[...localSlots]},
       lastLaserAmmoId:"ammo_x2",
+      actionSlotsUpdatedAt:2000,
       mmoProfileUpdatedAt:2000
     },
     currentView:"game",
@@ -522,7 +589,7 @@ test("profile sync keeps newer local action slots when stale server profile arri
     assert.deepEqual(store.state.actionSlotsByShip.razorion, localSlots);
     assert.equal(store.state.actionSlotsUpdatedAt, 2000);
     assert.equal(store.state.lastLaserAmmoId, "ammo_x2");
-    assert.equal(store.state.mmoProfileUpdatedAt, 2000);
+    assert.equal(store.state.mmoProfileUpdatedAt, 1000);
     assert.equal(syncedProfiles.length, 1);
     assert.deepEqual(syncedProfiles[0].actionSlotsByShip.razorion, localSlots);
   }finally{
@@ -593,9 +660,76 @@ test("profile sync keeps newer local action slots when only the server profile t
     assert.deepEqual(store.state.actionSlotsByShip.razorion, localSlots);
     assert.equal(store.state.actionSlotsUpdatedAt, 2000);
     assert.equal(store.state.lastLaserAmmoId, "ammo_x2");
-    assert.equal(store.state.mmoProfileUpdatedAt, 2000);
+    assert.equal(store.state.mmoProfileUpdatedAt, 5000);
     assert.equal(syncedProfiles.length, 1);
     assert.deepEqual(syncedProfiles[0].actionSlotsByShip.razorion, localSlots);
+  }finally{
+    globalThis.window = previousWindow;
+    globalThis.localStorage = previousLocalStorage;
+    globalThis.CustomEvent = previousCustomEvent;
+  }
+});
+
+test("an explicit save conflict applies canonical server slots while the game is running", ()=>{
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousCustomEvent = globalThis.CustomEvent;
+  globalThis.localStorage = {getItem:()=>null, setItem(){}};
+  globalThis.CustomEvent = class {
+    constructor(type, options = {}){
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+  globalThis.window = {dispatchEvent(){}};
+  const localSlots = ["ammo_x2", null, null, null, null, null, null, null, "extra_repair_starter"];
+  const canonicalSlots = ["ammo_x1", null, null, null, null, null, null, null, "extra_repair_starter"];
+  const syncCalls = [];
+  const store = {
+    state:{
+      ...baseState(),
+      actionSlots:[...localSlots],
+      actionSlotsByShip:{orion:[...localSlots]},
+      actionSlotsUpdatedAt:2000,
+      mmoProfileUpdatedAt:1000,
+      lastLaserAmmoId:"ammo_x2"
+    },
+    currentView:"game",
+    hangarTab:"vaisseau",
+    hangarDetailOpen:false
+  };
+  const controller = createProfileController({
+    store,
+    game:{running:true, refreshActiveLoadout(){}, updateHud(){}},
+    appMode:"game",
+    profileScopeStorageKey:"test-profile-scope",
+    getXpNextForLevel:()=>3000,
+    xpCurveVersion:1,
+    ensureShipLoadout(){},
+    setStateStorageScope(){},
+    loadState(){},
+    saveState(){},
+    syncMultiplayerProfile:(state, options)=>syncCalls.push({state:structuredClone(state), options}),
+    renderAll(){},
+    showToast(){}
+  });
+  try{
+    controller.applyServerProfile({
+      profileSyncReason:"profile-save-conflict",
+      updatedAt:3000,
+      actionSlotsUpdatedAt:2000,
+      activeShip:"orion",
+      actionSlots:[...canonicalSlots],
+      actionSlotsByShip:{orion:[...canonicalSlots]},
+      lastLaserAmmoId:"ammo_x1"
+    });
+
+    assert.deepEqual(store.state.actionSlots, canonicalSlots);
+    assert.deepEqual(store.state.actionSlotsByShip.orion, canonicalSlots);
+    assert.equal(store.state.lastLaserAmmoId, "ammo_x1");
+    assert.equal(store.state.actionSlotsUpdatedAt, 2000);
+    assert.equal(store.state.mmoProfileUpdatedAt, 3000);
+    assert.deepEqual(syncCalls[0]?.options, {serverApplied:true});
   }finally{
     globalThis.window = previousWindow;
     globalThis.localStorage = previousLocalStorage;

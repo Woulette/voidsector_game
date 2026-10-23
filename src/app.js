@@ -467,8 +467,30 @@ document.addEventListener("click", (e)=>{
   if(inventorySaleController.handleClick(e)) return;
   if(unequipAllController.handleClick(e)) return;
 
+  const showcaseSelection = e.target.closest("[data-hangar-select-ship]");
+  if(showcaseSelection){
+    const shipId = showcaseSelection.dataset.hangarSelectShip;
+    if(!store.state.ownedShips.includes(shipId)) return;
+    store.hangarTab = "vaisseau";
+    store.state.selectedShip = shipId;
+    store.hangarDetailOpen = false;
+    saveState();
+    renderAllPreserveScroll();
+    return;
+  }
+
+  const showcaseEquip = e.target.closest("[data-hangar-equip-ship]");
+  if(showcaseEquip){
+    const shipId = showcaseEquip.dataset.hangarEquipShip;
+    if(!store.state.ownedShips.includes(shipId)) return;
+    store.state.selectedShip = shipId;
+    equipSelectedShip();
+    return;
+  }
+
   const shipCard = e.target.closest("[data-ship-id]");
   if(shipCard){
+    if(shipCard.classList.contains("hangar-owned-card")) return;
     store.hangarTab = "vaisseau";
     store.state.selectedShip = shipCard.dataset.shipId;
     store.hangarDetailOpen = true;
@@ -480,7 +502,7 @@ document.addEventListener("click", (e)=>{
   const hangarTab = e.target.closest("[data-hangar-tab]");
   if(hangarTab){
     store.hangarTab = hangarTab.dataset.hangarTab === "extra" ? "vaisseau" : hangarTab.dataset.hangarTab;
-    if(store.hangarTab === "vaisseau" && store.state.selectedShip) store.hangarDetailOpen = true;
+    if(store.hangarTab === "vaisseau") store.hangarDetailOpen = false;
     saveState();
     renderAll();
     return;

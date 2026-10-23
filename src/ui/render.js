@@ -2,6 +2,7 @@ import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatal
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
 import { betaLaunchMessage, betaPacks, betaRewardCalendar, creditCurrencyPacks, getBetaRewardStatus, getPremiumRewardStatus, hasBetaPackPurchase, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js?v=20260726-kharon1";
 import { fmt } from "../core/utils.js";
+import { updateLauncherCurrency } from "./launcherCurrency.js?v=20261023-hangar1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js?v=20260726-kharon1";
 import {
   RANK_TABLE,
@@ -51,6 +52,7 @@ import { FIRM_REPRESENTATIVES } from "../data/firmRepresentatives.js";
 
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js?v=20260726-kharon1";
 import { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
+import { updateHangarShowcase } from "./renderHangarShowcase.js?v=20261023-hangar1";
 import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261022-helion-hub1";
 import { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
 import { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";
@@ -117,13 +119,14 @@ export function renderTop(){
   const rankProgress = getRankProgress();
   const nextRank = getNextRank();
   document.getElementById("pilotName").textContent = state.player.name;
+  document.getElementById("pilotName").title = state.player.name;
   document.getElementById("levelText").textContent = fmt(state.player.level);
   document.getElementById("xpText").textContent = `XP ${fmt(state.player.xp)} / ${fmt(state.player.xpNext)}`;
   document.getElementById("xpFill").style.width = `${Math.min(100, state.player.xp / state.player.xpNext * 100)}%`;
   const pilotPlayTime = document.getElementById("pilotPlayTime");
   if(pilotPlayTime) pilotPlayTime.textContent = formatDuration(state.player.totalPlaySeconds);
-  document.getElementById("creditsValue").textContent = fmt(state.player.credits);
-  document.getElementById("premiumValue").textContent = fmt(state.player.premium);
+  updateLauncherCurrency(document.getElementById("creditsValue"), state.player.credits, "crédits");
+  updateLauncherCurrency(document.getElementById("premiumValue"), state.player.premium, "NOVA");
   const pilotRankIcon = document.getElementById("pilotRankIcon");
   if(pilotRankIcon){
     pilotRankIcon.src = getRankAssetPath(rank);
@@ -176,23 +179,18 @@ export function renderShips(){
   const grid = document.getElementById("shipGrid");
   if(!grid) return;
   const list = state.ownedShips
-    .map(getShip)
+    .map(id=>ships.find(ship=>ship.id === id))
     .filter(ship=>ship && canAccountRoleAccessShip(ship, multiplayer.auth.account?.role));
-  grid.innerHTML = list.map(ship=>{
-    const active = state.activeShip === ship.id;
-    const selected = state.selectedShip === ship.id;
-    const loadout = getLoadout(ship.id);
-    return `<article class="ship-card ${rarityClass(ship)} ${selected ? "selected" : ""} ${active ? "active" : ""}" data-ship-id="${ship.id}">
-      <span class="badge">${active ? "ACTIF" : selected ? "SÉLECTIONNÉ" : "POSSÉDÉ"}</span>
-      <span class="badge rarity-badge">${escapeHtml(getRarityLabel(ship))}</span>
-      <img src="${ship.img}" alt="${ship.name}">
-      <div class="ship-meta">
-        <div><h3>${ship.name}</h3></div>
-        <span class="badge">${loadout.lasers.filter(Boolean).length}/${ship.stats.maxLasers} lasers</span>
-      </div>
-      <button class="ship-open-button" type="button">Ouvrir l'inventaire</button>
-    </article>`;
-  }).join("");
+  const count = new Set(list.map(ship=>ship.id)).size;
+  const countNode = document.getElementById("hangarOwnedCount");
+  if(countNode) countNode.textContent = `${fmt(count)} vaisseau${count > 1 ? "x" : ""} possédé${count > 1 ? "s" : ""}`;
+  updateHangarShowcase(grid, {
+    ownedShips:list,
+    selectedShipId:state.selectedShip,
+    activeShipId:state.activeShip,
+    getStats:getShipCombatStats,
+    getLoadout
+  });
 }
 
 export function renderSelectedShip(){

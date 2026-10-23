@@ -1275,3 +1275,9 @@ Checks effectues :
 
 
 Mini-carte du 23 octobre 2026 : `miniMapScenery.js` affiche la capture fixe ; `miniMapChrome.js` dessine le cadre et la planete du secteur. `miniMapLayout.js` partage les proportions et les clics entre le rendu et `minimapState.js`. Details : `docs/MINICARTE_REPERES_VISUELS_2026-10-23.md`.
+
+## Interface du lanceur - Hangar (23 octobre 2026)
+
+- Version publique `20261023-hangar1` : en-tete et hangar graphiques, sans modification du rendu de combat ni de l economie.
+- Les 11 fichiers publies ont ete verifies par leurs hashes HTTPS ; le processus serveur est reste inchange.
+- Les 167 tests cibles ont reussi sur la base de production isolee. Details et preuves : `docs/HANGAR_REFONTE_2026-10-23.md`.

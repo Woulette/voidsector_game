@@ -110,10 +110,13 @@ function storageProgress(state){
 
 function navigation(selector,hint,when){ return {selector,hint,...(when ? {when} : {})}; }
 function hangarGuide(shipId, target, hint){
+  const shipName = SHIP_NAMES.get(shipId) || shipId;
   return [
     ...(target === ".rpg-inventory-grid" ? [navigation('[data-inventory-filter="equipment"]',"Affiche les équipements dans l'inventaire.",state=>shipOpen(state,shipId) && visible('[data-inventory-filter="resources"].active'))] : []),
     ...(target ? [navigation(target,hint,state=>shipOpen(state,shipId))] : []),
-    navigation(`[data-ship-id="${shipId}"]`,`Clique sur ton ${SHIP_NAMES.get(shipId) || shipId}.`),
+    navigation(`.ship-open-button[data-ship-id="${shipId}"]`,`Ouvre l'inventaire de ton ${shipName}.`,state=>state?.selectedShip === shipId),
+    navigation(`[data-hangar-select-ship="${shipId}"]`,`Sélectionne ton ${shipName}.`),
+    navigation(`[data-ship-id="${shipId}"]`,`Clique sur ton ${shipName}.`),
     navigation("#backToShipsBtn","Reviens à la liste des vaisseaux."),
     navigation('[data-hangar-tab="vaisseau"]',"Ouvre l'onglet Vaisseau."),
     navigation('[data-view="hangar"]',"Ouvre le hangar.")
@@ -172,7 +175,7 @@ export function getTutorialRecovery(state,step){
   }
   if(requiresVelox && state?.activeShip !== "velox"){
     return recovery("Reprendre le Velox","Active le Velox.",
-      "Ouvre sa fiche, puis clique sur ÉQUIPER.",
+      "Ouvre son inventaire, puis clique sur ÉQUIPER.",
       hangarGuide("velox","#selectedShipAction","Clique sur ÉQUIPER."));
   }
   const requiredLasers = step === "game_use_repair_drone" ? 0 : fullKit ? 3 : 1;
@@ -284,7 +287,7 @@ export function createTutorialStages({playerName = "pilote",firmId = "astra"} = 
     world:hq,arrowMode:"player-direction",condition:(_state,snapshot)=>Boolean(snapshot?.atDestinationMap) && Number(snapshot?.target?.distance ?? Infinity)<520
   });
   return {
-    launcher_orion:stage(1,"launcher","Bienvenue chez "+firm.label,"Clique sur ton Orion.",{
+    launcher_orion:stage(1,"launcher","Bienvenue chez "+firm.label,"Sélectionne ton Orion, puis ouvre son inventaire.",{
       dialogue:true,handoff:true,selector:'[data-ship-id="orion"]',guideSteps:hangarGuide("orion"),
       message:`Bienvenue, ${playerName}. Je suis ${representative.name}, ${representative.title}.`,
       condition:state=>shipOpen(state,"orion")
@@ -360,7 +363,7 @@ export function createTutorialStages({playerName = "pilote",firmId = "astra"} = 
     launcher_open_hangar:stage(3,"launcher","Retour au hangar","Retourne au hangar.",{
       selector:'[data-view="hangar"]',condition:()=>viewOpen("hangar")
     }),
-    launcher_open_orion:stage(3,"launcher","Libérer l'équipement de l'Orion","Ouvre la fiche de l'Orion.",{
+    launcher_open_orion:stage(3,"launcher","Libérer l'équipement de l'Orion","Ouvre l'inventaire de l'Orion.",{
       selector:'[data-ship-id="orion"]',guideSteps:hangarGuide("orion"),
       condition:state=>loadoutIsEmpty(state,"orion") || shipOpen(state,"orion")
     }),
@@ -370,7 +373,7 @@ export function createTutorialStages({playerName = "pilote",firmId = "astra"} = 
       guideSteps:[navigation("[data-unequip-all-confirm]","Confirme le déséquipement de l'Orion.",state=>state?.selectedShip === "orion"),...hangarGuide("orion","#unequipAllShipBtn","Déséquipe l'Orion.")],
       condition:state=>loadoutIsEmpty(state,"orion")
     }),
-    launcher_open_velox:stage(3,"launcher","Préparer le Velox","Ouvre la fiche du Velox.",{
+    launcher_open_velox:stage(3,"launcher","Préparer le Velox","Ouvre l'inventaire du Velox.",{
       selector:'[data-ship-id="velox"]',guideSteps:hangarGuide("velox"),condition:state=>shipOpen(state,"velox")
     }),
     launcher_equip_velox:stage(3,"launcher","Activer le Velox","Clique sur ÉQUIPER pour activer le Velox.",{
