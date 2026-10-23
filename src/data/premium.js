@@ -4,6 +4,7 @@ export const PREMIUM_REPAIR_BOT_MULTIPLIER = 1.5;
 export const PREMIUM_REFINERY_SHIPMENT_DURATION_MULTIPLIER = 0.5;
 export const PREMIUM_LOGOUT_DELAY_MS = 5000;
 export const PREMIUM_REWARD_DAYS = 28;
+export const BETA_STORE_ONLY = true;
 
 export const premiumFeatureList = [
   "-5% sur tous les prix en NOVA",
@@ -58,11 +59,12 @@ export const storeTabs = [
 
 export const betaLaunchMessage = "Pendant la beta, ces packs a prix reduit servent a tester vite le contenu. Tous les joueurs qui contribuent recevront un pack gratuit lors du lancement officiel, adapte au pack beta achete.";
 
+// Keep these historical purchase IDs stable when pack names or contents change.
 export const betaPacks = [
   {
     id:"beta_valkyrie",
     name:"Pack Beta Valkyrie",
-    price:"0,99 EUR",
+    price:"1,49 EUR",
     tag:"BETA I",
     img:"assets/ships/Valkyrie.png?v=20260726-kharon1",
     desc:"Pack beta abordable pour demarrer les tests avec un vrai vaisseau de progression.",
@@ -76,14 +78,14 @@ export const betaPacks = [
   },
   {
     id:"beta_astralis",
-    name:"Pack Beta Astralis",
-    price:"2,99 EUR",
+    name:"Pack Beta Razorion",
+    price:"4,99 EUR",
     tag:"BETA II",
-    img:"assets/ships/Astralis.png",
-    desc:"Pack beta avance pour tester un Astralis bien equipe et une reserve NOVA de depart.",
+    img:"assets/ships/Razorion.png",
+    desc:"Pack beta avance pour tester un Razorion bien equipe et une reserve NOVA de depart.",
     officialReward:"Lancement officiel : 1 mois Premium offert.",
     contents:[
-      {label:"Vaisseau Astralis", quantity:"x1", img:"assets/ships/Astralis.png", kind:"ship"},
+      {label:"Vaisseau Razorion", quantity:"x1", img:"assets/ships/Razorion.png", kind:"ship"},
       {label:"Canon Laser MK-IV", quantity:"x5", img:"assets/equipment/laser_mk4_slot_v2.png", kind:"equipment"},
       {label:"Canon Laser MK-III", quantity:"x3", img:"assets/equipment/laser_mk3_slot_v2.png", kind:"equipment"},
       {label:"Generateur A II", quantity:"x5", img:"assets/equipment/generator_shield_omega.png", kind:"equipment"},
@@ -94,21 +96,16 @@ export const betaPacks = [
   },
   {
     id:"beta_commander",
-    name:"Pack Beta Commandant",
+    name:"Pack Beta Astralis",
     price:"9,99 EUR",
     tag:"BETA III",
-    img:"assets/ships/Vesperion.png",
-    desc:"Pack beta complet avec vaisseau premium au choix et de quoi tester le contenu haut niveau.",
+    img:"assets/ships/Astralis.png",
+    desc:"Pack beta complet avec un Astralis equipe et de quoi tester le contenu haut niveau.",
     officialReward:"Lancement officiel : 1 mois Premium + pack equivalent a 9,99 EUR sur version officielle.",
-    choices:[
-      {id:"vesperion", label:"Vesperion", img:"assets/ships/Vesperion.png"},
-      {id:"nyxaris", label:"Nyxaris", img:"assets/ships/Nyxaris.png"},
-      {id:"asterion", label:"Asterion", img:"assets/ships/Asterion.png"}
-    ],
     contents:[
-      {label:"Vaisseau premium au choix", quantity:"x1", img:"assets/ships/Vesperion.png", kind:"ship"},
-      {label:"Munition M-4", quantity:"x80 000", img:"assets/equipment/ammo_laser_x4_same_preview.png", kind:"ammo"},
-      {label:"NOVA", quantity:"80 000", img:"assets/icons/premium.svg", kind:"premium"},
+      {label:"Vaisseau Astralis", quantity:"x1", img:"assets/ships/Astralis.png", kind:"ship"},
+      {label:"Munition M-4", quantity:"x50 000", img:"assets/equipment/ammo_laser_x4_same_preview.png", kind:"ammo"},
+      {label:"NOVA", quantity:"50 000", img:"assets/icons/premium.svg", kind:"premium"},
       {label:"Canon Laser MK-IV", quantity:"x10", img:"assets/equipment/laser_mk4_slot_v2.png", kind:"equipment"},
       {label:"Generateur Vitesse II", quantity:"x10", img:"assets/equipment/generator_speed_mk2.png", kind:"equipment"},
       {label:"Generateur A II", quantity:"x10", img:"assets/equipment/generator_shield_omega.png", kind:"equipment"},

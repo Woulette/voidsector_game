@@ -2,6 +2,8 @@
 
 Objectif : reduire `server/src/index.js` sans changer le gameplay, en gardant le serveur autoritaire et le mode solo compatible pendant la migration.
 
+Boutique Beta du 23 octobre 2026 : `src/ui/betaStore.js` compose la vitrine validee, les fiches natives et les 25 jours du calendrier depuis le catalogue et le profil reel. `render.js` conserve la composition et `app.js` les commandes existantes ; `betaStore.css` reste limite a la Boutique. Les autres rubriques sont conservees dans le code et masquees pendant la Beta. Les identifiants d'achat historiques restent stables lors du passage aux packs Valkyrie (1,49 EUR), Razorion (4,99 EUR) et Astralis (9,99 EUR). Le serveur attribue les vaisseaux fixes et les montants demandes ; les actions ne deviennent pas locales.
+
 ## Regles de decoupage
 
 - Extraire un domaine a la fois.

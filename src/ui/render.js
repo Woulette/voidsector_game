@@ -1,6 +1,7 @@
 import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js?v=20260726-ancient1";
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
-import { betaLaunchMessage, betaPacks, betaRewardCalendar, creditCurrencyPacks, getBetaRewardStatus, getPremiumRewardStatus, hasBetaPackPurchase, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js?v=20260726-kharon1";
+import { BETA_STORE_ONLY, creditCurrencyPacks, getPremiumRewardStatus, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js?v=20260726-kharon1";
+import { renderBetaStorefront, renderBetaStoreModal, syncBetaStoreModal } from "./betaStore.js?v=20261023-boutique1";
 import { fmt } from "../core/utils.js";
 import { updateLauncherCurrency } from "./launcherCurrency.js?v=20261023-hangar1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js?v=20260726-kharon1";
@@ -623,54 +624,6 @@ function renderPremiumStoreCard(pack){
   </article>`;
 }
 
-function renderBetaPackCard(pack){
-  const purchased = hasBetaPackPurchase(store.state, pack.id);
-  return `<article class="store-offer-card store-beta-card ${purchased ? "purchased" : ""}" data-store-offer-kind="beta" data-store-offer="${escapeHtml(pack.id)}">
-    <div class="store-offer-art beta"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
-    <div class="store-offer-copy">
-      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${purchased ? "DEJA ACHETE" : escapeHtml(pack.tag || "BETA")}</span></div>
-      <p>${escapeHtml(pack.desc || "")}</p>
-      ${renderStarterContentStrip(pack)}
-      <div class="store-offer-foot"><b>${escapeHtml(pack.officialReward || "Bonus officiel inclus")}</b>${realMoneyPriceHtml(purchased ? "DEJA ACHETE" : pack.price, {className:purchased ? "muted" : ""})}</div>
-    </div>
-  </article>`;
-}
-
-function renderBetaRewards(){
-  const status = getBetaRewardStatus(store.state || {});
-  const claimed = new Set(status.claimedDays || []);
-  return `<section class="store-rewards-panel beta-rewards-panel">
-    <div class="store-reward-summary beta-reward-summary">
-      <div><span class="tiny">CALENDRIER BETA</span><h3>${fmt(status.claimedCount)} / 25 jours</h3><p>${status.canClaim ? "Une recompense beta est disponible aujourd'hui." : escapeHtml(status.reason || "Reviens demain pour la suite.")}</p></div>
-      <button class="gold-button" data-claim-beta-reward type="button" ${status.canClaim ? "" : "disabled"}>${status.canClaim ? `RECLAMER JOUR ${status.nextDay}` : "BLOQUE"}</button>
-    </div>
-    <div class="store-reward-grid beta-reward-grid">
-      ${betaRewardCalendar.map(entry=>{
-        const isClaimed = claimed.has(entry.day);
-        const isNext = !isClaimed && entry.day === status.nextDay && !status.completed;
-        const locked = !isClaimed && entry.day > status.nextDay;
-        return `<article class="store-reward-day ${isClaimed ? "claimed" : ""} ${isNext ? "next" : ""} ${locked ? "locked" : ""}">
-          <div class="store-reward-day-head"><span>Jour ${entry.day}</span><b>${isClaimed ? "RECU" : isNext ? "A RECLAMER" : "A VENIR"}</b></div>
-          <strong>${escapeHtml(entry.label)}</strong>
-          <div class="store-reward-pills">${rewardPills(entry.reward)}</div>
-        </article>`;
-      }).join("")}
-    </div>
-  </section>`;
-}
-
-function renderBetaStore(){
-  return `<div class="beta-store-shell">
-    <section class="beta-store-message">
-      <span class="tiny">ACCES BETA</span>
-      <h3>Packs beta a prix reduit</h3>
-      <p>${escapeHtml(betaLaunchMessage)}</p>
-    </section>
-    <div class="store-offer-grid beta-grid">${betaPacks.map(renderBetaPackCard).join("")}</div>
-    ${renderBetaRewards()}
-  </div>`;
-}
-
 function renderCurrencyStoreCard(pack){
   const isNova = pack.tag === "NOVA";
   const currencyType = isNova ? "premium" : "credits";
@@ -741,7 +694,7 @@ function renderPremiumRewards(){
 
 function renderStoreTabContent(activeTab){
   if(activeTab === "beta"){
-    return renderBetaStore();
+    return renderBetaStorefront(store.state);
   }
   if(activeTab === "premium"){
     return `<div class="store-offer-grid premium-grid">${premiumShopPacks.map(renderPremiumStoreCard).join("")}</div>`;
@@ -758,35 +711,7 @@ function renderStoreTabContent(activeTab){
 function renderStoreModal(){
   const modal = store.storeModal || null;
   if(!modal?.id) return "";
-  if(modal.kind === "beta"){
-    const pack = betaPacks.find(entry=>entry.id === modal.id);
-    if(!pack) return "";
-    const purchased = hasBetaPackPurchase(store.state, pack.id);
-    const selectedChoice = pack.choices?.some(choice=>choice.id === modal.shipChoice)
-      ? modal.shipChoice
-      : (pack.choices?.[0]?.id || "");
-    return `<div class="store-modal-backdrop" data-store-modal-backdrop>
-      <section class="store-modal beta-modal">
-        <button class="store-modal-close" data-store-modal-close type="button">x</button>
-        <div class="store-modal-head"><span class="tiny">PACK BETA</span><h3>${escapeHtml(pack.name)}</h3>${realMoneyPriceHtml(purchased ? "DEJA ACHETE" : pack.price, {className:purchased ? "muted" : ""})}</div>
-        <div class="store-modal-body">
-          <div class="store-modal-art premium"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
-          <div class="store-modal-copy">
-            <p>${escapeHtml(pack.desc || "")}</p>
-            <div class="store-modal-features beta-official-reward"><span>${escapeHtml(pack.officialReward || "")}</span></div>
-            ${pack.choices ? `<div class="beta-ship-choice-grid">${pack.choices.map(choice=>`
-              <button class="beta-ship-choice ${selectedChoice === choice.id ? "active" : ""}" data-beta-ship-choice="${escapeHtml(choice.id)}" type="button">
-                <img src="${escapeHtml(choice.img)}" alt="${escapeHtml(choice.label)}">
-                <b>${escapeHtml(choice.label)}</b>
-              </button>
-            `).join("")}</div>` : ""}
-            <div class="store-starter-contents">${(pack.contents || []).map(renderStarterContentIcon).join("")}</div>
-          </div>
-        </div>
-        <div class="store-modal-actions"><button class="gold-button" data-buy-beta-pack="${escapeHtml(pack.id)}" data-beta-pack-ship-choice="${escapeHtml(selectedChoice)}" type="button" ${purchased ? "disabled" : ""}>${purchased ? "DEJA ACHETE" : "ACTIVER PACK BETA"}</button></div>
-      </section>
-    </div>`;
-  }
+  if(modal.kind === "beta" || modal.kind === "beta-reward") return renderBetaStoreModal(store.state, modal);
   if(modal.kind === "premium"){
     const pack = premiumShopPacks.find(entry=>entry.id === modal.id);
     if(!pack) return "";
@@ -833,6 +758,14 @@ function renderStoreModal(){
 export function renderStoreSection(){
   const panel = document.getElementById("premiumStorePanel");
   if(!panel) return;
+  panel.classList.toggle("beta-store-panel", BETA_STORE_ONLY);
+  if(BETA_STORE_ONLY){
+    store.storeTab = "beta";
+    if(store.storeModal && !["beta", "beta-reward"].includes(store.storeModal.kind)) store.storeModal = null;
+    panel.innerHTML = renderBetaStorefront(store.state) + renderStoreModal();
+    syncBetaStoreModal(panel, ()=>{ store.storeModal = null; renderStoreSection(); });
+    return;
+  }
   const premiumActive = isPremiumActive(store.state?.player);
   const activeTab = STORE_TAB_IDS.includes(store.storeTab) ? store.storeTab : "beta";
   const tabMeta = storeTabs.find(tab=>tab.id === activeTab) || storeTabs[0];

@@ -101,17 +101,17 @@ export const SERVER_BETA_PACK_SHOP = Object.fromEntries(betaPacks.map(pack=>[
         }
       : pack.id === "beta_astralis"
         ? {
-            ships:["astralis"],
+            ships:["razorion"],
             itemCounts:{laser_mk4:5, laser_mk3:3, shield_omega:5, reactor_ion:5},
             ammo:{ammo_x4:20000},
             premium:25000
           }
         : pack.id === "beta_commander"
           ? {
-              chooseShip:true,
+              ships:["astralis"],
               itemCounts:{laser_mk4:10, reactor_ion:10, shield_omega:10, extra_repair_bot:1},
-              ammo:{ammo_x4:80000},
-              premium:80000
+              ammo:{ammo_x4:50000},
+              premium:50000
             }
           : {}
   }

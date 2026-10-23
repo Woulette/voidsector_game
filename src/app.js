@@ -1,4 +1,5 @@
 import { ammoTypes, portals, rawMaterialCatalog } from "./data/catalog.js?v=20260726-ancient1";
+import { handleBetaStoreInteraction } from "./ui/betaStore.js?v=20261023-boutique1";
 import {
   ensureShipLoadout,
   findEquippedSlot,
@@ -625,6 +626,8 @@ document.addEventListener("click", (e)=>{
     renderAll();
     return;
   }
+
+  if(handleBetaStoreInteraction(e, {store, render:renderAll})) return;
 
   const storeTab = e.target.closest("[data-store-tab]");
   if(storeTab){
