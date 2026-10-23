@@ -64,6 +64,7 @@ export function registerPlayerHandlers(socket, context){
     syncPlayerLifecycle,
     syncPlayerStatusEffects,
     syncProfileForPlayer,
+    travelManager,
     maxConcurrentGamePlayers = 0
   } = context;
 
@@ -601,6 +602,8 @@ export function registerPlayerHandlers(socket, context){
     player.shipSwitchLockUntil = 0;
     const now = Date.now();
     const previousState = player.state || null;
+    const originalPayload = payload;
+    payload = travelManager?.preparePlayerState(player, payload, now) || payload;
     const source = normalizeStateSource(player, payload, previousState, now);
     if(!source) return;
     player.clientPageHidden = payload?.pageHidden === true;
@@ -662,6 +665,7 @@ export function registerPlayerHandlers(socket, context){
     player.lastStateStreamAt = now;
     const reliableStateBroadcast = requiresReliableStateBroadcast(player, previousState, validation.state, payload, now);
     player.state = validation.state;
+    travelManager?.confirmPlayerState?.(player, originalPayload);
     const moved = !previousState
       || Math.hypot(
         Number(validation.state.x || 0) - Number(previousState.x || 0),

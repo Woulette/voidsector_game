@@ -54,6 +54,9 @@ export function createCombatPanels({
   maps = [],
   getCurrentMap,
   getPlayer,
+  getSectorTravelState = ()=>null,
+  startSectorTravel = ()=>false,
+  cancelSectorTravel = ()=>false,
   ammoTypes = [],
   enemyTypes,
   getAllRawMaterials,
@@ -108,6 +111,7 @@ export function createCombatPanels({
   let groupHudRefreshT = 0;
   let groupHudDragReady = false;
   let mapPanelMode = "view";
+  let selectedSectorMapId = null;
   let selectedSocialTab = "friends";
   let selectedSocialKey = null;
   let selectedFirmPanelTab = "overview";
@@ -925,7 +929,10 @@ export function createCombatPanels({
       maps,
       getCurrentMap,
       mode:mapPanelMode,
-      playerLevel:store.state.player?.level || 1
+      playerLevel:store.state.player?.level || 1,
+      premiumActive:isPremiumActive(store.state.player),
+      selectedMapId:selectedSectorMapId,
+      travelState:getSectorTravelState()
     });
   }
 
@@ -1024,6 +1031,37 @@ export function createCombatPanels({
     }
     showToast?.("Teleportation Portgun impossible.");
     return true;
+  }
+
+  function selectSectorMap(mapId){
+    if(mapPanelMode !== "view") return false;
+    const map = maps.find(entry=>String(entry.id) === String(mapId));
+    if(!map) return false;
+    selectedSectorMapId = map.id;
+    refreshMapUtilityPanel();
+    return true;
+  }
+
+  function startSectorMapTravel(mapId){
+    if(mapPanelMode !== "view") return false;
+    if(!isPremiumActive(store.state.player)){
+      showToast?.("Un abonnement Premium actif est requis pour le voyage automatique.");
+      return false;
+    }
+    const map = maps.find(entry=>String(entry.id) === String(mapId));
+    if(!map || String(map.id) === String(getCurrentMap()?.id)) return false;
+    if(!startSectorTravel(map.id)) return false;
+    selectedSectorMapId = map.id;
+    getUtilityPanel("map")?.classList.add("hidden");
+    saveUtilityPanelOpenState("map", false);
+    syncUtilityDockButtons();
+    return true;
+  }
+
+  function cancelSectorMapTravel(){
+    const cancelled = cancelSectorTravel("manual");
+    refreshMapUtilityPanel();
+    return cancelled;
   }
 
   function restoreOpenUtilityPanels(){
@@ -1399,6 +1437,9 @@ export function createCombatPanels({
     toggleBoosterDetail,
     openPortgunMapPanel,
     selectPortgunMapTarget,
+    selectSectorMap,
+    startSectorMapTravel,
+    cancelSectorMapTravel,
     inviteGroupMember,
     handleGroupAction,
     togglePerfPanelVisibility,

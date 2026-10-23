@@ -22,6 +22,7 @@ export function installCombatInputHandlers({
   saveState,
   getMouse,
   setMoveTarget,
+  onManualNavigation = ()=>{},
   setMouseMoveHeld,
   worldFromScreen,
   miniMapHitTest,
@@ -58,6 +59,9 @@ export function installCombatInputHandlers({
   openUtilityPanel,
   toggleBoosterDetail,
   selectPortgunMapTarget,
+  selectSectorMap,
+  startSectorMapTravel,
+  cancelSectorMapTravel,
   closeUtilityPanel,
   inviteGroupMember,
   handleSocialAction,
@@ -396,6 +400,7 @@ export function installCombatInputHandlers({
         e.preventDefault();
         return;
       }
+      onManualNavigation();
       if(tryUseMapPortal()) e.preventDefault();
       return;
     }
@@ -455,6 +460,7 @@ export function installCombatInputHandlers({
           return;
         }
         if(miniMapHit.type === "map"){
+          onManualNavigation();
           setMoveTarget(worldFromMiniMap(mouse.x, mouse.y));
           setMouseMoveHeld?.(false);
           updateHud();
@@ -464,6 +470,7 @@ export function installCombatInputHandlers({
       }
       const station = getStationAt(world);
       if(station){
+        onManualNavigation();
         const progressed = progressMissionControl?.(station);
         renderSpawnInteractionPanel(station.id);
         if(progressed) updateHud();
@@ -471,20 +478,24 @@ export function installCombatInputHandlers({
       }
       const questNpc = findQuestNpcAt?.(world);
       if(questNpc){
+        onManualNavigation();
         interactQuestNpc?.(questNpc);
         return;
       }
       const cargo = findCargoBoxAt?.(world);
+      if(cargo) onManualNavigation();
       if(cargo && setCargoDestination?.(cargo)){
         updateHud();
         return;
       }
       const groundMaterial = findGroundMaterialAt?.(world);
+      if(groundMaterial) onManualNavigation();
       if(groundMaterial && setGroundMaterialDestination?.(groundMaterial)){
         updateHud();
         return;
       }
       const portalObjective = findPortalObjectiveAt?.(world);
+      if(portalObjective) onManualNavigation();
       if(portalObjective && interactPortalObjective?.(portalObjective)){
         mouseMoveHeld = false;
         setMouseMoveHeld?.(false);
@@ -518,6 +529,7 @@ export function installCombatInputHandlers({
           return;
         }
         lastCombatTargetClick = null;
+        onManualNavigation();
         mouseMoveHeld = true;
         setMouseMoveHeld?.(true);
         setMoveTarget(world);
@@ -779,6 +791,21 @@ export function installCombatInputHandlers({
       const perfToggle = e.target.closest("[data-toggle-perf-panel]");
       if(perfToggle){
         togglePerfPanelVisibility?.();
+        return;
+      }
+      const sectorTravelCancel = e.target.closest("[data-sector-travel-cancel]");
+      if(sectorTravelCancel){
+        cancelSectorMapTravel?.();
+        return;
+      }
+      const sectorTravelTarget = e.target.closest("[data-sector-travel-target-map]");
+      if(sectorTravelTarget){
+        startSectorMapTravel?.(sectorTravelTarget.dataset.sectorTravelTargetMap);
+        return;
+      }
+      const sectorSelection = e.target.closest("[data-sector-map-select]");
+      if(sectorSelection){
+        selectSectorMap?.(sectorSelection.dataset.sectorMapSelect);
         return;
       }
       const portgunTarget = e.target.closest("[data-portgun-target-map]");

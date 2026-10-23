@@ -144,6 +144,7 @@ export const config = {
   afkAfterMs:5 * 60 * 1000,
   afkDisconnectMs:10 * 60 * 1000,
   accountActionLocks:{
+    "travel:start":{minIntervalMs:500, limit:12, windowMs:10000},
     "shop:buy-ammo":{minIntervalMs:220, limit:24, windowMs:10000},
     "shop:buy-item":{minIntervalMs:300, limit:24, windowMs:10000},
     "shop:buy-booster":{minIntervalMs:300, limit:24, windowMs:10000},
@@ -225,6 +226,8 @@ export const config = {
   },
   socketRateLimits:{
     default:{limit:120, windowMs:1000},
+    "travel:start":{limit:12, windowMs:10000},
+    "travel:cancel":{limit:40, windowMs:10000},
     "player:state":{limit:30, windowMs:1000, burst:60},
     "combat:fire":{limit:25, windowMs:1000},
     "combat:fire-player":{limit:25, windowMs:1000},

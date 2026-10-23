@@ -22,6 +22,8 @@ Le fichier `REGLES_IMPORTANTES_AVANT_DE_CODER.md` explique ou placer le code apr
 
 ## Etat actuel du decoupage
 
+Carte stellaire et voyage Premium du 23 octobre 2026 : `combatMapPanel.js` compose les 21 secteurs depuis les portails reels ; `sectorMapPresentation.js` et `sectorMap.css` portent la presentation validee. `sectorAutoTravel.js` et `multiplayer/sectorTravel.js` conservent l'intention et la prediction client, avec arret immediat sur ordre manuel. Les modules `server/src/travel/` calculent et pilotent le trajet a vitesse normale avec verification Premium canonique et transferts de quatre secondes ; `travelHandlers.js` expose les commandes authentifiees. L'animation automatique ne peut pas transferer le joueur localement. Les branchements restent dans les coordinateurs existants. Publication `20261023-sector-travel1` : 22 empreintes installees, 14 empreintes publiques et 193 executions de tests cibles client/serveur/compatibilite conformes ; sauvegarde distante disponible, decor de la mini-carte conserve. Details : `docs/CARTE_STELLAIRE_VOYAGE_PREMIUM_2026-10-23.md`.
+
 Le gros decoupage structurel est en pause. Les anciens fichiers fourre-tout les plus critiques ont ete reduits en facades ou coordinateurs :
 
 - `server/src/index.js`
@@ -1284,25 +1286,25 @@ Mini-carte du 23 octobre 2026 : `miniMapScenery.js` affiche la capture fixe ; `m
 
 Mini-carte panoramique : le ratio 9/20 est partage dans `miniMapLayout.js`, et les illustrations de `miniMapScenery.js` compensent la projection pour rester proportionnees. Details : `docs/MINICARTE_FORMAT_LARGE_2026-10-23.md`.
 
-## 2026-10-23 â€” CompÃ©tences du pilote, arbre et fiche dÃ©taillÃ©e
+## 2026-10-23 — Compétences du pilote, arbre et fiche détaillée
 
-- Le Hangar prÃ©sente les trois branches et cinq paliers de la maquette validÃ©e. Tous les nÅ“uds sont consultables ; seul le prochain rang admissible sÃ©lectionnÃ© propose la commande d'amÃ©lioration existante.
-- `skillTreeModel.js` porte la projection pure des donnÃ©es ; `skillTreeIcons.js` les pictogrammes ; `renderSkills.js` la sÃ©lection et le rendu ; `skillTree.css` les styles limitÃ©s au Hangar. Les faÃ§ades et la dÃ©lÃ©gation restent fines. Aucun changement des bonus, prix, prÃ©requis, achats serveur ou combat.
+- Le Hangar présente les trois branches et cinq paliers de la maquette validée. Tous les nœuds sont consultables ; seul le prochain rang admissible sélectionné propose la commande d'amélioration existante.
+- `skillTreeModel.js` porte la projection pure des données ; `skillTreeIcons.js` les pictogrammes ; `renderSkills.js` la sélection et le rendu ; `skillTree.css` les styles limités au Hangar. Les façades et la délégation restent fines. Aucun changement des bonus, prix, prérequis, achats serveur ou combat.
 - Validation et preuves : `docs/COMPETENCES_REFONTE_2026-10-23.md`, `output/skills-refonte-2026-10-23/`. Version frontend `20261023-skills1`.
 
-## 2026-10-23 â€” Dossier du pilote et grades rÃ©els
+## 2026-10-23 — Dossier du pilote et grades réels
 
-- Le Profil du Hangar reprend la maquette avec les grades, insignes SVG, compteurs, vaisseau, drones, statistiques et conditions rÃ©els. L'ascension annonce le retour au niveau 1 ; le titre conserve Ã©quipement, retrait et visibilitÃ© avec leurs commandes serveur existantes.
-- Le rendu est extrait de `render.js` vers `renderProfile.js`, la projection vers `profilePresentation.js` et les pictogrammes vers `profileIcons.js`. Styles limitÃ©s au Profil dans `profileDossier.css`. Les faÃ§ades restent fines et les rÃ¨gles mÃ©tier inchangÃ©es.
+- Le Profil du Hangar reprend la maquette avec les grades, insignes SVG, compteurs, vaisseau, drones, statistiques et conditions réels. L'ascension annonce le retour au niveau 1 ; le titre conserve équipement, retrait et visibilité avec leurs commandes serveur existantes.
+- Le rendu est extrait de `render.js` vers `renderProfile.js`, la projection vers `profilePresentation.js` et les pictogrammes vers `profileIcons.js`. Styles limités au Profil dans `profileDossier.css`. Les façades restent fines et les règles métier inchangées.
 - Validation et preuves : `docs/PROFIL_REFONTE_2026-10-23.md`, `output/profile-refonte-2026-10-23/`. Version frontend `20261023-profile1`.
 
-## 2026-10-23 â€” Refonte de la baie de drones
+## 2026-10-23 — Refonte de la baie de drones
 
-- La page Drones reprend la maquette validÃ©e avec les vrais visuels et raretÃ©s du catalogue. L'inventaire regroupe les modÃ¨les et expose leurs exemplaires UID, disponibilitÃ©s et emplacements rÃ©els ; l'action explicite cible le drone sÃ©lectionnÃ©.
-- `renderDroneBay.js`, `droneBayModel.js` et `droneBayIcons.js` extraient le domaine de la faÃ§ade `render.js`. `app.js` ajoute une dÃ©lÃ©gation fine, `droneBay.css` limite les styles Ã  la page. Achats, Ã©quipements, ventes, Overdrive permanent et anciens drones 9/10 conservent leurs rÃ¨gles serveur.
+- La page Drones reprend la maquette validée avec les vrais visuels et raretés du catalogue. L'inventaire regroupe les modèles et expose leurs exemplaires UID, disponibilités et emplacements réels ; l'action explicite cible le drone sélectionné.
+- `renderDroneBay.js`, `droneBayModel.js` et `droneBayIcons.js` extraient le domaine de la façade `render.js`. `app.js` ajoute une délégation fine, `droneBay.css` limite les styles à la page. Achats, équipements, ventes, Overdrive permanent et anciens drones 9/10 conservent leurs règles serveur.
 - Validation et preuves : `docs/DRONES_REFONTE_2026-10-23.md`, `output/drones-refonte-2026-10-23/`. Version frontend `20261023-dronebay1`.
 
-## 2026-10-23 â€” Inventaire des drones en cases individuelles
+## 2026-10-23 — Inventaire des drones en cases individuelles
 
-- Ã€ la demande du crÃ©ateur, la liste groupÃ©e est remplacÃ©e par une vraie grille : chaque exemplaire disponible a sa case et son image, avec une fiche unique au clic. Les Ã©quipements dÃ©jÃ  installÃ©s ne sont plus prÃ©sentÃ©s comme stock disponible.
-- Le domaine de rendu et ses styles existants portent cette correction ; les contrÃ´leurs et l'autoritÃ© du serveur sont conservÃ©s. DÃ©tails et preuves : `docs/DRONES_INVENTAIRE_GRILLE_2026-10-23.md`, `output/drone-grid-correction-2026-10-23/`. Version frontend `20261023-dronegrid1`.
+- À la demande du créateur, la liste groupée est remplacée par une vraie grille : chaque exemplaire disponible a sa case et son image, avec une fiche unique au clic. Les équipements déjà installés ne sont plus présentés comme stock disponible.
+- Le domaine de rendu et ses styles existants portent cette correction ; les contrôleurs et l'autorité du serveur sont conservés. Détails et preuves : `docs/DRONES_INVENTAIRE_GRILLE_2026-10-23.md`, `output/drone-grid-correction-2026-10-23/`. Version frontend `20261023-dronegrid1`.

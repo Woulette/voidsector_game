@@ -54,8 +54,9 @@ function isClientStale(player, now){
   return now - lastClientStateAt >= staleAfterMs;
 }
 
-function updateServerMovement(player, dt, now, groups){
+function updateServerMovement(player, dt, now, groups, isAutomaticTravelActive){
   const state = player?.state;
+  if(isAutomaticTravelActive?.(player)) return false;
   if(!state || player.connected === false || Number(state.hp || 0) <= 0) return false;
   const target = state.moveTarget;
   if(!target) return false;
@@ -201,7 +202,8 @@ export function createPlayerActivityManager({
   presence,
   profileManager,
   publicPlayer,
-  applyEnemyHitForPlayer
+  applyEnemyHitForPlayer,
+  isAutomaticTravelActive
 }){
   function getBackgroundRecoveryConfig(player, now){
     if(
@@ -285,7 +287,7 @@ export function createPlayerActivityManager({
   function updatePlayerActivity(dt, now = Date.now()){
     for(const player of players.values()){
       if(!player?.state || !isClientStale(player, now)) continue;
-      const moved = updateServerMovement(player, dt, now, groups);
+      const moved = updateServerMovement(player, dt, now, groups, isAutomaticTravelActive);
       if(moved) presence?.markActivity?.(player, "deplacement serveur", now);
       const state = player.state;
       const needsRepairProfile = Boolean(state.repairBotActive)

@@ -66,6 +66,7 @@ import { registerPlayerHandlers } from "./socket/playerHandlers.js";
 import { registerProgressionHandlers } from "./socket/progressionHandlers.js";
 import { registerQuestHandlers } from "./socket/questHandlers.js";
 import { registerSocialHandlers } from "./socket/socialHandlers.js";
+import { registerTravelHandlers } from "./socket/travelHandlers.js";
 import { installSafeSocketHandlers } from "./socket/safeSocketHandler.js";
 import { createSocialManager } from "./social/social.js";
 import { startServerTick } from "./tick/serverTick.js";
@@ -78,6 +79,7 @@ import { createWorldStatusEffectManager } from "./world/statusEffects.js";
 import { WORLD_MAPS } from "./world/definitions.js";
 import { isPointInFriendlyWorldSafeArea, publicEnemy, publicEnemyDelta } from "./world/spawn.js";
 import { createWorldStateManager } from "./world/state.js";
+import { createSectorTravelManager } from "./travel/sectorTravel.js";
 
 const PORT = config.port;
 const players = new Map();
@@ -624,6 +626,8 @@ const {startShipAbilityEffect, updateShipAbilityEffects} = createShipAbilityEffe
   handlePortalEnemyDeath
 });
 
+const travelManager = createSectorTravelManager({io, players, profileManager, presence, setPlayerMap, publicPlayer});
+
 const {updatePlayerActivity} = createPlayerActivityManager({
   io,
   players,
@@ -631,7 +635,8 @@ const {updatePlayerActivity} = createPlayerActivityManager({
   presence,
   profileManager,
   publicPlayer,
-  applyEnemyHitForPlayer
+  applyEnemyHitForPlayer,
+  isAutomaticTravelActive:travelManager.isActive
 });
 
 function applyPlayerHit(socket, requestedPayload){
@@ -1020,6 +1025,7 @@ const serverTick = startServerTick({
   playersOnMap,
   presence,
   updatePlayerActivity,
+  updateTravel:travelManager.update,
   updatePendingEnemyAttacks,
   updatePlayerLifecycles,
   updateStatusEffects,
@@ -1083,6 +1089,7 @@ io.on("connection", socket=>{
   });
   registerPlayerHandlers(socket, {
     ...socketContext,
+    travelManager,
     firmWarManager,
     buildFirmSpawnSession,
     cleanName,
@@ -1101,6 +1108,7 @@ io.on("connection", socket=>{
     setPlayerMap,
     syncProfileForPlayer
   });
+  registerTravelHandlers(socket, {...socketContext, travelManager});
   registerLoadTestHandlers(socket, {
     ...socketContext,
     emitPlayers,

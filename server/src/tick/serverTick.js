@@ -20,6 +20,7 @@ export function startServerTick({
   playersOnMap,
   presence,
   updatePlayerActivity,
+  updateTravel,
   updatePendingEnemyAttacks,
   updatePlayerLifecycles,
   updateStatusEffects,
@@ -57,6 +58,7 @@ export function startServerTick({
       worldEmitT += dt;
       instanceEmitT += dt;
       questTimerT += dt;
+      updateTravel?.(dt, now);
       updatePlayerActivity?.(dt, now);
       const activePlayersByMap = new Map();
       for(const player of players.values()){

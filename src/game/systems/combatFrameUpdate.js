@@ -98,7 +98,7 @@ export function createCombatFrameUpdateSystem({
         attackAmmoId:attackAmmo?.id || "",
         attackWeaponClass:attackAmmo?.weaponClass || "",
         repairBotActive:Boolean(player.repairBotActive),
-        ...(snapshotState.portalTransition ? {portalTransfer:true} : {}),
+        ...(snapshotState.portalTransition || snapshotState.autoTravelTransition ? {portalTransfer:true} : {}),
         pageHidden:document.hidden === true
       };
     }, {active, force, coalesce:!force}));
@@ -134,14 +134,16 @@ export function createCombatFrameUpdateSystem({
     }
 
     setState({teleportLock:Math.max(0, state.teleportLock - dt)});
-    if(portalTransition){
-      const completed = advancePortalTransition(portalTransition, dt);
+    if(portalTransition || state.autoTravelTransition){
+      const transition = portalTransition || state.autoTravelTransition;
+      // Automatic travel is timed and committed by the server; only manual jumps advance here.
+      const completed = portalTransition ? advancePortalTransition(portalTransition, dt) : false;
       player.vx = 0;
       player.vy = 0;
       player.enginePower = 0;
-      const startingTransfer = portalTransition.cleanupDone !== true;
+      const startingTransfer = transition.cleanupDone !== true;
       if(startingTransfer){
-        portalTransition.cleanupDone = true;
+        transition.cleanupDone = true;
         setState({
           moveTarget:null,
           mouseMoveHeld:false,

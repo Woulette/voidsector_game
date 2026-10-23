@@ -525,7 +525,7 @@ export function createCombatSceneRenderer({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     timeCombatProfiler("draw.radiation", drawRadiationOverlay);
     timeCombatProfiler("draw.minimap", drawMiniMap);
-    if(graphicsEffects.portalWarp !== false) timeCombatProfiler("draw.portalTransition", ()=>drawPortalTransitionOverlay({ctx, transition:portalTransition, maps:mapList, viewW, viewH}));
+    if(graphicsEffects.portalWarp !== false) timeCombatProfiler("draw.portalTransition", ()=>drawPortalTransitionOverlay({ctx, transition:portalTransition || state.autoTravelTransition, maps:mapList, viewW, viewH}));
   }
 
   return {drawBackground, drawRadiationOverlay, drawDamageTexts, drawMiniMap, draw};

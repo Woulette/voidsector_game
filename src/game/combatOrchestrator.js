@@ -1,6 +1,7 @@
 import { ammoTypes, droneFormations, equipment, portals, ships } from "../data/catalog.js?v=20260726-ancient1";
 import { getCraftRecipe } from "../data/craftingRecipes.js?v=20260726-kharon1";
 import { getAncientInteractionTarget, isAncientPortal } from "../data/ancientPortal.js?v=20260726-ancient1";
+import { isPremiumActive } from "../data/premium.js";
 import { fmt } from "../core/utils.js";
 import {
   canAfford,
@@ -84,6 +85,9 @@ import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v
 import { createCombatServerActions } from "./systems/combatServerActions.js";
 import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js?v=20261022-helion-hub1";
 import { createCombatPortalNavigationSystem } from "./systems/combatPortalNavigation.js";
+import { createSectorAutoTravel } from "./systems/sectorAutoTravel.js?v=20261023-sector-travel1";
+import { createSectorTravelConnection } from "../multiplayer/sectorTravel.js?v=20261023-sector-travel1";
+import { createSectorTravelHud } from "./ui/sectorTravelHud.js?v=20261023-sector-travel1";
 import { getPreparedDungeonPortalForMap } from "./systems/preparedDungeonPortal.js?v=20260726-nox1";
 import { createLevelUpEffectSystem } from "./systems/levelUpEffects.js?v=20260726-kharon1";
 import { applyCombatStatFields } from "./systems/combatPlayerStats.js";
@@ -139,6 +143,7 @@ export function createCombatGame({renderAll, showToast}){
   let player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy;
   let gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portgunChannel;
   let portalTransition = null;
+  let sectorTravel = null;
   const missileSalvos = new Map();
   let radiationWarned = false;
   let mouseMoveHeld = false;
@@ -146,7 +151,7 @@ export function createCombatGame({renderAll, showToast}){
   let deathState = null;
   const combatMetricModes = {hp:"bar", shield:"bar", xp:"bar"};
   function getCombatState(){
-    return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portgunChannel, portalTransition, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
+    return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portgunChannel, portalTransition, autoTravelTransition:sectorTravel?.getTransition() || null, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
   }
 
   function getNetworkPerfSummary(){
@@ -424,6 +429,20 @@ export function createCombatGame({renderAll, showToast}){
     maps:MAPS,
     getCurrentMap:()=>currentMap,
     getPlayer:()=>player,
+    getSectorTravelState:()=>sectorTravel?.getState(),
+    startSectorTravel:targetMapId=>{
+      if(cargo.isMovementLocked?.()){
+        showToast("Attends la fin de la récupération du butin pour voyager.");
+        return false;
+      }
+      if(!sectorTravel?.start(targetMapId)) return false;
+      cargo.clearPending();
+      selectedEnemy = null;
+      actions.setActiveLaserSlot(null);
+      actions.updateGameActionBar();
+      return true;
+    },
+    cancelSectorTravel:reason=>sectorTravel?.cancel(reason),
     ammoTypes,
     enemyTypes:ENEMY_TYPES,
     getAllRawMaterials,
@@ -888,6 +907,37 @@ export function createCombatGame({renderAll, showToast}){
     renderAll,
     showToast
   });
+  const travelHud = createSectorTravelHud({
+    container:document.getElementById("gameScreen"),
+    maps:MAPS,
+    getCurrentMap:()=>currentMap,
+    onCancel:reason=>sectorTravel?.cancel(reason)
+  });
+  const travelConnection = createSectorTravelConnection({
+    multiplayer,
+    onState:state=>sectorTravel?.applyServerState(state),
+    onError:error=>sectorTravel?.applyServerError(error),
+    onDisconnect:()=>sectorTravel?.cancel("disconnected")
+  });
+  sectorTravel = createSectorAutoTravel({
+    getState:()=>({running, player, currentMap, gameMode, portalTransition, portgunChannel}),
+    isConnected:travelConnection.isConnected,
+    hasPremium:()=>isPremiumActive(store.state.player),
+    requestStart:travelConnection.start,
+    requestCancel:travelConnection.cancel,
+    applySession:state=>session.resumeWorldSession({...state, source:"state-correction"}),
+    setMovement:(target, meta)=>{
+      moveTarget = target;
+      mouseMoveHeld = false;
+      if(player && (!target || meta?.status === "transferring")){
+        player.vx = 0;
+        player.vy = 0;
+        player.enginePower = 0;
+      }
+    },
+    onChange:state=>travelHud.update(state),
+    showToast
+  });
   function preload(){
     preloadCombatAssets({cache, ships:[getActiveShip()], ranks:[getCurrentRank()], getRankAssetPath});
     warmCombatHudTextRendering();
@@ -1235,6 +1285,8 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function update(dt){
+    travelConnection.updateSocketBinding();
+    sectorTravel.update(dt);
     frameUpdate.update(dt);
     mapAssetStreaming.update(dt);
     logout.update(dt);
@@ -1275,6 +1327,7 @@ export function createCombatGame({renderAll, showToast}){
     saveState,
     getMouse:()=>mouse,
     setMoveTarget:value=>{ moveTarget = value; },
+    onManualNavigation:()=>sectorTravel.cancel("manual"),
     setMouseMoveHeld:value=>{ mouseMoveHeld = value; },
     worldFromScreen,
     miniMapHitTest:miniMap.hitTest,
@@ -1316,6 +1369,9 @@ export function createCombatGame({renderAll, showToast}){
     openUtilityPanel:panels.openUtilityPanel,
     toggleBoosterDetail:panels.toggleBoosterDetail,
     selectPortgunMapTarget:panels.selectPortgunMapTarget,
+    selectSectorMap:panels.selectSectorMap,
+    startSectorMapTravel:panels.startSectorMapTravel,
+    cancelSectorMapTravel:panels.cancelSectorMapTravel,
     closeUtilityPanel:panels.closeUtilityPanel,
     inviteGroupMember:panels.inviteGroupMember,
     handleSocialAction:panels.handleSocialAction,
@@ -1443,7 +1499,10 @@ export function createCombatGame({renderAll, showToast}){
       levelUpEffects.reset();
       return session.start(...args);
     },
-    stop:session.stop,
+    stop:(...args)=>{
+      sectorTravel.cancel("stopped");
+      return session.stop(...args);
+    },
     requestLogout:logout.request,
     resumeWorldSession:session.resumeWorldSession,
     refreshActiveLoadout:session.refreshActiveLoadout,

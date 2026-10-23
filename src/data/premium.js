@@ -11,6 +11,7 @@ export const premiumFeatureList = [
   "Drone de reparation : soin +50%",
   "Deconnexion hors combat reduite a 5 secondes",
   "Portgun premium : teleportation en 5 secondes",
+  "Voyage automatique entre les secteurs",
   "Quetes hebdomadaires du relais de quetes",
   "Acces aux futures cartes apres le Core",
   "Calendrier de recompenses premium mensuel"
