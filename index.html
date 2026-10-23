@@ -6,7 +6,7 @@
   <meta name="voidsector-server-url" content="https://avosoma.absyrion.com" />
   <title>Avosoma - MMO</title>
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="styles.css?v=20261023-hangar1" />
+  <link rel="stylesheet" href="styles.css?v=20261023-hangar2" />
   <script type="importmap">
 {
   "imports": {
@@ -267,24 +267,26 @@
           </div>
         </div>
       </section>
-      <button class="account-logout-dock" data-auth-action="logout" type="button" title="Déconnecter complètement le compte">
+      <div class="launcher-account-actions">
+        <div class="launcher-service-row">
+          <div id="adminDock"></div>
+          <aside id="launcherPremiumStatus" class="launcher-premium-status hidden" aria-live="polite" aria-hidden="true">
+            <div class="launcher-premium-emblem" aria-hidden="true"><span>P</span></div>
+            <div class="launcher-premium-copy">
+              <small>ABONNEMENT PILOTE</small>
+              <strong><i aria-hidden="true"></i> PREMIUM ACTIF</strong>
+            </div>
+            <div class="launcher-premium-timer">
+              <small>TEMPS RESTANT</small>
+              <b data-premium-home-remaining>--</b>
+            </div>
+          </aside>
+        </div>
+        <button class="account-logout-dock" data-auth-action="logout" type="button" title="Déconnecter complètement le compte">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v16h5M12 7l5 5-5 5M8 12h12"/></svg>
         <strong>Déconnexion</strong>
-      </button>
+        </button>
       </div>
-      <div class="launcher-service-row">
-        <div id="adminDock"></div>
-        <aside id="launcherPremiumStatus" class="launcher-premium-status hidden" aria-live="polite" aria-hidden="true">
-          <div class="launcher-premium-emblem" aria-hidden="true"><span>P</span></div>
-          <div class="launcher-premium-copy">
-            <small>ABONNEMENT PILOTE</small>
-            <strong><i aria-hidden="true"></i> PREMIUM ACTIF</strong>
-          </div>
-          <div class="launcher-premium-timer">
-            <small>TEMPS RESTANT</small>
-            <b data-premium-home-remaining>--</b>
-          </div>
-        </aside>
       </div>
     </header>
 
