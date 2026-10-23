@@ -16,6 +16,23 @@ export function createRefineryActions({
   showToast
 }){
   function handleClick(event){
+    const materialSelection = event.target.closest("#refineryPanel [data-refinery-select-material]");
+    if(materialSelection){
+      store.selectedRefineryMaterial = materialSelection.dataset.refinerySelectMaterial;
+      store.selectedRefineryUpgrade = null;
+      renderRefinery();
+      return true;
+    }
+    const maximumShipment = event.target.closest("#refineryPanel [data-refinery-shipment-max]");
+    if(maximumShipment){
+      const quantity = maximumShipment.closest("#refineryPanel")?.querySelector("#refinery-shipment-quantity");
+      const maximum = Math.max(0, Number(quantity?.max || 0));
+      if(maximum > 0){
+        store.selectedRefineryShipmentAmount = maximum;
+        renderRefinery();
+      }
+      return true;
+    }
     const startJob = event.target.closest("#refineryPanel [data-start-refinery]");
     if(startJob){
       sendMmoCommand({

@@ -299,7 +299,7 @@ export function installCombatInputHandlers({
     return true;
   }
 
-  function openBoostDepositDialog({target, materialId, materialName, materialImg, maxAmount}){
+  function openBoostDepositDialog({target, materialId, materialName, materialImg, maxAmount, initialAmount = 1}){
     const {layer, amount, range} = getBoostDepositElements();
     const available = Math.max(0, Math.floor(Number(maxAmount || 0)));
     if(!layer || available <= 0){
@@ -328,7 +328,7 @@ export function installCombatInputHandlers({
     if(range) range.max = String(available);
     layer.classList.remove("hidden");
     layer.setAttribute("aria-hidden", "false");
-    syncBoostDepositAmount(1);
+    syncBoostDepositAmount(initialAmount);
     amount?.focus({preventScroll:true});
     amount?.select();
     return true;
@@ -882,6 +882,18 @@ export function installCombatInputHandlers({
     windowRef.addEventListener("pointercancel", stopDrag);
   });
   documentRef.getElementById("spawnInteractionPanel")?.addEventListener("click", e=>{
+    const prepareBoost = e.target.closest("[data-open-boost-deposit]");
+    if(prepareBoost){
+      openBoostDepositDialog({
+        target:prepareBoost.dataset.boostDepositTarget,
+        materialId:prepareBoost.dataset.boostDepositMaterial,
+        materialName:prepareBoost.dataset.boostDepositName,
+        materialImg:prepareBoost.dataset.boostDepositImg,
+        maxAmount:prepareBoost.dataset.boostDepositMax,
+        initialAmount:documentRef.querySelector("[data-refinery-boost-amount]")?.value || 1
+      });
+      return;
+    }
     const refineryTabBtn = e.target.closest("[data-spawn-refinery-tab]");
     if(refineryTabBtn){
       setRefineryPanelTab?.(refineryTabBtn.dataset.spawnRefineryTab);

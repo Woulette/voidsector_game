@@ -1,4 +1,5 @@
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js?v=20260726-kharon1";
+import { bindSpawnRefineryUi, captureSpawnRefineryUi } from "./spawnRefineryPanel.js";
 import { canOpenSpawnPanelMode, renderSpawnPanelContent } from "./spawnPanel.js?v=20260726-kharon1";
 import { renderCombatFirmPanel } from "./combatFirmPanel.js?v=20260726-kharon1";
 import { renderCombatMapPanel } from "./combatMapPanel.js?v=20260726-kharon1";
@@ -108,6 +109,7 @@ export function createCombatPanels({
   let combatQuestDetailTab = "quest";
   let refineryPanelTab = "raffinage";
   let selectedShipRefineRecipeId = null;
+  const refineryUiState = {};
   let groupHudRefreshT = 0;
   let groupHudDragReady = false;
   let mapPanelMode = "view";
@@ -148,6 +150,7 @@ export function createCombatPanels({
     combatQuestDetailTab = "quest";
     refineryPanelTab = "raffinage";
     selectedShipRefineRecipeId = null;
+    for(const key of Object.keys(refineryUiState)) delete refineryUiState[key];
     questBriefingTypewriter.reset();
     spawnPanelRefreshT = 0;
     utilityPanelRefreshT = 0;
@@ -272,8 +275,9 @@ export function createCombatPanels({
   function applySpawnPanelLayout(panel){
     const layout = store.state?.uiLayout?.spawnInteractionPanel;
     if(!layout || !Number.isFinite(Number(layout.left)) || !Number.isFinite(Number(layout.top))) return;
-    const maxLeft = panel.classList.contains("quest-mode") ? Math.max(0, window.innerWidth - panel.offsetWidth) : Infinity;
-    const maxTop = panel.classList.contains("quest-mode") ? Math.max(0, window.innerHeight - panel.offsetHeight) : Infinity;
+    const keepOnScreen = panel.classList.contains("quest-mode") || panel.classList.contains("refinery-mode");
+    const maxLeft = keepOnScreen ? Math.max(0, window.innerWidth - panel.offsetWidth) : Infinity;
+    const maxTop = keepOnScreen ? Math.max(0, window.innerHeight - panel.offsetHeight) : Infinity;
     panel.style.left = `${Math.max(0, Math.min(maxLeft, Number(layout.left)))}px`;
     panel.style.top = `${Math.max(0, Math.min(maxTop, Number(layout.top)))}px`;
     panel.style.right = "auto";
@@ -1160,6 +1164,7 @@ export function createCombatPanels({
     }
     const questListScrollTop = mode === "quests" ? content.querySelector(".quest-strip-list")?.scrollTop : null;
     const oldQuestId = content.querySelector("[data-quest-detail]")?.dataset.questDetail;
+    const refineryScrollTop = mode === "refinery" ? content.querySelector(".orbital-flight-content,.orbital-boost-content")?.scrollTop || 0 : 0;
     const detailScrollTop = content.querySelector(".quest-detail-scroll")?.scrollTop || 0;
     const transmissionOpen = content.querySelector(".quest-transmission-details")?.open || false;
     spawnPanelMode = mode;
@@ -1225,6 +1230,7 @@ export function createCombatPanels({
       commerceSaleAllowed:canSellMaterialsOnCurrentMap(),
       refineryTab:refineryPanelTab,
       selectedShipRefineRecipeId,
+      refineryUiState,
       upgradeables,
       getShipRefineryRecipeData,
       getCombatBoostSummary,
@@ -1237,6 +1243,12 @@ export function createCombatPanels({
     if(rendered.titleHtml) title.innerHTML = rendered.titleHtml;
     else title.textContent = rendered.title;
     content.innerHTML = rendered.html;
+    if(mode === "refinery"){
+      captureSpawnRefineryUi(content, refineryUiState);
+      bindSpawnRefineryUi(content, refineryUiState, ()=>renderSpawnInteractionPanel("refinery"));
+      const refineryScroll = content.querySelector(".orbital-flight-content,.orbital-boost-content");
+      if(refineryScroll) refineryScroll.scrollTop = refineryScrollTop;
+    }
     if(oldQuestId && oldQuestId === content.querySelector("[data-quest-detail]")?.dataset.questDetail){
       const transmission = content.querySelector(".quest-transmission-details");
       if(transmission) transmission.open = transmissionOpen;
@@ -1342,6 +1354,11 @@ export function createCombatPanels({
     selectedShipRefineRecipeId = null;
     renderSpawnInteractionPanel("refinery");
   }
+
+  window.addEventListener("resize", ()=>{
+    const refineryPanel = document.getElementById("spawnInteractionPanel");
+    if(refineryPanel?.classList.contains("refinery-mode") && !refineryPanel.classList.contains("hidden")) applySpawnPanelLayout(refineryPanel);
+  });
 
   applyPerfPanelVisibility();
 

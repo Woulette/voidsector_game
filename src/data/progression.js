@@ -322,22 +322,22 @@ export const skills = [
 import { COMMON_CRAFT_RESOURCES, ELITE_CRAFT_RESOURCES, MYTHIC_CRAFT_RESOURCES, RARE_CRAFT_RESOURCES, VERY_RARE_CRAFT_RESOURCES } from "./resources.js";
 
 export const rawMaterialCatalog = [
-  {id:"cuivre_orbital", name:"Cuivre", short:"CUI", kind:"raw", tier:1, img:"assets/materials/cuivre_orbital.svg", desc:"Métal conducteur extrait des débris orbitaux.", maxLevel:20},
-  {id:"zinc_spatial", name:"Zinc", short:"ZNC", kind:"raw", tier:1, img:"assets/materials/zinc_spatial.svg", desc:"Minerai léger utilisé pour stabiliser les alliages.", maxLevel:20},
-  {id:"nickel_brut", name:"Nickel", short:"NIC", kind:"raw", tier:1, img:"assets/materials/nickel_brut.svg", desc:"Minerai dense récupéré sur les coques ennemies.", maxLevel:20},
-  {id:"titane_fissure", name:"Titane", short:"TIT", kind:"raw", tier:1, img:"assets/materials/titane_fissure.svg", desc:"Titane instable destiné aux plaques de protection.", maxLevel:20},
-  {id:"silice_conductrice", name:"Silice", short:"SIL", kind:"raw", tier:1, img:"assets/materials/silice_conductrice.svg", desc:"Cristal industriel employé dans les circuits de raffinerie.", maxLevel:20},
+  {id:"cuivre_orbital", name:"Cuivre", short:"CUI", kind:"raw", tier:1, img:"assets/materials/refinery-v2/cuivre_orbital.png", desc:"Métal conducteur extrait des débris orbitaux.", maxLevel:20},
+  {id:"zinc_spatial", name:"Zinc", short:"ZNC", kind:"raw", tier:1, img:"assets/materials/refinery-v2/zinc_spatial.png", desc:"Minerai léger utilisé pour stabiliser les alliages.", maxLevel:20},
+  {id:"nickel_brut", name:"Nickel", short:"NIC", kind:"raw", tier:1, img:"assets/materials/refinery-v2/nickel_brut.png", desc:"Minerai dense récupéré sur les coques ennemies.", maxLevel:20},
+  {id:"titane_fissure", name:"Titane", short:"TIT", kind:"raw", tier:1, img:"assets/materials/refinery-v2/titane_fissure.png", desc:"Titane instable destiné aux plaques de protection.", maxLevel:20},
+  {id:"silice_conductrice", name:"Silice", short:"SIL", kind:"raw", tier:1, img:"assets/materials/refinery-v2/silice_conductrice.png", desc:"Cristal industriel employé dans les circuits de raffinerie.", maxLevel:20},
   ...COMMON_CRAFT_RESOURCES,
   ...RARE_CRAFT_RESOURCES,
   ...VERY_RARE_CRAFT_RESOURCES,
   ...ELITE_CRAFT_RESOURCES,
   ...MYTHIC_CRAFT_RESOURCES,
-  {id:"alliage_cuivre_zinc", name:"Alliage", short:"ACZ", kind:"refined", tier:2, img:"assets/materials/alliage_cuivre_zinc.svg", desc:"Alliage de base pour les systèmes conducteurs.", maxLevel:20},
-  {id:"plaque_nickel_titane", name:"Plaque", short:"PNT", kind:"refined", tier:2, img:"assets/materials/plaque_nickel_titane.svg", desc:"Plaque renforcée pour les structures et blindages.", maxLevel:20},
-  {id:"conducteur_renforce", name:"Conducteur", short:"CDR", kind:"advanced", tier:3, img:"assets/materials/conducteur_renforce.svg", desc:"Composant avancé pour les armes et circuits de puissance.", maxLevel:20},
-  {id:"blindage_composite", name:"Blindage", short:"BLC", kind:"advanced", tier:3, img:"assets/materials/blindage_composite.svg", desc:"Composant avancé pour renforcer la coque et les modules.", maxLevel:20},
-  {id:"catalyseur_quantique", name:"Catalyseur", short:"CAT", kind:"special", tier:4, img:"assets/materials/catalyseur_quantique.svg", desc:"Catalyseur de transition fabriqué avec minerais lourds et zinc stabilisé.", maxLevel:20},
-  {id:"noyau_astra", name:"Noyau", short:"AST", kind:"final", tier:5, img:"assets/materials/noyau_astra.svg", desc:"Matériau final destiné aux grosses améliorations de vaisseau.", maxLevel:20}
+  {id:"alliage_cuivre_zinc", name:"Alliage", short:"ACZ", kind:"refined", tier:2, img:"assets/materials/refinery-v2/alliage_cuivre_zinc.png", desc:"Alliage de base pour les systèmes conducteurs.", maxLevel:20},
+  {id:"plaque_nickel_titane", name:"Plaque", short:"PNT", kind:"refined", tier:2, img:"assets/materials/refinery-v2/plaque_nickel_titane.png", desc:"Plaque renforcée pour les structures et blindages.", maxLevel:20},
+  {id:"conducteur_renforce", name:"Conducteur", short:"CDR", kind:"advanced", tier:3, img:"assets/materials/refinery-v2/conducteur_renforce.png", desc:"Composant avancé pour les armes et circuits de puissance.", maxLevel:20},
+  {id:"blindage_composite", name:"Blindage", short:"BLC", kind:"advanced", tier:3, img:"assets/materials/refinery-v2/blindage_composite.png", desc:"Composant avancé pour renforcer la coque et les modules.", maxLevel:20},
+  {id:"catalyseur_quantique", name:"Catalyseur", short:"CAT", kind:"special", tier:4, img:"assets/materials/refinery-v2/catalyseur_quantique.png", desc:"Catalyseur de transition fabriqué avec minerais lourds et zinc stabilisé.", maxLevel:20},
+  {id:"noyau_astra", name:"Noyau", short:"AST", kind:"final", tier:5, img:"assets/materials/refinery-v2/noyau_astra.png", desc:"Matériau final destiné aux grosses améliorations de vaisseau.", maxLevel:20}
 ];
 
 export const refineryMaterialCatalog = rawMaterialCatalog.filter(material=>!material.rarity);
