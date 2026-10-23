@@ -13,7 +13,11 @@ const paths = {
   lock:'<rect x="6" y="10" width="12" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/>',
   check:'<circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/>',
   system:'<circle cx="12" cy="12" r="4"/><ellipse cx="12" cy="12" rx="10" ry="6" transform="rotate(-35 12 12)"/><circle cx="20" cy="5" r="1.5"/><path d="m5 2 .5 1.5L7 4l-1.5.5L5 6l-.5-1.5L3 4l1.5-.5Z"/>',
-  ascension:'<circle cx="12" cy="12" r="10"/><path d="m12 3 9 16H3ZM8 15l4-7 4 7M7 19h10"/>'
+  ascension:'<circle cx="12" cy="12" r="10"/><path d="m12 3 9 16H3ZM8 15l4-7 4 7M7 19h10"/>',
+  arrow:'<path d="M3 12h18m-7-7 7 7-7 7"/>',
+  close:'<path d="m5 5 14 14M5 19 19 5"/>',
+  collection:'<path d="M4 3h6v8H4Zm10 0h6v8h-6ZM4 15h6v6H4Zm10 0h6v6h-6Z"/>',
+  eye:'<path d="M2 12S5 5 12 5s10 7 10 7-3 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>'
 };
 
 export function profileIcon(name){

@@ -1314,3 +1314,9 @@ Mini-carte panoramique : le ratio 9/20 est partage dans `miniMapLayout.js`, et l
 Le Noyau Overdrive occupe désormais un slot de skin distinct de l'arme ou du bouclier. Il reste dans l'inventaire avec son UID et redevient disponible après retrait ; déplacement et remplacement préservent l'équipement principal. La baie affiche les vrais objets possédés dans une grille et un emplacement de skin par drone. Les anciennes installations consommées sont converties une seule fois en exemplaires équipés, sans prendre le stock libre. Les bonus et le prérequis Vesper restent inchangés, les mutations et la migration sont protégées côté serveur.
 
 Documentation : `docs/DRONES_SKINS_2026-10-23.md`. Release : `20261023-droneskin1` ; validation du candidat isolé, essais Socket et visuels sur comptes locaux, sauvegarde du runtime et contrôle des empreintes publiques avant publication confirmée.
+
+## 2026-10-23 — Collection de titres et ascension unique
+
+Le dossier du pilote retrouve une collection de titres accessible même sans titre débloqué et une fenêtre dédiée à l'ascension unique. `profileMilestones.js` porte les tuiles et fenêtres accessibles ; `profileMilestoneEmblems.js` leurs emblèmes SVG, `profileMilestones.css` leur style. `renderProfile.js` compose et synchronise les fenêtres ; `app.js` délègue les interactions et garde les commandes MMO existantes. Le catalogue actuel contient un seul titre, les conditions et bonus restent ceux du serveur. Les neuf portails distincts et les effets de l'ascension sont expliqués avant une confirmation séparée ; l'épreuve Éternel à venir reste signalée. Aucun changement des déblocages ni du backend.
+
+Détails : `docs/PROFIL_TITRES_ASCENSION_2026-10-23.md`. Version frontend : `20261023-profilemilestones1` ; validation sur candidat canonique et comptes privés jetables, publication limitée avec sauvegarde et contrôle des empreintes.

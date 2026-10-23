@@ -1,8 +1,10 @@
 import { fmt } from "../core/utils.js";
-import { getActiveDroneFormation, getCurrentRank, getDroneCatalog, getDroneLoadout, getDronePermanentUpgrade, getItemFromInventoryUid, getNextRank, getPlayerLevelCap, getPrestigeStatus, getRankAssetPath, getRankProgress, getShip, getShipCombatStats, store } from "../core/store.js?v=20260726-kharon1";
+import { getActiveDroneFormation, getCurrentRank, getDroneCatalog, getDroneLoadout, getDronePermanentUpgrade, getItemFromInventoryUid, getNextRank, getPlayerLevelCap, getPrestigeStatus, getRankAssetPath, getRankProgress, getShip, getShipCombatStats, getSpentSkillPoints, store } from "../core/store.js?v=20260726-kharon1";
 import { getRarityLabel } from "../shared/rarities.js";
-import { createProfilePresentation } from "./profilePresentation.js?v=20261023-profile1";
-import { profileIcon } from "./profileIcons.js?v=20261023-profile1";
+import { createProfilePresentation } from "./profilePresentation.js?v=20261023-profilemilestones1";
+import { profileIcon } from "./profileIcons.js?v=20261023-profilemilestones1";
+import { renderProfileMilestoneCards, syncProfileMilestoneDialog } from "./profileMilestones.js?v=20261023-profilemilestones1";
+export { handleProfileMilestoneInteraction, handleProfileMilestoneKeydown, settleProfileMilestoneCommand } from "./profileMilestones.js?v=20261023-profilemilestones1";
 
 const escapeHtml = value=>String(value ?? "").replace(/[&<>"']/g, char=>({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[char]);
 const renderedMarkup = new WeakMap();
@@ -17,7 +19,7 @@ export function getProfilePresentationModel(){
   return createProfilePresentation({
     state:store.state, rank, nextRank, rankProgress:getRankProgress(), rankAsset:getRankAssetPath(rank), nextRankAsset:nextRank ? getRankAssetPath(nextRank) : "",
     levelCap:getPlayerLevelCap(), ship:getShip(store.state.activeShip), stats:getShipCombatStats(store.state.activeShip), ascension:getPrestigeStatus(),
-    drones, drone:getDroneCatalog(), formation:getActiveDroneFormation(), displayMode:store.profileDisplay
+    drones, drone:getDroneCatalog(), formation:getActiveDroneFormation(), displayMode:store.profileDisplay, spentSkillPoints:getSpentSkillPoints()
   });
 }
 
@@ -60,24 +62,17 @@ function renderStats(model){
   return `<aside class="pilot-profile-right profile-frame" aria-label="Statistiques effectives et expérience"><section class="pilot-profile-efficiency"><h3 class="pilot-profile-card-heading">Efficacité du vaisseau</h3><dl>${model.stats.map(entry=>`<div class="pilot-profile-stat"><dt>${profileIcon(entry.icon)}<span>${escapeHtml(entry.label)}</span></dt><dd>${fmt(entry.value)}${escapeHtml(entry.suffix || "")}</dd></div>`).join("")}</dl><p class="pilot-profile-stats-note">${profileIcon("info")}<span>Équipement et bonus actifs inclus.</span></p></section><section class="pilot-profile-experience"><h3 class="pilot-profile-card-heading">Expérience</h3><p>XP ${fmt(model.xp.value)} / ${fmt(model.xp.next)}</p><div class="pilot-profile-xp-progress" role="progressbar" aria-label="Expérience du niveau actuel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${model.xp.percent}"><span style="width:${model.xp.percent}%"></span></div><small>${fmt(model.xp.total)} XP cumulée</small></section></aside>`;
 }
 
-function renderTitle(title){
-  return `<section class="pilot-profile-title profile-frame ${title.unlocked ? "unlocked" : "locked"}${title.equipped ? " equipped" : ""}" aria-label="Titre du pilote"><h3 class="pilot-profile-card-heading">Titres</h3><div class="pilot-profile-award-body"><div class="pilot-profile-award-art">${profileIcon("system")}${!title.unlocked ? `<span class="pilot-profile-award-lock">${profileIcon("lock")}</span>` : ""}</div><div class="pilot-profile-award-copy"><strong>${escapeHtml(title.name)}</strong><span class="pilot-profile-award-status">${escapeHtml(title.status)}</span><p>${title.unlocked ? title.equipped ? "Bonus actif, même lorsque le titre est masqué." : "Équipez ce titre pour activer son bonus." : `Terminer ${escapeHtml(title.portalName)}.`}</p><small>+${title.bonus} % dégâts lasers, roquettes et missiles</small></div><div class="pilot-profile-title-actions"><button class="blue-button small" type="button" ${title.unlocked ? `data-profile-title-toggle="${title.equipped ? "" : escapeHtml(title.id)}"` : "disabled"}>${title.equipped ? "Retirer" : "Équiper"}</button>${title.equipped ? `<button class="pilot-profile-visibility-button" type="button" data-profile-title-visibility>${title.visible ? "Masquer en jeu" : "Afficher en jeu"}</button>` : ""}</div></div></section>`;
-}
-
-function renderAscension(status){
-  return `<section class="pilot-profile-ascension profile-frame ${status.ascended ? "ascended" : status.available ? "available" : "locked"}" aria-label="Ascension unique"><h3 class="pilot-profile-card-heading">Ascension unique</h3><div class="pilot-profile-award-body"><div class="pilot-profile-award-art">${profileIcon("ascension")}<span class="pilot-profile-award-lock">${profileIcon(status.ascended ? "check" : status.available ? "star" : "lock")}</span></div><div class="pilot-profile-award-copy"><strong>${status.ascended ? "Ascension accomplie" : "Niveau 50 et 9 portails terminés"}</strong>${status.ascended ? `<p>Progression ouverte jusqu'au niveau 100.</p><small>Compétences conservées · Ascension unique accomplie</small>` : `<div class="pilot-profile-ascension-requirements"><span class="${status.levelOk ? "done" : ""}">${profileIcon(status.levelOk ? "check" : "lock")} Niveau 50</span><span class="${status.portalOk ? "done" : ""}">${profileIcon(status.portalOk ? "check" : "lock")} ${status.completedPortals} / ${status.requiredPortals} portails de progression</span></div><p>Niveau remis à 1 · Limite 50 → 100</p><small>Compétences conservées</small>`}</div>${status.ascended ? "" : `<button class="blue-button small pilot-profile-ascension-action" type="button" data-prestige${status.available ? "" : " disabled"}>Accomplir l'ascension</button>`}</div></section>`;
-}
-
 export function renderProfileMarkup(model){
-  return `<div class="pilot-profile-sheet${model.ascension.ascended ? " ascended" : ""}"><header class="pilot-profile-heading"><span class="tiny">Hangar</span><h2>Dossier du pilote</h2></header><div class="pilot-profile-grid"><div class="pilot-profile-left">${renderIdentity(model.identity)}${renderDossier(model.counters)}</div>${renderShowcase(model)}${renderStats(model)}</div><div class="pilot-profile-footer">${renderTitle(model.title)}${renderAscension(model.ascension)}</div></div>`;
+  return `<div class="pilot-profile-sheet${model.ascension.ascended ? " ascended" : ""}"><header class="pilot-profile-heading"><span class="tiny">Hangar</span><h2>Dossier du pilote</h2></header><div class="pilot-profile-grid"><div class="pilot-profile-left">${renderIdentity(model.identity)}${renderDossier(model.counters)}</div>${renderShowcase(model)}${renderStats(model)}</div><div class="pilot-profile-footer">${renderProfileMilestoneCards(model)}</div></div>`;
 }
 
 export function updateProfilePresentation(section, model){
+  syncProfileMilestoneDialog(model);
   const markup = renderProfileMarkup(model);
   if(renderedMarkup.get(section) === markup) return;
   const scroll = [...section.querySelectorAll("[data-profile-scroll]")].map(element=>({id:element.dataset.profileScroll, top:element.scrollTop, left:element.scrollLeft}));
   const active = section.contains(document.activeElement) ? document.activeElement : null;
-  const focusAttribute = ["data-profile-display", "data-profile-title-toggle", "data-profile-title-visibility", "data-prestige"].find(attribute=>active?.hasAttribute(attribute));
+  const focusAttribute = ["data-profile-display", "data-profile-milestone-open"].find(attribute=>active?.hasAttribute(attribute));
   const focusValue = focusAttribute ? active.getAttribute(focusAttribute) : null;
   section.innerHTML = markup;
   renderedMarkup.set(section, markup);
@@ -87,8 +82,7 @@ export function updateProfilePresentation(section, model){
   }
   if(focusAttribute){
     const controls = [...section.querySelectorAll(`[${focusAttribute}]`)];
-    const target = controls.find(element=>element.getAttribute(focusAttribute) === focusValue)
-      || (focusAttribute === "data-profile-title-toggle" ? controls[0] : null);
+    const target = controls.find(element=>element.getAttribute(focusAttribute) === focusValue);
     target?.focus({preventScroll:true});
   }
 }

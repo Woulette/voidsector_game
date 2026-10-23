@@ -6,6 +6,7 @@ import { PROGRESSION_PORTAL_IDS, STELLAR_SYSTEM_TITLE } from "../../src/shared/p
 import { getShipCombatStats, makeEmptyLoadout, store } from "../../src/core/store.js?v=20260726-kharon1";
 import { getProfilePresentationModel, renderProfileMarkup, updateProfilePresentation } from "../../src/ui/renderProfile.js";
 import { formatProfileDuration } from "../../src/ui/profilePresentation.js?v=20261023-profile1";
+import { renderProfileMilestoneDialog } from "../../src/ui/profileMilestones.js?v=20261023-profilemilestones1";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { performServerPrestige } from "../src/players/progressionActions.js";
 import { applyProfileTitleSelection, getEquippedProfileTitleDamageMultiplier } from "../src/players/profileTitles.js";
@@ -38,7 +39,7 @@ test("the profile uses the real grade score, its real emblem and progress betwee
   assert.equal(view.identity.rankPercent, 87.5);
   assert.equal(view.identity.nextRank.name, "Caporal");
   assert.equal(view.identity.nextRank.remaining, 500);
-  assert.equal(view.identity.rankAsset, "assets/ranks/06_Soldat_d_elite.svg");
+  assert.match(view.identity.rankAsset, /^assets\/ranks\/06_Soldat_d_elite\.svg(?:\?v=[\w-]+)?$/);
   for(const rank of RANK_TABLE){
     assert.equal(existsSync(new URL(`../../${getRankAssetPath(rank)}`, import.meta.url)), true, rank.name);
   }
@@ -90,14 +91,14 @@ test("title controls reflect actual unlock and server equipment; hiding keeps th
   view = model(value);
   assert.equal(view.title.unlocked, true);
   assert.equal(view.title.equipped, false);
-  assert.match(renderProfileMarkup(view), /Équipez ce titre pour activer son bonus/);
+  assert.match(renderProfileMilestoneDialog(view, {kind:"titles"}), /Équipez ce titre pour activer son bonus/);
   assert.equal(applyProfileTitleSelection(value, {titleId:STELLAR_SYSTEM_TITLE.id, visible:false}).ok, true);
   view = model(value);
   assert.equal(view.title.equipped, true);
   assert.equal(view.title.visible, false);
   assert.equal(view.title.bonus, 5);
   assert.equal(getEquippedProfileTitleDamageMultiplier(value), 1.05);
-  const html = renderProfileMarkup(view);
+  const html = renderProfileMarkup(view) + renderProfileMilestoneDialog(view, {kind:"titles"});
   assert.match(html, /Équipé · masqué/);
   assert.match(html, /Afficher en jeu/);
   assert.match(html, /data-profile-title-toggle=""/);
@@ -115,8 +116,9 @@ test("ascension requires nine distinct progression portals and level fifty, then
   value.completedPortals = Object.fromEntries(PROGRESSION_PORTAL_IDS.map(id=>[id, 1]));
   view = model(value);
   assert.equal(view.ascension.available, true);
-  assert.match(renderProfileMarkup(view), /Niveau remis à 1 · Limite 50 → 100/);
-  assert.match(renderProfileMarkup(view), /data-prestige>Accomplir/);
+  assert.match(renderProfileMilestoneDialog(view, {kind:"ascension"}), /Niveau remis à <b>1/);
+  assert.doesNotMatch(renderProfileMarkup(view), /data-prestige/);
+  assert.match(renderProfileMilestoneDialog(view, {kind:"ascension", confirming:true}), /data-prestige>Confirmer/);
   value.skillRanks = {damage:[1, 0, 0, 0, 0]};
   const beforeSkills = structuredClone(value.skillRanks);
   assert.equal(performServerPrestige(value).ok, true);
@@ -137,6 +139,8 @@ test("drone presentation counts only equipped modules, retains slot numbers and 
   value.inventoryItems.push({uid:"drone-module-a", itemId:"laser_mk1"}, {uid:"drone-module-b", itemId:"laser_mk1"});
   value.completedPortals.violet = 1;
   value.dronePermanentUpgrades = {3:"drone_overdrive_chip"};
+  value.inventoryItems.push({uid:"profile-test-skin", itemId:"drone_overdrive_chip"});
+  value.droneSkinLoadout = [null, null, null, "profile-test-skin"];
   const before = JSON.stringify(value);
   const view = model(value, "drones");
   assert.equal(view.displayMode, "drones");
@@ -194,22 +198,13 @@ test("identical canonical refreshes keep the DOM; changed values retain focus an
   } finally { globalThis.document = previousDocument; }
 });
 
-test("equipping a title keeps keyboard focus on the resulting remove-title control", ()=>{
-  const previousDocument = globalThis.document;
-  const focused = {hasAttribute:attribute=>attribute === "data-profile-title-toggle", getAttribute:()=>STELLAR_SYSTEM_TITLE.id};
-  const restored = [];
-  const section = {
-    contains:element=>element === focused,
-    querySelectorAll:selector=>selector === "[data-profile-scroll]" ? [] : [{getAttribute:()=>"", focus:options=>restored.push(options)}],
-    set innerHTML(value){ this.html = value; }
-  };
-  globalThis.document = {activeElement:focused};
-  try {
-    const value = profile();
-    value.completedPortals.eternal = 1;
-    applyProfileTitleSelection(value, {titleId:STELLAR_SYSTEM_TITLE.id});
-    updateProfilePresentation(section, model(value));
-    assert.deepEqual(restored, [{preventScroll:true}]);
-    assert.match(section.html, /data-profile-title-toggle=""/);
-  } finally { globalThis.document = previousDocument; }
+test("the title collection remains reachable when nothing is unlocked and the footer never performs ascension", ()=>{
+  const view = model(profile());
+  const html = renderProfileMarkup(view);
+  assert.equal(view.titles.total, 1);
+  assert.equal(view.titles.unlockedCount, 0);
+  assert.match(html, /data-profile-milestone-open="titles" aria-haspopup="dialog"/);
+  assert.match(html, /Collection de titres/);
+  assert.match(html, /data-profile-milestone-open="ascension"/);
+  assert.doesNotMatch(html, /data-prestige|data-profile-title-toggle|data-profile-title-visibility/);
 });

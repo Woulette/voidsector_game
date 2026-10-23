@@ -10,6 +10,7 @@ test("the commander profile keeps one ship and drone dashboard composed outside 
   const facadeSource = source("../../src/ui/render.js");
   const renderSource = source("../../src/ui/renderProfile.js");
   const modelSource = source("../../src/ui/profilePresentation.js");
+  const milestoneSource = source("../../src/ui/profileMilestones.js");
   const appSource = source("../../src/app.js");
 
   assert.doesNotMatch(renderSource, /data-profile-tab|profileAchievements|profileTitles|renderProfileTabContent/);
@@ -20,8 +21,12 @@ test("the commander profile keeps one ship and drone dashboard composed outside 
   assert.match(renderSource, /getShipCombatStats\(store\.state\.activeShip\)/);
   assert.match(renderSource, /getRankAssetPath\(rank\)/);
   assert.match(appSource, /setServerProfileTitle/);
-  assert.match(renderSource, /data-profile-title-toggle/);
-  assert.match(renderSource, /data-profile-title-visibility/);
+  assert.match(renderSource, /renderProfileMilestoneCards\(model\)/);
+  assert.match(milestoneSource, /data-profile-title-toggle/);
+  assert.match(milestoneSource, /data-profile-title-visibility/);
+  assert.match(milestoneSource, /data-profile-milestone-open="titles"/);
+  assert.match(milestoneSource, /createElement\("dialog"\)/);
+  assert.match(appSource, /handleProfileMilestoneInteraction/);
 
   const orderedDetails = [
     "Temps de jeu",
@@ -39,13 +44,15 @@ test("the commander profile keeps one ship and drone dashboard composed outside 
 
 test("Ascension replaces the old prestige counter with a permanent visual status", ()=>{
   const renderSource = source("../../src/ui/renderProfile.js");
+  const milestoneSource = source("../../src/ui/profileMilestones.js");
   const modelSource = source("../../src/ui/profilePresentation.js");
   const publicProfileSource = source("../../src/ui/playerProfileModal.js");
   const publicProfileCss = source("../../src/styles/playerProfile.css");
 
-  assert.match(renderSource, /Ascension unique/);
-  assert.match(renderSource, /Ascension accomplie/);
-  assert.match(renderSource, /Niveau remis à 1/);
+  assert.match(milestoneSource, /Ascension unique/);
+  assert.match(milestoneSource, /Ascension accomplie/);
+  assert.match(milestoneSource, /Niveau remis à/);
+  assert.doesNotMatch(renderSource, /data-prestige/);
   assert.match(modelSource, /available:!ascended/);
   assert.doesNotMatch(renderSource, /profileDetailRow\("Prestige"/);
   assert.match(publicProfileSource, /pilot-profile-ascension-mark/);

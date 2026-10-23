@@ -30,6 +30,7 @@ import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, bu
 import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=20261018-map-transfer1";
 import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderSkills, renderTop, selectSkillNode, setView } from "./ui/render.js?v=20261022-helion-hub1";
 import { equipDroneBayInventoryItem, handleDroneBayInteraction } from "./ui/renderDroneBay.js?v=20261023-dronegrid1";
+import { handleProfileMilestoneInteraction, handleProfileMilestoneKeydown, settleProfileMilestoneCommand } from "./ui/renderProfile.js?v=20261023-profilemilestones1";
 import { showToast } from "./ui/toast.js?v=20260726-kharon1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=20260726-kharon1";
 import { createProfileController } from "./app/profileController.js?v=20260726-kharon1";
@@ -426,6 +427,7 @@ const refineryActions = createRefineryActions({
 });
 
 document.addEventListener("click", (e)=>{
+  if(handleProfileMilestoneInteraction(e)) return;
   if(handleAdminPanelClick(e, {showToast, renderAll:renderAllPreserveScroll})) return;
   if(handleDroneBayInteraction(e, {equipPart, unequipPart})) return;
 
@@ -588,13 +590,14 @@ document.addEventListener("click", (e)=>{
 
   const prestigeBtn = e.target.closest("[data-prestige]");
   if(prestigeBtn){
-    sendMmoCommand({
+    const sent = sendMmoCommand({
       multiplayer,
       send:()=>performServerPrestige?.(),
       showToast,
       sentMessage:"Ascension envoyée au serveur.",
       failedMessage:"Ascension impossible."
     });
+    settleProfileMilestoneCommand(sent);
     return;
   }
 
@@ -1090,6 +1093,7 @@ document.getElementById("startGameBtn").addEventListener("click", ()=>{
 });
 document.getElementById("returnDashboardBtn").addEventListener("click", ()=>Game.requestLogout());
 document.addEventListener("keydown", e=>{
+  if(handleProfileMilestoneKeydown(e)) return;
   if(pendingKeybindSlot !== null || pendingAbilityKeybindSlot !== null){
     e.preventDefault();
     const code = eventToCode(e);
@@ -1131,6 +1135,10 @@ document.addEventListener("keydown", e=>{
 
 window.addEventListener("beforeunload", ()=>{
   try{ saveAndSyncProfile(); }catch(e){}
+});
+
+window.addEventListener("voidsector:profile-applied", ()=>{
+  if(store.currentView === "hangar" && store.hangarTab === "profile") renderProfile();
 });
 
 window.addEventListener("voidsector:profile-sync", event=>{

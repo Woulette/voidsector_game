@@ -1,5 +1,7 @@
 import { getRarityLabel, rarityClass } from "../shared/rarities.js";
 import { hasCompletedProgressionPortal, PROGRESSION_PORTAL_IDS, PROGRESSION_PORTAL_NAMES, STELLAR_SYSTEM_TITLE } from "../shared/progressionUnlocks.js?v=20260726-kharon1";
+import { portals } from "../data/progression.js?v=20260726-kharon1";
+import { getXpNextForLevel } from "../data/xpCurve.js?v=20260726-kharon1";
 
 const number = value=>Number.isFinite(Number(value)) ? Number(value) : 0;
 const nonnegative = value=>Math.max(0, number(value));
@@ -14,7 +16,7 @@ export function formatProfileDuration(seconds){
 
 // A read-only projection. Rank, equipment statistics and ascension eligibility are
 // supplied by the existing gameplay getters; this module grants no progression.
-export function createProfilePresentation({ state = {}, rank = {}, nextRank = null, rankProgress = {}, rankAsset = "", nextRankAsset = "", levelCap = 50, ship = {}, stats = {}, ascension = {}, drones = [], drone = {}, formation = null, displayMode = "ship" } = {}){
+export function createProfilePresentation({ state = {}, rank = {}, nextRank = null, rankProgress = {}, rankAsset = "", nextRankAsset = "", levelCap = 50, ship = {}, stats = {}, ascension = {}, drones = [], drone = {}, formation = null, displayMode = "ship", spentSkillPoints = 0 } = {}){
   const player = state.player || {};
   const ascended = number(state.prestigeCount) > 0;
   const titleUnlocked = hasCompletedProgressionPortal(state, STELLAR_SYSTEM_TITLE.portalId);
@@ -23,6 +25,17 @@ export function createProfilePresentation({ state = {}, rank = {}, nextRank = nu
   const xp = nonnegative(player.xp);
   const xpNext = Math.max(1, nonnegative(player.xpNext));
   const completedPortals = PROGRESSION_PORTAL_IDS.filter(id=>hasCompletedProgressionPortal(state, id)).length;
+  const progressionPortals = PROGRESSION_PORTAL_IDS.map(id=>{
+    const portal = portals.find(entry=>entry.id === id);
+    return {id, name:PROGRESSION_PORTAL_NAMES[id], image:String(portal?.img || ""), completed:hasCompletedProgressionPortal(state, id), comingSoon:portal?.contentStatus !== "ready"};
+  });
+  const title = {
+    id:STELLAR_SYSTEM_TITLE.id, name:STELLAR_SYSTEM_TITLE.name, portalName:PROGRESSION_PORTAL_NAMES[STELLAR_SYSTEM_TITLE.portalId],
+    portalId:STELLAR_SYSTEM_TITLE.portalId, comingSoon:progressionPortals.find(portal=>portal.id === STELLAR_SYSTEM_TITLE.portalId)?.comingSoon || false,
+    unlocked:titleUnlocked, equipped:titleEquipped, visible:titleVisible,
+    bonus:Math.round((STELLAR_SYSTEM_TITLE.damageMultiplier - 1) * 100),
+    status:!titleUnlocked ? "Verrouillé" : titleEquipped ? titleVisible ? "Équipé · visible" : "Équipé · masqué" : "Débloqué"
+  };
   return {
     identity:{
       name:String(player.name || "Pilote"), level:Math.max(1, number(player.level)), levelCap,
@@ -50,15 +63,13 @@ export function createProfilePresentation({ state = {}, rank = {}, nextRank = nu
     drones:drones.map(entry=>({...entry})),
     droneImage:String(drone.img || ""),
     formationName:String(formation?.name || "Formation Base"),
-    title:{
-      id:STELLAR_SYSTEM_TITLE.id, name:STELLAR_SYSTEM_TITLE.name, portalName:PROGRESSION_PORTAL_NAMES[STELLAR_SYSTEM_TITLE.portalId],
-      unlocked:titleUnlocked, equipped:titleEquipped, visible:titleVisible,
-      bonus:Math.round((STELLAR_SYSTEM_TITLE.damageMultiplier - 1) * 100),
-      status:!titleUnlocked ? "Verrouillé" : titleEquipped ? titleVisible ? "Équipé · visible" : "Équipé · masqué" : "Débloqué"
-    },
+    title,
+    titles:{catalog:[title], total:1, unlockedCount:Number(titleUnlocked), activeTitle:titleEquipped ? title : null},
     ascension:{
       ascended, available:!ascended && Boolean(ascension.ok), levelOk:Boolean(ascension.levelOk), portalOk:Boolean(ascension.portalOk),
-      completedPortals, requiredPortals:PROGRESSION_PORTAL_IDS.length
+      completedPortals, requiredPortals:PROGRESSION_PORTAL_IDS.length, portals:progressionPortals,
+      currentLevel:Math.max(1, number(player.level)), currentXp:xp,
+      reset:{level:1, xp:0, xpNext:getXpNextForLevel(1), levelCap:100, skillPoints:Math.max(0, 1 - nonnegative(spentSkillPoints))}
     }
   };
 }

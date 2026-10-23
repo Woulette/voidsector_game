@@ -1,3 +1,5 @@
+@import url("./profileMilestones.css?v=20261023-profilemilestones1");
+
 /* Pilot dossier: launcher only. Rank artwork and values come from game data. */
 #dashboard #profileSection{
   --pilot-border:#22536d;
