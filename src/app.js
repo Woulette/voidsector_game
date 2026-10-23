@@ -28,6 +28,7 @@ import { createCombatGame } from "./game/combat.js?v=20261022-helion-hub1";
 import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, prepareServerPortal, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=20261018-map-transfer1";
 import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=20261018-map-transfer1";
 import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderSkills, renderTop, selectSkillNode, setView } from "./ui/render.js?v=20261022-helion-hub1";
+import { equipDroneBayInventoryItem, handleDroneBayInteraction } from "./ui/renderDroneBay.js?v=20261023-dronebay1";
 import { showToast } from "./ui/toast.js?v=20260726-kharon1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=20260726-kharon1";
 import { createProfileController } from "./app/profileController.js?v=20260726-kharon1";
@@ -424,6 +425,7 @@ const refineryActions = createRefineryActions({
 
 document.addEventListener("click", (e)=>{
   if(handleAdminPanelClick(e, {showToast, renderAll:renderAllPreserveScroll})) return;
+  if(handleDroneBayInteraction(e, {equipPart, unequipPart})) return;
 
   const firmChoice = e.target.closest("[data-firm-choice]");
   if(firmChoice){
@@ -875,7 +877,9 @@ document.addEventListener("click", (e)=>{
       e.preventDefault();
       store.selectedInventoryUid = uid;
       store.selectedInventoryResourceId = null;
-      bulkEquipInventoryItems(bulkEquipmentUidsFor(uid));
+      const inventoryUids = bulkEquipmentUidsFor(uid);
+      if(inventoryUids.length === 1 && equipDroneBayInventoryItem(uid, {equipPart})) return;
+      bulkEquipInventoryItems(inventoryUids);
       return;
     }
     selectInventoryItemForDetail(uid);

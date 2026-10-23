@@ -14,10 +14,6 @@ import {
   findEquippedSlot,
   getAmmoCount,
   getCurrentRank,
-  getDroneCatalog,
-  getDroneLoadout,
-  getDronePermanentUpgrade,
-  getDronePurchasePrice,
   getCurrencyPrice,
   getInventoryByCategory,
   getInventoryCount,
@@ -51,6 +47,7 @@ import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderSha
 import { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
 import { updateHangarShowcase } from "./renderHangarShowcase.js?v=20261023-hangar1";
 import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261023-skills1";
+import { renderDroneSection } from "./renderDroneBay.js?v=20261023-dronebay1";
 import { renderProfile } from "./renderProfile.js?v=20261023-profile1";
 import { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
 import { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";
@@ -504,85 +501,6 @@ export function renderLoadout(){
     </div>`;
 }
 
-function renderDroneSlot(uid, index){
-  const item = getItemFromInventoryUid(uid);
-  const vesperUnlocked = Math.max(0, Number(store.state?.completedPortals?.violet || 0)) > 0;
-  const vesperActive = vesperUnlocked && Boolean(getDronePermanentUpgrade(index));
-  const multiSelected = item && selectedEquipmentUidSet().has(uid);
-  const selected = item && (multiSelected || store.selectedInventoryUid === uid);
-  const vesperState = vesperUnlocked ? (vesperActive ? "active" : "available") : "locked";
-  const vesperTitle = vesperActive
-    ? "Noyau Overdrive actif : drone rouge, +50 % au laser ou au bouclier équipé"
-    : vesperUnlocked
-      ? "Emplacement de Noyau Overdrive disponible"
-      : "Termine La Faille de Vesper pour débloquer cet emplacement";
-  const vesperSlotContent = vesperActive
-    ? `<img src="assets/drone_skins/puce_vesper.png?v=20260726-kharon1" alt="Noyau Overdrive Drone" draggable="false"><small>OVER</small>`
-    : `<i aria-hidden="true">${vesperUnlocked ? "+" : "×"}</i><small>${vesperUnlocked ? "NOYAU" : "LOCK"}</small>`;
-  return `<article class="drone-slot-card ${vesperActive ? "vesper-active" : ""} ${!vesperUnlocked ? "vesper-locked" : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""}" data-drop-part="drone" data-drop-index="${index}" data-drone-slot-number="${index + 1}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""}>
-    <div class="drone-slot-head"><span class="badge">Drone ${index+1}</span><span>${vesperActive ? "NOYAU OVERDRIVE" : item ? item.category.toUpperCase() : "VIDE"}</span></div>
-    <div class="drone-slot-body" data-drop-part="drone" data-drop-index="${index}">
-      <img class="drone-preview" src="assets/drones/drone_test_sprite.webp" alt="Drone ${index+1}">
-      <div class="drone-cosmetic-slot ${vesperState}" data-drop-part="drone" data-drop-index="${index}" aria-label="${vesperTitle}" title="${vesperTitle}">
-        ${vesperSlotContent}
-      </div>
-      <div class="drone-module ${item ? `filled ${rarityClass(item)}` : ""}">
-        ${item ? `<img src="${item.img}" alt="${item.name}"><b>${equipmentSlotBadge(item)}</b><em data-unequip-part="drone" data-unequip-index="${index}">x</em>` : `<i>+</i><span>Ajouter un laser ou un générateur</span>`}
-      </div>
-    </div>
-  </article>`;
-}
-
-export function renderDroneSection(){
-  const section = document.getElementById("droneSection");
-  if(!section) return;
-  const droneDef = getDroneCatalog();
-  const drones = getDroneLoadout();
-  const allInventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur"), ...getInventoryByCategory("drone_upgrade"), ...getInventoryByCategory("quest_item")]
-    .filter(entry=>!entry.equipped)
-    .filter(entry=>isInventoryResourceEntry(entry) || isDroneCompatibleEquipment(entry.item) || isDronePermanentUpgradeItem(entry.item));
-  const allResourceEntries = getInventoryResourceEntries();
-  const {inventoryEntries, resourceEntries} = filterInventoryContent(allInventoryEntries, allResourceEntries);
-  const inventoryCount = inventoryEntries.length + resourceEntries.length;
-  const emptyCells = Array.from({length:Math.max(0, 40 - inventoryCount)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
-  const nextPrice = drones.length >= droneDef.maxStandardOwned ? null : getDronePurchasePrice(drones.length);
-  const visibleDroneSlots = drones.slice(0, 10);
-  const selectedDetail = renderSelectedInventoryDetail();
-  section.innerHTML = `
-    <div class="drone-layout">
-      <aside class="panel frame drone-summary-panel">
-        <div class="panel-head compact"><div><span class="tiny">DRONES</span><h2>${droneDef.name}</h2></div><span class="rank">${drones.length}/${droneDef.maxOwned}</span></div>
-        <div class="selected-ship-art drone-art-large"><img src="${droneDef.img}" alt="${droneDef.name}"></div>
-        <div class="stats-list">
-          ${statLine("Drones possédés", drones.length, droneDef.maxOwned)}
-          ${statLine("Max drones", droneDef.maxOwned, droneDef.maxOwned)}
-          <div class="stat-line special-line"><span>Drones standards</span><b>${droneDef.maxStandardOwned} maximum</b></div>
-          <div class="stat-line special-line"><span>Drones spéciaux</span><b>2 places réservées</b></div>
-          <div class="stat-line special-line"><span>Emplacements</span><b>1 par drone</b></div>
-          <div class="stat-line special-line"><span>Compatibilité</span><b>Laser, bouclier ou Noyau Overdrive</b></div>
-          <div class="stat-line special-line"><span>Prix suivant</span><b>${nextPrice ? currencyAmountHtml(droneDef.priceType, getCurrencyPrice(droneDef.priceType, nextPrice)) : "MAX"}</b></div>
-        </div>
-        <button class="blue-button" data-buy-combat-drone ${(!nextPrice || !canAfford(droneDef.priceType, nextPrice)) ? "disabled" : ""}>${nextPrice ? "ACHETER UN DRONE" : "MAX DRONES STANDARDS"}</button>
-        <p class="panel-note">${droneDef.desc}</p>
-      </aside>
-      <section class="panel frame drone-loadout-panel">
-        <div class="panel-head drone-loadout-head"><div><h2>DRONE</h2></div></div>
-        <div class="ship-equipment-layout drone-equipment-layout">
-          <section class="equipped-compact-panel">
-            <div class="compact-section-head"><h3>Drone Bay</h3><span>${drones.length}/${droneDef.maxOwned}</span></div>
-            <div class="drone-bay-grid">${visibleDroneSlots.length ? visibleDroneSlots.map((uid,i)=>renderDroneSlot(uid, i)).join("") : `<div class="empty-msg">Aucun drone acheté pour le moment.</div>`}</div>
-          </section>
-          <section class="rpg-inventory-panel">
-            <div class="compact-section-head"><h3>Inventaire</h3><span>${inventoryCount} objets</span></div>
-            ${renderInventoryFilterTabs()}
-            <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, null)).join("")}${resourceEntries.map(renderInventoryResourceCell).join("")}${emptyCells}</div>
-          </section>
-          ${selectedDetail ? `<section class="selected-item-panel">${selectedDetail}</section>` : ""}
-        </div>
-      </section>
-    </div>`;
-}
-
 function formatDuration(seconds){
   const total = Math.max(0, Math.floor(Number(seconds || 0)));
   const hours = Math.floor(total / 3600);
@@ -1028,6 +946,7 @@ function renderFirmSetupGate(){
 
 export { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
 export { renderLeaderboard, renderPortals, renderSkills, selectSkillNode } from "./renderProgression.js?v=20261023-skills1";
+export { renderDroneSection } from "./renderDroneBay.js?v=20261023-dronebay1";
 export { renderProfile } from "./renderProfile.js?v=20261023-profile1";
 export { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
 export { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";

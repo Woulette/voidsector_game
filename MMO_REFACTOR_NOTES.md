@@ -1295,3 +1295,9 @@ Mini-carte panoramique : le ratio 9/20 est partage dans `miniMapLayout.js`, et l
 - Le Profil du Hangar reprend la maquette avec les grades, insignes SVG, compteurs, vaisseau, drones, statistiques et conditions réels. L'ascension annonce le retour au niveau 1 ; le titre conserve équipement, retrait et visibilité avec leurs commandes serveur existantes.
 - Le rendu est extrait de `render.js` vers `renderProfile.js`, la projection vers `profilePresentation.js` et les pictogrammes vers `profileIcons.js`. Styles limités au Profil dans `profileDossier.css`. Les façades restent fines et les règles métier inchangées.
 - Validation et preuves : `docs/PROFIL_REFONTE_2026-10-23.md`, `output/profile-refonte-2026-10-23/`. Version frontend `20261023-profile1`.
+
+## 2026-10-23 — Refonte de la baie de drones
+
+- La page Drones reprend la maquette validée avec les vrais visuels et raretés du catalogue. L'inventaire regroupe les modèles et expose leurs exemplaires UID, disponibilités et emplacements réels ; l'action explicite cible le drone sélectionné.
+- `renderDroneBay.js`, `droneBayModel.js` et `droneBayIcons.js` extraient le domaine de la façade `render.js`. `app.js` ajoute une délégation fine, `droneBay.css` limite les styles à la page. Achats, équipements, ventes, Overdrive permanent et anciens drones 9/10 conservent leurs règles serveur.
+- Validation et preuves : `docs/DRONES_REFONTE_2026-10-23.md`, `output/drones-refonte-2026-10-23/`. Version frontend `20261023-dronebay1`.
