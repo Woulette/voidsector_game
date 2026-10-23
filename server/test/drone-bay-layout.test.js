@@ -28,5 +28,7 @@ test("drone selection precedes legacy UID handlers while drag, sale and bulk hoo
   assert.match(renderer, /data-slot-uid="\$\{escapeHtml\(slot.uid\)\}" data-drop-part="drone" data-drop-index="\$\{slot.index\}"/);
   assert.match(renderer, /if\(event.target.closest\("\[data-slot-uid\]\[data-drop-part\]"\)\) return false/);
   assert.match(renderer, /data-inventory-sell="\$\{escapeHtml\(entry.uid\)\}"/);
-  assert.doesNotMatch(renderer, /length:Math.max\(0, 40|drone ancestral/i);
+  assert.match(renderer, /db-inventory-list db-inventory-grid rpg-inventory-grid/);
+  assert.match(renderer, /visibleInventoryEntries\.map\(entry=>renderInventoryCell\(entry, model\)\)/);
+  assert.doesNotMatch(renderer, /data-drone-group|expandedGroups|db-group-copies|drone ancestral/i);
 });

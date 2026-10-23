@@ -8,10 +8,10 @@ import { getRarityLabel, rarityClass } from "../shared/rarities.js";
 import {
   createDroneBayModel, DRONE_BAY_FILTERS, droneBayEquipAction, droneEquipmentKind, droneEquipmentStats,
   resolveDroneBaySelection
-} from "./droneBayModel.js?v=20261023-dronebay1";
-import { droneBayIcon } from "./droneBayIcons.js?v=20261023-dronebay1";
+} from "./droneBayModel.js?v=20261023-dronegrid1";
+import { droneBayIcon } from "./droneBayIcons.js?v=20261023-dronegrid1";
 
-const ui = {selectedDroneIndex:0, filter:"all", expandedGroups:new Set()};
+const ui = {selectedDroneIndex:0, filter:"all"};
 const renderedMarkup = new WeakMap();
 const fmt = value=>Math.max(0, Number(value) || 0).toLocaleString("fr-FR");
 const escapeHtml = value=>String(value ?? "").replace(/[&<>"']/g, char=>({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[char]);
@@ -28,7 +28,7 @@ export function getDroneBayPresentationModel({filter = ui.filter} = {}){
   const inventoryEntries = ["canon", "generateur", "drone_upgrade"].flatMap(category=>getInventoryByCategory(category));
   const nextPrice = getDronePurchasePrice(drones.length);
   return createDroneBayModel({
-    drone, drones, inventoryEntries, ...ui, filter, expandedGroups:[...ui.expandedGroups],
+    drone, drones, inventoryEntries, ...ui, filter,
     selectedUid:store.selectedInventoryUid, selectedUids:store.selectedInventoryUids,
     portalComplete:Math.max(0, Number(store.state?.completedPortals?.violet || 0)) > 0,
     getPermanentUpgrade:getDronePermanentUpgrade, getItem, getLocationLabel:locationLabel,
@@ -58,7 +58,7 @@ export function equipDroneBayInventoryItem(uid, {equipPart} = {}){
   const section = globalThis.document?.getElementById?.("droneSection");
   if(!section || section.hidden || section.classList?.contains("hidden")) return false;
   const model = getDroneBayPresentationModel({filter:"all"});
-  const entry = model.groups.flatMap(group=>group.copies).find(copy=>copy.uid === uid);
+  const entry = model.inventoryEntries.find(copy=>copy.uid === uid);
   const action = droneBayEquipAction(entry, model.selectedDrone, model.portalComplete);
   if(action.allowed) equipPart?.("drone", model.selectedDroneIndex, entry.uid);
   return true;
@@ -110,22 +110,33 @@ function renderEquipment(model){
   </section>`;
 }
 
-function renderInspection(group, model){
-  const entry = group.selectedEntry;
+function renderInspection(model){
+  const entry = model.selectedEntry;
   if(!entry) return "";
+  const item = entry.item;
   const action = model.action;
-  const sell = group.item.shop !== false && Number(group.item.price) > 0
+  const sell = item.shop !== false && Number(item.price) > 0
     ? `<button class="blue-button secondary small db-sell-action" type="button" data-inventory-sell="${escapeHtml(entry.uid)}">Vendre cet exemplaire</button>` : "";
-  return `<div class="db-inspection"><p class="db-item-description">${escapeHtml(group.item.desc || "")}</p>${itemStats(group.item)}${group.item.stats?.passif ? `<small class="db-item-passive">Passif : ${escapeHtml(group.item.stats.passif)}</small>` : ""}<small class="db-base-stats-note">Caractéristiques de base${droneEquipmentKind(group.item) === "overdrive" ? " · régénération inchangée" : " · bonus de compétences et améliorations non inclus"}.</small><div class="db-inspection-location">${escapeHtml(entry.equipped ? `Équipé sur ${entry.locationLabel}` : "Disponible dans l’inventaire")}</div>${action.permanent ? `<p class="db-permanent-note">Le noyau sera consommé. Installation définitive.</p>` : action.replacing && action.allowed ? `<p class="db-replace-note">Le module actuel retournera dans l’inventaire.</p>` : ""}<div class="db-item-actions"><button class="blue-button db-equip-action" type="button" data-drone-equip-uid="${escapeHtml(entry.uid)}"${action.allowed ? "" : " disabled"}>${droneBayIcon(action.permanent ? "chip" : "arrow")}<span>${escapeHtml(action.label || "Équiper")}</span></button>${sell}</div>${!action.allowed && action.reason ? `<small class="db-action-reason">${escapeHtml(action.reason)}</small>` : ""}</div>`;
+  return `<section class="db-inventory-detail" aria-label="Équipement sélectionné"><div class="db-inspection ${rarityClass(item)}"><header class="db-inspection-heading"><img src="${escapeHtml(item.img)}" alt="${escapeHtml(item.name)}"><div><h4 title="${escapeHtml(item.desc || "")}">${escapeHtml(item.name)}</h4>${rarity(item)}<small class="db-inspection-location">${escapeHtml(entry.equipped ? `Équipé sur ${entry.locationLabel}` : "Disponible dans l’inventaire")}</small></div></header>${itemStats(item)}${item.stats?.passif ? `<small class="db-item-passive">Passif : ${escapeHtml(item.stats.passif)}</small>` : ""}<small class="db-base-stats-note">Valeurs de base, hors bonus${droneEquipmentKind(item) === "overdrive" ? " · régénération inchangée" : ""}.</small>${action.permanent ? `<p class="db-permanent-note">Noyau consommé · installation définitive.</p>` : action.replacing && action.allowed ? `<p class="db-replace-note">Le module actuel retournera dans l’inventaire.</p>` : ""}<div class="db-item-actions"><button class="blue-button db-equip-action" type="button" data-drone-equip-uid="${escapeHtml(entry.uid)}"${action.allowed ? "" : " disabled"}>${droneBayIcon(action.permanent ? "chip" : "arrow")}<span>${escapeHtml(action.label || "Équiper")}</span></button>${sell}</div>${!action.allowed && action.reason ? `<small class="db-action-reason">${escapeHtml(action.reason)}</small>` : ""}</div></section>`;
 }
 
-function renderGroup(group, model){
-  const copies = group.expanded;
-  return `<article class="db-inventory-group ${group.rarityClass}${group.selected ? " selected" : ""}${group.expanded ? " expanded" : ""}"><button type="button" class="db-group-heading" data-drone-group="${escapeHtml(group.id)}" aria-expanded="${copies}"><span class="db-item-image"><img src="${escapeHtml(group.item.img)}" alt="" draggable="false"></span><span class="db-group-name"><strong>${escapeHtml(group.item.name)}</strong>${rarity(group.item)}<small>${fmt(group.available)} disponible${group.available > 1 ? "s" : ""} · ${fmt(group.equipped)} équipé${group.equipped > 1 ? "s" : ""}</small></span><span class="db-group-counts"><b>×${fmt(group.total)}</b>${droneBayIcon("chevron")}</span></button>${copies ? `<div class="db-group-copies" role="group" aria-label="Exemplaires de ${escapeHtml(group.item.name)}">${group.copies.map((entry, index)=>`<button type="button" class="db-copy inventory-cell${entry.uid === model.selectedUid ? " selected" : ""}${model.selectedUids.has(entry.uid) ? " multi-selected" : ""}${entry.equipped ? " equipped-elsewhere" : ""}" data-inventory-uid="${escapeHtml(entry.uid)}" data-inventory-category="${escapeHtml(group.item.category)}" draggable="true" title="${escapeHtml(`${group.item.name} · ${entry.locationLabel}`)}"><span>Exemplaire ${String(index + 1).padStart(2, "0")}</span><small>${escapeHtml(entry.locationLabel)}</small>${entry.uid === model.selectedUid ? droneBayIcon("check") : ""}</button>`).join("")}</div>` : ""}${renderInspection(group, model)}</article>`;
+function inventoryBadge(item){
+  if(item.category === "canon"){
+    const mk = String(item.id || "").match(/mk(\d+)/i)?.[1];
+    return mk ? `MK-${{1:"I", 2:"II", 3:"III", 4:"IV"}[mk] || mk}` : "ÉLITE";
+  }
+  if(droneEquipmentKind(item) === "overdrive") return "DR+";
+  return String(item.name || "").match(/\bA\s+([IVX]+)$/i)?.[0] || "G";
+}
+
+function renderInventoryCell(entry, model){
+  const multiSelected = model.selectedUids.has(entry.uid);
+  return `<button class="db-inventory-cell inventory-cell ${entry.rarityClass}${entry.uid === model.selectedUid ? " selected" : ""}${multiSelected ? " multi-selected" : ""}" type="button" data-inventory-uid="${escapeHtml(entry.uid)}" data-inventory-category="${escapeHtml(entry.item.category)}" draggable="true" aria-label="${escapeHtml(`${entry.item.name} · ${entry.rarity} · disponible`)}" title="${escapeHtml(`${entry.item.name} · ${entry.rarity}`)}"><img src="${escapeHtml(entry.item.img)}" alt="${escapeHtml(entry.item.name)}" draggable="false"><small class="db-inventory-badge">${escapeHtml(inventoryBadge(entry.item))}</small></button>`;
 }
 
 function renderInventory(model){
-  return `<section class="db-inventory-panel rpg-inventory-panel"><header class="db-inventory-heading"><h3>Inventaire</h3><span>${fmt(model.totalItems)} module${model.totalItems > 1 ? "s" : ""} · ${fmt(model.availableItems)} libre${model.availableItems > 1 ? "s" : ""}</span></header><div class="db-inventory-filters" role="group" aria-label="Filtrer les équipements compatibles">${DRONE_BAY_FILTERS.map(filter=>`<button type="button" data-drone-filter="${filter.id}" class="${model.filter === filter.id ? "active" : ""}" aria-pressed="${model.filter === filter.id}">${filter.label}</button>`).join("")}</div><div class="db-inventory-list rpg-inventory-grid" data-db-scroll="inventory">${model.groups.length ? model.groups.map(group=>renderGroup(group, model)).join("") : `<p class="db-empty-inventory">${model.totalItems ? "Aucun module dans cette catégorie." : "Aucun équipement compatible possédé. Les lasers et générateurs de bouclier apparaîtront ici."}</p>`}</div><p class="db-inventory-note">Cliquez pour inspecter · Double clic sur un exemplaire : drone sélectionné.</p></section>`;
+  const emptyCells = Array.from({length:Math.max(0, 40 - model.visibleInventoryEntries.length)}, ()=>`<div class="db-inventory-cell inventory-cell empty" aria-hidden="true"></div>`).join("");
+  return `<section class="db-inventory-panel rpg-inventory-panel"><header class="db-inventory-heading"><h3>Inventaire</h3><span>${fmt(model.availableItems)} équipement${model.availableItems > 1 ? "s" : ""} disponible${model.availableItems > 1 ? "s" : ""}</span></header><div class="db-inventory-filters" role="group" aria-label="Filtrer les équipements compatibles">${DRONE_BAY_FILTERS.map(filter=>`<button type="button" data-drone-filter="${filter.id}" class="${model.filter === filter.id ? "active" : ""}" aria-pressed="${model.filter === filter.id}">${filter.label}</button>`).join("")}</div><div class="db-inventory-list db-inventory-grid rpg-inventory-grid" data-db-scroll="inventory" aria-label="Équipements disponibles">${model.visibleInventoryEntries.map(entry=>renderInventoryCell(entry, model)).join("")}${emptyCells}</div>${renderInspection(model)}<p class="db-inventory-note">Cliquez pour inspecter · Double clic : équiper le drone sélectionné.</p></section>`;
 }
 
 export function renderDroneBayMarkup(model){
@@ -137,7 +148,7 @@ export function updateDroneBayPresentation(section, model){
   if(renderedMarkup.get(section) === markup) return false;
   const scrolls = [...section.querySelectorAll("[data-db-scroll]")].map(element=>({id:element.dataset.dbScroll, top:element.scrollTop, left:element.scrollLeft}));
   const active = section.contains(document.activeElement) ? document.activeElement : null;
-  const attributes = ["data-drone-select", "data-drone-filter", "data-drone-group", "data-inventory-uid", "data-drone-equip-uid", "data-drone-unequip", "data-buy-combat-drone"];
+  const attributes = ["data-drone-select", "data-drone-filter", "data-inventory-uid", "data-drone-equip-uid", "data-drone-unequip", "data-buy-combat-drone"];
   const attribute = attributes.find(name=>active?.hasAttribute(name));
   const value = attribute ? active.getAttribute(attribute) : null;
   section.innerHTML = markup;
@@ -182,22 +193,6 @@ export function handleDroneBayInteraction(event, {equipPart, unequipPart} = {}){
   }
   const filter = event.target.closest("[data-drone-filter]");
   if(filter){ if(setDroneBayFilter(filter.dataset.droneFilter)) renderDroneSection(); return true; }
-  const groupButton = event.target.closest("[data-drone-group]");
-  if(groupButton){
-    const model = getDroneBayPresentationModel();
-    const group = model.groups.find(entry=>entry.id === groupButton.dataset.droneGroup);
-    if(group){
-      const selected = group.copies.find(entry=>entry.uid === store.selectedInventoryUid);
-      const entry = selected || group.copies.find(copy=>!copy.equipped) || group.copies[0];
-      store.selectedInventoryUid = entry.uid;
-      store.selectedInventoryResourceId = null;
-      store.selectedInventoryUids = [];
-      if(ui.expandedGroups.has(group.id) && selected) ui.expandedGroups.delete(group.id);
-      else ui.expandedGroups.add(group.id);
-      renderDroneSection();
-    }
-    return true;
-  }
   const tile = event.target.closest("[data-drone-select]");
   if(tile){
     const selected = selectDroneBayDrone(Number(tile.dataset.droneSelect));

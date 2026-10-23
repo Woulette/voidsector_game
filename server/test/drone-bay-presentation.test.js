@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { equipment, droneCatalog } from "../../src/data/equipment.js";
 import { getDronePurchasePrice, store } from "../../src/core/store.js?v=20260726-kharon1";
-import { createDroneBayModel, droneBayEquipAction, droneEquipmentKind, droneEquipmentStats, groupDroneInventory, resolveDroneBaySelection } from "../../src/ui/droneBayModel.js?v=20261023-dronebay1";
+import { createDroneBayModel, droneBayEquipAction, droneEquipmentKind, droneEquipmentStats, getCompatibleDroneInventory, resolveDroneBaySelection } from "../../src/ui/droneBayModel.js?v=20261023-dronegrid1";
 import { equipDroneBayInventoryItem, getDroneBayPresentationModel, handleDroneBayInteraction, renderDroneBayMarkup, selectDroneBayDrone, setDroneBayFilter, updateDroneBayPresentation } from "../../src/ui/renderDroneBay.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { createProfileActions } from "../src/players/profileActions.js";
@@ -25,20 +25,19 @@ function withProfile(profile, callback){
   try { return callback(); } finally { Object.assign(store, previous); setDroneBayFilter("all"); }
 }
 
-test("inventory groups only compatible equipment and retains every unique UID and location", ()=>{
+test("inventory retains every compatible individual UID and real location without grouping", ()=>{
   const entries = [entry("copy-free", "laser_mk2"), entry("copy-ship", "laser_mk2", {location:"ship", shipId:"velox"}),
     entry("copy-drone", "laser_mk2", {location:"drone", index:1}), entry("shield", "shield_gen"),
     entry("speed", "engine_ion"), entry("fluid", "teleportation_fluid"), entry("chip", "drone_overdrive_chip"),
     entry("prototype", "ancestral_drone_core"), entry("copy-free", "laser_mk2"), {uid:"unknown"}];
   const before = JSON.stringify(entries);
-  const groups = groupDroneInventory(entries, {getLocationLabel:location});
-  assert.equal(groups.length, 3);
-  const lasers = groups.find(group=>group.id === "laser_mk2");
-  assert.equal(lasers.total, 3);
-  assert.equal(lasers.available, 1);
-  assert.equal(lasers.equipped, 2);
-  assert.deepEqual(lasers.copies.map(copy=>copy.uid), ["copy-free", "copy-ship", "copy-drone"]);
-  assert.deepEqual(lasers.copies.map(copy=>copy.locationLabel), ["Disponible", "velox", "Drone 2"]);
+  const inventory = getCompatibleDroneInventory(entries, {getLocationLabel:location});
+  assert.equal(inventory.length, 5);
+  const lasers = inventory.filter(copy=>copy.item.id === "laser_mk2");
+  assert.deepEqual(lasers.map(copy=>copy.uid), ["copy-free", "copy-ship", "copy-drone"]);
+  assert.deepEqual(lasers.map(copy=>copy.locationLabel), ["Disponible", "velox", "Drone 2"]);
+  const view = model({inventoryEntries:entries});
+  assert.deepEqual(view.availableEntries.map(copy=>copy.uid), ["copy-free", "shield", "chip"]);
   assert.equal(JSON.stringify(entries), before);
 });
 
@@ -46,18 +45,19 @@ test("catalog art, rarities and statistics replace the illustrative mockup equip
   const entries = ["laser_mk1", "laser_mk2", "laser_mk3", "laser_mk4", "laser_elite_red", "shield_gen", "shield_omega", "drone_overdrive_chip"].map((id, i)=>entry(`real-${i}`, id));
   const view = model({inventoryEntries:entries});
   const markup = renderDroneBayMarkup(view);
-  for(const group of view.groups) assert.ok(markup.includes(group.item.img));
-  assert.equal(view.groups.find(group=>group.id === "laser_mk1").rarity, "Commun");
-  assert.equal(view.groups.find(group=>group.id === "laser_mk2").rarity, "Rare");
-  assert.equal(view.groups.find(group=>group.id === "laser_mk3").rarity, "Rare");
-  assert.equal(view.groups.find(group=>group.id === "laser_mk4").rarity, "Très rare");
-  assert.equal(view.groups.find(group=>group.id === "laser_elite_red").rarity, "Élite");
-  assert.equal(view.groups.find(group=>group.id === "shield_gen").rarity, "Commun");
-  assert.equal(view.groups.find(group=>group.id === "drone_overdrive_chip").rarity, "PORTAIL");
+  for(const copy of view.visibleInventoryEntries) assert.ok(markup.includes(copy.item.img));
+  assert.equal(view.inventoryEntries.find(copy=>copy.item.id === "laser_mk1").rarity, "Commun");
+  assert.equal(view.inventoryEntries.find(copy=>copy.item.id === "laser_mk2").rarity, "Rare");
+  assert.equal(view.inventoryEntries.find(copy=>copy.item.id === "laser_mk3").rarity, "Rare");
+  assert.equal(view.inventoryEntries.find(copy=>copy.item.id === "laser_mk4").rarity, "Très rare");
+  assert.equal(view.inventoryEntries.find(copy=>copy.item.id === "laser_elite_red").rarity, "Élite");
+  assert.equal(view.inventoryEntries.find(copy=>copy.item.id === "shield_gen").rarity, "Commun");
+  assert.equal(view.inventoryEntries.find(copy=>copy.item.id === "drone_overdrive_chip").rarity, "PORTAIL");
   assert.equal(droneEquipmentStats(item("laser_mk2"))[0].value, "55–90");
   assert.equal(droneEquipmentStats(item("shield_omega")).find(stat=>stat.label === "Régénération").value, "35 / s");
   assert.equal(droneEquipmentKind(item("reactor_ion")), null);
-  assert.doesNotMatch(markup, /Générateur A III|inventory-cell empty|data-inventory-resource-id/);
+  assert.doesNotMatch(markup, /Générateur A III|data-inventory-resource-id/);
+  assert.equal((markup.match(/inventory-cell empty/g) || []).length, 32);
 });
 
 test("zero, eight and ten owned drones retain eight standard and two truthful special positions", ()=>{
@@ -92,13 +92,20 @@ test("real exponential prices stop at the standard cap and insufficient credits 
   });
 });
 
-test("grouped copies remain individually inspectable and draggable without implicit equipping", ()=>{
-  const entries = [entry("unique-a", "laser_mk1"), entry("unique-b", "laser_mk1", {location:"drone", index:1})];
-  const view = model({inventoryEntries:entries, selectedUid:"unique-a", expandedGroups:["laser_mk1"], selectedUids:["unique-b"]});
+test("each available copy is an image cell while equipped copies stay out of the grid", ()=>{
+  const entries = [entry("unique-a", "laser_mk1"), entry("unique-b", "laser_mk1"), entry("equipped-copy", "laser_mk1", {location:"drone", index:1})];
+  const view = model({drones:[null, "equipped-copy"], inventoryEntries:entries, selectedUid:"unique-a", selectedUids:["unique-b"]});
   const markup = renderDroneBayMarkup(view);
   assert.match(markup, /data-inventory-uid="unique-a"/);
   assert.match(markup, /data-inventory-uid="unique-b"/);
-  assert.match(markup, /db-copy inventory-cell multi-selected/);
+  assert.match(markup, /db-inventory-cell inventory-cell rarity-common multi-selected/);
+  assert.doesNotMatch(markup, /data-inventory-uid="equipped-copy"/);
+  assert.equal((markup.match(/data-inventory-uid=/g) || []).length, 2);
+  assert.equal((markup.match(/inventory-cell empty/g) || []).length, 38);
+  assert.match(markup, /<div class="db-inventory-cell inventory-cell empty" aria-hidden="true"><\/div>/);
+  assert.doesNotMatch(markup, /db-inventory-group|data-drone-group|db-group-copies|aria-expanded|Exemplaire 0/);
+  assert.ok(markup.indexOf('class="db-inventory-detail"') > markup.indexOf('class="db-inventory-list db-inventory-grid rpg-inventory-grid"'));
+  assert.match(markup, /db-inspection-heading/);
   assert.match(markup, /data-drone-equip-uid="unique-a"/);
   assert.match(markup, /data-inventory-sell="unique-a"/);
   assert.doesNotMatch(markup, /data-inventory-uid="laser_mk1"|data-inventory-equip=|data-equip-part=/);
@@ -129,7 +136,7 @@ test("Overdrive retains its Vesper gate, consumed permanent status and shield-on
   const open = model({inventoryEntries:[chip], selectedUid:chip.uid, portalComplete:true});
   assert.equal(open.action.allowed, true);
   assert.equal(open.action.permanent, true);
-  assert.match(renderDroneBayMarkup(open), /noyau sera consommé/);
+  assert.match(renderDroneBayMarkup(open), /Noyau consommé/);
   assert.doesNotMatch(renderDroneBayMarkup(open), /data-inventory-sell=/);
   const active = model({inventoryEntries:[chip], selectedUid:chip.uid, portalComplete:true, getPermanentUpgrade:()=>chip.itemId});
   assert.equal(active.action.allowed, false);
@@ -142,7 +149,7 @@ test("filters retain availability and selected drone without fake or incompatibl
   const entries = [entry("laser", "laser_mk1"), entry("shield", "shield_gen"), entry("chip", "drone_overdrive_chip"), entry("speed", "engine_ion")];
   for(const [filter, id] of [["lasers", "laser_mk1"], ["shields", "shield_gen"], ["overdrive", "drone_overdrive_chip"]]){
     const view = model({inventoryEntries:entries, selectedDroneIndex:1, filter});
-    assert.deepEqual(view.groups.map(group=>group.id), [id]);
+    assert.deepEqual(view.visibleInventoryEntries.map(copy=>copy.item.id), [id]);
     assert.equal(view.selectedDroneIndex, 1);
     assert.equal(view.totalItems, 3);
   }
@@ -151,7 +158,7 @@ test("filters retain availability and selected drone without fake or incompatibl
 
 test("rendered descriptions, names, art paths and UIDs are escaped", ()=>{
   const unsafe = {uid:'uid"<bad>', item:{...item("laser_mk1"), id:'id"<bad>', name:'<script>bad</script>', desc:'<b>unsafe</b>', img:'x" onerror="bad'}};
-  const view = model({inventoryEntries:[unsafe], selectedUid:unsafe.uid, expandedGroups:[unsafe.item.id]});
+  const view = model({inventoryEntries:[unsafe], selectedUid:unsafe.uid});
   const markup = renderDroneBayMarkup(view);
   assert.match(markup, /&lt;script&gt;bad&lt;\/script&gt;/);
   assert.match(markup, /&lt;b&gt;unsafe&lt;\/b&gt;/);
@@ -303,4 +310,34 @@ test("single-copy shortcut falls through only when the drone section is absent o
     assert.equal(equipDroneBayInventoryItem("unused", actions), false);
     assert.deepEqual(calls, []);
   } finally { globalThis.document = previousDocument; }
+});
+
+test("authoritative equip and remove acknowledgements take the exact copy out of and back into the available grid", async()=>{
+  const profile = createDefaultProfile();
+  profile.ownedDroneCount = 2;
+  profile.droneLoadout = [null, null];
+  profile.inventoryItems.push({uid:"grid-first", itemId:"laser_mk2"}, {uid:"grid-second", itemId:"laser_mk2"});
+  const profiles = new Map([["GridPilot", profile]]);
+  const actions = createProfileActions({profiles, persist:()=>{}, getExistingProfile:()=>({key:"GridPilot", profile:profiles.get("GridPilot")})});
+  const available = current=>withProfile(current, ()=>getDroneBayPresentationModel({filter:"lasers"}).visibleInventoryEntries.map(copy=>copy.uid));
+  const before = available(profile);
+  assert.ok(before.includes("grid-first"));
+  assert.ok(before.includes("grid-second"));
+  const result = actions.applyEquipmentAction({player:{name:"GridPilot"}, action:{kind:"equip", type:"drone", index:1, inventoryUid:"grid-first"}});
+  assert.equal(result.ok, true);
+  await result.save;
+  assert.ok(!available(result.profile).includes("grid-first"));
+  assert.ok(available(result.profile).includes("grid-second"));
+  withProfile(result.profile, ()=>{
+    store.selectedInventoryUid = "grid-first";
+    const view = getDroneBayPresentationModel();
+    assert.equal(view.selectedEntry.uid, "grid-first", "an equipped footer can still inspect the exact copy");
+    assert.ok(!view.availableEntries.some(copy=>copy.uid === "grid-first"));
+    assert.doesNotMatch(renderDroneBayMarkup(view), /data-inventory-uid="grid-first"/);
+  });
+  const removed = actions.applyEquipmentAction({player:{name:"GridPilot"}, action:{kind:"unequip-slot", type:"drone", index:1}});
+  assert.equal(removed.ok, true);
+  await removed.save;
+  assert.ok(available(removed.profile).includes("grid-first"));
+  assert.equal(available(removed.profile).filter(uid=>uid === "grid-first").length, 1);
 });

@@ -1301,3 +1301,8 @@ Mini-carte panoramique : le ratio 9/20 est partage dans `miniMapLayout.js`, et l
 - La page Drones reprend la maquette validée avec les vrais visuels et raretés du catalogue. L'inventaire regroupe les modèles et expose leurs exemplaires UID, disponibilités et emplacements réels ; l'action explicite cible le drone sélectionné.
 - `renderDroneBay.js`, `droneBayModel.js` et `droneBayIcons.js` extraient le domaine de la façade `render.js`. `app.js` ajoute une délégation fine, `droneBay.css` limite les styles à la page. Achats, équipements, ventes, Overdrive permanent et anciens drones 9/10 conservent leurs règles serveur.
 - Validation et preuves : `docs/DRONES_REFONTE_2026-10-23.md`, `output/drones-refonte-2026-10-23/`. Version frontend `20261023-dronebay1`.
+
+## 2026-10-23 — Inventaire des drones en cases individuelles
+
+- À la demande du créateur, la liste groupée est remplacée par une vraie grille : chaque exemplaire disponible a sa case et son image, avec une fiche unique au clic. Les équipements déjà installés ne sont plus présentés comme stock disponible.
+- Le domaine de rendu et ses styles existants portent cette correction ; les contrôleurs et l'autorité du serveur sont conservés. Détails et preuves : `docs/DRONES_INVENTAIRE_GRILLE_2026-10-23.md`, `output/drone-grid-correction-2026-10-23/`. Version frontend `20261023-dronegrid1`.

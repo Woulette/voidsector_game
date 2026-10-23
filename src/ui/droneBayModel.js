@@ -46,23 +46,17 @@ export function droneEquipmentStats(item){
   return stats;
 }
 
-export function groupDroneInventory(entries, {getLocationLabel = ()=>"Disponible", compatible = item=>!!droneEquipmentKind(item)} = {}){
-  const groups = new Map();
+export function getCompatibleDroneInventory(entries, {getLocationLabel = ()=>"Disponible", compatible = item=>!!droneEquipmentKind(item)} = {}){
+  const inventory = [];
   const seen = new Set();
   for(const entry of entries || []){
     if(!entry?.uid || seen.has(entry.uid) || !entry.item?.id || !compatible(entry.item) || !droneEquipmentKind(entry.item)) continue;
     seen.add(entry.uid);
     const item = entry.item;
-    if(!groups.has(item.id)) groups.set(item.id, {
-      id:item.id, item, kind:droneEquipmentKind(item), rarity:getRarityLabel(item), rarityClass:rarityClass(item),
-      stats:droneEquipmentStats(item), copies:[]
-    });
-    groups.get(item.id).copies.push({...entry, locationLabel:getLocationLabel(entry.equipped)});
+    inventory.push({...entry, kind:droneEquipmentKind(item), rarity:getRarityLabel(item), rarityClass:rarityClass(item),
+      locationLabel:getLocationLabel(entry.equipped)});
   }
-  return [...groups.values()].map(group=>({
-    ...group, total:group.copies.length, available:group.copies.filter(entry=>!entry.equipped).length,
-    equipped:group.copies.filter(entry=>!!entry.equipped).length
-  })).sort((a, b)=>DRONE_BAY_FILTERS.findIndex(filter=>filter.id === a.kind) - DRONE_BAY_FILTERS.findIndex(filter=>filter.id === b.kind)
+  return inventory.sort((a, b)=>DRONE_BAY_FILTERS.findIndex(filter=>filter.id === a.kind) - DRONE_BAY_FILTERS.findIndex(filter=>filter.id === b.kind)
     || getRarityOrder(a.item) - getRarityOrder(b.item) || a.item.name.localeCompare(b.item.name, "fr"));
 }
 
@@ -86,7 +80,7 @@ export function droneBayEquipAction(entry, selectedDrone, portalComplete){
 
 // Read-only projection. Actual ownership, prices and permanent upgrades come from the existing game getters.
 export function createDroneBayModel({drone, drones = [], inventoryEntries = [], selectedDroneIndex = 0,
-  filter = "all", expandedGroups = [], selectedUid = null, selectedUids = [], portalComplete = false,
+  filter = "all", selectedUid = null, selectedUids = [], portalComplete = false,
   getPermanentUpgrade = ()=>null, getItem = ()=>null, getLocationLabel, compatible, nextPrice = null,
   canPurchase = false}){
   const maxStandard = Math.min(MAX_STANDARD_DRONES, Math.floor(number(drone?.maxStandardOwned)) || MAX_STANDARD_DRONES);
@@ -103,22 +97,20 @@ export function createDroneBayModel({drone, drones = [], inventoryEntries = [], 
       itemSelected:!!uid && selectedUid === uid,
       upgrade:upgradeId ? getItem(upgradeId) : null};
   });
-  const groups = groupDroneInventory(inventoryEntries, {getLocationLabel, compatible});
-  const selectedEntry = groups.flatMap(group=>group.copies).find(entry=>entry.uid === selectedUid) || null;
+  const compatibleEntries = getCompatibleDroneInventory(inventoryEntries, {getLocationLabel, compatible});
+  const availableEntries = compatibleEntries.filter(entry=>!entry.equipped);
+  const selectedEntry = compatibleEntries.find(entry=>entry.uid === selectedUid) || null;
   const selectedDrone = slots.find(slot=>slot.selected) || null;
   const activeFilter = DRONE_BAY_FILTERS.some(entry=>entry.id === filter) ? filter : "all";
-  const expanded = new Set(expandedGroups);
   return {
     drone, owned, maxStandard, maxTotal, standardOwned:Math.min(owned, maxStandard), legacyOwned:Math.max(0, owned - maxStandard),
     selectedDroneIndex:selectedIndex, selectedDrone, standardSlots:slots.slice(0, maxStandard), specialSlots:slots.slice(maxStandard),
     nextPrice:owned < maxStandard && Number(nextPrice) > 0 ? number(nextPrice) : null,
     canPurchase:owned < maxStandard && Number(nextPrice) > 0 && !!canPurchase,
     portalComplete:!!portalComplete, filter:activeFilter, selectedUid:selectedEntry?.uid || null, selectedUids:multi,
-    totalItems:groups.reduce((sum, group)=>sum + group.total, 0), availableItems:groups.reduce((sum, group)=>sum + group.available, 0),
-    groups:groups.filter(group=>activeFilter === "all" || group.kind === activeFilter).map(group=>({
-      ...group, expanded:expanded.has(group.id), selected:group.id === selectedEntry?.item.id,
-      selectedEntry:group.id === selectedEntry?.item.id ? selectedEntry : null
-    })),
+    inventoryEntries:compatibleEntries, availableEntries,
+    visibleInventoryEntries:availableEntries.filter(entry=>activeFilter === "all" || entry.kind === activeFilter),
+    totalItems:availableEntries.length, availableItems:availableEntries.length,
     selectedEntry, action:droneBayEquipAction(selectedEntry, selectedDrone, portalComplete)
   };
 }
