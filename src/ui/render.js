@@ -730,6 +730,8 @@ export function renderHangarMode(){
 export function setView(view){
   if(!pageText[view]) view = "hangar";
   store.currentView = view;
+  if(view === "store") renderStoreSection();
+  else syncBetaRewardCountdown(document.getElementById("premiumStorePanel"), {active:false});
   if(view === "hangar"){
     store.hangarTab = "vaisseau";
     store.hangarDetailOpen = false;
