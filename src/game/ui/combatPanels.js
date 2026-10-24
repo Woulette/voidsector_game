@@ -1164,7 +1164,7 @@ export function createCombatPanels({
     }
     const questListScrollTop = mode === "quests" ? content.querySelector(".quest-strip-list")?.scrollTop : null;
     const oldQuestId = content.querySelector("[data-quest-detail]")?.dataset.questDetail;
-    const refineryScrollTop = mode === "refinery" ? content.querySelector(".orbital-flight-content,.orbital-boost-content")?.scrollTop || 0 : 0;
+    const refineryScrollTop = mode === "refinery" ? content.querySelector(".orbital-cargo-materials,.orbital-boost-choices")?.scrollTop || 0 : 0;
     const detailScrollTop = content.querySelector(".quest-detail-scroll")?.scrollTop || 0;
     const transmissionOpen = content.querySelector(".quest-transmission-details")?.open || false;
     spawnPanelMode = mode;
@@ -1246,7 +1246,7 @@ export function createCombatPanels({
     if(mode === "refinery"){
       captureSpawnRefineryUi(content, refineryUiState);
       bindSpawnRefineryUi(content, refineryUiState, ()=>renderSpawnInteractionPanel("refinery"));
-      const refineryScroll = content.querySelector(".orbital-flight-content,.orbital-boost-content");
+      const refineryScroll = content.querySelector(".orbital-cargo-materials,.orbital-boost-choices");
       if(refineryScroll) refineryScroll.scrollTop = refineryScrollTop;
     }
     if(oldQuestId && oldQuestId === content.querySelector("[data-quest-detail]")?.dataset.questDetail){

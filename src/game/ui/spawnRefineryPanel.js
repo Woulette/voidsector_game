@@ -1,9 +1,19 @@
 import { fmt } from "../../core/utils.js";
 import { getCombatBoostTargetMaterialInfo, getCombatBoostUnitAmount } from "../../data/combatBoosts.js";
 
-const MATERIAL_ORDER = ["cuivre_orbital", "zinc_spatial", "nickel_brut", "titane_fissure", "silice_conductrice", "alliage_cuivre_zinc", "catalyseur_quantique", "plaque_nickel_titane", "conducteur_renforce", "blindage_composite", "noyau_astra"];
+const FUSION_GROUPS = [
+  {id:"raw", name:"Minerais bruts", ids:["cuivre_orbital", "zinc_spatial", "nickel_brut", "titane_fissure", "silice_conductrice"]},
+  {id:"intermediate", name:"Matériaux intermédiaires", ids:["alliage_cuivre_zinc", "catalyseur_quantique", "plaque_nickel_titane"]},
+  {id:"advanced", name:"Composants avancés", ids:["conducteur_renforce", "blindage_composite"]},
+  {id:"final", name:"Matériau final", ids:["noyau_astra"]}
+];
 const MATERIAL_NAMES = {catalyseur_quantique:"Catalyseur", noyau_astra:"Noyau Astra"};
 const BOOST_MATERIALS = ["alliage_cuivre_zinc", "plaque_nickel_titane", "conducteur_renforce", "blindage_composite", "noyau_astra"];
+const BOOST_GROUPS = [
+  {id:"refined", name:"Matériaux raffinés", ids:["alliage_cuivre_zinc", "plaque_nickel_titane"]},
+  FUSION_GROUPS[2],
+  FUSION_GROUPS[3]
+];
 const BOOST_TARGETS = [
   {id:"laser", type:"Laser", name:"Lasers", img:"assets/equipment/laser_mk1_mk1_slot_v2.png", hint:"1 matériau = 10 tirs", effect:"Dégâts des lasers"},
   {id:"rocket", type:"Roquettes", name:"Roquettes", img:"assets/equipment/launcher_rocket_mk1_slot.png?v=20260726-kharon1", hint:"1 matériau = 1 tir", effect:"Dégâts des roquettes"},
@@ -20,6 +30,12 @@ function amountWithin(value, max){ return max > 0 ? Math.min(max, Math.max(1, co
 function name(material){ return MATERIAL_NAMES[material?.id] || material?.name || "Matériau"; }
 function image(material, className = ""){
   return `<img class="orbital-material-art ${className}" src="${escape(material?.img || "assets/materials/cargo_box.svg")}" alt="${escape(name(material))}" decoding="async">`;
+}
+function materialGroups(groups, byId, renderCard){
+  return `<div class="orbital-material-groups">${groups.map(group=>{
+    const materials = group.ids.map(byId).filter(Boolean);
+    return materials.length ? `<section class="orbital-material-group" data-refinery-group="${group.id}"><h4>${group.name}</h4><div class="orbital-material-row">${materials.map(renderCard).join("")}</div></section>` : "";
+  }).join("")}</div>`;
 }
 function boostDuration(target, amount){
   const total = count(amount) * getCombatBoostUnitAmount(target);
@@ -47,50 +63,58 @@ function renderFusion({materials, recipes, shipCargo, shipCargoUsed, shipCargoCa
   const outputPerUnit = Math.max(1, count(selected?.outputAmount || 1));
   const inputPerUnit = Object.values(selected?.costs || {}).reduce((sum, value)=>sum + count(value), 0);
   const after = Math.max(0, count(shipCargoUsed) - inputPerUnit * amount + outputPerUnit * amount);
-  const cards = MATERIAL_ORDER.map(id=>byId(id)).filter(Boolean).map(material=>{
+  const cards = materialGroups(FUSION_GROUPS, byId, material=>{
     const recipe = validRecipes.find(entry=>entry.outputId === material.id);
     const active = Boolean(recipe && selected && recipe.id === selected.id);
-    const craft = recipe && getShipRefineryRecipeData?.(recipe.id, 1);
     const tag = recipe ? "button" : "article";
-    return `<${tag} class="orbital-flight-material ${material.kind || ""} ${active ? "selected" : ""} ${recipe ? "craftable" : ""}" ${recipe ? `type="button" data-open-ship-refine="${escape(recipe.id)}" aria-pressed="${active}"` : ""} title="${escape(recipe ? `Afficher la recette : ${name(material)}` : material.desc || name(material))}">${image(material)}<strong>${escape(name(material))}</strong><b>${fmt(count(shipCargo[material.id]))}</b><small>${recipe ? count(craft?.maxAmount) > 0 ? "Fusion disponible" : "Ingrédients requis" : "Minerai brut"}</small></${tag}>`;
-  }).join("");
+    return `<${tag} class="orbital-flight-material ${material.kind || ""} ${active ? "selected" : ""} ${recipe ? "craftable" : "is-source"}" data-refinery-material="${material.id}" ${recipe ? `type="button" data-open-ship-refine="${escape(recipe.id)}" aria-pressed="${active}"` : ""} title="${escape(recipe ? `Afficher la recette : ${name(material)}` : material.desc || name(material))}">${image(material)}<strong>${escape(name(material))}</strong><b>${fmt(count(shipCargo[material.id]))}</b></${tag}>`;
+  });
   const detail = selected && output ? `<aside class="orbital-fusion-detail" data-refinery-recipe="${escape(selected.id)}" data-refinery-input-per-unit="${inputPerUnit}" data-refinery-output-per-unit="${outputPerUnit}" data-refinery-cargo-used="${count(shipCargoUsed)}" data-refinery-cargo-capacity="${count(shipCargoCapacity)}">
-    <span class="orbital-eyebrow">Fusion de soute</span><div class="orbital-output-art">${image(output)}</div><h3>${escape(name(output))}</h3><p class="orbital-detail-subtitle">Fusion immédiate · matériaux de soute</p>
+    <header class="orbital-order-head">${image(output)}<div><span class="orbital-eyebrow">Fusion de soute</span><h3>${escape(name(output))}</h3></div></header>
+    <div class="orbital-order-body">
     <div class="orbital-ingredients">${Object.entries(selected.costs || {}).map(([id, need])=>{
       const have = count(shipCargo[id]);
-      return `<div class="orbital-ingredient ${have >= need ? "ready" : "missing"}" data-refinery-ingredient="${count(need)}" data-refinery-available="${have}">${image(byId(id))}<div><strong>${escape(name(byId(id)))}</strong><small>${fmt(have)} en soute</small></div><b><span data-refinery-needed>${fmt(count(need) * Math.max(1, amount))}</span></b></div>`;
+      const required = count(need) * Math.max(1, amount);
+      return `<div class="orbital-ingredient ${have >= required ? "ready" : "missing"}" data-refinery-ingredient="${count(need)}" data-refinery-available="${have}">${image(byId(id))}<div><strong>${escape(name(byId(id)))}</strong><small>${fmt(have)} en soute</small></div><b><span data-refinery-needed>${fmt(required)}</span></b></div>`;
     }).join("")}</div>
-    <div class="orbital-detail-rule"></div><div class="orbital-detail-row"><label for="shipRefineryAmount">Quantité à produire</label><b>Max. ${fmt(max)}</b></div>
+    <div class="orbital-detail-row"><label for="shipRefineryAmount">Quantité à produire</label><b>Max. ${fmt(max)}</b></div>
     ${stepper('id="shipRefineryAmount" data-ship-refine-amount', amount, max, "fusion")}
+    </div><div class="orbital-order-actions">
     <div class="orbital-fusion-result"><span>Résultat</span><strong><span data-refinery-output-amount>${fmt(amount * outputPerUnit)}</span> ${escape(name(output))}</strong></div>
     <div class="orbital-detail-row"><span>Soute après fusion</span><b><span data-refinery-cargo-after>${fmt(after)}</span> / ${fmt(count(shipCargoCapacity))}</b></div>
     <button class="orbital-primary" type="button" data-confirm-ship-refine="${escape(selected.id)}" ${max ? "" : "disabled"}>Fusionner</button>
-    <p class="orbital-refinery-note">${max ? "Les ingrédients sont consommés dans la soute du vaisseau." : "Ingrédients insuffisants en soute pour cette recette."}</p>
+    <p class="orbital-refinery-note">${max ? "Fusion immédiate · matériaux de soute." : "Ingrédients insuffisants en soute."}</p></div>
   </aside>` : `<aside class="orbital-fusion-detail"><p class="orbital-refinery-note">Aucune recette disponible.</p></aside>`;
-  return `<section class="orbital-flight-content"><div class="orbital-flight-columns"><div class="orbital-cargo-materials"><h4>Vos matériaux embarqués</h4><div class="orbital-flight-grid">${cards}</div></div>${detail}</div><p class="orbital-flight-note">Sélectionnez un matériau transformé pour afficher sa recette. Le stock de la raffinerie reste distinct de la soute.</p></section>`;
+  return `<section class="orbital-flight-content"><div class="orbital-flight-columns"><div class="orbital-cargo-materials">${cards}<p class="orbital-flight-note">Sélectionnez un matériau transformé pour afficher sa recette.</p></div>${detail}</div></section>`;
 }
 
 function renderBoost({materials, shipCargo, getCombatBoostSummary, getCombatBoostTooltip, refineryUiState}){
+  const byId = id=>materials.find(material=>material.id === id);
   const target = BOOST_TARGETS.find(entry=>entry.id === refineryUiState.boostTarget) || BOOST_TARGETS[0];
-  const compatible = BOOST_MATERIALS.map(id=>materials.find(material=>material.id === id)).filter(material=>material && getCombatBoostTargetMaterialInfo(target.id, material.id));
+  const compatible = BOOST_MATERIALS.map(byId).filter(material=>material && getCombatBoostTargetMaterialInfo(target.id, material.id));
   const material = compatible.find(entry=>entry.id === refineryUiState.boostMaterial) || compatible[0];
   const info = material && getCombatBoostTargetMaterialInfo(target.id, material.id);
   const max = count(shipCargo[material?.id]);
   const amount = amountWithin(refineryUiState.boostAmount || 1, max);
-  const active = getCombatBoostSummary?.(target.type) || {};
   const systems = BOOST_TARGETS.map(entry=>{
     const summary = getCombatBoostSummary?.(entry.type) || {};
     return `<button type="button" class="orbital-boost-target ${target.id === entry.id ? "selected" : ""}" data-refinery-boost-target="${entry.id}" data-boost-drop-target="${entry.type}" aria-pressed="${target.id === entry.id}"><img src="${entry.img}" alt="" decoding="async"><strong>${entry.name}</strong><small>${entry.hint}</small><span class="orbital-system-status ${summary.remaining > 0 ? "active" : ""}">${summary.remaining > 0 ? `+${Math.round(summary.percent * 100)}% · ${remainingText(summary)}` : "Aucun bonus actif"}</span></button>`;
   }).join("");
-  const choices = compatible.map(entry=>{
+  const choices = materialGroups(BOOST_GROUPS, byId, entry=>{
     const effect = getCombatBoostTargetMaterialInfo(target.id, entry.id);
-    return `<button class="orbital-boost-material ${entry.id === material?.id ? "selected" : ""}" type="button" draggable="true" data-boost-material="${entry.id}" data-boost-material-name="${escape(name(entry))}" data-boost-material-img="${escape(entry.img)}" data-boost-material-amount="${count(shipCargo[entry.id])}" title="${escape(getCombatBoostTooltip?.(entry.id) || "")}" aria-pressed="${entry.id === material?.id}">${image(entry)}<div><strong>${escape(name(entry))}</strong><small>${fmt(count(shipCargo[entry.id]))} en soute</small></div><b>+${Math.round(effect.percent * 100)}%</b></button>`;
-  }).join("");
-  return `<section class="orbital-boost-content"><h4>01 / Choisir le système</h4><div class="orbital-boost-targets">${systems}</div><div class="orbital-boost-workbench"><section class="orbital-boost-choices"><h4>02 / Matières compatibles en soute</h4><div class="orbital-boost-materials">${choices}</div><p class="orbital-flight-note">Les bonus sont temporaires. Le matériau est consommé au dépôt ; le bonus le plus élevé disponible est utilisé en priorité.</p><div class="orbital-active-boost"><span>Bonus actif · ${target.name}</span><b>${active.remaining > 0 ? `+${Math.round(active.percent * 100)}% · ${remainingText(active)}` : "Aucun bonus actif"}</b></div></section><aside class="orbital-boost-summary" data-refinery-boost-system="${target.id}" data-refinery-boost-selected="${material?.id || ""}">
-    <span class="orbital-eyebrow">Aperçu du bonus</span><strong class="orbital-boost-value">+${Math.round((info?.percent || 0) * 100)}<small> %</small></strong><h3>${target.effect}</h3><p>${escape(name(material))} → ${target.name.toLowerCase()}</p>
+    const metadata = effect
+      ? `draggable="true" data-boost-material="${entry.id}" data-boost-material-name="${escape(name(entry))}" data-boost-material-img="${escape(entry.img)}" data-boost-material-amount="${count(shipCargo[entry.id])}" aria-pressed="${entry.id === material?.id}"`
+      : "disabled aria-disabled=\"true\"";
+    const title = effect ? getCombatBoostTooltip?.(entry.id) || "" : `Incompatible avec ${target.name.toLowerCase()}`;
+    return `<button class="orbital-boost-material ${entry.kind || ""} ${entry.id === material?.id ? "selected" : ""} ${effect ? "compatible" : "incompatible"}" type="button" data-refinery-material="${entry.id}" ${metadata} title="${escape(title)}">${image(entry)}<div><strong>${escape(name(entry))}</strong><small>${fmt(count(shipCargo[entry.id]))} en soute</small></div><b>${effect ? `+${Math.round(effect.percent * 100)}%` : "—"}</b></button>`;
+  });
+  return `<section class="orbital-boost-content"><div class="orbital-boost-workbench"><section class="orbital-boost-choices"><div class="orbital-boost-targets" aria-label="Système à perfectionner">${systems}</div>${choices}<p class="orbital-flight-note">Les matières grisées sont incompatibles avec ce système.</p></section><aside class="orbital-boost-summary" data-refinery-boost-system="${target.id}" data-refinery-boost-selected="${material?.id || ""}">
+    <header class="orbital-order-head">${image(material)}<div><span class="orbital-eyebrow">Perfectionnement</span><h3>${escape(name(material))}</h3><small>${target.name}</small></div></header>
+    <div class="orbital-order-body"><div class="orbital-boost-effect"><span>${target.effect}</span><strong class="orbital-boost-value">+${Math.round((info?.percent || 0) * 100)}<small> %</small></strong></div>
+    <div class="orbital-detail-row"><span>Quantité à déposer</span><b>Max. ${fmt(max)}</b></div>
     ${stepper("data-refinery-boost-amount", amount, max, "boost")}
-    <p><b data-refinery-boost-used>${fmt(amount)}</b> matériau(x) consommé(s) · ${fmt(max)} disponible(s)</p><strong class="orbital-boost-duration" data-refinery-boost-duration>${boostDuration(target.id, amount)}</strong>
-    <button class="orbital-primary" type="button" data-open-boost-deposit data-boost-deposit-target="${target.type}" data-boost-deposit-material="${material?.id || ""}" data-boost-deposit-name="${escape(name(material))}" data-boost-deposit-img="${escape(material?.img || "")}" data-boost-deposit-max="${max}" ${max ? "" : "disabled"}>Préparer le dépôt</button><p class="orbital-refinery-note">${max ? "Vérifiez la quantité puis confirmez le dépôt." : "Ce matériau est absent de votre soute."}</p>
+    <div class="orbital-detail-row"><span>Matériaux consommés</span><b data-refinery-boost-used>${fmt(amount)}</b></div><strong class="orbital-boost-duration" data-refinery-boost-duration>${boostDuration(target.id, amount)}</strong></div>
+    <div class="orbital-order-actions"><button class="orbital-primary" type="button" data-open-boost-deposit data-boost-deposit-target="${target.type}" data-boost-deposit-material="${material?.id || ""}" data-boost-deposit-name="${escape(name(material))}" data-boost-deposit-img="${escape(material?.img || "")}" data-boost-deposit-max="${max}" ${max ? "" : "disabled"}>Préparer le dépôt</button><p class="orbital-refinery-note">${max ? "Bonus temporaire · confirmation avant dépôt." : "Ce matériau est absent de votre soute."}</p></div>
   </aside></div></section>`;
 }
 

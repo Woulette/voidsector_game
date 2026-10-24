@@ -212,6 +212,37 @@ test('ship refining renders its actual recipe and quantities without mutating ca
  assert.equal(JSON.stringify({cargo,ui,recipes:refineryRecipes}),before);
 });
 
+function shipMaterialGroups(html){
+ return [...html.matchAll(/<section\b[^>]*data-refinery-group="([^"]+)"[^>]*>([\s\S]*?)<\/section>/g)]
+  .map(([,id,body])=>({id,body,materials:[...body.matchAll(/data-refinery-material="([^"]+)"/g)].map(([,materialId])=>materialId)}));
+}
+
+test('ship refining groups the whole recipe chain as 5 raw, 3 intermediate, 2 advanced and 1 final material',()=>{
+ const catalog=refineryMaterialCatalog.slice().reverse();
+ const ui={recipeId:'refine_noyau_astra',fusionAmount:2};
+ const cargo=Object.fromEntries(catalog.map(material=>[material.id,50]));
+ const before=JSON.stringify({catalog,ui,cargo,recipes:refineryRecipes});
+ const {html}=renderRefineryPanel({materials:catalog,recipes:refineryRecipes,shipCargo:cargo,
+  shipCargoUsed:550,shipCargoCapacity:1000,refineryUiState:ui,getShipRefineryRecipeData:()=>({maxAmount:5})});
+ const groups=shipMaterialGroups(html);
+ assert.deepEqual(groups.map(group=>group.id),['raw','intermediate','advanced','final']);
+ assert.deepEqual(groups.map(group=>group.materials),[
+  ['cuivre_orbital','zinc_spatial','nickel_brut','titane_fissure','silice_conductrice'],
+  ['alliage_cuivre_zinc','catalyseur_quantique','plaque_nickel_titane'],
+  ['conducteur_renforce','blindage_composite'],['noyau_astra']
+ ]);
+ // The catalyst's production stage differs from its economic catalogue tier.
+ const catalyst=catalog.find(material=>material.id==='catalyseur_quantique');
+ assert.equal(catalyst.kind,'special');assert.equal(catalyst.tier,4);
+ assert.equal([...html.matchAll(/data-open-ship-refine=/g)].length,6);
+ assert.match(html,/data-refinery-recipe="refine_noyau_astra"/);
+ assert.equal([...html.matchAll(/data-refinery-ingredient=/g)].length,3,'all final-core ingredients remain in the order');
+ assert.match(html,/data-confirm-ship-refine="refine_noyau_astra"/);
+ assert.match(html,/data-refinery-output-amount>2</);
+ assert.match(html,/data-refinery-cargo-after>492</);
+ assert.equal(JSON.stringify({catalog,ui,cargo,recipes:refineryRecipes}),before);
+});
+
 test('perfection offers exactly the compatible materials and keeps authoritative deposit metadata',()=>{
  const cargo=Object.fromEntries(refineryMaterialCatalog.map(m=>[m.id,7]));
  for(const target of ['laser','rocket','generator','drone']){
@@ -220,12 +251,54 @@ test('perfection offers exactly the compatible materials and keeps authoritative
   const ids=[...html.matchAll(/data-boost-material="([^"]+)"/g)].map(m=>m[1]);
   const expected=Object.entries(COMBAT_BOOST_DEFS).filter(([,m])=>m.targets[target]).map(([id])=>id);
   assert.deepEqual(ids.sort(),expected.sort());
+  const groups=shipMaterialGroups(html);
+  assert.deepEqual(groups.map(group=>group.materials),[
+   ['alliage_cuivre_zinc','plaque_nickel_titane'],['conducteur_renforce','blindage_composite'],['noyau_astra']
+  ],'all five enhancement materials retain their two / two / one rows');
+  const cards=groups.flatMap(group=>[...group.body.matchAll(/<button\b([^>]*data-refinery-material="([^"]+)"[^>]*)>([\s\S]*?)<\/button>/g)]);
+  assert.equal(cards.length,5);
+  for(const [,attributes,id,body] of cards){
+   if(expected.includes(id)){
+    assert.doesNotMatch(attributes,/\bdisabled\b/);
+    assert.match(attributes,/draggable="true"/);
+    assert.match(attributes,new RegExp(`data-boost-material="${id}"`));
+    assert.match(body,new RegExp(`\\+${Math.round(COMBAT_BOOST_DEFS[id].targets[target].percent*100)}%`));
+   }else{
+    assert.match(attributes,/\bdisabled\b/);
+    assert.match(attributes,/aria-disabled="true"/);
+    assert.doesNotMatch(attributes,/data-boost-material(?:-|=)|\bdraggable=/,'incompatible material cannot be selected or deposited');
+   }
+  }
   assert.equal([...html.matchAll(/data-boost-drop-target=/g)].length,4);
   assert.equal([...html.matchAll(/data-boost-material-amount="7"/g)].length,3);
   assert.match(html,/data-open-boost-deposit/);
   assert.equal(JSON.stringify({cargo,ui}),before);
  }
  assert.equal(refineryMaterialName({id:'catalyseur_quantique',name:'Autre'}),'Catalyseur');
+});
+
+test('compact perfection preserves selected quantities, live reserves and its original confirmation command',()=>{
+ const cargo={noyau_astra:7,alliage_cuivre_zinc:8,plaque_nickel_titane:9,conducteur_renforce:10,blindage_composite:11};
+ for(const scenario of [
+  {target:'laser',type:'Laser',percent:50,label:'40 tirs renforcés',field:'charges',remaining:70,reserve:'70 tirs'},
+  {target:'rocket',type:'Roquettes',percent:50,label:'4 tirs renforcés',field:'charges',remaining:70,reserve:'70 tirs'},
+  {target:'generator',type:'Generateurs',percent:40,label:'4 min de bonus',field:'seconds',remaining:125,reserve:'2m 5s'},
+  {target:'drone',type:'Drones',percent:40,label:'4 min de bonus',field:'seconds',remaining:125,reserve:'2m 5s'}
+ ]){
+  const ui={boostTarget:scenario.target,boostMaterial:'noyau_astra',boostAmount:4};
+  const before=JSON.stringify({ui,cargo});
+  const {html}=renderRefineryPanel({materials:refineryMaterialCatalog,shipCargo:cargo,refineryTab:'perfectionnement',refineryUiState:ui,
+   getCombatBoostSummary:type=>type===scenario.type?{percent:.25,remaining:scenario.remaining,field:scenario.field}:{remaining:0}});
+  assert.match(html,new RegExp(`data-refinery-boost-system="${scenario.target}" data-refinery-boost-selected="noyau_astra"`));
+  assert.match(html,/data-refinery-boost-amount[^>]*max="7"[^>]*value="4"/);
+  assert.match(html,new RegExp(`data-refinery-boost-duration>${scenario.label}<`));
+  assert.match(html,/data-refinery-boost-used>4</);
+  assert.match(html,new RegExp(`data-boost-deposit-target="${scenario.type}" data-boost-deposit-material="noyau_astra"`));
+  assert.match(html,/data-boost-deposit-max="7"/);
+  assert.equal([...html.matchAll(/class="orbital-system-status(?: active)?\s*"/g)].length,4,'each system keeps its live reserve in its selector');
+  assert.match(html,new RegExp(`25% · ${scenario.reserve}`),'live bonus reserves stay visible beside the proposed deposit');
+  assert.equal(JSON.stringify({ui,cargo}),before);
+ }
 });
 
 function shipmentProfile(){
