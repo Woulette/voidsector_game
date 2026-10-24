@@ -1,5 +1,7 @@
 # VoidSector MMO - Notes de decoupage serveur
 
+Portes de secteur du 24 octobre 2026 : `sectorPortalVisuals.js` definit les assets et les portes ordinaires ; `render/sectorPortalVisual.js` dessine l'anneau en vue droite, les particules et l'eclat de transfert. Les coordinateurs transmettent la transition manuelle ou Premium existante. Publie `20261024-sector-portals1` : dix fichiers frontend, 89 tests locaux et 59 sur candidat, controle des empreintes publiques, aucun redemarrage serveur. Details : `docs/PORTAILS_CHANGEMENT_MAP_2026-10-24.md`.
+
 Objectif : reduire `server/src/index.js` sans changer le gameplay, en gardant le serveur autoritaire et le mode solo compatible pendant la migration.
 
 Boutique complete du 24 octobre 2026 : `supportStore.js` porte les pass Premium, les monnaies, les packs de depart et le calendrier Premium de 28 jours ; `render.js` conserve seulement la composition et `app.js` les commandes existantes. La navigation reaffiche les cinq rubriques pendant la preparation (`BETA_STORE_ONLY=false`), sans changer les achats Beta. Les prix NOVA utilisent la meme regle de reputation/remise que le serveur. Les paiements euros hors Beta restent desactives ; les 28 gains sont consultables sans recuperation anticipee. `supportStore.css` reste limite a la Boutique.

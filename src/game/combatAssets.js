@@ -1,3 +1,4 @@
+import { getSectorPortalAssetPaths } from "../data/sectorPortalVisuals.js?v=20261024-sector-portals1";
 import { getMiniMapVisualDefinition } from "./combatData/miniMapVisuals.js?v=20261023-minimap4";
 
 function uniqueAssetPaths(paths){
@@ -63,6 +64,7 @@ export function getCombatMapAssetPaths(map){
   }
   return uniqueAssetPaths([
     map.bg,
+    ...getSectorPortalAssetPaths(map),
     getMiniMapVisualDefinition(map)?.image,
     ...(map.parallaxScene?.backdrops?.map(layer=>layer.src) || []),
     ...(map.parallaxScene?.images?.map(layer=>layer.src) || []),

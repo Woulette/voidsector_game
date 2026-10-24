@@ -1028,7 +1028,8 @@ function drawWorldMarkers({
   cache,
   getMapPortals = getDefaultMapPortals,
   getClosedMapPortals = getDefaultClosedMapPortals,
-  graphicsEffects = null
+  graphicsEffects = null,
+  portalTransition = null
 }){
   ctx.save();
   ctx.translate(-camera.x,-camera.y);
@@ -1072,7 +1073,7 @@ function drawWorldMarkers({
     }
   }
 
-  drawMapPortals({ctx, cache, currentMap, getMapPortals, simplified:graphicsEffects?.portalEffects === false});
+  drawMapPortals({ctx, cache, currentMap, getMapPortals, player, portalTransition, simplified:graphicsEffects?.portalEffects === false});
   const closedPortals = getClosedMapPortals(currentMap);
   if(closedPortals.length){
     drawMapPortals({

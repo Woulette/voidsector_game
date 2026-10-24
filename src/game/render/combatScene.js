@@ -3,6 +3,7 @@ import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpact
 import { drawPlayerLayer } from "./player.js?v=elite-lasers-1";
 import { drawPortalTransitionOverlay } from "./portalTransition.js?v=action-slots-save-1-fps-burst-1";
 import { drawWorldLayer } from "./world.js?v=action-slots-save-1-fps-burst-1";
+import { drawSectorPortalTransferFocus } from "./sectorPortalVisual.js?v=20261024-sector-portals1";
 import { drawRemotePlayers } from "../../multiplayer/render.js?v=action-slots-save-1-fps-burst-1";
 import { getFirmBadgeAsset } from "../../data/firms.js";
 import { RICKY_PORTAL_ASSETS, getRickyPortalWalls, RICKY_PORTAL_MAP } from "../../data/rickyPortal.js";
@@ -72,7 +73,8 @@ export function createCombatSceneRenderer({
       graphicsQuality:getGraphicsQuality(),
       graphicsEffects:getGraphicsEffects(),
       getMapPortals,
-      getClosedMapPortals
+      getClosedMapPortals,
+      portalTransition:getState().portalTransition || getState().autoTravelTransition
     });
   }
 
@@ -519,6 +521,7 @@ export function createCombatSceneRenderer({
       timeCombatProfiler("draw.particles.repair", ()=>drawParticles({ctx, camera, particles, repairLayer:true, graphicsEffects}));
     }
     timeCombatProfiler("draw.damageTexts", drawDamageTexts);
+    if(graphicsEffects.portalEffects !== false) timeCombatProfiler("draw.sectorPortalFocus", ()=>drawSectorPortalTransferFocus({ctx,camera,transition:portalTransition || state.autoTravelTransition}));
     ctx.restore();
     canvas.__renderWidth = null;
     canvas.__renderHeight = null;

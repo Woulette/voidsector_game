@@ -1,4 +1,5 @@
 import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1";
+import { drawSectorTravelPortal } from "./sectorPortalVisual.js?v=20261024-sector-portals1";
 
 export const PREPARED_PORTAL_ASSETS = Object.freeze({
   blue:{
@@ -207,7 +208,7 @@ function drawSimplifiedPortal({ctx, portal}){
   ctx.restore();
 }
 
-export function drawMapPortals({ctx, cache = {}, currentMap, getMapPortals, simplified = false}){
+export function drawMapPortals({ctx, cache = {}, currentMap, getMapPortals, simplified = false, player, portalTransition}){
   const now = performance.now();
   for(const portal of getMapPortals(currentMap)){
     const safeR = portal.safeRadius || Math.max(180, (portal.r || 90) * 2.2);
@@ -215,6 +216,8 @@ export function drawMapPortals({ctx, cache = {}, currentMap, getMapPortals, simp
     const preparedImage = preparedAsset ? getCachedCombatImage(cache, preparedAsset.src) : null;
     if(preparedImage?.complete && Number(preparedImage.naturalWidth || 0) > 0){
       drawPreparedPortalAsset({ctx, portal, now, image:preparedImage, asset:preparedAsset, simplified});
+    }else if(drawSectorTravelPortal({ctx,cache,portal,player,transition:portalTransition,now,simplified})){
+      // The approved travel gate uses the real transfer state; prepared portals retain their own art.
     }else if(simplified){
       drawSimplifiedPortal({ctx, portal});
     }else{
