@@ -67,6 +67,7 @@ import {
 import { createHelionOneVisualMaps } from "./combatData/helionOneVisuals.js?v=20261022-helion-light1";
 import { createHelionTwoVisualMaps } from "./combatData/helionTwoVisuals.js";
 import { createFirmSectorTwoVisualMaps } from "./combatData/firmSectorTwoVisuals.js";
+import { createHelionThreeVisualMaps } from "./combatData/helionThreeVisuals.js";
 import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js?v=20261022-helion-hub1";
 import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=20260726-ancient1";
 import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=20261022-helion-hub1";
@@ -129,7 +130,7 @@ import {
   syncServerControlledEnemies as syncMultiplayerEnemies
 } from "../multiplayer/enemies.js?v=20260905-motion3";
 export function createCombatGame({renderAll, showToast}){
-  const MAPS = createFirmSectorTwoVisualMaps(createHelionTwoVisualMaps(createHelionOneVisualMaps(BASE_MAPS)));
+  const MAPS = createHelionThreeVisualMaps(createFirmSectorTwoVisualMaps(createHelionTwoVisualMaps(createHelionOneVisualMaps(BASE_MAPS))));
   const PORTAL_STARTING_LIVES = 3;
   const PORTAL_WAVE_DELAY = 30;
   const canvas = document.getElementById("gameCanvas");

@@ -7,10 +7,13 @@ const sceneryNames = /planet|stellar|station_iss/i;
 const excludedNames = /asteroid|meteor|wreck|frigate|remnant/i;
 
 export function getMiniMapSceneryLayers(scene){
-  return (scene?.images || []).filter(layer=>{
+  const images = (scene?.images || []).filter(layer=>{
     if(layer.minimap === false || ["asteroid", "cloud", "nebula"].includes(layer.kind) || excludedNames.test(layer.src || "")) return false;
     return layer.minimap === true || scenicKinds.has(layer.kind) || sceneryNames.test(layer.src || "");
   });
+  // A distant background can be an explicit fixed navigation landmark too.
+  // Ordinary clouds and dust remain excluded from the overview.
+  return [...(scene?.backdrops || []).filter(layer=>layer.minimap === true), ...images];
 }
 
 export function getMiniMapLandmarkPosition({map, layer, defaultParallax = .35}){

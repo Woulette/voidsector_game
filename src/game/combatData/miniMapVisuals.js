@@ -18,9 +18,17 @@ const HELION_TWO_OVERVIEW = Object.freeze({
   atmosphere:HELION_ONE_OVERVIEW.atmosphere,
   landmarks:{planet:{x:.88,y:.23,width:.38},station:{x:.28,y:.44,width:.14}}
 });
+const HELION_THREE_OVERVIEW = Object.freeze({
+  image:"assets/maps/minimaps/helion-03-wide-v1.png",
+  landmarks:{
+    nebula:{x:.60,y:.40,width:.88},
+    planet:{x:.82,y:.23,width:.25}
+  }
+});
 
 export function getMiniMapVisualDefinition(map){
   if(String(map?.id) === "1" && map?.name === "Helion-02") return HELION_TWO_OVERVIEW;
+  if(String(map?.id) === "2" && map?.name === "Helion-03") return HELION_THREE_OVERVIEW;
   const industrialTheme = getFirmSectorTwoTheme(map);
   if(industrialTheme){
     const key = `industrial:${industrialTheme.id}`;
