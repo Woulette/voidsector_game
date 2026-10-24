@@ -1,3 +1,5 @@
+import { getMapAssetPalette, getMapPaletteSource } from "../shared/firmHomeMapThemes.js";
+import { prepareMapPaletteImage } from "./render/mapAssetPalette.js";
 import { getSectorPortalAssetPaths } from "../data/sectorPortalVisuals.js?v=20261024-sector-portals1";
 import { getMiniMapVisualDefinition } from "./combatData/miniMapVisuals.js?v=20261023-minimap4";
 
@@ -13,9 +15,21 @@ function preloadAsset(cache, src){
   if(!src || cache[src]) return cache[src] || null;
   if(typeof Image !== "function") return null;
   const img = new Image();
-  img.src = src;
   cache[src] = img;
-  return img;
+  if(getMapAssetPalette(src)) img.onload = ()=>{
+    if(cache[src] !== img) return;
+    const prepared = prepareMapPaletteImage(img, src);
+    cache[src] = prepared;
+    const runtimeState = runtimeAssetStates.get(cache);
+    if(runtimeState?.get(src) === img) runtimeState.set(src, prepared);
+  };
+  // All four palettes download the same native texture URL; the browser can
+  // reuse its HTTP cache instead of fetching another copy for each firm.
+  img.src = getMapPaletteSource(src);
+  // A decoded browser-cache hit can be complete before its load event runs.
+  // Prepare it immediately so the source red palette never flashes on screen.
+  if(img.complete && img.naturalWidth) img.onload?.();
+  return cache[src];
 }
 
 export function getCachedCombatImage(cache, src, {maxAssets = RUNTIME_COMBAT_ASSET_LIMIT} = {}){

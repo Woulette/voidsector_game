@@ -1,3 +1,6 @@
+import { getFirmHomeMapTheme } from "../../shared/firmHomeMapThemes.js";
+import { mirrorFirmHomeScenery } from "./firmHomeMapScenery.js";
+
 const ASSET_ROOT = "assets/maps/decor/helion01-v1";
 // These gutters follow the six separate silhouettes in the source atlas.
 const ASTEROID_COLUMNS = [{x:0,w:560}, {x:560,w:480}, {x:1040,w:496}];
@@ -94,8 +97,21 @@ function createHelionOneScene(map){
   };
 }
 
-// Apply after firm templates have been built; the visual trial stays on Helion-01.
+// Keep the historical entry point; the four home sectors now share the approved
+// composition. Generate the rock distribution once before reflecting it.
 export function createHelionOneVisualMaps(maps){
-  return maps.map(map=>map.id === 0 && map.name === "Helion-01"
-    ? {...map, closeStarCount:420, parallaxScene:createHelionOneScene(map)} : map);
+  const home = maps.find(map=>getFirmHomeMapTheme(map)?.palette === "astra")
+    || maps.find(map=>getFirmHomeMapTheme(map));
+  if(!home) return maps;
+  const theme = getFirmHomeMapTheme(home);
+  const canonical = theme.palette === "astra" ? home : {
+    ...home, spawn:{...home.spawn, x:home.spawn.x * theme.mirrorX, y:home.spawn.y * theme.mirrorY},
+    portals:home.portals?.map(portal=>({...portal, x:portal.x * theme.mirrorX, y:portal.y * theme.mirrorY}))
+  };
+  const scene = createHelionOneScene(canonical);
+  return maps.map(map=>{
+    const firmTheme = getFirmHomeMapTheme(map);
+    return firmTheme ? {...map, closeStarCount:420,
+      parallaxScene:firmTheme.palette === "astra" ? scene : mirrorFirmHomeScenery(scene, firmTheme)} : map;
+  });
 }
