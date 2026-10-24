@@ -155,6 +155,8 @@
   line-height:1.15;
   white-space:normal;
 }
+#premiumStorePanel.beta-store-panel .pps-offer-gold .bs-price,
+#premiumStorePanel.beta-store-panel .pps-modal-gold .bs-price { color:var(--bs-gold); }
 #premiumStorePanel.beta-store-panel .pps-pricing small {
   display:block;
   margin-top:9px;

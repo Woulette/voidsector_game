@@ -1,4 +1,5 @@
 /* Support offers share the Beta storefront palette and stay inside its panel. */
+#premiumStorePanel.beta-store-panel .bs-price { color:var(--bs-text); }
 #premiumStorePanel.beta-store-panel .ss-navigation-row {
   display:flex;
   flex-wrap:wrap;

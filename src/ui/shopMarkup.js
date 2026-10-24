@@ -46,7 +46,7 @@ function cardStats(model){
 function priceMarkup(model, card = false){
   const noCharge = model.activating || model.owned && model.kind === "ship";
   const label = noCharge ? "Statut" : model.quantities && card ? "Total" : model.priceLabel;
-  const value = noCharge ? '<strong>'+escapeHtml(model.status)+'</strong>' : model.kind === "drone" && model.lock ? "<strong>MAX</strong>" : model.priceType === "real" ? '<strong class="shop-price real">'+realMoneyPriceHtml(String(model.data.realPrice || "").replace(/ EUR$/, " €"))+'</strong>' : priceHtml(model.priceType,model.price,model.basePrice);
+  const value = noCharge ? '<strong>'+escapeHtml(model.status)+'</strong>' : model.kind === "drone" && model.lock ? "<strong>MAX</strong>" : model.priceType === "real" ? '<strong class="shop-price real'+(model.data.tier === "gold" ? ' real-gold' : '')+'">'+realMoneyPriceHtml(String(model.data.realPrice || "").replace(/ EUR$/, " €"))+'</strong>' : priceHtml(model.priceType,model.price,model.basePrice);
   return '<div class="'+(card ? "shop-card-price" : "shop-detail-price")+'"><small>'+escapeHtml(label)+'</small>'+value+'</div>';
 }
 

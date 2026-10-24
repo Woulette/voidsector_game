@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BETA_STORE_ONLY, betaRewardCalendar, claimBetaRewardState } from "../../src/data/premium.js";
+import { BETA_STORE_ONLY, betaPacks, betaRewardCalendar, claimBetaRewardState } from "../../src/data/premium.js";
 import { getBetaDayPresentation, handleBetaStoreInteraction, renderBetaStorefront, renderBetaStoreModal } from "../../src/ui/betaStore.js";
 
 const now = Date.UTC(2026,9,23,12);
@@ -13,6 +13,14 @@ test("the Beta storefront shows the three approved packs and all 25 real rewards
   assert.equal((html.match(/data-store-offer-kind="beta"/g) || []).length, 3);
   assert.equal((html.match(/data-beta-calendar-day=/g) || []).length, 25);
   for(const value of ["Valkyrie", "Razorion", "Astralis", "1,49 €", "4,99 €", "9,99 €"]) assert.ok(html.includes(value));
+  for(const pack of betaPacks){
+    const card = html.split("<article").find(markup=>markup.includes(`data-store-offer="${pack.id}"`));
+    assert.ok(card);
+    for(const item of pack.contents){
+      assert.ok(card.includes(`title="${item.label} · ${item.quantity}"`), `${pack.name}: ${item.label} and its quantity remain visible`);
+      assert.ok(card.includes(`src="${item.img}"`), `${pack.name}: real illustration for ${item.label}`);
+    }
+  }
   assert.doesNotMatch(html, /data-store-tab|Pack Beta Commandant/);
   assert.deepEqual(profile, before);
 });

@@ -1,7 +1,8 @@
 import { ammoTypes, equipment } from "../data/catalog.js?v=20260726-ancient1";
-import { creditCurrencyPacks, getPremiumRewardStatus, hasStarterPackPurchase, novaCurrencyPacks, premiumRewardCalendar, starterPacks } from "../data/premium.js?v=20261024-boutique3";
+import { creditCurrencyPacks, getPremiumRewardStatus, hasStarterPackPurchase, novaCurrencyPacks, premiumRewardCalendar } from "../data/premium.js?v=20261024-boutique3";
 import { fmt } from "../core/utils.js";
 import { shopIcon } from "./shopIcons.js?v=20261024-premium2";
+import { getStorePackCategories, getStorePacksForCategory, normalizeStorePackCategory } from "./storePackCategories.js?v=20261024-boutique4";
 
 const escapeHtml = value=>String(value ?? "").replace(/[&<>"']/g, char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const euro = value=>String(value || "").replace(/ EUR$/, " €");
@@ -12,6 +13,23 @@ function heading(eyebrow, title, description){
 
 function detailButton(kind, id, label){
   return `<button class="bs-button" data-store-offer-kind="${kind}" data-store-offer="${escapeHtml(id)}" type="button" aria-label="${escapeHtml(label)}">Voir le pack ${shopIcon("arrow")}</button>`;
+}
+
+function currencyPriceCents(pack){
+  const price = /^(\d+)[,.](\d{2})\s*(?:EUR|€)$/.exec(String(pack?.price || ""));
+  return price ? BigInt(price[1]) * 100n + BigInt(price[2]) : null;
+}
+
+export function getCurrencyPackBonusPercent(pack, referencePack){
+  const price = currencyPriceCents(pack);
+  const referencePrice = currencyPriceCents(referencePack);
+  if(!Number.isSafeInteger(pack?.amount) || pack.amount <= 0 || !Number.isSafeInteger(referencePack?.amount) || referencePack.amount <= 0 || !price || !referencePrice) return null;
+  const referenceAmount = BigInt(referencePack.amount);
+  const difference = (BigInt(pack.amount) * referencePrice - referenceAmount * price) * 1000n;
+  const expected = referenceAmount * price;
+  const percent = difference / expected;
+  // BigInt division truncates toward zero; the shop always rounds down, including negative rates.
+  return Number(percent - (difference < 0n && difference % expected !== 0n ? 1n : 0n)) / 10;
 }
 
 export function currencyPackArt(pack){
@@ -27,7 +45,13 @@ export function renderCurrencyStore({currency = "nova"} = {}){
   const nova = mode === "nova";
   const packs = nova ? novaCurrencyPacks : creditCurrencyPacks;
   const unit = nova ? "NOVA" : "crédits";
-  return `<section class="sc-currencies" aria-label="Packs de monnaie"><div class="sc-currency-heading">${heading("BOUTIQUE · NOVA & CRÉDITS", "NOVA & Crédits", "Choisissez votre réserve.")}<div class="sc-currency-switch" role="group" aria-label="Monnaie des packs">${[["nova","NOVA","assets/icons/premium.svg"],["credits","Crédits","assets/icons/credits.svg"]].map(([value,label,img])=>`<button class="${mode === value ? "is-selected" : ""}" data-store-currency="${value}" type="button" aria-pressed="${mode === value}"><img src="${img}" alt="">${label}</button>`).join("")}</div></div><div class="sc-currency-grid">${packs.map(pack=>`<article class="sc-currency-card ${nova ? "is-nova" : "is-credits"}">${currencyPackArt(pack)}<div class="sc-currency-quantity"><h3>${fmt(pack.amount)}</h3><span>${unit}</span></div><div class="sc-currency-purchase"><strong class="bs-price">${escapeHtml(euro(pack.price))}</strong>${detailButton("currency",pack.id,`Voir le pack de ${fmt(pack.amount)} ${unit}`)}</div></article>`).join("")}</div><p class="sc-store-note">${shopIcon("info")}Paiement en euros à venir.</p></section>`;
+  return `<section class="sc-currencies" aria-label="Packs de monnaie"><div class="sc-currency-heading">${heading("BOUTIQUE · NOVA & CRÉDITS", "NOVA & Crédits", "Choisissez votre réserve.")}<div class="sc-currency-switch" role="group" aria-label="Monnaie des packs">${[["nova","NOVA","assets/icons/premium.svg"],["credits","Crédits","assets/icons/credits.svg"]].map(([value,label,img])=>`<button class="${mode === value ? "is-selected" : ""}" data-store-currency="${value}" type="button" aria-pressed="${mode === value}"><img src="${img}" alt="">${label}</button>`).join("")}</div></div><div class="sc-currency-grid">${packs.map(pack=>{
+    const price = currencyPriceCents(pack);
+    const badge = price === 2499n ? "Le plus populaire" : price === 9999n ? "Le plus rentable" : "";
+    const bonus = getCurrencyPackBonusPercent(pack,packs[0]);
+    const value = bonus === 0 ? "Référence · 0 %" : `${bonus > 0 ? "+" : "−"}${Math.abs(bonus).toLocaleString("fr-FR",{maximumFractionDigits:1})} % par €`;
+    return `<article class="sc-currency-card ${nova ? "is-nova" : "is-credits"}${badge ? " has-highlight" : ""}">${badge ? `<span class="sc-currency-badge ${price === 9999n ? "is-best-value" : ""}">${badge}</span>` : ""}${currencyPackArt(pack)}<div class="sc-currency-quantity"><h3>${fmt(pack.amount)}</h3><span>${unit}</span>${bonus === null ? "" : `<small class="sc-currency-value ${bonus > 0 ? "is-positive" : bonus < 0 ? "is-lower-value" : "is-reference"}" title="Écart de quantité par euro par rapport au pack à 1,99 €, arrondi au dixième de point inférieur.">${value}</small>`}</div><div class="sc-currency-purchase"><strong class="bs-price">${escapeHtml(euro(pack.price))}</strong>${detailButton("currency",pack.id,`Voir le pack de ${fmt(pack.amount)} ${unit}`)}</div></article>`;
+  }).join("")}</div><p class="sc-currency-comparison" title="Écart de quantité par euro, arrondi au dixième de point inférieur.">Rendement par euro comparé au pack à 1,99 €.</p><p class="sc-store-note">${shopIcon("info")}Paiement en euros à venir.</p></section>`;
 }
 
 function starterImage(item){
@@ -39,10 +63,13 @@ export function contentItems(items){
   return `<div class="bs-content-grid">${items.map(item=>`<div class="bs-content-item"><img src="${escapeHtml(starterImage(item))}" alt=""><span>${escapeHtml(item.label)}<b>${escapeHtml(item.quantity)}</b></span></div>`).join("")}</div>`;
 }
 
-export function renderStarterStore(profile){
-  return `<section class="sc-starters">${heading("BOUTIQUE · PACKS DE DÉPART", "Packs de départ", "Un vaisseau et son équipement réunis dans un pack.")}<div class="sc-starter-list">${starterPacks.map(pack=>{
+export function renderStarterStore(profile, {category} = {}){
+  const selectedCategory = normalizeStorePackCategory(category);
+  const categories = getStorePackCategories();
+  const packs = getStorePacksForCategory(selectedCategory);
+  return `<section class="sc-starters" aria-label="Packs">${heading("BOUTIQUE · PACKS", "Packs", "Retrouvez vos packs par catégorie.")}<div class="sc-starter-toolbar"><div class="sc-starter-categories" role="group" aria-label="Catégories de packs">${categories.map(entry=>`<button class="sc-starter-category ${selectedCategory === entry.id ? "is-selected" : ""}" data-store-pack-category="${entry.id}" type="button" aria-pressed="${selectedCategory === entry.id}" ${entry.available ? "" : "disabled"}>${shopIcon(entry.icon)}<span>${entry.label}</span>${entry.available ? `<b>${entry.count}</b>` : `<small>À venir</small>`}</button>`).join("")}</div><span class="sc-starter-count">${packs.length} pack${packs.length > 1 ? "s" : ""}</span></div><div class="sc-starter-list">${packs.map(pack=>{
     const owned = hasStarterPackPurchase(profile,pack.id);
-    return `<article class="sc-starter-row ${owned ? "is-owned" : ""}"><div class="sc-starter-ship"><img src="${escapeHtml(pack.img)}" alt="Vaisseau ${escapeHtml(pack.ship)}"></div><div class="sc-starter-content"><div class="sc-starter-title"><h3>${escapeHtml(pack.ship)}</h3>${owned ? `<span>${shopIcon("check")}Déjà acquis</span>` : ""}</div><div class="sc-starter-items">${pack.contents.map(item=>`<figure><div><img src="${escapeHtml(starterImage(item))}" alt="">${item.quantity !== "x1" ? `<b>${escapeHtml(item.quantity)}</b>` : ""}</div><figcaption>${escapeHtml(item.label)}${item.quantity === "x1" && item.kind !== "premium" ? " ×1" : ""}</figcaption></figure>`).join("")}</div></div><div class="sc-starter-purchase"><strong class="bs-price">${escapeHtml(euro(pack.price))}</strong><small>${owned ? "Achat unique déjà utilisé" : "Paiement en euros à venir"}</small>${detailButton("starter",pack.id,`Voir le pack de départ ${pack.ship}`)}</div></article>`;
+    return `<article class="sc-starter-row ${owned ? "is-owned" : ""}" data-store-pack-id="${escapeHtml(pack.id)}"><div class="sc-starter-ship"><img src="${escapeHtml(pack.img)}" alt="Vaisseau ${escapeHtml(pack.ship)}"></div><div class="sc-starter-content"><div class="sc-starter-title"><h3>${escapeHtml(pack.name)}</h3>${owned ? `<span>${shopIcon("check")}Déjà acquis</span>` : ""}</div><div class="sc-starter-items">${pack.contents.map(item=>`<figure><div><img src="${escapeHtml(starterImage(item))}" alt="">${item.quantity !== "x1" ? `<b>${escapeHtml(item.quantity)}</b>` : ""}</div><figcaption>${escapeHtml(item.label)}${item.quantity === "x1" && item.kind !== "premium" ? " ×1" : ""}</figcaption></figure>`).join("")}</div></div><div class="sc-starter-purchase"><strong class="bs-price">${escapeHtml(euro(pack.price))}</strong><small>${owned ? "Achat unique déjà utilisé" : "Paiement en euros à venir"}</small>${detailButton("starter",pack.id,`Voir le pack ${pack.ship}`)}</div></article>`;
   }).join("")}</div><p class="sc-store-note">${shopIcon("info")}Un achat par pack et par compte.<span class="sc-note-divider"></span>Paiement en euros à venir.</p></section>`;
 }
 

@@ -1,12 +1,13 @@
 import { creditCurrencyPacks, getPremiumGoldUntil, getPremiumRewardStatus, hasStarterPackPurchase, isPremiumActive, isPremiumGoldActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, starterPacks, storeTabs } from "../data/premium.js?v=20261024-boutique3";
 import { fmt } from "../core/utils.js";
-import { renderPremiumPassModal, renderPremiumPassStore } from "./premiumPassStore.js?v=20261024-boutique3";
-import { contentItems, currencyPackArt, renderCurrencyStore, renderPremiumRewardStore, renderStarterStore, rewardLinesMarkup, supportRewardStatus } from "./supportStorePanels.js?v=20261024-boutique3";
+import { renderPremiumPassModal, renderPremiumPassStore } from "./premiumPassStore.js?v=20261024-boutique4";
+import { contentItems, currencyPackArt, renderCurrencyStore, renderPremiumRewardStore, renderStarterStore, rewardLinesMarkup, supportRewardStatus } from "./supportStorePanels.js?v=20261024-boutique4";
 import { shopIcon } from "./shopIcons.js?v=20261024-premium2";
+import { normalizeStorePackCategory } from "./storePackCategories.js?v=20261024-boutique4";
 
-export { getSupportRewardLines } from "./supportStorePanels.js?v=20261024-boutique3";
+export { getSupportRewardLines } from "./supportStorePanels.js?v=20261024-boutique4";
 
-const tabLabels = {beta:"Bêta",premium:"Premium",currencies:"NOVA & Crédits",starters:"Packs de départ",rewards:"Calendrier OR"};
+const tabLabels = {beta:"Bêta",premium:"Premium",currencies:"NOVA & Crédits",starters:"Packs",rewards:"Calendrier OR"};
 const escapeHtml = value=>String(value ?? "").replace(/[&<>"']/g, char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const euro = value=>String(value || "").replace(/ EUR$/, " €");
 const currencyPacks = [...novaCurrencyPacks,...creditCurrencyPacks];
@@ -20,10 +21,10 @@ export function renderStoreNavigation(activeTab, profile = {}, {now = Date.now()
   return `<div class="ss-navigation-row"><nav class="ss-navigation" aria-label="Rubriques de la boutique">${storeTabs.filter(tab=>!betaOnly || tab.id === "beta").map(tab=>`<button class="${tab.id === activeTab ? "active" : ""}" data-store-tab="${tab.id}" type="button" ${tab.id === activeTab ? 'aria-current="page"' : ""}>${tabLabels[tab.id]}</button>`).join("")}</nav><div class="ss-account-status ${active ? "is-active" : ""} ${gold ? "is-gold" : ""}">${shopIcon("premium")}<span>${gold ? "Premium OR" : "Premium"} <b>${active ? `actif${remaining !== "Inactif" && remaining !== "0m" ? ` · ${escapeHtml(remaining)}` : ""}` : "inactif"}</b></span></div></div>`;
 }
 
-export function renderSupportStorefront(profile = {}, activeTab = "premium", {now = Date.now(), tier, currency, calendarDay} = {}){
+export function renderSupportStorefront(profile = {}, activeTab = "premium", {now = Date.now(), tier, currency, calendarDay, packCategory} = {}){
   if(activeTab === "premium") return renderPremiumPassStore(profile,{now,tier});
   if(activeTab === "currencies") return renderCurrencyStore({currency});
-  if(activeTab === "starters") return renderStarterStore(profile);
+  if(activeTab === "starters") return renderStarterStore(profile,{category:packCategory});
   if(activeTab === "rewards") return renderPremiumRewardStore(profile,{now,calendarDay});
   return "";
 }
@@ -42,7 +43,7 @@ export function renderSupportStoreModal(profile = {}, modal = {}, {now = Date.no
     const pack = starterPacks.find(item=>item.id === modal.id);
     if(!pack) return "";
     const owned = hasStarterPackPurchase(profile,pack.id);
-    title=pack.name;eyebrow="PACK DE DÉPART";
+    title=`Pack ${pack.ship}`;eyebrow="PACK · VAISSEAUX";
     body=`<div class="bs-detail-hero"><img src="${escapeHtml(pack.img)}" alt=""><p>${escapeHtml(pack.desc)} ${owned ? "Ce pack a déjà été acquis sur ce compte." : "Un achat par compte."}</p></div>${contentItems(pack.contents)}`;
     footer=`<strong class="bs-price">${escapeHtml(euro(pack.price))}</strong><button class="bs-button" type="button" disabled>${owned ? "Déjà acquis" : "Paiement à venir"}</button>`;
   }else if(modal.kind === "premium-reward"){
@@ -57,6 +58,13 @@ export function renderSupportStoreModal(profile = {}, modal = {}, {now = Date.no
 }
 
 export function handleSupportStoreInteraction(event, {store,render}){
+  const packCategory = event.target.closest?.("[data-store-pack-category]");
+  if(packCategory){
+    const value = packCategory.dataset.storePackCategory;
+    if(normalizeStorePackCategory(value) !== value) return false;
+    store.storePackCategory=value;
+    render();return true;
+  }
   if(event.target.closest?.("[data-store-premium-tier=\"gold\"]")){
     store.storeTab="premium";
     store.premiumStoreTier="gold";

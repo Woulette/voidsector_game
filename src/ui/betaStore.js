@@ -15,16 +15,18 @@ function escapeHtml(value){
 
 function packName(pack){ return pack.name.replace(/^Pack Beta /, ""); }
 function euroPrice(pack){ return String(pack.price || "").replace(/ EUR$/, " €"); }
-function amount(value){ return Math.max(0, Number(String(value || "").replace(/[^\d]/g, ""))); }
+function contentLabel(item){
+  return String(item.label || "")
+    .replace(/^Vaisseau /, "")
+    .replace(/^Canon Laser /, "Laser ")
+    .replace(/^Generateur A /, "Bouclier A ")
+    .replace(/^Generateur Vitesse /, "Vitesse ")
+    .replace(/^Munition /, "Munitions ")
+    .replace(/^Drone de Reparation Rouge$/, "Drone réparation");
+}
 
-function packSummary(pack){
-  const items = pack.contents || [];
-  const lasers = items.filter(item=>/^Canon Laser /.test(item.label));
-  const laserLabel = lasers.map((item,index)=>`${fmt(amount(item.quantity))} ${index ? "" : "lasers "}${item.label.replace(/^Canon Laser /, "")}`).join(" + ");
-  const nova = items.find(item=>item.kind === "premium");
-  const shield = items.find(item=>/^Generateur A /.test(item.label));
-  const ammo = items.find(item=>item.kind === "ammo");
-  return [laserLabel, nova ? `${fmt(amount(nova.quantity))} NOVA` : shield ? `${fmt(amount(shield.quantity))} générateurs ${shield.label.replace(/^Generateur /, "")}` : "", ammo ? `${fmt(amount(ammo.quantity))} munitions ${ammo.label.replace(/^Munition /, "")}` : ""].filter(Boolean);
+function packContents(pack){
+  return `<div class="bs-pack-inventory" aria-label="Contenu du pack ${escapeHtml(packName(pack))}">${pack.contents.map(item=>`<figure title="${escapeHtml(item.label)} · ${escapeHtml(item.quantity)}"><div><img src="${escapeHtml(item.img)}" alt="" decoding="async"><b>${escapeHtml(item.quantity)}</b></div><figcaption>${escapeHtml(contentLabel(item))}</figcaption></figure>`).join("")}</div>`;
 }
 
 function officialBonus(pack){
@@ -34,11 +36,9 @@ function officialBonus(pack){
 function renderPack(pack, profile){
   const owned = hasBetaPackPurchase(profile, pack.id);
   return `<article class="bs-pack ${owned ? "is-owned" : ""}">
-    <div class="bs-pack-head"><span>PACK BÊTA</span><span>${owned ? "DÉJÀ ACTIVÉ" : escapeHtml(pack.tag?.replace("BETA ", ""))}</span></div>
-    <div class="bs-pack-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(packName(pack))}" decoding="async"></div>
-    <div class="bs-pack-copy"><h3>${escapeHtml(packName(pack))}</h3><p class="bs-pack-subtitle">${escapeHtml(presentation[pack.id]?.subtitle || pack.desc)}</p>
-      <ul class="bs-pack-summary">${packSummary(pack).map(label=>`<li>${escapeHtml(label)}</li>`).join("")}</ul>
-      ${officialBonus(pack)}
+    <div class="bs-pack-head"><span>PACK BÊTA ${escapeHtml(pack.tag?.replace("BETA ", ""))}</span><span>${owned ? `${shopIcon("check")} DÉJÀ ACTIVÉ` : "UN ACHAT PAR COMPTE"}</span></div>
+    <div class="bs-pack-hero"><div class="bs-pack-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(packName(pack))}" decoding="async"></div><div><h3>${escapeHtml(packName(pack))}</h3><p class="bs-pack-subtitle">${escapeHtml(presentation[pack.id]?.subtitle || pack.desc)}</p></div></div>
+    <div class="bs-pack-copy"><span class="bs-pack-content-label">CONTENU DU PACK</span>${packContents(pack)}${officialBonus(pack)}
       <div class="bs-price-row"><div><span class="bs-price">${escapeHtml(euroPrice(pack))}</span><small>${pack.contents.length} éléments inclus</small></div><button class="bs-button" data-store-offer-kind="beta" data-store-offer="${escapeHtml(pack.id)}" type="button" aria-label="Voir le pack ${escapeHtml(packName(pack))}">Voir le pack ${shopIcon("arrow")}</button></div>
     </div>
   </article>`;
@@ -72,21 +72,21 @@ function renderCalendar(profile, now){
   const status = getBetaRewardStatus(profile, now);
   const next = getBetaDayPresentation(status.reward);
   return `<section class="bs-calendar" aria-label="Calendrier Bêta de 25 jours">
-    <div class="bs-calendar-heading"><div><span class="bs-eyebrow">VOTRE RENDEZ-VOUS QUOTIDIEN</span><h3>Calendrier Bêta</h3><p>25 jours de connexion. Une récompense chaque jour.</p></div><div class="bs-calendar-progress" aria-live="polite">${status.claimedCount} / 25 jours<div class="bs-track" role="progressbar" aria-label="Progression du calendrier Bêta" aria-valuenow="${status.claimedCount}" aria-valuemin="0" aria-valuemax="25"><span style="width:${status.claimedCount * 4}%"></span></div></div></div>
-    <div class="bs-today"><img src="${escapeHtml(next.img)}" alt=""><div class="bs-today-copy"><span>${status.completed ? "CALENDRIER TERMINÉ" : status.canClaim ? `DISPONIBLE AUJOURD’HUI · JOUR ${status.nextDay}` : "RÉCOMPENSE DU JOUR RÉCUPÉRÉE"}</span><b>${status.completed ? "Merci d’avoir participé à la Bêta !" : status.canClaim ? `${fmt(next.quantity)} ${escapeHtml(next.label)}` : "Revenez demain pour la suite"}</b></div><button class="bs-button" data-claim-beta-reward type="button" ${status.canClaim ? "" : "disabled"}>${status.completed ? "Terminé" : status.canClaim ? `Récupérer ${shopIcon("gift")}` : "À demain"}</button></div>
+    <div class="bs-calendar-heading"><div><span class="bs-eyebrow">RÉCOMPENSES DE CONNEXION</span><h3>Calendrier Bêta</h3><p>25 jours de connexion. Une récompense à récupérer chaque jour.</p></div><div class="bs-calendar-progress" aria-live="polite"><strong>${status.claimedCount} / 25 jours</strong><div class="bs-track" role="progressbar" aria-label="Progression du calendrier Bêta" aria-valuenow="${status.claimedCount}" aria-valuemin="0" aria-valuemax="25"><span style="width:${status.claimedCount * 4}%"></span></div></div></div>
+    <div class="bs-today ${status.completed ? "is-completed" : status.canClaim ? "is-available" : "is-received"}">${status.completed ? shopIcon("check") : `<img src="${escapeHtml(next.img)}" alt="">`}<div class="bs-today-copy"><span>${status.completed ? "CALENDRIER TERMINÉ" : status.canClaim ? `DISPONIBLE AUJOURD’HUI · JOUR ${status.nextDay}` : "RÉCOMPENSE DU JOUR RÉCUPÉRÉE"}</span><b>${status.completed ? "Merci d’avoir participé à la Bêta !" : status.canClaim ? `${fmt(next.quantity)} ${escapeHtml(next.label)}` : "Revenez demain pour la suite"}</b></div><button class="bs-button" data-claim-beta-reward type="button" ${status.canClaim ? "" : "disabled"}>${status.completed ? "Terminé" : status.canClaim ? `Récupérer ${shopIcon("gift")}` : "À demain"}</button></div>
     <div class="bs-days">${betaRewardCalendar.map(day=>{
       const item = getBetaDayPresentation(day);
       const claimed = status.claimedDays.includes(day.day);
       const today = !claimed && status.canClaim && day.day === status.nextDay;
       const label = dayStatus(day, status);
-      return `<button class="bs-day ${claimed ? "is-claimed" : ""} ${today ? "is-today" : ""} ${day.day % 5 === 0 ? "is-milestone" : ""}" data-beta-calendar-day="${day.day}" type="button" aria-label="Jour ${day.day} : ${fmt(item.quantity)} ${escapeHtml(item.label)}, ${label}"><span class="bs-day-top"><span>JOUR ${day.day}</span>${shopIcon(claimed ? "check" : today ? "gift" : "lock")}</span><img src="${escapeHtml(item.img)}" alt="" loading="lazy"><b>${fmt(item.quantity)}${item.label === "NOVA" ? " NOVA" : ""}</b><small>${escapeHtml(item.label === "NOVA" ? claimed ? "Reçu" : today ? "À récupérer" : "À venir" : item.label)}</small></button>`;
+      return `<button class="bs-day ${claimed ? "is-claimed" : ""} ${today ? "is-today" : ""} ${day.day % 5 === 0 ? "is-milestone" : ""}" data-beta-calendar-day="${day.day}" type="button" aria-label="Jour ${day.day} : ${fmt(item.quantity)} ${escapeHtml(item.label)}, ${label}"><span class="bs-day-top"><span>JOUR ${day.day}</span>${shopIcon(claimed ? "check" : today ? "gift" : "lock")}</span><span class="bs-day-reward"><img src="${escapeHtml(item.img)}" alt="" loading="lazy"><span><b>${fmt(item.quantity)}</b><small>${escapeHtml(item.label)}</small></span></span><span class="bs-day-status">${claimed ? "Reçu" : today ? "À récupérer" : day.day === status.nextDay && status.claimedToday && !status.completed ? "Demain" : day.day % 5 === 0 ? "Bonus spécial" : "À venir"}</span></button>`;
     }).join("")}</div>
     <p class="bs-calendar-foot">${shopIcon("info")}Les récompenses suivent vos jours de connexion. Les jours 5, 10, 15, 20 et 25 réservent un bonus spécial.</p>
   </section>`;
 }
 
 export function renderBetaStorefront(profile = {}, {now = Date.now()} = {}){
-  return `<div class="beta-storefront"><div class="bs-page-heading"><div><span class="bs-eyebrow">BOUTIQUE · ÉDITION BÊTA</span><h2>Préparez votre aventure.</h2><p>Équipez votre flotte, soutenez Avosoma et profitez des récompenses de connexion.</p></div><span class="bs-edition">BÊTA</span></div><section class="bs-packs" aria-label="Packs de soutien Bêta">${betaPacks.map(pack=>renderPack(pack, profile)).join("")}</section><p class="bs-packs-note">Un achat par pack et par compte. Les bonus de lancement seront attribués à la sortie officielle.</p>${renderCalendar(profile, now)}</div>`;
+  return `<div class="beta-storefront"><div class="bs-page-heading"><div><span class="bs-eyebrow">BOUTIQUE · ÉDITION BÊTA</span><h2>Packs Bêta</h2><p>Choisissez votre vaisseau, découvrez le contenu de votre pack et soutenez Avosoma.</p></div><span class="bs-edition">BÊTA</span></div><section class="bs-packs" aria-label="Packs de soutien Bêta">${betaPacks.map(pack=>renderPack(pack, profile)).join("")}</section><p class="bs-packs-note">${shopIcon("info")}Un achat par pack et par compte. Les bonus de lancement seront attribués à la sortie officielle.</p>${renderCalendar(profile, now)}</div>`;
 }
 
 export function renderBetaStoreModal(profile = {}, modal = {}, {now = Date.now()} = {}){

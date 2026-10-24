@@ -1,7 +1,7 @@
 import { ammoTypes, portals, rawMaterialCatalog } from "./data/catalog.js?v=20260726-ancient1";
-import { handleBetaStoreInteraction } from "./ui/betaStore.js?v=20261023-boutique1";
-import { handleSupportStoreInteraction } from "./ui/supportStore.js?v=20261024-boutique3";
-import { handlePremiumPassInteraction } from "./ui/premiumPassStore.js?v=20261024-boutique3";
+import { handleBetaStoreInteraction } from "./ui/betaStore.js?v=20261024-boutique4";
+import { handleSupportStoreInteraction } from "./ui/supportStore.js?v=20261024-boutique4";
+import { handlePremiumPassInteraction } from "./ui/premiumPassStore.js?v=20261024-boutique4";
 import {
   ensureShipLoadout,
   findEquippedSlot,
@@ -31,7 +31,7 @@ import {
 import { createCombatGame } from "./game/combat.js?v=20261022-helion-hub1";
 import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, prepareServerPortal, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=20261018-map-transfer1";
 import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=20261018-map-transfer1";
-import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderSkills, renderTop, selectSkillNode, setView } from "./ui/render.js?v=20261022-helion-hub1";
+import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderSkills, renderTop, selectSkillNode, setView } from "./ui/render.js?v=20261024-boutique4";
 import { equipDroneBayInventoryItem, handleDroneBayInteraction } from "./ui/renderDroneBay.js?v=20261023-dronegrid1";
 import { handleProfileMilestoneInteraction, handleProfileMilestoneKeydown, settleProfileMilestoneCommand } from "./ui/renderProfile.js?v=20261023-profilemilestones1";
 import { showToast } from "./ui/toast.js?v=20260726-kharon1";
