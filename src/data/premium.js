@@ -9,7 +9,7 @@ export const BETA_STORE_ONLY = false;
 
 export const premiumFeatureList = [
   "-5% sur tous les prix en NOVA",
-  "Transferts raffinerie vers vaisseau 50% plus rapides",
+  "Transferts raffinerie vers vaisseau 2× plus rapides",
   "Drone de reparation : soin +50%",
   "Deconnexion hors combat reduite a 5 secondes",
   "Portgun premium : teleportation en 5 secondes",
@@ -25,7 +25,7 @@ export const premiumShopPacks = [
     name:"Pass Premium 7 jours",
     short:"Premium 7J",
     category:"premium",
-    img:"assets/icons/premium_pass_7.svg",
+    img:"assets/store/premium-pass-7.png",
     rarity:"PREMIUM",
     priceType:"premium",
     price:20000,
@@ -39,7 +39,7 @@ export const premiumShopPacks = [
     name:"Pass Premium 30 jours",
     short:"Premium 30J",
     category:"premium",
-    img:"assets/icons/premium_pass_30.svg",
+    img:"assets/store/premium-pass-30.png",
     rarity:"PREMIUM",
     priceType:"premium",
     price:75000,

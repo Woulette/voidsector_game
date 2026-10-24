@@ -1,0 +1,369 @@
+/* Approved Premium pass rows. Keep the launcher background and shared shop chrome. */
+#premiumStorePanel.beta-store-panel .pps-layout {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(260px,32%);
+  align-items:start;
+  gap:22px;
+  min-width:0;
+}
+#premiumStorePanel.beta-store-panel .pps-main { min-width:0; }
+#premiumStorePanel.beta-store-panel .pps-heading {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:20px;
+  min-width:0;
+}
+#premiumStorePanel.beta-store-panel .pps-heading-copy { min-width:0; }
+#premiumStorePanel.beta-store-panel .pps-heading h2 {
+  margin:7px 0;
+  color:var(--bs-text);
+  font:700 29px/1.25 Rajdhani,"Segoe UI",sans-serif;
+  letter-spacing:.2px;
+  text-transform:none;
+}
+#premiumStorePanel.beta-store-panel .pps-heading p {
+  margin:0;
+  color:var(--bs-soft);
+  font-size:14px;
+  line-height:1.5;
+  max-width:760px;
+}
+#premiumStorePanel.beta-store-panel .pps-payment-switch {
+  display:flex;
+  flex:none;
+  align-items:stretch;
+  gap:3px;
+  max-width:100%;
+  padding:3px;
+  border:1px solid var(--bs-line);
+  border-radius:5px;
+  background:#061925;
+}
+#premiumStorePanel.beta-store-panel .pps-payment-switch button {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  min-width:100px;
+  min-height:39px;
+  padding:8px 15px;
+  border:1px solid transparent;
+  border-radius:3px;
+  background:transparent;
+  color:var(--bs-soft);
+  font-size:14px;
+  line-height:1.25;
+  cursor:pointer;
+}
+#premiumStorePanel.beta-store-panel .pps-payment-switch button svg {
+  width:21px;
+  height:21px;
+  flex:none;
+}
+#premiumStorePanel.beta-store-panel .pps-payment-switch button.active,
+#premiumStorePanel.beta-store-panel .pps-payment-switch button[aria-pressed="true"],
+#premiumStorePanel.beta-store-panel .pps-payment-switch button[aria-selected="true"] {
+  border-color:var(--bs-cyan);
+  background:linear-gradient(#0c3b4d,#082534);
+  box-shadow:inset 0 0 10px #27c7e514;
+  color:var(--bs-text);
+}
+#premiumStorePanel.beta-store-panel .pps-payment-switch button:hover {
+  border-color:#4d8599;
+  color:var(--bs-text);
+}
+#premiumStorePanel.beta-store-panel .pps-offers {
+  display:grid;
+  gap:12px;
+  min-width:0;
+}
+#premiumStorePanel.beta-store-panel .pps-offer {
+  display:grid;
+  grid-template-columns:180px minmax(0,1fr) minmax(150px,.65fr) 160px;
+  align-items:center;
+  gap:20px;
+  min-width:0;
+  min-height:145px;
+  padding:14px 20px;
+  border:1px solid #24607b;
+  border-radius:4px;
+  background:linear-gradient(115deg,#0a2537b8,#071a2980 58%,#061925b8);
+}
+#premiumStorePanel.beta-store-panel .pps-art {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+}
+#premiumStorePanel.beta-store-panel .pps-art img {
+  display:block;
+  width:100%;
+  height:115px;
+  object-fit:contain;
+  filter:drop-shadow(0 5px 10px #0008);
+}
+#premiumStorePanel.beta-store-panel .pps-copy { min-width:0; }
+#premiumStorePanel.beta-store-panel .pps-copy h3 {
+  margin:0 0 8px;
+  color:var(--bs-text);
+  font:700 28px/1.15 Rajdhani,"Segoe UI",sans-serif;
+  letter-spacing:0;
+  text-transform:none;
+}
+#premiumStorePanel.beta-store-panel .pps-copy p {
+  margin:0;
+  color:var(--bs-soft);
+  font-size:16px;
+  line-height:1.4;
+}
+#premiumStorePanel.beta-store-panel .pps-pricing {
+  display:flex;
+  align-self:stretch;
+  flex-direction:column;
+  justify-content:center;
+  min-width:0;
+  padding-left:20px;
+  border-left:1px solid var(--bs-line);
+}
+#premiumStorePanel.beta-store-panel .pps-pricing .bs-price {
+  display:block;
+  font-size:31px;
+  line-height:1.15;
+  white-space:normal;
+}
+#premiumStorePanel.beta-store-panel .pps-pricing small {
+  display:block;
+  margin-top:9px;
+  color:var(--bs-soft);
+  font-size:14px;
+  line-height:1.35;
+}
+#premiumStorePanel.beta-store-panel .pps-action { min-width:0; }
+#premiumStorePanel.beta-store-panel .pps-action .bs-button {
+  width:100%;
+  min-height:48px;
+  padding:11px 14px;
+  border-color:#1bc9f2;
+  font-size:17px;
+  font-weight:700;
+  white-space:normal;
+}
+#premiumStorePanel.beta-store-panel .pps-action .bs-button svg {
+  width:17px;
+  height:17px;
+}
+#premiumStorePanel.beta-store-panel .pps-benefits {
+  min-width:0;
+  margin-top:28px;
+  padding:21px;
+  border:1px solid var(--bs-line);
+  border-radius:3px;
+  background:#071a2980;
+}
+#premiumStorePanel.beta-store-panel .pps-benefits h3 {
+  margin:0 0 18px;
+  color:var(--bs-cyan);
+  font-size:14px;
+  font-weight:700;
+  line-height:1.4;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+}
+#premiumStorePanel.beta-store-panel .pps-benefits ul {
+  display:grid;
+  gap:12px;
+  list-style:none;
+  padding:0;
+  margin:0;
+}
+#premiumStorePanel.beta-store-panel .pps-benefits li {
+  display:flex;
+  align-items:center;
+  gap:16px;
+  min-width:0;
+  color:var(--bs-text);
+  font-size:18px;
+  line-height:1.35;
+}
+#premiumStorePanel.beta-store-panel .pps-benefits li::before { content:none; }
+#premiumStorePanel.beta-store-panel .pps-benefit-icon {
+  display:grid;
+  place-items:center;
+  flex:none;
+  width:43px;
+  height:43px;
+  border:1px solid #175475;
+  border-radius:50%;
+  background:radial-gradient(circle at 40% 30%,#0c3850,#062033);
+  color:var(--bs-cyan);
+  font-size:23px;
+  font-weight:700;
+}
+#premiumStorePanel.beta-store-panel .pps-benefit-icon svg { width:24px; height:24px; }
+#premiumStorePanel.beta-store-panel .pps-all-benefits {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  width:100%;
+  min-height:44px;
+  margin-top:22px;
+  padding:18px 0 0;
+  border:0;
+  border-top:1px solid var(--bs-line);
+  background:transparent;
+  color:var(--bs-cyan);
+  font-size:16px;
+  font-weight:600;
+  line-height:1.3;
+  text-decoration:underline;
+  text-underline-offset:3px;
+  cursor:pointer;
+}
+#premiumStorePanel.beta-store-panel .pps-all-benefits svg { width:18px; height:18px; flex:none; }
+#premiumStorePanel.beta-store-panel .pps-duration-note {
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  margin:18px 4px 15px;
+  color:var(--bs-soft);
+  font-size:14px;
+  line-height:1.45;
+}
+#premiumStorePanel.beta-store-panel .pps-duration-note svg {
+  width:18px;
+  height:18px;
+  margin-top:1px;
+  flex:none;
+  color:#85cde5;
+}
+#premiumStorePanel.beta-store-panel .pps-calendar-link {
+  display:flex;
+  align-items:center;
+  gap:18px;
+  min-width:0;
+  padding:11px 16px;
+  border:1px solid #24607b;
+  border-radius:3px;
+  background:#071a2980;
+  color:var(--bs-soft);
+  font-size:14px;
+  line-height:1.4;
+}
+#premiumStorePanel.beta-store-panel .pps-calendar-link > svg { width:22px; height:22px; flex:none; color:var(--bs-cyan); }
+#premiumStorePanel.beta-store-panel .pps-calendar-link > strong { padding-right:18px; border-right:1px solid var(--bs-line); font-weight:600; white-space:nowrap; }
+#premiumStorePanel.beta-store-panel .pps-calendar-link > span { flex:1; min-width:0; }
+#premiumStorePanel.beta-store-panel .pps-calendar-link .bs-button { margin-left:auto; flex:none; }
+#premiumStorePanel.beta-store-panel .pps-modal-features {
+  display:grid;
+  gap:10px;
+  padding:0;
+  margin:0 0 18px;
+  list-style:none;
+  color:var(--bs-soft);
+  font-size:14px;
+  line-height:1.45;
+}
+#premiumStorePanel.beta-store-panel .pps-modal-features li {
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  min-width:0;
+}
+#premiumStorePanel.beta-store-panel .pps-modal-features li::before { content:none; }
+#premiumStorePanel.beta-store-panel .pps-modal-features svg {
+  width:17px;
+  height:17px;
+  margin-top:1px;
+  flex:none;
+  color:var(--bs-cyan);
+}
+#premiumStorePanel.beta-store-panel .pps-payment-switch button:focus-visible,
+#premiumStorePanel.beta-store-panel .pps-all-benefits:focus-visible,
+#premiumStorePanel.beta-store-panel .pps-calendar-link button:focus-visible {
+  outline:2px solid var(--bs-cyan);
+  outline-offset:3px;
+}
+@media(max-width:1450px) {
+  #premiumStorePanel.beta-store-panel .pps-layout { gap:18px; grid-template-columns:minmax(0,1fr) minmax(250px,32%); }
+  #premiumStorePanel.beta-store-panel .pps-heading { align-items:flex-start; flex-wrap:wrap; }
+  #premiumStorePanel.beta-store-panel .pps-payment-switch { margin-left:auto; }
+  #premiumStorePanel.beta-store-panel .pps-offer { grid-template-columns:135px minmax(0,1fr) 140px 125px; gap:14px; padding:14px; }
+  #premiumStorePanel.beta-store-panel .pps-copy h3 { font-size:26px; }
+  #premiumStorePanel.beta-store-panel .pps-copy p { font-size:15px; }
+  #premiumStorePanel.beta-store-panel .pps-pricing { padding-left:14px; }
+  #premiumStorePanel.beta-store-panel .pps-pricing .bs-price { font-size:26px; }
+  #premiumStorePanel.beta-store-panel .pps-pricing small { font-size:13px; }
+  #premiumStorePanel.beta-store-panel .pps-action .bs-button { font-size:15px; padding:9px 10px; }
+  #premiumStorePanel.beta-store-panel .pps-benefits { padding:19px 17px; }
+  #premiumStorePanel.beta-store-panel .pps-benefits li { gap:12px; font-size:16px; }
+}
+@media(min-width:1025px) and (max-width:1199px) {
+  #premiumStorePanel.beta-store-panel .pps-offer { grid-template-columns:110px minmax(0,1fr) 132px; gap:10px 13px; }
+  #premiumStorePanel.beta-store-panel .pps-art { grid-row:1 / 3; }
+  #premiumStorePanel.beta-store-panel .pps-copy { grid-row:1 / 3; }
+  #premiumStorePanel.beta-store-panel .pps-pricing { grid-column:3; padding-left:12px; }
+  #premiumStorePanel.beta-store-panel .pps-pricing .bs-price { font-size:24px; }
+  #premiumStorePanel.beta-store-panel .pps-action { grid-column:3; }
+  #premiumStorePanel.beta-store-panel .pps-action .bs-button { min-height:38px; }
+}
+@media(max-width:1024px) {
+  #premiumStorePanel.beta-store-panel .pps-layout { grid-template-columns:minmax(0,1fr); }
+  #premiumStorePanel.beta-store-panel .pps-heading { flex-wrap:nowrap; align-items:center; }
+  #premiumStorePanel.beta-store-panel .pps-benefits { margin-top:0; }
+  #premiumStorePanel.beta-store-panel .pps-benefits ul { grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+  #premiumStorePanel.beta-store-panel .pps-benefits li { align-items:flex-start; gap:10px; font-size:15px; }
+  #premiumStorePanel.beta-store-panel .pps-benefit-icon { width:35px; height:35px; }
+  #premiumStorePanel.beta-store-panel .pps-benefit-icon svg { width:20px; height:20px; }
+}
+@media(max-width:760px) {
+  #premiumStorePanel.beta-store-panel .pps-heading { flex-wrap:wrap; }
+  #premiumStorePanel.beta-store-panel .pps-payment-switch { margin-left:0; }
+  #premiumStorePanel.beta-store-panel .pps-offer { grid-template-columns:115px minmax(0,1fr) 125px; gap:10px 14px; }
+  #premiumStorePanel.beta-store-panel .pps-art { grid-row:1 / 3; }
+  #premiumStorePanel.beta-store-panel .pps-copy { grid-row:1 / 3; }
+  #premiumStorePanel.beta-store-panel .pps-pricing { grid-column:3; padding-left:10px; }
+  #premiumStorePanel.beta-store-panel .pps-pricing .bs-price { font-size:24px; }
+  #premiumStorePanel.beta-store-panel .pps-action { grid-column:3; }
+  #premiumStorePanel.beta-store-panel .pps-action .bs-button { min-height:38px; }
+  #premiumStorePanel.beta-store-panel .pps-benefits ul { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #premiumStorePanel.beta-store-panel .pps-calendar-link { flex-wrap:wrap; gap:10px; }
+  #premiumStorePanel.beta-store-panel .pps-calendar-link > strong { padding-right:0; border-right:0; }
+}
+@media(max-width:600px) {
+  #premiumStorePanel.beta-store-panel .pps-heading { gap:13px; margin-bottom:15px; }
+  #premiumStorePanel.beta-store-panel .pps-heading h2 { font-size:26px; }
+  #premiumStorePanel.beta-store-panel .pps-heading p { font-size:13px; }
+  #premiumStorePanel.beta-store-panel .pps-payment-switch button { min-width:90px; }
+  #premiumStorePanel.beta-store-panel .pps-offer { grid-template-columns:90px minmax(0,1fr); gap:12px; min-height:0; padding:13px; }
+  #premiumStorePanel.beta-store-panel .pps-art { grid-row:auto; grid-column:1; }
+  #premiumStorePanel.beta-store-panel .pps-art img { height:82px; }
+  #premiumStorePanel.beta-store-panel .pps-copy { grid-row:auto; grid-column:2; }
+  #premiumStorePanel.beta-store-panel .pps-copy h3 { font-size:25px; margin-bottom:6px; }
+  #premiumStorePanel.beta-store-panel .pps-copy p { font-size:14px; }
+  #premiumStorePanel.beta-store-panel .pps-pricing { grid-row:2; grid-column:1; border-left:0; padding:0; }
+  #premiumStorePanel.beta-store-panel .pps-pricing .bs-price { font-size:24px; }
+  #premiumStorePanel.beta-store-panel .pps-pricing small { font-size:12px; margin-top:5px; }
+  #premiumStorePanel.beta-store-panel .pps-action { grid-row:2; grid-column:2; }
+  #premiumStorePanel.beta-store-panel .pps-action .bs-button { min-height:44px; font-size:15px; }
+  #premiumStorePanel.beta-store-panel .pps-benefits { padding:17px 13px; }
+  #premiumStorePanel.beta-store-panel .pps-benefits ul { gap:14px 12px; }
+  #premiumStorePanel.beta-store-panel .pps-benefits li { gap:8px; font-size:14px; }
+  #premiumStorePanel.beta-store-panel .pps-benefit-icon { width:29px; height:29px; font-size:19px; }
+  #premiumStorePanel.beta-store-panel .pps-benefit-icon svg { width:17px; height:17px; }
+  #premiumStorePanel.beta-store-panel .pps-duration-note { margin:15px 0; font-size:13px; }
+  #premiumStorePanel.beta-store-panel .pps-calendar-link { padding:12px; font-size:13px; }
+}
+@media(max-width:390px) {
+  #premiumStorePanel.beta-store-panel .pps-offer { grid-template-columns:80px minmax(0,1fr); gap:10px; padding:11px; }
+  #premiumStorePanel.beta-store-panel .pps-art img { height:75px; }
+  #premiumStorePanel.beta-store-panel .pps-pricing .bs-price { font-size:22px; }
+  #premiumStorePanel.beta-store-panel .pps-action .bs-button { padding:9px 7px; font-size:14px; }
+  #premiumStorePanel.beta-store-panel .pps-benefits ul { grid-template-columns:minmax(0,1fr); }
+}
+@media(pointer:coarse) {
+  #premiumStorePanel.beta-store-panel .pps-payment-switch button,
+  #premiumStorePanel.beta-store-panel .pps-calendar-link button { min-height:44px; }
+}

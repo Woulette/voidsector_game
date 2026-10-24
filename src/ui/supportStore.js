@@ -1,7 +1,7 @@
 import { ammoTypes, equipment } from "../data/catalog.js?v=20260726-ancient1";
-import { creditCurrencyPacks, getPremiumRewardStatus, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumFeatureList, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js?v=20260726-kharon1";
+import { creditCurrencyPacks, getPremiumRewardStatus, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, starterPacks, storeTabs } from "../data/premium.js?v=20260726-kharon1";
 import { fmt } from "../core/utils.js";
-import { getShopCurrencyPrice } from "../shared/shopPricing.js";
+import { renderPremiumPassModal, renderPremiumPassStore } from "./premiumPassStore.js?v=20261024-premium2";
 import { shopIcon } from "./shopIcons.js?v=20261023-boutique1";
 
 const tabLabels = {beta:"Bêta", premium:"Premium", currencies:"NOVA & Crédits", starters:"Packs de départ", rewards:"Calendrier Premium"};
@@ -21,19 +21,6 @@ function heading(eyebrow, title, description){
 
 function detailButton(kind, id, label){
   return `<button class="bs-button bs-button-muted" data-store-offer-kind="${kind}" data-store-offer="${escapeHtml(id)}" type="button" aria-label="${escapeHtml(label)}">Voir le détail ${shopIcon("arrow")}</button>`;
-}
-
-function novaPrice(pack, profile){ return getShopCurrencyPrice("premium", pack.price, profile.player || {}); }
-function premiumPurchaseButton(pack, profile){
-  const price = novaPrice(pack, profile);
-  const affordable = Number(profile.player?.premium || 0) >= price;
-  return `<button class="bs-button" data-buy-premium-pack="${escapeHtml(pack.id)}" type="button" ${affordable ? "" : "disabled"}>Activer · ${fmt(price)} NOVA</button>${affordable ? "" : '<small class="ss-payment-note">NOVA insuffisante.</small>'}`;
-}
-
-function renderPremium(profile){
-  return `${heading("BOUTIQUE · PREMIUM", "Un pass pour aller plus loin.", "Choisissez votre durée. Le pass peut être activé avec votre NOVA ; l’achat en euros sera disponible ultérieurement.")}
-    <div class="ss-offers ss-premium-offers">${premiumShopPacks.map(pack=>`<article class="ss-offer"><div class="ss-offer-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div><div class="ss-offer-body"><span class="ss-offer-tag">PASS PREMIUM</span><h3>${pack.days} jours</h3><p>Tous les avantages Premium pendant ${pack.days} jours. Une nouvelle activation prolonge votre abonnement en cours.</p><div class="ss-offer-footer"><div><strong class="bs-price">${escapeHtml(euro(pack.realPrice))}</strong><small class="ss-payment-note">Paiement en euros à venir</small></div>${detailButton("premium", pack.id, `Voir le pass Premium ${pack.days} jours`)}</div><div class="ss-nova-price"><span>Activation en NOVA</span><strong>${fmt(novaPrice(pack, profile))} NOVA</strong></div>${premiumPurchaseButton(pack, profile)}</div></article>`).join("")}</div>
-    <section class="ss-benefits" aria-label="Avantages du Premium"><span class="bs-eyebrow">INCLUS AVEC LES DEUX PASS</span><h3>Les avantages Premium</h3><ul class="ss-feature-list">${premiumFeatureList.map(feature=>`<li>${shopIcon("check")}<span>${escapeHtml(feature)}</span></li>`).join("")}</ul></section><p class="ss-note">Le prix NOVA affiché tient compte de votre statut Premium et de votre réputation. La durée s’ajoute à celle de votre pass actuel.</p>`;
 }
 
 function renderCurrencies(){
@@ -90,23 +77,18 @@ function renderRewards(profile, now){
   }).join("")}</div></section>`;
 }
 
-export function renderSupportStorefront(profile = {}, activeTab = "premium", {now = Date.now()} = {}){
-  if(activeTab === "premium") return renderPremium(profile);
+export function renderSupportStorefront(profile = {}, activeTab = "premium", {now = Date.now(), payment = "real"} = {}){
+  if(activeTab === "premium") return renderPremiumPassStore(profile,{now,payment});
   if(activeTab === "currencies") return renderCurrencies();
   if(activeTab === "starters") return renderStarters(profile);
   if(activeTab === "rewards") return renderRewards(profile,now);
   return "";
 }
 
-export function renderSupportStoreModal(profile = {}, modal = {}, {now = Date.now()} = {}){
+export function renderSupportStoreModal(profile = {}, modal = {}, {now = Date.now(), payment = "real"} = {}){
   let title = "", eyebrow = "", body = "", footer = "";
-  if(modal.kind === "premium"){
-    const pack = premiumShopPacks.find(item=>item.id === modal.id);
-    if(!pack) return "";
-    title=pack.name;eyebrow="PASS PREMIUM";
-    body=`<div class="bs-detail-hero"><img src="${escapeHtml(pack.img)}" alt=""><p>${pack.days} jours de Premium. Si votre pass est encore actif, cette durée s’ajoute à votre abonnement actuel.</p></div><ul class="ss-feature-list">${pack.features.map(feature=>`<li>${shopIcon("check")}<span>${escapeHtml(feature)}</span></li>`).join("")}</ul>`;
-    footer=`<div><strong class="bs-price">${escapeHtml(euro(pack.realPrice))}</strong><small class="ss-payment-note">Paiement en euros à venir</small></div><div>${premiumPurchaseButton(pack, profile)}</div>`;
-  }else if(modal.kind === "currency"){
+  if(modal.kind === "premium" || modal.kind === "premium-benefits") return renderPremiumPassModal(profile,modal,{now,payment});
+  if(modal.kind === "currency"){
     const pack = currencyPacks.find(item=>item.id === modal.id);
     if(!pack) return "";
     const unit = pack.tag === "NOVA" ? "NOVA" : "crédits";

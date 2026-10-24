@@ -69,9 +69,11 @@ test("Premium pass details distinguish euro offers from server-priced NOVA activ
     assertEuroPrice(html, pack.realPrice);
     const detail = pureRender(renderSupportStoreModal, profile, {kind:"premium", id:pack.id}, {now});
     assertEuroPrice(detail, pack.realPrice);
-    assert.ok(compactText(detail).includes(String(getShopCurrencyPrice("premium", pack.price, profile.player))));
-    assert.equal(enabledActions(detail, "data-buy-premium-pack").length, 1);
-    assert.ok(hasValue(detail, "data-buy-premium-pack", pack.id));
+    assert.equal(enabledActions(detail, "data-buy-premium-pack").length, 0);
+    const novaDetail = pureRender(renderSupportStoreModal, profile, {kind:"premium", id:pack.id}, {now,payment:"premium"});
+    assert.ok(compactText(novaDetail).includes(String(getShopCurrencyPrice("premium", pack.price, profile.player))));
+    assert.equal(enabledActions(novaDetail, "data-buy-premium-pack").length, 1);
+    assert.ok(hasValue(novaDetail, "data-buy-premium-pack", pack.id));
     assert.doesNotMatch(detail, /data-(?:checkout|pay-real|buy-real|purchase-real)/);
   }
 });
@@ -84,7 +86,7 @@ test("the NOVA pass amount includes existing Premium reductions and reputation a
   ]){
     for(const pack of premiumShopPacks){
       const profile = {player};
-      const html = pureRender(renderSupportStoreModal, profile, {kind:"premium", id:pack.id}, {now});
+      const html = pureRender(renderSupportStoreModal, profile, {kind:"premium", id:pack.id}, {now,payment:"premium"});
       const expected = getShopCurrencyPrice("premium", pack.price, player);
       assert.ok(compactText(html).includes(String(expected)), `${pack.id}: expected ${expected} NOVA`);
       assert.equal(enabledActions(html, "data-buy-premium-pack").length, 1);
@@ -96,9 +98,9 @@ test("NOVA activation is unavailable below the actual pass price and available a
   for(const pack of premiumShopPacks){
     const player = {...activePlayer, reputation:-10_000};
     const cost = getShopCurrencyPrice("premium", pack.price, player);
-    const insufficient = pureRender(renderSupportStoreModal, {player:{...player,premium:cost-1}}, {kind:"premium",id:pack.id}, {now});
+    const insufficient = pureRender(renderSupportStoreModal, {player:{...player,premium:cost-1}}, {kind:"premium",id:pack.id}, {now,payment:"premium"});
     assert.equal(enabledActions(insufficient, "data-buy-premium-pack").length, 0);
-    const exact = pureRender(renderSupportStoreModal, {player:{...player,premium:cost}}, {kind:"premium",id:pack.id}, {now});
+    const exact = pureRender(renderSupportStoreModal, {player:{...player,premium:cost}}, {kind:"premium",id:pack.id}, {now,payment:"premium"});
     assert.equal(enabledActions(exact, "data-buy-premium-pack").length, 1);
   }
 });

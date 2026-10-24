@@ -1,4 +1,8 @@
 const paths = {
+  calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M7 15h3m4 0h3m-10 3h3"/>',
+  transfer:'<path d="M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4"/>',
+  document:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h6"/>',
+  repair:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94Z"/>',
   gift:'<path d="M3 8h18v4H3Zm2 4v9h14v-9M12 8v13M12 8H7a3 3 0 1 1 3-3l2 3Zm0 0h5a3 3 0 1 0-3-3l-2 3Z"/>',
   ship:'<path d="m12 2 4 8 2 10-6-3-6 3 2-10 4-8Zm0 3v12M7 15l-4 5 4-1m10-4 4 5-4-1"/>',
   weapon:'<path d="m3 9 14-5 4 4-4 4-8 1-3 7-4-2 4-7m3-3 2 5m5-8 3 5"/>',
