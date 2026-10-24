@@ -1,5 +1,6 @@
 import { PREMIUM_NOVA_DISCOUNT_RATE, PREMIUM_REPAIR_BOT_MULTIPLIER, PREMIUM_REFINERY_SHIPMENT_DURATION_MULTIPLIER, PREMIUM_REWARD_DAYS, premiumFeatureList, premiumGoldFeatureList, premiumShopPacks } from "../data/premium.js?v=20261024-boutique3";
 import { shopIcon } from "./shopIcons.js?v=20261024-premium2";
+import { premiumPassArtwork } from "./premiumPassArtwork.js?v=20261024-gold-art1";
 
 const escapeHtml = value=>String(value ?? "").replace(/[&<>"']/g, char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const premiumTier = value=>value === "gold" ? "gold" : "classic";
@@ -24,7 +25,7 @@ function highlights(tier){
 
 function offerRow(pack){
   const label = tierName(pack.tier);
-  return `<article class="pps-offer${pack.tier === "gold" ? " pps-offer-gold" : ""}"><div class="pps-art"><img src="${escapeHtml(pack.img)}" alt="Carte ${label} ${pack.days} jours" decoding="async"></div><div class="pps-copy"><span class="pps-formula">${label}</span><h3>${pack.days} jours</h3><p>${pack.tier === "gold" ? "Tous les avantages et le calendrier OR." : "Tous les avantages, sans calendrier OR."}</p></div><div class="pps-pricing"><strong class="bs-price">${escapeHtml(euroPrice(pack.realPrice))}</strong><small>Paiement en euros à venir</small></div><div class="pps-action"><button class="bs-button" data-store-offer-kind="premium" data-store-offer="${escapeHtml(pack.id)}" aria-label="Voir le pass ${label} ${pack.days} jours" type="button">Voir le pass ${shopIcon("arrow")}</button></div></article>`;
+  return `<article class="pps-offer${pack.tier === "gold" ? " pps-offer-gold" : ""}"><div class="pps-art"><img src="${escapeHtml(premiumPassArtwork(pack))}" alt="Carte ${label} ${pack.days} jours" decoding="async"></div><div class="pps-copy"><span class="pps-formula">${label}</span><h3>${pack.days} jours</h3><p>${pack.tier === "gold" ? "Tous les avantages et le calendrier OR." : "Tous les avantages, sans calendrier OR."}</p></div><div class="pps-pricing"><strong class="bs-price">${escapeHtml(euroPrice(pack.realPrice))}</strong><small>Paiement en euros à venir</small></div><div class="pps-action"><button class="bs-button" data-store-offer-kind="premium" data-store-offer="${escapeHtml(pack.id)}" aria-label="Voir le pass ${label} ${pack.days} jours" type="button">Voir le pass ${shopIcon("arrow")}</button></div></article>`;
 }
 
 export function renderPremiumPassStore(profile = {}, {tier = "classic"} = {}){
@@ -43,7 +44,7 @@ export function renderPremiumPassModal(profile = {}, modal = {}, {tier = "classi
   const selectedTier = premiumTier(pack?.tier || tier), label = tierName(selectedTier);
   const title = allBenefits ? `Tous les avantages ${label}` : pack.name;
   const features = allBenefits ? (selectedTier === "gold" ? premiumGoldFeatureList : premiumFeatureList) : pack.features;
-  const body = `${allBenefits ? "" : `<div class="bs-detail-hero"><img src="${escapeHtml(pack.img)}" alt="Carte ${label} ${pack.days} jours"><p>${pack.days} jours de ${label}. ${selectedTier === "gold" ? "Calendrier accessible pendant votre période OR." : "Calendrier OR non inclus."} La durée du pass s’ajoute à vos avantages Premium.</p></div>`}<ul class="ss-feature-list pps-modal-features">${features.map(feature=>`<li>${shopIcon("check")}<span>${escapeHtml(feature)}</span></li>`).join("")}</ul>`;
+  const body = `${allBenefits ? "" : `<div class="bs-detail-hero"><img src="${escapeHtml(premiumPassArtwork(pack))}" alt="Carte ${label} ${pack.days} jours"><p>${pack.days} jours de ${label}. ${selectedTier === "gold" ? "Calendrier accessible pendant votre période OR." : "Calendrier OR non inclus."} La durée du pass s’ajoute à vos avantages Premium.</p></div>`}<ul class="ss-feature-list pps-modal-features">${features.map(feature=>`<li>${shopIcon("check")}<span>${escapeHtml(feature)}</span></li>`).join("")}</ul>`;
   const footer = allBenefits ? '<button class="bs-button bs-button-muted" data-store-modal-close type="button">Fermer</button>' : `<div><strong class="bs-price">${escapeHtml(euroPrice(pack.realPrice))}</strong><small class="ss-payment-note">Paiement en euros à venir</small></div><button class="bs-button" disabled type="button">Paiement à venir</button>`;
   return `<dialog class="bs-modal pps-modal${selectedTier === "gold" ? " pps-modal-gold" : ""}" data-beta-store-dialog data-store-modal-backdrop aria-labelledby="premiumPassDialogTitle"><section><div class="bs-dialog-top"><div><span class="bs-eyebrow">PASS ${label.toUpperCase()}</span><h3 id="premiumPassDialogTitle">${escapeHtml(title)}</h3></div><button class="bs-icon-button" data-store-modal-close aria-label="Fermer le détail" type="button">×</button></div>${body}<div class="bs-dialog-bottom ss-details-footer">${footer}</div></section></dialog>`;
 }

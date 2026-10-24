@@ -5,6 +5,7 @@ import { getShopCurrencyPrice } from "../shared/shopPricing.js";
 import { getReputationShopSurcharge } from "../shared/reputation.js";
 import { isPremiumActive, isPremiumGoldActive, premiumRemainingLabel } from "../data/premium.js?v=20261024-boutique3";
 import { shopProductKey } from "./shopCatalog.js?v=20261024-boutique3";
+import { premiumPassArtwork } from "./premiumPassArtwork.js?v=20261024-gold-art1";
 
 const finiteCount = n=>Math.max(0, Math.floor(Number(n) || 0));
 const boosterLabel = {damage:"dégâts", shield:"bouclier", hull:"vie", credits:"crédits"};
@@ -126,7 +127,7 @@ export function createShopProductModel(product, {
     : premiumDiscount ? "Remise Premium de 5 % appliquée." : "";
   action.disabled ||= Boolean(lock || insufficient);
   return {key:shopProductKey(product),id,kind,category:product.category,data,name:data.name,description:data.desc,subtitle,badge,
-    rarity:getRarityLabel(data),rarityClass:rarityClass(data),image:data.img,owned,active,status,lock,stats,facts,note,features,
+    rarity:getRarityLabel(data),rarityClass:rarityClass(data),image:kind === "premiumPack" ? premiumPassArtwork(data) : data.img,owned,active,status,lock,stats,facts,note,features,
     priceType,unitPrice,baseUnitPrice:baseUnit,price,basePrice,priceLabel,insufficient,activating,action,
     pricingNote,
     quantities,quantity,units,stock:count,searchTerms:`${data.short || ""} ${data.weaponClass || ""}`};
