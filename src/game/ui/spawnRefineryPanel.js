@@ -9,11 +9,6 @@ const FUSION_GROUPS = [
 ];
 const MATERIAL_NAMES = {catalyseur_quantique:"Catalyseur", noyau_astra:"Noyau Astra"};
 const BOOST_MATERIALS = ["alliage_cuivre_zinc", "plaque_nickel_titane", "conducteur_renforce", "blindage_composite", "noyau_astra"];
-const BOOST_GROUPS = [
-  {id:"refined", name:"Matériaux raffinés", ids:["alliage_cuivre_zinc", "plaque_nickel_titane"]},
-  FUSION_GROUPS[2],
-  FUSION_GROUPS[3]
-];
 const BOOST_TARGETS = [
   {id:"laser", type:"Laser", name:"Lasers", img:"assets/equipment/laser_mk1_mk1_slot_v2.png", hint:"1 matériau = 10 tirs", effect:"Dégâts des lasers"},
   {id:"rocket", type:"Roquettes", name:"Roquettes", img:"assets/equipment/launcher_rocket_mk1_slot.png?v=20260726-kharon1", hint:"1 matériau = 1 tir", effect:"Dégâts des roquettes"},
@@ -96,26 +91,23 @@ function renderBoost({materials, shipCargo, getCombatBoostSummary, getCombatBoos
   const info = material && getCombatBoostTargetMaterialInfo(target.id, material.id);
   const max = count(shipCargo[material?.id]);
   const amount = amountWithin(refineryUiState.boostAmount || 1, max);
+  const active = getCombatBoostSummary?.(target.type) || {};
+  const targetEffect = target.id === "generator" ? "Vitesse, bouclier et régénération" : target.effect;
   const systems = BOOST_TARGETS.map(entry=>{
     const summary = getCombatBoostSummary?.(entry.type) || {};
     return `<button type="button" class="orbital-boost-target ${target.id === entry.id ? "selected" : ""}" data-refinery-boost-target="${entry.id}" data-boost-drop-target="${entry.type}" aria-pressed="${target.id === entry.id}"><img src="${entry.img}" alt="" decoding="async"><strong>${entry.name}</strong><small>${entry.hint}</small><span class="orbital-system-status ${summary.remaining > 0 ? "active" : ""}">${summary.remaining > 0 ? `+${Math.round(summary.percent * 100)}% · ${remainingText(summary)}` : "Aucun bonus actif"}</span></button>`;
   }).join("");
-  const choices = materialGroups(BOOST_GROUPS, byId, entry=>{
+  const choices = compatible.map(entry=>{
     const effect = getCombatBoostTargetMaterialInfo(target.id, entry.id);
-    const metadata = effect
-      ? `draggable="true" data-boost-material="${entry.id}" data-boost-material-name="${escape(name(entry))}" data-boost-material-img="${escape(entry.img)}" data-boost-material-amount="${count(shipCargo[entry.id])}" aria-pressed="${entry.id === material?.id}"`
-      : "disabled aria-disabled=\"true\"";
-    const title = effect ? getCombatBoostTooltip?.(entry.id) || "" : `Incompatible avec ${target.name.toLowerCase()}`;
-    return `<button class="orbital-boost-material ${entry.kind || ""} ${entry.id === material?.id ? "selected" : ""} ${effect ? "compatible" : "incompatible"}" type="button" data-refinery-material="${entry.id}" ${metadata} title="${escape(title)}">${image(entry)}<div><strong>${escape(name(entry))}</strong><small>${fmt(count(shipCargo[entry.id]))} en soute</small></div><b>${effect ? `+${Math.round(effect.percent * 100)}%` : "—"}</b></button>`;
-  });
-  return `<section class="orbital-boost-content"><div class="orbital-boost-workbench"><section class="orbital-boost-choices"><div class="orbital-boost-targets" aria-label="Système à perfectionner">${systems}</div>${choices}<p class="orbital-flight-note">Les matières grisées sont incompatibles avec ce système.</p></section><aside class="orbital-boost-summary" data-refinery-boost-system="${target.id}" data-refinery-boost-selected="${material?.id || ""}">
-    <header class="orbital-order-head">${image(material)}<div><span class="orbital-eyebrow">Perfectionnement</span><h3>${escape(name(material))}</h3><small>${target.name}</small></div></header>
-    <div class="orbital-order-body"><div class="orbital-boost-effect"><span>${target.effect}</span><strong class="orbital-boost-value">+${Math.round((info?.percent || 0) * 100)}<small> %</small></strong></div>
-    <div class="orbital-detail-row"><span>Quantité à déposer</span><b>Max. ${fmt(max)}</b></div>
-    ${stepper("data-refinery-boost-amount", amount, max, "boost")}
-    <div class="orbital-detail-row"><span>Matériaux consommés</span><b data-refinery-boost-used>${fmt(amount)}</b></div><strong class="orbital-boost-duration" data-refinery-boost-duration>${boostDuration(target.id, amount)}</strong></div>
-    <div class="orbital-order-actions"><button class="orbital-primary" type="button" data-open-boost-deposit data-boost-deposit-target="${target.type}" data-boost-deposit-material="${material?.id || ""}" data-boost-deposit-name="${escape(name(material))}" data-boost-deposit-img="${escape(material?.img || "")}" data-boost-deposit-max="${max}" ${max ? "" : "disabled"}>Préparer le dépôt</button><p class="orbital-refinery-note">${max ? "Bonus temporaire · confirmation avant dépôt." : "Ce matériau est absent de votre soute."}</p></div>
-  </aside></div></section>`;
+    return `<button class="orbital-boost-material ${entry.kind || ""} ${entry.id === material?.id ? "selected" : ""}" type="button" data-refinery-material="${entry.id}" draggable="true" data-boost-material="${entry.id}" data-boost-material-name="${escape(name(entry))}" data-boost-material-img="${escape(entry.img)}" data-boost-material-amount="${count(shipCargo[entry.id])}" aria-pressed="${entry.id === material?.id}" title="${escape(getCombatBoostTooltip?.(entry.id) || "")}"><span class="orbital-material-selected-tag" aria-hidden="true">Sélectionné</span>${image(entry)}<span class="orbital-material-bonus">+${Math.round(effect.percent * 100)}%</span><strong>${escape(name(entry))}</strong><small>${fmt(count(shipCargo[entry.id]))} en soute</small></button>`;
+  }).join("");
+  return `<section class="orbital-boost-content"><div class="orbital-boost-workbench orbital-equipment-post"><nav class="orbital-boost-targets" aria-label="Système à perfectionner">${systems}</nav><section class="orbital-boost-summary orbital-equipment-work" data-refinery-boost-system="${target.id}" data-refinery-boost-selected="${material?.id || ""}">
+    <div class="orbital-boost-choices"><header class="orbital-equipment-hero"><img src="${target.img}" alt="" decoding="async"><div><h3>${target.name}</h3><p>${targetEffect}</p></div><div class="orbital-equipment-reserve"><small>Bonus actif</small><b>${active.remaining > 0 ? `+${Math.round(active.percent * 100)}%` : "Aucun"}</b><span>${active.remaining > 0 ? remainingText(active) : "Aucun bonus actif"}</span></div></header>
+    <div class="orbital-equipment-heading"><h4>Choisir un matériau</h4><span>${compatible.length} matériau${compatible.length > 1 ? "x" : ""} compatible${compatible.length > 1 ? "s" : ""}</span></div><div class="orbital-boost-materials">${choices}</div></div>
+    <footer class="orbital-equipment-order"><div class="orbital-equipment-order-info"><span class="orbital-eyebrow">Dépôt préparé</span><h3>${escape(name(material))} → ${target.name}</h3><p>Bonus +${Math.round((info?.percent || 0) * 100)}% · Quantité : <b data-refinery-boost-used>${fmt(amount)}</b></p><strong class="orbital-boost-duration" data-refinery-boost-duration>${boostDuration(target.id, amount)}</strong></div>
+    <div class="orbital-equipment-order-controls"><div class="orbital-detail-row"><span>Quantité à déposer</span><b>Max. ${fmt(max)}</b></div>${stepper("data-refinery-boost-amount", amount, max, "boost")}<button class="orbital-primary" type="button" data-open-boost-deposit data-boost-deposit-target="${target.type}" data-boost-deposit-material="${material?.id || ""}" data-boost-deposit-name="${escape(name(material))}" data-boost-deposit-img="${escape(material?.img || "")}" data-boost-deposit-max="${max}" ${max ? "" : "disabled"}>Préparer le dépôt</button></div></footer>
+    <p class="orbital-equipment-priority">${max ? "Le meilleur bonus disponible est utilisé en priorité." : "Ce matériau est absent de votre soute. Le meilleur bonus disponible est utilisé en priorité."}</p>
+  </section></div></section>`;
 }
 
 export function renderRefineryPanel({materials = [], recipes = [], shipCargo = {}, shipCargoUsed = 0, shipCargoCapacity = 0, refineryTab = "raffinage", selectedShipRefineRecipeId = null, getShipRefineryRecipeData, getCombatBoostSummary, getCombatBoostTooltip, refineryUiState = {}} = {}){

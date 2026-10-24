@@ -251,23 +251,14 @@ test('perfection offers exactly the compatible materials and keeps authoritative
   const ids=[...html.matchAll(/data-boost-material="([^"]+)"/g)].map(m=>m[1]);
   const expected=Object.entries(COMBAT_BOOST_DEFS).filter(([,m])=>m.targets[target]).map(([id])=>id);
   assert.deepEqual(ids.sort(),expected.sort());
-  const groups=shipMaterialGroups(html);
-  assert.deepEqual(groups.map(group=>group.materials),[
-   ['alliage_cuivre_zinc','plaque_nickel_titane'],['conducteur_renforce','blindage_composite'],['noyau_astra']
-  ],'all five enhancement materials retain their two / two / one rows');
-  const cards=groups.flatMap(group=>[...group.body.matchAll(/<button\b([^>]*data-refinery-material="([^"]+)"[^>]*)>([\s\S]*?)<\/button>/g)]);
-  assert.equal(cards.length,5);
+  const cards=[...html.matchAll(/<button\b([^>]*data-refinery-material="([^"]+)"[^>]*)>([\s\S]*?)<\/button>/g)];
+  assert.equal(cards.length,3,'the equipment workstation shows only its three compatible choices');
+  assert.deepEqual(cards.map(([, ,id])=>id).sort(),expected.sort());
   for(const [,attributes,id,body] of cards){
-   if(expected.includes(id)){
-    assert.doesNotMatch(attributes,/\bdisabled\b/);
-    assert.match(attributes,/draggable="true"/);
-    assert.match(attributes,new RegExp(`data-boost-material="${id}"`));
-    assert.match(body,new RegExp(`\\+${Math.round(COMBAT_BOOST_DEFS[id].targets[target].percent*100)}%`));
-   }else{
-    assert.match(attributes,/\bdisabled\b/);
-    assert.match(attributes,/aria-disabled="true"/);
-    assert.doesNotMatch(attributes,/data-boost-material(?:-|=)|\bdraggable=/,'incompatible material cannot be selected or deposited');
-   }
+   assert.doesNotMatch(attributes,/\bdisabled\b/);
+   assert.match(attributes,/draggable="true"/);
+   assert.match(attributes,new RegExp(`data-boost-material="${id}"`));
+   assert.match(body,new RegExp(`\\+${Math.round(COMBAT_BOOST_DEFS[id].targets[target].percent*100)}%`));
   }
   assert.equal([...html.matchAll(/data-boost-drop-target=/g)].length,4);
   assert.equal([...html.matchAll(/data-boost-material-amount="7"/g)].length,3);
@@ -277,7 +268,7 @@ test('perfection offers exactly the compatible materials and keeps authoritative
  assert.equal(refineryMaterialName({id:'catalyseur_quantique',name:'Autre'}),'Catalyseur');
 });
 
-test('compact perfection preserves selected quantities, live reserves and its original confirmation command',()=>{
+test('equipment workstation preserves selected quantities, live reserves and its original confirmation command',()=>{
  const cargo={noyau_astra:7,alliage_cuivre_zinc:8,plaque_nickel_titane:9,conducteur_renforce:10,blindage_composite:11};
  for(const scenario of [
   {target:'laser',type:'Laser',percent:50,label:'40 tirs renforcés',field:'charges',remaining:70,reserve:'70 tirs'},
@@ -299,6 +290,26 @@ test('compact perfection preserves selected quantities, live reserves and its or
   assert.match(html,new RegExp(`25% · ${scenario.reserve}`),'live bonus reserves stay visible beside the proposed deposit');
   assert.equal(JSON.stringify({ui,cargo}),before);
  }
+});
+
+test('equipment workstation shows actual empty cargo and never substitutes demonstration quantities',()=>{
+ const cargo={alliage_cuivre_zinc:0,conducteur_renforce:3,noyau_astra:12};
+ const ui={boostTarget:'laser',boostMaterial:'alliage_cuivre_zinc',boostAmount:999};
+ const before=JSON.stringify({cargo,ui});
+ const {html}=renderRefineryPanel({materials:refineryMaterialCatalog,shipCargo:cargo,refineryTab:'perfectionnement',refineryUiState:ui,
+  getCombatBoostSummary:()=>({remaining:0})});
+ const cards=[...html.matchAll(/<button\b([^>]*data-boost-material="([^"]+)"[^>]*)>([\s\S]*?)<\/button>/g)];
+ assert.equal(cards.length,3);
+ for(const [,attributes,id,body] of cards){
+  assert.match(attributes,new RegExp(`data-boost-material-amount="${cargo[id]}"`));
+  assert.match(body,new RegExp(`>${cargo[id]} en soute<`));
+ }
+ assert.match(html,/data-refinery-boost-amount[^>]*max="0"[^>]*value="0"[^>]*disabled/);
+ assert.match(html,/data-open-boost-deposit[^>]*data-boost-deposit-max="0"[^>]*disabled/);
+ assert.match(html,/data-refinery-boost-duration>0 tirs renforcés</);
+ assert.match(html,/Ce matériau est absent de votre soute/);
+ assert.match(html,/>Aucun bonus actif</);
+ assert.equal(JSON.stringify({cargo,ui}),before);
 });
 
 function shipmentProfile(){

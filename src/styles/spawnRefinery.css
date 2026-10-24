@@ -460,6 +460,89 @@
 }
 @media(max-width:700px){#spawnInteractionPanel.spawn-panel.refinery-mode{left:12px;right:12px;width:auto;top:72px;padding-inline:10px}}
 
+/* Equipment station: enhancement is organised by target, independently of fusion. */
+.orbital-refinery.is-upgrade .orbital-equipment-post{grid-template-columns:180px minmax(0,1fr);gap:15px}
+.orbital-refinery.is-upgrade .orbital-boost-targets{display:flex;flex-direction:column;gap:7px;min-height:0;margin:0;overflow:auto;scrollbar-width:thin}
+.orbital-refinery.is-upgrade .orbital-boost-targets:before{content:"ÉQUIPEMENT";display:block;color:#a4c1d4;font-size:10px;letter-spacing:1.1px;margin:0 0 1px}
+.orbital-refinery.is-upgrade .orbital-boost-target{position:relative;display:grid;grid-template-columns:45px minmax(0,1fr);grid-template-rows:24px 23px 18px;gap:0 7px;padding:9px 8px;min-height:86px;flex:none;text-align:left;border:1px solid #284b64;border-radius:3px;background:linear-gradient(120deg,#14344988,#0a1b2988)}
+.orbital-refinery.is-upgrade .orbital-boost-target>img{grid-column:1;grid-row:1/3;width:43px;height:47px;object-fit:contain;filter:drop-shadow(0 3px 8px #0008)}
+.orbital-refinery.is-upgrade .orbital-boost-target>strong{font-size:14px;font-weight:600;align-self:end;line-height:1.2}
+.orbital-refinery.is-upgrade .orbital-boost-target>small{font-size:11px;color:#95b5cb;align-self:center;white-space:nowrap}
+.orbital-refinery.is-upgrade .orbital-system-status{grid-column:1/-1;grid-row:3;color:#839fb2;font-size:11px;white-space:normal}
+.orbital-refinery.is-upgrade .orbital-system-status.active{color:#86d6b6}
+.orbital-refinery.is-upgrade .orbital-boost-target.selected{border-color:#6ccde3;background:linear-gradient(120deg,#194355,#0b293b);box-shadow:inset 3px 0 #69d1e9,0 0 12px #3ebdd50d}
+.orbital-refinery.is-upgrade .orbital-boost-target:hover,.orbital-refinery.is-upgrade .orbital-boost-target.drag-over{border-color:#7fb7cb;background:#194355}
+.orbital-refinery.is-upgrade .orbital-equipment-work{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto auto;gap:10px;padding:0;border:0;border-radius:0;background:none;min-width:0;min-height:0}
+.orbital-refinery.is-upgrade .orbital-boost-choices{display:flex;flex-direction:column;gap:10px;padding:0 1px 2px;min-height:0;overflow:auto}
+.orbital-equipment-hero{display:grid;grid-template-columns:66px minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 12px;border:1px solid #2b536a;background:linear-gradient(110deg,#163a4e,#0a1d2c);min-height:79px;position:relative;flex:none}
+.orbital-equipment-hero:after{content:"";position:absolute;right:0;top:0;width:72px;height:2px;background:#73d5e9;box-shadow:0 0 10px #4cc5e850}
+.orbital-equipment-hero>img{width:64px;height:58px;object-fit:contain;filter:drop-shadow(0 4px 8px #0009)}
+.orbital-equipment-hero h3{margin:0 0 3px;font-size:20px;font-weight:600;line-height:1.2;color:#e0edf6}
+.orbital-equipment-hero p{margin:0;font-size:12px;color:#a4c5da;line-height:1.35}
+.orbital-equipment-reserve{border-left:1px solid #345a6e;padding-left:15px;max-width:170px}
+.orbital-equipment-reserve>small{display:block;font-size:10px;color:#9bb9ca;letter-spacing:1px}
+.orbital-equipment-reserve>b{display:block;font-weight:600;color:#97e1c2;font-size:17px;margin:3px 0}
+.orbital-equipment-reserve>span{font-size:11px;color:#abc5d6}
+.orbital-equipment-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:3px;flex:none}
+.orbital-refinery .orbital-equipment-heading h4{font-size:13px;font-weight:500;margin:0;color:#bfd8e7;text-transform:none;letter-spacing:0}
+.orbital-equipment-heading>span{font-size:11px;color:#829fb4}
+.orbital-refinery.is-upgrade .orbital-boost-materials{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.orbital-refinery.is-upgrade .orbital-boost-material{position:relative;min-width:0;min-height:140px;height:auto;padding:10px;display:grid;grid-template-columns:55px minmax(0,1fr);grid-template-rows:44px 22px 21px 22px;align-items:center;gap:2px 4px;text-align:left;background:linear-gradient(140deg,#12364b,#091c2c);border:1px solid #365d75;border-radius:3px}
+.orbital-refinery.is-upgrade .orbital-boost-material>.orbital-material-art{grid-column:1;grid-row:1/3;width:54px;height:61px;object-fit:contain;filter:drop-shadow(0 5px 8px #0007)}
+.orbital-refinery.is-upgrade .orbital-material-bonus{grid-column:2;grid-row:1/3;font-size:24px;font-weight:600;color:#a9dcec;white-space:nowrap;justify-self:end}
+.orbital-refinery.is-upgrade .orbital-boost-material>strong{grid-column:1/-1;grid-row:3;font-size:14px;font-weight:600;white-space:nowrap}
+.orbital-refinery.is-upgrade .orbital-boost-material>small{grid-column:1/-1;grid-row:4;color:#8fb1c8;font-size:12px;align-self:center}
+.orbital-refinery.is-upgrade .orbital-boost-material.selected{background:linear-gradient(135deg,#473b25,#21291f);border-color:#e2ba71;box-shadow:inset 0 2px #f3cd85}
+.orbital-refinery.is-upgrade .orbital-boost-material.selected .orbital-material-bonus{color:#f4cf85}
+.orbital-refinery.is-upgrade .orbital-boost-material.selected>small{color:#caba99}
+.orbital-refinery.is-upgrade .orbital-boost-material:hover{border-color:#a7c8d8}
+.orbital-material-selected-tag{display:none;position:absolute;right:7px;top:5px;color:#f1ca7c;font-size:9px;letter-spacing:.6px}
+.orbital-boost-material.selected .orbital-material-selected-tag{display:block}
+.orbital-equipment-order{display:grid;grid-template-columns:minmax(0,1fr) 215px;gap:12px;padding:12px;border:1px solid #6d6245;background:linear-gradient(115deg,#282a23,#102431);box-shadow:inset 0 2px #d5ad63;min-width:0}
+.orbital-equipment-order-info{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:7px}
+.orbital-equipment-order-info>.orbital-eyebrow{color:#b6c6c9;font-size:10px;letter-spacing:1px}
+.orbital-refinery .orbital-equipment-order-info h3{font-size:15px;font-weight:600;margin:0;color:#f0dfb7;line-height:1.3}
+.orbital-refinery .orbital-equipment-order-info p{font-size:12px;margin:0;color:#aec9d9;line-height:1.35}
+.orbital-refinery.is-upgrade .orbital-boost-duration{color:#e7cd95;font-size:17px;font-weight:600;padding:0;border:0;background:none;line-height:1.3}
+.orbital-equipment-order-controls{display:flex;flex-direction:column;gap:6px;min-width:0}
+.orbital-equipment-order-controls>.orbital-detail-row{font-size:11px;color:#a9c4d4}
+.orbital-equipment-order-controls>.orbital-detail-row>b{font-weight:500;font-size:11px}
+.orbital-equipment-order-controls .orbital-quantity{height:32px}
+.orbital-equipment-order-controls .orbital-quantity>button{min-height:30px;width:28px}
+.orbital-equipment-order-controls .orbital-quantity>.orbital-max{width:42px;font-size:10px}
+.orbital-equipment-order-controls .orbital-quantity>input{height:30px;font-size:14px}
+.orbital-refinery .orbital-equipment-order-controls .orbital-primary{border-color:#ecc881;background:linear-gradient(#ba8d3c,#866225);color:#fff0cc;min-height:34px;font-size:13px}
+.orbital-refinery .orbital-equipment-order-controls .orbital-primary:hover:not(:disabled){background:#a98034}
+.orbital-refinery .orbital-equipment-order-controls .orbital-primary:disabled{background:#213848;border-color:#375262;color:#a8bfce}
+.orbital-refinery .orbital-equipment-priority{font-size:11px;line-height:1.3;color:#829fb2;margin:0}
+@container(max-width:850px){
+  .orbital-refinery.is-upgrade .orbital-equipment-post{grid-template-columns:151px minmax(0,1fr);gap:10px}
+  .orbital-refinery.is-upgrade .orbital-boost-target{grid-template-columns:35px minmax(0,1fr);gap:0 4px;padding:8px 7px}
+  .orbital-refinery.is-upgrade .orbital-boost-target>img{width:34px}.orbital-refinery.is-upgrade .orbital-boost-target>strong{font-size:13px}.orbital-refinery.is-upgrade .orbital-boost-target>small{font-size:10px}
+  .orbital-equipment-hero{grid-template-columns:48px minmax(0,1fr) auto;padding:7px 8px;gap:7px}.orbital-equipment-hero>img{width:47px;height:52px}.orbital-equipment-hero h3{font-size:18px}
+  .orbital-equipment-reserve{padding-left:8px}.orbital-equipment-reserve>b{font-size:15px}
+  .orbital-refinery.is-upgrade .orbital-boost-material{padding:7px;grid-template-columns:42px minmax(0,1fr);min-height:134px}.orbital-refinery.is-upgrade .orbital-boost-material>.orbital-material-art{width:42px;height:52px}
+  .orbital-refinery.is-upgrade .orbital-material-bonus{font-size:21px}.orbital-refinery.is-upgrade .orbital-boost-material>strong{font-size:13px}
+  .orbital-equipment-order{grid-template-columns:minmax(0,1fr) 185px;padding:9px;gap:8px}
+}
+@media(max-height:700px){
+  .orbital-refinery.is-upgrade .orbital-boost-targets{gap:5px}.orbital-refinery.is-upgrade .orbital-boost-target{min-height:78px;padding-block:5px;grid-template-rows:22px 19px 15px}
+  .orbital-refinery.is-upgrade .orbital-boost-choices,.orbital-refinery.is-upgrade .orbital-equipment-work{gap:7px}.orbital-equipment-hero{min-height:65px}
+  .orbital-refinery.is-upgrade .orbital-boost-material{min-height:119px;grid-template-rows:35px 20px 20px 20px;padding-block:6px}.orbital-refinery.is-upgrade .orbital-boost-material>.orbital-material-art{height:48px}.orbital-equipment-order{padding:8px}
+}
+@container(max-width:620px){
+  .orbital-refinery.is-upgrade .orbital-equipment-post{grid-template-columns:1fr;grid-template-rows:68px minmax(0,1fr);gap:8px}
+  .orbital-refinery.is-upgrade .orbital-boost-targets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.orbital-refinery.is-upgrade .orbital-boost-targets:before{display:none}
+  .orbital-refinery.is-upgrade .orbital-boost-target{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1px;padding:3px;min-height:0}.orbital-refinery.is-upgrade .orbital-boost-target>img{width:27px;height:26px}
+  .orbital-refinery.is-upgrade .orbital-boost-target>strong{font-size:11px;align-self:center}.orbital-refinery.is-upgrade .orbital-boost-target>small{display:none}.orbital-refinery.is-upgrade .orbital-system-status{font-size:9px;text-align:center;line-height:1.1}
+  .orbital-equipment-hero{min-height:58px;grid-template-columns:40px minmax(0,1fr) auto;padding:5px}.orbital-equipment-hero>img{width:38px;height:42px}.orbital-equipment-hero h3{font-size:16px}.orbital-equipment-hero p{font-size:11px}
+  .orbital-equipment-reserve{max-width:115px}.orbital-equipment-reserve>b{font-size:13px}.orbital-equipment-reserve>span{font-size:10px}
+  .orbital-equipment-heading{margin:0}.orbital-equipment-heading>span{display:none}
+  .orbital-refinery.is-upgrade .orbital-boost-material{min-height:111px;grid-template-columns:34px minmax(0,1fr);grid-template-rows:33px 18px 21px 19px;padding:6px}.orbital-refinery.is-upgrade .orbital-boost-material>.orbital-material-art{width:34px;height:43px}
+  .orbital-refinery.is-upgrade .orbital-material-bonus{font-size:18px}.orbital-refinery.is-upgrade .orbital-boost-material>strong{font-size:11px}.orbital-refinery.is-upgrade .orbital-boost-material>small{font-size:10px}
+  .orbital-equipment-order{grid-template-columns:minmax(0,1fr) 160px;padding:8px;gap:8px}.orbital-equipment-order-info{gap:4px}.orbital-refinery .orbital-equipment-order-info h3{font-size:13px}.orbital-refinery .orbital-equipment-order-info p{font-size:11px}.orbital-refinery.is-upgrade .orbital-boost-duration{font-size:14px}
+}
+
 /* The existing deposit confirmation keeps the same server action and controls. */
 #combatBoostDepositLayer .combat-boost-deposit-dialog{border-color:#567080;border-radius:5px;background:linear-gradient(135deg,#122431fa,#08141dfa);box-shadow:0 24px 70px #000b;font-family:"Segoe UI",Arial,sans-serif;font-size:13px;max-height:calc(100vh - 32px);overflow:auto;box-sizing:border-box}
 #combatBoostDepositLayer .combat-boost-deposit-dialog button,#combatBoostDepositLayer .combat-boost-deposit-dialog input{font-family:inherit}
