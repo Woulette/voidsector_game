@@ -1,4 +1,5 @@
 import { getFirmHomeMapTheme, getFirmHomeAssetPath } from "../../shared/firmHomeMapThemes.js";
+import { getFirmSectorTwoTheme } from "./firmSectorTwoVisuals.js";
 
 // Fixed illustrated overviews, independent of the pilot and the combat camera.
 const HELION_ONE_OVERVIEW = Object.freeze({
@@ -20,6 +21,20 @@ const HELION_TWO_OVERVIEW = Object.freeze({
 
 export function getMiniMapVisualDefinition(map){
   if(String(map?.id) === "1" && map?.name === "Helion-02") return HELION_TWO_OVERVIEW;
+  const industrialTheme = getFirmSectorTwoTheme(map);
+  if(industrialTheme){
+    const key = `industrial:${industrialTheme.id}`;
+    if(!sectorOverviews.has(key)){
+      sectorOverviews.set(key, Object.freeze({
+        image:`assets/maps/minimaps/${industrialTheme.name.toLowerCase()}-wide-v1.png`,
+        atmosphere:{...HELION_TWO_OVERVIEW.atmosphere,
+          src:getFirmHomeAssetPath(HELION_TWO_OVERVIEW.atmosphere.src, industrialTheme)},
+        landmarks:Object.fromEntries(Object.entries(HELION_TWO_OVERVIEW.landmarks).map(([kind, placement])=>
+          [kind, {...placement, x:reflect(placement.x, industrialTheme.mirrorX), y:reflect(placement.y, industrialTheme.mirrorY)}]))
+      }));
+    }
+    return sectorOverviews.get(key);
+  }
   const theme = getFirmHomeMapTheme(map);
   if(!theme) return null;
   if(theme.palette === "astra") return HELION_ONE_OVERVIEW;

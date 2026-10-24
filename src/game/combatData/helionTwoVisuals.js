@@ -44,7 +44,7 @@ function createIndustrialAsteroids(map){
   return rocks;
 }
 
-function createHelionTwoScene(map){
+export function createHelionTwoScene(map){
   const {nebula, dust} = HELION_ONE_ASSETS;
   const layers = [
     {kind:"planet", src:HELION_TWO_ASSETS.planet, space:"map", x:9600,y:-5700,w:750,h:750,p:.065,alpha:1},

@@ -66,6 +66,7 @@ import {
 } from "./combatData.js?v=20261022-helion-hub1";
 import { createHelionOneVisualMaps } from "./combatData/helionOneVisuals.js?v=20261022-helion-light1";
 import { createHelionTwoVisualMaps } from "./combatData/helionTwoVisuals.js";
+import { createFirmSectorTwoVisualMaps } from "./combatData/firmSectorTwoVisuals.js";
 import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js?v=20261022-helion-hub1";
 import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=20260726-ancient1";
 import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=20261022-helion-hub1";
@@ -128,7 +129,7 @@ import {
   syncServerControlledEnemies as syncMultiplayerEnemies
 } from "../multiplayer/enemies.js?v=20260905-motion3";
 export function createCombatGame({renderAll, showToast}){
-  const MAPS = createHelionTwoVisualMaps(createHelionOneVisualMaps(BASE_MAPS));
+  const MAPS = createFirmSectorTwoVisualMaps(createHelionTwoVisualMaps(createHelionOneVisualMaps(BASE_MAPS)));
   const PORTAL_STARTING_LIVES = 3;
   const PORTAL_WAVE_DELAY = 30;
   const canvas = document.getElementById("gameCanvas");
@@ -365,7 +366,7 @@ export function createCombatGame({renderAll, showToast}){
         ownerName:"Ricky",
         name:"Balise de soin",
         shortName:"BALISE",
-        description:"Ricky déploie une balise qui restaure la coque.",
+        description:"Ricky dÃ©ploie une balise qui restaure la coque.",
         icon:"assets/icons/medical_cross.svg",
         activeRemainingMs:0,
         cooldownRemainingMs:Math.max(0, Number(portalAlly?.healCooldown || 0)) * 1000,
@@ -434,7 +435,7 @@ export function createCombatGame({renderAll, showToast}){
     getSectorTravelState:()=>sectorTravel?.getState(),
     startSectorTravel:targetMapId=>{
       if(cargo.isMovementLocked?.()){
-        showToast("Attends la fin de la récupération du butin pour voyager.");
+        showToast("Attends la fin de la rÃ©cupÃ©ration du butin pour voyager.");
         return false;
       }
       if(!sectorTravel?.start(targetMapId)) return false;

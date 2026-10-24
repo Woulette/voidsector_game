@@ -133,5 +133,5 @@ test("the fixed overview retains only its two landmarks, with separate live NPC 
   }
   const png=readFileSync(fileURLToPath(new URL('../../'+definition.image,import.meta.url)));
   assert.deepEqual([png.readUInt32BE(16),png.readUInt32BE(20)],[1200,540]);
-  assert.equal(getMiniMapVisualDefinition(MAPS.find(map=>map.name==="Nereid-02")),null);
+  assert.equal(getMiniMapVisualDefinition(MAPS.find(map=>map.name==="Nereid-02")).image,"assets/maps/minimaps/nereid-02-wide-v1.png");
 });
