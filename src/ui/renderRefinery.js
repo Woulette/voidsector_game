@@ -11,7 +11,7 @@ import { updateRefineryDom } from "./refineryDom.js";
 import { refineryShipmentPanel, refineryStatsPanel } from "./refineryHangarPanels.js";
 import {
   REFINERY_TREE_POSITIONS, refineryArt, refineryDuration, refineryEscape as esc,
-  refineryMaterialName as name, refineryProductionStatus, refineryTreeHtml
+  refineryMaterialName as name, refineryProductionStatus, refineryStocksHtml, refineryTreeHtml
 } from "./refineryPresentation.js";
 
 const boundPanels = new WeakSet();
@@ -68,7 +68,7 @@ function upgradePopover(){
 function forgePanel(materials, recipes, read){
   const selectedId = materials.some(material=>material.id === store.selectedRefineryMaterial)
     ? store.selectedRefineryMaterial : "noyau_astra";
-  return `<div class="rf-forge" data-refinery-key="forge">${refineryTreeHtml(materials, recipes, selectedId, read)}</div>`;
+  return `<div class="rf-forge" data-refinery-key="forge">${refineryStocksHtml(materials, read)}${refineryTreeHtml(materials, recipes, selectedId, read)}</div>`;
 }
 
 export function renderRefinery(){

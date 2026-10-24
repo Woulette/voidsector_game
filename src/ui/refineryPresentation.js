@@ -43,6 +43,18 @@ export function refineryPercent(value, max){
   return Math.max(0, Math.min(100, Number(max) > 0 ? Number(value) / Number(max) * 100 : 0));
 }
 
+export function refineryStocksHtml(materials, readMaterial){
+  const stocks = materials.map(material=>{
+    const current = readMaterial(material.id);
+    const stock = Math.max(0, Number(current.stock || 0));
+    const cap = Math.max(0, Number(current.cap || 0));
+    const fill = refineryPercent(stock, cap);
+    const id = refineryEscape(material.id), label = refineryEscape(refineryMaterialName(material));
+    return `<article class="rf-stock-card ${cap > 0 && stock >= cap ? "is-full" : ""}" data-refinery-stock="${id}" data-refinery-key="stock:${id}"><div class="rf-stock-title">${refineryArt(material)}<h3>${label}</h3></div><strong class="rf-stock-amount" data-refinery-stock-current="${stock}">${fmt(stock)}</strong><div class="rf-stock-gauge" role="meter" aria-label="Stock de ${label} en station" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fill}" aria-valuetext="${fmt(stock)} sur ${fmt(cap)} unités" data-refinery-stock-fill="${fill}"><i aria-hidden="true" style="width:${fill}%"></i><span>MAX <b data-refinery-stock-cap="${cap}">${fmt(cap)}</b></span></div></article>`;
+  }).join("");
+  return `<section class="rf-stock-overview sky-stock-row" aria-label="Stocks et capacités de la station" data-refinery-key="stock-overview">${stocks}</section>`;
+}
+
 export function refineryAncestors(selectedId, recipes){
   const nodes = new Set();
   const edges = new Set();

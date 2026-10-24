@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {refineryMaterialCatalog, refineryRecipes} from '../../src/data/catalog.js';
 import {
  refineryAncestors, refineryTreeHtml, refineryTheoreticalFlows,
- refineryProductionStatus, refineryMaterialName
+ refineryProductionStatus, refineryMaterialName, refineryStocksHtml
 } from '../../src/ui/refineryPresentation.js';
 import {renderRefineryPanel} from '../../src/game/ui/spawnRefineryPanel.js';
-import {normalizeState,store,getRefineryShipmentData,getShipCargo,getShipCargoCapacity} from '../../src/core/store.js?v=20260726-kharon1';
+import {normalizeState,store,getRefineryShipmentData,getShipCargo,getShipCargoCapacity,getMaterialCount,getMaterialStorageCap} from '../../src/core/store.js?v=20260726-kharon1';
 import {createRefineryActions} from '../../src/app/refineryActions.js';
 import {COMBAT_BOOST_DEFS} from '../../src/data/combatBoosts.js';
 import {createDefaultProfile} from '../src/players/profileDefaults.js';
@@ -20,6 +20,58 @@ const expectedEdges=[
  ['plaque_nickel_titane','blindage_composite',10],['catalyseur_quantique','blindage_composite',5],
  ['catalyseur_quantique','noyau_astra',10],['conducteur_renforce','noyau_astra',10],['blindage_composite','noyau_astra',10]
 ];
+
+test('station stock overview shows all 11 current stocks and each numeric capacity inside its gauge',()=>{
+ const previous=store.state;
+ try{
+  const profile=createDefaultProfile();
+  profile.refineryModules={storage:1,transport:1};
+  profile.cargoHold=Object.fromEntries(refineryMaterialCatalog.map((material,index)=>[material.id,index*17]));
+  store.state=normalizeState(profile);
+  const snapshot=JSON.stringify(store.state);
+  const html=refineryStocksHtml(refineryMaterialCatalog,id=>({stock:getMaterialCount(id),cap:getMaterialStorageCap(id)}));
+  assert.match(html,/class="rf-stock-overview sky-stock-row"/,'the tutorial stock anchor is restored');
+  const cards=[...html.matchAll(/<article\b[^>]*data-refinery-stock="([^"]+)"[^>]*>([\s\S]*?)<\/article>/g)];
+  assert.equal(cards.length,11);
+  assert.deepEqual(new Set(cards.map(([,id])=>id)),new Set(refineryMaterialCatalog.map(material=>material.id)));
+  const capacities={raw:25000,refined:10000,special:10000,advanced:8000,final:2000};
+  for(const [,id,body] of cards){
+   const material=refineryMaterialCatalog.find(entry=>entry.id===id),cap=capacities[material.kind];
+   assert.match(body,new RegExp(`data-refinery-stock-current="${getMaterialCount(id)}"`));
+   assert.match(body,new RegExp(`class="rf-stock-gauge"[^]*?<span>MAX <b data-refinery-stock-cap="${cap}">`));
+   assert.doesNotMatch(body,/<button\b/,'reading a stock needs no action');
+  }
+  assert.equal(JSON.stringify(store.state),snapshot,'stock presentation does not mutate the profile');
+ }finally{store.state=previous;}
+});
+
+test('station stock gauges handle empty, zero-capacity, over-capacity and long maximum values',()=>{
+ const material=refineryMaterialCatalog[0];
+ for(const scenario of [{stock:0,cap:25000,fill:0},{stock:0,cap:0,fill:0},{stock:150,cap:100,fill:100},{stock:250,cap:1000,fill:25},{stock:10000000,cap:10000000,fill:100}]){
+  const before=JSON.stringify(scenario);
+  const html=refineryStocksHtml([material],()=>scenario);
+  assert.match(html,new RegExp(`data-refinery-stock-current="${scenario.stock}"`));
+  assert.match(html,new RegExp(`data-refinery-stock-cap="${scenario.cap}"`));
+  assert.match(html,new RegExp(`data-refinery-stock-fill="${scenario.fill}"`));
+  assert.match(html,new RegExp(`style="width:${scenario.fill}%"`));
+  assert.equal(JSON.stringify(scenario),before);
+  if(scenario.cap===10000000)assert.match(html.replace(/\s/g,''),/>10000000<\/b>/,'maximum remains a complete numeric value');
+ }
+});
+
+test('station stock maximums follow the current storage module rather than production levels',()=>{
+ const previous=store.state;
+ try{
+  const profile=createDefaultProfile();profile.refineryModules={storage:20,transport:1};
+  profile.refineryLevels=Object.fromEntries(refineryMaterialCatalog.map(material=>[material.id,0]));
+  store.state=normalizeState(profile);
+  const capacities={raw:10000000,refined:1000000,special:1000000,advanced:100000,final:10000};
+  const html=refineryStocksHtml(refineryMaterialCatalog,id=>({stock:getMaterialCount(id),cap:getMaterialStorageCap(id)}));
+  for(const material of refineryMaterialCatalog)assert.equal(getMaterialStorageCap(material.id),capacities[material.kind]);
+  assert.match(html,/data-refinery-stock-cap="10000000"/);
+  assert.match(html,/data-refinery-stock-cap="10000"/);
+ }finally{store.state=previous;}
+});
 
 test('refinery tree shows the 11 real materials and all 14 ingredient quantities',()=>{
  const html=refineryTreeHtml(refineryMaterialCatalog,refineryRecipes,'noyau_astra',()=>({stock:17,level:2,rate:150,status:{key:'active',text:'En production'},job:null}));
