@@ -28,13 +28,13 @@ test("the Beta storefront shows the three approved packs and all 25 real rewards
 test("a real daily claim updates received days and labels the next reward as tomorrow", ()=>{
   const profile = {betaRewardState:{claimedDays:[1,2,3], lastClaimDate:""}};
   const initial = renderBetaStorefront(profile, {now});
-  assert.equal((initial.match(/class="bs-day [^"]*is-today/g) || []).length, 1);
+  assert.equal((initial.match(/class="[^"]*sc-calendar-day[^"]*is-today/g) || []).length, 1);
   assert.equal(claimBetaRewardState(profile, now).ok, true);
   const html = renderBetaStorefront(profile, {now});
   assert.match(html, /4 \/ 25 jours/);
-  assert.match(html, /data-claim-beta-reward type="button" disabled/);
+  assert.doesNotMatch(html, /data-claim-beta-reward/);
   assert.match(html, /aria-label="Jour 5 :[^\"]*Disponible demain/);
-  assert.doesNotMatch(html, /class="bs-day [^"]*is-today/);
+  assert.doesNotMatch(html, /class="[^"]*sc-calendar-day[^"]*is-today/);
   assert.equal(claimBetaRewardState(profile, now).ok, false);
 });
 
@@ -42,9 +42,9 @@ test("completed calendars cannot advertise another daily claim", ()=>{
   const profile = {betaRewardState:{claimedDays:Array.from({length:25},(_,index)=>index+1)}};
   const html = renderBetaStorefront(profile, {now});
   assert.match(html, /25 \/ 25 jours/);
-  assert.match(html, /CALENDRIER TERMINÉ/);
-  assert.equal((html.match(/class="bs-day is-claimed/g) || []).length, 25);
-  assert.match(html, /data-claim-beta-reward type="button" disabled/);
+  assert.match(html, /Calendrier terminé/i);
+  assert.equal((html.match(/class="[^"]*sc-calendar-day[^"]*is-claimed/g) || []).length, 25);
+  assert.doesNotMatch(html, /data-claim-beta-reward/);
   assert.doesNotMatch(renderBetaStoreModal(profile, {kind:"beta-reward",id:"25"}, {now}), /data-claim-beta-reward/);
 });
 
@@ -83,7 +83,8 @@ test("opening a day only changes presentation state and rejects invalid days", (
   const context = {store,render(){rendered+=1;}};
   const event = id=>({target:{closest(){return {dataset:{betaCalendarDay:String(id)}};}}});
   assert.equal(handleBetaStoreInteraction(event(15), context), true);
-  assert.deepEqual(store.storeModal, {kind:"beta-reward",id:"15"});
+  assert.equal(store.storeModal, null);
+  assert.equal(store.betaCalendarDay, 15);
   assert.equal(rendered, 1);
   assert.deepEqual(store.state, before);
   assert.equal(handleBetaStoreInteraction(event(99), context), false);

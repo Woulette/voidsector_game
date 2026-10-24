@@ -4,6 +4,8 @@ Portes de secteur du 24 octobre 2026 : `sectorPortalVisuals.js` definit les asse
 
 Objectif : reduire `server/src/index.js` sans changer le gameplay, en gardant le serveur autoritaire et le mode solo compatible pendant la migration.
 
+Presentation Beta du 24 octobre 2026 : les packs reutilisent les lignes `sc-starter-*` des Packs officiels et conservent contenus, tarifs et bonus. `betaStoreCalendar.js` compose les 25 jours avec la grille et la fiche laterale du calendrier officiel ; la selection reste `store.betaCalendarDay`, sans modifier le profil. L'eligibilite et la commande serveur restent utilisees ; aucun calendrier OR ni paiement modifie. Details : `docs/BETA_PRESENTATION_OFFICIELLE_2026-10-24.md`.
+
 Cartes Premium OR du 24 octobre 2026 : `premiumPassArtwork.js` selectionne les deux PNG dores pour les seuls pass OR 7/30 jours. Les lignes/fiches Boutique et le modele Magasin utilisent cette presentation commune ; les images standards et les pass inclus dans les packs restent identiques. Aucun catalogue partage, droit ou tarif modifie. Details : `docs/PREMIUM_OR_CARTES_2026-10-24.md`.
 
 Finitions Boutique du 24 octobre 2026 : les prix deviennent blancs, sauf le Premium OR dore ; les cartes de monnaie affichent les mises en avant 24,99/99,99 EUR et les rendements par euro, calcules en centimes par rapport au pack 1,99 EUR. Les montants jusqu'a 330 millions restent entiers. `storePackCategories.js` prepare les familles Vaisseaux, Boosters, Lasers et Ressources ; les familles sans offre restent A venir. La vitrine Beta et ses 25 jours sont harmonises, sans changer les actions ni les gains. Les filtres restent hors profil. Details : `docs/BOUTIQUE_FINITION_2026-10-24.md`.

@@ -1,7 +1,7 @@
 import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js?v=20260726-ancient1";
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
 import { BETA_STORE_ONLY, isPremiumActive, premiumRemainingLabel, storeTabs } from "../data/premium.js?v=20260726-kharon1";
-import { renderBetaStorefront, renderBetaStoreModal, syncBetaStoreModal } from "./betaStore.js?v=20261024-boutique4";
+import { renderBetaStorefront, renderBetaStoreModal, syncBetaStoreModal } from "./betaStore.js?v=20261024-beta-layout1";
 import { renderStoreNavigation, renderSupportStorefront, renderSupportStoreModal } from "./supportStore.js?v=20261024-boutique4";
 import { fmt } from "../core/utils.js";
 import { updateLauncherCurrency } from "./launcherCurrency.js?v=20261023-hangar1";
@@ -582,7 +582,7 @@ export function renderStoreSection(){
   panel.classList.add("beta-store-panel");
   panel.classList.toggle("support-store-panel", activeTab !== "beta");
   panel.innerHTML = renderStoreNavigation(activeTab, store.state, {now, betaOnly:BETA_STORE_ONLY})
-    + (activeTab === "beta" ? renderBetaStorefront(store.state, {now}) : renderSupportStorefront(store.state, activeTab, {now, tier:store.premiumStoreTier, currency:store.storeCurrency, calendarDay:store.premiumCalendarDay, packCategory:store.storePackCategory}))
+    + (activeTab === "beta" ? renderBetaStorefront(store.state, {now, calendarDay:store.betaCalendarDay}) : renderSupportStorefront(store.state, activeTab, {now, tier:store.premiumStoreTier, currency:store.storeCurrency, calendarDay:store.premiumCalendarDay, packCategory:store.storePackCategory}))
     + (["beta", "beta-reward"].includes(modal.kind) ? renderBetaStoreModal(store.state, modal, {now}) : renderSupportStoreModal(store.state, modal, {now, tier:store.premiumStoreTier}));
   syncBetaStoreModal(panel, ()=>{ store.storeModal = null; renderStoreSection(); });
 }
