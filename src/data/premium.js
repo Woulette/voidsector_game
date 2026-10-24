@@ -1,3 +1,5 @@
+import { getBetaRewardResetAfterDate, getBetaRewardSchedule, normalizeBetaRewardDateKey } from "../shared/betaRewardSchedule.js?v=20261024-beta-clock1";
+
 export const PREMIUM_DAY_MS = 24 * 60 * 60 * 1000;
 export const PREMIUM_NOVA_DISCOUNT_RATE = 0.05;
 export const PREMIUM_REPAIR_BOT_MULTIPLIER = 1.5;
@@ -183,7 +185,10 @@ export function normalizeBetaRewardState(value = {}){
     .sort((a, b)=>a - b);
   return {
     claimedDays,
-    lastClaimDate:String(source.lastClaimDate || ""),
+    lastClaimDate:normalizeBetaRewardDateKey(source.lastClaimDate),
+    lastClaimAt:Number.isFinite(Number(source.lastClaimAt)) && Number(source.lastClaimAt) > 0 && Number.isFinite(new Date(Number(source.lastClaimAt)).getTime())
+      ? Math.trunc(Number(source.lastClaimAt))
+      : 0,
     randomShipRewards:source.randomShipRewards && typeof source.randomShipRewards === "object" && !Array.isArray(source.randomShipRewards)
       ? {...source.randomShipRewards}
       : {}
@@ -191,8 +196,7 @@ export function normalizeBetaRewardState(value = {}){
 }
 
 export function getBetaRewardDateKey(now = Date.now()){
-  const date = new Date(Number(now || Date.now()));
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return getBetaRewardSchedule(now).dateKey;
 }
 
 export function getBetaRewardStatus(profile = {}, now = Date.now()){
@@ -200,8 +204,12 @@ export function getBetaRewardStatus(profile = {}, now = Date.now()){
   const claimedCount = state.claimedDays.length;
   const completed = claimedCount >= betaRewardCalendar.length;
   const nextDay = completed ? betaRewardCalendar.length : claimedCount + 1;
-  const todayKey = getBetaRewardDateKey(now);
-  const claimedToday = state.lastClaimDate === todayKey;
+  const schedule = getBetaRewardSchedule(now);
+  // Date-only legacy claims are treated as belonging to their dated period.
+  // This can defer a migrated pre-08:00 claim, but never grants another reward.
+  const timestampKey = state.lastClaimAt > 0 ? getBetaRewardDateKey(state.lastClaimAt) : "";
+  const lastClaimKey = [state.lastClaimDate, timestampKey].sort().at(-1) || "";
+  const claimedToday = lastClaimKey >= schedule.dateKey;
   const canClaim = !completed && !claimedToday;
   let reason = "";
   if(completed) reason = "Calendrier beta termine.";
@@ -215,7 +223,11 @@ export function getBetaRewardStatus(profile = {}, now = Date.now()){
     claimedToday,
     canClaim,
     completed,
-    reason
+    reason,
+    nextAvailableAt:completed ? null : canClaim ? schedule.now : getBetaRewardResetAfterDate(lastClaimKey),
+    nextResetAt:schedule.nextResetAt,
+    scheduleTimeZone:schedule.scheduleTimeZone,
+    resetHour:schedule.resetHour
   };
 }
 
@@ -225,7 +237,8 @@ export function claimBetaRewardState(profile = {}, now = Date.now()){
   const nextState = {
     ...status.state,
     claimedDays:[...status.claimedDays, status.nextDay],
-    lastClaimDate:getBetaRewardDateKey(now)
+    lastClaimDate:getBetaRewardDateKey(now),
+    lastClaimAt:getBetaRewardSchedule(now).now
   };
   profile.betaRewardState = nextState;
   return {
@@ -233,7 +246,7 @@ export function claimBetaRewardState(profile = {}, now = Date.now()){
     day:status.nextDay,
     reward:status.reward,
     state:nextState,
-    status:{...status, state:nextState, claimedDays:nextState.claimedDays, claimedCount:nextState.claimedDays.length, canClaim:false, claimedToday:true}
+    status:getBetaRewardStatus(profile, now)
   };
 }
 

@@ -48,7 +48,7 @@ test("claimed today and completed profiles cannot advertise another reward actio
   const html = renderBetaStoreCalendar(profile,{now});
   assert.equal(claims(html),0);
   assert.equal((html.match(/class="sc-calendar-day is-claimed/g) || []).length,3);
-  assert.match(html,/Jour 4 :[^\"]*Disponible demain/);
+  assert.match(html,/Jour 4 :[^\"]*Disponible à 08:00/);
   assert.match(html,/Récompense du jour récupérée/);
   assert.doesNotMatch(html,/is-today/);
   assert.equal(betaDayStatus(betaRewardCalendar[2],getBetaRewardStatus(profile,now)),"Récompense reçue");

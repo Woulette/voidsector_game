@@ -25,7 +25,7 @@ test("the Beta storefront shows the three approved packs and all 25 real rewards
   assert.deepEqual(profile, before);
 });
 
-test("a real daily claim updates received days and labels the next reward as tomorrow", ()=>{
+test("a real daily claim updates received days and labels the next reward at eight", ()=>{
   const profile = {betaRewardState:{claimedDays:[1,2,3], lastClaimDate:""}};
   const initial = renderBetaStorefront(profile, {now});
   assert.equal((initial.match(/class="[^"]*sc-calendar-day[^"]*is-today/g) || []).length, 1);
@@ -33,7 +33,7 @@ test("a real daily claim updates received days and labels the next reward as tom
   const html = renderBetaStorefront(profile, {now});
   assert.match(html, /4 \/ 25 jours/);
   assert.doesNotMatch(html, /data-claim-beta-reward/);
-  assert.match(html, /aria-label="Jour 5 :[^\"]*Disponible demain/);
+  assert.match(html, /aria-label="Jour 5 :[^\"]*Disponible à 08:00/);
   assert.doesNotMatch(html, /class="[^"]*sc-calendar-day[^"]*is-today/);
   assert.equal(claimBetaRewardState(profile, now).ok, false);
 });
