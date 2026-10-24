@@ -4,7 +4,8 @@ export const PREMIUM_REPAIR_BOT_MULTIPLIER = 1.5;
 export const PREMIUM_REFINERY_SHIPMENT_DURATION_MULTIPLIER = 0.5;
 export const PREMIUM_LOGOUT_DELAY_MS = 5000;
 export const PREMIUM_REWARD_DAYS = 28;
-export const BETA_STORE_ONLY = true;
+// Preparation: keep the official storefront accessible; set true for the Beta-only launch.
+export const BETA_STORE_ONLY = false;
 
 export const premiumFeatureList = [
   "-5% sur tous les prix en NOVA",
@@ -50,11 +51,11 @@ export const premiumShopPacks = [
 ];
 
 export const storeTabs = [
-  {id:"beta", label:"Beta", title:"Beta", subtitle:"Packs beta a prix reduit, calendrier de connexion 25 jours et bonus de remerciement pour le lancement officiel."},
-  {id:"premium", label:"Pack Premium", title:"Packs Premium", subtitle:"Pass premium achetables en euros ou en NOVA dans le magasin."},
-  {id:"currencies", label:"Nova / Credit", title:"Nova et Credits", subtitle:"Packs de monnaie a brancher au prestataire de paiement."},
-  {id:"starters", label:"Starter Pack", title:"Starter Packs", subtitle:"Packs de depart a definir avec vaisseau, lasers et extras."},
-  {id:"rewards", label:"Recompense Premium", title:"Recompenses Premium", subtitle:"Calendrier mensuel de 28 jours reserve aux comptes premium."}
+  {id:"beta", label:"Bêta", title:"Bêta", subtitle:"Packs Bêta, calendrier de 25 jours et bonus de lancement."},
+  {id:"premium", label:"Premium", title:"Pass Premium", subtitle:"Activez un pass en NOVA. Paiement en euros à venir."},
+  {id:"currencies", label:"NOVA & Crédits", title:"NOVA et crédits", subtitle:"Consultez les packs de monnaie prévus pour la boutique officielle."},
+  {id:"starters", label:"Packs de départ", title:"Packs de départ", subtitle:"Vaisseau, équipement et pass Premium. Paiement en euros à venir."},
+  {id:"rewards", label:"Calendrier Premium", title:"Calendrier Premium", subtitle:"28 récompenses chaque mois pour les comptes Premium."}
 ];
 
 export const betaLaunchMessage = "Pendant la beta, ces packs a prix reduit servent a tester vite le contenu. Tous les joueurs qui contribuent recevront un pack gratuit lors du lancement officiel, adapte au pack beta achete.";
@@ -333,7 +334,7 @@ export const realMoneyShopSections = [
   {
     id:"starters",
     title:"Starter packs",
-    subtitle:"Packs vaisseau, lasers et extras a definir plus tard.",
+    subtitle:"Packs de départ avec vaisseau, équipement et pass Premium.",
     offers:starterPacks
   },
   {

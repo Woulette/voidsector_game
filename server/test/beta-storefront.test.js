@@ -9,7 +9,7 @@ test("the Beta storefront shows the three approved packs and all 25 real rewards
   const profile = {player:{credits:123, premium:456}, betaPackPurchases:[], betaRewardState:{claimedDays:[]}};
   const before = structuredClone(profile);
   const html = renderBetaStorefront(profile, {now});
-  assert.equal(BETA_STORE_ONLY, true);
+  assert.equal(BETA_STORE_ONLY, false);
   assert.equal((html.match(/data-store-offer-kind="beta"/g) || []).length, 3);
   assert.equal((html.match(/data-beta-calendar-day=/g) || []).length, 25);
   for(const value of ["Valkyrie", "Razorion", "Astralis", "1,49 €", "4,99 €", "9,99 €"]) assert.ok(html.includes(value));
