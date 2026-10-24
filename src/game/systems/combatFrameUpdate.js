@@ -345,5 +345,5 @@ export function createCombatFrameUpdateSystem({
     timeCombatProfiler("panels.tick", ()=>panels.tick(dt));
   }
 
-  return {update};
+  return {update, sendCurrentPlayerSnapshot};
 }

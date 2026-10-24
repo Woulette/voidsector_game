@@ -518,6 +518,10 @@ export function createCombatGame({renderAll, showToast}){
   });
   window.addEventListener("voidsector:multiplayer-change", event=>{
     const reason = String(event.detail?.reason || "");
+    if(reason === "loot:collection" || reason === "loot:picked" || reason === "loot:error"){
+      cargo?.handleServerEvent?.(reason, event.detail?.payload || {});
+    }
+    if(reason === "player:death" || reason === "connection:disconnect") cargo?.clearPending();
     if(reason === "portal:failed"){
       const payload = event.detail?.payload || {};
       const failedPortalId = String(payload?.portal?.id || activePortal?.id || "");
@@ -557,10 +561,14 @@ export function createCombatGame({renderAll, showToast}){
   });
   cargo = createCombatCargoSystem({
     rewards,
-    requestServerLootPickup,
+    requestServerLootPickup:(id, phase, attemptId)=>{
+      if(phase === "start") frameUpdate.sendCurrentPlayerSnapshot({force:true, active:true});
+      return requestServerLootPickup(id, phase, attemptId);
+    },
     showToast,
     onCargoChanged:()=>updateHud(),
-    particles:()=>particles
+    particles:()=>particles,
+    getMap:()=>currentMap
   });
   const worldState = createCombatWorldStateSystem({
     store,
@@ -1328,7 +1336,7 @@ export function createCombatGame({renderAll, showToast}){
     saveState,
     getMouse:()=>mouse,
     setMoveTarget:value=>{ moveTarget = value; },
-    onManualNavigation:()=>sectorTravel.cancel("manual"),
+    onManualNavigation:()=>{ sectorTravel.cancel("manual"); cargo.clearPending(); },
     setMouseMoveHeld:value=>{ mouseMoveHeld = value; },
     worldFromScreen,
     miniMapHitTest:miniMap.hitTest,

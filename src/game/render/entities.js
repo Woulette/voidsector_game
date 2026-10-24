@@ -5,6 +5,7 @@ import { drawTargetSelectionOverlay, getEntityTargetSelectionRadius } from "./ta
 import { drawDeadlyEnemyEngines } from "./enemyEngines.js";
 import { drawVesperEnemyVisual } from "./vesperEncounter.js?v=20261022-helion-hub1";
 import { drawPrismaticEnemyVisual } from "./prismaticEncounter.js?v=20261022-helion-hub1";
+import { drawLootCollection, getLootCollectionProgress, isLootCollectionVisible } from "./lootCollection.js";
 
 const impactSpriteCache = new Map();
 const DEFAULT_CULL_MARGIN = 140;
@@ -790,37 +791,53 @@ export function drawGroundMaterials({ctx, camera, cache, materials}){
   const {width, height} = viewSize(ctx);
   const time = performance.now() / 420;
   for(const node of materials || []){
-    const size = node.renderSize || node.size || 42;
-    if(!isWorldPointVisible({x:node.x, y:node.y, camera, width, height, margin:size * 2 + 90})) continue;
+    const collecting = Boolean(node.suctionActive);
+    const progress = collecting ? getLootCollectionProgress(node) : 0;
+    if(collecting && progress >= 1) continue;
+    const baseSize = Number.isFinite(Number(node.size)) && Number(node.size) > 0 ? Number(node.size) : 42;
+    const hasRenderSize = collecting && node.renderSize !== null && node.renderSize !== undefined && Number.isFinite(Number(node.renderSize));
+    const size = hasRenderSize ? Math.max(0, Number(node.renderSize)) : baseSize;
+    const margin = Math.max(baseSize, size) * 2 + 90;
+    if(collecting){
+      if(!isLootCollectionVisible({node, camera, width, height, margin})) continue;
+      drawLootCollection({ctx, node, camera});
+    }else if(!isWorldPointVisible({x:node.x, y:node.y, camera, width, height, margin})) continue;
+    if(size <= 0) continue;
     const img = getCachedCombatImage(cache, node.img);
-    const sx = Math.round(node.x - camera.x);
-    const sy = Math.round(node.y - camera.y + Math.sin(time + node.phase) * 3);
+    const hasRenderX = collecting && node.renderX !== null && node.renderX !== undefined && Number.isFinite(Number(node.renderX));
+    const hasRenderY = collecting && node.renderY !== null && node.renderY !== undefined && Number.isFinite(Number(node.renderY));
+    const renderX = hasRenderX ? Number(node.renderX) : node.x;
+    const renderY = hasRenderY ? Number(node.renderY) : node.y;
+    const phase = Number.isFinite(Number(node.phase)) ? Number(node.phase) : 0;
+    const sx = collecting ? renderX - camera.x : Math.round(renderX - camera.x);
+    const sy = collecting ? renderY - camera.y : Math.round(renderY - camera.y + Math.sin(time + phase) * 3);
     ctx.save();
-    ctx.translate(sx, sy);
-    ctx.globalCompositeOperation = "lighter";
-    const glowSize = size * (.72 + Math.sin(time + node.phase) * .04);
-    const glow = ctx.createRadialGradient(0, 0, size * .12, 0, 0, glowSize);
-    glow.addColorStop(0, node.glowCore || node.glow || "rgba(125,211,252,.32)");
-    glow.addColorStop(.48, node.glow || "rgba(125,211,252,.18)");
-    glow.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalCompositeOperation = "source-over";
-    ctx.shadowBlur = 0;
-    if(img && img.complete){
-      ctx.save();
-      ctx.rotate(time * (node.suctionActive ? 1.55 : .42) + node.phase);
-      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    try{
+      ctx.translate(sx, sy);
+      if(collecting) ctx.globalAlpha *= Math.min(1, (1 - progress) / .16);
+      ctx.globalCompositeOperation = "lighter";
+      const glowSize = size * (collecting ? .64 : .72 + Math.sin(time + phase) * .04);
+      const glow = ctx.createRadialGradient(0, 0, size * .12, 0, 0, glowSize);
+      glow.addColorStop(0, node.glowCore || node.glow || "rgba(125,211,252,.32)");
+      glow.addColorStop(.48, node.glow || "rgba(125,211,252,.18)");
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.shadowBlur = 0;
+      if(img?.complete && (img.naturalWidth === undefined || img.naturalWidth > 0)){
+        ctx.rotate((collecting ? progress * 2.7 : time * .42) + phase);
+        ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      }else{
+        ctx.fillStyle = node.fallback || "rgba(125,211,252,.72)";
+        ctx.beginPath();
+        ctx.arc(0, 0, size * .28, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }finally{
       ctx.restore();
     }
-    else{
-      ctx.fillStyle = node.fallback || "rgba(125,211,252,.72)";
-      ctx.beginPath();
-      ctx.arc(0, 0, size * .28, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
   }
 }

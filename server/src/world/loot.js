@@ -2,6 +2,7 @@ import { GROUND_LOOT_TTL_MS, LOOT_OWNER_TIMEOUT_MS, PORTAL_DROP_RULES, WORLD_MAP
 import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
 import { findServerQuestItemDrop } from "../quests/questItemDrops.js";
 import { rollResourceDrops } from "./resourceDrops.js";
+import { createLootCollectionManager } from "./lootCollection.js";
 
 const PORTAL_ANCHOR_KEY_DROP = {
   itemId:"portal_anchor_key",
@@ -54,8 +55,9 @@ export function rollPortalPieceDrop(mapId, {random = Math.random} = {}){
   return null;
 }
 
-export function createWorldLootManager({io, players, profileManager, emitProfileSync, getGroups}){
+export function createWorldLootManager({io, players, profileManager, emitProfileSync, getGroups, now = Date.now}){
   const activeLootDrops = new Map();
+  const collection = createLootCollectionManager({players, getDrop:id=>activeLootDrops.get(id), getMap:mapId=>WORLD_MAPS[String(mapId)], complete:applyLootReward, now});
 
   function getGroupQuestItemRecipients(owner, groupId = owner?.groupId){
     const group = groupId && owner?.groupId === groupId ? getGroups?.()?.get(groupId) : null;
@@ -256,36 +258,17 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
   }
 
   function pickupLoot(socket, payload){
-    const player = players.get(socket.id);
-    const id = String(payload?.id || "");
-    const drop = activeLootDrops.get(id);
-    if(!player || !drop){
-      socket.emit("loot:error", {message:"Butin introuvable."});
-      return;
-    }
-    if(drop.ownerId !== socket.id){
-      socket.emit("loot:error", {message:"Ce butin ne t'appartient pas."});
-      return;
-    }
-    if(Date.now() >= Number(drop.expiresAt || 0)){
-      activeLootDrops.delete(id);
-      socket.emit("loot:error", {message:"Butin expire."});
-      return;
-    }
-    if(String(player.mapId || "") !== String(drop.mapId || "")){
-      socket.emit("loot:error", {message:"Butin sur une autre map."});
-      return;
-    }
-    const state = player.state;
-    const distance = state ? Math.hypot(Number(state.x || 0) - Number(drop.x || 0), Number(state.y || 0) - Number(drop.y || 0)) : Infinity;
-    if(distance > 220){
-      socket.emit("loot:error", {message:"Trop loin du butin."});
-      return;
-    }
+    return collection.handle(socket, payload);
+  }
+
+  function applyLootReward(socket, player, drop, attemptId){
+    const id = drop.id;
+    const correlation = attemptId ? {attemptId} : {};
     if(drop.kind === "questItem"){
       activeLootDrops.delete(id);
       socket.emit("loot:picked", {
         id,
+        ...correlation,
         kind:drop.kind,
         rarity:drop.rarity || "",
         itemId:drop.itemId,
@@ -359,11 +342,12 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
     });
     if(!result.ok){
       activeLootDrops.set(id, drop);
-      socket.emit("loot:error", {message:result.reason || "Ramassage impossible."});
+      socket.emit("loot:error", {id, ...correlation, message:result.reason || "Ramassage impossible."});
       return;
     }
     socket.emit("loot:picked", {
       id,
+      ...correlation,
       kind:drop.kind,
       portalId:drop.portalId,
       portalName:drop.portalName,
@@ -378,9 +362,10 @@ export function createWorldLootManager({io, players, profileManager, emitProfile
     emitProfileSync?.(player, result.profile);
   }
 
-  function cleanupExpiredLootDrops(now = Date.now()){
+  function cleanupExpiredLootDrops(at = now()){
+    collection.tick(at);
     for(const [id, drop] of activeLootDrops.entries()){
-      if(now >= Number(drop.expiresAt || 0)) activeLootDrops.delete(id);
+      if(at >= Number(drop.expiresAt || 0)) activeLootDrops.delete(id);
     }
   }
 

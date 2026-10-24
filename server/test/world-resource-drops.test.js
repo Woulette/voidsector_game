@@ -10,6 +10,13 @@ import { createWorldStateManager } from "../src/world/state.js";
 import { RESOURCE_DROP_POOLS } from "../../src/data/resources.js";
 import { ENEMY_TYPES } from "../../src/game/combatData.js";
 
+function collect(manager, socket, id){
+  manager.pickupLoot(socket, {id, phase:"start"});
+  const deadline = Date.now() + 700;
+  manager.pickupLoot(socket, {id, phase:"finish"});
+  manager.cleanupExpiredLootDrops(deadline);
+}
+
 test("world maps use the requested monster level bands", ()=>{
   assert.deepEqual(WORLD_MAPS["0"].level, [1, 4]);
   assert.deepEqual(WORLD_MAPS["1"].level, [5, 9]);
@@ -387,7 +394,7 @@ test("server emits and validates Deadly portal key pickup", ()=>{
   try{
     const emitted = [];
     const socketEvents = [];
-    const player = {id:"p1", mapId:"Helion-01", state:{mapId:"Helion-01", x:100, y:200}};
+    const player = {id:"p1", mapId:"Helion-01", state:{hp:100, mapId:"Helion-01", x:100, y:200}};
     const players = new Map([[player.id, player]]);
     const profile = {inventoryItems:[], nextInventoryUid:1};
     const manager = createWorldLootManager({
@@ -410,8 +417,8 @@ test("server emits and validates Deadly portal key pickup", ()=>{
     assert.ok(event);
     assert.equal(event.itemId, "portal_anchor_key");
     assert.equal(event.serverControlled, true);
-    player.state = {mapId:"Helion-01", x:event.x, y:event.y};
-    manager.pickupLoot({id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, {id:event.id});
+    player.state = {hp:100, mapId:"Helion-01", x:event.x, y:event.y};
+    collect(manager, {id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, event.id);
     assert.equal(getInventoryItemCount(profile, "portal_anchor_key"), 1);
     assert.equal(socketEvents.some(entry=>entry.name === "loot:picked"), true);
   }finally{
@@ -425,7 +432,7 @@ test("server emits a private material drop and validates its pickup", ()=>{
   try{
     const emitted = [];
     const socketEvents = [];
-    const player = {id:"p1", mapId:"0", state:{mapId:"0", x:100, y:200}};
+    const player = {id:"p1", mapId:"0", state:{hp:100, mapId:"0", x:100, y:200}};
     const players = new Map([[player.id, player]]);
     const profile = {cargoHold:{}};
     const manager = createWorldLootManager({
@@ -449,8 +456,8 @@ test("server emits a private material drop and validates its pickup", ()=>{
     assert.ok(event);
     assert.equal(event.serverControlled, true);
     assert.match(event.img, /_drop\.webp$/);
-    player.state = {mapId:"0", x:event.x, y:event.y};
-    manager.pickupLoot({id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, {id:event.id});
+    player.state = {hp:100, mapId:"0", x:event.x, y:event.y};
+    collect(manager, {id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, event.id);
     assert.equal(profile.cargoHold[event.materialId], 1);
     const picked = socketEvents.find(entry=>entry.name === "loot:picked");
     assert.ok(picked);

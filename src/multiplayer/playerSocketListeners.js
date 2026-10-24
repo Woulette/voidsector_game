@@ -115,7 +115,10 @@ export function installPlayerSocketListeners({
     countCombatProfiler("socket.playerDamage", 1);
     pushEvent(multiplayer.playerDamageEvents, event, 40);
   });
-  socket.on("player:death", event=>pushEvent(multiplayer.playerDeathEvents, event, 10));
+  socket.on("player:death", event=>{
+    pushEvent(multiplayer.playerDeathEvents, event, 10);
+    emitChange("player:death", event);
+  });
   socket.on("player:respawned", event=>pushEvent(multiplayer.playerRespawnEvents, event, 10));
   socket.on("portgun:started", event=>{
     pushEvent(multiplayer.portgunEvents, {type:"started", ...event}, 10);
@@ -142,6 +145,7 @@ export function installPlayerSocketListeners({
   socket.on("player:status-effect", event=>pushEvent(multiplayer.playerStatusEffectEvents, event, 20));
   socket.on("player:reward", event=>pushEvent(multiplayer.playerRewardEvents, event, 40));
   socket.on("loot:drop", event=>pushEvent(multiplayer.lootDropEvents, event, 40));
+  socket.on("loot:collection", event=>emitChange("loot:collection", event));
   socket.on("loot:picked", event=>{
     pushEvent(multiplayer.lootPickupEvents, event, 40);
     emitChange("loot:picked", event);
