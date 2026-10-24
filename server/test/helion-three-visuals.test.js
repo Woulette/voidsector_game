@@ -111,8 +111,8 @@ test("one opaque shattered planet stays far away with no artificial rotation or 
   assert.equal(planets.length,1);
   const planet=planets[0];
   assert.equal(planet.src,HELION_THREE_ASSETS.planet);assert.equal(planet.space,"map");
-  assert.deepEqual([planet.x,planet.y],[11200,-4000]);
-  assert.equal(planet.p,.05);assert.equal(planet.w,640);assert.equal(planet.alpha,1);
+  assert.deepEqual([planet.x,planet.y],[9000,-5000]);
+  assert.equal(planet.p,.03);assert.equal(planet.w,480);assert.equal(planet.alpha,1);
   assert.equal(planet.effect,undefined);assert.equal(planet.blend,undefined);assert.equal(planet.filter,undefined);
   assert.ok(!planet.rotation&&!planet.flipX&&!planet.flipY);assert.equal(planet.edgeFade,false);
   assert.equal(planet.minimap,true);
@@ -199,9 +199,9 @@ test("streaming loads each art source once and retains the existing three-map ca
 test("the minimap's scenic planet and cached background stay fixed while live markers remain separate",()=>{
   const source=JSON.stringify(helion);
   const definition=getMiniMapVisualDefinition(helion);
-  assert.equal(definition.image,"assets/maps/minimaps/helion-03-wide-v1.png");
+  assert.equal(definition.image,"assets/maps/minimaps/helion-03-wide-v2.png");
   assert.equal(definition,getMiniMapVisualDefinition(helion));
-  assert.deepEqual(definition.landmarks,{nebula:{x:.6,y:.4,width:.88},planet:{x:.82,y:.23,width:.25}});
+  assert.deepEqual(definition.landmarks,{nebula:{x:.6,y:.4,width:.88},planet:{x:.67,y:.34,width:.20}});
   const snapshot=createMiniMapSnapshotMap(helion);
   assert.deepEqual(snapshot.parallaxScene.images.map(layer=>layer.kind),["nebula","planet"]);
   assert.deepEqual(snapshot.parallaxScene.backdrops,[]);

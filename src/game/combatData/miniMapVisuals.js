@@ -19,10 +19,10 @@ const HELION_TWO_OVERVIEW = Object.freeze({
   landmarks:{planet:{x:.88,y:.23,width:.38},station:{x:.28,y:.44,width:.14}}
 });
 const HELION_THREE_OVERVIEW = Object.freeze({
-  image:"assets/maps/minimaps/helion-03-wide-v1.png",
+  image:"assets/maps/minimaps/helion-03-wide-v2.png",
   landmarks:{
     nebula:{x:.60,y:.40,width:.88},
-    planet:{x:.82,y:.23,width:.25}
+    planet:{x:.67,y:.34,width:.20}
   }
 });
 

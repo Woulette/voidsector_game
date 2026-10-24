@@ -9,10 +9,10 @@ export const HELION_THREE_PARAMETERS = Object.freeze({
   p:.060, alpha:.76, rotation:-.10
 });
 
-// At the sector centre, the very slow layer sits about 560 units right and
-// 200 units above the camera centre. Its world anchor is intentionally distant.
+// At the sector centre, the very slow layer sits about 270 units right and
+// 150 units above the camera centre. Its world anchor is intentionally distant.
 export const HELION_THREE_PLANET_PLACEMENT = Object.freeze({
-  x:11200, y:-4000, w:640, h:640 * 1024 / 1536, p:.050
+  x:9000, y:-5000, w:480, h:480 * 1024 / 1536, p:.030
 });
 
 export function createHelionThreeScene(map){
