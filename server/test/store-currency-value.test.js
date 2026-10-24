@@ -21,7 +21,7 @@ test("credit comparisons preserve the real slightly lower value of the 5.99 offe
   assert.equal(getCurrencyPackBonusPercent(pack(300,"5,99 EUR"),pack(100)), -0.4);
 });
 
-test("displayed gains round down to a tenth without overstating either sign or exact boundaries", ()=>{
+test("computed gains retain precision without overstating either sign or exact boundaries", ()=>{
   const reference = pack(10000);
   assert.equal(getCurrencyPackBonusPercent(pack(11099),reference),10.9);
   assert.equal(getCurrencyPackBonusPercent(pack(11000),reference),10);
@@ -62,12 +62,18 @@ test("currency cards keep full quantities and expose the reference and honest ra
   for(const html of [nova,credits]){
     assert.equal((html.match(/class="sc-currency-value /g) || []).length,6);
     assert.match(text(html),/Rendement par euro comparé au pack à 1,99 €/);
-    assert.match(html,/arrondi au dixième de point inférieur/);
+    assert.match(html,/arrondi à l’entier inférieur/);
     assert.match(text(html),/Référence · 0 %/);
   }
-  assert.match(text(nova),/\+50,6 % par €/);
+  assert.match(text(nova),/\+50 % par €/);
   assert.match(credits,/sc-currency-value is-lower-value/);
-  assert.match(text(credits),/−0,4 % par €/);
+  assert.match(text(credits),/−1 % par €/);
+  for(const html of [nova,credits]){
+    const labels = [...html.matchAll(/<small class="sc-currency-value [^"]*"[^>]*>([^<]+)<\/small>/g)].map(match=>match[1]);
+    assert.equal(labels.length,6);
+    assert.ok(labels.every(label=>!/[,.]/.test(label)));
+    assert.equal((html.match(/class="sc-currency-amount"/g) || []).length,6);
+  }
   for(const amount of [160000000,330000000]){
     assert.ok(text(credits).replace(/\s/g,"").includes(String(amount)),String(amount));
   }

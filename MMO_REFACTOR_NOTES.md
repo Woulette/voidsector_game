@@ -4,6 +4,8 @@ Portes de secteur du 24 octobre 2026 : `sectorPortalVisuals.js` definit les asse
 
 Objectif : reduire `server/src/index.js` sans changer le gameplay, en gardant le serveur autoritaire et le mode solo compatible pendant la migration.
 
+Quantites boutique du 24 octobre 2026 : supportStorePanels.js met les montants de NOVA et credits dans un encadre distinct, avec bonus par euro entier et pastille compacte ; storeCollections.css garde les six cartes, les badges et les couleurs existantes. Aucun prix, montant ou achat modifie. Publication frontend selective 20261024-currency-emphasis1 ; details : docs/BOUTIQUE_QUANTITES_LISIBLES_2026-10-24.md.
+
 Recompenses Beta a 08h du 24 octobre 2026 : src/shared/betaRewardSchedule.js fixe la periode quotidienne a 08:00 Europe/Paris, changements heure inclus ; les actions serveur existantes controlent cette meme regle avant attribution. betaRewardCountdown.js actualise le compteur sans reconstruire la grille chaque seconde, puis revele la recuperation a echeance. Historique conserve, aucun achat ni recuperation publique de verification. Publication selective 20261024-beta-clock1, tests de fuseau/DST, sauvegarde et Socket.IO reel ; details : docs/BETA_RECOMPENSES_08H_PARIS_2026-10-24.md.
 
 Presentation Beta du 24 octobre 2026 : les packs reutilisent les lignes `sc-starter-*` des Packs officiels et conservent contenus, tarifs et bonus. `betaStoreCalendar.js` compose les 25 jours avec la grille et la fiche laterale du calendrier officiel ; la selection reste `store.betaCalendarDay`, sans modifier le profil. L'eligibilite et la commande serveur restent utilisees ; aucun calendrier OR ni paiement modifie. Details : `docs/BETA_PRESENTATION_OFFICIELLE_2026-10-24.md`.
