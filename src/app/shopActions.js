@@ -120,13 +120,7 @@ export function createShopActions({
   function buyPremiumPack(id){
     const pack = getPremiumPack(id);
     if(!pack) return showToast("Pack premium inconnu.");
-    sendMmoCommand({
-      multiplayer,
-      send:()=>buyServerPremiumPack?.(id),
-      showToast,
-      sentMessage:"Activation premium envoyee au serveur.",
-      failedMessage:"Achat premium impossible."
-    });
+    return showToast("Les abonnements Premium sont disponibles uniquement en euros. Paiement à venir.");
   }
 
   function buyBetaPack(id, shipChoice = ""){

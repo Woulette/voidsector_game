@@ -15,47 +15,79 @@ export const premiumFeatureList = [
   "Portgun premium : teleportation en 5 secondes",
   "Voyage automatique entre les secteurs",
   "Quetes hebdomadaires du relais de quetes",
-  "Acces aux futures cartes apres le Core",
+  "Acces aux futures cartes apres le Core"
+];
+
+export const premiumGoldFeatureList = [
+  ...premiumFeatureList,
   "Calendrier de recompenses premium mensuel"
 ];
 
 export const premiumShopPacks = [
   {
-    id:"premium_week",
+    id:"premium_classic_week",
     name:"Pass Premium 7 jours",
     short:"Premium 7J",
     category:"premium",
+    tier:"classic",
     img:"assets/store/premium-pass-7.png",
     rarity:"PREMIUM",
-    priceType:"premium",
-    price:20000,
-    realPrice:"3,99 EUR",
+    priceType:"real",
+    realPrice:"1,99 EUR",
     days:7,
-    desc:"Active le statut premium pendant 7 jours.",
+    desc:"Tous les avantages Premium pendant 7 jours, sans calendrier OR.",
     features:premiumFeatureList
   },
   {
-    id:"premium_month",
+    id:"premium_classic_month",
     name:"Pass Premium 30 jours",
     short:"Premium 30J",
     category:"premium",
+    tier:"classic",
     img:"assets/store/premium-pass-30.png",
     rarity:"PREMIUM",
-    priceType:"premium",
-    price:75000,
-    realPrice:"14,99 EUR",
+    priceType:"real",
+    realPrice:"6,99 EUR",
     days:30,
-    desc:"Active le statut premium pendant 30 jours.",
+    desc:"Tous les avantages Premium pendant 30 jours, sans calendrier OR.",
     features:premiumFeatureList
+  },
+  {
+    id:"premium_week",
+    name:"Pass Premium OR 7 jours",
+    short:"Premium OR 7J",
+    category:"premium",
+    tier:"gold",
+    img:"assets/store/premium-pass-7.png",
+    rarity:"PREMIUM",
+    priceType:"real",
+    realPrice:"2,99 EUR",
+    days:7,
+    desc:"Tous les avantages Premium et le calendrier OR pendant 7 jours.",
+    features:premiumGoldFeatureList
+  },
+  {
+    id:"premium_month",
+    name:"Pass Premium OR 30 jours",
+    short:"Premium OR 30J",
+    category:"premium",
+    tier:"gold",
+    img:"assets/store/premium-pass-30.png",
+    rarity:"PREMIUM",
+    priceType:"real",
+    realPrice:"10,99 EUR",
+    days:30,
+    desc:"Tous les avantages Premium et le calendrier OR pendant 30 jours.",
+    features:premiumGoldFeatureList
   }
 ];
 
 export const storeTabs = [
   {id:"beta", label:"Bêta", title:"Bêta", subtitle:"Packs Bêta, calendrier de 25 jours et bonus de lancement."},
-  {id:"premium", label:"Premium", title:"Pass Premium", subtitle:"Activez un pass en NOVA. Paiement en euros à venir."},
+  {id:"premium", label:"Premium", title:"Pass Premium", subtitle:"Premium et Premium OR, uniquement en euros. Paiement à venir."},
   {id:"currencies", label:"NOVA & Crédits", title:"NOVA et crédits", subtitle:"Consultez les packs de monnaie prévus pour la boutique officielle."},
   {id:"starters", label:"Packs de départ", title:"Packs de départ", subtitle:"Vaisseau, équipement et pass Premium. Paiement en euros à venir."},
-  {id:"rewards", label:"Calendrier Premium", title:"Calendrier Premium", subtitle:"28 récompenses chaque mois pour les comptes Premium."}
+  {id:"rewards", label:"Calendrier OR", title:"Calendrier OR", subtitle:"28 récompenses chaque mois pour les comptes Premium OR."}
 ];
 
 export const betaLaunchMessage = "Pendant la beta, ces packs a prix reduit servent a tester vite le contenu. Tous les joueurs qui contribuent recevront un pack gratuit lors du lancement officiel, adapte au pack beta achete.";
@@ -206,12 +238,12 @@ export function claimBetaRewardState(profile = {}, now = Date.now()){
 }
 
 export const novaCurrencyPacks = [
-  {id:"nova_5000", name:"Pack Nova I", price:"1,99 EUR", amount:5000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Petit pack Nova pour soutenir le jeu."},
-  {id:"nova_15000", name:"Pack Nova II", price:"5,99 EUR", amount:15000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Pack Nova de confort."},
-  {id:"nova_35000", name:"Pack Nova III", price:"10,99 EUR", amount:35000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Reserve Nova intermediaire."},
-  {id:"nova_75000", name:"Pack Nova IV", price:"24,99 EUR", amount:75000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Gros pack Nova pour progresser vite."},
-  {id:"nova_160000", name:"Pack Nova V", price:"49,99 EUR", amount:160000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Reserve Nova avancee."},
-  {id:"nova_330000", name:"Pack Nova VI", price:"99,99 EUR", amount:330000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Pack soutien maximum."}
+  {id:"nova_5000", name:"Pack Nova I", price:"1,99 EUR", amount:3500, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Petit pack Nova pour soutenir le jeu."},
+  {id:"nova_15000", name:"Pack Nova II", price:"5,99 EUR", amount:12000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Pack Nova de confort."},
+  {id:"nova_35000", name:"Pack Nova III", price:"10,99 EUR", amount:24000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Reserve Nova intermediaire."},
+  {id:"nova_75000", name:"Pack Nova IV", price:"24,99 EUR", amount:60000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Gros pack Nova pour progresser vite."},
+  {id:"nova_160000", name:"Pack Nova V", price:"49,99 EUR", amount:125000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Reserve Nova avancee."},
+  {id:"nova_330000", name:"Pack Nova VI", price:"99,99 EUR", amount:265000, tag:"NOVA", img:"assets/icons/premium.svg", desc:"Pack soutien maximum."}
 ];
 
 export const creditCurrencyPacks = [
@@ -234,7 +266,7 @@ export const starterPacks = [
     desc:"Pack offensif pour demarrer avec un Razorion equipe en MK-III.",
     status:"Paiement bientot",
     contents:[
-      {label:"Pass Premium 7 jours", quantity:"x1", img:"assets/icons/premium_pass_7.svg", kind:"premium"},
+      {label:"Pass Premium 7 jours", quantity:"x1", img:"assets/store/premium-pass-7.png", kind:"premium"},
       {label:"Vaisseau Razorion", quantity:"x1", img:"assets/ships/Razorion.png", kind:"ship"},
       {label:"Canon Laser MK-III", quantity:"x8", img:"assets/equipment/laser_mk3_slot_v2.png", kind:"equipment"},
       {label:"Munition M-3", quantity:"x30 000", img:"assets/equipment/ammo_laser_x3_same_preview.png", kind:"ammo"}
@@ -250,7 +282,7 @@ export const starterPacks = [
     desc:"Pack avance avec Astralis, lasers MK-IV/MK-III et premium 30 jours.",
     status:"Paiement bientot",
     contents:[
-      {label:"Pass Premium 30 jours", quantity:"x1", img:"assets/icons/premium_pass_30.svg", kind:"premium"},
+      {label:"Pass Premium 30 jours", quantity:"x1", img:"assets/store/premium-pass-30.png", kind:"premium"},
       {label:"Vaisseau Astralis", quantity:"x1", img:"assets/ships/Astralis.png", kind:"ship"},
       {label:"Canon Laser MK-IV", quantity:"x3", img:"assets/equipment/laser_mk4_slot_v2.png", kind:"equipment"},
       {label:"Canon Laser MK-III", quantity:"x7", img:"assets/equipment/laser_mk3_slot_v2.png", kind:"equipment"},
@@ -339,8 +371,8 @@ export const realMoneyShopSections = [
   },
   {
     id:"rewards",
-    title:"Recompenses premium",
-    subtitle:"28 recompenses mensuelles reservees aux comptes premium.",
+    title:"Calendrier OR",
+    subtitle:"28 recompenses mensuelles reservees aux comptes Premium OR.",
     offers:premiumRewardCalendar
   }
 ];
@@ -366,6 +398,22 @@ export function isPremiumActive(value, now = Date.now()){
   return player.premiumActive === true && until <= 0;
 }
 
+// Missing Gold expiry means a subscription bought before the two tiers existed.
+// An explicit zero belongs to a classic subscription and must stay explicit.
+export function getPremiumGoldUntil(value){
+  const player = normalizePlayer(value) || {};
+  if(player.premiumGoldUntil === undefined) return getPremiumUntil(player);
+  const until = Number(player.premiumGoldUntil);
+  return Number.isFinite(until) ? Math.max(0, until) : 0;
+}
+
+export function isPremiumGoldActive(value, now = Date.now()){
+  const player = normalizePlayer(value) || {};
+  if(!isPremiumActive(player, now)) return false;
+  if(player.premiumGoldUntil === undefined) return true;
+  return getPremiumGoldUntil(player) > Number(now || Date.now());
+}
+
 export function getPremiumRemainingMs(value, now = Date.now()){
   return Math.max(0, getPremiumUntil(value) - Number(now || Date.now()));
 }
@@ -383,12 +431,18 @@ export function hasNovaDiscount(price, value, now = Date.now()){
 
 export function applyPremiumPackToPlayer(player, pack, now = Date.now()){
   if(!player || !pack) return 0;
-  const days = Math.max(0, Number(pack.days || 0));
-  const start = Math.max(Number(now || Date.now()), getPremiumUntil(player));
-  const until = start + days * PREMIUM_DAY_MS;
-  player.premiumUntil = until;
+  const days = Number(pack.days || 0);
+  if(!Number.isFinite(days) || days <= 0) return getPremiumUntil(player);
+  const timestamp = Number(now || Date.now());
+  const previousGoldUntil = getPremiumGoldUntil(player);
+  const until = Math.max(timestamp, getPremiumUntil(player)) + days * PREMIUM_DAY_MS;
+  const goldUntil = pack.tier === "classic"
+    ? previousGoldUntil
+    : Math.max(timestamp, previousGoldUntil) + days * PREMIUM_DAY_MS;
+  player.premiumGoldUntil = goldUntil;
+  player.premiumUntil = Math.max(until, goldUntil);
   player.premiumActive = true;
-  return until;
+  return player.premiumUntil;
 }
 
 export function premiumRemainingLabel(value, now = Date.now()){
@@ -438,12 +492,13 @@ export function getPremiumRewardStatus(profile = {}, now = Date.now()){
   const nextDay = Math.min(PREMIUM_REWARD_DAYS, claimedCount + 1);
   const completed = claimedCount >= PREMIUM_REWARD_DAYS;
   const premiumActive = isPremiumActive(profile?.player ? profile.player : profile, now);
+  const premiumGoldActive = isPremiumGoldActive(profile?.player ? profile.player : profile, now);
   const todayKey = premiumRewardDateKey(now);
   const claimedToday = rewardState.lastClaimDate === todayKey;
-  const canClaim = premiumActive && !completed && !claimedToday;
+  const canClaim = premiumGoldActive && !completed && !claimedToday;
   let reason = "";
   if(completed) reason = "Calendrier premium termine pour ce mois.";
-  else if(!premiumActive) reason = "Premium requis.";
+  else if(!premiumGoldActive) reason = "Premium OR requis.";
   else if(claimedToday) reason = "Recompense deja reclamee aujourd'hui.";
   return {
     state:rewardState,
@@ -453,6 +508,7 @@ export function getPremiumRewardStatus(profile = {}, now = Date.now()){
     nextDay,
     reward:premiumRewardCalendar[nextDay - 1] || null,
     premiumActive,
+    premiumGoldActive,
     claimedToday,
     canClaim,
     completed,

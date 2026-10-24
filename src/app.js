@@ -1,7 +1,7 @@
 import { ammoTypes, portals, rawMaterialCatalog } from "./data/catalog.js?v=20260726-ancient1";
 import { handleBetaStoreInteraction } from "./ui/betaStore.js?v=20261023-boutique1";
-import { handleSupportStoreInteraction } from "./ui/supportStore.js?v=20261024-premium2";
-import { handlePremiumPassInteraction } from "./ui/premiumPassStore.js?v=20261024-premium2";
+import { handleSupportStoreInteraction } from "./ui/supportStore.js?v=20261024-boutique3";
+import { handlePremiumPassInteraction } from "./ui/premiumPassStore.js?v=20261024-boutique3";
 import {
   ensureShipLoadout,
   findEquippedSlot,

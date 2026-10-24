@@ -30,7 +30,7 @@
   line-height:1.5;
   max-width:760px;
 }
-#premiumStorePanel.beta-store-panel .pps-payment-switch {
+#premiumStorePanel.beta-store-panel .pps-tier-switch {
   display:flex;
   flex:none;
   align-items:stretch;
@@ -41,7 +41,7 @@
   border-radius:5px;
   background:#061925;
 }
-#premiumStorePanel.beta-store-panel .pps-payment-switch button {
+#premiumStorePanel.beta-store-panel .pps-tier-switch button {
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -57,20 +57,20 @@
   line-height:1.25;
   cursor:pointer;
 }
-#premiumStorePanel.beta-store-panel .pps-payment-switch button svg {
+#premiumStorePanel.beta-store-panel .pps-tier-switch button svg {
   width:21px;
   height:21px;
   flex:none;
 }
-#premiumStorePanel.beta-store-panel .pps-payment-switch button.active,
-#premiumStorePanel.beta-store-panel .pps-payment-switch button[aria-pressed="true"],
-#premiumStorePanel.beta-store-panel .pps-payment-switch button[aria-selected="true"] {
+#premiumStorePanel.beta-store-panel .pps-tier-switch button.active,
+#premiumStorePanel.beta-store-panel .pps-tier-switch button[aria-pressed="true"],
+#premiumStorePanel.beta-store-panel .pps-tier-switch button[aria-selected="true"] {
   border-color:var(--bs-cyan);
   background:linear-gradient(#0c3b4d,#082534);
   box-shadow:inset 0 0 10px #27c7e514;
   color:var(--bs-text);
 }
-#premiumStorePanel.beta-store-panel .pps-payment-switch button:hover {
+#premiumStorePanel.beta-store-panel .pps-tier-switch button:hover {
   border-color:#4d8599;
   color:var(--bs-text);
 }
@@ -105,6 +105,28 @@
   filter:drop-shadow(0 5px 10px #0008);
 }
 #premiumStorePanel.beta-store-panel .pps-copy { min-width:0; }
+#premiumStorePanel.beta-store-panel .pps-formula {
+  display:block;
+  margin-bottom:5px;
+  color:var(--bs-cyan);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+#premiumStorePanel.beta-store-panel .pps-layout-gold .pps-tier-switch button[data-premium-tier="gold"].active {
+  border-color:#d4b864;
+  background:linear-gradient(#3e3420,#211e16);
+  color:#f4d67a;
+}
+#premiumStorePanel.beta-store-panel .pps-offer-gold { border-color:#8c7741; }
+#premiumStorePanel.beta-store-panel .pps-offer-gold .pps-formula,
+#premiumStorePanel.beta-store-panel .pps-layout-gold .pps-benefits h3 { color:#f4d67a; }
+#premiumStorePanel.beta-store-panel .pps-gold-benefit .pps-benefit-icon {
+  border-color:#8c7741;
+  background:radial-gradient(circle at 40% 30%,#3b3420,#211e15);
+  color:#f4d67a;
+}
 #premiumStorePanel.beta-store-panel .pps-copy h3 {
   margin:0 0 8px;
   color:var(--bs-text);
@@ -280,7 +302,7 @@
   flex:none;
   color:var(--bs-cyan);
 }
-#premiumStorePanel.beta-store-panel .pps-payment-switch button:focus-visible,
+#premiumStorePanel.beta-store-panel .pps-tier-switch button:focus-visible,
 #premiumStorePanel.beta-store-panel .pps-all-benefits:focus-visible,
 #premiumStorePanel.beta-store-panel .pps-calendar-link button:focus-visible {
   outline:2px solid var(--bs-cyan);
@@ -289,7 +311,7 @@
 @media(max-width:1450px) {
   #premiumStorePanel.beta-store-panel .pps-layout { gap:18px; grid-template-columns:minmax(0,1fr) minmax(250px,32%); }
   #premiumStorePanel.beta-store-panel .pps-heading { align-items:flex-start; flex-wrap:wrap; }
-  #premiumStorePanel.beta-store-panel .pps-payment-switch { margin-left:auto; }
+  #premiumStorePanel.beta-store-panel .pps-tier-switch { margin-left:auto; }
   #premiumStorePanel.beta-store-panel .pps-offer { grid-template-columns:135px minmax(0,1fr) 140px 125px; gap:14px; padding:14px; }
   #premiumStorePanel.beta-store-panel .pps-copy h3 { font-size:26px; }
   #premiumStorePanel.beta-store-panel .pps-copy p { font-size:15px; }
@@ -320,7 +342,7 @@
 }
 @media(max-width:760px) {
   #premiumStorePanel.beta-store-panel .pps-heading { flex-wrap:wrap; }
-  #premiumStorePanel.beta-store-panel .pps-payment-switch { margin-left:0; }
+  #premiumStorePanel.beta-store-panel .pps-tier-switch { margin-left:0; }
   #premiumStorePanel.beta-store-panel .pps-offer { grid-template-columns:115px minmax(0,1fr) 125px; gap:10px 14px; }
   #premiumStorePanel.beta-store-panel .pps-art { grid-row:1 / 3; }
   #premiumStorePanel.beta-store-panel .pps-copy { grid-row:1 / 3; }
@@ -336,7 +358,7 @@
   #premiumStorePanel.beta-store-panel .pps-heading { gap:13px; margin-bottom:15px; }
   #premiumStorePanel.beta-store-panel .pps-heading h2 { font-size:26px; }
   #premiumStorePanel.beta-store-panel .pps-heading p { font-size:13px; }
-  #premiumStorePanel.beta-store-panel .pps-payment-switch button { min-width:90px; }
+  #premiumStorePanel.beta-store-panel .pps-tier-switch button { min-width:90px; }
   #premiumStorePanel.beta-store-panel .pps-offer { grid-template-columns:90px minmax(0,1fr); gap:12px; min-height:0; padding:13px; }
   #premiumStorePanel.beta-store-panel .pps-art { grid-row:auto; grid-column:1; }
   #premiumStorePanel.beta-store-panel .pps-art img { height:82px; }
@@ -364,6 +386,6 @@
   #premiumStorePanel.beta-store-panel .pps-benefits ul { grid-template-columns:minmax(0,1fr); }
 }
 @media(pointer:coarse) {
-  #premiumStorePanel.beta-store-panel .pps-payment-switch button,
+  #premiumStorePanel.beta-store-panel .pps-tier-switch button,
   #premiumStorePanel.beta-store-panel .pps-calendar-link button { min-height:44px; }
 }

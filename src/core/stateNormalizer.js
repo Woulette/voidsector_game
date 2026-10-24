@@ -5,7 +5,7 @@ import { getDroneCatalog, getItem, getQuest, getRawMaterial, getShip } from "./c
 import { enforcePlayerCurrencyMinimums } from "./currencyStore.js?v=20260726-kharon1";
 import { cleanDroneLoadout, ensureShipLoadout, getDroneLoadout, getInventoryItem, getItemFromInventoryUid, normalizeDroneSkinState } from "./equipmentStore.js?v=20260726-kharon1";
 import { normalizeGraphicsQuality } from "./graphicsStore.js?v=20260726-kharon1";
-import { isPremiumActive, normalizePremiumRewardState, normalizeStarterPackPurchases } from "../data/premium.js";
+import { getPremiumGoldUntil, isPremiumActive, normalizePremiumRewardState, normalizeStarterPackPurchases } from "../data/premium.js";
 import { calculateMonsterRankPointsForKills } from "../data/ranks.js";
 import { getRankScore } from "./rankStore.js?v=20260726-kharon1";
 import { getCraftRecipe } from "../data/craftingRecipes.js?v=20260726-kharon1";
@@ -85,6 +85,7 @@ export function normalizeState(saved, {migrateLegacyDroneSkins = false} = {}){
   merged.player.missileShotsFired = Math.max(0, Number(merged.player.missileShotsFired || 0));
   merged.player.premiumUntil = Math.max(0, Number(merged.player.premiumUntil || 0));
   merged.player.premiumActive = isPremiumActive(merged.player);
+  if(merged.player.premiumGoldUntil !== undefined) merged.player.premiumGoldUntil = getPremiumGoldUntil(merged.player);
   merged.boosters = sanitizePlayerBoosterState(saved?.boosters || base.boosters);
   merged.premiumRewardState = normalizePremiumRewardState(saved?.premiumRewardState || base.premiumRewardState);
   merged.starterPackPurchases = normalizeStarterPackPurchases(saved?.starterPackPurchases || base.starterPackPurchases);

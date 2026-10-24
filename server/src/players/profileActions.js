@@ -14,7 +14,7 @@ import { getShipProgressionLockReason } from "../../../src/shared/progressionUnl
 import { appendProfileActivity } from "./activityLog.js";
 import { depositServerCombatBoostMaterial } from "../economy/combatBoosts.js";
 import { sellServerCommerceMaterials } from "../economy/materialCommerce.js";
-import { applyPremiumPackToPlayer, claimBetaRewardState, claimPremiumRewardState } from "../../../src/data/premium.js";
+import { claimBetaRewardState, claimPremiumRewardState } from "../../../src/data/premium.js";
 import { BOOSTER_TYPE_IDS, addPlayerBoosterUnits } from "../../../src/shared/firmBoosters.js";
 import { canAcceptQuestDuringTutorial } from "../../../src/shared/tutorial.js";
 import { abandonTutorialAfterOutsideQuestAction } from "./tutorialActions.js";
@@ -298,20 +298,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
   }
 
   function addPremiumPackPurchase({player, purchase} = {}){
-    return spendAndUpdate({
-      player,
-      priceType:purchase?.priceType,
-      amount:purchase?.totalPrice,
-      update:profile=>{
-        applyPremiumPackToPlayer(profile.player, purchase);
-      },
-      activity:{
-        type:"premium_purchase",
-        label:"Pass premium",
-        detail:`${purchase?.id || "premium"} active pour ${Math.max(0, Number(purchase?.days || 0))} jours.`,
-        data:{packId:purchase?.id || "", price:Number(purchase?.totalPrice || 0), priceType:purchase?.priceType || "premium", days:Number(purchase?.days || 0)}
-      }
-    });
+    // Retired NOVA endpoint: never accept a caller-supplied price or grant a term.
+    return {ok:false, reason:"Les abonnements Premium sont disponibles uniquement en euros. Paiement à venir."};
   }
 
   function ensureShipOwned(profile, shipId){

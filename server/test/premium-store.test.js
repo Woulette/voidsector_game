@@ -22,13 +22,13 @@ function createPremiumActionFixture(profile = createDefaultProfile()){
   };
 }
 
-test("premium daily reward requires an active premium subscription", ()=>{
+test("premium daily reward requires an active Premium OR subscription", ()=>{
   const fixture = createPremiumActionFixture();
 
   const result = fixture.manager.claimPremiumReward({player:{name:"Pilot"}});
 
   assert.equal(result.ok, false);
-  assert.match(result.reason, /Premium requis/);
+  assert.match(result.reason, /Premium OR requis/);
   assert.equal(fixture.persisted, 0);
 });
 

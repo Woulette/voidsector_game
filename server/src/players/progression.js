@@ -1,4 +1,4 @@
-import { getNovaDiscountedPrice, isPremiumActive } from "../../../src/data/premium.js";
+import { getNovaDiscountedPrice, getPremiumGoldUntil, isPremiumActive } from "../../../src/data/premium.js";
 import { getXpNextForLevel } from "../../../src/data/xpCurve.js";
 
 export { getXpNextForLevel };
@@ -15,6 +15,7 @@ export const PROTECTED_PLAYER_FIELDS = [
   "premium",
   "premiumUntil",
   "premiumActive",
+  "premiumGoldUntil",
   "xp",
   "totalXp",
   "level",
@@ -59,6 +60,7 @@ export function normalizeProgressionPlayer(player = {}, levelCap = 100){
     premiumActive:isPremiumActive(player),
     xp,
     totalXp:Math.max(0, Math.round(Number(player.totalXp || 0))),
+    ...(player.premiumGoldUntil === undefined ? {} : {premiumGoldUntil:getPremiumGoldUntil(player)}),
     reputation:Math.max(0, Math.round(Number(player.reputation || 0))),
     totalKills:Math.max(0, Math.round(Number(player.totalKills || 0))),
     totalPlayerKills:Math.max(0, Math.round(Number(player.totalPlayerKills || 0))),

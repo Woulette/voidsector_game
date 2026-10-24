@@ -1,6 +1,5 @@
-import { getAmmoPurchase, getBetaPackPurchase, getBoosterPurchase, getDroneFormationPurchase, getItemPurchase, getPremiumPackPurchase, getShipPurchase } from "../economy/shop.js";
+import { getAmmoPurchase, getBetaPackPurchase, getBoosterPurchase, getDroneFormationPurchase, getItemPurchase, getShipPurchase } from "../economy/shop.js";
 import { getServerMaterialCommerceAccess } from "../economy/materialCommerce.js";
-import { premiumRemainingLabel } from "../../../src/data/premium.js";
 import { confirmProfileSave } from "./profileSaveGuard.js";
 
 function emitQuestProgress(socket, result){
@@ -446,33 +445,11 @@ export function registerEconomyHandlers(socket, context){
     emitProfileSync(player, result.profile);
   });
 
-  socket.on("shop:buy-premium-pack", async payload=>{
+  socket.on("shop:buy-premium-pack", ()=>{
     if(!guard("shop:buy-premium-pack")) return;
     const player = players.get(socket.id);
     if(!player) return;
-    const purchase = getPremiumPackPurchase(payload?.id);
-    if(!purchase){
-      socket.emit("shop:error", {message:"Pack premium inconnu."});
-      return;
-    }
-    const result = profileManager.addPremiumPackPurchase({player, purchase});
-    if(!result.ok){
-      socket.emit("shop:error", {message:result.reason || "Achat premium impossible."});
-      return;
-    }
-    if(!await ensureSaved(socket, result, "shop:error")) return;
-    socket.emit("shop:premium-pack-bought", {
-      id:purchase.id,
-      name:purchase.name,
-      days:purchase.days,
-      priceType:purchase.priceType,
-      price:result.cost,
-      basePrice:purchase.totalPrice,
-      remaining:premiumRemainingLabel(result.profile?.player),
-      premiumUntil:result.profile?.player?.premiumUntil || 0,
-      at:Date.now()
-    });
-    emitProfileSync(player, result.profile);
+    socket.emit("shop:error", {message:"Les abonnements Premium sont disponibles uniquement en euros. Paiement à venir."});
   });
 
   socket.on("shop:buy-beta-pack", async payload=>{

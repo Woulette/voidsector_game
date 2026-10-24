@@ -71,7 +71,7 @@ export const SERVER_PREMIUM_PACK_SHOP = Object.fromEntries(premiumShopPacks.map(
     id:pack.id,
     name:pack.name,
     priceType:pack.priceType,
-    price:Number(pack.price || 0),
+    tier:pack.tier,
     days:Number(pack.days || 0),
     realPrice:pack.realPrice || ""
   }
@@ -225,7 +225,8 @@ export function getPremiumPackPurchase(id){
   if(!pack) return null;
   return {
     ...pack,
-    totalPrice:Math.max(0, Math.round(Number(pack.price || 0)))
+    locked:true,
+    reason:"Les abonnements Premium sont disponibles uniquement en euros. Paiement à venir."
   };
 }
 

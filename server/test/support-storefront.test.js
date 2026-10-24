@@ -10,7 +10,6 @@ import {
   starterPacks,
   storeTabs
 } from "../../src/data/premium.js";
-import { getShopCurrencyPrice } from "../../src/shared/shopPricing.js";
 import {
   handleSupportStoreInteraction,
   renderStoreNavigation,
@@ -20,7 +19,7 @@ import {
 
 const now = Date.UTC(2026, 9, 24, 12);
 const month = premiumRewardMonthKey(now);
-const activePlayer = {premium:1_000_000, premiumUntil:now + 90 * 86_400_000, reputation:0};
+const activePlayer = {premium:1_000_000, premiumUntil:now + 90 * 86_400_000, premiumGoldUntil:now + 90 * 86_400_000, reputation:0};
 
 function textContent(html){
   return String(html).replace(/<[^>]*>/g, " ")
@@ -61,64 +60,63 @@ test("support navigation exposes the five real sections and preserves a Beta-onl
   assert.deepEqual(profile, before);
 });
 
-test("Premium pass details distinguish euro offers from server-priced NOVA activations", ()=>{
-  const profile = {player:{...activePlayer, premiumUntil:0, reputation:0}};
-  const html = pureRender(renderSupportStorefront, profile, "premium", {now});
+test("the four Premium and OR durations expose their approved euro prices without NOVA purchase actions", ()=>{
+  const profile = {player:{...activePlayer, premiumUntil:0, premiumGoldUntil:0, reputation:0}};
   for(const pack of premiumShopPacks){
+    const html = pureRender(renderSupportStorefront, profile, "premium", {now,tier:pack.tier});
     assert.ok(hasValue(html, "data-store-offer", pack.id), pack.id);
     assertEuroPrice(html, pack.realPrice);
     const detail = pureRender(renderSupportStoreModal, profile, {kind:"premium", id:pack.id}, {now});
     assertEuroPrice(detail, pack.realPrice);
     assert.equal(enabledActions(detail, "data-buy-premium-pack").length, 0);
-    const novaDetail = pureRender(renderSupportStoreModal, profile, {kind:"premium", id:pack.id}, {now,payment:"premium"});
-    assert.ok(compactText(novaDetail).includes(String(getShopCurrencyPrice("premium", pack.price, profile.player))));
-    assert.equal(enabledActions(novaDetail, "data-buy-premium-pack").length, 1);
-    assert.ok(hasValue(novaDetail, "data-buy-premium-pack", pack.id));
+    assert.doesNotMatch(html, /data-buy-premium-pack|data-premium-payment/);
     assert.doesNotMatch(detail, /data-(?:checkout|pay-real|buy-real|purchase-real)/);
   }
 });
 
-test("the NOVA pass amount includes existing Premium reductions and reputation adjustments", ()=>{
+test("Premium euro prices do not change with NOVA balance or reputation", ()=>{
   for(const player of [
     {...activePlayer},
     {...activePlayer, reputation:-10_000},
-    {...activePlayer, premiumUntil:0, reputation:-100_000}
+    {...activePlayer, premiumUntil:0, premiumGoldUntil:0, reputation:-100_000}
   ]){
     for(const pack of premiumShopPacks){
       const profile = {player};
-      const html = pureRender(renderSupportStoreModal, profile, {kind:"premium", id:pack.id}, {now,payment:"premium"});
-      const expected = getShopCurrencyPrice("premium", pack.price, player);
-      assert.ok(compactText(html).includes(String(expected)), `${pack.id}: expected ${expected} NOVA`);
-      assert.equal(enabledActions(html, "data-buy-premium-pack").length, 1);
+      const html = pureRender(renderSupportStoreModal, profile, {kind:"premium", id:pack.id}, {now});
+      assertEuroPrice(html,pack.realPrice);
+      assert.equal(enabledActions(html, "data-buy-premium-pack").length, 0);
     }
   }
 });
 
-test("NOVA activation is unavailable below the actual pass price and available at the exact balance", ()=>{
+test("legacy NOVA presentation requests cannot restore an abonnement activation action", ()=>{
   for(const pack of premiumShopPacks){
-    const player = {...activePlayer, reputation:-10_000};
-    const cost = getShopCurrencyPrice("premium", pack.price, player);
-    const insufficient = pureRender(renderSupportStoreModal, {player:{...player,premium:cost-1}}, {kind:"premium",id:pack.id}, {now,payment:"premium"});
-    assert.equal(enabledActions(insufficient, "data-buy-premium-pack").length, 0);
-    const exact = pureRender(renderSupportStoreModal, {player:{...player,premium:cost}}, {kind:"premium",id:pack.id}, {now,payment:"premium"});
-    assert.equal(enabledActions(exact, "data-buy-premium-pack").length, 1);
+    for(const premium of [0,20_000,75_000,1_000_000_000]){
+      const html = pureRender(renderSupportStoreModal, {player:{...activePlayer,premium}}, {kind:"premium",id:pack.id}, {now,payment:"premium"});
+      assert.doesNotMatch(html, /data-buy-premium-pack|data-premium-payment/);
+      assertEuroPrice(html,pack.realPrice);
+    }
   }
 });
 
 test("the twelve real-money currency offers preserve configured quantities and prices without purchase commands", ()=>{
   const profile = {player:{...activePlayer}};
-  const html = pureRender(renderSupportStorefront, profile, "currencies", {now});
   const packs = [...novaCurrencyPacks, ...creditCurrencyPacks];
   assert.equal(packs.length, 12);
-  assert.equal((html.match(/data-store-offer-kind="currency"/g) || []).length, packs.length);
+  const nova = pureRender(renderSupportStorefront, profile, "currencies", {now,currency:"nova"});
+  const credits = pureRender(renderSupportStorefront, profile, "currencies", {now,currency:"credits"});
+  for(const html of [nova,credits]){
+    assert.equal((html.match(/data-store-offer-kind="currency"/g) || []).length, 6);
+    assert.doesNotMatch(html, /data-(?:buy|checkout|pay-real|purchase)-/);
+  }
   for(const pack of packs){
+    const html = pack.tag === "NOVA" ? nova : credits;
     assert.ok(hasValue(html, "data-store-offer", pack.id), pack.id);
     const detail = pureRender(renderSupportStoreModal, profile, {kind:"currency",id:pack.id}, {now});
     assertEuroPrice(detail, pack.price);
     assert.ok(compactText(detail).includes(String(pack.amount)));
     assert.doesNotMatch(detail, /data-(?:buy|checkout|pay-real|purchase)-/);
   }
-  assert.doesNotMatch(html, /data-(?:buy|checkout|pay-real|purchase)-/);
 });
 
 test("both Starter packs expose their actual contents while real-money activation remains unavailable", ()=>{
@@ -170,7 +168,7 @@ test("inactive Premium accounts may inspect the calendar but cannot recover a re
   assert.equal(enabledActions(detail, "data-claim-premium-reward").length, 0);
 });
 
-test("an active Premium account may recover only the next unclaimed reward", ()=>{
+test("an active Premium OR account may recover only the next unclaimed reward", ()=>{
   const profile = {player:{...activePlayer},premiumRewardState:{monthKey:month,claimedDays:[1,2],lastClaimDate:""}};
   const html = pureRender(renderSupportStorefront, profile, "rewards", {now});
   assert.equal(enabledActions(html, "data-claim-premium-reward").length, 1);
@@ -205,7 +203,7 @@ test("completed monthly calendars stay blocked until the real next calendar mont
   assert.equal(enabledActions(future, "data-claim-premium-reward").length, 0);
 });
 
-test("opening a valid Premium day alters presentation state only and rejects malformed days", ()=>{
+test("selecting a valid OR day updates the inline presentation without mutating the profile or opening a modal", ()=>{
   const store = {state:{player:{...activePlayer},premiumRewardState:{monthKey:month,claimedDays:[1]}},storeModal:null};
   const before = structuredClone(store.state);
   let renders = 0;
@@ -214,7 +212,8 @@ test("opening a valid Premium day alters presentation state only and rejects mal
     return selector === "[data-premium-calendar-day]" ? {dataset:{premiumCalendarDay:String(id)}} : null;
   }}});
   assert.equal(handleSupportStoreInteraction(event(28), context), true);
-  assert.deepEqual(store.storeModal, {kind:"premium-reward",id:"28"});
+  assert.equal(store.premiumCalendarDay,28);
+  assert.equal(store.storeModal,null);
   assert.equal(renders, 1);
   assert.deepEqual(store.state, before);
   for(const id of [0,29,"no-day",1.5]) assert.equal(handleSupportStoreInteraction(event(id), context), false);
