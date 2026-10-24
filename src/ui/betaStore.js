@@ -17,18 +17,8 @@ function escapeHtml(value){
 
 function packName(pack){ return pack.name.replace(/^Pack Beta /, ""); }
 function euroPrice(pack){ return String(pack.price || "").replace(/ EUR$/, " €"); }
-function contentLabel(item){
-  return String(item.label || "")
-    .replace(/^Vaisseau /, "")
-    .replace(/^Canon Laser /, "Laser ")
-    .replace(/^Generateur A /, "Bouclier A ")
-    .replace(/^Generateur Vitesse /, "Vitesse ")
-    .replace(/^Munition /, "Munitions ")
-    .replace(/^Drone de Reparation Rouge$/, "Drone réparation");
-}
-
 function packContents(pack){
-  return `<div class="sc-starter-items bs-pack-inventory" style="--bs-item-count:${pack.contents.length}" aria-label="Contenu du pack ${escapeHtml(packName(pack))}">${pack.contents.map(item=>`<figure title="${escapeHtml(item.label)} · ${escapeHtml(item.quantity)}"><div><img src="${escapeHtml(item.img)}" alt="" decoding="async"><b>${escapeHtml(item.quantity)}</b></div><figcaption>${escapeHtml(contentLabel(item))}</figcaption></figure>`).join("")}</div>`;
+  return `<div class="sc-starter-items bs-pack-inventory" style="--bs-item-count:${pack.contents.length}" aria-label="Contenu du pack ${escapeHtml(packName(pack))}">${pack.contents.map(item=>`<figure aria-label="${escapeHtml(item.label)} · ${escapeHtml(item.quantity)}"><div><img src="${escapeHtml(item.img)}" alt="" decoding="async"><b>${escapeHtml(item.quantity)}</b></div></figure>`).join("")}</div>`;
 }
 
 function officialBonus(pack){

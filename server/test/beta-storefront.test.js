@@ -17,7 +17,7 @@ test("the Beta storefront shows the three approved packs and all 25 real rewards
     const card = html.split("<article").find(markup=>markup.includes(`data-store-offer="${pack.id}"`));
     assert.ok(card);
     for(const item of pack.contents){
-      assert.ok(card.includes(`title="${item.label} · ${item.quantity}"`), `${pack.name}: ${item.label} and its quantity remain visible`);
+      assert.ok(card.includes(`aria-label="${item.label} · ${item.quantity}"`), `${pack.name}: ${item.label} and its quantity remain accessible`);
       assert.ok(card.includes(`src="${item.img}"`), `${pack.name}: real illustration for ${item.label}`);
     }
   }
