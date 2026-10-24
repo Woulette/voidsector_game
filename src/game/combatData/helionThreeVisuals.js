@@ -1,12 +1,13 @@
 export const HELION_THREE_ASSETS = Object.freeze({
-  nebula:"assets/maps/decor/astra02_nebula_mass_cutout.png",
+  nebula:"assets/maps/decor/helion03-layered-v1/scarlet-ridge.webp",
+  haze:"assets/maps/decor/helion01-v1/nebula-crimson.png",
   dust:"assets/maps/decor/helion01-v3/dust-wisp.png",
   planet:"assets/maps/decor/helion03-cataclysm-v1/shattered-planet.webp"
 });
 
 export const HELION_THREE_PARAMETERS = Object.freeze({
-  x:1600, y:-1100, w:3000, h:3000 * 923 / 1704,
-  p:.060, alpha:.76, rotation:-.10
+  x:-2400, y:-1200, w:1300, h:1300 * 941 / 1672,
+  p:.060, alpha:.70, rotation:0
 });
 
 // At the sector centre, the very slow layer sits about 270 units right and
@@ -24,10 +25,22 @@ export function createHelionThreeScene(map){
     enabled:true, hideGrid:true, clipToBounds:false, showBoundary:false,
     background:["#080409", "#200912", "#09040a"],
     edgeFadeDistance:460, skyFade:{inside:900,outside:120}, vignetteOpacity:.40,
-    // Retain the approved single distant red/copper nebula composition.
-    backdrops:[{
+    // The same restrained atmosphere as Helion-01/02, below one coherent
+    // native-detail ridge. No low-resolution full-screen poster is enlarged.
+    backdrops:[
+      {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.dust,space:"map",
+        x:-2500,y:-1000,w:2400,h:1400,p:.065,alpha:.065,rotation:.35,edgeFade:false},
+      {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.haze,space:"map",
+        x:3200,y:1800,w:2000,h:1500,p:.085,alpha:.080,rotation:-.40,flipX:true,edgeFade:false},
+      {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.haze,space:"map",
+        x:-4500,y:-3400,w:1800,h:1300,p:.10,alpha:.065,rotation:.20,edgeFade:false},
+      {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.haze,space:"map",
+        x:4400,y:-2800,w:1700,h:1100,p:.11,alpha:.065,rotation:-.25,flipX:true,edgeFade:false},
+      {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.dust,space:"map",
+        x:1400,y:3600,w:2100,h:900,p:.12,alpha:.055,rotation:.60,edgeFade:false},
+      {
       ...HELION_THREE_PARAMETERS, kind:"nebula", effect:"nebulae",
-      src:HELION_THREE_ASSETS.nebula, space:"map", blend:"screen", edgeFade:false, minimap:true
+      src:HELION_THREE_ASSETS.nebula, space:"map", edgeFade:false, minimap:true
     }],
     images:[
       {kind:"planet", src:HELION_THREE_ASSETS.planet, space:"map",

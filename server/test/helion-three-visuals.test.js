@@ -68,7 +68,10 @@ test("all four graph-installed portals keep destinations, arrival coordinates, r
 });
 
 test("seeded enemies, close rocks, stars and dust remain byte-for-byte identical",()=>{
-  assert.deepEqual(buildMapState(helion),buildMapState(original));
+  const generated=buildMapState(helion);
+  assert.deepEqual(generated,buildMapState(original));
+  assert.equal(generated.state.enemies.length,50);assert.equal(generated.state.asteroids.length,2240);
+  assert.equal(generated.state.stars.length,660);assert.equal(generated.state.dust.length,70);
   assert.deepEqual(buildMapState(helion,200),buildMapState(original,200));
   assert.equal(scene.asteroidFields,original.parallaxScene.asteroidFields);
   assert.equal(scene.tiles,original.parallaxScene.tiles);
@@ -88,12 +91,27 @@ test("existing asteroid and meteor image layers retain their objects and the inp
   for(let index=1;index<result.images.length;index++)assert.ok(result.images[index-1].p<=result.images[index].p);
 });
 
-test("the approved coherent nebula, sparse veils and static halos keep their original composition",()=>{
-  assert.deepEqual(HELION_THREE_PARAMETERS,{x:1600,y:-1100,w:3000,h:3000*923/1704,p:.06,alpha:.76,rotation:-.10});
+test("a native-detail nebula sits over five restrained atmospheric layers while approved veils and halos remain",()=>{
+  assert.deepEqual(HELION_THREE_PARAMETERS,{x:-2400,y:-1200,w:1300,h:1300*941/1672,p:.06,alpha:.70,rotation:0});
   assert.deepEqual(scene.background,["#080409","#200912","#09040a"]);
-  assert.equal(scene.backdrops.length,1);
-  assert.deepEqual(scene.backdrops[0],{...HELION_THREE_PARAMETERS,kind:"nebula",effect:"nebulae",
-    src:HELION_THREE_ASSETS.nebula,space:"map",blend:"screen",edgeFade:false,minimap:true});
+  const landmarks=scene.backdrops.filter(layer=>layer.kind==="nebula");
+  assert.equal(landmarks.length,1);
+  assert.deepEqual(landmarks[0],{...HELION_THREE_PARAMETERS,kind:"nebula",effect:"nebulae",
+    src:HELION_THREE_ASSETS.nebula,space:"map",edgeFade:false,minimap:true});
+  const atmosphere=scene.backdrops.filter(layer=>layer!==landmarks[0]);
+  assert.equal(atmosphere.length,5);
+  const profiles=[
+    [HELION_THREE_ASSETS.dust,-2500,-1000,2400,1400,.065,.065],
+    [HELION_THREE_ASSETS.haze,3200,1800,2000,1500,.085,.080],
+    [HELION_THREE_ASSETS.haze,-4500,-3400,1800,1300,.10,.065],
+    [HELION_THREE_ASSETS.haze,4400,-2800,1700,1100,.11,.065],
+    [HELION_THREE_ASSETS.dust,1400,3600,2100,900,.12,.055]
+  ];
+  assert.deepEqual(atmosphere.map(({src,x,y,w,h,p,alpha})=>[src,x,y,w,h,p,alpha]),profiles);
+  assert.ok(atmosphere.every(layer=>layer.kind==="cloud"&&layer.effect==="nebulae"&&layer.edgeFade===false&&layer.minimap!==true));
+  assert.ok(scene.backdrops.every(layer=>!layer.src.includes("astra02_nebula_mass")));
+  assert.ok(HELION_THREE_PARAMETERS.w*.78*1.5/1672<=1,"The detailed hero must not upscale at zoom78% and DPR1.5");
+  assert.ok(HELION_THREE_PARAMETERS.w/1672<=1,"Standard zoom at DPR1 keeps native detail");
   assert.deepEqual(scene.images.filter(layer=>layer.kind==="cloud"),[
     {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.dust,space:"map",x:-3400,y:-1700,w:1900,h:950,p:.34,alpha:.105,rotation:.22,edgeFade:true,minimap:false},
     {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.dust,space:"map",x:3500,y:2400,w:1600,h:800,p:.48,alpha:.085,rotation:-.28,flipX:true,edgeFade:true,minimap:false}
@@ -117,7 +135,7 @@ test("one opaque shattered planet stays far away with no artificial rotation or 
   assert.ok(!planet.rotation&&!planet.flipX&&!planet.flipY);assert.equal(planet.edgeFade,false);
   assert.equal(planet.minimap,true);
   assert.ok(!scene.images.some(layer=>["station","spawn","hub"].includes(layer.kind)));
-  for(const layer of [planet,scene.backdrops[0]]){
+  for(const layer of [planet,scene.backdrops.find(layer=>layer.kind==="nebula")]){
     for(const [viewWidth,viewHeight] of [[1366,768],[1920,1080],[1680/.8,1000/.8]]){
       const project=camera=>projectMapSceneryLayer({layer,camera,viewWidth,viewHeight});
       const start=project({x:-1000,y:0}),end=project({x:0,y:500});
@@ -184,8 +202,9 @@ test("streaming loads each art source once and retains the existing three-map ca
     const cache={},assets=createCombatMapAssetCache({cache,maxMaps:3});
     const paths=assets.activate(helion);
     assert.equal(paths.length,new Set(paths).size);
-    assert.ok(paths.length<=6,"The scene adds only three illustrations and its fixed overview");
+    assert.ok(paths.length<=7,"The scene reuses two atmosphere sources, one hero, one planet and its fixed overview plus gates");
     for(const src of Object.values(HELION_THREE_ASSETS))assert.equal(paths.filter(path=>path===src).length,1);
+    assert.ok(!paths.some(path=>path.includes("astra02_nebula_mass")));
     const first=loaded;
     assets.activate(helion);assert.equal(loaded,first);
     for(const id of ["other-a","other-b","other-c"])assets.activate({id,parallaxScene:{images:[{src:id+".png"}]}});
@@ -199,12 +218,15 @@ test("streaming loads each art source once and retains the existing three-map ca
 test("the minimap's scenic planet and cached background stay fixed while live markers remain separate",()=>{
   const source=JSON.stringify(helion);
   const definition=getMiniMapVisualDefinition(helion);
-  assert.equal(definition.image,"assets/maps/minimaps/helion-03-wide-v2.png");
+  assert.equal(definition.image,"assets/maps/minimaps/helion-03-wide-v3.png");
   assert.equal(definition,getMiniMapVisualDefinition(helion));
-  assert.deepEqual(definition.landmarks,{nebula:{x:.6,y:.4,width:.88},planet:{x:.67,y:.34,width:.20}});
+  assert.deepEqual(definition.landmarks,{nebula:{x:.46,y:.53,width:.72},planet:{x:.67,y:.34,width:.20}});
+  assert.deepEqual(definition.atmosphere,{src:HELION_THREE_ASSETS.haze,alpha:.20});
   const snapshot=createMiniMapSnapshotMap(helion);
   assert.deepEqual(snapshot.parallaxScene.images.map(layer=>layer.kind),["nebula","planet"]);
-  assert.deepEqual(snapshot.parallaxScene.backdrops,[]);
+  assert.equal(snapshot.parallaxScene.backdrops.length,1);
+  assert.equal(snapshot.parallaxScene.backdrops[0].src,HELION_THREE_ASSETS.haze);
+  assert.equal(snapshot.parallaxScene.backdrops[0].space,"world");assert.equal(snapshot.parallaxScene.backdrops[0].p,1);
   for(const layer of snapshot.parallaxScene.images){
     const placement=definition.landmarks[layer.kind];
     assert.equal(layer.space,"world");assert.equal(layer.p,1);assert.equal(layer.edgeFade,false);
@@ -231,26 +253,26 @@ test("the minimap's scenic planet and cached background stay fixed while live ma
   assert.equal(JSON.stringify(helion),source);
 });
 
-test("before the atlas loads the same two fixed landmarks draw in order, then the cached atlas takes over once",()=>{
+test("before the atlas loads the fixed atmosphere and two landmarks draw in order, then the atlas takes over once",()=>{
   const surfaces=[],draw=createMiniMapSceneryRenderer({createCanvas(width,height){
     const ctx=context();surfaces.push(ctx);return {width,height,getContext:()=>ctx};
   }});
   const cache=Object.fromEntries(Object.values(HELION_THREE_ASSETS).map(src=>[src,{src,complete:true,naturalWidth:1536,naturalHeight:1024}]));
   const options={ctx:context(),currentMap:helion,cache,rect:{x:0,y:0,w:444,h:200},stations:[]};
   draw(options);
-  assert.deepEqual(surfaces[0].calls.map(args=>args[0].src),[HELION_THREE_ASSETS.nebula,HELION_THREE_ASSETS.planet]);
+  assert.deepEqual(surfaces[0].calls.map(args=>args[0].src),[HELION_THREE_ASSETS.haze,HELION_THREE_ASSETS.nebula,HELION_THREE_ASSETS.planet]);
   for(let frame=0;frame<120;frame++)draw({...options,camera:{x:frame*100,y:frame*-100}});
-  assert.equal(surfaces[0].calls.length,2);
+  assert.equal(surfaces[0].calls.length,3);
   const path=getMiniMapVisualDefinition(helion).image;
   cache[path]={src:path,complete:true,naturalWidth:1200,naturalHeight:540};
   draw(options);
-  assert.equal(surfaces[0].calls.length,3);assert.equal(surfaces[0].calls[2][0],cache[path]);
+  assert.equal(surfaces[0].calls.length,4);assert.equal(surfaces[0].calls[3][0],cache[path]);
   for(let frame=0;frame<120;frame++)draw(options);
-  assert.equal(surfaces[0].calls.length,3);assert.equal(surfaces.length,1);
+  assert.equal(surfaces[0].calls.length,4);assert.equal(surfaces.length,1);
 });
 
 test("backdrops require an explicit minimap opt-in and ordinary clouds and rock images stay excluded",()=>{
-  const selected=scene.backdrops[0],planet=scene.images.find(layer=>layer.kind==="planet");
+  const selected=scene.backdrops.find(layer=>layer.kind==="nebula"),planet=scene.images.find(layer=>layer.kind==="planet");
   const background={kind:"nebula",src:"ordinary-cloud.png"};
   const off={kind:"nebula",src:"disabled-cloud.png",minimap:false};
   const cloud={kind:"cloud",src:"cloud.png",minimap:true};
@@ -283,10 +305,10 @@ function imageDimensions(src){
   assert.equal(data.toString("ascii",0,4),"RIFF");assert.equal(data.toString("ascii",8,12),"WEBP");
   for(let offset=12;offset+8<=data.length;){
     const kind=data.toString("ascii",offset,offset+4),length=data.readUInt32LE(offset+4),start=offset+8;
-    if(kind==="VP8X")return {width:data.readUIntLE(start+4,3)+1,height:data.readUIntLE(start+7,3)+1,bytes:data.length};
+    if(kind==="VP8X")return {width:data.readUIntLE(start+4,3)+1,height:data.readUIntLE(start+7,3)+1,bytes:data.length,hasAlpha:Boolean(data[start]&0x10)};
     if(kind==="VP8L"){
       assert.equal(data[start],0x2f);const bits=data.readUInt32LE(start+1);
-      return {width:(bits&0x3fff)+1,height:((bits>>>14)&0x3fff)+1,bytes:data.length};
+      return {width:(bits&0x3fff)+1,height:((bits>>>14)&0x3fff)+1,bytes:data.length,hasAlpha:Boolean(bits&0x10000000),lossless:true};
     }
     if(kind==="VP8 ")return {width:data.readUInt16LE(start+6)&0x3fff,height:data.readUInt16LE(start+8)&0x3fff,bytes:data.length};
     offset=start+length+(length%2);
@@ -294,8 +316,12 @@ function imageDimensions(src){
   assert.fail("Unsupported WebP image dimensions: "+src);
 }
 
-test("the runtime PNG and WebP assets exist, retain native proportions and keep a bounded planet texture",()=>{
-  const nebula=imageDimensions(HELION_THREE_ASSETS.nebula);assert.deepEqual([nebula.width,nebula.height],[1704,923]);
+test("the transparent lossless hero retains native detail and bounded textures preserve both landmark proportions",()=>{
+  const nebula=imageDimensions(HELION_THREE_ASSETS.nebula);assert.deepEqual([nebula.width,nebula.height],[1672,941]);
+  assert.equal(nebula.hasAlpha,true);assert.equal(nebula.lossless,true);assert.ok(nebula.bytes<=2*1024*1024);
+  const haze=imageDimensions(HELION_THREE_ASSETS.haze);assert.deepEqual([haze.width,haze.height],[1254,1254]);
+  const hero=scene.backdrops.find(layer=>layer.kind==="nebula");
+  assert.ok(Math.abs(hero.h/hero.w-nebula.height/nebula.width)<1e-12);
   const dust=imageDimensions(HELION_THREE_ASSETS.dust);assert.equal(dust.width,1774);assert.equal(dust.height,887);
   const image=imageDimensions(HELION_THREE_ASSETS.planet),planet=scene.images.find(layer=>layer.kind==="planet");
   assert.deepEqual([image.width,image.height],[1536,1024]);

@@ -1,18 +1,22 @@
 # Helion-03 — Sillon écarlate et planète brisée
 
-Le décor local « Sillon écarlate » approuvé devient le fond de Helion-03. La nébuleuse rouge/cuivre conserve sa composition, ses profondeurs sombres et sa lumière chaude. Une planète éventrée, avec un cœur incandescent et des morceaux de croûte arrachés, matérialise le cataclysme demandé dans le lointain.
+Le décor « Sillon écarlate » garde son identité rouge/cuivre et la planète éventrée approuvée. Après le signalement du fond flou, sa composition reprend la méthode de Helion-01/02 : atmosphère sombre, cinq voiles lointains discrets et une seule formation lumineuse détaillée, avec transparence native. La petite image opaque étirée en grand fond est remplacée.
 
 ## Composition et intégration
 
-`helionThreeVisuals.js` applique exclusivement ce décor au couple ID 2 / nom Helion-03. Après la retouche de profondeur, la planète mesure 480 × 320 unités, avec un ancrage 9000 / −5000 et une parallaxe 0,03 : pour 1000 unités de déplacement, elle défile seulement de 30 pixels logiques. Elle est 25 % plus petite et plus centrale que la première publication. Elle reste statique, sans animation d'explosion répétée. La nébuleuse unique garde sa parallaxe 0,06, deux voiles discrets et deux halos chauds fixes.
+`helionThreeVisuals.js` applique exclusivement ce décor au couple ID 2 / nom Helion-03. Après la retouche de profondeur, la planète mesure 480 × 320 unités, avec un ancrage 9000 / −5000 et une parallaxe 0,03 : pour 1000 unités de déplacement, elle défile seulement de 30 pixels logiques. Elle est 25 % plus petite et plus centrale que la première publication. Elle reste statique, sans animation d'explosion répétée. Ces réglages restent identiques après la reconstruction du fond.
+
+La nouvelle nébuleuse mesure 1300 × 731,64 unités pour une source de 1672 × 941 pixels : à zoom 80 % / DPR 1,5, chaque pixel source couvre 0,933 pixel physique, contre 2,113 pour l'ancien fond. Elle utilise l'alpha natif, sans filtre de flou, étirement de ratio, blend screen ou rotation. Son ancrage −2400 / −1200 et sa parallaxe 0,06 placent le sillon à gauche de la planète. Cinq voiles issus de Helion-01/02, avec des opacités de 0,055 à 0,08, remplissent l'atmosphère. Les deux voiles proches et deux halos chauds existants restent identiques. Il n'y a ni tuilage ni mosaïque de petites nébuleuses répétées.
 
 La composition utilise le renderer et le streaming existants. Dimensions de carte, portails, collisions, ennemis, niveaux, quêtes, gains, étoiles et rochers canoniques sont conservés. Les autres cartes ne changent pas.
 
 La planète est un nouvel asset RGBA généré avec le moteur image intégré, puis encodé en WebP lossless sans changer les pixels : `assets/maps/decor/helion03-cataclysm-v1/shattered-planet.webp`, 1536 × 1024, 1 869 652 octets, SHA-256 `ca1eb402e3740b1d836384f537a3c233b10865be4c2a985451ecce96d1663700`. La source PNG et le prompt final sont conservés dans `output/helion03-cataclysm-20261024/` ; la génération d'origine reste dans le dossier d'images générées de Codex.
 
+La nouvelle crête est `assets/maps/decor/helion03-layered-v1/scarlet-ridge.webp`, 1672 × 941 RGBA, alpha 0 à 255, 1 586 854 octets, SHA-256 `c84681a86086de29f2122c3dbea57458dead93dcdbd95a5ef9b4aa03518bdd2e`. Génération image intégrée, conversion WebP lossless avec pixels RGBA inchangés ; source et prompt dans `output/helion03-layered-20261024/`.
+
 ## Mini-carte et aperçu
 
-`assets/maps/minimaps/helion-03-wide-v2.png` est un atlas fixe 1200 × 540 exporté par le renderer réel. Il contient la nébuleuse et la planète, sans vaisseaux, rochers ni marqueurs. Le joueur et les portails sont dessinés séparément. La planète se situe à 67 % / 34 %, avec une largeur de 20 % ; la nébuleuse à 60 % / 40 %, avec une largeur de 88 %. La caméra du joueur ne déplace pas ce fond. La version 1 reste disponible pour revenir au premier cadrage.
+`assets/maps/minimaps/helion-03-wide-v3.png` est un atlas fixe 1200 × 540 exporté par le renderer réel. Il contient l'atmosphère rouge de Helion-01, la nouvelle nébuleuse et la planète, sans vaisseaux, rochers ni marqueurs. Le joueur et les portails sont dessinés séparément. La planète reste à 67 % / 34 %, avec une largeur de 20 % ; la nébuleuse se situe à 46 % / 53 %, avec une largeur de 72 %. La caméra du joueur ne déplace pas ce fond. Les atlas précédents restent disponibles pour revenir aux premiers cadrages.
 
 `miniMapScenery.js` accepte un fond explicitement marqué `minimap:true` comme repère lors de la capture et du rendu de secours. Les nuages ordinaires restent exclus ; les autres scènes n'ont pas de nouveau repère. L'atlas remplace ensuite les couches individuelles dans le cache de mini-carte.
 
@@ -28,3 +32,6 @@ L'index a été publié en dernier, après un rapprochement limité de son état
 
 
 Retouche de profondeur publiée le 24 octobre à 20 h 12 Europe/Paris, lot 20261024-helion3-depth1 : cinq fichiers frontend, 28 tests ciblés, deux syntaxes, cinq empreintes publiques conformes et 176 cibles d'importmap accessibles. Les 353 alias étrangers, les anciens assets et le JS d'aperçu sont conservés. PID 1222927 inchangé, PostgreSQL prêt, aucun redémarrage ni nouvelle erreur. Sauvegarde /opt/avosoma-backups/20261024-helion3-depth1. Vérification visuelle de l'aperçu public au centre et capture output/helion03-depth-20261024/centre-public.png, sans compte MMO authentifié.
+
+
+Fond par couches publié le 24 octobre à 20 h 31 Europe/Paris, lot 20261024-helion3-layered1 : six fichiers frontend, 28 tests ciblés, deux syntaxes, six empreintes publiques conformes et 183 cibles d'importmap accessibles. Les 361 alias étrangers du principal et 353 de l'aperçu sont préservés. Planète, textures de base, ancien atlas et JS d'aperçu inchangés. PID 1346787 stable, PostgreSQL prêt, aucun redémarrage ni nouvelle erreur. Sauvegarde /opt/avosoma-backups/20261024-helion3-layered1. Scène et atlas vérifiés dans l'aperçu public à 1920×1080 ; capture output/helion03-layered-20261024/centre-1920-public.png et console sans erreur.
