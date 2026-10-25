@@ -48,6 +48,35 @@ const shards = [
   src,x:x/p,y:y/p,w,h:w,p,rotation,alpha:1,edgeFade:false,minimap:false,
   blend:"screen",filter:"brightness(2.3) saturate(.85)"}));
 
+// Apparent positions at the centre of the map. Deliberately broken, unequal groups.
+const distantAsteroidFields = [
+  {x:-600,y:-285,rx:235,ry:110,count:10},
+  {x:-90,y:-360,rx:275,ry:75,count:9},
+  {x:675,y:80,rx:210,ry:230,count:10},
+  {x:-280,y:315,rx:250,ry:95,count:11}
+];
+
+function createDistantAsteroids(){
+  let seed=251025;
+  const random=()=>((seed=seed*16807%2147483647)-1)/2147483646;
+  const columns=[{x:0,w:560},{x:560,w:480},{x:1040,w:496}];
+  return distantAsteroidFields.flatMap(field=>Array.from({length:field.count},()=>{
+    const angle=random()*Math.PI*2,radius=Math.sqrt(random());
+    const x=field.x+Math.cos(angle)*field.rx*radius;
+    const y=field.y+Math.sin(angle)*field.ry*radius;
+    const p=.024+random()*.018,w=11+random()*13;
+    const variant=Math.floor(random()*6),column=columns[variant%3];
+    const violet=x>470&&y<230,lit=random()>.4;
+    return {kind:"distant-asteroid",effect:"backgroundAsteroids",space:"map",
+      src:lit?(violet?HELION_THREE_ASSETS.violet:HELION_THREE_ASSETS.copper):HELION_ONE_ASSETS.asteroids,
+      x:x/p,y:y/p,w,h:w*512/column.w,p,alpha:1,rotation:random()*Math.PI*2,
+      frame:{x:column.x/1536,y:Math.floor(variant/3)/2,w:column.w/1536,h:.5},
+      blend:"source-over",filter:`brightness(${lit?.78:.66}) saturate(.62)`,
+      edgeFade:false,minimap:false};
+  }));
+}
+
+
 function planetFragment(x,y,size,variant,rotation){
   const columns=[{x:0,w:560},{x:560,w:480},{x:1040,w:496}];
   const column=columns[variant%3],p=.105;
@@ -79,7 +108,7 @@ export function createHelionThreeScene(map){
   return finishHelionThreeScene({...family,vignetteOpacity:.42,
     backdrops:[...family.backdrops,mainCloud,dustbank,emission],
     images:[
-      ...distantStars,...asteroids,...deposits,...shards,
+      ...distantStars,...createDistantAsteroids(),...asteroids,...deposits,...shards,
       planetFragment(291,42,42,2,.5),planetFragment(347,105,29,3,-.45),
       planetFragment(420,139,20,0,.7),planetFragment(475,111,13,5,-.8),
       {kind:"planet",src:HELION_THREE_ASSETS.planet,space:"map",x:54/.09,y:-66/.09,
