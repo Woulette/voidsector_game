@@ -6,7 +6,7 @@ export const HELION_THREE_ASSETS = Object.freeze({
   nebula:HELION_ONE_ASSETS.nebula, dust:HELION_ONE_ASSETS.dust,
   planet:"assets/maps/decor/helion03-cataclysm-v1/shattered-planet.webp",
   star:"assets/maps/decor/helion03-crimson-v1/distant-star.svg",
-  ruin:decor+"orbital-ruin.png", violetGas:decor+"violet-gas.png",
+  ruin:"assets/maps/decor/helion03-reflections-v1/orbital-ruin.png", violetGas:decor+"violet-gas.png",
   crystalOutcrop:decor+"crystal-outcrop-violet.png", crystalSeam:decor+"crystal-seam-violet.png",
   splinter:decor+"eclanite-splinter.png", flake:decor+"eclanite-flake.png"
 });
@@ -81,7 +81,7 @@ export function createHelionThreeScene(map){
       {kind:"planet",src:HELION_THREE_ASSETS.planet,space:"map",x:54/.09,y:-66/.09,
         w:360,h:240,p:.09,alpha:1,edgeFade:false,minimap:true},
       {kind:"ruin",src:HELION_THREE_ASSETS.ruin,space:"map",x:-490/.22,y:-154/.22,
-        w:420,h:280,p:.22,alpha:1,rotation:-.08,filter:"brightness(.63) saturate(.62) contrast(.92)",
+        w:420,h:280,p:.22,alpha:1,rotation:-.08,filter:"brightness(.82) saturate(.88) contrast(.98)",
         edgeFade:true,minimap:false},
       drift(-2900,1800,1500,750,.45,.17,-.32),drift(2700,-2100,1650,825,.50,.15,.28,true),
       drift(-2100,-1800,1300,650,.72,.12,.20),drift(2600,2100,1400,700,.84,.13,-.35,true)

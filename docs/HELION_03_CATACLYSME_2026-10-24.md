@@ -63,3 +63,16 @@ Validation : égalité des scènes locale approuvée et intégrée après normal
 Publication limitée à 11 fichiers frontend, `index.html` installé en dernier. Les 11 empreintes publiques et installées concordent et les 210 cibles de l’importmap public répondent. Un alias ajouté simultanément dans l’index public a été conservé lors du remplacement limité des deux modules de décor. Sauvegarde : `/opt/avosoma-backups/20261025-helion3-ruins1`.
 
 Le service conserve son PID 2362785 et NRestarts 0, PostgreSQL est prêt et le journal ne contient aucune nouvelle alerte ou erreur sur la fenêtre de publication. Aucun redémarrage serveur. Le rendu public est vérifié à 1254 × 884, zoom 80 %, sans erreur console : `output/helion03-ruins-20261025/published-centre-80.png`. Ce contrôle utilise l’aperçu public avec le moteur du jeu et un pilote d’exemple ; il ne constitue pas une session MMO authentifiée. Rapports dans les dossiers `release/` et `validation/` de cet aperçu.
+
+## 2026-10-25 — Reflets intégrés sur la structure de Helion-03
+
+- Direction visuelle choisie : reflets cuivre et améthyste sur la structure détruite.
+- Release : `20261025-helion3-reflections1`, publiée le 25 octobre 2026 à 14:08:03 UTC.
+- Asset natif transparent 1536 × 1024 : `assets/maps/decor/helion03-reflections-v1/orbital-ruin.png`.
+- Seuls la source de l'image et son filtre de rendu changent. Taille 420 × 280, position apparente (-490, -154), parallaxe 0.22, planète, gaz, astéroïdes, mini-carte et gameplay conservés.
+- Publication limitée à quatre fichiers frontend, index principal publié en dernier. 444 alias indépendants de l'index et 364 alias de l'aperçu conservés.
+- Sauvegarde : `/opt/avosoma-backups/20261025-helion3-reflections1`.
+- 24 tests ciblés réussis, syntaxe et importations contrôlées ; 4/4 empreintes publiques et installées conformes, 218 destinations de l'importmap accessibles.
+- Service actif, PID 2458909 conservé, aucun redémarrage, PostgreSQL prêt et aucune nouvelle erreur ou alerte dans le journal depuis la publication.
+- Vérification visuelle dans l'aperçu public, sans session MMO authentifiée : `output/helion03-integrated-lighting-20261025/published-centre-80.png`.
+- Les retouches suivantes aux astéroïdes seront préparées séparément en aperçu local.
