@@ -19,11 +19,12 @@ const HELION_TWO_OVERVIEW = Object.freeze({
   landmarks:{planet:{x:.88,y:.23,width:.38},station:{x:.28,y:.44,width:.14}}
 });
 const HELION_THREE_OVERVIEW = Object.freeze({
-  image:"assets/maps/minimaps/helion-03-crimson-v1.png",
+  image:"assets/maps/minimaps/helion-03-ruins-v1.png",
   atmosphere:{...HELION_ONE_OVERVIEW.atmosphere,alpha:.20},
   landmarks:{
-    planet:{x:.52,y:.47,width:.20},
+    planet:{x:.52,y:.47,width:.15},
     nebula:{x:.77,y:.39,width:.62},
+    "violet-gas":{x:.77,y:.39,width:.62},
     dustbank:{x:.20,y:.74,width:.68}
   }
 });

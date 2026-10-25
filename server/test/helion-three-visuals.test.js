@@ -31,14 +31,14 @@ test("Helion-03 scenery preserves all gameplay references and every other sector
 
 test("the approved family atmosphere is retained and the four larger stars stay behind the planet",()=>{
   const family=createHelionTwoScene(original);assert.deepEqual(scene.background,family.background);assert.deepEqual(scene.backdrops.slice(0,5),family.backdrops);
-  const planet=scene.images.find(layer=>layer.kind==="planet"),stars=scene.images.filter(layer=>layer.kind==="star"),wreck=scene.images.find(layer=>layer.kind==="wreck");
+  const planet=scene.images.find(layer=>layer.kind==="planet"),stars=scene.images.filter(layer=>layer.kind==="star"),ruin=scene.images.find(layer=>layer.kind==="ruin");
   assert.equal(stars.length,4);assert.equal(new Set(stars.map(layer=>layer.src)).size,1);assert(stars.every(layer=>layer.p<planet.p&&layer.minimap===false));
-  assert.equal(planet.p,.03);assert.equal(planet.alpha,1);assert.equal(planet.effect,undefined);assert.equal(planet.blend,undefined);assert.equal(planet.filter,undefined);
-  assert(planet.p<wreck.p&&wreck.p<.3);assert.equal(wreck.minimap,false);assert(scene.images.every((layer,i)=>!i||scene.images[i-1].p<=layer.p));
+  assert.equal(planet.p,.09);assert.equal(planet.alpha,1);assert.equal(planet.effect,undefined);assert.equal(planet.blend,undefined);assert.equal(planet.filter,undefined);
+  assert(planet.p<ruin.p&&ruin.p<.3);assert.equal(ruin.minimap,false);assert(scene.images.every((layer,i)=>!i||scene.images[i-1].p<=layer.p));
 });
 
 test("camera travel retains distinct distant depths without moving scenery anchors",()=>{
-  for(const layer of scene.images.filter(layer=>["planet","wreck","star","planet-fragment"].includes(layer.kind))){
+  for(const layer of scene.images.filter(layer=>["planet","ruin","star","planet-fragment","eclanite-shard"].includes(layer.kind))){
     const snapshot=JSON.stringify(layer),project=camera=>projectMapSceneryLayer({layer,camera,viewWidth:1920,viewHeight:1080});
     const a=project({x:-1000,y:0}),b=project({x:0,y:500});assert(Math.abs(b.x-a.x+1000*layer.p)<1e-9);assert(Math.abs(b.y-a.y+500*layer.p)<1e-9);assert.equal(JSON.stringify(layer),snapshot);
   }
@@ -49,14 +49,14 @@ test("world rendering honors cloud/star/rock options while solid landmarks remai
     const ctx=context();drawWorldLayer({ctx,canvas:{width:1920,height:1080},cache:images(),camera,currentMap:helion,stars:[],dust:[],nebulae:[],asteroids:[],stations:[],player:{},graphicsQuality:"low",
       graphicsEffects:{nebulae,cosmicClouds:false,starGlow:false,vignette:false,backgroundAsteroids:false},getMapPortals:()=>[],getClosedMapPortals:()=>[]});return ctx.calls.map(args=>args[0].src);
   }
-  const camera={x:-960,y:-540};assert.deepEqual(new Set(render(camera,false)),new Set([HELION_THREE_ASSETS.planet,HELION_THREE_ASSETS.wreck]));
+  const camera={x:-960,y:-540};assert.deepEqual(new Set(render(camera,false)),new Set([HELION_THREE_ASSETS.planet,HELION_THREE_ASSETS.ruin]));
   assert(render(camera,true).includes(HELION_THREE_ASSETS.nebula));assert(!render({x:200000,y:200000},true).some(src=>Object.values(HELION_THREE_ASSETS).includes(src)));
 });
 
 test("runtime assets are reachable without preview paths and new images retain their native ratio",()=>{
   for(const src of getCombatMapAssetPaths(helion)){assert(!src.includes('/output/'));assert(existsSync(new URL('../../'+src,import.meta.url)),src);}
-  const data=readFileSync(new URL('../../'+HELION_THREE_ASSETS.wreck,import.meta.url));assert.deepEqual([data.readUInt32BE(16),data.readUInt32BE(20),data[25]],[1774,887,6]);
-  const wreck=scene.images.find(layer=>layer.kind==='wreck');assert.equal(wreck.w/wreck.h,1774/887);assert(wreck.w*1.2*2<=1774);assert(data.length<2*1024*1024);
+  const data=readFileSync(new URL('../../'+HELION_THREE_ASSETS.ruin,import.meta.url));assert.deepEqual([data.readUInt32BE(16),data.readUInt32BE(20),data[25]],[1536,1024,6]);
+  const ruin=scene.images.find(layer=>layer.kind==='ruin');assert.equal(ruin.w/ruin.h,1536/1024);assert(ruin.w*1.2*2<=1536);assert(data.length<3*1024*1024);
   const star=readFileSync(new URL('../../'+HELION_THREE_ASSETS.star,import.meta.url),'utf8');assert(star.includes('<svg'));
 });
 
@@ -70,10 +70,10 @@ test("streaming reuses each scenery source and keeps the three-map retention bud
 });
 
 test("the fixed minimap has a central planet, no ships or debris, and a 1200 by 540 atlas",()=>{
-  const definition=getMiniMapVisualDefinition(helion),snapshot=createMiniMapSnapshotMap(helion);assert.deepEqual(definition.landmarks.planet,{x:.52,y:.47,width:.20});
+  const definition=getMiniMapVisualDefinition(helion),snapshot=createMiniMapSnapshotMap(helion);assert.deepEqual(definition.landmarks.planet,{x:.52,y:.47,width:.15});
   const image=readFileSync(new URL('../../'+definition.image,import.meta.url));assert.deepEqual([image.readUInt32BE(16),image.readUInt32BE(20)],[1200,540]);
-  assert.deepEqual(snapshot.parallaxScene.images.map(layer=>layer.kind),['nebula','dustbank','planet']);assert.equal(snapshot.spawn,null);assert.deepEqual(snapshot.portals,[]);assert.deepEqual(snapshot.closedPortals,[]);
-  assert.deepEqual(getMiniMapSceneryLayers(scene).map(layer=>layer.kind),['nebula','dustbank','planet']);assert.equal(getMiniMapVisualDefinition({id:2,name:'Other-map'}),null);assert.equal(getMiniMapVisualDefinition({id:22,name:'Nereid-03'}),null);
+  assert.deepEqual(snapshot.parallaxScene.images.map(layer=>layer.kind),['nebula','dustbank','violet-gas','planet']);assert.equal(snapshot.spawn,null);assert.deepEqual(snapshot.portals,[]);assert.deepEqual(snapshot.closedPortals,[]);
+  assert.deepEqual(getMiniMapSceneryLayers(scene).map(layer=>layer.kind),['nebula','dustbank','violet-gas','planet']);assert.equal(getMiniMapVisualDefinition({id:2,name:'Other-map'}),null);assert.equal(getMiniMapVisualDefinition({id:22,name:'Nereid-03'}),null);
 });
 
 test("minimap scenery stays cached through camera moves and is replaced once when the atlas loads",()=>{
