@@ -1,14 +1,18 @@
 import { HELION_ONE_ASSETS } from "./helionOneVisuals.js";
 import { createHelionTwoScene } from "./helionTwoVisuals.js";
 
+import { finishHelionThreeScene } from "./helionThreeFinishes.js";
+
+const finishDecor = "assets/maps/decor/helion03-eclanite-v1/";
 const decor = "assets/maps/decor/helion03-ruins-v1/";
 export const HELION_THREE_ASSETS = Object.freeze({
   nebula:HELION_ONE_ASSETS.nebula, dust:HELION_ONE_ASSETS.dust,
   planet:"assets/maps/decor/helion03-cataclysm-v1/shattered-planet.webp",
   star:"assets/maps/decor/helion03-crimson-v1/distant-star.svg",
   ruin:"assets/maps/decor/helion03-reflections-v1/orbital-ruin.png", violetGas:decor+"violet-gas.png",
-  crystalOutcrop:decor+"crystal-outcrop-violet.png", crystalSeam:decor+"crystal-seam-violet.png",
-  splinter:decor+"eclanite-splinter.png", flake:decor+"eclanite-flake.png"
+  crystalOutcrop:finishDecor+"outcrop.png", crystalSeam:finishDecor+"outcrop.png",
+  splinter:finishDecor+"splinter.png", flake:finishDecor+"flake.png",
+  copper:finishDecor+"asteroids-copper.png", violet:finishDecor+"asteroids-violet.png"
 });
 export const HELION_THREE_PARAMETERS = Object.freeze({p:.065});
 export const overview = Object.freeze({
@@ -72,7 +76,7 @@ export function createHelionThreeScene(map){
   const emission={...mainCloud,kind:"violet-gas",src:HELION_THREE_ASSETS.violetGas,alpha:.54,blend:"screen"};
   const drift=(x,y,w,h,p,alpha,rotation,flipX=false)=>({kind:"cloud",effect:"nebulae",
     src:HELION_ONE_ASSETS.dust,space:"map",x,y,w,h,p,alpha,rotation,flipX,edgeFade:true,minimap:false});
-  return {...family,vignetteOpacity:.42,
+  return finishHelionThreeScene({...family,vignetteOpacity:.42,
     backdrops:[...family.backdrops,mainCloud,dustbank,emission],
     images:[
       ...distantStars,...asteroids,...deposits,...shards,
@@ -94,7 +98,7 @@ export function createHelionThreeScene(map){
     ],
     dustSpecks:[{count:48,x:0,y:0,w:2800,h:1800,p:.018,sizeMin:.55,sizeMax:.90,alphaMin:.22,alphaMax:.46,
       colors:["226,238,255","255,235,215","255,255,255"],streak:0,wrap:false}]
-  };
+  },HELION_THREE_ASSETS);
 }
 
 export function createHelionThreeVisualMaps(maps){

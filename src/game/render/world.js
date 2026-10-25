@@ -1,3 +1,4 @@
+import { getMapSceneryAlpha } from "./mapSceneryAnimation.js";
 import { drawSpawnHub, drawSpawnStations, drawSpawnStationPrompts } from "./spawnHub.js?v=20261022-helion-hub1";
 import { getClosedMapPortals as getDefaultClosedMapPortals, getMapPortals as getDefaultMapPortals } from "../combatData.js?v=20261022-helion-hub1";
 import { drawMapPortals } from "./mapPortals.js?v=20261022-helion-hub1";
@@ -243,7 +244,7 @@ function drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera}){
     const height = layer.h || img.naturalHeight;
     const {x:sx, y:sy} = projectMapSceneryLayer({layer, camera, viewWidth:w, viewHeight:h, defaultParallax:worldSpace ? 1 : .04});
     if(!isMapSceneryLayerVisible({layer, x:sx, y:sy, width, height, viewWidth:w, viewHeight:h, padding:160})) continue;
-    ctx.globalAlpha = Number.isFinite(layer.alpha) ? layer.alpha : 1;
+    ctx.globalAlpha = getMapSceneryAlpha(layer);
     ctx.filter = layer.filter || "none";
     ctx.globalCompositeOperation = layer.blend || "source-over";
     drawCenteredLayerImage({ctx, img, layer, sx, sy, width, height});
@@ -504,7 +505,7 @@ function drawParallaxGlowSpots({ctx, canvas, currentMap, camera}){
   ctx.restore();
 }
 
-function drawParallaxStarLights({ctx, canvas, currentMap, camera}){
+function drawParallaxStarLights({ctx, canvas, currentMap, camera, graphicsEffects = null}){
   const lights = currentMap?.parallaxScene?.starLights || [];
   if(!lights.length) return;
   const w = viewWidth(canvas), h = viewHeight(canvas);
@@ -512,6 +513,7 @@ function drawParallaxStarLights({ctx, canvas, currentMap, camera}){
   ctx.globalCompositeOperation = "screen";
   const now = performance.now();
   for(const light of lights){
+    if(light.effect && graphicsEffects?.[light.effect] === false) continue;
     const p = Number.isFinite(light.p) ? light.p : .03;
     const {x:sx,y:sy} = light.space === "map"
       ? projectMapSceneryLayer({layer:light,camera,viewWidth:w,viewHeight:h,defaultParallax:p})
@@ -862,7 +864,7 @@ function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars,
     if(effect("cosmicClouds", quality === "high")) timeCombatProfiler("bg.parallax.dustSpecks", ()=>drawParallaxDustSpecks({ctx, canvas, currentMap, camera}));
     if(effect("cosmicClouds", quality !== "low")) timeCombatProfiler("bg.parallax.tiles", ()=>drawParallaxTiles({ctx, canvas, cache, currentMap, camera}));
     if(effect("cosmicClouds", quality !== "low")) timeCombatProfiler("bg.parallax.lightClouds", ()=>drawParallaxLightClouds({ctx, canvas, currentMap, camera}));
-    if(effect("starGlow", quality === "high")) timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera}));
+    if(effect("starGlow", quality === "high")) timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera, graphicsEffects}));
     drawMapScenerySkyFade({ctx, map:currentMap, camera, width:w, height:h});
     timeCombatProfiler("bg.parallax.images", ()=>drawParallaxImages({ctx, canvas, cache, currentMap, camera, graphicsEffects,
       allowNebulae:effect("nebulae", quality !== "low"), allowStarGlow:effect("starGlow", quality === "high")}));

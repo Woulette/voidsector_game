@@ -76,3 +76,15 @@ Le service conserve son PID 2362785 et NRestarts 0, PostgreSQL est prêt et le j
 - Service actif, PID 2458909 conservé, aucun redémarrage, PostgreSQL prêt et aucune nouvelle erreur ou alerte dans le journal depuis la publication.
 - Vérification visuelle dans l'aperçu public, sans session MMO authentifiée : `output/helion03-integrated-lighting-20261025/published-centre-80.png`.
 - Les retouches suivantes aux astéroïdes seront préparées séparément en aperçu local.
+
+## Éclanite intégrée — publication du 25 octobre 2026
+
+Release : `20261025-helion3-eclanite1`.
+
+Les six éclats et les deux petits dépôts décoratifs utilisent trois nouveaux sprites natifs transparents : facettes opaques, reflets cuivre et fractures violettes lumineuses. Les éclats suivent une disposition irrégulière près du gaz violet. Une passe émissive conserve leur silhouette sombre. Les 153 astéroïdes gardent leur géométrie et leur parallaxe ; 65 reçoivent des reflets cuivre, 15 des reflets violets, et 73 conservent leur texture neutre. La lueur du gaz varie de 4 % sur 20 secondes et reste fixe avec la préférence de mouvement réduit. Les halos des éclats suivent le réglage des rochers.
+
+La planète, la structure éclairée, les étoiles, les ancrages des nuages, la mini-carte fixe et le gameplay sont conservés. Les nouveaux sprites PNG sont copiés sans redimensionnement ni retouche après leur génération. `helionThreeFinishes.js` compose ces finitions ; `mapSceneryAnimation.js` calcule seulement l'opacité de rendu.
+
+Publication frontend de 11 fichiers, sauvegarde `/opt/avosoma-backups/20261025-helion3-eclanite1`, index livré en dernier. Candidat construit sur une capture fraîche du runtime public, 28 tests ciblés réussis sans exclusion, quatre modules contrôlés syntaxiquement, comparaison de scène avec l'aperçu approuvé conforme. Les deux nouveaux modules et les alias modifiés préservent tous les autres imports. Aucun redémarrage serveur : PID 2510150, PostgreSQL prêt, aucun nouveau journal d'avertissement ou d'erreur lors des contrôles.
+
+Le rendu est vérifié dans l'aperçu public utilisant les modules déployés, sans erreur de console. Ce contrôle n'est pas une session MMO authentifiée. Capture et preuves : `output/helion03-eclanite-20261025/release/`. La version précédente reste sauvegardée. L'essai supplémentaire du test local `azuron-scenery.test.js` a été écarté du périmètre : il dépend de `azuronVisuals.js`, absent du runtime public capturé ; aucun fichier Azuron n'a été ajouté à cette livraison.
