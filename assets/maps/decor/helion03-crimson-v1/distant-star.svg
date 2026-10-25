@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="-64 -64 128 128">
+  <defs>
+    <radialGradient id="halo">
+      <stop offset="0" stop-color="#fff8e8" stop-opacity=".9"/>
+      <stop offset=".07" stop-color="#fff3db" stop-opacity=".65"/>
+      <stop offset=".18" stop-color="#f6dcc4" stop-opacity=".22"/>
+      <stop offset=".42" stop-color="#bd7b70" stop-opacity=".07"/>
+      <stop offset="1" stop-color="#a14f61" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rays">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".25" stop-color="#fff9eb" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#f7ddc0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle r="60" fill="url(#halo)"/>
+  <path d="M0-29 1.9-4 23 0 1.9 4 0 29-1.9 4-23 0-1.9-4Z" fill="url(#rays)"/>
+  <circle r="2.8" fill="#fffdf3"/>
+  <circle r="1.25" fill="#ffffff"/>
+</svg>

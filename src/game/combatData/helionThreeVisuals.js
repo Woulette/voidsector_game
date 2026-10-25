@@ -1,71 +1,89 @@
-export const HELION_THREE_ASSETS = Object.freeze({
-  nebula:"assets/maps/decor/helion03-layered-v1/scarlet-ridge.webp",
-  haze:"assets/maps/decor/helion01-v1/nebula-crimson.png",
-  dust:"assets/maps/decor/helion01-v3/dust-wisp.png",
-  planet:"assets/maps/decor/helion03-cataclysm-v1/shattered-planet.webp"
+import { HELION_ONE_ASSETS } from "./helionOneVisuals.js";
+import { createHelionTwoScene } from "./helionTwoVisuals.js";
+
+export const HELION_THREE_ASSETS=Object.freeze({
+  nebula:HELION_ONE_ASSETS.nebula,dust:HELION_ONE_ASSETS.dust,
+  planet:"assets/maps/decor/helion03-cataclysm-v1/shattered-planet.webp",
+  star:"assets/maps/decor/helion03-crimson-v1/distant-star.svg",
+  wreck:"assets/maps/decor/helion03-crimson-v1/cargo-wreck.png"
+});
+const planetAsset=HELION_THREE_ASSETS.planet;
+// Four irregularly scattered distant suns, with an unequal left/right balance.
+// These offsets are their apparent position relative
+// to the sector centre; slow parallax keeps them behind the planet and dust.
+const distantStars = [
+  [-650,-80,66,.020,.95], [-350,-290,44,.021,.86],
+  [-220,260,52,.020,.90], [610,-120,74,.018,1]
+].map(([x,y,w,p,alpha])=>({kind:"star",effect:"starGlow",space:"map",
+  src:HELION_THREE_ASSETS.star,
+  x:x/p,y:y/p,w,h:w,p,alpha,blend:"screen",edgeFade:false,minimap:false
+}));
+export const HELION_THREE_PARAMETERS = Object.freeze({p:.065});
+export const overview = Object.freeze({
+  atmosphere:{src:HELION_ONE_ASSETS.nebula,alpha:.20},
+  landmarks:{planet:{x:.52,y:.47,width:.20},
+    nebula:{x:.77,y:.39,width:.62},dustbank:{x:.20,y:.74,width:.68}}
 });
 
-export const HELION_THREE_PARAMETERS = Object.freeze({
-  x:-2400, y:-1200, w:1300, h:1300 * 941 / 1672,
-  p:.060, alpha:.70, rotation:0
-});
-
-// At the sector centre, the very slow layer sits about 270 units right and
-// 150 units above the camera centre. Its world anchor is intentionally distant.
-export const HELION_THREE_PLANET_PLACEMENT = Object.freeze({
-  x:9000, y:-5000, w:480, h:480 * 1024 / 1536, p:.030
-});
+function planetFragment(x, y, size, variant, rotation, alpha){
+  const columns=[{x:0,w:560},{x:560,w:480},{x:1040,w:496}];
+  const column=columns[variant % 3], p=.045;
+  return {kind:"planet-fragment",effect:"backgroundAsteroids",space:"map",
+    src:HELION_ONE_ASSETS.asteroids,x:x/p,y:y/p,w:size,h:size*512/column.w,p,
+    alpha,rotation,edgeFade:false,minimap:false,
+    frame:{x:column.x/1536,y:Math.floor(variant/3)/2,w:column.w/1536,h:.5},
+    filter:"brightness(.65) saturate(.75)"};
+}
 
 export function createHelionThreeScene(map){
-  const base = map.parallaxScene || {};
-  const rocks = (base.images || []).filter(layer=>layer.kind === "asteroid"
-    || /asteroid|meteor/i.test(layer.src || ""));
-  return {
-    ...base,
-    enabled:true, hideGrid:true, clipToBounds:false, showBoundary:false,
-    background:["#080409", "#200912", "#09040a"],
-    edgeFadeDistance:460, skyFade:{inside:900,outside:120}, vignetteOpacity:.40,
-    // The same restrained atmosphere as Helion-01/02, below one coherent
-    // native-detail ridge. No low-resolution full-screen poster is enlarged.
-    backdrops:[
-      {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.dust,space:"map",
-        x:-2500,y:-1000,w:2400,h:1400,p:.065,alpha:.065,rotation:.35,edgeFade:false},
-      {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.haze,space:"map",
-        x:3200,y:1800,w:2000,h:1500,p:.085,alpha:.080,rotation:-.40,flipX:true,edgeFade:false},
-      {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.haze,space:"map",
-        x:-4500,y:-3400,w:1800,h:1300,p:.10,alpha:.065,rotation:.20,edgeFade:false},
-      {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.haze,space:"map",
-        x:4400,y:-2800,w:1700,h:1100,p:.11,alpha:.065,rotation:-.25,flipX:true,edgeFade:false},
-      {kind:"cloud",effect:"nebulae",src:HELION_THREE_ASSETS.dust,space:"map",
-        x:1400,y:3600,w:2100,h:900,p:.12,alpha:.055,rotation:.60,edgeFade:false},
-      {
-      ...HELION_THREE_PARAMETERS, kind:"nebula", effect:"nebulae",
-      src:HELION_THREE_ASSETS.nebula, space:"map", edgeFade:false, minimap:true
-    }],
+  const additions=[
+    planetFragment(291,42,42,2,.5,.72),
+    planetFragment(347,105,29,3,-.45,.62),
+    planetFragment(420,139,20,0,.7,.52),
+    planetFragment(475,111,13,5,-.8,.45),
+    {kind:"wreck",src:HELION_THREE_ASSETS.wreck,
+      space:"map",x:-2600,y:-950,w:620,h:310,p:.18,alpha:1,
+      rotation:-.17,filter:"brightness(.76) saturate(.78) contrast(.94)",
+      edgeFade:true,minimap:false}
+  ];
+
+  const family = createHelionTwoScene(map);
+  // Same five background layers and palette as the approved first two sectors.
+  // The new composition is assembled from existing native textures, not a sky poster.
+  const mainCloud = {kind:"nebula",effect:"nebulae",src:HELION_ONE_ASSETS.nebula,
+    space:"map",x:7400,y:-1800,w:1150,h:1150,p:.065,alpha:.34,
+    rotation:-.32,flipX:true,edgeFade:false,minimap:true};
+  const dustbank = {kind:"dustbank",effect:"nebulae",src:HELION_ONE_ASSETS.dust,
+    space:"map",x:-6800,y:2600,w:1700,h:850,p:.075,alpha:.20,
+    rotation:-.32,edgeFade:false,minimap:true};
+  const drift = (x,y,w,h,p,alpha,rotation,flipX=false)=>({kind:"cloud",
+    effect:"nebulae",src:HELION_ONE_ASSETS.dust,space:"map",x,y,w,h,p,
+    alpha,rotation,flipX,edgeFade:true,minimap:false});
+  return {...family,
+    vignetteOpacity:.42,
+    backdrops:[...family.backdrops,mainCloud,dustbank],
     images:[
-      {kind:"planet", src:HELION_THREE_ASSETS.planet, space:"map",
-        ...HELION_THREE_PLANET_PLACEMENT, alpha:1, edgeFade:false, minimap:true},
-      ...rocks,
-      {kind:"cloud", effect:"nebulae", src:HELION_THREE_ASSETS.dust, space:"map",
-        x:-3400,y:-1700,w:1900,h:950,p:.34,alpha:.105,rotation:.22,edgeFade:true,minimap:false},
-      {kind:"cloud", effect:"nebulae", src:HELION_THREE_ASSETS.dust, space:"map",
-        x:3500,y:2400,w:1600,h:800,p:.48,alpha:.085,rotation:-.28,flipX:true,edgeFade:true,minimap:false}
-    ].sort((a,b)=>(a.p || 0) - (b.p || 0)),
-    starLights:[
-      {space:"map",x:-1700,y:900,p:.060,r:430,alpha:.15,static:true,point:false,
-        colors:{core:"255,228,201",hot:"249,151,92",mid:"211,65,42",haze:"119,28,42"}},
-      {space:"map",x:3900,y:-2100,p:.060,r:550,alpha:.18,static:true,point:false,
-        colors:{core:"255,233,210",hot:"253,165,105",mid:"220,76,45",haze:"128,28,41"}}
-    ],
-    asteroidFields:base.asteroidFields,
-    tiles:base.tiles,
-    nebulae:[], lightClouds:[], foregroundClouds:[], glowSpots:[], dustSpecks:[]
+      ...additions,
+      ...distantStars,
+      {kind:"planet",src:planetAsset,space:"map",x:1800,y:-2200,w:480,h:320,
+        p:.03,alpha:1,edgeFade:false,minimap:true},
+      ...family.images.filter(layer=>layer.kind === "asteroid"),
+      drift(-2900,1800,1500,750,.45,.17,-.32),
+      drift(2700,-2100,1650,825,.50,.15,.28,true),
+      drift(-2100,-1800,1300,650,.72,.12,.20),
+      drift(2600,2100,1400,700,.84,.13,-.35,true)
+    ].sort((a,b)=>a.p-b.p),
+    starLights:[{space:"map",x:6900,y:-2000,p:.065,r:650,alpha:.17,
+      static:true,point:false,
+      colors:{core:"255,220,190",hot:"244,177,136",mid:"210,112,110",haze:"157,68,89"}}],
+    dustSpecks:[{count:48,x:0,y:0,w:2800,h:1800,p:.018,
+      sizeMin:.55,sizeMax:.90,alphaMin:.22,alphaMax:.46,
+      colors:["226,238,255","255,235,215","255,255,255"],streak:0,wrap:false}]
   };
 }
 
-// Visual overlay only. Preserve every canonical map property and all other
-// sectors by reference; no new collision, portal, reward or enemy data.
 export function createHelionThreeVisualMaps(maps){
-  return maps.map(map=>String(map.id) === "2" && map.name === "Helion-03"
-    ? {...map, parallaxScene:createHelionThreeScene(map)} : map);
+  return maps.map(map=>String(map.id)==="2" && map.name==="Helion-03"
+    ? {...map,closeStarCount:420,parallaxScene:createHelionThreeScene(map)}
+    : map);
 }
