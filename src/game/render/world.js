@@ -837,7 +837,6 @@ function drawParallaxBackground({ctx, canvas, cache, currentMap, camera, stars, 
   timeCombatProfiler("bg.parallax.tiles", ()=>drawParallaxTiles({ctx, canvas, cache, currentMap, camera}));
   timeCombatProfiler("bg.parallax.lightClouds", ()=>drawParallaxLightClouds({ctx, canvas, currentMap, camera}));
   if(graphicsQuality === "high") timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera}));
-  drawMapScenerySkyFade({ctx, map:currentMap, camera, width:viewWidth(canvas), height:viewHeight(canvas)});
   timeCombatProfiler("bg.parallax.images", ()=>drawParallaxImages({ctx, canvas, cache, currentMap, camera}));
   timeCombatProfiler("bg.parallax.foregroundClouds", ()=>drawParallaxForegroundClouds({ctx, canvas, currentMap, camera}));
   timeCombatProfiler("bg.parallax.asteroids", ()=>drawParallaxAsteroids({ctx, canvas, currentMap, camera}));
@@ -865,7 +864,6 @@ function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars,
     if(effect("cosmicClouds", quality !== "low")) timeCombatProfiler("bg.parallax.tiles", ()=>drawParallaxTiles({ctx, canvas, cache, currentMap, camera}));
     if(effect("cosmicClouds", quality !== "low")) timeCombatProfiler("bg.parallax.lightClouds", ()=>drawParallaxLightClouds({ctx, canvas, currentMap, camera}));
     if(effect("starGlow", quality === "high")) timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera, graphicsEffects}));
-    drawMapScenerySkyFade({ctx, map:currentMap, camera, width:w, height:h});
     timeCombatProfiler("bg.parallax.images", ()=>drawParallaxImages({ctx, canvas, cache, currentMap, camera, graphicsEffects,
       allowNebulae:effect("nebulae", quality !== "low"), allowStarGlow:effect("starGlow", quality === "high")}));
     if(effect("cosmicClouds", quality === "high")) timeCombatProfiler("bg.parallax.foregroundClouds", ()=>drawParallaxForegroundClouds({ctx, canvas, currentMap, camera}));
@@ -1101,8 +1099,10 @@ export function drawWorldLayer(options){
   }
   timeCombatProfiler("bg.layer.background", ()=>drawBackground(options));
   if(!options.currentMap?.parallaxScene?.hideGrid) timeCombatProfiler("bg.layer.grid", ()=>drawGrid(options));
-  timeCombatProfiler("bg.layer.markers", ()=>drawWorldMarkers(options));
   if(options.graphicsEffects?.backgroundAsteroids !== false) timeCombatProfiler("bg.layer.speedStars", ()=>drawCloseSpeedStars(options));
+  // All scenery fades together; gameplay markers and the later combat/HUD layers stay visible.
+  drawMapScenerySkyFade({ctx, map, camera, width:viewWidth(canvas), height:viewHeight(canvas)});
+  timeCombatProfiler("bg.layer.markers", ()=>drawWorldMarkers(options));
   if(bounded){
     ctx.restore();
     drawMapSceneryBoundary({ctx, map, camera});
