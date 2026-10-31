@@ -1,5 +1,6 @@
 import { getShipModel3d } from "../../data/shipModels3d.js";
 import { advanceShipFlightMotion, getShipFlightPose } from "./ship3dProjection.js";
+import { getScene3dFrame } from "./scene3dFrame.js";
 
 const models = new Map();
 const flightMotions = new WeakMap();
@@ -66,6 +67,14 @@ export function drawShipModel3d({ctx, camera, player, ship, position, enabled = 
   const entry = models.get(ship.id);
   if(entry?.status !== "ready" || entry.renderer.isContextLost()) return false;
   try{
+    const frame = !inspection && getScene3dFrame();
+    if(frame){
+      frame.enqueueShip({key:player.engineVfxState,template:entry.model.yaw,position,
+        size:Math.max(96,Number(ship.renderHeight || 96)),
+        steeringAngle:Number(player.angle || 0),
+        pose:flightPose || getActiveShipFlightPose(ship,player,enabled)});
+      return true;
+    }
     const pixelRatio = Math.min(2, Math.max(1, Number(canvas?.__dpr || 1)));
     const resolution = Math.min(inspection ? 1024 : 512, Math.max(128, Math.ceil(size * pixelRatio * (camera.zoom || 1))));
     const source = entry.renderer.render(entry.model, {

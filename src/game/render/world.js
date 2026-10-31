@@ -961,7 +961,7 @@ function drawGrid({ctx, canvas, camera, currentMap}){
   ctx.restore();
 }
 
-function drawQuestNpcs({ctx, cache, currentMap, graphicsEffects = {}}){
+export function drawQuestNpcs({ctx, cache, currentMap, graphicsEffects = {}}){
   const npcs = Array.isArray(currentMap?.questNpcs) ? currentMap.questNpcs : [];
   if(!npcs.length) return;
   const now = performance.now();

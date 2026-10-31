@@ -5,8 +5,8 @@ import { getShipModel3d } from "../../src/data/shipModels3d.js";
 import { drawShipModel3d, prepareShipModel3d, getShipModel3dStatus } from "../../src/game/render/ship3d.js";
 import { normalizeGameSettings, GRAPHICS_PRESET_EFFECTS } from "../../src/core/settingsSchema.js";
 
-test("the shipped Asterion is a complete volumetric GLB within the first-ship triangle budget", ()=>{
-  const definition = getShipModel3d({id:"asterion"});
+for(const id of ["asterion","orion"]) test(`the shipped ${id} is a complete volumetric GLB within the ship triangle budget`, ()=>{
+  const definition = getShipModel3d({id});
   const buffer = readFileSync(new URL(definition.url));
   assert.equal(buffer.readUInt32LE(0), 0x46546c67);
   assert.equal(buffer.readUInt32LE(4), 2);
@@ -36,10 +36,10 @@ test("unsupported ships, disabled 3D and non-browser use retain the original spr
   const before = {...player};
   const args = {ctx:{drawImage(){throw new Error("3D should not draw");}},camera:{x:0,y:0},player,ship,position:{x:10,y:20}};
   assert.equal(drawShipModel3d({...args,enabled:false}), false);
-  assert.equal(drawShipModel3d({...args,ship:{id:"orion"}}), false);
+  assert.equal(drawShipModel3d({...args,ship:{id:"velox"}}), false);
   assert.equal(await prepareShipModel3d(ship), false);
   assert.equal(getShipModel3dStatus(ship), "idle");
-  assert.equal(getShipModel3dStatus({id:"orion"}), "unavailable");
+  assert.equal(getShipModel3dStatus({id:"velox"}), "unavailable");
   assert.deepEqual(player,before);
 });
 

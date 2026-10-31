@@ -1,0 +1,27 @@
+{
+  "name": "quest-relay",
+  "reference": "assets/spawn/helion01-crown-v1/quest-relay.webp",
+  "provider": "Meshy",
+  "model": "meshy-7.1",
+  "taskId": "01a19297-bf47-7282-a689-9ae4c4c8d563",
+  "credits": 30,
+  "created": "2026-10-31",
+  "sourceTextures": "4K PBR",
+  "runtimeTextureSize": 2048,
+  "runtimeTriangles": 14215,
+  "finishing": "Blender 4.4.3: orientation calibrated, 2K packed textures and editable source",
+  "files": {
+    "quest-relay-source.glb": {
+      "bytes": 43690688,
+      "sha256": "32ef0f206b251a3971cb2f28a6ff93bb229453f0043da0ad90bb80618f36a92b"
+    },
+    "quest-relay.glb": {
+      "bytes": 11671504,
+      "sha256": "41cce836333be892db4f90720dbddecef4f0ae4ff522480189c946c7e78cc322"
+    },
+    "quest-relay.blend": {
+      "bytes": 12807137,
+      "sha256": "c8d80148505d93a8d76563faeae5269c1a462d7888024686e14f79f75de99187"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "raider_astral",
+  "reference": "assets/enemies/vorak-rusher-v1/vorak-source.png",
+  "provider": "Meshy",
+  "model": "meshy-7.1",
+  "taskId": "01a192b4-ac2d-77a7-864a-7406d59bfb45",
+  "credits": 30,
+  "created": "2026-10-31",
+  "sourceTextures": "4K PBR",
+  "runtimeTextureSize": 1024,
+  "runtimeTriangles": 11758,
+  "finishing": "Blender 4.4.3: laid onto flight plane, current Orb/Vorak artwork, editable packed scene retained",
+  "files": {
+    "raider_astral-source.glb": {
+      "bytes": 34628408,
+      "sha256": "8cbe49117d2fa0d24041d80aa1e2dca6abb57392593aaf5c82f79b4c0b168d6f"
+    },
+    "raider_astral.glb": {
+      "bytes": 3096024,
+      "sha256": "7edc3c5918d7b3f1ffdc41f80372b5bb056ee002b955b3a48714234a2ba7cf12"
+    },
+    "raider_astral.blend": {
+      "bytes": 4197513,
+      "sha256": "4ce691f58daaa2e279c13d0c3bc8ddfb4c1ca3c810766cca85a3f5331e286fd8"
+    }
+  }
+}

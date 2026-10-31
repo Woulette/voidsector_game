@@ -1,0 +1,173 @@
+{
+  "version": "20261031-sector3d-live3",
+  "publishedAt": "2026-10-31T16:32:39.398474+00:00",
+  "publicURL": "https://avosoma.absyrion.com/",
+  "publicFilesVerified": 37,
+  "watchedSources": 604,
+  "testsPassed": 52,
+  "servicePID": "2224513",
+  "serviceRestarts": "0",
+  "databaseReady": true,
+  "pendingWrites": 0,
+  "freshServerErrors": [],
+  "freshBrowserErrorsAfterFinalPatch": [],
+  "observedPublicScene": {
+    "world3d": "ready",
+    "headquarters": "ready",
+    "services": 2
+  },
+  "orb": "Original approved animated appearance retained; 3D prototypes disabled and not deployed.",
+  "backendChanged": false,
+  "securityPolicyChanged": false,
+  "backup": "/opt/avosoma-backups/20261031-sector3d-live3-163239",
+  "publicHashes": [
+    {
+      "path": "src/core/settingsSchema.js",
+      "sha256": "b3be8ba5d5ab312bacc1c32d9a29e0c8f5497b758eb8ae8831b340baa7ee6b8d"
+    },
+    {
+      "path": "src/data/shipModels3d.js",
+      "sha256": "5cfac73a88a9d7f42fc44dfd8090c6d0ac40b0d6d680ce7c2f95c5d90dbcad45"
+    },
+    {
+      "path": "src/data/worldModels3d.js",
+      "sha256": "af235cf1d34667315dbdeb01577bf8823c412d3bf0bc082c03d2bd5092f2c798"
+    },
+    {
+      "path": "src/game/render/player.js",
+      "sha256": "1efb292897fca544eb9fd07c3783c55476be6903e0375484db00ce321699c63b"
+    },
+    {
+      "path": "src/game/render/shipEngines.js",
+      "sha256": "f7d3a265b9db6f324305a5ae184d3cac6452d993bc3012494149794baded6981"
+    },
+    {
+      "path": "src/game/render/ship3d.js",
+      "sha256": "2c224582004d89ce330eebd7fdb8c183b0b478be877ce4018526cb42927fa6bf"
+    },
+    {
+      "path": "src/game/render/ship3dProjection.js",
+      "sha256": "4bae167533d4189157c3e5592844f5120c9842583e6db10306f50d5f3ca38fc2"
+    },
+    {
+      "path": "src/game/render/ship3dRenderer.js",
+      "sha256": "7a608a8bf0af6a7cbb2135718cd9ce21298e68ff055c4aa541cce276ac545a2e"
+    },
+    {
+      "path": "src/game/render/combatScene.js",
+      "sha256": "eb67950ff93f3f5b929ad7f50ed05a1bbe79e3f9f6ac55e4bd76bd7ece8f1737"
+    },
+    {
+      "path": "src/game/render/entities.js",
+      "sha256": "84072f8ff2cf266742edc19debac622f0683474ba909a4db2d2b07281349d3dd"
+    },
+    {
+      "path": "src/game/render/world.js",
+      "sha256": "8e69da549c5420be1586c04f14fc6aeff7532c8e0d3aa345cdde78f8cdd7b71c"
+    },
+    {
+      "path": "src/game/render/scene3dFrame.js",
+      "sha256": "affb41623ea4844cae15affd914fa33aac754270f21b5b1cf7dd4638bb5fe514"
+    },
+    {
+      "path": "src/game/render/world3d.js",
+      "sha256": "559cb69f136c6ce7e160cfdd8a4e41c597d8e3ff9ec6f17e2dcd240d654e2a90"
+    },
+    {
+      "path": "src/game/render/world3dRenderer.js",
+      "sha256": "98d0ab7054cbc49b88de6b8c251f823312995e7fab46fb83225ca66f7d5d3257"
+    },
+    {
+      "path": "src/game/render/world3dProjection.js",
+      "sha256": "0b2b6e9b2eb97ed81e89e0562d610e27384a174348a598a494c3c93854433d1a"
+    },
+    {
+      "path": "src/game/render/world3dBeams.js",
+      "sha256": "54e829fcf6edd1031008bd2fd809eb87eafa0fcca599ff48be05075407e6067f"
+    },
+    {
+      "path": "assets/ships/models/asterion-meshy-v1/asterion.glb",
+      "sha256": "f1ded853c7d8522631936700347c0768a5dddff62b0afd927e8da239dcef955d"
+    },
+    {
+      "path": "assets/ships/models/asterion-meshy-v1/model.json",
+      "sha256": "9b30c31c7439f5085862923768e54ce2098ff2c44305e279f455c53701a4f47c"
+    },
+    {
+      "path": "assets/ships/models/orion-meshy-v1/orion.glb",
+      "sha256": "6fea5bbc29c5a09e92028921fa90ad631e3d0c9bf0acbbb2e91e24cbbfae9b10"
+    },
+    {
+      "path": "assets/ships/models/orion-meshy-v1/model.json",
+      "sha256": "6a0435f11ac5d077e4a47483b13c2e0b18389fe2cc6381c5630551351f06e261"
+    },
+    {
+      "path": "assets/spawn/models/headquarters-meshy-v1/headquarters.glb",
+      "sha256": "0b0950d6397adc9405d896146087f77e33e922187c6069a46fb7368ef4b3dcbc"
+    },
+    {
+      "path": "assets/spawn/models/headquarters-meshy-v1/model.json",
+      "sha256": "840c390ce0863dacb7bcd0dfbad8f594ef9977c430990f8540c0a18bdcf7dc42"
+    },
+    {
+      "path": "assets/spawn/models/quest-relay-meshy-v1/quest-relay.glb",
+      "sha256": "41cce836333be892db4f90720dbddecef4f0ae4ff522480189c946c7e78cc322"
+    },
+    {
+      "path": "assets/spawn/models/quest-relay-meshy-v1/model.json",
+      "sha256": "74fd2e35ad59c254ec6ae990a40ce86d27cf1b8e822cde79558a0004faf99291"
+    },
+    {
+      "path": "assets/spawn/models/refinery-meshy-v1/refinery.glb",
+      "sha256": "ad7ea3983485b2e9400e3f7db91876e0105355f19780d778866d1fb53bef70f8"
+    },
+    {
+      "path": "assets/spawn/models/refinery-meshy-v1/model.json",
+      "sha256": "202a4970227b3d738bd4b99aa083e3e61d388bd487669a5e2895128b33e07062"
+    },
+    {
+      "path": "assets/enemies/models/raider_astral-meshy-v2/raider_astral.glb",
+      "sha256": "7edc3c5918d7b3f1ffdc41f80372b5bb056ee002b955b3a48714234a2ba7cf12"
+    },
+    {
+      "path": "assets/enemies/models/raider_astral-meshy-v2/model.json",
+      "sha256": "99f1e5760c70385ec49c6c79c9e02e2515a651e6f2f555f19706db2d8daa5f42"
+    },
+    {
+      "path": "index.html",
+      "sha256": "45c40ce8eb2670e51022179f55e83dfb344998468745c9bc501a93ed581ca36c"
+    },
+    {
+      "path": "assets/vendor/three-r187/BufferGeometryUtils.js",
+      "sha256": "319782169ed48af21fcaa251d839ecb8e58f14174aacbf68b74a437f3d6a3a98"
+    },
+    {
+      "path": "assets/vendor/three-r187/GLTFLoader.js",
+      "sha256": "fb590e405b3c13658d662223f7491d59270bce11ff3283f704b7ee8bbac0e5cb"
+    },
+    {
+      "path": "assets/vendor/three-r187/LICENSE",
+      "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    {
+      "path": "assets/vendor/three-r187/NOTICE.txt",
+      "sha256": "825530a86351d808b81c369b3e1efa7abbc8c36b0e90f622e3765ce3b3b96ba6"
+    },
+    {
+      "path": "assets/vendor/three-r187/RoomEnvironment.js",
+      "sha256": "2676d215e2e1d4042de474e04a24e99bdd82bbf9fa6c9d8ffe1ab0ec3069b003"
+    },
+    {
+      "path": "assets/vendor/three-r187/SkeletonUtils.js",
+      "sha256": "eedd768765d6553f8082953ab3882e2c86dacc2eb7d180a312d1d52e86bb35c5"
+    },
+    {
+      "path": "assets/vendor/three-r187/three.core.js",
+      "sha256": "f2292eeef3332bf736b6be376d8dd8748f6f412ed484cbd58f529b2b7a6cc368"
+    },
+    {
+      "path": "assets/vendor/three-r187/three.module.js",
+      "sha256": "104f56145899722094556490d787aae0617cc2fc3382f31df02d724ea1aee341"
+    }
+  ]
+}

@@ -25,6 +25,7 @@ export const GRAPHICS_EFFECT_GROUPS = [
     id:"environment",
     label:"Environnement",
     effects:[
+      {id:"world3d", label:"Secteur 3D (Hélion-01)"},
       {id:"nebulae", label:"Nébuleuses"},
       {id:"cosmicClouds", label:"Nuages / poussière cosmique"},
       {id:"starGlow", label:"Lumières des étoiles / glow"},

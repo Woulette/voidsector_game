@@ -1,0 +1,27 @@
+{
+  "name": "orion",
+  "reference": "assets/ships/Orion.png",
+  "provider": "Meshy",
+  "model": "meshy-7.1",
+  "taskId": "01a19281-535f-73f2-b9bb-d8455b0827ad",
+  "credits": 30,
+  "created": "2026-10-31",
+  "sourceTextures": "4K PBR",
+  "runtimeTextureSize": 2048,
+  "runtimeTriangles": 19468,
+  "finishing": "Blender 4.4.3: orientation calibrated, texture size adapted, editable packed scene retained; solid exhaust tip removed, rear capped and four cyan panels added",
+  "files": {
+    "orion-source.glb": {
+      "bytes": 34207404,
+      "sha256": "267106761eda068d05d72751f0d3c65f577e9254824f565504ebb4fc73d3f9ad"
+    },
+    "orion.glb": {
+      "bytes": 9409388,
+      "sha256": "6fea5bbc29c5a09e92028921fa90ad631e3d0c9bf0acbbb2e91e24cbbfae9b10"
+    },
+    "orion.blend": {
+      "bytes": 10917901,
+      "sha256": "74107b58c12bb821ccab98c7a4494a69bfb7a001202a9b2d910a7fad81af4044"
+    }
+  }
+}

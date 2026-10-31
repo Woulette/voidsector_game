@@ -1,0 +1,27 @@
+{
+  "name": "headquarters",
+  "reference": "assets/spawn/helion01-crown-v1/headquarters.webp",
+  "provider": "Meshy",
+  "model": "meshy-7.1",
+  "taskId": "01a19288-fbb9-701f-8100-f90b00a38d1f",
+  "credits": 30,
+  "created": "2026-10-31",
+  "sourceTextures": "4K PBR",
+  "runtimeTextureSize": 2048,
+  "runtimeTriangles": 30610,
+  "finishing": "Blender 4.4.3: orientation calibrated, texture size adapted, editable packed scene retained",
+  "files": {
+    "headquarters-source.glb": {
+      "bytes": 41516916,
+      "sha256": "34ffa1faa4b43fb01ab7e0b8ba465e30042044c430d208eb42dae4b94eb5a582"
+    },
+    "headquarters.glb": {
+      "bytes": 11868316,
+      "sha256": "0b0950d6397adc9405d896146087f77e33e922187c6069a46fb7368ef4b3dcbc"
+    },
+    "headquarters.blend": {
+      "bytes": 13898088,
+      "sha256": "878a4bc37be3eaec97d9ee5abeb4fdc314a4a993c1deb11b08476d8dd96a7a8d"
+    }
+  }
+}

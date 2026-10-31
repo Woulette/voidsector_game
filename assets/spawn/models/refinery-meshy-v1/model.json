@@ -1,0 +1,27 @@
+{
+  "name": "refinery",
+  "reference": "assets/spawn/helion01-crown-v1/refinery.webp",
+  "provider": "Meshy",
+  "model": "meshy-7.1",
+  "taskId": "01a19297-cd04-707c-bf41-290bffdd5a93",
+  "credits": 30,
+  "created": "2026-10-31",
+  "sourceTextures": "4K PBR",
+  "runtimeTextureSize": 2048,
+  "runtimeTriangles": 14004,
+  "finishing": "Blender 4.4.3: orientation calibrated, 2K packed textures and editable source",
+  "files": {
+    "refinery-source.glb": {
+      "bytes": 39004388,
+      "sha256": "b994549acd9d280cc60281de9f7d5ab8c2471d6568d77e974aa3ac2a0394c310"
+    },
+    "refinery.glb": {
+      "bytes": 10608364,
+      "sha256": "ad7ea3983485b2e9400e3f7db91876e0105355f19780d778866d1fb53bef70f8"
+    },
+    "refinery.blend": {
+      "bytes": 11728586,
+      "sha256": "2d38a3229a5fe658cbb53a7c9f45fc27da36e0fa457c9b531ccd2e9f56a4f3cb"
+    }
+  }
+}

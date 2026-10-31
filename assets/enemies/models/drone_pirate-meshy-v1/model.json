@@ -1,0 +1,27 @@
+{
+  "name": "drone_pirate",
+  "reference": "assets/enemies/drone_pirate.png",
+  "provider": "Meshy",
+  "model": "meshy-7.1",
+  "taskId": "01a1928a-02f3-7476-896d-55604db03e03",
+  "credits": 30,
+  "created": "2026-10-31",
+  "sourceTextures": "4K PBR",
+  "runtimeTextureSize": 1024,
+  "runtimeTriangles": 12291,
+  "finishing": "Blender 4.4.3: orientation calibrated, texture size adapted, editable packed scene retained",
+  "files": {
+    "drone_pirate-source.glb": {
+      "bytes": 34287308,
+      "sha256": "2231a2d6e564079d5baa018c62f20b7faddb6c312d8d25cfa43d7ddcd45af41a"
+    },
+    "drone_pirate.glb": {
+      "bytes": 3428860,
+      "sha256": "3937c01bc70a55ef59b56e733454bddc351f9b261b451418fd35c3e45b76e3c3"
+    },
+    "drone_pirate.blend": {
+      "bytes": 4487580,
+      "sha256": "0bf22a7ed7a0d210bb70f935197331da753f7984e83e3d5d1f8fd6ac66aae947"
+    }
+  }
+}

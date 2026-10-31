@@ -1,0 +1,28 @@
+{
+  "name": "drone_pirate",
+  "reference": "assets/enemies/orb-scout-v1/orb-source.png",
+  "provider": "Meshy",
+  "model": "meshy-7.1",
+  "taskId": "01a192b4-9b8b-76ca-82fc-74cc0e8f472d",
+  "credits": 30,
+  "created": "2026-10-31",
+  "sourceTextures": "4K PBR",
+  "runtimeTextureSize": 1024,
+  "runtimeTriangles": 10372,
+  "finishing": "Blender 4.4.3: true spherical armored body, curved plates, cyan meridians and blue lens; six textured Meshy branches retained",
+  "files": {
+    "drone_pirate-source.glb": {
+      "bytes": 32754536,
+      "sha256": "828c2f9ec31eb46feccda0b5e16849e863dbb4b3f2249ee6b139b0e2d08af8f1"
+    },
+    "drone_pirate.glb": {
+      "bytes": 2877868,
+      "sha256": "a28a9f6417b84cff8fae15392b12ef579bdd874b4e8f600c77f75a688fc6e115"
+    },
+    "drone_pirate.blend": {
+      "bytes": 1428340,
+      "sha256": "3e00ff286ce3d6194572d9302873930e5c98ad790e67189d01767025c885c31a"
+    }
+  },
+  "sphericalBodyRadius": 0.625
+}

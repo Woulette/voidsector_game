@@ -1,4 +1,5 @@
 import { drawRotatedImage } from "./player.js?v=20261022-helion-hub1";
+import { getScene3dFrame } from "./scene3dFrame.js";
 import { canEnemyRotateFully, getEnemyRenderRotation } from "../../data/enemyVisuals.js";
 import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1";
 import { drawTargetSelectionOverlay, getEntityTargetSelectionRadius } from "./targetOverlay.js";
@@ -6,9 +7,9 @@ import { drawDeadlyEnemyEngines } from "./enemyEngines.js";
 import { drawVesperEnemyVisual } from "./vesperEncounter.js?v=20261022-helion-hub1";
 import { drawPrismaticEnemyVisual } from "./prismaticEncounter.js?v=20261022-helion-hub1";
 import { drawEnemyLife, getEnemyLifeScale } from "./enemyLife.js";
-import { drawLootCollection, getLootCollectionProgress, isLootCollectionVisible } from "./lootCollection.js";
 import { drawWeaponProjectile, drawMonochromeBeam, drawSlowBomb } from "./weaponVfx.js";
 import { drawEnemyWeaponImpact, getEnemyImpactCenter } from "./enemyWeaponImpact.js";
+import { drawEnemyDeathExplosion } from "./enemyDeathExplosion.js";
 import { drawAnimatedOrb } from "./enemyOrb.js";
 import { isOrbKind } from "../combatData/orbVisuals.js";
 import { drawAnimatedVorak } from "./enemyVorak.js";
@@ -19,7 +20,7 @@ import { drawAnimatedTracker } from "./enemyTracker.js";
 import { isTrackerKind } from "../combatData/trackerVisuals.js";
 import { drawAnimatedEclanite } from "./enemyEclanite.js";
 import { isEclaniteKind } from "../combatData/eclaniteVisuals.js";
-import { drawEnemyDeathExplosion } from "./enemyDeathExplosion.js";
+import { drawLootCollection, getLootCollectionProgress, isLootCollectionVisible } from "./lootCollection.js";
 
 const impactSpriteCache = new Map();
 const DEFAULT_CULL_MARGIN = 140;
@@ -343,6 +344,7 @@ export function drawProjectiles({ctx, camera, cache, bullets, showTrails = true}
 
 export function drawBeams({ctx, camera, beams}){
   if(!beams?.length) return;
+  const worldBeams = getScene3dFrame()?.enqueueBeams(beams);
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
   ctx.globalCompositeOperation = "lighter";
@@ -368,6 +370,7 @@ export function drawBeams({ctx, camera, beams}){
     ctx.fill();
   }
   for(const beam of beams){
+    if(worldBeams?.has(beam)) continue;
     if(beam.age < 0) continue;
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
@@ -749,12 +752,13 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
     const lifeScale = getEnemyLifeScale(enemy, time / 1000, idPhase);
     const lifePose = {ctx, camera, enemy, x:enemy.x + idleX, y:enemy.y + idleY,
       width:renderWidth, height:renderHeight, time:time / 1000, phase:idPhase};
-    const orbHandled = drawAnimatedOrb({ctx, camera, cache, enemy, time, phase:idPhase});
-    const vorakHandled = !orbHandled && drawAnimatedVorak({ctx, camera, cache, enemy, time, phase:idPhase});
-    const parasiteHandled = !orbHandled && !vorakHandled && drawAnimatedParasite({ctx, camera, cache, enemy, time, phase:idPhase});
-    const trackerHandled = !orbHandled && !vorakHandled && !parasiteHandled && drawAnimatedTracker({ctx, camera, cache, enemy, time, phase:idPhase});
-    const eclaniteHandled = !orbHandled && !vorakHandled && !parasiteHandled && !trackerHandled && drawAnimatedEclanite({ctx, camera, cache, enemy, time, phase:idPhase});
-    if(!orbHandled && !vorakHandled && !parasiteHandled && !trackerHandled && !eclaniteHandled){
+    const model3d = getScene3dFrame()?.enqueueEnemy({enemy,position:{x:enemy.x+idleX,y:enemy.y+idleY},size:Math.max(renderWidth,renderHeight)*attackScale,angle:renderAngle});
+    const orbHandled = !model3d && drawAnimatedOrb({ctx, camera, cache, enemy, time, phase:idPhase});
+    const vorakHandled = !model3d && !orbHandled && drawAnimatedVorak({ctx, camera, cache, enemy, time, phase:idPhase});
+    const parasiteHandled = !model3d && !orbHandled && !vorakHandled && drawAnimatedParasite({ctx, camera, cache, enemy, time, phase:idPhase});
+    const trackerHandled = !model3d && !orbHandled && !vorakHandled && !parasiteHandled && drawAnimatedTracker({ctx, camera, cache, enemy, time, phase:idPhase});
+    const eclaniteHandled = !model3d && !orbHandled && !vorakHandled && !parasiteHandled && !trackerHandled && drawAnimatedEclanite({ctx, camera, cache, enemy, time, phase:idPhase});
+    if(!model3d && !orbHandled && !vorakHandled && !parasiteHandled && !trackerHandled && !eclaniteHandled){
       drawEnemyLife(lifePose);
       const vesperVisualHandled = drawVesperEnemyVisual({ctx, camera, cache, enemy});
       const prismaticVisualHandled = drawPrismaticEnemyVisual({ctx, camera, cache, enemy});

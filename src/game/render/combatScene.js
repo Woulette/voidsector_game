@@ -1,6 +1,7 @@
 import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./canvasHud.js?v=20261023-minimap4";
 import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=20261022-helion-hub1";
 import { drawPlayerLayer } from "./player.js?v=20261022-helion-hub1";
+import { beginWorld3dFrame, endWorld3dFrame, drawWorld3dNavigation } from "./world3d.js";
 import { drawPortalTransitionOverlay } from "./portalTransition.js?v=20260726-kharon1";
 import { drawWorldLayer } from "./world.js?v=20261022-helion-hub1";
 import { drawSectorPortalTransferFocus } from "./sectorPortalVisual.js?v=20261024-sector-portals1";
@@ -151,7 +152,7 @@ export function createCombatSceneRenderer({
       canvas,
       cache,
       currentMap,
-      stations:getSpawnStations(),
+      stations:getSpawnStations?.() || [],
       player,
       enemies,
       selectedEnemy,
@@ -510,7 +511,12 @@ export function createCombatSceneRenderer({
     setCombatProfilerMetric("draw.bullets.count", bullets?.length || 0);
     setCombatProfilerMetric("draw.particles.count", particles?.length || 0);
     setCombatProfilerMetric("draw.damageTexts.count", state.damageTexts?.length || 0);
-    timeCombatProfiler("draw.background", ()=>drawBackground(state));
+    const sectorPortals = [...getMapPortals(currentMap),...getClosedMapPortals(currentMap)];
+    const world3d = beginWorld3dFrame({canvas,camera,currentMap,graphicsEffects,player,
+      width:viewW,height:viewH,dpr,stations:getSpawnStations(),portals:sectorPortals});
+    if(world3d) drawWorld3dNavigation({ctx,camera,currentMap,stations:getSpawnStations(),hoveredStation:getHoveredStation(),
+      portals:sectorPortals,cache,graphicsEffects,player,portalTransition});
+    else timeCombatProfiler("draw.background", ()=>drawBackground(state));
     timeCombatProfiler("draw.rickyArena", ()=>drawRickyArena(state));
     timeCombatProfiler("draw.vesperArena", ()=>vesperEncounter.drawArena(state));
     timeCombatProfiler("draw.eclaniteArena", ()=>eclaniteEncounter.drawArena(state));
@@ -578,6 +584,7 @@ export function createCombatSceneRenderer({
     timeCombatProfiler("draw.damageTexts", ()=>drawDamageTexts(state));
     if(graphicsEffects.portalEffects !== false) timeCombatProfiler("draw.sectorPortalFocus", ()=>drawSectorPortalTransferFocus({ctx,camera,transition:portalTransition || state.autoTravelTransition}));
     if(graphicsEffects.portalEffects !== false) timeCombatProfiler("draw.azuronPortalFocus", ()=>drawAzuronPortalTransferFocus({ctx,camera,transition:portalTransition}));
+    endWorld3dFrame();
     ctx.restore();
     canvas.__renderWidth = null;
     canvas.__renderHeight = null;

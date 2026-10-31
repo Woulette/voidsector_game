@@ -1,0 +1,27 @@
+{
+  "name": "raider_astral",
+  "reference": "assets/enemies/raider_astral.png",
+  "provider": "Meshy",
+  "model": "meshy-7.1",
+  "taskId": "01a1928a-0e82-718b-a293-832b49ef2d5f",
+  "credits": 30,
+  "created": "2026-10-31",
+  "sourceTextures": "4K PBR",
+  "runtimeTextureSize": 1024,
+  "runtimeTriangles": 12167,
+  "finishing": "Blender 4.4.3: orientation calibrated, texture size adapted, editable packed scene retained",
+  "files": {
+    "raider_astral-source.glb": {
+      "bytes": 34278396,
+      "sha256": "e984584ee8abc3a138a18ef4d2a924ac08151b7698d761f3c36aa3a046d542ee"
+    },
+    "raider_astral.glb": {
+      "bytes": 3156600,
+      "sha256": "dae56429b1a920f2fc18a77718f9c2a6483d97f3e2bfa62cdf31cc23e315444b"
+    },
+    "raider_astral.blend": {
+      "bytes": 4260481,
+      "sha256": "313e2e7f4cdb783c3f34fccc30ebf6c8ab998d0c47706f5ec80354bd3bf11abc"
+    }
+  }
+}

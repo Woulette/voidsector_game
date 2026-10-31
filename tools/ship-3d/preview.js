@@ -7,7 +7,8 @@ import { HELION_ONE_ASSETS } from "../../src/game/combatData/helionOneVisuals.js
 
 const canvas = document.getElementById("flight");
 const ctx = canvas.getContext("2d");
-const originalShip = ships.find(ship=>ship.id === "asterion");
+const requestedShip = new URLSearchParams(location.search).get("ship") || "orion";
+let originalShip = ships.find(ship=>ship.id === requestedShip && ["orion","asterion"].includes(ship.id)) || ships.find(ship=>ship.id === "orion");
 const cache = {};
 const images = {};
 const keys = new Set();
@@ -37,6 +38,20 @@ function resize(){
 }
 resize(); window.addEventListener("resize", resize);
 prepareShipModel3d(originalShip);
+
+function selectShip(id){
+  originalShip = ships.find(ship=>ship.id === id);
+  document.getElementById("ship-select").value = id;
+  const subtitle = document.createElement("span");subtitle.textContent = originalShip.className;
+  document.getElementById("ship-title").replaceChildren(document.createTextNode(originalShip.name),subtitle);
+  player.engineVfxState = {};keys.clear();destination = null;
+  player.hp = player.maxHp = originalShip.stats.vie;
+  player.speed = originalShip.stats.vitesse;
+  loadImage("ship",originalShip.combatImg || originalShip.img);
+  prepareShipModel3d(originalShip);
+}
+document.getElementById("ship-select").onchange = event=>selectShip(event.target.value);
+selectShip(originalShip.id);
 
 function selectMode(next){
   mode = next; destination = null; keys.clear();
@@ -170,7 +185,7 @@ function drawFlight(time){
       ctx.beginPath();ctx.moveTo(player.x-camera.x+origin.x,player.y-camera.y+origin.y);ctx.lineTo(target.x-camera.x,target.y-camera.y);ctx.stroke();
     }ctx.restore();
   }
-  drawPlayerLayer({ctx,camera,cache,player,ship:originalShip,drones:[],rank:{},rankAssetPath:"",pilotFirmAssetPath:"",pilotName:"ASTERION",pilotRole:"",getItemFromInventoryUid:()=>null,getDronePermanentUpgrade:()=>false,defaultProfile:DEFAULT_ENGINE_PROFILE,profiles:SHIP_ENGINE_PROFILES,graphicsEffects:{shipModels3d:use3d,combatDrones:false,repairDrone:false}});
+  drawPlayerLayer({ctx,camera,cache,player,ship:originalShip,drones:[],rank:{},rankAssetPath:"",pilotFirmAssetPath:"",pilotName:originalShip.name.toUpperCase(),pilotRole:"",getItemFromInventoryUid:()=>null,getDronePermanentUpgrade:()=>false,defaultProfile:DEFAULT_ENGINE_PROFILE,profiles:SHIP_ENGINE_PROFILES,graphicsEffects:{shipModels3d:use3d,combatDrones:false,repairDrone:false}});
   ctx.restore();canvas.__renderWidth = canvas.__renderHeight = null;
 }
 
