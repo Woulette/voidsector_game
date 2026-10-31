@@ -3,22 +3,44 @@ import { drawSpawnStationPrompts } from "./spawnHub.js?v=20261022-helion-hub1";
 import { drawSpawnStationHoverLabel } from "./spawnStationHighlight.js";
 import { drawQuestNpcs } from "./world.js";
 import { drawMapPortals } from "./mapPortals.js?v=20261022-helion-hub1";
+import { isWorld3dEnabled } from "./scene3dPolicy.js";
 
 let renderer = null, loading = null, failed = false;
 
+export function canUseWorld3d(currentMap, graphicsEffects){
+  return isWorld3dEnabled(currentMap,graphicsEffects) && !failed && !renderer?.isContextLost();
+}
+
+function loadRenderer(){
+  return loading ??= import("./world3dRenderer.js").then(module=>{
+    renderer = module.createWorld3dRenderer();
+    return renderer;
+  });
+}
+
+export async function prepareWorld3dScene(options){
+  if(!canUseWorld3d(options.currentMap,options.graphicsEffects)) return false;
+  try{
+    const readyRenderer = await loadRenderer();
+    if(readyRenderer.isContextLost() || !await readyRenderer.prepare(options)) throw new Error("Ressources du secteur 3D indisponibles.");
+    return true;
+  }catch(error){
+    failed = true;renderer?.hide();
+    console.warn("[Avosoma] Le secteur utilise le rendu classique.",error);
+    return false;
+  }
+}
+
 export function beginWorld3dFrame(options){
   setScene3dFrame(null);
-  const enabled = Number(options.currentMap?.id) === 0 && options.currentMap?.name?.startsWith("Helion")
-    && options.graphicsEffects?.world3d !== false && typeof document !== "undefined";
+  const enabled = canUseWorld3d(options.currentMap,options.graphicsEffects) && typeof document !== "undefined";
   if(!enabled || failed || renderer?.isContextLost()){
     renderer?.hide();
     return false;
   }
   if(!renderer){
     options.canvas.dataset.world3d = "loading";
-    loading ??= import("./world3dRenderer.js").then(module=>{
-      renderer = module.createWorld3dRenderer();
-    }).catch(error=>{
+    loadRenderer().catch(error=>{
       failed = true;
       options.canvas.dataset.world3d = "error";
       console.warn("[Avosoma] Le secteur 3D est indisponible, rendu classique conservé.",error);

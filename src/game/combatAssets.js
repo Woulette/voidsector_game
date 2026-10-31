@@ -10,6 +10,8 @@ import { VORAK_VISUAL_PROFILES, VORAK_THRUSTER_TEXTURE } from "./combatData/vora
 import { PARASITE_PROFILES } from "./combatData/parasiteVisuals.js";
 import { TRACKER_VISUAL_PROFILES } from "./combatData/trackerVisuals.js";
 import { ECLANITE_SOURCE } from "./combatData/eclaniteVisuals.js";
+import { getShipModel3d } from "../data/shipModels3d.js";
+import { getReplacedMapImages } from "./render/scene3dPolicy.js";
 
 function uniqueAssetPaths(paths){
   return [...new Set(paths.filter(Boolean))];
@@ -71,7 +73,7 @@ export function getCachedCombatImage(cache, src, {maxAssets = RUNTIME_COMBAT_ASS
   return img;
 }
 
-export function getCombatMapAssetPaths(map){
+export function getCombatMapAssetPaths(map, {world3d = false} = {}){
   if(!map) return [];
   const tileMap = map.tileMap;
   const mapTiles = [];
@@ -84,6 +86,7 @@ export function getCombatMapAssetPaths(map){
       }
     }
   }
+  const replaced = new Set(world3d ? getReplacedMapImages(map) : []);
   return uniqueAssetPaths([
     map.bg,
     ...getSectorPortalAssetPaths(map),
@@ -99,10 +102,10 @@ export function getCombatMapAssetPaths(map){
     ...(map.enemyAssets || []),
     ...(map.portalAssets || []),
     ...mapTiles
-  ]);
+  ]).filter(src=>!replaced.has(src));
 }
 
-export function preloadCombatAssets({cache, ships = [], ranks = [], getRankAssetPath = ()=>null}){
+export function preloadCombatAssets({cache, ships = [], ranks = [], getRankAssetPath = ()=>null, shipModels3d = false, world3d = false}){
   const rankImages = ranks.map(rank=>getRankAssetPath(rank));
   const spawnAssets = [
     "assets/spawn/spawn_dock.png",
@@ -128,16 +131,16 @@ export function preloadCombatAssets({cache, ships = [], ranks = [], getRankAsset
     "assets/portals/faille_vesper.png",
     "assets/ships/npc/npc_saucer.png",
     RICKY_SAUCER_ASSET,
-    ...spawnAssets,
+    ...(world3d ? [] : spawnAssets),
     ...rankImages
   ];
   uniqueAssetPaths([
-    ...ships.flatMap(ship=>[ship.img, ship.combatImg]),
+    ...ships.filter(ship=>!shipModels3d || !getShipModel3d(ship)).flatMap(ship=>[ship.img, ship.combatImg]),
     ...misc
   ]).forEach(src=>preloadAsset(cache, src));
 }
 
-export function createCombatMapAssetCache({cache, maxMaps = 3} = {}){
+export function createCombatMapAssetCache({cache, maxMaps = 3, getOptions = ()=>({})} = {}){
   const retainedMaps = new Map();
   const managedSources = new Set();
   const queuedSources = new Set();
@@ -209,9 +212,10 @@ export function createCombatMapAssetCache({cache, maxMaps = 3} = {}){
     const key = getMapKey(map);
     if(!key) return [];
     const existing = retainedMaps.get(key);
-    const entry = existing || {map, paths:getCombatMapAssetPaths(map)};
+    const entry = {map, paths:getCombatMapAssetPaths(map, getOptions(map))};
     if(existing) retainedMaps.delete(key);
     retainedMaps.set(key, entry);
+    if(existing) releaseEntry(existing);
     if(active && key !== activeMapKey){
       previousActiveMapKey = activeMapKey;
       activeMapKey = key;
@@ -246,4 +250,34 @@ export function createCombatMapAssetCache({cache, maxMaps = 3} = {}){
     clear,
     getRetainedMapKeys:()=>[...retainedMaps.keys()]
   };
+}
+
+export function releaseCombatImages(cache, paths){
+  const state = runtimeAssetStates.get(cache);
+  for(const src of paths.filter(Boolean)){
+    delete cache[src];state?.delete(src);
+  }
+}
+
+export async function prepareCombatImages(cache, paths){
+  await Promise.all(uniqueAssetPaths(paths).map(async src=>{
+    const image = preloadAsset(cache,src);
+    if(!image) return;
+    if(typeof image.getContext === "function") return;
+    try{
+      if(typeof image.decode === "function") await image.decode();
+      else if(!image.complete) await new Promise((resolve,reject)=>{
+        const clear = ()=>{image.removeEventListener("load",loaded);image.removeEventListener("error",failed);};
+        const loaded = ()=>{clear();resolve();};
+        const failed = ()=>{clear();reject(new Error(`Image indisponible : ${src}`));};
+        image.addEventListener("load",loaded,{once:true});image.addEventListener("error",failed,{once:true});
+      });
+      if(!image.naturalWidth && !image.width) throw new Error(`Image indisponible : ${src}`);
+      // Palette preparation may replace the Image with a canvas on load.
+      if(getMapAssetPalette(src) && cache[src] === image) image.onload?.();
+    }catch(error){
+      if(cache[src] === image) releaseCombatImages(cache,[src]);
+      throw error;
+    }
+  }));
 }

@@ -26,6 +26,7 @@ import { createAncientEncounterRenderer, getAncientObjectiveMarkers } from "./an
 import { RICKY_SAUCER_ASSET } from "../../data/rickyVisuals.js?v=20261024-ricky-visuals1";
 import { drawRickySaucerEffects, sampleRickySaucerAnimation } from "./rickySaucer.js?v=20261024-ricky-visuals1";
 import { drawRickyHealBeacons } from "./rickyHealBeacon.js?v=20261024-ricky-heal1";
+import { createCombatSceneLoading, getCombatSceneLoadingKey } from "./combatSceneLoading.js";
 
 function lerp(a, b, t){
   return a + (b - a) * t;
@@ -67,6 +68,7 @@ export function createCombatSceneRenderer({
   getCanvasViewWidth,
   getCanvasViewHeight,
   getActiveShip,
+  getSceneShips = ()=>[],
   getCurrentRank,
   getRankAssetPath,
   getDroneLoadout,
@@ -80,6 +82,7 @@ export function createCombatSceneRenderer({
   engineProfiles
 }){
   let portalAllyRenderState = null;
+  const sceneLoading = createCombatSceneLoading({canvas,cache});
   const vesperEncounter = createVesperEncounterRenderer({ctx, cache, getState});
   const kharonEncounter = createKharonEncounterRenderer({ctx, getState});
   const eclaniteEncounter = createEclaniteEncounterRenderer({ctx, cache, getState});
@@ -500,6 +503,10 @@ export function createCombatSceneRenderer({
     const viewH = getCanvasViewHeight();
     const zoom = camera?.zoom || 1;
     const graphicsEffects = getGraphicsEffects();
+    const loadingOptions = {currentMap,ship:getActiveShip(),getSceneShips,graphicsEffects,stations:getSpawnStations(),enemies,
+      initialImages:[getRankAssetPath(getCurrentRank()),getFirmBadgeAsset(store.state.player?.firmId)]};
+    const loadingKey = getCombatSceneLoadingKey(loadingOptions);
+    if(!sceneLoading.begin(loadingKey,loadingOptions)) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, viewW, viewH);
     ctx.imageSmoothingEnabled = true;
@@ -594,7 +601,9 @@ export function createCombatSceneRenderer({
     timeCombatProfiler("draw.radiation", ()=>drawRadiationOverlay(state));
     timeCombatProfiler("draw.minimap", ()=>drawMiniMap(state));
     if(graphicsEffects.portalWarp !== false) timeCombatProfiler("draw.portalTransition", ()=>drawPortalTransitionOverlay({ctx, transition:portalTransition || state.autoTravelTransition, maps:mapList, viewW, viewH}));
+    if(getCombatSceneLoadingKey(loadingOptions) === loadingKey) sceneLoading.completeFrame(loadingKey);
   }
 
-  return {drawBackground, drawRadiationOverlay, drawDamageTexts, drawMiniMap, draw};
+  return {drawBackground, drawRadiationOverlay, drawDamageTexts, drawMiniMap, draw,
+    resetLoading:({show=false}={})=>{sceneLoading.reset();if(show) sceneLoading.show({currentMap:getState().currentMap});}};
 }

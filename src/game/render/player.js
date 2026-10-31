@@ -2,8 +2,9 @@ import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1"
 import { drawTexturedShipEngines, isTexturedShipEngineReady } from "./shipEngines.js";
 import { drawRepairDrone } from "./repairDrone.js?v=20261024-repair1";
 import { drawPlayerShieldImpacts } from "./playerShieldImpacts.js";
-import { drawShipModel3d, getActiveShipFlightPose } from "./ship3d.js";
+import { drawShipModel3d, getActiveShipFlightPose, getShipModel3dStatus } from "./ship3d.js";
 import { projectShipEnginePorts } from "./ship3dProjection.js";
+import { supportsShipThruster3d } from "./shipThruster3dMotion.js";
 
 export function drawRotatedImage({ctx, camera, img, x, y, w, h, angle, fallbackColor = "#38bdf8"}){
   ctx.save();
@@ -242,8 +243,11 @@ function formationPoint(index, time, formationId = null, count = 1){
   return {x:0, y:140};
 }
 
-export function spawnPlayerEngineParticles({dt, player, ship, particles, defaultProfile, profiles}){
+export function spawnPlayerEngineParticles({dt, player, ship, particles, defaultProfile, profiles, engine3dEnabled=false}){
   if(!player) return;
+  if(engine3dEnabled && supportsShipThruster3d(ship) && getShipModel3dStatus(ship) !== "error"){
+    player.engineParticleT=0;return;
+  }
   if(isTexturedShipEngineReady()) return;
   const power = Math.max(0, Math.min(1, player.enginePower || 0));
   if(power <= 0.05){
@@ -908,14 +912,18 @@ export function drawPlayerLayer({
   const position = getPlayerDrawPosition(player);
   const flightPose = getActiveShipFlightPose(ship, player, graphicsEffects.shipModels3d !== false);
   const enginePlayer = flightPose ? {...player, angle:flightPose.angle} : player;
-  if(graphicsEffects.shipEngineTrail !== false
+  const modelStatus=getShipModel3dStatus(ship);
+  const engine3d = graphicsEffects.shipModels3d !== false && supportsShipThruster3d(ship)
+    && (flightPose || modelStatus === "idle" || modelStatus === "loading");
+  if(!engine3d && graphicsEffects.shipEngineTrail !== false
     && !drawTexturedShipEngines({ctx, camera, cache, player:enginePlayer, ship, defaultProfile, profiles, flightPose})){
     drawPlayerEngineTrail({ctx, camera, player:enginePlayer, ship, defaultProfile, profiles, flightPose});
   }
   drawPlayerStatusBars({ctx, camera, player});
   drawEliteLaserCharges({ctx, camera, player, ship});
   drawSpectralDoubleShotCharge({ctx, camera, player, ship});
-  if(!drawShipModel3d({ctx, camera, player, ship, position, enabled:graphicsEffects.shipModels3d !== false, flightPose})) drawRotatedImage({
+  if(!drawShipModel3d({ctx, camera, player, ship, position, enabled:graphicsEffects.shipModels3d !== false, flightPose,
+    engineEnabled:graphicsEffects.shipEngineTrail !== false})) drawRotatedImage({
     ctx,
     camera,
     img:getCachedCombatImage(cache, ship.combatImg || ship.img),

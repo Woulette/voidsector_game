@@ -1,7 +1,7 @@
 import * as THREE from "../../../vendor/three-r187/three.module.js";
-import { GLTFLoader } from "../../../vendor/three-r187/GLTFLoader.js";
 import { RoomEnvironment } from "../../../vendor/three-r187/RoomEnvironment.js";
 import { getShipFlightPose } from "./ship3dProjection.js";
+import { createShipThruster3dSystem } from "./shipThruster3d.js";
 
 export function createShip3dRenderer(){
   const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, powerPreference:"high-performance"});
@@ -11,6 +11,7 @@ export function createShip3dRenderer(){
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = .95;
   const scene = new THREE.Scene();
+  const thrusters = createShipThruster3dSystem(scene,{maxShips:1});
   const camera = new THREE.OrthographicCamera(-.82, .82, .82, -.82, .01, 20);
   camera.position.set(0, 5, 0);
   camera.up.set(0, 0, -1);
@@ -28,52 +29,14 @@ export function createShip3dRenderer(){
   const fill = new THREE.DirectionalLight(0x7fcfff, .9);
   fill.position.set(3, 2, 3);
   scene.add(fill, new THREE.HemisphereLight(0xcbdfff, 0x20151f, .7));
-  const loader = new GLTFLoader();
   let activeModel = null;
   let resolution = 0;
   let lost = false;
   renderer.domElement.addEventListener("webglcontextlost", event=>{ event.preventDefault(); lost = true; });
   renderer.domElement.addEventListener("webglcontextrestored", ()=>{ lost = false; });
 
-  async function loadModel(definition){
-    const gltf = await loader.loadAsync(definition.url);
-    const asset = gltf.scene;
-    asset.rotation.set(...definition.rotation);
-    asset.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(asset);
-    const size = bounds.getSize(new THREE.Vector3());
-    const center = bounds.getCenter(new THREE.Vector3());
-    const length = Math.max(size.x, size.z);
-    if(!Number.isFinite(length) || length <= 0) throw new Error("Le modèle 3D n’a pas de dimensions valides.");
-    const scale = Number(definition.displayScale || 1) / length;
-    const centered = new THREE.Group();
-    centered.add(asset);
-    asset.position.sub(center);
-    centered.scale.setScalar(scale);
-    const bank = new THREE.Group();
-    bank.add(centered);
-    const yaw = new THREE.Group();
-    yaw.add(bank);
-    asset.traverse(object=>{
-      if(!object.isMesh) return;
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      for(const material of materials){
-        material.envMapIntensity = definition.surface?.environment ?? 1;
-        if(material.normalScale) material.normalScale.multiplyScalar(definition.surface?.normalStrength ?? .65);
-        if(definition.surface && material.roughnessMap){
-          // Stable broad highlights preserve the colored panels at gameplay size.
-          material.roughnessMap = null;
-          material.roughness = definition.surface.roughness;
-        }
-        for(const key of ["map", "normalMap", "metalnessMap", "roughnessMap"]){
-          if(material[key]) material[key].anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-        }
-      }
-    });
-    return {yaw, bank, asset, size:{x:size.x * scale, y:size.y * scale, z:size.z * scale}};
-  }
-
-  function render(model, {angle = 0, flightPose = null, resolution:nextResolution = 256, inspection = null} = {}){
+  function render(model, {angle = 0, flightPose = null, resolution:nextResolution = 256, inspection = null,
+    shipId,engineKey=model,enginePower=0,engineEnabled=true,worldOffset=null} = {}){
     if(activeModel !== model){
       if(activeModel) scene.remove(activeModel.yaw);
       scene.add(model.yaw);
@@ -96,9 +59,19 @@ export function createShip3dRenderer(){
       camera.up.set(0, 1, 0);
     }
     camera.lookAt(0, 0, 0);
+    thrusters.begin(performance.now()/1000);
+    if(shipId === "orion") thrusters.enqueue({key:engineKey,object:model.yaw,power:enginePower,angle,enabled:engineEnabled,worldOffset});
+    thrusters.finish();
     renderer.render(scene, camera);
+    renderer.domElement.dataset.thruster3d=JSON.stringify(thrusters.getStats());
     return renderer.domElement;
   }
 
-  return {loadModel, render, isContextLost:()=>lost || renderer.getContext().isContextLost()};
+  function dispose(){
+    if(activeModel) scene.remove(activeModel.yaw);
+    activeModel = null;scene.clear();scene.environment = null;
+    thrusters.dispose();
+    environment.dispose();renderer.dispose();renderer.forceContextLoss();
+  }
+  return {render,dispose,isContextLost:()=>lost || renderer.getContext().isContextLost()};
 }

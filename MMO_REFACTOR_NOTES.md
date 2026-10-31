@@ -1873,3 +1873,8 @@ Trois mini-cartes fixes 1200×540 réexportées. 46 tests ciblés, cinq syntaxes
 ### 2026-10-25 — Secteurs 03 : silhouettes communes et violet localisé
 
 Correction locale `aligned3`, sans publication. Nouvelle planète Helion issue du style Nereid, master RGBA commun aux quatre variantes. Structures et rochers reprennent les silhouettes exactes Helion, matériaux de firme préparés au chargement. Retrait du nuage entièrement violet : émission originale partagée et préservation locale de son éclairage dans le seul nuage principal. Quatre mini-cartes `*-03-aligned-v3.png` exportées. Audit navigateur : 229 couches/variante, 12 textures/variante, zéro différence géométrique ou alpha. 47 tests passent. Moteurs world/sky et gameplay préservés. Détails, sources, prompt et preuves : `docs/SECTEURS_03_FIRMES_2026-10-25.md` et `output/sector03-alignment-20261025/`. Ne pas publier les anciens PNG indépendants v2 ni le matériau global eclanite.
+
+
+## Orion et chargement 3D - prototype local du 31 octobre 2026
+
+Le chargement des coques est independant du moteur dans `ship3dAssets.js`. `combatSceneLoading.js` compose la preparation des ressources de la zone et la premiere image avec un ecran de chargement ; les anciens visuels remplaces sont filtres dans le cache de combat. `disposeScene3d.js` distingue les ressources privees des GLB partages. Le reacteur Orion utilise trois lots GPU partages et une trainee circulaire bornee ; aucun atlas de reacteur supplementaire. Les vues classiques gardent un moteur d apercu a la demande, libere au retour au secteur commun. Changements purement visuels, non publies. Details et limites des verifications : `docs/ORION_REACTEUR_CHARGEMENT_3D_2026-10-31.md`.

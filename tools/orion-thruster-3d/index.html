@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avosoma — Réacteur Orion 3D</title>
+<link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="preview.css">
+<script type="importmap">{"imports":{"/vendor/three-r187/":"/assets/vendor/three-r187/"}}</script>
+</head><body>
+<header><div><span>AVOSOMA · APERÇU LOCAL</span><h1>Réacteur Orion 3D</h1><p>Même vaisseau, nouvelle tuyère et plasma en volume.</p></div>
+<a href="/index.html?serverUrl=http%3A%2F%2F127.0.0.1%3A3001&mode=game">Ouvrir le jeu ↗</a></header>
+<main id="viewport"><div id="loading" role="status">Préparation de l’Orion…</div></main>
+<section aria-label="Commandes de l’aperçu">
+<label>Vaisseaux <select id="fleet"><option value="1">1 Orion</option><option value="10">10 Orion</option><option value="30">30 Orion</option></select></label>
+<label>Vue <select id="view"><option value="1">Jeu · zoom normal</option><option value="1.8" selected>Jeu · zoom maximal</option><option value="3">Gros plan · inspection</option><option value="rear">Tuyère · vue arrière</option></select></label>
+<label>Poussée <input id="power" type="range" min="0" max="1" value="1" step="0.05"></label>
+<label><input id="turn" type="checkbox" checked> Virages automatiques</label>
+<label><input id="engines" type="checkbox" checked> Réacteurs 3D</label>
+<button id="measure">Mesurer pendant 5 secondes</button>
+</section>
+<footer><p id="stats" aria-live="off">Chargement…</p><p id="measurement" role="status">Les mesures portent sur cet aperçu et ce navigateur.</p></footer>
+<script type="module" src="preview.js"></script></body></html>

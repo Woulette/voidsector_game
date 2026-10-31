@@ -73,6 +73,7 @@ import { createFirmSectorTwoVisualMaps } from "./combatData/firmSectorTwoVisuals
 import { createHelionThreeVisualMaps } from "./combatData/helionThreeVisuals.js";
 import { createFirmSectorThreeVisualMaps } from "./combatData/firmSectorThreeVisuals.js";
 import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js?v=20261022-helion-hub1";
+import { canUseWorld3d } from "./render/world3d.js";
 import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=20260726-ancient1";
 import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=20261022-helion-hub1";
 import { createCombatSceneRenderer } from "./render/combatScene.js?v=20261022-helion-hub1";
@@ -140,7 +141,8 @@ export function createCombatGame({renderAll, showToast}){
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
   const cache = {};
-  const mapAssetCache = createCombatMapAssetCache({cache, maxMaps:3});
+  const mapAssetCache = createCombatMapAssetCache({cache, maxMaps:3,
+    getOptions:map=>({world3d:canUseWorld3d(map,getGraphicsEffects())})});
   let running = false;
   let last = 0;
   let hudT = 0;
@@ -650,6 +652,9 @@ export function createCombatGame({renderAll, showToast}){
     getCanvasViewWidth,
     getCanvasViewHeight,
     getActiveShip,
+    getSceneShips:()=>[...multiplayer.remotePlayers.values()]
+      .filter(remote=>String(remote.state?.mapId) === String(currentMap.id))
+      .map(remote=>ships.find(ship=>ship.id === remote.state.shipId)).filter(Boolean),
     getCurrentRank,
     getRankAssetPath,
     getDroneLoadout,
@@ -781,7 +786,8 @@ export function createCombatGame({renderAll, showToast}){
     isSafeModeActive,
     isPlayerOutsideMap,
     emitPlayerEngineParticles:args=>{
-      if(getGraphicsEffects().shipEngineTrail !== false) emitPlayerEngineParticles(args);
+      if(getGraphicsEffects().shipEngineTrail !== false) emitPlayerEngineParticles({...args,
+        engine3dEnabled:getGraphicsEffects().shipModels3d !== false});
     },
     updateHud,
     syncServerControlledEnemies:multiplayerSync.syncEnemies,
@@ -948,7 +954,10 @@ export function createCombatGame({renderAll, showToast}){
     showToast
   });
   function preload(){
-    preloadCombatAssets({cache, ships:[getActiveShip()], ranks:[getCurrentRank()], getRankAssetPath});
+    sceneRenderer.resetLoading({show:true});
+    preloadCombatAssets({cache, ships:[getActiveShip()], ranks:[getCurrentRank()], getRankAssetPath,
+      shipModels3d:getGraphicsEffects().shipModels3d !== false,
+      world3d:canUseWorld3d(currentMap,getGraphicsEffects())});
     warmCombatHudTextRendering();
   }
   function resetPerfMetrics(){
@@ -1344,7 +1353,7 @@ export function createCombatGame({renderAll, showToast}){
   installCombatInputHandlers({
     getCamera:()=>camera,
     canvas,
-    isRunning:()=>running,
+    isRunning:()=>running && canvas.dataset.sceneLoading === "ready",
     isMovementLocked:()=>cargo.isMovementLocked?.() || Boolean(portalCinematic),
     isSettingsOpen:()=>settingsController?.isOpen?.() || false,
     resize,
@@ -1524,6 +1533,7 @@ export function createCombatGame({renderAll, showToast}){
       return session.start(...args);
     },
     stop:(...args)=>{
+      sceneRenderer.resetLoading();
       sectorTravel.cancel("stopped");
       return session.stop(...args);
     },

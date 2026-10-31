@@ -11,6 +11,10 @@ const coloredAtlases = new Map();
 const nozzleLayouts = new Map();
 let sourceAtlas = null;
 
+export function releaseShipEngineTextures(shipId){
+  coloredAtlases.delete(shipId);nozzleLayouts.delete(shipId);
+}
+
 export function setEngineTexture(image){
   if(!image?.naturalWidth || !image?.naturalHeight) throw new Error("Texture des réacteurs indisponible");
   sourceAtlas = image;
@@ -195,7 +199,7 @@ export function drawTexturedShipEngines({ctx, camera, cache, player, ship, defau
   ctx.save();
   ctx.translate(-Number(camera.x || 0), -Number(camera.y || 0));
   drawShipEngineJets(ctx, {...player, ...position}, ship, now, dt, state, bend,
-    getCachedCombatImage(cache, ship.combatImg || ship.img), profile, flightPose);
+    flightPose ? null : getCachedCombatImage(cache, ship.combatImg || ship.img), profile, flightPose);
   ctx.restore();
   state.lastAngle = angle;
   state.lastTime = now;

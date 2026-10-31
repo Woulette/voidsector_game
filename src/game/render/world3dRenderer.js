@@ -5,6 +5,8 @@ import { WORLD_MODELS_3D } from "../../data/worldModels3d.js";
 import { advanceShipFlightMotion, getShipFlightPose } from "./ship3dProjection.js";
 import { configureWorld3dCamera, worldPointToScene } from "./world3dProjection.js";
 import { sampleWorld3dBeam } from "./world3dBeams.js";
+import { disposeScene3d } from "./disposeScene3d.js";
+import { createShipThruster3dSystem } from "./shipThruster3d.js";
 
 function positionAt(object,x,y,height=0){const p=worldPointToScene({x,y,height});object.position.set(p.x,p.y,p.z);}
 
@@ -20,6 +22,7 @@ export function createWorld3dRenderer(){
   backdrop.setAttribute("aria-hidden","true");backdrop.dataset.sectorBackdrop="original";
   Object.assign(backdrop.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none",zIndex:"0",background:"#05040b"});
   const scene = new THREE.Scene();
+  const thrusters = createShipThruster3dSystem(scene);
   const camera = new THREE.OrthographicCamera(-1,1,1,-1,.1,30000);
   const pmrem = new THREE.PMREMGenerator(renderer),room = new RoomEnvironment();
   const environment = pmrem.fromScene(room,.04);scene.environment = environment.texture;scene.environmentIntensity = .85;
@@ -27,7 +30,7 @@ export function createWorld3dRenderer(){
   const key = new THREE.DirectionalLight(0xffebdb,1.8);key.position.set(-3000,5000,-2000);
   const fill = new THREE.DirectionalLight(0x7fcfff,.9);fill.position.set(3000,2000,3000);
   scene.add(key,fill,new THREE.HemisphereLight(0xcbdfff,0x20151f,.7));
-  const loader = new GLTFLoader(),textureLoader = new THREE.TextureLoader();
+  const loader = new GLTFLoader();
   const models = new Map(),actors = new Map(),sharedResources = new WeakSet();
   const beamGeometry = new THREE.CylinderGeometry(1,1,1,8,1,true);
   const beamCore = new THREE.InstancedMesh(beamGeometry,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}),256);
@@ -44,9 +47,9 @@ export function createWorld3dRenderer(){
 
   function loadModel(id){
     if(models.has(id)) return models.get(id);
-    const entry = {status:"loading",template:null};models.set(id,entry);
+    const entry = {status:"loading",template:null,promise:null};models.set(id,entry);
     const definition = WORLD_MODELS_3D[id];
-    loader.load(definition.url,gltf=>{
+    entry.promise = loader.loadAsync(definition.url).then(gltf=>{
       const asset = gltf.scene,bounds = new THREE.Box3().setFromObject(asset);
       const dimensions = bounds.getSize(new THREE.Vector3()),center = bounds.getCenter(new THREE.Vector3());
       const scale = Number(definition.displayScale || 1) / Math.max(dimensions.x,dimensions.z);
@@ -65,10 +68,11 @@ export function createWorld3dRenderer(){
           }
         }
       });
-      entry.template = yaw;entry.status = "ready";
-    },undefined,error=>{
+      entry.template = yaw;entry.status = "ready";return true;
+    }).catch(error=>{
       entry.status = "error";
       console.warn(`[Avosoma] Modèle du secteur indisponible : ${id}.`,error);
+      return false;
     });
     return entry;
   }
@@ -76,19 +80,10 @@ export function createWorld3dRenderer(){
   function buildDecor(currentMap,stations,portals){
     const root = new THREE.Group();scene.add(root);
     const hub = new THREE.Group();root.add(hub);
-    const placeholder = new THREE.Mesh(new THREE.TorusGeometry(.43,.05,8,64),new THREE.MeshStandardMaterial({color:0x4e535d,roughness:.6,metalness:.75}));
-    placeholder.rotation.x=-Math.PI/2;hub.add(placeholder);hub.scale.setScalar(currentMap.spawn.visual?.width || 1100);
+    hub.scale.setScalar(currentMap.spawn.visual?.width || 1100);
     const hubPoint = currentMap.spawn.visual || currentMap.spawn;positionAt(hub,hubPoint.x,hubPoint.y,-70);
     const stationNodes = stations.map(station=>{
       const group = new THREE.Group();root.add(group);positionAt(group,station.x,station.y,0);
-      const metal = new THREE.MeshStandardMaterial({color:0x444b57,metalness:.65,roughness:.55});
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(75,110,65,12),metal);group.add(body);
-      const tower = new THREE.Mesh(new THREE.CylinderGeometry(20,30,95,8),metal);tower.position.y=80;group.add(tower);
-      const light = new THREE.Mesh(new THREE.TorusGeometry(74,3,6,40),new THREE.MeshBasicMaterial({color:station.id === "quests" ? 0x7edce9 : 0xf1b66a}));
-      light.rotation.x=Math.PI/2;light.position.y=40;group.add(light);
-      for(let i=0;i<4;i++){
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(60,5,32),metal);panel.position.set(Math.cos(i*Math.PI/2)*118,10,Math.sin(i*Math.PI/2)*118);panel.rotation.y=-i*Math.PI/2;group.add(panel);
-      }
       return {group,station,loaded:false};
     });
     const portalNodes = createPortalNodes(root,portals);
@@ -96,14 +91,7 @@ export function createWorld3dRenderer(){
   }
 
   function disposeDecor(root){
-    root.traverse(object=>{
-      if(object.geometry && !sharedResources.has(object.geometry)) object.geometry.dispose();
-      for(const material of object.material ? (Array.isArray(object.material) ? object.material : [object.material]) : []){
-        if(sharedResources.has(material)) continue;
-        for(const texture of Object.values(material)) if(texture?.isTexture) texture.dispose();
-        material.dispose();
-      }
-    });
+    disposeScene3d(root,sharedResources);
   }
 
   function portalSignature(portals){
@@ -123,12 +111,12 @@ export function createWorld3dRenderer(){
   function updateDecor(){
     const headquarters=loadModel("headquarters");
     if(headquarters.status === "ready" && !decor.hubLoaded){
-      decor.hub.clear();decor.hub.add(headquarters.template.clone(true));decor.hubLoaded=true;
+      disposeDecor(decor.hub);decor.hub.clear();decor.hub.add(headquarters.template.clone(true));decor.hubLoaded=true;
     }
     for(const node of decor.stationNodes){
       const entry=loadModel(node.station.id);
       if(entry.status === "ready" && !node.loaded){
-        node.group.clear();node.group.add(entry.template.clone(true));
+        disposeDecor(node.group);node.group.clear();node.group.add(entry.template.clone(true));
         node.group.scale.setScalar(node.station.assetWidth || 350);node.loaded=true;
       }
     }
@@ -137,6 +125,7 @@ export function createWorld3dRenderer(){
 
   function begin(options){
     view=options;frame++;
+    thrusters.begin(performance.now()/1000);
     if(canvas !== options.canvas){
       hide();canvas=options.canvas;previousBackground=canvas.style.background;
       canvas.parentElement.insertBefore(backdrop,canvas);
@@ -169,8 +158,6 @@ export function createWorld3dRenderer(){
         disposeDecor(decor.root);
       }
       map=options.currentMap;decor=buildDecor(map,options.stations,options.portals);
-      if(WORLD_MODELS_3D.drone_pirate.enabled !== false) loadModel("drone_pirate");
-      loadModel("raider_astral");
     }
     const signature=portalSignature(options.portals);
     if(signature !== decor.portalSignature){
@@ -182,7 +169,7 @@ export function createWorld3dRenderer(){
     updateDecor();canvas.dataset.world3d="ready";
   }
 
-  function enqueueShip({key:actorKey,template,position,size,pose,steeringAngle=pose.angle}){
+  function enqueueShip({key:actorKey,template,position,size,pose,steeringAngle=pose.angle,shipId,enginePower=0,engineEnabled=true}){
     let actor=actors.get(actorKey);
     if(!actor || actor.template !== template){
       if(actor) scene.remove(actor.object);
@@ -193,13 +180,14 @@ export function createWorld3dRenderer(){
     positionAt(actor.object,position.x,position.y);
     actor.object.scale.setScalar(size);actor.object.rotation.y=pose.yaw;
     actor.object.children[0].rotation.set(pose.pitch,0,pose.roll);
+    if(shipId === "orion") thrusters.enqueue({key:actorKey,object:actor.object,power:enginePower,angle:pose.angle,enabled:engineEnabled});
   }
 
   function enqueueEnemy({enemy,position,size,angle}){
     const definition=WORLD_MODELS_3D[enemy.kind];
     if(!definition || definition.enabled === false) return false;
     const entry=loadModel(enemy.kind);
-    if(entry.status !== "ready") return false;
+    if(entry.status !== "ready") return entry.status !== "error";
     const actorKey=`enemy:${enemy.id}`;
     const motion=actors.get(actorKey)?.motion || {};
     advanceShipFlightMotion(motion,angle,performance.now()/1000);
@@ -264,7 +252,8 @@ export function createWorld3dRenderer(){
 
   function finish(){
     for(const [id,actor] of actors){if(frame-actor.lastFrame>60){scene.remove(actor.object);actors.delete(id);}}
-    updateBeams();renderer.render(scene,camera);
+    updateBeams();thrusters.finish();renderer.render(scene,camera);
+    if(frame % 12 === 0) canvas.dataset.thruster3d=JSON.stringify(thrusters.getStats());
     canvas.dataset.world3dDrawCalls=String(renderer.info.render.calls);
     canvas.dataset.world3dTriangles=String(renderer.info.render.triangles);
     canvas.dataset.world3dActors=String([...actors.values()].filter(actor=>actor.object.visible).length);
@@ -281,5 +270,11 @@ export function createWorld3dRenderer(){
     }
   }
   function hide(){surface.style.display=backdrop.style.display="none";if(canvas){canvas.style.background=previousBackground;canvas.dataset.world3d="disabled";}}
-  return {begin,finish,hide,enqueueShip,enqueueEnemy,enqueueBeams,isContextLost:()=>lost || renderer.getContext().isContextLost()};
+  async function prepare({stations=[],enemies=[]}){
+    const required = new Set(["headquarters",...stations.map(station=>station.id),...enemies.map(enemy=>enemy.kind)]);
+    const results = await Promise.all([...required].filter(id=>WORLD_MODELS_3D[id] && WORLD_MODELS_3D[id].enabled !== false)
+      .map(id=>loadModel(id).promise));
+    return results.every(Boolean);
+  }
+  return {begin,finish,hide,prepare,enqueueShip,enqueueEnemy,enqueueBeams,isContextLost:()=>lost || renderer.getContext().isContextLost()};
 }
