@@ -1,0 +1,116 @@
+{
+  "version": "20261031-orion-reactor2",
+  "publishedAt": "2026-10-31T18:15:11.275607+00:00",
+  "url": "https://avosoma.absyrion.com/",
+  "sourceCommit": "d92d5148",
+  "filesVerified": 20,
+  "guardedSources": 615,
+  "testsPassed": 133,
+  "orionWakeWidthMultiplier": 1.25,
+  "originalBackdropRetained": true,
+  "serverRestarted": false,
+  "servicePID": "2318326",
+  "serviceRestarts": "0",
+  "databaseReady": true,
+  "pendingWrites": 0,
+  "freshServerErrors": [],
+  "browser": {
+    "url": "https://avosoma.absyrion.com/?mode=game",
+    "version": "20261031-orion-reactor2",
+    "sceneReady": true,
+    "headquartersReady": true,
+    "servicesReady": 2,
+    "ship3dActors": 1,
+    "engineObserved": {
+      "ships": 1,
+      "plumes": 1,
+      "wakePoints": 5
+    },
+    "freshErrors": [],
+    "screenshot": "public-reactor.png"
+  },
+  "backupInitial": "/opt/avosoma-backups/20261031-orion-reactor1-180857",
+  "backupCorrection": "/opt/avosoma-backups/20261031-orion-reactor2-181510",
+  "publicHashes": [
+    {
+      "path": "src/game/combatAssets.js",
+      "sha256": "76d22b3b6db8d225ca61f0da062f14876cc74313c9ca2fcd2d4c59707c999104"
+    },
+    {
+      "path": "src/game/combatOrchestrator.js",
+      "sha256": "b92b76651c9315b3df05bba0b63e866cbd89ff66434bae9617705e04d00ab291"
+    },
+    {
+      "path": "src/game/render/combatScene.js",
+      "sha256": "f37c662562a385684c17dcdf73b2ae068db1300b9acdf70d6ef1eae3750472dc"
+    },
+    {
+      "path": "src/game/render/combatSceneLoading.js",
+      "sha256": "4b2e01fa78c0a2c92575d0b6f77f616ae41de0137385004b8faf26af074494eb"
+    },
+    {
+      "path": "src/game/render/disposeScene3d.js",
+      "sha256": "3d2fc5c626b3bd0f6c1375b894921331463dba27943e8b80619acc5be67798ce"
+    },
+    {
+      "path": "src/game/render/player.js",
+      "sha256": "dc00f13428706fdea45d45b235111ce70279104dea0f936d847e3bac636ea011"
+    },
+    {
+      "path": "src/game/render/scene3dPolicy.js",
+      "sha256": "ebeca2892f0963cadeb1f791ef62083e3060fea724918329b5382cda03011c36"
+    },
+    {
+      "path": "src/game/render/ship3d.js",
+      "sha256": "8339e52c6c178760d6c0d803338e693373b09cf52e2f856ad847b72f2713331e"
+    },
+    {
+      "path": "src/game/render/ship3dAssets.js",
+      "sha256": "b536688cada547f5a6d5de77a61d3aac2b7f49e6bc2dd2d4a18ae314d5e0acbd"
+    },
+    {
+      "path": "src/game/render/ship3dRenderer.js",
+      "sha256": "5f3697b870db4bb47edd46551e66b7b6e9002a0b57b23edec1f1a9c9f0baea6e"
+    },
+    {
+      "path": "src/game/render/shipEngines.js",
+      "sha256": "74cca5d04af45a8fc80f8bd5c930144bae58d109e1f373f3bc256fb9cdc7fe5f"
+    },
+    {
+      "path": "src/game/render/shipThruster3d.js",
+      "sha256": "ef3bd34380629bb711365c60e6bd5026b9bd2b97a03293b0287001f666601334"
+    },
+    {
+      "path": "src/game/render/shipThruster3dMotion.js",
+      "sha256": "4505a38f7dca3af7626d29e5866003d72843036bd33e5b259d12d8c2137912d5"
+    },
+    {
+      "path": "src/game/render/shipThruster3dShaders.js",
+      "sha256": "70cbc851de4cc146893a2d0b9639f1e8d2fb42c206e609bdfe6e8c3ed86ada28"
+    },
+    {
+      "path": "src/game/render/world3d.js",
+      "sha256": "b7f717ab81a3769db6a976367cb6edf7725bd98abd716e3bdb8b66bc916e8fd6"
+    },
+    {
+      "path": "src/game/render/world3dRenderer.js",
+      "sha256": "237e3611610aff138559b0e11c997b37aadf0dd951441729f4668b1a63f2c664"
+    },
+    {
+      "path": "src/game/systems/sceneLoadingGate.js",
+      "sha256": "b7362507a8e17fd70e648311f4afbf25cbef24acf076420d308494bc1f8d2c82"
+    },
+    {
+      "path": "src/game/ui/sceneLoadingScreen.js",
+      "sha256": "4e03a881b986f8ddf2bb9c1bbbf9649a6aecd55f62d63fa265da81938e6e37ca"
+    },
+    {
+      "path": "src/game/render/ship3dSurface.js",
+      "sha256": "693c79117ea039fd3973a17b14bf7443b5ca99a5dbacc6b2ff91864c4ce79d8d"
+    },
+    {
+      "path": "index.html",
+      "sha256": "8399e859eb3c058f7f15ca9d23e69639b720e2fe1449b957e3888c903ae8460f"
+    }
+  ]
+}

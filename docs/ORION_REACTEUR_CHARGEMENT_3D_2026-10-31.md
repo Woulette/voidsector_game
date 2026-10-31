@@ -1,6 +1,6 @@
 # Orion : réacteur 3D et préparation de la scène
 
-État : prototype local, non publié. La dernière publication publique reste le lot `20261031-zoom-orion2`.
+État : publié le 31 octobre 2026, version `20261031-orion-reactor2`. Les 20 fichiers publics sont vérifiés. Le serveur de jeu n’a pas redémarré.
 
 ## Réacteur
 
@@ -32,3 +32,9 @@
 Avec 30 Orion, les tableaux numériques des réacteurs représentent 364 496 octets, dont une réserve partagée dimensionnée pour 128 vaisseaux. Cela ne mesure ni la RAM totale du jeu ni toute la mémoire du pilote graphique. Le nombre de textures de l'aperçu reste à 5 avec et sans réacteurs. Après échauffement, une passe locale a mesuré 0,4 ms de rendu CPU médian et 4,3 ms d'intervalle d'image au 95e percentile. Ce banc isolé ne représente pas les performances du MMO complet ni celles d'autres ordinateurs. La modification finale de largeur dispose d'une passe séparée dans les mesures brutes.
 
 Les modèles et images déjà présents dans le projet n'ont pas été recompressés. Aucun travail Meshy payant n'a été lancé pour ce lot.
+
+## Publication
+
+Le contrôle public initial a détecté une dépendance absente de `ship3dAssets.js`. Le correctif publie `ship3dSurface.js` et renouvelle les adresses des modules. Le test `ship-3d-dependencies.test.js` vérifie désormais les imports statiques et différés des moteurs 3D, ainsi que la conservation des matériaux approuvés de l’Orion. Les 133 tests du candidat et de la préparation distante passent. Le contrôle dans le navigateur public a confirmé le vaisseau 3D, une flamme active et sa traînée ; aucune nouvelle erreur n’a été relevée après cette vérification. Les anciens avertissements de la première tentative restent distingués des erreurs nouvelles.
+
+La publication conserve l’ordre des imports de production et exclut l’habillage local non publié des secteurs 3. Les modèles des autres vaisseaux, nouveaux astéroïdes et changements des portails en cours dans les autres chats ne font pas partie de ce lot. Preuves : `docs/ORION_REACTEUR_PUBLICATION_2026-10-31.json` et `output/reactor-live-fix-2026-10-31/`.
