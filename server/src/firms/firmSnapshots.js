@@ -28,7 +28,7 @@ export function enrichFirmSnapshot(profileManager, snapshot){
       if(row?.publicProfile) return row;
       const entry = resolveProfileEntryForRankingRow(profileManager, row);
       const publicProfile = entry
-        ? buildPublicPlayerProfile({key:entry.key, profile:entry.profile, ranking:row})
+        ? buildPublicPlayerProfile({key:entry.key, profile:entry.profile, ranking:row, rankAssignment:profileManager.getRankAssignmentForKey?.(entry.key, entry.profile)})
         : null;
       return publicProfile ? {...row, publicProfile:{...publicProfile, sourceLabel:"Profil MMO"}} : row;
     })

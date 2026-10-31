@@ -2,6 +2,8 @@ import { ammoTypes, portals } from "../data/catalog.js?v=20260726-ancient1";
 import { fmt } from "../core/utils.js";
 import { canAfford, getCurrencyPrice, getPortalPieces, hasCurrencyDiscount, isPortalUnlocked, store } from "../core/store.js?v=20260726-kharon1";
 import { currencyAmountHtml } from "./currencyIcons.js";
+import { getPortalAccess,getPortalPresentation } from "./portalPresentation.js?v=20261023-portals-ui1";
+import { renderFocusedCaster, renderPortalDetail, renderPortalNavigation, updatePortalPanel } from "./renderPortalWorkspace.js?v=20261024-caster-layout1";
 
 function getCasterCost(){
   return 100;
@@ -103,32 +105,27 @@ function renderCasterPanel(portal){
   </div>`;
 }
 
-export function renderPortals(){
-  const grid = document.getElementById("portalGrid");
-  const caster = document.getElementById("portalCasterPanel");
-  if(!grid) return;
-  const selectedId = store.state.selectedPortalCasterId || portals[0]?.id;
-  const selectedPortal = portals.find(p=>p.id === selectedId) || portals[0];
-  grid.innerHTML = portals.map(p=>{
+function renderLegacyPortalCard(p, selectedPortal){
+    const access=getPortalAccess(p,store.state);
     const pieces = getPortalPieces(p.id);
     const unlocked = isPortalUnlocked(p.id);
     const reqLevelOk = store.state.player.level >= p.requirement.level;
     const contentReady = p.contentStatus !== "to_define";
-    const canEnter = unlocked && reqLevelOk && !!store.state.activeShip && contentReady;
+    const canEnter = access.canPrepare;
     const canUnlockPieces = !unlocked && reqLevelOk && pieces >= p.piecesRequired;
     const clearCount = Math.max(0, Number(store.state.completedPortals?.[p.id] || 0));
     const run = store.state.portalRuns?.[p.id] || null;
-    const runLives = run ? Math.max(0, Math.min(3, Math.round(Number(run.lives || 0)))) : 3;
+    const runLives = access.lives;
     const pieceUnit = p.pieceUnit || "pièces";
     const casterAction = `<button class="blue-button small" data-portal-caster-select="${p.id}">Space Caster</button>`;
     const levelGateLabel = `Niveau ${p.requirement.level} requis`;
     const actionHtml = unlocked
-      ? `<button class="blue-button small" data-prepare-portal="${p.id}" ${canEnter ? "" : "disabled"}>${canEnter ? "Preparer" : !reqLevelOk ? levelGateLabel : !contentReady ? "Contenu à définir" : !store.state.activeShip ? "Equiper un vaisseau" : "Prerequis manquants"}</button>${casterAction}`
+      ? `<button class="blue-button small" data-prepare-portal="${p.id}" ${canEnter ? "" : "disabled"}>${canEnter ? "Invoquer" : access.activeAttempt ? "Un portail est déjà invoqué" : !reqLevelOk ? levelGateLabel : !contentReady ? "Contenu à définir" : !store.state.activeShip ? "Equiper un vaisseau" : "Prerequis manquants"}</button>${casterAction}`
       : `<button class="blue-button secondary small" data-unlock-portal-pieces="${p.id}" ${canUnlockPieces ? "" : "disabled"}>${!reqLevelOk ? levelGateLabel : `Utiliser ${fmt(p.piecesRequired)} ${pieceUnit}`}</button>${casterAction}`;
     return `<article class="portal-card ${canEnter ? "ready" : unlocked ? "unlocked" : "locked"} ${contentReady ? "content-ready" : "content-pending"} ${selectedPortal?.id === p.id ? "selected" : ""}" data-portal-caster-select="${p.id}">
       <img src="${p.img}" alt="${p.name}">
       <div class="portal-card-head"><h3>${p.name}</h3><span class="badge">${p.level}</span></div>
-      <div class="portal-state">SOLO · ${unlocked ? "DEVERROUILLE" : "SCELLE"} - ${reqLevelOk ? "Niveau OK" : `Niv ${p.requirement.level}`}</div>
+      <div class="portal-state">SOLO · ${access.status} - ${reqLevelOk ? "Niveau OK" : `Niv ${p.requirement.level}`}</div>
       <p class="portal-content-status ${contentReady ? "ready" : "pending"}">${p.contentLabel || (contentReady ? "Contenu disponible" : "Contenu à définir")}</p>
       ${p.desc ? `<p class="portal-copy intro">${p.desc}</p>` : ""}
       <div class="portal-piece-row"><span>${p.pieceLabel || "Pièces"}</span><strong>${fmt(pieces)} / ${fmt(p.piecesRequired)}</strong></div>
@@ -136,9 +133,32 @@ export function renderPortals(){
       <p class="portal-copy">${portalMapDropLabel(p)}</p>
       <p class="portal-copy reward">Recompense : ${portalRewardHtml(p.reward)}</p>
       ${unlocked ? `<p class="portal-copy">Vies : ${runLives}/3${run?.status === "dead" ? " - reprise disponible" : ""}</p>` : ""}
-      <div class="portal-actions">${actionHtml}</div>
+      <div class="portal-actions">${actionHtml}${access.invoked ? `<button class="blue-button small secondary" data-prepare-portal="${p.id}">Retrouver le portail invoqué</button>` : ""}</div>
       <small class="portal-history">${clearCount ? `${clearCount} nettoyage(s)` : "Jamais termine"}</small>
     </article>`;
-  }).join("");
-  if(caster) caster.innerHTML = renderCasterPanel(selectedPortal);
+}
+
+export function renderPortals(){
+  const grid = document.getElementById("portalGrid");
+  const caster = document.getElementById("portalCasterPanel");
+  const detail = document.getElementById("portalDetailPanel");
+  if(!grid) return;
+  const selectedId = store.state.selectedPortalCasterId || portals[0]?.id;
+  const selectedPortal = portals.find(p=>p.id === selectedId) || portals[0];
+  if(!detail){
+    updatePortalPanel(grid, portals.map(portal=>renderLegacyPortalCard(portal, selectedPortal)).join(""));
+    updatePortalPanel(caster, renderCasterPanel(selectedPortal));
+    return;
+  }
+  const focused = Boolean(getPortalPresentation(selectedPortal));
+  const otherOpen = Boolean(grid.querySelector(".portal-other-list")?.open) || !focused;
+  updatePortalPanel(grid, renderPortalNavigation(portals, selectedPortal.id, store.state, otherOpen));
+  updatePortalPanel(detail, focused ? renderPortalDetail(selectedPortal, store.state) : renderLegacyPortalCard(selectedPortal, selectedPortal));
+  caster?.classList.toggle("has-focused-caster", focused);
+  updatePortalPanel(caster, focused ? renderFocusedCaster(selectedPortal, store.state, {
+    cost:getCasterCost(),
+    priceHtml:novaPriceHtml,
+    canPay:price=>canAfford("premium", price),
+    renderResult:renderCasterResult
+  }) : renderCasterPanel(selectedPortal));
 }

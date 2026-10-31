@@ -3,6 +3,9 @@ import fs from "node:fs";
 import test from "node:test";
 import { sanitizePilotName } from "../src/players/profileIdentity.js";
 import { sanitizeProfile } from "../src/players/profileSanitize.js";
+import { getProfilePresentationModel, renderProfileMarkup } from "../../src/ui/renderProfile.js";
+import { store } from "../../src/core/store.js?v=20260726-kharon1";
+import { createDefaultProfile } from "../src/players/profileDefaults.js";
 
 test("pilot names are normalized to display-only text", ()=>{
   const name = sanitizePilotName(`<img src=x onerror="alert(1)">Étoile`);
@@ -22,9 +25,16 @@ test("loaded profiles cannot preserve stored HTML in pilot names", ()=>{
 });
 
 test("launcher profile and leaderboard escape pilot names before innerHTML rendering", ()=>{
-  const renderSource = fs.readFileSync(new URL("../../src/ui/render.js", import.meta.url), "utf8");
   const leaderboardSource = fs.readFileSync(new URL("../../src/ui/renderLeaderboard.js", import.meta.url), "utf8");
-
-  assert.match(renderSource, /<h3>\$\{escapeHtml\(player\.name\)\}<\/h3>/);
+  const previous = store.state;
+  let model;
+  try{
+    store.state = createDefaultProfile();
+    model = getProfilePresentationModel();
+  }finally{ store.state = previous; }
+  model.identity.name = `<img src=x onerror="alert(1)">`;
+  const profileHtml = renderProfileMarkup(model);
+  assert.match(profileHtml, /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt;/);
+  assert.doesNotMatch(profileHtml, /<img src=x| onerror="alert/);
   assert.match(leaderboardSource, /<small>\$\{escapeHtml\(self\.pilot \|\| store\.state\.player\.name\)\}<\/small>/);
 });

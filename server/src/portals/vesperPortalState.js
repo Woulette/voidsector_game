@@ -335,7 +335,7 @@ export function createVesperPortalState(now = Date.now()){
 }
 
 export function isVesperPortalInstance(instance){
-  return instance?.type === "portal" && instance.portal?.id === VESPER_PORTAL_ID;
+  return instance?.type === "portal" && instance.portal?.id === VESPER_PORTAL_ID && instance.portal?.encounterKind !== "azuron";
 }
 
 export function publicVesperAllies(instance){

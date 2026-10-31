@@ -64,7 +64,7 @@ const DEMON_MINION_MAX_SHIELD = 1_000_000;
 
 const ANGEL_ASSET = "assets/ships/Astralis.png";
 const DEMON_ASSET = "assets/ships/combat/Asterion.png";
-const DEMON_KING_ASSET = "assets/ships/Imperial.png";
+const DEMON_KING_ASSET = "assets/enemies/ancient/demon_king.png";
 const CAGE_ASSET = "assets/spawn/spawn_dock.png";
 
 function finite(value, fallback = 0){
@@ -1234,6 +1234,7 @@ export function createPrecursorPortalRuntime({
     presence?.markDamage?.(player, at);
     presence?.markCombat?.(player, "bombe du Roi des Démons");
     const before = Number(player.state.hp || 0) + Number(player.state.shield || 0);
+    const shieldBefore = Math.max(0, Number(player.state.shield || 0));
     if(typeof presence?.applyDamageToPlayerState === "function"){
       presence.applyDamageToPlayerState(player, PRECURSOR_BOMB_DAMAGE, at);
     }else{
@@ -1248,6 +1249,7 @@ export function createPrecursorPortalRuntime({
     });
     io?.to?.(player.id)?.emit?.("player:damage", {
       enemyId:"precursor_demon_king_bomb",
+      shieldBefore,
       mapId:`portal-${ANCIENT_PORTAL_ID}`,
       amount:PRECURSOR_BOMB_DAMAGE,
       hp:Number(player.state.hp || 0),

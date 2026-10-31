@@ -1,3 +1,4 @@
+import { getMapSceneryAlpha } from "./mapSceneryAnimation.js";
 import { drawSpawnHub, drawSpawnStations, drawSpawnStationPrompts } from "./spawnHub.js?v=20261022-helion-hub1";
 import { getClosedMapPortals as getDefaultClosedMapPortals, getMapPortals as getDefaultMapPortals } from "../combatData.js?v=20261022-helion-hub1";
 import { drawMapPortals } from "./mapPortals.js?v=20261022-helion-hub1";
@@ -7,6 +8,8 @@ import { beginMapSceneryClip, drawMapSceneryBoundary, getMapSceneryEdgeOpacity }
 import { projectMapSceneryLayer, isMapSceneryLayerVisible } from "./mapSceneryProjection.js?v=20261018-helion-depth1";
 import { getMapSceneryLightSprite } from "./mapSceneryLights.js?v=20261022-helion-relics1";
 import { drawMapScenerySkyFade } from "./mapScenerySky.js?v=20261022-helion-clarity1";
+import { isRickyNpc } from "../../data/rickyVisuals.js?v=20261024-ricky-visuals1";
+import { drawRickySaucerEffects, sampleRickySaucerAnimation } from "./rickySaucer.js?v=20261024-ricky-visuals1";
 
 function viewWidth(canvas){ return canvas.__renderWidth || canvas.__viewWidth || canvas.clientWidth || canvas.width; }
 function viewHeight(canvas){ return canvas.__renderHeight || canvas.__viewHeight || canvas.clientHeight || canvas.height; }
@@ -243,7 +246,7 @@ function drawParallaxBackdrops({ctx, canvas, cache, currentMap, camera}){
     const height = layer.h || img.naturalHeight;
     const {x:sx, y:sy} = projectMapSceneryLayer({layer, camera, viewWidth:w, viewHeight:h, defaultParallax:worldSpace ? 1 : .04});
     if(!isMapSceneryLayerVisible({layer, x:sx, y:sy, width, height, viewWidth:w, viewHeight:h, padding:160})) continue;
-    ctx.globalAlpha = Number.isFinite(layer.alpha) ? layer.alpha : 1;
+    ctx.globalAlpha = getMapSceneryAlpha(layer);
     ctx.filter = layer.filter || "none";
     ctx.globalCompositeOperation = layer.blend || "source-over";
     drawCenteredLayerImage({ctx, img, layer, sx, sy, width, height});
@@ -504,7 +507,7 @@ function drawParallaxGlowSpots({ctx, canvas, currentMap, camera}){
   ctx.restore();
 }
 
-function drawParallaxStarLights({ctx, canvas, currentMap, camera}){
+function drawParallaxStarLights({ctx, canvas, currentMap, camera, graphicsEffects = null}){
   const lights = currentMap?.parallaxScene?.starLights || [];
   if(!lights.length) return;
   const w = viewWidth(canvas), h = viewHeight(canvas);
@@ -512,6 +515,7 @@ function drawParallaxStarLights({ctx, canvas, currentMap, camera}){
   ctx.globalCompositeOperation = "screen";
   const now = performance.now();
   for(const light of lights){
+    if(light.effect && graphicsEffects?.[light.effect] === false) continue;
     const p = Number.isFinite(light.p) ? light.p : .03;
     const {x:sx,y:sy} = light.space === "map"
       ? projectMapSceneryLayer({layer:light,camera,viewWidth:w,viewHeight:h,defaultParallax:p})
@@ -835,7 +839,6 @@ function drawParallaxBackground({ctx, canvas, cache, currentMap, camera, stars, 
   timeCombatProfiler("bg.parallax.tiles", ()=>drawParallaxTiles({ctx, canvas, cache, currentMap, camera}));
   timeCombatProfiler("bg.parallax.lightClouds", ()=>drawParallaxLightClouds({ctx, canvas, currentMap, camera}));
   if(graphicsQuality === "high") timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera}));
-  drawMapScenerySkyFade({ctx, map:currentMap, camera, width:viewWidth(canvas), height:viewHeight(canvas)});
   timeCombatProfiler("bg.parallax.images", ()=>drawParallaxImages({ctx, canvas, cache, currentMap, camera}));
   timeCombatProfiler("bg.parallax.foregroundClouds", ()=>drawParallaxForegroundClouds({ctx, canvas, currentMap, camera}));
   timeCombatProfiler("bg.parallax.asteroids", ()=>drawParallaxAsteroids({ctx, canvas, currentMap, camera}));
@@ -862,8 +865,7 @@ function drawBackground({ctx, canvas, cache, currentMap, camera, nebulae, stars,
     if(effect("cosmicClouds", quality === "high")) timeCombatProfiler("bg.parallax.dustSpecks", ()=>drawParallaxDustSpecks({ctx, canvas, currentMap, camera}));
     if(effect("cosmicClouds", quality !== "low")) timeCombatProfiler("bg.parallax.tiles", ()=>drawParallaxTiles({ctx, canvas, cache, currentMap, camera}));
     if(effect("cosmicClouds", quality !== "low")) timeCombatProfiler("bg.parallax.lightClouds", ()=>drawParallaxLightClouds({ctx, canvas, currentMap, camera}));
-    if(effect("starGlow", quality === "high")) timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera}));
-    drawMapScenerySkyFade({ctx, map:currentMap, camera, width:w, height:h});
+    if(effect("starGlow", quality === "high")) timeCombatProfiler("bg.parallax.starLights", ()=>drawParallaxStarLights({ctx, canvas, currentMap, camera, graphicsEffects}));
     timeCombatProfiler("bg.parallax.images", ()=>drawParallaxImages({ctx, canvas, cache, currentMap, camera, graphicsEffects,
       allowNebulae:effect("nebulae", quality !== "low"), allowStarGlow:effect("starGlow", quality === "high")}));
     if(effect("cosmicClouds", quality === "high")) timeCombatProfiler("bg.parallax.foregroundClouds", ()=>drawParallaxForegroundClouds({ctx, canvas, currentMap, camera}));
@@ -959,7 +961,7 @@ function drawGrid({ctx, canvas, camera, currentMap}){
   ctx.restore();
 }
 
-function drawQuestNpcs({ctx, cache, currentMap}){
+function drawQuestNpcs({ctx, cache, currentMap, graphicsEffects = {}}){
   const npcs = Array.isArray(currentMap?.questNpcs) ? currentMap.questNpcs : [];
   if(!npcs.length) return;
   const now = performance.now();
@@ -979,9 +981,13 @@ function drawQuestNpcs({ctx, cache, currentMap}){
     ctx.fill();
     ctx.stroke();
     if(img?.complete && img.naturalWidth){
+      const ricky=isRickyNpc(npc) && graphicsEffects.portalEffects !== false;
+      const pose=ricky ? sampleRickySaucerAnimation(npc,now) : null;
       ctx.save();
+      if(pose) ctx.translate(0,pose.hover);
       ctx.rotate(Number(npc.rotation ?? -.25));
       ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      if(ricky) drawRickySaucerEffects({ctx,x:0,y:0,size,entity:npc,time:now});
       ctx.restore();
     }else{
       ctx.fillStyle = "rgba(56,189,248,.70)";
@@ -1028,7 +1034,8 @@ function drawWorldMarkers({
   cache,
   getMapPortals = getDefaultMapPortals,
   getClosedMapPortals = getDefaultClosedMapPortals,
-  graphicsEffects = null
+  graphicsEffects = null,
+  portalTransition = null
 }){
   ctx.save();
   ctx.translate(-camera.x,-camera.y);
@@ -1072,7 +1079,7 @@ function drawWorldMarkers({
     }
   }
 
-  drawMapPortals({ctx, cache, currentMap, getMapPortals, simplified:graphicsEffects?.portalEffects === false});
+  drawMapPortals({ctx, cache, currentMap, getMapPortals, player, portalTransition, simplified:graphicsEffects?.portalEffects === false});
   const closedPortals = getClosedMapPortals(currentMap);
   if(closedPortals.length){
     drawMapPortals({
@@ -1083,7 +1090,7 @@ function drawWorldMarkers({
       simplified:graphicsEffects?.portalEffects === false
     });
   }
-  drawQuestNpcs({ctx, cache, currentMap});
+  drawQuestNpcs({ctx, cache, currentMap, graphicsEffects});
   ctx.restore();
 }
 
@@ -1098,8 +1105,10 @@ export function drawWorldLayer(options){
   }
   timeCombatProfiler("bg.layer.background", ()=>drawBackground(options));
   if(!options.currentMap?.parallaxScene?.hideGrid) timeCombatProfiler("bg.layer.grid", ()=>drawGrid(options));
-  timeCombatProfiler("bg.layer.markers", ()=>drawWorldMarkers(options));
   if(options.graphicsEffects?.backgroundAsteroids !== false) timeCombatProfiler("bg.layer.speedStars", ()=>drawCloseSpeedStars(options));
+  // All scenery fades together; gameplay markers and the later combat/HUD layers stay visible.
+  drawMapScenerySkyFade({ctx, map, camera, width:viewWidth(canvas), height:viewHeight(canvas)});
+  timeCombatProfiler("bg.layer.markers", ()=>drawWorldMarkers(options));
   if(bounded){
     ctx.restore();
     drawMapSceneryBoundary({ctx, map, camera});

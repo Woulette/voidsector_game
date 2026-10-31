@@ -1,6 +1,7 @@
 import { getInstanceGroups } from "./portalSessions.js";
 import { applyDamageToEnemy } from "../combat/enemyHits.js";
 import { createWorldEnemy, seededRandom } from "../world/spawn.js";
+import { rollEnemyDamage } from "../../../src/shared/enemyDamage.js";
 import {
   NOX_CORE_MAX_HP,
   NOX_DEFENSE_MAX_HP,
@@ -705,9 +706,7 @@ export function createNoxPortalRuntime({
   }
 
   function attackInfrastructure(instance, enemy, target, at){
-    const amount = enemy.noxBoss
-      ? Math.round(rollBetween(enemy.attackDamageMin, enemy.attackDamageMax, random))
-      : Math.max(1, Math.round(Number(enemy.attackDamage || 1) * (.85 + random() * .3)));
+    const amount = rollEnemyDamage(enemy.attackDamage, random);
     const result = applyNoxInfrastructureDamage(instance, target, amount);
     pushEffect(instance.objective, {
       type:enemy.noxBoss ? "nox_boss_impact" : "nox_enemy_attack",
@@ -745,9 +744,7 @@ export function createNoxPortalRuntime({
     const cooldown = Math.max(500, Number(enemy.attackCooldown || 1_000));
     enemy.nextAttackAt = at + cooldown;
     if(targetDescriptor.kind === "player"){
-      const amount = enemy.useExactDamageRange
-        ? Math.round(rollBetween(enemy.attackDamageMin, enemy.attackDamageMax, random))
-        : Math.max(1, Math.round(Number(enemy.attackDamage || 1) * (.85 + random() * .3)));
+      const amount = rollEnemyDamage(enemy.attackDamage, random);
       launchEnemyAttack?.({
         enemy,
         map:{
@@ -764,7 +761,7 @@ export function createNoxPortalRuntime({
       return;
     }
     if(targetDescriptor.kind === "drone"){
-      const damage = Math.max(1, Math.round(Number(enemy.attackDamage || 1) * (.85 + random() * .3)));
+      const damage = rollEnemyDamage(enemy.attackDamage, random);
       applyDirectDamage(target, damage);
       pushEffect(instance.objective, {
         type:"nox_enemy_drone_attack",

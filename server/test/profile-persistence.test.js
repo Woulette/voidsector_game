@@ -148,6 +148,150 @@ test("profile manager persists one account at a time with monotonic versions", a
   assert.equal(writes[1][0][1].player.credits, 20);
 });
 
+test("prepared portals round-trip through the real profile manager and JSON persistence", async t=>{
+  const directory = await mkdtemp(path.join(os.tmpdir(), "voidsector-prepared-portal-"));
+  t.after(()=>rm(directory, {recursive:true, force:true}));
+  const dataDirUrl = pathToFileURL(`${directory}${path.sep}`);
+  const profileStoreUrl = pathToFileURL(path.join(directory, "profiles.json"));
+  const persistence = createProfilePersistence({
+    database:null,
+    dataDirUrl,
+    profileStoreUrl,
+    fileSystem:fs,
+    fileSystemPromises:{mkdir, open, rename, rm}
+  });
+  const createManager = ()=>createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:sanitize=>persistence.loadProfileEntries(sanitize),
+    persistProfileEntries:entries=>persistence.persistProfileEntries(entries)
+  });
+  const player = {
+    id:"prepared-portal-socket",
+    accountId:"prepared-portal-account",
+    name:"Avosoma",
+    account:{username:"Avosoma", firmId:"astra"}
+  };
+  const firstManager = createManager();
+
+  await firstManager.load();
+  firstManager.syncForSocket({emit(){}}, player);
+  await firstManager.flushPersistence();
+  const mutation = firstManager.updateProfileForPlayer({
+    player,
+    update:profile=>{
+      profile.preparedPortal = {
+        id:"prepared-blue-round-trip",
+        portalId:"blue",
+        portal:{id:"blue", name:"Le Seuil d'Azuron", totalWaves:20},
+        mapId:"0",
+        mapName:"Helion-01",
+        x:-3780,
+        y:2780,
+        r:115,
+        safeRadius:280,
+        activationRadius:430,
+        preparedAt:800
+      };
+      return {ok:true};
+    }
+  });
+  await mutation.save;
+
+  const secondManager = createManager();
+  await secondManager.load();
+  const restored = secondManager.getProfileForPlayer(player).preparedPortal;
+
+  assert.equal(restored?.id, "prepared-blue-round-trip");
+  assert.equal(restored?.portalId, "blue");
+  assert.equal(restored?.mapId, "0");
+  assert.equal(restored?.mapName, "Helion-01");
+  assert.equal(restored?.x, -3780);
+  assert.equal(restored?.y, 2780);
+  assert.equal(restored?.preparedAt, 800);
+  const stored = JSON.parse(await readFile(profileStoreUrl, "utf8"));
+  assert.equal(stored["account:prepared-portal-account"]?.preparedPortal?.portalId, "blue");
+});
+
+test("prepared portal mutation rolls back when real profile-manager persistence fails", async ()=>{
+  let rejectNextWrite = false;
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:async()=>[],
+    persistProfileEntries:async()=>{
+      if(rejectNextWrite){
+        rejectNextWrite = false;
+        throw new Error("prepared portal store offline");
+      }
+    }
+  });
+  const player = {
+    id:"prepared-portal-rollback-socket",
+    accountId:"prepared-portal-rollback",
+    name:"Avosoma",
+    account:{username:"Avosoma", firmId:"astra"}
+  };
+
+  manager.syncForSocket({emit(){}}, player);
+  await manager.flushPersistence();
+  rejectNextWrite = true;
+  const mutation = manager.updateProfileForPlayer({
+    player,
+    update:profile=>{
+      profile.preparedPortal = {
+        id:"prepared-blue-rollback",
+        portalId:"blue",
+        portal:{id:"blue", name:"Le Seuil d'Azuron", totalWaves:20},
+        mapId:"0",
+        mapName:"Helion-01",
+        x:-3780,
+        y:2780,
+        preparedAt:800
+      };
+      return {ok:true};
+    }
+  });
+
+  assert.equal(mutation.profile.preparedPortal?.portalId, "blue");
+  await assert.rejects(mutation.save, /prepared portal store offline/);
+  assert.equal(manager.getProfileForPlayer(player).preparedPortal, null);
+});
+
+test("unauthenticated players cannot create or persist profile rows", async ()=>{
+  const writes = [];
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:async()=>[],
+    persistProfileEntries:async entries=>writes.push(structuredClone(entries))
+  });
+  const guest = {
+    id:"guest-socket",
+    accountId:null,
+    name:"Avosoma"
+  };
+
+  assert.equal(manager.applyReward({player:guest, reward:{credits:100}}), null);
+  assert.equal(manager.applyCombatReward({player:guest, reward:{xp:10}}), null);
+  assert.deepEqual(
+    manager.spendForPlayer({player:guest, priceType:"credits", amount:1}),
+    {ok:false, reason:"Authentification requise."}
+  );
+  assert.deepEqual(
+    manager.updateProfileForPlayer({player:guest, update:()=>({ok:true})}),
+    {ok:false, reason:"Authentification requise."}
+  );
+  assert.deepEqual(
+    manager.updateCombatProfileForPlayer({player:guest, update:()=>({ok:true})}),
+    {ok:false, reason:"Authentification requise."}
+  );
+  await manager.flushPersistence();
+
+  assert.equal(manager.listProfileEntries().length, 0);
+  assert.equal(writes.length, 0);
+});
+
 test("profile manager records profile load failures in the server error log", async ()=>{
   const warnings = [];
   const recorded = [];
@@ -240,6 +384,174 @@ test("critical profile mutations expose a save promise and roll back after persi
   assert.equal(manager.getProfileForPlayer(player).player.credits, creditsBefore);
 });
 
+test("an older failed save cannot roll back a newer profile mutation", async ()=>{
+  let rejectFirstMutation = null;
+  let blockNextMutation = false;
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:async()=>[],
+    persistProfileEntries:async()=>{
+      if(blockNextMutation){
+        blockNextMutation = false;
+        await new Promise((resolve, reject)=>{
+          rejectFirstMutation = reject;
+        });
+      }
+    }
+  });
+  const player = {
+    id:"socket-overlap-save",
+    accountId:"overlap-save",
+    name:"Overlap Save",
+    account:{username:"Overlap Save", firmId:"astra"}
+  };
+
+  manager.syncForSocket({emit(){}}, player);
+  await manager.flushPersistence();
+  const ammoBefore = manager.getProfileForPlayer(player).ammoInventory.ammo_x1;
+  blockNextMutation = true;
+  const first = manager.addAmmoPurchase({
+    player,
+    purchase:{
+      id:"ammo_x1",
+      priceType:"credits",
+      totalPrice:0,
+      totalAmount:1
+    }
+  });
+  const second = manager.addAmmoPurchase({
+    player,
+    purchase:{
+      id:"ammo_x1",
+      priceType:"credits",
+      totalPrice:0,
+      totalAmount:1
+    }
+  });
+
+  for(let attempt = 0; attempt < 10 && !rejectFirstMutation; attempt += 1) await Promise.resolve();
+  assert.equal(typeof rejectFirstMutation, "function");
+  rejectFirstMutation(new Error("first profile write failed"));
+  await assert.rejects(first.save, /first profile write failed/);
+  await second.save;
+
+  assert.equal(manager.getProfileForPlayer(player).ammoInventory.ammo_x1, ammoBefore + 2);
+});
+
+test("failed client preference persistence rolls back only its own in-memory save", async ()=>{
+  let rejectWrites = false;
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:async()=>[],
+    persistProfileEntries:async()=>{
+      if(rejectWrites) throw new Error("preference store offline");
+    }
+  });
+  const player = {
+    id:"socket-preference-save",
+    accountId:"preference-save",
+    name:"Preference Save",
+    account:{username:"Preference Save", firmId:"astra"}
+  };
+  manager.syncForSocket({emit(){}}, player);
+  await manager.flushPersistence();
+  const before = manager.getProfileForPlayer(player);
+  const previousSlots = structuredClone(before.actionSlots);
+  const nextPreferenceVersion = Math.max(
+    Date.now(),
+    Number(before.actionSlotsUpdatedAt || 0) + 1
+  );
+  rejectWrites = true;
+
+  const result = manager.saveFromPayload({
+    player,
+    payload:{profile:{
+      updatedAt:Date.now(),
+      actionSlotsUpdatedAt:nextPreferenceVersion,
+      actionSlots:["ammo_x3", null, null, null, null, null, null, null, "extra_repair_starter"],
+      actionSlotsByShip:{orion:["ammo_x3", null, null, null, null, null, null, null, "extra_repair_starter"]},
+      lastLaserAmmoId:"ammo_x3"
+    }}
+  });
+
+  assert.equal(result.status, "saved");
+  await assert.rejects(result.persistence, /preference store offline/);
+  assert.deepEqual(manager.getProfileForPlayer(player).actionSlots, previousSlots);
+});
+
+test("trusted hot-path profile snapshots are reused until the stored profile changes", ()=>{
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:async()=>[],
+    persistProfileEntries:async()=>{}
+  });
+  const player = {
+    id:"socket-profile-snapshot",
+    accountId:"profile-snapshot",
+    name:"Snapshot",
+    account:{username:"Snapshot", firmId:"astra"}
+  };
+  manager.syncForSocket({emit(){}}, player);
+
+  const first = manager.getProfileSnapshotForPlayer(player);
+  const second = manager.getProfileSnapshotForPlayer(player);
+  assert.equal(first, second);
+
+  manager.updateProfileForPlayer({
+    player,
+    update:profile=>{
+      profile.player.credits += 10;
+      return {ok:true};
+    }
+  });
+  const third = manager.getProfileSnapshotForPlayer(player);
+  assert.notEqual(third, first);
+  assert.equal(third.player.credits, first.player.credits + 10);
+});
+
+test("no-op coordinate quest progress neither mutates nor persists the profile", async ()=>{
+  const persisted = [];
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:async()=>[],
+    persistProfileEntries:async entries=>persisted.push(structuredClone(entries))
+  });
+  const player = {
+    id:"socket-coordinate-noop",
+    accountId:"coordinate-noop",
+    name:"Coordinate Noop",
+    account:{username:"Coordinate Noop", firmId:"astra"}
+  };
+
+  manager.syncForSocket({emit(){}}, player);
+  await manager.flushPersistence();
+  persisted.length = 0;
+  const before = structuredClone(manager.getProfileForPlayer(player));
+
+  const result = manager.applyQuestAction({
+    player,
+    action:{
+      kind:"progress",
+      type:"visit_coordinates",
+      zoneName:"Helion-01",
+      x:0,
+      y:0,
+      amount:1
+    }
+  });
+  await manager.flushPersistence();
+
+  assert.equal(result.ok, true);
+  assert.equal(result.changed, false);
+  assert.equal(Object.hasOwn(result, "save"), false);
+  assert.deepEqual(manager.getProfileForPlayer(player), before);
+  assert.equal(persisted.length, 0);
+});
+
 test("combat profile mutations coalesce persistence until the next flush", async ()=>{
   const writes = [];
   const manager = createProfileManager({
@@ -313,4 +625,42 @@ test("combat rewards update progression and defer persistence", async ()=>{
   assert.equal(writes.length, 0);
   await manager.flushPersistence();
   assert.equal(writes.length, 1);
+});
+
+test("failed firm setup keeps the runtime identity and safe-zone cache inputs unchanged", async ()=>{
+  let rejectWrites = false;
+  const manager = createProfileManager({
+    cleanName,
+    logger:{warn(){}},
+    loadProfileEntries:async()=>[],
+    reservePilotIdentity:async()=>({ok:true}),
+    persistProfileEntries:async()=>{
+      if(rejectWrites) throw new Error("profile store offline");
+    }
+  });
+  const player = {
+    id:"socket-firm-rollback",
+    accountId:"firm-rollback",
+    name:"Pilote Astra",
+    firmId:"astra",
+    mapId:"0",
+    account:{username:"Pilote Astra", firmId:"astra"}
+  };
+
+  manager.syncForSocket({emit(){}}, player);
+  await manager.flushPersistence();
+  const profileBefore = structuredClone(manager.getProfileForPlayer(player));
+  rejectWrites = true;
+
+  await assert.rejects(manager.setupProfileForPlayer({
+    player,
+    name:"Pilote Cyan",
+    firmId:"cyan"
+  }), /profile store offline/);
+
+  assert.equal(player.name, "Pilote Astra");
+  assert.equal(player.firmId, "astra");
+  assert.equal(player.account.firmId, "astra");
+  assert.equal(player.mapId, "0");
+  assert.deepEqual(manager.getProfileForPlayer(player), profileBefore);
 });

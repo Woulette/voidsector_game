@@ -1,6 +1,6 @@
 import { fmt } from "./utils.js";
 import { store } from "./store.js?v=20260726-kharon1";
-import { getNovaDiscountedPrice, hasNovaDiscount, isPremiumActive } from "../data/premium.js";
+import { getNovaDiscountedPrice, getPremiumGoldUntil, hasNovaDiscount, isPremiumActive } from "../data/premium.js";
 
 const MIN_PLAYER_CREDITS = 0;
 const MIN_PLAYER_PREMIUM = 0;
@@ -32,6 +32,7 @@ export function enforcePlayerCurrencyMinimums(player = store.state?.player){
   player.credits = Math.max(MIN_PLAYER_CREDITS, Number(player.credits || 0));
   player.premium = Math.max(MIN_PLAYER_PREMIUM, Number(player.premium || 0));
   player.premiumUntil = Math.max(0, Number(player.premiumUntil || 0));
+  if(player.premiumGoldUntil !== undefined) player.premiumGoldUntil = getPremiumGoldUntil(player);
   player.premiumActive = isPremiumActive(player);
 }
 

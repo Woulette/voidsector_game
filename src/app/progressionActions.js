@@ -36,13 +36,13 @@ export function createProgressionActions({
   function unlockPortalWithPieces(id){
     const portal = getPortal(id);
     if(!portal) return;
-    if(isPortalUnlocked(id)) return showToast(`${portal.name} est deja deverrouille.`);
+    if(isPortalUnlocked(id)) return showToast(`Une tentative est deja assemblee pour ${portal.name}.`);
     sendMmoCommand({
       multiplayer,
       send:()=>unlockServerPortal?.({id, method:"pieces"}),
       showToast,
-      sentMessage:"Deverrouillage du portail envoye au serveur.",
-      failedMessage:"Deverrouillage du portail impossible."
+      sentMessage:"Assemblage du portail envoye au serveur.",
+      failedMessage:"Assemblage du portail impossible."
     });
   }
 

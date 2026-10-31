@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import { getPortgunMapLevelRequirement, renderCombatMapPanel } from "../../src/game/ui/combatMapPanel.js";
+import { getMapEnemyLevelRange, getPortgunMapLevelRequirement, renderCombatMapPanel } from "../../src/game/ui/combatMapPanel.js";
 
 test("combat map panel marks current map and counts active sectors", ()=>{
   const maps = [
@@ -18,6 +19,31 @@ test("combat map panel marks current map and counts active sectors", ()=>{
   assert.match(html, /sector-map-node astra available current/);
   assert.match(html, /portal-dot right/);
   assert.match(html, /sector-core-node/);
+  assert.match(html, /sector-map-links/);
+  assert.match(html, /LV 1&ndash;4/);
+  assert.match(html, /LV 5&ndash;9/);
+  assert.match(html, /LV 10&ndash;14/);
+  assert.match(html, /LV 15&ndash;19/);
+  assert.match(html, /LV 20&ndash;24/);
+  assert.match(html, /LV 25&ndash;34/);
+  assert.match(html, /LV = NIVEAU DES ENNEMIS/);
+  assert.doesNotMatch(html, /sector-map-routes/);
+  assert.doesNotMatch(html, /Liaison nord/);
+});
+
+test("combat map enemy ranges prefer authoritative data and keep safe fallbacks", ()=>{
+  assert.deepEqual(getMapEnemyLevelRange({name:"Helion-01", enemyLevel:[2, 6]}, 1), [2, 6]);
+  assert.deepEqual(getMapEnemyLevelRange({name:"Helion-04", level:[15, 19]}, 4), [15, 19]);
+  assert.deepEqual(getMapEnemyLevelRange(null, 3), [10, 14]);
+  assert.deepEqual(getMapEnemyLevelRange({name:"CORE"}), [25, 34]);
+});
+
+test("combat map keeps crisp readable labels and draws routes inside the board", ()=>{
+  const css = readFileSync(new URL("../../src/styles/game.css", import.meta.url), "utf8");
+  assert.match(css, /\.sector-map-card\{[\s\S]*?font-family:"Segoe UI",Arial,sans-serif/);
+  assert.match(css, /\.sector-map-node small,.sector-core-node small\{[\s\S]*?font-size:10px/);
+  assert.match(css, /\.sector-map-links\{/);
+  assert.doesNotMatch(css, /\.sector-map-routes\{/);
 });
 
 test("combat map panel escapes map display names", ()=>{

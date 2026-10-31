@@ -1,3 +1,4 @@
+import { normalizeReputation } from "../../../src/shared/reputation.js";
 import { applyProgressionReward, getProgressionLevelCap, getXpNextForLevel } from "../players/progression.js";
 import { buildPublicPlayerProfile } from "../players/publicProfile.js";
 import { appendProfileActivity } from "../players/activityLog.js";
@@ -110,7 +111,7 @@ function publicProfileEntry(entry){
     xp:Math.max(0, Math.round(Number(player.xp || 0))),
     xpNext:Math.max(1, Math.round(Number(player.xpNext || getXpNextForLevel(player.level || 1)))),
     totalXp:Math.max(0, Math.round(Number(player.totalXp || 0))),
-    reputation:Math.max(0, Math.round(Number(player.reputation || 0))),
+    reputation:normalizeReputation(player.reputation),
     totalKills:Math.max(0, Math.round(Number(player.totalKills || 0))),
     updatedAt:Math.max(0, Number(entry.profile.updatedAt || 0)),
     suspicion
@@ -597,7 +598,7 @@ export function createAdminManager({
       ok:true,
       player:online ? publicAdminPlayer(online, profileManager) : null,
       profile:entry ? publicProfileEntry(entry) : null,
-      details:entry ? buildPublicPlayerProfile({key, profile:entry.profile}) : null,
+      details:entry ? buildPublicPlayerProfile({key, profile:entry.profile, rankAssignment:profileManager.getRankAssignmentForKey?.(key, entry.profile)}) : null,
       inventory:entry ? buildAdminInventory(entry.profile) : null,
       activity:entry ? {
         kills:topKillEntries(entry.profile.killStats, 20),

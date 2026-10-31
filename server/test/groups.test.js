@@ -60,11 +60,22 @@ test("group membership moves to a reconnecting socket id", ()=>{
   group.instance = {
     id:"portal-1",
     type:"portal",
-    portal:{id:"ricky"},
+    portal:{id:"prismatic"},
     joinedMemberIds:["a"],
     abandonedMemberIds:[],
     playerLives:{a:3},
-    enemies:[]
+    objective:{
+      kind:"prismatic",
+      activeBurns:[{targetId:"a"}],
+      activeSlows:[{targetId:"a"}]
+    },
+    enemies:[{
+      id:"prismatic-boss",
+      hp:1,
+      lockedPlayerId:"a",
+      attackedPlayerId:"a",
+      damageThreat:{a:123}
+    }]
   };
 
   players.set("next-a", {...players.get("a"), id:"next-a"});
@@ -76,6 +87,55 @@ test("group membership moves to a reconnecting socket id", ()=>{
   assert.deepEqual(group.instance.joinedMemberIds, ["next-a"]);
   assert.equal(group.instance.playerLives["next-a"], 3);
   assert.equal(group.instance.playerLives.a, undefined);
+  assert.equal(group.instance.objective.activeBurns[0].targetId, "next-a");
+  assert.equal(group.instance.objective.activeSlows[0].targetId, "next-a");
+  assert.equal(group.instance.enemies[0].lockedPlayerId, "next-a");
+  assert.equal(group.instance.enemies[0].attackedPlayerId, "next-a");
+  assert.deepEqual(group.instance.enemies[0].damageThreat, {"next-a":123});
+});
+
+test("Ancient threat, transient targets and blessing ownership migrate on reconnect", ()=>{
+  const {manager, players, sockets} = createHarness();
+  manager.createGroup(sockets.get("a"));
+  const group = manager.groups.get(players.get("a").groupId);
+  group.instance = {
+    id:"ancient-instance",
+    type:"portal",
+    portal:{id:"ancient"},
+    joinedMemberIds:["a"],
+    abandonedMemberIds:[],
+    playerLives:{a:3},
+    objective:{
+      kind:"precursors",
+      effects:[{id:"angel-heal", targetId:"a"}],
+      bombs:[],
+      allies:[]
+    },
+    enemies:[{
+      id:"demon-king",
+      hp:1,
+      lockedPlayerId:"a",
+      attackedPlayerId:"a",
+      damageThreat:{a:456}
+    }]
+  };
+  players.get("a").precursorBlessing = {
+    sourceInstanceId:"ancient-instance",
+    damageMultiplier:1.15,
+    expiresAt:99_000
+  };
+  players.get("a").precursorActiveInstanceId = "ancient-instance";
+  players.set("next-a", {...players.get("a"), id:"next-a"});
+  manager.replaceGroupMemberId("a", "next-a");
+
+  assert.deepEqual(group.instance.joinedMemberIds, ["next-a"]);
+  assert.equal(group.instance.objective.effects[0].targetId, "next-a");
+  assert.equal(group.instance.enemies[0].lockedPlayerId, "next-a");
+  assert.equal(group.instance.enemies[0].attackedPlayerId, "next-a");
+  assert.deepEqual(group.instance.enemies[0].damageThreat, {"next-a":456});
+  assert.equal(players.get("next-a").precursorBlessing.damageMultiplier, 1.15);
+  assert.equal(players.get("next-a").precursorActiveInstanceId, "ancient-instance");
+  assert.equal(players.get("a").precursorActiveInstanceId, undefined);
 });
 
 test("portal instance snapshots are sent only to members that joined the instance", ()=>{

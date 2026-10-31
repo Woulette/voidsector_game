@@ -5,7 +5,7 @@ export {
   isRickyPortalUnlocked
 } from "./combatData/maps.js?v=20261022-helion-hub1";
 
-export { ENEMY_TYPES } from "./combatData/enemies.js";
+export { ENEMY_TYPES, getEnemyStatsForLevel } from "./combatData/enemies.js";
 
 export {
   AGGRO_RANGE,

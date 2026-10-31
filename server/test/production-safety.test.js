@@ -18,6 +18,7 @@ test("production accepts one or several valid client origins", ()=>{
     DATABASE_URL:"postgresql://voidsector:secret@localhost:5432/voidsector"
   });
   assert.equal(single.port, 4100);
+  assert.equal(single.host, "127.0.0.1");
   assert.equal(single.clientOrigin, "https://game.example.com");
   assert.equal(single.databaseEnabled, true);
   assert.equal(single.maxConcurrentGamePlayers, 50);
@@ -38,6 +39,20 @@ test("runtime config rejects invalid ports and origins", ()=>{
     ()=>createRuntimeConfig({PORT:"70000", CLIENT_ORIGIN:"https://example.com/game"}),
     /PORT must be an integer.*CLIENT_ORIGIN must contain valid/s
   );
+  assert.throws(
+    ()=>createRuntimeConfig({HOST:"https://127.0.0.1"}),
+    /HOST must be a hostname or IP address/
+  );
+});
+
+test("runtime bind host is public in development and loopback in production", ()=>{
+  assert.equal(createRuntimeConfig().host, "0.0.0.0");
+  assert.equal(createRuntimeConfig({
+    NODE_ENV:"production",
+    CLIENT_ORIGIN:"https://game.example.com",
+    DATABASE_URL:"postgresql://voidsector:secret@localhost:5432/voidsector"
+  }).host, "127.0.0.1");
+  assert.equal(createRuntimeConfig({HOST:"localhost"}).host, "localhost");
 });
 
 test("runtime config rejects invalid database URLs", ()=>{

@@ -1,4 +1,7 @@
 import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1";
+import { drawSectorTravelPortal } from "./sectorPortalVisual.js?v=20261024-sector-portals1";
+import { drawAzuronGate } from "./azuronGate.js";
+import { drawAzuronPortal } from "./azuronPortalVisual.js";
 
 export const PREPARED_PORTAL_ASSETS = Object.freeze({
   blue:{
@@ -8,13 +11,13 @@ export const PREPARED_PORTAL_ASSETS = Object.freeze({
     shadow:"rgba(34,211,238,.88)"
   },
   violet:{
-    src:"assets/portals/faille_vesper.png?v=20260726-kharon1",
-    haloCore:"rgba(192,132,252,.34)",
-    haloMid:"rgba(139,92,246,.14)",
-    shadow:"rgba(168,85,247,.92)"
+    src:"assets/portals/azuron-family-v1/vesper.svg",
+    haloCore:"rgba(255,190,66,.34)",
+    haloMid:"rgba(255,139,22,.14)",
+    shadow:"rgba(255,173,47,.92)"
   },
   red:{
-    src:"assets/portals/forge_kharon.png?v=20260726-kharon1",
+    src:"assets/portals/azuron-family-v1/kharon.svg",
     haloCore:"rgba(251,113,133,.34)",
     haloMid:"rgba(249,115,22,.14)",
     shadow:"rgba(244,63,94,.92)"
@@ -58,6 +61,7 @@ export const PREPARED_PORTAL_ASSETS = Object.freeze({
 });
 
 function getPreparedPortalAsset(portal){
+  if(portal?.azuronGate && portal.action === "continue") return PREPARED_PORTAL_ASSETS.blue;
   if(!portal?.prepared) return null;
   const portalId = String(portal?.portalId || portal?.portal?.id || "");
   return PREPARED_PORTAL_ASSETS[portalId] || null;
@@ -207,14 +211,20 @@ function drawSimplifiedPortal({ctx, portal}){
   ctx.restore();
 }
 
-export function drawMapPortals({ctx, cache = {}, currentMap, getMapPortals, simplified = false}){
+export function drawMapPortals({ctx, cache = {}, currentMap, getMapPortals, simplified = false, player, portalTransition}){
   const now = performance.now();
   for(const portal of getMapPortals(currentMap)){
     const safeR = portal.safeRadius || Math.max(180, (portal.r || 90) * 2.2);
     const preparedAsset = getPreparedPortalAsset(portal);
     const preparedImage = preparedAsset ? getCachedCombatImage(cache, preparedAsset.src) : null;
-    if(preparedImage?.complete && Number(preparedImage.naturalWidth || 0) > 0){
+    if(drawAzuronPortal({ctx,cache,portal,now,simplified,player,portalTransition})){
+      // Azuron shares the travel gate's oval projection and animated depth.
+    }else if(drawAzuronGate({ctx,cache,portal,now,simplified,player,portalTransition})){
+      // The exit reuses the existing travel gate, including its four-second charge.
+    }else if(preparedImage?.complete && Number(preparedImage.naturalWidth || 0) > 0){
       drawPreparedPortalAsset({ctx, portal, now, image:preparedImage, asset:preparedAsset, simplified});
+    }else if(drawSectorTravelPortal({ctx,cache,portal,player,transition:portalTransition,now,simplified})){
+      // The approved travel gate uses the real transfer state; prepared portals retain their own art.
     }else if(simplified){
       drawSimplifiedPortal({ctx, portal});
     }else{
@@ -226,6 +236,10 @@ export function drawMapPortals({ctx, cache = {}, currentMap, getMapPortals, simp
       ctx.fillText(portal.label || "PORTAIL FERME", portal.x - 78, portal.y - safeR - 16);
       continue;
     }
-    ctx.fillText(`${portal.displayLabel || portal.label} · APPUIE J`, portal.x - 92, portal.y - safeR - 16);
+    if(portal.azuronGate){
+      ctx.save();ctx.textAlign="center";ctx.font="700 15px Rajdhani, Arial";
+      ctx.fillStyle=portal.action === "exit" ? "#d1ebff" : "#a6e4ff";
+      ctx.fillText(`${portal.label} · J`,portal.x,portal.y-safeR-18);ctx.restore();
+    }else ctx.fillText(`${portal.displayLabel || portal.label} · APPUIE J`, portal.x - 92, portal.y - safeR - 16);
   }
 }

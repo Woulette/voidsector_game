@@ -2,6 +2,21 @@ import { fmt, fmtCompact } from "../../core/utils.js";
 import { ammoTypes, equipment, portals } from "../../data/catalog.js?v=20260726-kharon1";
 import { getEnemyAssetRotationStyle, hasCompactQuestAsset } from "../../data/enemyVisuals.js";
 import { renderQuestAbandonAction } from "./questAbandon.js";
+import { getQuestMaterialImage, getQuestObjectiveImage } from "./questObjectiveVisuals.js?v=20261024-quest-assets1";
+
+function escapeQuestAttribute(value){
+  return String(value ?? "").replace(/[&<>"']/g, char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+}
+
+function renderQuestShortcuts(activeQuests, selectedId){
+  return `<nav class="combat-quest-shortcuts" aria-label="Accès direct aux cinq quêtes">${Array.from({length:5},(_,index)=>{
+    const quest = activeQuests[index];
+    const selected = quest?.id === selectedId;
+    return quest
+      ? `<button type="button" class="${selected ? "is-selected" : ""}" data-track-combat-quest="${escapeQuestAttribute(quest.id)}" aria-pressed="${selected}" aria-label="Suivre la quête ${index + 1} : ${escapeQuestAttribute(quest.title)}" title="${escapeQuestAttribute(quest.title)}">${index + 1}</button>`
+      : `<button type="button" disabled aria-label="Emplacement de quête ${index + 1} libre" title="Aucune quête dans cet emplacement">${index + 1}</button>`;
+  }).join("")}</nav>`;
+}
 
 function questProgressState(quest, getQuestProgress){
   const progress = getQuestProgress(quest.id);
@@ -78,31 +93,13 @@ function objectiveRequirementsMet(quest, objective, objectives, getQuestProgress
 }
 
 function renderObjectiveIcon(objective = {}, targetType = null){
+  const canonicalImage = getQuestObjectiveImage(objective);
+  if(canonicalImage) return `<span class="combat-quest-objective-icon"><img src="${escapeQuestAttribute(canonicalImage)}" alt=""></span>`;
   if(objective.type === "refinery_module_upgrade_start"){
     return `<span class="combat-quest-objective-icon material-pair">
-      <img src="assets/materials/zinc_spatial.svg" alt="">
-      <img src="assets/materials/titane_fissure.svg" alt="">
+      <img src="${escapeQuestAttribute(getQuestMaterialImage("zinc_spatial"))}" alt="">
+      <img src="${escapeQuestAttribute(getQuestMaterialImage("titane_fissure"))}" alt="">
     </span>`;
-  }
-  if(objective.type === "refinery_material_upgrade_start"){
-    const material = {
-      cuivre_orbital:"assets/materials/cuivre_orbital.svg",
-      nickel_brut:"assets/materials/nickel_brut.svg",
-      silice_conductrice:"assets/materials/silice_conductrice.svg"
-    }[objective.material] || "assets/materials/cargo_box.svg";
-    return `<span class="combat-quest-objective-icon"><img src="${material}" alt=""></span>`;
-  }
-  if(objective.type === "owned_combat_drone"){
-    return `<span class="combat-quest-objective-icon"><img src="assets/drones/drone_test_sprite.webp" alt=""></span>`;
-  }
-  if(objective.type === "equipped_ship"){
-    return `<span class="combat-quest-objective-icon"><img src="assets/ships/Velox.png" alt=""></span>`;
-  }
-  if(objective.type === "equipped_ship_lasers"){
-    return `<span class="combat-quest-objective-icon"><img src="assets/equipment/laser_mk1_mk1_slot_v2.png" alt=""></span>`;
-  }
-  if(objective.type === "quest_item_drop"){
-    return `<span class="combat-quest-objective-icon"><img src="${objective.itemImg || "assets/quest_items/contaminated_sample.png"}" alt=""></span>`;
   }
   if(objective.type === "talk_npc"){
     return `<span class="combat-quest-objective-icon"><img src="${objective.npcImg || "assets/ships/npc/npc_saucer.png"}" alt=""></span>`;
@@ -110,22 +107,15 @@ function renderObjectiveIcon(objective = {}, targetType = null){
   if(objective.type === "mission_control"){
     return `<span class="combat-quest-objective-icon"><img src="assets/spawn/spawn_quest_relay.png" alt=""></span>`;
   }
-  if(objective.type === "deliver_item"){
-    return `<span class="combat-quest-objective-icon"><img src="${objective.itemImg || "assets/quest_items/teleportation_fluid.png"}" alt=""></span>`;
-  }
-  if(objective.type === "space_caster_use"){
-    return `<span class="combat-quest-objective-icon"><img src="assets/portals/seuil_azuron.png" alt=""></span>`;
-  }
-  if(objective.type === "portal_complete"){
-    return `<span class="combat-quest-objective-icon"><img src="assets/portals/seuil_azuron.png" alt=""></span>`;
-  }
   const img = objective.type === "visit_coordinates" || objective.type === "visit_map" ? "assets/icons/coordinate_marker.svg" : targetType?.img || "assets/enemies/drone_pirate.png";
   const rotationStyle = getEnemyAssetRotationStyle(objective.target);
   return `<span class="combat-quest-objective-icon"><img class="${hasCompactQuestAsset(objective.target) ? "quest-enemy-art-large" : ""}" src="${img}" alt=""${rotationStyle ? ` style="${rotationStyle}"` : ""}></span>`;
 }
 
-function renderObjectiveTab({quest, enemyTypes, getQuestProgress, getQuestObjectiveProgress, questFailProgress = {}}){
+function renderObjectiveTab({quest, enemyTypes, getQuestProgress, getQuestObjectiveProgress, questFailProgress = {}, compact = false}){
   const objectives = questObjectiveEntries(quest);
+  const zones = objectives.map(formatObjectiveZone);
+  const commonZone = compact && zones.length && zones.every(zone=>zone === zones[0]) ? zones[0] : "";
   const hpLossLimit = Math.max(0, Number(quest.failConditions?.hpLossLimit || 0));
   const timeLimit = Math.max(0, Number(quest.failConditions?.timeLimit || 0));
   const deathResets = !!quest.failConditions?.deathResets;
@@ -137,16 +127,16 @@ function renderObjectiveTab({quest, enemyTypes, getQuestProgress, getQuestObject
   const absoluteElapsed = startedAt ? Math.max(0, (timerNow - startedAt) / 1000) : 0;
   const timeElapsed = Math.max(0, Number(failState.timeElapsed || 0), absoluteElapsed);
   const timeRemaining = Math.max(0, timeLimit - timeElapsed);
-  return `<div class="combat-quest-objectives">${objectives.map((objective, index)=>{
+  return `${commonZone ? `<div class="combat-quest-common-zone">${commonZone}</div>` : ""}<div class="combat-quest-objectives">${objectives.map((objective, index)=>{
     const targetType = enemyTypes[objective.target];
     const key = getObjectiveKey(objective, index);
     const progress = getQuestObjectiveProgress ? getQuestObjectiveProgress(quest.id, key) : getQuestProgress(quest.id);
     const target = Number(objective.count || 0);
     const name = formatObjectiveName(objective, targetType);
     const locked = !objectiveRequirementsMet(quest, objective, objectives, getQuestProgress, getQuestObjectiveProgress);
-    return `<div class="combat-quest-objective-row ${locked ? "locked" : ""}">
+    return `<div class="combat-quest-objective-row ${locked ? "locked" : ""} ${compact && objective.type === "kill" ? "enemy" : ""}">
       ${renderObjectiveIcon(objective, targetType)}
-      <div><strong>${name}</strong><span>${formatObjectiveZone(objective)}</span></div>
+      <div><strong>${name}</strong>${commonZone ? "" : `<span>${formatObjectiveZone(objective)}</span>`}</div>
       <b>${progress}/${target}</b>
     </div>`;
   }).join("")}${hpLossLimit ? `<div class="combat-quest-objective-row warning">
@@ -209,7 +199,7 @@ function renderRewardsTab({quest, rawMaterials}){
   ].map(({entry:[id, amount], label})=>{
       const material = rawMaterials.find(entry=>entry.id === id);
       return `<div class="combat-quest-reward-row material">
-        <img src="${material?.img || "assets/materials/cargo_box.svg"}" alt="">
+        <img src="${escapeQuestAttribute(getQuestMaterialImage(id, rawMaterials))}" alt="">
         <span>${label} ${material?.short || id.toUpperCase()}</span>
         <b title="${fmt(amount)}">${fmtCompact(amount)}</b>
       </div>`;
@@ -248,7 +238,8 @@ export function renderCombatQuestTracker({
   getQuestObjectiveProgress,
   questFailProgress = {},
   tutorial = null,
-  firmId = "astra"
+  firmId = "astra",
+  compact = false
 }){
   const selected = activeQuests.find(quest=>quest.id === selectedQuestId)
     || activeQuests.find(quest=>quest.id === trackedQuest?.id)
@@ -257,8 +248,16 @@ export function renderCombatQuestTracker({
   if(!activeQuests.length || !selected){
     return `<p class="group-panel-note">Aucune quete en cours. Passe par le relais pour accepter des missions.</p>`;
   }
-  const slots = Array.from({length:5}, (_,index)=>{
-    const quest = activeQuests[index] || null;
+  if(compact){
+    const state = questProgressState(selected, getQuestProgress);
+    const expanded = detailTab === "rewards" || detailTab === "description";
+    return `${renderQuestShortcuts(activeQuests, selected.id)}<article class="combat-quest-focus combat-quest-compact">
+      ${renderObjectiveTab({quest:selected, enemyTypes, getQuestProgress, getQuestObjectiveProgress, questFailProgress, compact:true})}
+      <div class="combat-quest-compact-footer"><button data-combat-quest-tab="${expanded ? "quest" : "rewards"}" type="button" aria-expanded="${expanded}"><span aria-hidden="true">◇</span> Détails et gains <span aria-hidden="true">${expanded ? "⌃" : "⌄"}</span></button><span>${state.progress} / ${state.target} accomplis</span></div>
+      ${expanded ? `<div class="combat-quest-expanded">${renderRewardsTab({quest:selected, rawMaterials})}${renderTabContent({quest:selected, tab:"description", enemyTypes, rawMaterials, getQuestProgress, getQuestObjectiveProgress, questFailProgress})}${renderQuestAbandonAction({questId:selected.id, tutorial, firmId})}</div>` : ""}
+    </article>`;
+  }
+  const slots = activeQuests.map((quest,index)=>{
     const state = quest ? questProgressState(quest, getQuestProgress) : null;
     const selectedClass = selected?.id === quest?.id ? "selected" : "";
     const claimableClass = state?.claimable ? "claimable" : "";
@@ -271,7 +270,7 @@ export function renderCombatQuestTracker({
   const targetType = enemyTypes[firstObjective.target];
   const tab = ["quest", "rewards", "description"].includes(detailTab) ? detailTab : "quest";
   return `
-    <div class="combat-quest-slots">${slots}</div>
+    ${activeQuests.length > 1 ? `<nav class="combat-quest-slots" style="--tracked-quest-count:${activeQuests.length}" aria-label="Choisir une quête suivie">${slots}</nav>` : ""}
     <article class="combat-quest-focus">
       <div class="combat-quest-focus-head">
         <div>
@@ -281,9 +280,9 @@ export function renderCombatQuestTracker({
         ${renderObjectiveIcon(firstObjective, targetType)}
       </div>
       <div class="combat-quest-detail-tabs">
-        <button class="${tab === "quest" ? "active" : ""}" data-combat-quest-tab="quest" type="button">Quete</button>
+        <button class="${tab === "quest" ? "active" : ""}" data-combat-quest-tab="quest" type="button">Objectifs</button>
         <button class="${tab === "rewards" ? "active" : ""}" data-combat-quest-tab="rewards" type="button">Gains</button>
-        <button class="${tab === "description" ? "active" : ""}" data-combat-quest-tab="description" type="button">Info</button>
+        <button class="${tab === "description" ? "active" : ""}" data-combat-quest-tab="description" type="button">Infos</button>
       </div>
       ${renderTabContent({quest:selected, tab, enemyTypes, rawMaterials, getQuestProgress, getQuestObjectiveProgress, questFailProgress})}
       ${tab === "description" ? renderQuestAbandonAction({questId:selected.id, tutorial, firmId}) : ""}

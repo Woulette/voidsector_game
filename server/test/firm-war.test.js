@@ -51,8 +51,9 @@ test("firm season stores monster points only for the first-hit owner", async ()=
     ["c", {id:"c", name:"Gamma", connected:true, clientMode:"game", groupId:"g1", mapId:"1", profile:{player:{level:10, firmId:"astra"}}}]
   ]);
   const groups = new Map([["g1", {id:"g1", members:["a", "b", "c"]}]]);
+  let firmWarManager = null;
   try{
-    const firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1000});
+    firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1000});
     await firmWarManager.load();
     const manager = createWorldRewardManager({
       io,
@@ -82,6 +83,7 @@ test("firm season stores monster points only for the first-hit owner", async ()=
     assert.equal(firmWarManager.snapshot({playerKey:"account:b"}).personal.contribution, 0);
     assert.equal(events.some(entry=>entry.event === "firm:ranking" && entry.id === "*"), true);
   }finally{
+    await firmWarManager?.flushPersistence();
     await rm(dir, {recursive:true, force:true});
   }
 });
@@ -92,8 +94,9 @@ test("firm monster kills throttle global ranking but keep personal season object
   const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-war-"));
   const player = {id:"a", name:"Alpha", connected:true, clientMode:"game", mapId:"0", profile:{player:{level:10, firmId:"astra"}}};
   const players = new Map([["a", player]]);
+  let firmWarManager = null;
   try{
-    const firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1000});
+    firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1000});
     await firmWarManager.load();
     const manager = createWorldRewardManager({
       io,
@@ -125,6 +128,7 @@ test("firm monster kills throttle global ranking but keep personal season object
     assert.equal(Array.isArray(personalSnapshots[1].payload.seasonObjectives), true);
     assert.equal(Object.hasOwn(personalSnapshots[1].payload, "individualRanking"), false);
   }finally{
+    await firmWarManager?.flushPersistence();
     await rm(dir, {recursive:true, force:true});
   }
 });
@@ -135,8 +139,9 @@ test("firm monster points ignore enemies more than eight levels below the reward
   const players = new Map([
     ["a", {id:"a", name:"Alpha", connected:true, clientMode:"game", mapId:"0", profile:{player:{level:20, firmId:"astra"}}}]
   ]);
+  let firmWarManager = null;
   try{
-    const firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1000});
+    firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1000});
     await firmWarManager.load();
     const manager = createWorldRewardManager({
       io,
@@ -177,6 +182,7 @@ test("firm monster points ignore enemies more than eight levels below the reward
     const astraAfterHigher = firmWarManager.snapshot().firms.find(firm=>firm.id === "astra");
     assert.equal(astraAfterHigher.points, 2);
   }finally{
+    await firmWarManager?.flushPersistence();
     await rm(dir, {recursive:true, force:true});
   }
 });
@@ -188,8 +194,9 @@ test("low level monster kills still progress firm quests without direct firm poi
   const players = new Map([
     ["a", {id:"a", name:"Alpha", connected:true, clientMode:"game", mapId:"0", profile:{player:{level:50, firmId:"astra"}}}]
   ]);
+  let firmWarManager = null;
   try{
-    const firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>now});
+    firmWarManager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>now});
     await firmWarManager.load();
     const manager = createWorldRewardManager({
       io,
@@ -220,6 +227,7 @@ test("low level monster kills still progress firm quests without direct firm poi
     assert.equal(quest.player.contribution, 1);
     assert.equal(seasonalOrb.progress, 1);
   }finally{
+    await firmWarManager?.flushPersistence();
     await rm(dir, {recursive:true, force:true});
   }
 });
@@ -227,8 +235,9 @@ test("low level monster kills still progress firm quests without direct firm poi
 test("firm season closes with seven-day faction boosters", async ()=>{
   let now = 10_000;
   const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-war-"));
+  let manager = null;
   try{
-    const manager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>now});
+    manager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>now});
     await manager.load();
     manager.addFirmPoints("astra", FIRM_COLLECTIVE_MIN_CONTRIBUTION, {key:"account:astra-veteran", name:"Astra Veteran", firmId:"astra"});
     manager.addFirmPoints("astra", FIRM_COLLECTIVE_MIN_CONTRIBUTION - 1, {key:"account:astra-short", name:"Astra Short", firmId:"astra"});
@@ -249,6 +258,7 @@ test("firm season closes with seven-day faction boosters", async ()=>{
     assert.equal(cyan.rewardRank, 2);
     assert.deepEqual(cyan.activeBoosters, {damage:.10, shield:.10, nova:.10});
   }finally{
+    await manager?.flushPersistence();
     await rm(dir, {recursive:true, force:true});
   }
 });
@@ -309,14 +319,113 @@ test("firm points persist in the database without touching the JSON fallback", a
     }
   };
 
+  let manager = null;
   try{
-    const manager = createFirmWarManager({database, file, logger:{warn(){}}, now:()=>1000});
+    manager = createFirmWarManager({database, file, logger:{warn(){}}, now:()=>1000});
     await manager.load();
     manager.addFirmPoints("astra", 3);
-    await new Promise(resolve=>setTimeout(resolve, 100));
+    await manager.flushPersistence();
 
     assert.equal(storedState.points.astra, 3);
     await assert.rejects(access(file), {code:"ENOENT"});
+  }finally{
+    await manager?.flushPersistence();
+    await rm(dir, {recursive:true, force:true});
+  }
+});
+
+test("a transient firm persistence failure can be retried by the next flush", async ()=>{
+  let storedState = null;
+  let failNextWrite = false;
+  let writeCount = 0;
+  const database = {
+    async query(text, params = []){
+      if(text.includes("SELECT state_json")){
+        return {rows:storedState ? [{state_json:storedState}] : []};
+      }
+      if(text.includes("INSERT INTO firm_war_state")){
+        writeCount += 1;
+        if(failNextWrite){
+          failNextWrite = false;
+          throw new Error("transient firm write");
+        }
+        storedState = JSON.parse(params[0]);
+        return {rows:[]};
+      }
+      throw new Error(`Unexpected query: ${text}`);
+    }
+  };
+  const manager = createFirmWarManager({database, logger:{warn(){}}, now:()=>1000});
+  await manager.load();
+  const pointsBefore = manager.snapshot().firms.find(firm=>firm.id === "astra").points;
+  failNextWrite = true;
+  manager.addFirmPoints("astra", 3);
+
+  await assert.rejects(manager.flushPersistence(), /transient firm write/);
+  await manager.flushPersistence();
+
+  assert.equal(storedState.points.astra, pointsBefore + 3);
+  assert.equal(writeCount, 3);
+});
+
+test("firm persistence serializes overlapping snapshots and keeps the newest state", async ()=>{
+  let storedState = null;
+  let releaseBlockedWrite = null;
+  let blockNextWrite = false;
+  let activeWrites = 0;
+  let maxActiveWrites = 0;
+  const database = {
+    async query(text, params = []){
+      if(text.includes("SELECT state_json")){
+        return {rows:storedState ? [{state_json:storedState}] : []};
+      }
+      if(text.includes("INSERT INTO firm_war_state")){
+        activeWrites += 1;
+        maxActiveWrites = Math.max(maxActiveWrites, activeWrites);
+        try{
+          if(blockNextWrite){
+            blockNextWrite = false;
+            await new Promise(resolve=>{
+              releaseBlockedWrite = resolve;
+            });
+          }
+          storedState = JSON.parse(params[0]);
+          return {rows:[]};
+        }finally{
+          activeWrites -= 1;
+        }
+      }
+      throw new Error(`Unexpected query: ${text}`);
+    }
+  };
+  const manager = createFirmWarManager({database, logger:{warn(){}}, now:()=>1000});
+  await manager.load();
+  const pointsBefore = manager.snapshot().firms.find(firm=>firm.id === "astra").points;
+  blockNextWrite = true;
+  manager.addFirmPoints("astra", 1);
+  const firstFlush = manager.flushPersistence();
+  for(let attempt = 0; attempt < 10 && !releaseBlockedWrite; attempt += 1) await Promise.resolve();
+  assert.equal(typeof releaseBlockedWrite, "function");
+  manager.addFirmPoints("astra", 1);
+  const secondFlush = manager.flushPersistence();
+  releaseBlockedWrite();
+
+  await Promise.all([firstFlush, secondFlush]);
+
+  assert.equal(maxActiveWrites, 1);
+  assert.equal(storedState.points.astra, pointsBefore + 2);
+});
+
+test("flushing firm persistence cancels the delayed writer before cleanup", async ()=>{
+  const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-flush-cleanup-"));
+  const manager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1000});
+  try{
+    await manager.load();
+    manager.addFirmPoints("astra", 1);
+    await manager.flushPersistence();
+    await rm(dir, {recursive:true, force:true});
+    await new Promise(resolve=>setTimeout(resolve, 80));
+    await assert.rejects(access(dir), {code:"ENOENT"});
   }finally{
     await rm(dir, {recursive:true, force:true});
   }

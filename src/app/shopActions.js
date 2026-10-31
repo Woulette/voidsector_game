@@ -1,6 +1,7 @@
 import { getPremiumPack } from "../data/premium.js";
 import { sendMmoCommand } from "./mmoGate.js";
 import { createServerActionBurstQueue } from "./serverActionBurstQueue.js?v=20260726-economy-burst1";
+import { getShopCurrencyPrice } from "../shared/shopPricing.js";
 
 export function createShopActions({
   multiplayer,
@@ -58,14 +59,13 @@ export function createShopActions({
     });
   }
 
-  function buyBooster(id, quantity = 1){
-    const count = [1, 10, 50, 100].includes(Number(quantity)) ? Number(quantity) : 1;
+  function buyBooster(id){
     sendMmoCommand({
       multiplayer,
       send:()=>purchaseQueue.enqueue({
         channel:"shop:buy-booster",
-        key:`${id}:${count}`,
-        send:repeat=>buyServerBooster?.(id, count, repeat)
+        key:id,
+        send:repeat=>buyServerBooster?.(id, 1, repeat)
       }),
       showToast,
       sentMessage:"Achat du booster S1 envoyé au serveur.",
@@ -96,7 +96,7 @@ export function createShopActions({
     if(count >= drone.maxStandardOwned) return showToast(`Limite de ${drone.maxStandardOwned} drones standards atteinte.`);
     sendMmoCommand({
       multiplayer,
-      send:()=>buyServerDrone?.({id:drone.id, expectedPrice:Math.round(drone.basePrice * Math.pow(2, count))}),
+      send:()=>buyServerDrone?.({id:drone.id, expectedPrice:getShopCurrencyPrice(drone.priceType, Math.round(drone.basePrice * Math.pow(2, count)), store.state.player)}),
       showToast,
       sentMessage:"Achat envoye au serveur.",
       failedMessage:"Achat de drone impossible."
@@ -120,13 +120,7 @@ export function createShopActions({
   function buyPremiumPack(id){
     const pack = getPremiumPack(id);
     if(!pack) return showToast("Pack premium inconnu.");
-    sendMmoCommand({
-      multiplayer,
-      send:()=>buyServerPremiumPack?.(id),
-      showToast,
-      sentMessage:"Activation premium envoyee au serveur.",
-      failedMessage:"Achat premium impossible."
-    });
+    return showToast("Les abonnements Premium sont disponibles uniquement en euros. Paiement à venir.");
   }
 
   function buyBetaPack(id, shipChoice = ""){

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="../../"><title>Avosoma — Boucliers validés</title>
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="tools/vfx-lab/lab.css?v=shield-proposals-1">
+  <link rel="stylesheet" href="tools/vfx-lab/shields.css?v=shield-assigned-1">
+</head>
+<body>
+  <main>
+    <header class="masthead"><div><div class="eyebrow">AVOSOMA · IMPACTS DE BOUCLIER</div><h1>Deux protections, deux signatures.</h1></div><span class="preview-label">Choix validés</span></header>
+    <p class="intro">Membrane réfractive pour les ennemis · Maillage hexagonal pour votre vaisseau. Les protections réagissent au contact puis se dissipent.</p>
+    <div class="controls">
+      <label><span>Munition</span><select id="ammo" aria-label="Munition"><option value="ammo_x1">Laser X1</option><option value="ammo_x4">Laser X4</option><option value="ammo_x6" selected>X6 B · salve de quatre</option></select></label>
+      <label><span>Cible</span><select id="enemy" aria-label="Cible"><option value="drone_pirate">Orbe</option><option value="raider_astral">Vorak</option><option value="chasseur_spectral">Parasite</option></select></label>
+      <label><span>Résultat du tir</span><select id="outcome" aria-label="Résultat du tir"><option value="survive">Impact encaissé</option><option value="lethal">Coup fatal</option></select></label>
+      <label><span>Lecture</span><select id="playback" aria-label="Lecture"><option value="1">Temps réel</option><option value="0.25">Ralenti ×4</option></select></label>
+      <div class="preview-actions"><button type="button" id="impact">Arrêt sur l’impact</button><button type="button" id="replay">Rejouer</button><button type="button" id="pause" aria-pressed="false">Mettre en pause</button></div>
+    </div>
+    <div class="comparison shield-comparison">
+      <article class="viewport proposed"><header><span class="view-label">ENNEMIS</span><span>Membrane réfractive</span></header><canvas id="membrane" role="img" aria-label="Bouclier ennemi : membrane réfractive"></canvas><footer>Membrane souple et reflets au contact · Aucun bouclier sur un coup fatal.</footer></article>
+      <article class="viewport proposed"><header><span class="view-label">VOTRE VAISSEAU</span><span>Maillage hexagonal</span></header><canvas id="hex" role="img" aria-label="Votre bouclier : maillage hexagonal"></canvas><footer>Le réseau s’allume sur votre vaisseau quand son bouclier encaisse le coup.</footer></article>
+    </div>
+    <div class="caption"><p id="hint">Les deux rendus validés utilisent les mêmes modules que le jeu.</p><span id="phase" aria-live="polite">Préparation</span></div>
+    <footer class="scope">Aperçu animé · Salves espacées pour comparer les impacts · <a href="tools/vfx-lab/?mode=weapons&subject=ammo_x6">Revenir aux lasers et aux monstres</a></footer>
+    <p id="error" role="alert" hidden></p>
+  </main>
+  <script type="importmap">{"imports":{"/src/game/combatData/weaponVisuals.js":"/src/game/combatData/weaponVisuals.js?v=shield-assigned-1","/src/game/systems/combatBeams.js":"/src/game/systems/combatBeams.js?v=shield-proposals-3","/src/game/render/weaponVfx.js":"/src/game/render/weaponVfx.js?v=shield-proposals-3","/src/game/systems/combatEnemyImpacts.js":"/src/game/systems/combatEnemyImpacts.js?v=shield-assigned-1","/src/game/render/enemyWeaponImpact.js":"/src/game/render/enemyWeaponImpact.js?v=shield-assigned-1","/src/game/render/shieldSurfaces.js":"/src/game/render/shieldSurfaces.js?v=shield-assigned-1"}}</script>
+  <script type="module" src="tools/vfx-lab/shields.js?v=shield-assigned-1"></script>
+</body>
+</html>

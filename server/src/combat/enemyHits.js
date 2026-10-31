@@ -26,6 +26,14 @@ export function enemyDurability(enemy){
   return Math.max(0, Number(enemy?.hp || 0)) + Math.max(0, Number(enemy?.shield || 0));
 }
 
+export function wouldEnemyHitKill(enemy, incoming){
+  if(!enemy || !(Number(enemy.hp) > 0) || !(Number(incoming) > 0)) return false;
+  // Reuse the damage rules on an isolated copy, preserving event/reward order.
+  const preview = {...enemy};
+  applyDamageToEnemy(preview, incoming);
+  return preview.hp <= 0;
+}
+
 const MAX_COMBAT_TRAVEL_TIME_MS = 5_000;
 let combatShotSequence = 0;
 
@@ -187,6 +195,7 @@ export function createCombatShotPayload({
   result = {},
   shotId = "",
   travelTimeMs = 0,
+  targetDestroyed = false,
   now = Date.now()
 } = {}){
   const fromX = finiteNumber(player?.state?.x, finiteNumber(payload?.fromX, 0));
@@ -221,6 +230,8 @@ export function createCombatShotPayload({
     toX,
     toY,
     travelTime:Math.max(0, finiteNumber(travelTimeMs, 0)) / 1000,
+    shieldBefore:Math.max(0, finiteNumber(target?.shield ?? target?.state?.shield, 0)),
+    ...(targetDestroyed ? {targetDestroyed:true} : {}),
     travelTimeMs:Math.max(0, Math.round(finiteNumber(travelTimeMs, 0))),
     cooldownMs:Math.max(0, Math.round(finiteNumber(result?.cooldownMs, 0))),
     cooldownReadyAt:Math.max(0, finiteNumber(result?.cooldownReadyAt, 0)),
@@ -410,7 +421,8 @@ export function createEnemyHitHandler({
         targetId:String(enemy.id || payload.enemyId || ""),
         result,
         shotId,
-        travelTimeMs
+        travelTimeMs,
+        targetDestroyed:travelTimeMs === 0 && wouldEnemyHitKill(enemy, incoming)
       });
 
       // Presence and retaliation begin only after every launch validation has
@@ -445,6 +457,8 @@ export function createEnemyHitHandler({
           x:shot.toX,
           y:shot.toY,
           radius:Number(enemy.radius || 0),
+          shieldBefore:Math.max(0, Number(enemy.shield || 0)),
+          targetDestroyed:wouldEnemyHitKill(enemy, incoming),
           travelTimeMs,
           cooldownMs:Math.max(0, Math.round(finiteNumber(result?.cooldownMs, 0))),
           cooldownReadyAt:Math.max(0, finiteNumber(result?.cooldownReadyAt, 0)),
@@ -603,6 +617,9 @@ export function createEnemyHitHandler({
         applyLifeSteal(player, result.profile, damageDealt, result.weaponClass, enemy);
         applyEliteLifeSteal(player, result, damageDealt, enemy);
         if(instance.type === "portal" && wasAlive && enemy.hp <= 0 && !instance.completed){
+          applyEnemyDeathEffect?.(instanceMapId, enemy, Date.now(), {
+            playerIds:group.members.filter(id=>!instance.abandonedMemberIds?.includes(id))
+          });
           if(handlePortalEnemyDeath) handlePortalEnemyDeath(group, enemy, attackerId);
           else{
             const alive = instance.enemies.some(entry=>entry.hp > 0);

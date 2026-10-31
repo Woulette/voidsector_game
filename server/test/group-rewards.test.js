@@ -54,6 +54,44 @@ test("group monster rewards are split between same-map members only", ()=>{
   assert.equal(applied.find(entry=>entry.playerId === "c"), undefined);
 });
 
+test("authoritative rewards honor explicit instance recipients and noReward objectives", ()=>{
+  const {events, io} = createIoRecorder();
+  const players = new Map([
+    ["a", {id:"a", connected:true, clientMode:"game", groupId:"g1", mapId:"portal-blue", profile:{player:{level:10}}}],
+    ["b", {id:"b", connected:true, clientMode:"game", groupId:"g1", mapId:"portal-blue", profile:{player:{level:10}}}]
+  ]);
+  const groups = new Map([["g1", {id:"g1", members:["a", "b"]}]]);
+  const applied = [];
+  const manager = createWorldRewardManager({
+    io,
+    players,
+    groups,
+    profileManager:{
+      getProfileForPlayer:player=>player.profile,
+      applyReward({player, reward}){
+        applied.push({playerId:player.id, reward});
+        return player.profile;
+      }
+    }
+  });
+
+  manager.emitWorldReward({
+    attackerId:"a",
+    mapId:"portal-blue",
+    recipientIds:["a"],
+    enemy:{id:"portal-mob", kind:"drone_pirate", level:10, reward:{credits:800, xp:400, premium:1}}
+  });
+  manager.emitWorldReward({
+    attackerId:"a",
+    mapId:"portal-blue",
+    recipientIds:["a"],
+    enemy:{id:"portal-core", kind:"portal_core", level:10, noReward:true, reward:{credits:999, xp:999, premium:9}}
+  });
+
+  assert.deepEqual(applied.map(entry=>entry.playerId), ["a"]);
+  assert.deepEqual(events.filter(entry=>entry.event === "player:reward").map(entry=>entry.id), ["a"]);
+});
+
 test("group kill quest progress applies to same-map members only", ()=>{
   const {events, io} = createIoRecorder();
   const players = new Map([

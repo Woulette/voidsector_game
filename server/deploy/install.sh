@@ -67,6 +67,7 @@ echo "=== Création du fichier .env ==="
 cat > "$SERVER_DIR/.env" <<EOF
 NODE_ENV=production
 PORT=3001
+HOST=127.0.0.1
 CLIENT_ORIGIN=$CLIENT_ORIGIN
 DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
 MAX_CONCURRENT_GAME_PLAYERS=50
@@ -97,12 +98,13 @@ echo "=========================================="
 echo ""
 echo "Récapitulatif :"
 echo "  - Projet : $PROJECT_DIR"
-echo "  - Serveur : http://$(curl -s ifconfig.me):3001"
-echo "  - Health check : http://$(curl -s ifconfig.me):3001/health"
+echo "  - Serveur interne : http://127.0.0.1:3001"
+echo "  - Health check interne : http://127.0.0.1:3001/health"
 echo ""
 echo "Important :"
 echo "  - Le mot de passe PostgreSQL a été généré automatiquement."
 echo "  - Le secret de load test est : $LOAD_TEST_SECRET"
+echo "  - Le port 3001 reste prive. Publie Socket.IO et /health uniquement via nginx HTTPS."
 echo "  - Pense à modifier $SERVER_DIR/.env selon tes besoins."
 echo "  - Pour redémarrer le serveur : sudo systemctl restart voidsector"
 echo "  - Pour voir les logs : sudo journalctl -u voidsector -f"

@@ -1,0 +1,53 @@
+.npc-dialogue{z-index:75;max-width:calc(100vw - 32px);filter:drop-shadow(0 10px 18px rgba(0,0,0,.5));transform-origin:var(--npc-arrow-x,50%) bottom;transition:opacity .16s ease,transform .16s ease}
+.npc-dialogue .npc-dialogue-box{padding:0;border:1.5px solid #4ba8c5;border-radius:24px 26px 26px 9px;background:radial-gradient(ellipse at 16% 0,rgba(31,86,112,.24),transparent 70%),#071a29;box-shadow:inset 0 2px 10px rgba(79,176,204,.07),0 0 12px rgba(30,141,186,.12);overflow:visible;cursor:pointer}
+.npc-dialogue .npc-dialogue-box::before{content:"";position:absolute;inset:5px;left:5px;bottom:5px;width:auto;height:auto;border:1px solid rgba(81,160,186,.12);border-radius:19px 21px 21px 5px;background:none;clip-path:none;pointer-events:none}
+.npc-dialogue .npc-dialogue-box::after{content:"";position:absolute;left:auto;right:58px;top:-2px;bottom:auto;width:42px;height:3px;border-radius:4px;background:#8ce8f4;box-shadow:0 0 7px rgba(112,225,248,.4);clip-path:none;pointer-events:none}
+.npc-dialogue .npc-dialogue-head{position:relative;display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:0 16px;margin:-13px 0 0;border:0;text-transform:none}
+.npc-dialogue .npc-dialogue-speaker{display:flex;align-items:center;gap:8px;padding:5px 13px 5px 9px;border:1px solid #55bad2;border-radius:12px 12px 12px 3px;background:linear-gradient(130deg,#163f54,#0a2233);box-shadow:0 3px 8px rgba(0,0,0,.22);flex:none}
+.npc-dialogue .npc-dialogue-speaker strong{font:800 20px/1 "Rajdhani","Segoe UI",Arial,sans-serif;text-transform:uppercase;letter-spacing:1.4px;color:#f1d887}
+.npc-dialogue .npc-dialogue-speaker svg{width:18px;height:18px;fill:none;stroke:#82d4e6;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.npc-dialogue .npc-dialogue-topic{min-width:0;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:11px;color:#83aebb;font:500 10px/1.3 "Segoe UI",Arial,sans-serif;letter-spacing:.5px}
+.npc-dialogue .npc-dialogue-close{display:grid;place-items:center;width:24px;height:24px;flex:none;margin:12px 0 0 auto;padding:0;border:0;border-radius:50%;background:rgba(27,60,76,.4);color:#87b5c7;font:400 22px/1 Arial,sans-serif;cursor:pointer}
+.npc-dialogue .npc-dialogue-close:hover{background:#205068;color:#e9faff}
+.npc-dialogue.line-swap .npc-dialogue-box{animation:none}
+.npc-dialogue.line-swap .npc-dialogue-message{animation:npcMessageRead .14s ease}
+@keyframes npcMessageRead{from{opacity:.7}to{opacity:1}}
+.npc-dialogue .npc-dialogue-message{position:relative;padding:12px 21px 5px;max-height:36vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#2d6179 transparent}
+.npc-dialogue .npc-dialogue-message p{position:relative;min-height:52px;margin:0;color:#e3eff5;font:400 17px/1.55 "Segoe UI",Arial,sans-serif;letter-spacing:.05px;text-shadow:none;overflow-wrap:break-word}
+.npc-dialogue .npc-dialogue-measure{display:block;visibility:hidden;pointer-events:none}
+.npc-dialogue .npc-dialogue-typed{position:absolute;inset:0 auto auto 0;width:100%}
+.npc-dialogue .npc-dialogue-cursor{width:2px;height:17px;vertical-align:-3px;margin-left:4px;box-shadow:none}
+.npc-dialogue .npc-dialogue-cursor[hidden]{display:none}
+.npc-dialogue .npc-dialogue-footer{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 16px 12px;margin-top:4px;border:0;background:none}
+.npc-dialogue .npc-dialogue-reading{display:flex;align-items:center;gap:10px;min-width:0}
+.npc-dialogue [data-npc-counter]{flex:none;color:#93b5c4;font:600 10px/1.2 "Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums}
+.npc-dialogue .npc-dialogue-pages{display:flex;gap:4px;align-items:center}
+.npc-dialogue .npc-dialogue-pages i{width:4px;height:4px;border-radius:50%;background:#294858}
+.npc-dialogue .npc-dialogue-pages i.read{background:#568596}
+.npc-dialogue .npc-dialogue-pages i.current{width:12px;border-radius:4px;background:#70d2e5;box-shadow:0 0 5px rgba(65,185,210,.25)}
+.npc-dialogue .npc-dialogue-actions{display:flex;align-items:center;gap:5px;flex:none}
+.npc-dialogue .npc-dialogue-actions button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:28px;padding:4px;border:0;border-radius:15px;background:transparent;color:#85afc2;font:600 11px/1.2 "Segoe UI",Arial,sans-serif;cursor:pointer;white-space:nowrap}
+.npc-dialogue .npc-dialogue-actions button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.npc-dialogue .npc-dialogue-actions [data-npc-previous]{width:28px}
+.npc-dialogue .npc-dialogue-actions button:hover{background:#153a4b;color:#edfbff}
+.npc-dialogue .npc-dialogue-actions button:disabled{opacity:.22;cursor:default;background:transparent}
+.npc-dialogue .npc-dialogue-actions .npc-dialogue-next{padding:5px 9px 5px 12px;border:1px solid rgba(75,168,197,.45);background:rgba(15,60,80,.4);color:#b5e9f4}
+.npc-dialogue button:focus-visible{outline:2px solid #9aebf7;outline-offset:3px}
+.npc-dialogue .npc-dialogue-hint{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.npc-dialogue .npc-dialogue-tail{display:block;position:absolute;left:calc(var(--npc-arrow-x,50%) - 42px);bottom:-34px;width:68px;height:37px;overflow:visible;pointer-events:none}
+.npc-dialogue .npc-dialogue-tail-fill{fill:#071a29}
+.npc-dialogue .npc-dialogue-tail-edge{fill:none;stroke:#4ba8c5;stroke-width:1.5;stroke-linejoin:round}
+.npc-dialogue.npc-dialogue-below{transform-origin:var(--npc-arrow-x,50%) top}
+.npc-dialogue.npc-dialogue-below .npc-dialogue-tail{top:-34px;bottom:auto;transform:scaleY(-1)}
+@media(max-width:620px){
+ .npc-dialogue .npc-dialogue-head{padding:0 13px;gap:9px}
+ .npc-dialogue .npc-dialogue-speaker{padding:5px 10px 5px 8px;gap:6px}
+ .npc-dialogue .npc-dialogue-speaker strong{font-size:19px}
+ .npc-dialogue .npc-dialogue-topic{font-size:9px;letter-spacing:0}
+ .npc-dialogue .npc-dialogue-message{padding:12px 17px 5px;max-height:36vh}
+ .npc-dialogue .npc-dialogue-message p{font-size:16px;line-height:1.55;min-height:50px}
+ .npc-dialogue .npc-dialogue-footer{padding:5px 13px 11px;gap:8px}
+ .npc-dialogue .npc-dialogue-reading{gap:7px}
+ .npc-dialogue .npc-dialogue-actions button{min-height:32px}
+}
+@media(prefers-reduced-motion:reduce){.npc-dialogue{transition:none}.npc-dialogue.line-swap .npc-dialogue-message,.npc-dialogue .npc-dialogue-cursor{animation:none}}

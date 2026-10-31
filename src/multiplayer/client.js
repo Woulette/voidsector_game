@@ -865,6 +865,7 @@ export const requestPlayerRespawn = socketCommands.requestPlayerRespawn;
 export const startPortgunTeleport = socketCommands.startPortgunTeleport;
 export const activateRickyPortalLever = socketCommands.activateRickyPortalLever;
 export const interactPrecursorPortal = socketCommands.interactPrecursorPortal;
+export const interactAzuronPortal = socketCommands.interactAzuronPortal;
 export const activateRickyHealBeacon = socketCommands.activateRickyHealBeacon;
 export const activateShipAbility = socketCommands.activateShipAbility;
 export const setupServerProfile = socketCommands.setupServerProfile;

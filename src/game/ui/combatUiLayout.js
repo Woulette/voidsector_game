@@ -25,6 +25,10 @@ function mergeLayout(base = {}, saved = {}){
   return {
     ...base,
     ...saved,
+    combatPilotPanel:{
+      ...sanitizePanelLayout(base.combatPilotPanel),
+      ...sanitizePanelLayout(saved.combatPilotPanel)
+    },
     combatChatPanel:{
       ...sanitizePanelLayout(base.combatChatPanel),
       ...sanitizePanelLayout(saved.combatChatPanel)

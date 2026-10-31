@@ -1,10 +1,11 @@
+import { normalizeReputation } from "../../../src/shared/reputation.js";
 import crypto from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeFirmId } from "../../../src/data/firms.js";
 import { dbEnabled, query } from "../db/client.js";
-import { addFirmPvpKill } from "./firmPvp.js";
+import { addFirmPvpKill, recordPvpRewardAttempt as recordPvpAttempt } from "./firmPvp.js";
 import { buildFirmSeasonObjectiveSnapshot, claimFirmSeasonObjectiveReward, recordFirmSeasonObjectiveProgress } from "./firmObjectives.js";
 import {
   acceptFirmDailyQuest,
@@ -239,10 +240,19 @@ export function createFirmWarManager({
     ensureSeason(now());
     const contributor = contributorFrom(attacker);
     const result = addFirmPvpKill(state, {attacker:contributor, targetKey, now:now()});
-    recordFirmQuestProgress(state, {contributor, type:"pvp", target:"player", amount:1, now:now()});
-    recordFirmSeasonObjectiveProgress(state, {contributor, type:"pvp", target:"player", amount:1, now:now()});
+    if(result.points > 0){
+      recordFirmQuestProgress(state, {contributor, type:"pvp", target:"player", amount:1, now:now()});
+      recordFirmSeasonObjectiveProgress(state, {contributor, type:"pvp", target:"player", amount:1, now:now()});
+    }
     scheduleSave();
     return {...result, snapshot:snapshot()};
+  }
+
+  function recordPvpRewardAttempt({playerKey, targetKey} = {}){
+    ensureSeason(now());
+    const result = recordPvpAttempt(state, {playerKey, targetKey, now:now()});
+    scheduleSave();
+    return result;
   }
 
   function recordPortalCompletion(contributors = []){
@@ -361,11 +371,11 @@ export function createFirmWarManager({
           firmatons:Math.max(0, Number(profile?.firmatons || 0)),
           boxes:JSON.parse(JSON.stringify(profile?.firmBoxes || {})),
           rewardHistory:JSON.parse(JSON.stringify(profile?.firmRewardHistory || [])).slice(-20).reverse(),
-          reputation:Math.max(0, Number(profile?.player?.reputation || 0))
+          reputation:normalizeReputation(profile?.player?.reputation)
         } : {})
       }} : {}),
       ...(includeShop ? {shop:FIRM_SHOP_CATALOG.map(item=>{
-        const reputation = Math.max(0, Number(profile?.player?.reputation || 0));
+        const reputation = normalizeReputation(profile?.player?.reputation);
         return {
           ...item,
           basePrice:item.price,
@@ -390,6 +400,7 @@ export function createFirmWarManager({
     flushPersistence,
     load,
     recordPlayerKill,
+    recordPvpRewardAttempt,
     recordPortalCompletion,
     snapshot
   };

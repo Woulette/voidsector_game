@@ -17,9 +17,8 @@ $ErrorActionPreference = "Stop"
 Write-Host "=== Création de l'archive de déploiement ===" -ForegroundColor Cyan
 
 # Fichiers et dossiers nécessaires
-$items = @(
+$frontendItems = @(
     "src",
-    "server",
     "index.html",
     "game.js",
     "styles.css",
@@ -28,12 +27,50 @@ $items = @(
     "robots.txt"
 )
 
-# Supprimer l'ancienne archive si elle existe
-if (Test-Path $ArchiveName) {
-    Remove-Item $ArchiveName -Force
+# Liste blanche backend. Les secrets et donnees d'execution ne sont jamais
+# copies : server/.env, server/data, node_modules, logs, backups et tests.
+$serverItems = @(
+    "server/src",
+    "server/tools",
+    "server/deploy",
+    "server/package.json",
+    "server/package-lock.json",
+    "server/.env.example"
+)
+
+$tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+$stagingDir = Join-Path $tempRoot ("voidsector-deploy-" + [guid]::NewGuid().ToString("N"))
+$stagingFullPath = [System.IO.Path]::GetFullPath($stagingDir)
+if (-not $stagingFullPath.StartsWith($tempRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Dossier temporaire de deploiement invalide."
 }
 
-Compress-Archive -Path $items -DestinationPath $ArchiveName -Force
+New-Item -ItemType Directory -Path $stagingFullPath | Out-Null
+try {
+    foreach ($item in $frontendItems) {
+        if (Test-Path -LiteralPath $item) {
+            Copy-Item -LiteralPath $item -Destination $stagingFullPath -Recurse -Force
+        }
+    }
+
+    $stagingServer = Join-Path $stagingFullPath "server"
+    New-Item -ItemType Directory -Path $stagingServer | Out-Null
+    foreach ($item in $serverItems) {
+        if (Test-Path -LiteralPath $item) {
+            Copy-Item -LiteralPath $item -Destination $stagingServer -Recurse -Force
+        }
+    }
+
+    if (Test-Path -LiteralPath $ArchiveName) {
+        Remove-Item -LiteralPath $ArchiveName -Force
+    }
+    Compress-Archive -Path (Join-Path $stagingFullPath "*") -DestinationPath $ArchiveName -Force
+}
+finally {
+    if (Test-Path -LiteralPath $stagingFullPath) {
+        Remove-Item -LiteralPath $stagingFullPath -Recurse -Force
+    }
+}
 
 Write-Host "=== Envoi sur le serveur $ServerIp ===" -ForegroundColor Cyan
 scp -i $KeyPath $ArchiveName "$RemoteUser@${ServerIp}:$RemoteDir/"

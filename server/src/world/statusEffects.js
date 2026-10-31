@@ -10,7 +10,8 @@ function normalizePoison(effect = {}){
 function normalizeSlow(effect = {}){
   return {
     type:"slow",
-    amount:Math.max(1, Math.round(Number(effect.amount || 0))),
+    amount:Math.max(0, Math.round(Number(effect.amount || 0))),
+    ratio:Math.max(0, Math.min(1, Number(effect.ratio || 0))),
     durationMs:Math.max(250, Number(effect.duration || 0) * 1000),
     radius:Math.max(0, Number(effect.radius || 0))
   };
@@ -51,6 +52,7 @@ export function createWorldStatusEffectManager({io, players, presence, profileMa
       type:"slow",
       active,
       amount:slow.amount,
+      ratio:slow.ratio,
       duration:slow.durationMs / 1000,
       remaining:active ? Math.max(0, (slow.expiresAt - now) / 1000) : 0,
       sourceId:slow.sourceId,
@@ -63,11 +65,13 @@ export function createWorldStatusEffectManager({io, players, presence, profileMa
 
   function applySlowToPlayer(player, enemy, effect, now){
     if(!player?.state || Number(player.state.hp || 0) <= 0) return false;
-    const current = player.statusEffects?.slow;
+    const previous = player.statusEffects?.slow;
+    const current = previous && now < Number(previous.expiresAt || 0) ? previous : null;
     if(!player.statusEffects || typeof player.statusEffects !== "object") player.statusEffects = {};
     player.statusEffects.slow = {
       ...effect,
       amount:Math.max(effect.amount, Number(current?.amount || 0)),
+      ratio:Math.max(effect.ratio, Number(current?.ratio || 0)),
       durationMs:Math.max(effect.durationMs, Number(current?.durationMs || 0)),
       sourceId:enemy.id,
       originX:Number(enemy.x || 0),
@@ -79,12 +83,20 @@ export function createWorldStatusEffectManager({io, players, presence, profileMa
     return true;
   }
 
-  function applyEnemyDeathEffect(mapId, enemy, now = Date.now()){
-    if(enemy?.deathEffect?.type !== "slow") return [];
+  function applyEnemyDeathEffect(mapId, enemy, now = Date.now(), {playerIds = null} = {}){
+    if(enemy?.deathEffect?.type !== "slow" || enemy.deathEffectApplied) return [];
+    enemy.deathEffectApplied = true;
     const effect = normalizeSlow(enemy.deathEffect);
+    const allowed = playerIds ? new Set(playerIds) : null;
     const affected = [];
     for(const player of players.values()){
+      if(allowed && !allowed.has(player.id)) continue;
       if(String(player?.mapId ?? player?.state?.mapId ?? "") !== String(mapId ?? "")) continue;
+      io.to(player.id).emit("ship:ability-effect", {
+        kind:"enemy_slow_bomb", enemyId:enemy.id, mapId:String(mapId),
+        x:Number(enemy.x || 0), y:Number(enemy.y || 0), radius:effect.radius,
+        durationMs:700, at:now
+      });
       const distance = Math.hypot(
         Number(player.state?.x || 0) - Number(enemy.x || 0),
         Number(player.state?.y || 0) - Number(enemy.y || 0)
@@ -99,7 +111,8 @@ export function createWorldStatusEffectManager({io, players, presence, profileMa
     if(!target?.state || Number(target.state.hp || 0) <= 0) return false;
     if(enemy?.onHitEffect?.type !== "poison") return false;
     const poison = normalizePoison(enemy.onHitEffect);
-    const current = target.statusEffects?.poison;
+    const previous = target.statusEffects?.poison;
+    const current = previous && now < Number(previous.expiresAt || 0) ? previous : null;
     if(!target.statusEffects || typeof target.statusEffects !== "object") target.statusEffects = {};
     target.statusEffects.poison = {
       ...poison,
@@ -117,7 +130,7 @@ export function createWorldStatusEffectManager({io, players, presence, profileMa
   }
 
   function tickPoison(player, poison, now){
-    if(!player?.state || Number(player.state.hp || 0) <= 0 || now >= Number(poison.expiresAt || 0)){
+    if(!player?.state || Number(player.state.hp || 0) <= 0){
       emitPoisonState(player, poison, false, now);
       delete player.statusEffects.poison;
       return;
@@ -149,6 +162,10 @@ export function createWorldStatusEffectManager({io, players, presence, profileMa
       });
     }
     if(applied) profileManager.saveWorldSession({player, state:player.state, force:Number(player.state.hp || 0) <= 0});
+    if(now >= Number(poison.expiresAt || 0) || Number(player.state.hp || 0) <= 0){
+      emitPoisonState(player, poison, false, now);
+      delete player.statusEffects.poison;
+    }
   }
 
   function tickSlow(player, slow, now){

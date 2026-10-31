@@ -28,7 +28,8 @@ function createManagerFixture(players, sockets, options = {}){
     players,
     profileManager:{
       syncForSocket(){},
-      getWorldSessionForPlayer:()=>null
+      getWorldSessionForPlayer:()=>null,
+      getProfileForPlayer:options.getProfileForPlayer || (()=>null)
     },
     cleanName:value=>String(value || "Pilote"),
     emitPlayers:()=>calls.push("emitPlayers"),
@@ -60,6 +61,20 @@ test("session resume from a second game socket takes over the existing live ship
       groupId:"group-1",
       mapId:"31",
       mapRoom:"map:31",
+      lastClientStateSourceSeq:42,
+      lastClientStateRawAt:5000,
+      lastClientStateNormalizedAt:9000,
+      stateStreamSeq:77,
+      preparedPortal:{
+        id:"prepared-blue",
+        portalId:"blue",
+        portal:{id:"blue", name:"Le Seuil d'Azuron"},
+        mapId:"31",
+        mapName:"Aureon-02",
+        x:1200,
+        y:-900,
+        preparedAt:800
+      },
       state:{
         mapId:"31",
         x:100,
@@ -95,6 +110,10 @@ test("session resume from a second game socket takes over the existing live ship
   assert.equal(players.has(oldSocket.id), false);
   assert.equal(players.has(newSocket.id), true);
   assert.equal(players.get(newSocket.id).state.hp, 4000);
+  assert.equal(players.get(newSocket.id).lastClientStateSourceSeq, 0);
+  assert.equal(players.get(newSocket.id).lastClientStateRawAt, undefined);
+  assert.equal(players.get(newSocket.id).lastClientStateNormalizedAt, undefined);
+  assert.equal(players.get(newSocket.id).stateStreamSeq, 77);
   assert.equal(players.get(newSocket.id).sessionExpiresAt, 123);
   assert.equal(resume.source, "takeover");
   assert.equal(resume.mapId, "31");
@@ -108,6 +127,10 @@ test("session resume from a second game socket takes over the existing live ship
   assert.equal(calls.includes("syncStatus:new-game"), true);
   assert.equal(calls.includes("syncLifecycle:new-game"), true);
   assert.equal(newSocket.emitted.some(entry=>entry.event === "player:resume" && entry.payload.source === "takeover"), true);
+  const preparedSync = newSocket.emitted.find(entry=>entry.event === "portal:prepared");
+  assert.equal(preparedSync?.payload?.synced, true);
+  assert.equal(preparedSync?.payload?.preparedPortal?.portalId, "blue");
+  assert.equal(preparedSync?.payload?.preparedPortal?.mapId, "31");
 });
 
 test("session resume from a launcher removes only duplicate launchers for the account", ()=>{
@@ -165,6 +188,49 @@ test("session resume from a launcher removes only duplicate launchers for the ac
   assert.equal(calls.includes("replaceGroup:old-launcher->new-launcher"), true);
   assert.equal(newLauncherSocket.emitted.some(entry=>entry.event === "account:role"), true);
   assert.equal(newLauncherSocket.emitted.some(entry=>entry.event === "player:resume"), false);
+});
+
+test("a game socket restores a portal prepared earlier from the persistent account profile", ()=>{
+  const gameSocket = createSocket("game");
+  const sockets = new Map([[gameSocket.id, gameSocket]]);
+  const players = new Map([[
+    gameSocket.id,
+    {
+      id:gameSocket.id,
+      accountId:null,
+      account:null,
+      name:"Guest",
+      clientMode:"game",
+      connected:true,
+      state:null
+    }
+  ]]);
+  const preparedPortal = {
+    id:"prepared-blue",
+    portalId:"blue",
+    portal:{id:"blue", name:"Le Seuil d'Azuron", totalWaves:20},
+    mapId:"0",
+    mapName:"Helion-01",
+    x:-3780,
+    y:2780,
+    preparedAt:800
+  };
+  const {manager} = createManagerFixture(players, sockets, {
+    getProfileForPlayer:()=>({preparedPortal})
+  });
+
+  manager.attachOrResumeAccountSocket(
+    gameSocket,
+    {id:"account-1", username:"Pilot", role:"player"},
+    {expiresAt:123}
+  );
+
+  assert.equal(players.get(gameSocket.id).preparedPortal?.portalId, "blue");
+  const preparedSync = gameSocket.emitted.find(entry=>entry.event === "portal:prepared");
+  assert.equal(preparedSync?.payload?.synced, true);
+  assert.equal(preparedSync?.payload?.preparedPortal?.mapId, "0");
+  assert.equal(preparedSync?.payload?.preparedPortal?.x, -3780);
+  assert.equal(preparedSync?.payload?.preparedPortal?.y, 2780);
 });
 
 test("session resume refuses a new game account when the beta player cap is full", ()=>{
@@ -249,6 +315,48 @@ test("session resume allows same-account takeover when the beta player cap is fu
   assert.equal(players.has(oldSocket.id), false);
   assert.equal(players.get(newSocket.id).accountId, "account-1");
 });
+
+for(const role of ["owner", "admin"]){
+  test(`session resume lets ${role.toUpperCase()} enter when the normal-player quota is full`, ()=>{
+    const existingSocket = createSocket("existing-game");
+    const privilegedSocket = createSocket(`${role}-game`);
+    const sockets = new Map([
+      [existingSocket.id, existingSocket],
+      [privilegedSocket.id, privilegedSocket]
+    ]);
+    const players = new Map([
+      [existingSocket.id, {
+        id:existingSocket.id,
+        accountId:"account-player",
+        account:{id:"account-player", username:"Pilot", role:"player"},
+        clientMode:"game",
+        connected:true,
+        state:{mapId:"0", hp:4000, maxHp:5000, shipId:"orion"}
+      }],
+      [privilegedSocket.id, {
+        id:privilegedSocket.id,
+        accountId:null,
+        account:null,
+        name:"Guest",
+        clientMode:"game",
+        connected:true,
+        state:null
+      }]
+    ]);
+    const {manager} = createManagerFixture(players, sockets, {maxConcurrentGamePlayers:1});
+
+    manager.attachOrResumeAccountSocket(
+      privilegedSocket,
+      {id:`account-${role}`, username:role, role},
+      {expiresAt:123}
+    );
+
+    assert.equal(players.get(privilegedSocket.id).accountId, `account-${role}`);
+    assert.equal(players.get(privilegedSocket.id).account.role, role);
+    assert.equal(privilegedSocket.emitted.some(entry=>entry.event === "server:full"), false);
+    assert.deepEqual(existingSocket.calls, []);
+  });
+}
 
 test("session resume disconnects disabled load-test bot accounts", ()=>{
   const botSocket = createSocket("bot-game");

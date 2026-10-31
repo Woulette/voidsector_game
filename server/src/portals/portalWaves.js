@@ -1,10 +1,13 @@
 import { WORLD_ENEMY_TYPES } from "../world/definitions.js";
+import { scaleMonsterReward, scaleMonsterStat } from "../world/enemyProgression.js";
 
 export function createPortalEnemy(kind, wave, index, x, y, boss = false, now = Date.now()){
   const base = WORLD_ENEMY_TYPES[kind] || WORLD_ENEMY_TYPES.drone_pirate;
   const level = Math.max(1, Math.round((boss ? 20 : 1) + wave * 0.75));
-  const hp = Math.round(base.hp(level) * (boss ? 2.6 : 1 + wave * 0.035));
-  const shield = Math.round(base.shield(level) * (boss ? 2.6 : 1 + wave * 0.025));
+  const reference = base.baseLevel || 1;
+  const stat = value=>scaleMonsterStat(value, reference, level);
+  const hp = Math.round(stat(base.hp(reference)) * (boss ? 2.6 : 1 + wave * 0.035));
+  const shield = Math.round(stat(base.shield(reference)) * (boss ? 2.6 : 1 + wave * 0.025));
   return {
     id:`P-${wave}-${index}-${now.toString(36)}`,
     serverControlled:true,
@@ -26,13 +29,13 @@ export function createPortalEnemy(kind, wave, index, x, y, boss = false, now = D
     height:Math.round(base.height * (boss ? 1.22 : 1)),
     speed:base.speed(level),
     attackRange:base.attackRange,
-    attackDamage:Math.round(base.attackDamage(level) * (boss ? 1.65 : 1)),
+    attackDamage:Math.round(stat(base.attackDamage(reference)) * (boss ? 1.65 : 1)),
     attackCooldown:base.attackCooldown,
     staggerFirstAttack:true,
     projectileSpeed:base.projectileSpeed || 600,
     particle:base.particle || base.color,
-    onHitEffect:base.onHitEffect || null,
-    reward:base.reward(level),
+    onHitEffect:base.onHitEffect ? {...base.onHitEffect, damage:stat(base.onHitEffect.damage)} : null,
+    reward:scaleMonsterReward(base.reward(reference), reference, level),
     color:base.color,
     shieldAbsorbRatio:base.shieldAbsorbRatio,
     vx:0,

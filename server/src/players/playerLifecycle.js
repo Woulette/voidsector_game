@@ -1,4 +1,7 @@
 import { getPlayerInstanceGroup } from "../portals/portalSessions.js";
+import { finishFragmentAttempt,parkFragmentAttempt } from "../portals/portalAttempts.js";
+import { isFragmentPortal } from "../../../src/shared/portalAttempts.js";
+import { isWavePortal } from "../../../src/data/wavePortalTiers.js";
 import { FIRMS } from "../../../src/data/firms.js";
 import { WORLD_MAPS } from "../world/definitions.js";
 import { getWorldSafePortals } from "../world/spawn.js";
@@ -37,6 +40,7 @@ function getPortalContext(player, groups){
   const group = getPlayerInstanceGroup(player, groups);
   const instance = group?.instance;
   if(!instance || instance.type !== "portal") return null;
+  if(instance.completed && isFragmentPortal(instance.portal?.id)) return null;
   if(Array.isArray(instance.joinedMemberIds) && !instance.joinedMemberIds.includes(player.id)) return null;
   if(String(player?.state?.mapId || player?.mapId || "") !== `portal-${instance.portal?.id}`) return null;
   return {group, instance};
@@ -138,6 +142,25 @@ export function createPlayerLifecycleManager({
 
   function abandonPortal(player, context, message){
     const {group, instance} = context;
+    if(isFragmentPortal(instance.portal?.id)){
+      const result=profileManager.updateProfileForPlayer({player,update:profile=>{
+        const lives=Number(instance.playerLives?.[player.id] || 0);
+        if(lives>0){
+          parkFragmentAttempt(profile,instance.portal.id,lives);
+          if(instance.azuronRunId && profile.azuronProgress?.runId===instance.azuronRunId){
+            profile.azuronProgress={...profile.azuronProgress,lives,phase:"parked",updatedAt:Date.now()};
+          }
+        }
+        else finishFragmentAttempt(profile,instance.portal.id);
+        return {ok:true};
+      }});
+      const prepared=result?.profile?.preparedPortal || null;
+      for(const candidate of players.values()){
+        if(candidate.id!==player.id && (!player.accountId || String(candidate.accountId || "")!==String(player.accountId))) continue;
+        candidate.preparedPortal=prepared;io.to(candidate.id).emit("portal:prepared",{preparedPortal:prepared});
+      }
+      emitProfileSync?.(player,result?.profile);
+    }
     if(!Array.isArray(instance.abandonedMemberIds)) instance.abandonedMemberIds = [];
     if(!instance.abandonedMemberIds.includes(player.id)) instance.abandonedMemberIds.push(player.id);
     const ownerAccountId = String(instance.ownerAccountId || "");
@@ -190,6 +213,18 @@ export function createPlayerLifecycleManager({
       const currentLives = Math.max(0, Math.round(finite(instance.playerLives[player.id], PORTAL_STARTING_LIVES)));
       const remainingLives = Math.max(0, currentLives - 1);
       instance.playerLives[player.id] = remainingLives;
+      if(isFragmentPortal(instance.portal?.id)){
+        profileManager.updateProfileForPlayer({player,update:profile=>{
+          if(profile.portalAttempt?.portalId===instance.portal.id){
+            if(remainingLives>0) profile.portalAttempt={...profile.portalAttempt,lives:remainingLives};
+            else finishFragmentAttempt(profile,instance.portal.id);
+          }
+          if(instance.azuronRunId && profile.azuronProgress?.runId===instance.azuronRunId){
+            profile.azuronProgress.lives=remainingLives;
+          }
+          return {ok:true};
+        }});
+      }
       player.deathState = {
         serverAuthoritative:true,
         gameMode:"portal",
@@ -198,14 +233,17 @@ export function createPlayerLifecycleManager({
         y:finite(player.state.y),
         portalLives:remainingLives,
         portalStartingLives:PORTAL_STARTING_LIVES,
+        portalAttemptPreserved:isFragmentPortal(instance.portal?.id),
         reason,
         sourceId:String(sourceId || ""),
-        choices:remainingLives > 0 ? ["portal-resume", "spawn"] : []
+        choices:!isWavePortal(instance.portal) && remainingLives > 0 ? ["portal-resume", "spawn"] : []
       };
       saveState(player, true);
       emitDeath(player);
-      if(remainingLives <= 0){
-        abandonPortal(player, portalContext, "Portail ferme : 3 vies perdues.");
+      if(isWavePortal(instance.portal) || remainingLives <= 0){
+        abandonPortal(player, portalContext, remainingLives <= 0
+          ? "Portail ferme : 3 vies perdues."
+          : "Portail en pause : retourne par le portail pour reprendre la serie sauvegardee.");
       }
       return true;
     }

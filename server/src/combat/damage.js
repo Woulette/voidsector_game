@@ -6,6 +6,7 @@ import { ANCIENT_PORTAL_ID } from "../../../src/data/ancientPortal.js";
 import {applyServerLaserDoubleStrike} from "./shipAbilities.js";
 import {getEquippedProfileTitleDamageMultiplier} from "../players/profileTitles.js";
 import {canAccountRoleAccessShip, ships} from "../../../src/data/ships.js";
+import {getAmmoCooldownKey} from "../../../src/shared/weaponCooldowns.js";
 
 export function createCombatCooldownTracker({
   now = ()=>Date.now(),
@@ -510,7 +511,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
     range = shipLasers.length > 0 ? shipPool.range : dronePool.range;
     cooldownMs = Math.max(250, Number(ammo.cooldown || 1) * 1000);
     eliteLaserShot = prepareEliteLaserShot(profile, getEliteLaserCounts(lasers), now);
-    cooldownMs = Math.max(250, cooldownMs * Math.max(0.25, Number(eliteLaserShot?.blueCooldownMultiplier || 1)));
+    if(ammo.id !== "ammo_x6") cooldownMs = Math.max(250, cooldownMs * Math.max(0.25, Number(eliteLaserShot?.blueCooldownMultiplier || 1)));
     laserDamage = {
       ship:rollBetween(shipPool.min, shipPool.max, random),
       drone:rollBetween(dronePool.min, dronePool.max, random),
@@ -547,7 +548,7 @@ export function resolveServerCombatFire({player, profile, enemy, payload, firmDa
 
   if(!distanceOk(player, enemy, range)) return rejectCombatFire("OUT_OF_RANGE", "Cible hors de portee.");
   if(!hasAmmo(profile, ammo.id, consumed)) return rejectCombatFire("NO_AMMO", "Munitions insuffisantes.");
-  const cooldown = checkCooldown(player, weaponClass, cooldownMs);
+  const cooldown = checkCooldown(player, getAmmoCooldownKey(ammo), cooldownMs);
   if(!cooldown.ok){
     return rejectCombatFire("COOLDOWN", cooldown.reason || "Arme en recharge.", {
       cooldownReadyAt:Math.max(0, Number(cooldown.cooldownReadyAt || 0)),

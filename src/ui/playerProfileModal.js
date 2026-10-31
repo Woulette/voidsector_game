@@ -1,3 +1,4 @@
+import { normalizeReputation } from "../shared/reputation.js";
 import { droneFormations, equipment, ships } from "../data/catalog.js?v=20260726-kharon1";
 import { getFirmDefinition, normalizeFirmId } from "../data/firms.js";
 import { calculateRankScore, getRankAssetPath, getRankForScore } from "../data/ranks.js";
@@ -129,7 +130,7 @@ export function buildLocalPlayerProfile(row = {}){
     },
     progression:{
       playSeconds:Math.max(0, Number(player.totalPlaySeconds || 0)),
-      reputation:Math.max(0, Number(player.reputation || 0)),
+      reputation:normalizeReputation(player.reputation),
       totalXp:Math.max(0, Number(player.totalXp || 0)),
       totalKills:Math.max(0, Number(player.totalKills ?? row.kills ?? 0)),
       totalPlayerKills:Math.max(0, Number(player.totalPlayerKills || 0)),

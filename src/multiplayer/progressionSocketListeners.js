@@ -22,6 +22,10 @@ export function installProgressionSocketListeners({socket, multiplayer, emitChan
     pushEvent(multiplayer.questProgressEvents, event, 80);
     emitChange("quest:progress", event);
   });
+  socket.on("quest:key-recovered", event=>{
+    toast("Ricky t’a rendu une clé du portail Deadly.");
+    emitChange("quest:key-recovered", event);
+  });
   socket.on("quest:fail-progress", event=>{
     pushEvent(multiplayer.questFailureEvents, event, 80);
     emitChange("quest:fail-progress", event);
@@ -57,7 +61,7 @@ export function installProgressionSocketListeners({socket, multiplayer, emitChan
     emitChange("skill:error", payload);
   });
   socket.on("portal:unlocked", event=>{
-    toast(event?.portal?.name ? `${event.portal.name} deverrouille.` : "Portail deverrouille.");
+    toast(event?.portal?.name ? `Tentative assemblee : ${event.portal.name}.` : "Tentative de portail assemblee.");
     emitChange("portal:unlocked", event);
   });
   socket.on("portal:error", payload=>{

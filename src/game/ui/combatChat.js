@@ -1,13 +1,14 @@
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
 import { currencyAmountHtml } from "../../ui/currencyIcons.js";
 import { lootNameWithRarityHtml, lootNameWithRarityText } from "../../ui/lootRarityDisplay.js";
+import { updateCombatPanelContent } from "./combatPanelPresentation.js";
 
 const CHAT_TABS = [
   {id:"global", label:"Global"},
   {id:"firm", label:"Firme", locked:true},
   {id:"guild", label:"Guilde", locked:true},
-  {id:"private", label:"Prive"},
-  {id:"log", label:"Log"}
+  {id:"private", label:"Privé"},
+  {id:"log", label:"Journal"}
 ];
 
 const MAX_LOG_ROWS = 160;
@@ -81,6 +82,7 @@ export function createCombatChat({
   hydrateCombatUiLayout(store);
   const panel = documentRef.getElementById("combatChatPanel");
   const toggleBtn = documentRef.querySelector("[data-chat-toggle]");
+  const collapsedToggleBtn = documentRef.getElementById("combatChatCollapsed");
   const closeBtn = documentRef.querySelector("[data-chat-close]");
   const tabsEl = documentRef.getElementById("combatChatTabs");
   const messagesEl = documentRef.getElementById("combatChatMessages");
@@ -88,6 +90,8 @@ export function createCombatChat({
   const inputEl = documentRef.getElementById("combatChatInput");
   const headerEl = panel?.querySelector("[data-chat-drag-handle]");
   const resizeEl = panel?.querySelector("[data-chat-resize]");
+  const moreMenu = panel?.querySelector("[data-chat-more-menu]");
+  let renderedMessageTab = null;
 
   function ensureLayoutHydrated(){
     if(layoutHydrated || !store.state) return;
@@ -119,6 +123,7 @@ export function createCombatChat({
     const validRect = rect && bounds && rect.width >= 120 && rect.height >= 120 && bounds.width >= 120 && bounds.height >= 120;
     store.state.uiLayout.combatChatPanel = {
       ...previous,
+      compactVersion:validRect ? 2 : previous.compactVersion,
       ...(validRect ? {
         left:Math.round(rect.left - bounds.parentRect.left),
         top:Math.round(rect.top - bounds.parentRect.top),
@@ -136,16 +141,19 @@ export function createCombatChat({
     ensureLayoutHydrated();
     const layout = getLayout();
     const bounds = getPanelBounds();
-    const defaultWidth = 520;
-    const defaultHeight = 270;
-    const savedWidth = finiteNumber(layout.width);
-    const savedHeight = finiteNumber(layout.height);
+    const compact = bounds.width <= 1480;
+    const defaultWidth = compact ? 390 : 426;
+    const defaultHeight = compact ? 198 : 258;
+    const legacySize = !layout.compactVersion && ((layout.width === 520 && layout.height === 270) || (layout.width === 420 && layout.height === 240));
+    const savedWidth = legacySize ? null : finiteNumber(layout.width);
+    const savedHeight = legacySize ? null : finiteNumber(layout.height);
     const savedLeft = finiteNumber(layout.left);
     const savedTop = finiteNumber(layout.top);
-    const width = clamp(savedWidth ?? defaultWidth, 340, Math.max(340, bounds.width - 24));
-    const height = clamp(savedHeight ?? defaultHeight, 190, Math.max(190, bounds.height - 86));
-    const left = savedLeft !== null ? clamp(savedLeft, 8, Math.max(8, bounds.width - width - 8)) : 16;
-    const top = savedTop !== null ? clamp(savedTop, 8, Math.max(8, bounds.height - height - 8)) : Math.max(12, bounds.height - height - 58);
+    const width = clamp(savedWidth ?? defaultWidth, Math.min(330, bounds.width - 16), Math.max(16, bounds.width - 16));
+    const height = clamp(savedHeight ?? defaultHeight, Math.min(180, bounds.height - 16), Math.max(16, bounds.height - 16));
+    const defaultLeft = 12;
+    const left = savedLeft !== null ? clamp(savedLeft, 8, Math.max(8, bounds.width - width - 8)) : defaultLeft;
+    const top = savedTop !== null ? clamp(savedTop, 8, Math.max(8, bounds.height - height - 8)) : Math.max(12, bounds.height - height - (compact ? 108 : 16));
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;
     panel.style.right = "auto";
@@ -156,11 +164,13 @@ export function createCombatChat({
 
   function renderTabs(){
     if(!tabsEl) return;
-    tabsEl.innerHTML = CHAT_TABS.map(tab=>`
+    if(tabsEl.dataset.activeTab === activeTab) return;
+    tabsEl.dataset.activeTab = activeTab;
+    tabsEl.innerHTML = CHAT_TABS.filter(tab=>!tab.locked).map(tab=>`
       <button class="${activeTab === tab.id ? "active" : ""}" data-chat-tab="${tab.id}" type="button">
-        <strong>${escapeHtml(tab.label)}</strong>${tab.locked ? "<span>A venir</span>" : ""}
+        <strong>${escapeHtml(tab.label)}</strong>
       </button>
-    `).join("");
+    `).join("") + '<button data-chat-more-toggle type="button" aria-label="Autres canaux" aria-expanded="false">···</button>';
   }
 
   function renderGlobalMessages(){
@@ -171,8 +181,7 @@ export function createCombatChat({
     return messages.map(message=>`
       <div class="combat-chat-row">
         <time>${escapeHtml(timeLabel(message.at))}</time>
-        <strong>${escapeHtml(message.author?.name || "Pilote")}</strong>
-        <span>${escapeHtml(message.text || "")}</span>
+        <p><strong>${escapeHtml(message.author?.name || "Pilote")}</strong><span>${escapeHtml(message.text || "")}</span></p>
       </div>
     `).join("");
   }
@@ -185,8 +194,7 @@ export function createCombatChat({
     return messages.map(message=>`
       <div class="combat-chat-row">
         <time>${escapeHtml(timeLabel(message.at))}</time>
-        <strong>${escapeHtml(message.author?.name || "Pilote")}</strong>
-        <span>${escapeHtml(message.text || "")}</span>
+        <p><strong>${escapeHtml(message.author?.name || "Pilote")}</strong><span>${escapeHtml(message.text || "")}</span></p>
       </div>
     `).join("");
   }
@@ -200,8 +208,7 @@ export function createCombatChat({
       return `
         <div class="combat-chat-row log">
           <time>${escapeHtml(timeLabel(entry.at))}</time>
-          <strong>${escapeHtml(title)}</strong>
-          <span>${parts.join(" - ") || "Gain sans valeur"}</span>
+          <p><strong>${escapeHtml(title)}</strong><span>${parts.join(" - ") || "Gain sans valeur"}</span></p>
         </div>
       `;
     }).join("");
@@ -215,11 +222,11 @@ export function createCombatChat({
     if(!panel || panel.classList.contains("hidden")) return;
     renderTabs();
     if(messagesEl){
-      if(activeTab === "global") messagesEl.innerHTML = renderGlobalMessages();
-      else if(activeTab === "private") messagesEl.innerHTML = renderPrivateMessages();
-      else if(activeTab === "log") messagesEl.innerHTML = renderLogMessages();
-      else messagesEl.innerHTML = renderLockedTab(activeTab === "firm" ? "firme" : "guilde");
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      const follow = renderedMessageTab !== activeTab || messagesEl.scrollHeight - messagesEl.clientHeight - messagesEl.scrollTop <= 24;
+      const html = activeTab === "global" ? renderGlobalMessages() : activeTab === "private" ? renderPrivateMessages() : activeTab === "log" ? renderLogMessages() : renderLockedTab(activeTab === "firm" ? "firme" : "guilde");
+      const changed = updateCombatPanelContent(messagesEl, html);
+      if(changed && follow) messagesEl.scrollTop = messagesEl.scrollHeight;
+      renderedMessageTab = activeTab;
     }
     if(formEl){
       const canSend = activeTab === "global" || (activeTab === "private" && privateTarget?.key);
@@ -229,7 +236,7 @@ export function createCombatChat({
         inputEl.disabled = !canSend;
         inputEl.placeholder = activeTab === "private"
           ? (privateTarget?.name ? `Message prive a ${privateTarget.name}...` : "Choisis un ami depuis la fenetre Amis")
-          : canSend ? "Message global..." : "Canal a venir";
+          : canSend ? "Écrire dans Global…" : "Canal à venir";
       }
     }
   }
@@ -239,6 +246,8 @@ export function createCombatChat({
     if(store.state?.settings?.interface) store.state.settings.interface.chatVisible = Boolean(open);
     panel.classList.toggle("hidden", !open);
     toggleBtn?.classList.toggle("active", open);
+    toggleBtn?.setAttribute("aria-expanded", String(open));
+    collapsedToggleBtn?.classList.toggle("hidden", open);
     if(open){
       applyLayout();
       render();
@@ -321,10 +330,19 @@ export function createCombatChat({
     e.preventDefault();
     setOpen(false);
   });
-  tabsEl?.addEventListener("click", e=>{
+  collapsedToggleBtn?.addEventListener("click", ()=>setOpen(true));
+  panel?.addEventListener("click", e=>{
+    const more = e.target.closest("[data-chat-more-toggle]");
+    if(more){
+      const open = moreMenu?.classList.contains("hidden");
+      moreMenu?.classList.toggle("hidden", !open);
+      more.setAttribute("aria-expanded", String(Boolean(open)));
+      return;
+    }
     const btn = e.target.closest("[data-chat-tab]");
     if(!btn) return;
     activeTab = btn.dataset.chatTab || "global";
+    moreMenu?.classList.add("hidden");
     render();
   });
   formEl?.addEventListener("submit", e=>{

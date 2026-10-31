@@ -1,3 +1,5 @@
+import { npcDialogueMarkup, updateNpcDialogueView } from "./npcDialogueView.js?v=20261024-ricky-bubble1";
+
 export function createQuestNpcDialogue({
   canvas,
   multiplayer,
@@ -8,6 +10,7 @@ export function createQuestNpcDialogue({
   getActiveQuests,
   getQuestObjectiveProgress,
   getInventoryCount,
+  getCompletedPortalCount = ()=>0,
   progressServerQuest,
   recordQuestNpcTalk,
   saveState,
@@ -126,6 +129,18 @@ export function createQuestNpcDialogue({
     const quest = getRickyQuest("quest_lv10_sauvons_deadly", npc);
     if(!quest) return null;
     if(!isObjectiveDone(quest, "portal")){
+      if(getInventoryCount("portal_anchor_key") < 1){
+        if(getCompletedPortalCount("ricky") > 0){
+          return {lines:["Tu as déjà réussi ce portail. Pour y retourner, il faudra trouver une nouvelle clé sur les monstres."], progress:false};
+        }
+        return {
+          lines:[
+            "Tu n'as plus de clé ? Je peux t'en refaire une. On ne va pas laisser Deadly coincé là-dedans.",
+            "Reviens me voir si tu échoues encore. Mais dès que tu auras réussi ce portail une première fois, ce sera terminé : les prochaines clés, il faudra les trouver sur les monstres."
+          ],
+          progress:true
+        };
+      }
       return {lines:["Deadly est toujours coince dans le portail. Tu comptes le sauver ou attendre qu'il se recycle tout seul ?"], progress:false};
     }
     if(!isObjectiveDone(quest, "talk_return")){
@@ -159,17 +174,24 @@ export function createQuestNpcDialogue({
     panel = document.createElement("div");
     panel.id = "npcDialoguePanel";
     panel.className = "npc-dialogue hidden";
-    panel.innerHTML = `
-      <div class="npc-dialogue-box">
-        <div class="npc-dialogue-head"><span data-npc-name></span><button type="button" class="npc-dialogue-close" aria-label="Fermer le dialogue">x</button></div>
-        <p><span data-npc-line></span><i class="npc-dialogue-cursor"></i></p>
-      </div>`;
+    panel.innerHTML = npcDialogueMarkup();
     document.getElementById("gameScreen")?.appendChild(panel);
     panel.addEventListener("click", event=>{
       event.preventDefault();
       if(event.target.closest(".npc-dialogue-close")) close();
+      else if(event.target.closest("[data-npc-previous]")) previous();
       else advance();
     });
+    document.addEventListener?.("keydown", event=>{
+      if(!dialogueState || event.target?.closest?.("input,textarea,select,[contenteditable=true]")) return;
+      if(!["Enter"," ","Escape","ArrowLeft"].includes(event.key)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation?.();
+      if(event.repeat) return;
+      if(event.key === "Escape") close();
+      else if(event.key === "ArrowLeft") previous();
+      else advance();
+    }, true);
     return panel;
   }
 
@@ -187,28 +209,34 @@ export function createQuestNpcDialogue({
       close();
       return false;
     }
-    const width = Math.min(440, Math.max(300, window.innerWidth - 32));
+    const width = Math.min(480, Math.max(280, window.innerWidth - 32));
     const margin = 14;
     const left = Math.max(margin, Math.min(window.innerWidth - width - margin, rawX - width / 2));
     panel.style.width = `${width}px`;
     panel.style.left = `${left}px`;
-    panel.style.top = `${Math.max(82, Math.min(window.innerHeight - 190, rawY - 132))}px`;
-    panel.style.setProperty("--npc-arrow-x", `${Math.max(28, Math.min(width - 28, rawX - left))}px`);
+    const height = panel.getBoundingClientRect?.().height || 200;
+    const belowTop = rawY + Number(npc.size || 120) * 1.36 * zoom + 35;
+    const below = rawY - height - 35 < 76 && belowTop + height <= window.innerHeight - 88;
+    panel.classList[below ? "add" : "remove"]("npc-dialogue-below");
+    panel.style.top = `${Math.max(76, Math.min(window.innerHeight - height - 88, below ? belowTop : rawY - height - 35))}px`;
+    panel.style.setProperty("--npc-arrow-x", `${Math.max(44, Math.min(width - 36, rawX - left))}px`);
     return true;
   }
 
   function render(){
     const panel = getPanel();
     const line = dialogueState?.lines?.[dialogueState.index] || "";
-    panel.querySelector("[data-npc-name]").textContent = dialogueState?.npc?.name || "PNJ";
     dialogueState.lineText = line;
     dialogueState.visibleText = "";
     dialogueState.charIndex = 0;
     dialogueState.typeTimer = 0;
     panel.querySelector("[data-npc-line]").textContent = "";
-    panel.classList.remove("hidden", "visible", "line-swap");
+    updateNpcDialogueView(panel, dialogueState, true);
+    panel.classList.remove("hidden", "line-swap");
     position();
+    const rendering = dialogueState;
     requestAnimationFrame(()=>{
+      if(dialogueState !== rendering) return;
       panel.classList.add("visible", "line-swap");
       window.setTimeout(()=>panel.classList.remove("line-swap"), 220);
     });
@@ -248,6 +276,7 @@ export function createQuestNpcDialogue({
       dialogueState.charIndex = String(dialogueState.lineText || "").length;
       dialogueState.visibleText = dialogueState.lineText || "";
       document.getElementById("npcDialoguePanel")?.querySelector("[data-npc-line]")?.replaceChildren(document.createTextNode(dialogueState.visibleText));
+      updateNpcDialogueView(getPanel(), dialogueState, false);
       return;
     }
     dialogueState.index += 1;
@@ -260,6 +289,13 @@ export function createQuestNpcDialogue({
     progressDialogue(completedDialogue);
   }
 
+  function previous(){
+    if(!dialogueState || dialogueState.index <= 0) return;
+    dialogueState.index -= 1;
+    render();
+    advance();
+  }
+
   function interact(npc){
     const dialogue = getDialogue(npc);
     dialogueState = {
@@ -269,6 +305,7 @@ export function createQuestNpcDialogue({
       progressType:dialogue.progressType,
       itemId:dialogue.itemId,
       progressOnLastLine:Boolean(dialogue.progressOnLastLine),
+      questTitle:["quest_lv10_sauvons_deadly","quest_lv10_maintenance_impossible","quest_lv5_call_for_help"].map(id=>getRickyQuest(id,npc)).find(Boolean)?.title || "Conversation avec Ricky",
       index:0
     };
     stopPlayerMovement();
@@ -286,6 +323,7 @@ export function createQuestNpcDialogue({
     dialogueState.visibleText = line.slice(0, nextIndex);
     const target = document.getElementById("npcDialoguePanel")?.querySelector("[data-npc-line]");
     if(target) target.textContent = dialogueState.visibleText;
+    if(nextIndex === line.length) updateNpcDialogueView(getPanel(), dialogueState, false);
   }
 
   return {close, findAt, interact, update};

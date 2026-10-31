@@ -91,10 +91,9 @@ export function createCombatWorldStateSystem({
     return !!getCurrentSafeArea() && (player.safeZoneLock || 0) <= 0;
   }
 
-  function getSpawnStations(){
+  function getVisibleSpawnStations(){
     const {gameMode, currentMap} = getState();
     if(gameMode !== "open" || !currentMap?.spawn || currentMap.spawn.kind === "portal") return [];
-    if(!isFriendlyFirmMap(currentMap)) return [];
     const spawn = currentMap.spawn;
     if(Array.isArray(currentMap.spawnStations)) return currentMap.spawnStations;
     const configuredStations = (Array.isArray(currentMap.questStations) ? currentMap.questStations : [])
@@ -144,6 +143,12 @@ export function createCombatWorldStateSystem({
     ];
     const configuredIds = new Set(configuredStations.map(station=>station.id));
     return [...configuredStations, ...hubStations.filter(station=>!configuredIds.has(station.id))];
+  }
+
+  // Rendering can show a foreign base; interaction and tutorial queries keep
+  // the existing firm restriction through this historical API.
+  function getSpawnStations(){
+    return isFriendlyFirmMap() ? getVisibleSpawnStations() : [];
   }
 
   function getStationAt(world){
@@ -228,6 +233,7 @@ export function createCombatWorldStateSystem({
     getCurrentSafeArea,
     isSafeModeActive,
     getSpawnStations,
+    getVisibleSpawnStations,
     getStationAt,
     loadMap,
     isPlayerOutsideMap,

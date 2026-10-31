@@ -1,7 +1,11 @@
-const LASER_BEAM_DURATION = 0.20;
-const LASER_BEAM_LENGTH = 130;
+import { LASER_VISUAL_SPEC, M6_VISUAL_SPEC } from "../combatData/weaponVisuals.js";
+import { getEnemyWeaponContact } from "../combatData/enemyWeaponContact.js";
+
+const LASER_BEAM_DURATION = LASER_VISUAL_SPEC.duration;
+const LASER_BEAM_LENGTH = LASER_VISUAL_SPEC.beamLength;
 
 function beamPalette(ammoId, blueLaser = false, variant = ""){
+  if(ammoId === "ammo_x6") return {core:"rgba(255,255,255,1)", glow:"rgba(255,255,255,1)", flare:"rgba(0,0,0,1)"};
   if(variant === "spectral_double_shot"){
     return {
       core:"rgba(250,245,255,.99)",
@@ -37,8 +41,11 @@ export function createCombatBeamSystem({getTargetById} = {}){
     beams = [];
   }
 
-  function makeBeam({ammoId, fromX, fromY, toX, toY, targetId = null, canReplay = true, blueLaser = false, variant = "", widthScale = 1, duration = 0, beamLength = 0}){
+  function makeBeam({ammoId, fromX, fromY, toX, toY, targetId = null, canReplay = true, blueLaser = false, variant = "", widthScale = 1, duration = 0, beamLength = 0, passIndex = 0, shieldBefore}){
     const palette = beamPalette(ammoId, blueLaser, variant);
+    const target = targetId && getTargetById?.(targetId);
+    const contact = getEnemyWeaponContact({target, fromX, fromY, shield:shieldBefore ?? target?.shield});
+    if(contact){ toX = contact.x; toY = contact.y; }
     const dx = toX - fromX;
     const dy = toY - fromY;
     const distance = Math.hypot(dx, dy) || 1;
@@ -47,8 +54,11 @@ export function createCombatBeamSystem({getTargetById} = {}){
       ammoId,
       targetId,
       canReplay,
+      monochrome:ammoId === "ammo_x6",
       blueLaser,
       variant,
+      passIndex,
+      shieldBefore:shieldBefore ?? target?.shield,
       fromX,
       fromY,
       toX,
@@ -63,6 +73,20 @@ export function createCombatBeamSystem({getTargetById} = {}){
   }
 
   function add(beam){
+    if(beam.ammoId === "ammo_x6"){
+      const dx = beam.toX - beam.fromX, dy = beam.toY - beam.fromY;
+      const distance = Math.hypot(dx, dy) || 1;
+      for(const [index, lateral] of [0, -11, 11, 0].entries()){
+        const back = index === 1 || index === 2 ? 6 : 0;
+        const pulse = makeBeam({...beam, passIndex:index, canReplay:false, duration:M6_VISUAL_SPEC.travelTime,
+          beamLength:distance,
+          fromX:beam.fromX - dx / distance * back - dy / distance * lateral,
+          fromY:beam.fromY - dy / distance * back + dx / distance * lateral});
+        pulse.age = -M6_VISUAL_SPEC.pulseOffsets[index];
+        beams.push(pulse);
+      }
+      return;
+    }
     beams.push(makeBeam(beam));
   }
 
@@ -70,6 +94,12 @@ export function createCombatBeamSystem({getTargetById} = {}){
     const replayBeams = [];
     for(const beam of beams){
       beam.age += dt;
+      const liveTarget = beam.targetId && getTargetById?.(beam.targetId);
+      const contact = getEnemyWeaponContact({target:liveTarget, fromX:beam.fromX, fromY:beam.fromY, shield:beam.shieldBefore});
+      if(contact){
+        beam.toX = contact.x; beam.toY = contact.y;
+        beam.distance = Math.hypot(beam.toX - beam.fromX, beam.toY - beam.fromY) || 1;
+      }
       if(beam.age < beam.duration || !beam.canReplay || !beam.targetId || !getTargetById) continue;
       const target = getTargetById(beam.targetId);
       if(!target || Number(target.hp || 0) <= 0) continue;
@@ -80,6 +110,7 @@ export function createCombatBeamSystem({getTargetById} = {}){
         toX:target.x,
         toY:target.y,
         targetId:beam.targetId,
+        shieldBefore:beam.shieldBefore,
         canReplay:false,
         blueLaser:beam.blueLaser,
         variant:beam.variant,

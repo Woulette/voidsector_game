@@ -1,6 +1,7 @@
+import { normalizeReputation } from "../../../src/shared/reputation.js";
 import { ammoTypes, droneFormations, equipment, ships } from "../../../src/data/catalog.js";
 import { getFirmDefinition, normalizeFirmId } from "../../../src/data/firms.js";
-import { calculateRankScore, getRankAssetPath, getRankForScore } from "../../../src/data/ranks.js";
+import { calculateRankScore, getRankAssetPath, getRankForScore, getRankById } from "../../../src/data/ranks.js";
 import { getTrustedEquipmentUpgradeLevel } from "../economy/equipment.js";
 import { getShipProgressionLockReason } from "../../../src/shared/progressionUnlocks.js";
 import { getActiveProfileTitleName, getUnlockedProfileTitleEntitlements } from "./profileTitles.js";
@@ -94,7 +95,7 @@ function buildDroneItems(profile){
   }).filter(Boolean);
 }
 
-export function buildPublicPlayerProfile({key = "", profile = null, ranking = null} = {}){
+export function buildPublicPlayerProfile({key = "", profile = null, ranking = null, rankAssignment = null} = {}){
   if(!profile || typeof profile !== "object") return null;
   const player = profile.player || {};
   const ship = activeShipForProfile(profile);
@@ -103,7 +104,8 @@ export function buildPublicPlayerProfile({key = "", profile = null, ranking = nu
   const firm = getFirmDefinition(firmId);
   const portalClears = completedPortalCount(profile.completedPortals);
   const rankScore = Math.max(0, Number(player.rankScore || calculateRankScore(player, portalClears)));
-  const rank = getRankForScore(rankScore);
+  const assignedId = rankAssignment?.rankId || ranking?.rankId;
+  const rank = assignedId ? getRankById(assignedId) : getRankForScore(rankScore);
   const droneItems = buildDroneItems(profile);
   const generatorItems = compactItems(profile, loadout.generators);
   const droneGeneratorItems = droneItems.filter(item=>item.category === "generateur");
@@ -147,7 +149,7 @@ export function buildPublicPlayerProfile({key = "", profile = null, ranking = nu
     },
     progression:{
       playSeconds:Math.max(0, Number(player.totalPlaySeconds || 0)),
-      reputation:Math.max(0, Number(player.reputation || 0)),
+      reputation:normalizeReputation(player.reputation),
       totalXp:Math.max(0, Number(player.totalXp || 0)),
       totalKills:Math.max(0, Number(player.totalKills || 0)),
       totalPlayerKills:Math.max(0, Number(player.totalPlayerKills || 0)),

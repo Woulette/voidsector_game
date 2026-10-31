@@ -180,32 +180,5 @@ export const ships = [
     skillShip:true,
     abilityId:"spectral_double_shot",
     special:"Salve spectrale - charge 3 s puis prochain tir laser double - 30 s - recharge 180 s"
-  },
-  {
-    id:"imperial",
-    name:"Impérial",
-    className:"Cuirassé de commandement",
-    img:"assets/ships/Imperial.png",
-    combatImg:"assets/ships/Imperial.png",
-    rarity:"Mythique",
-    rarityTier:"mythic",
-    renderWidth:170,
-    renderHeight:170,
-    priceType:"credits",
-    price:0,
-    allowedRoles:["owner", "admin"],
-    desc:"Un cuirassé de commandement réservé aux comptes OWN et admin. Sa coque titanesque et ses systèmes impériaux multiplient par dix les dégâts de toutes les armes.",
-    stats:{
-      vie:1_000_000,
-      vitesse:400,
-      cargo:5_000,
-      maxLasers:15,
-      maxGenerators:15,
-      maxExtras:10,
-      maxRocketLaunchers:1,
-      maxMissileLaunchers:1,
-      damageMultiplier:10
-    },
-    special:"Puissance impériale · dégâts de toutes les armes ×10"
   }
 ];

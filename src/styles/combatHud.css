@@ -1,0 +1,266 @@
+/* HUD A: gameplay controls only. The world renderer and mini-map keep their own styles. */
+#gameScreen{
+  --hud-width:268px;
+  --hud-pilot-width:268px;
+  --hud-card-height:184px;
+  --hud-nav-left:calc(24px + var(--hud-pilot-width) * var(--combat-ui-scale));
+  --hud-nav-right:calc(24px + 388px * var(--combat-ui-scale));
+  --hud-actions-half:382px;
+  --hud-slot-width:78px;
+  --hud-surface:linear-gradient(155deg,rgba(6,22,36,.97),rgba(2,12,23,.96));
+  --hud-border:rgba(53,142,177,.5);
+  --hud-gold:#ffd15a;
+}
+#gameScreen :is(.combat-status,.combat-wallet,.combat-utility-dock,.combat-utility-panel,.combat-chat-panel,.combat-chat-collapsed,.action-bar,.combat-menu-button,.combat-quick-panel){
+  font-family:"Segoe UI",Arial,sans-serif;
+  font-variant-numeric:tabular-nums;
+}
+#gameScreen :is(.combat-status,.combat-wallet,.combat-utility-dock,.combat-utility-panel,.combat-chat-panel,.action-bar,.combat-quick-panel){
+  background:var(--hud-surface);
+  border:1px solid var(--hud-border);
+  border-radius:5px;
+  box-shadow:0 5px 18px rgba(0,0,0,.23),inset 0 0 0 1px rgba(100,191,218,.035);
+  clip-path:none;
+}
+#gameScreen :is(.combat-status,.combat-wallet,.combat-utility-dock,.combat-utility-panel,.combat-chat-panel,.action-bar,.combat-quick-panel)::after{display:none}
+#gameScreen .game-topbar{top:12px;left:12px;right:12px;gap:12px}
+#gameScreen .combat-status{
+  position:absolute;left:12px;top:12px;z-index:8;width:var(--hud-pilot-width);height:auto;
+  padding:9px 10px;display:flex;flex-direction:column;gap:5px;pointer-events:auto;
+}
+#gameScreen .combat-pilot-row{display:flex;gap:7px;align-items:center;flex-wrap:nowrap;min-height:26px;min-width:0;cursor:grab;touch-action:none}
+#gameScreen #gamePlayerName{font-size:16px;font-weight:650;letter-spacing:.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+#gameScreen .combat-rank-hud{display:inline-flex;align-items:center;gap:3px;flex-shrink:0;padding:0;border:0;background:none;font-size:10px}
+#gameScreen .combat-rank-hud span{display:none}
+#gameScreen .combat-rank-hud .rank-icon{width:14px;height:16px}
+#gameScreen .combat-panel-grip{font:17px/1 "Segoe UI",sans-serif;color:#668999;cursor:grab;user-select:none;flex:none}
+#gameScreen .combat-status.is-dragging{border-color:#75d0e8;cursor:grabbing}
+#gameScreen .combat-status.is-collapsed>:not(.combat-pilot-row){display:none}
+#gameScreen .combat-pilot-row>.combat-hud-disclosure{width:22px;height:24px;padding:3px;flex:none}
+#gameScreen .combat-overview-row{gap:7px;flex-wrap:nowrap;justify-content:space-between;min-height:17px}
+#gameScreen .combat-overview-row>span{padding:0;border:0;background:none;font-size:11px;letter-spacing:0;gap:3px}
+#gameScreen .combat-overview-row b{font-weight:600;color:#bcdbe8}
+#gameScreen .combat-cargo-chip{padding:0;min-height:17px;border:0;background:none;box-shadow:none;letter-spacing:0;gap:3px}
+#gameScreen .combat-cargo-chip :is(span,b){font-size:10px}
+#gameScreen .combat-cargo-mini{display:none}
+#gameScreen .combat-meter-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:2px 0 1px}
+#gameScreen .combat-meter{display:grid;grid-template-columns:max-content minmax(0,1fr) 31px;grid-template-rows:16px 5px;gap:4px 6px;align-items:center;position:relative;height:25px;min-height:25px;padding:0;border:0;border-radius:0;background:none;overflow:visible;box-shadow:none}
+#gameScreen .combat-meter:hover{transform:none;background:none}
+#gameScreen .combat-meter-head{display:contents;letter-spacing:0;pointer-events:none}
+#gameScreen .combat-meter-head>span{grid-column:1;grid-row:1;font:500 10px/16px "Segoe UI",Arial,sans-serif!important;text-transform:none;letter-spacing:0;color:#a4c3d1!important}
+#gameScreen .combat-meter-head>b{grid-column:3;grid-row:1;font:400 10px/16px "Segoe UI",Arial,sans-serif!important;color:#89aab9;text-align:right;letter-spacing:0}
+#gameScreen .combat-meter-value{grid-column:2;grid-row:1;position:static;min-width:0;width:100%;height:auto;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font:600 12px/16px "Segoe UI",Arial,sans-serif;letter-spacing:0;text-shadow:none;pointer-events:none}
+#gameScreen .combat-meter-track{grid-column:1/-1;grid-row:2;position:static;height:5px;width:100%;border:0;border-radius:2px;box-shadow:inset 0 0 0 1px #29465366;background:#142632;overflow:hidden}
+#gameScreen .combat-meter-track span{height:100%;border-radius:inherit;box-shadow:none;transition:width .15s linear}
+#gameScreen .combat-meter-hp .combat-meter-track span{background:linear-gradient(90deg,#19a76a,#5adea0)}
+#gameScreen .combat-meter-shield .combat-meter-track span{background:linear-gradient(90deg,#248eae,#6ed4ed)}
+#gameScreen .combat-meter-xp .combat-meter-track span{background:linear-gradient(90deg,#ad832e,#dfbe66)}
+#gameScreen .combat-meter:focus-visible{outline:1px solid #8edff1;outline-offset:3px}
+#gameScreen .combat-pilot-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;font-size:10px;padding-top:1px}
+#gameScreen .combat-pilot-footer>#gameZoneName{font-size:10px;font-weight:400;line-height:14px;letter-spacing:0;color:#88abba;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0}
+#gameScreen #gameRepairHud{font-size:10px;line-height:14px;color:#a7c6d3;max-width:94px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+#gameScreen .combat-wallet{position:absolute;right:calc(14px + 126px * var(--combat-ui-scale));top:0;min-height:44px;margin:0;padding:8px 12px;gap:15px;white-space:nowrap}
+#gameScreen .combat-wallet .game-currency{display:inline-flex;gap:7px}
+#gameScreen .combat-wallet .currency-icon{width:23px;height:23px}
+#gameScreen .combat-wallet b{font-size:15px;font-weight:600;letter-spacing:0;color:#d6f3ff}
+#gameScreen #returnDashboardBtn{position:absolute;right:0;top:0;width:126px;min-height:44px;padding:8px;font:600 11px/1.2 "Segoe UI",Arial,sans-serif;letter-spacing:.25px;clip-path:none;border-radius:5px}
+#gameScreen .combat-utility-dock{
+  top:12px;left:var(--hud-nav-left);right:auto;
+  width:min(740px,calc((100vw - var(--hud-nav-left) - var(--hud-nav-right)) / var(--combat-ui-scale)));
+  min-width:0;height:62px;padding:3px;gap:3px;display:flex;align-items:center;
+  overflow:visible;opacity:1;
+  transition:none;
+}
+#gameScreen .combat-utility-items{display:grid;flex:1;min-width:0;grid-template-columns:repeat(10,minmax(51px,1fr));grid-auto-rows:54px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+#gameScreen .combat-utility-items>button{width:100%;height:54px;min-width:0;grid-template-rows:25px 17px;gap:3px;align-content:center;padding:3px 2px;border:0;border-right:1px solid rgba(53,142,177,.16);border-radius:3px;background:none;font-weight:500;letter-spacing:0;text-transform:none;box-shadow:none}
+#gameScreen .combat-utility-items>button:nth-of-type(n+10){display:grid;visibility:visible;pointer-events:auto}
+#gameScreen .combat-utility-dock button:is(:hover,:focus-visible){background:rgba(36,133,175,.14);color:#e4f9ff}
+#gameScreen .combat-utility-dock button.active{background:linear-gradient(180deg,rgba(163,118,26,.23),rgba(78,53,8,.3));color:var(--hud-gold);box-shadow:inset 0 0 0 1px rgba(255,209,90,.64)}
+#gameScreen .combat-utility-dock button svg{width:23px;height:23px;filter:none;stroke-width:1.65}
+#gameScreen .combat-utility-label{display:block;font-size:11px;line-height:17px;color:inherit;white-space:nowrap}
+#gameScreen .combat-utility-dock .combat-utility-dock-toggle{position:static;display:grid;place-items:center;flex:0 0 28px;width:28px;min-width:28px;height:54px;padding:0;border:0;border-left:1px solid #285168;border-radius:3px;background:#0a2333;color:#9ad5e9;box-shadow:none}
+#gameScreen .combat-utility-dock .combat-utility-dock-toggle svg{width:18px;height:18px;transform:none;transition:transform .15s ease}
+#gameScreen .combat-utility-dock.is-collapsed{width:36px;height:36px;padding:3px;gap:0}
+#gameScreen .combat-utility-dock.is-collapsed>.combat-utility-items{display:none}
+#gameScreen .combat-utility-dock.is-collapsed>.combat-utility-dock-toggle{height:28px;border-left:0}
+#gameScreen .combat-utility-dock.is-collapsed>.combat-utility-dock-toggle svg{transform:rotate(180deg)}
+#gameScreen .combat-utility-badge{right:3px;top:1px;min-width:15px;height:15px;padding:0 3px;font-size:9px;box-shadow:none}
+#gameScreen .target-panel{top:calc(24px + 62px * var(--combat-ui-scale))}
+#gameScreen .combat-perf-panel{top:86px;right:334px;max-width:140px}
+#gameScreen .combat-utility-panel{top:88px;right:12px;padding:10px;max-height:calc(100vh - 116px);overflow-y:auto}
+#gameScreen .combat-utility-panel[data-utility-mode="quests"]{left:12px;right:auto;top:calc(24px + var(--hud-card-height) * var(--combat-ui-scale));width:calc(var(--hud-width) * var(--combat-ui-scale));max-height:calc(100vh - 150px - var(--hud-card-height) * var(--combat-ui-scale));padding:7px 8px}
+#gameScreen .combat-utility-panel[data-utility-mode="group"]{top:calc(26px + 44px * var(--combat-ui-scale));right:12px;width:300px;min-width:0}
+#gameScreen .combat-utility-panel[data-utility-mode="group"].is-collapsed{width:220px}
+#gameScreen .combat-utility-panel[data-utility-mode="friends"]{right:12px;top:88px}
+#gameScreen .combat-utility-panel[data-utility-mode="boosters"]{left:var(--hud-nav-left);right:auto;top:88px}
+#gameScreen .combat-utility-panel:not([data-utility-mode="quests"]) .combat-utility-panel-head strong{font-size:14px;letter-spacing:.3px}
+#gameScreen .combat-utility-panel[data-utility-mode="quests"] .combat-utility-panel-head,
+#gameScreen .combat-utility-panel[data-utility-mode="group"] .combat-utility-panel-head{display:grid;grid-template-columns:21px minmax(0,1fr) auto 26px;gap:6px;align-items:center;min-height:30px;height:auto;margin:0;padding:0 0 8px;border-bottom:1px solid rgba(61,145,174,.25)}
+#gameScreen .combat-utility-panel:is([data-utility-mode="quests"],[data-utility-mode="group"]) .combat-utility-panel-head strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-width:0;font-size:13px;line-height:17px;letter-spacing:0;text-transform:none;color:#e8f6ff}
+#gameScreen .combat-hud-panel-icon{width:21px;height:23px;display:grid;place-items:center;color:var(--hud-gold)}
+#gameScreen .combat-hud-panel-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#gameScreen .combat-hud-panel-icon img{display:block;width:100%;height:21px;object-fit:contain}
+#gameScreen .combat-hud-panel-icon .quest-category-icon{fill:currentColor;stroke:none}
+#gameScreen .combat-hud-panel-count{font-size:11px;color:#83b6ca;white-space:nowrap}
+#gameScreen .combat-hud-disclosure{width:26px;height:26px;padding:4px;border:1px solid transparent;border-radius:3px;background:none;color:#9ecfe4;cursor:pointer}
+#gameScreen .combat-hud-disclosure svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;transform:rotate(180deg)}
+#gameScreen .is-collapsed .combat-hud-disclosure svg{transform:none}
+#gameScreen .combat-hud-disclosure:is(:hover,:focus-visible){border-color:#4b9cb6;background:#0a2a3a;color:#e4f9ff}
+#gameScreen .combat-utility-panel.is-collapsed>.combat-utility-content{display:none}
+#gameScreen .combat-utility-panel.is-collapsed>.combat-utility-panel-head{padding-bottom:0;border-bottom:0}
+#gameScreen .combat-utility-panel:is([data-utility-mode="quests"],[data-utility-mode="group"])>.combat-utility-content{padding-top:9px}
+#gameScreen .combat-utility-panel[data-utility-mode="quests"]>.combat-utility-panel-head{grid-template-columns:18px minmax(0,1fr) auto 10px 24px;gap:4px;min-height:26px;padding-bottom:4px}
+#gameScreen .combat-utility-panel[data-utility-mode="quests"]>.combat-utility-content{padding-top:5px;gap:4px}
+#gameScreen .combat-utility-panel[data-utility-mode="quests"] .combat-utility-panel-head strong{display:block;white-space:nowrap;text-overflow:ellipsis;font-size:12px;line-height:17px}
+#gameScreen .combat-utility-panel[data-utility-mode="quests"] .combat-hud-panel-icon{width:18px}
+#gameScreen .combat-utility-panel[data-utility-mode="quests"] .combat-hud-panel-icon :is(svg,img){width:18px;height:18px}
+#gameScreen .combat-utility-panel[data-utility-mode="quests"] .combat-hud-panel-count{font-size:10px}
+#gameScreen .combat-utility-panel[data-utility-mode="quests"] .combat-hud-disclosure{width:24px;height:24px;padding:3px}
+#gameScreen .combat-quest-slots{grid-template-columns:repeat(var(--tracked-quest-count,1),minmax(0,1fr));gap:4px;margin-bottom:0}
+#gameScreen .combat-quest-slot{border-radius:3px;height:27px;padding:1px 0;grid-template-rows:12px 9px;gap:1px;background:#071c2a;border-color:rgba(61,145,174,.3)}
+#gameScreen .combat-quest-slot span{font-size:12px;line-height:12px}
+#gameScreen .combat-quest-slot b{line-height:9px}
+#gameScreen .combat-quest-slot.selected{color:var(--hud-gold);border-color:rgba(255,209,90,.6);box-shadow:inset 0 -2px 0 var(--hud-gold);background:#2a2413}
+#gameScreen .combat-quest-focus{padding:0;border:0;background:none;gap:5px}
+#gameScreen #combatUtilityPanelQuests .combat-quest-focus-head{display:none}
+#gameScreen .combat-quest-detail-tabs{gap:0;border-bottom:1px solid rgba(61,145,174,.25)}
+#gameScreen .combat-quest-detail-tabs button{height:27px;padding:0 4px;border:0;border-bottom:2px solid transparent;background:none;font:500 11px/1 "Segoe UI",Arial,sans-serif;text-transform:none;color:#8fbdd0;letter-spacing:0}
+#gameScreen .combat-quest-detail-tabs button.active{color:var(--hud-gold);border-bottom-color:var(--hud-gold);background:linear-gradient(0deg,rgba(163,118,26,.12),transparent)}
+#gameScreen .combat-quest-objectives{gap:3px}
+#gameScreen .combat-quest-objective-row{min-height:36px;grid-template-columns:30px minmax(0,1fr) auto;padding:2px 4px;gap:6px;border-color:rgba(61,145,174,.2);border-radius:3px;background:rgba(4,21,33,.6)}
+#gameScreen .combat-quest-objective-row div{text-transform:none;gap:1px}
+#gameScreen .combat-quest-objective-row strong{font-size:12px;font-weight:500;line-height:15px;white-space:normal;overflow-wrap:anywhere}
+#gameScreen .combat-quest-objective-row span{font-size:10px;line-height:12px;letter-spacing:0}
+#gameScreen .combat-quest-objective-row>b{font-size:12px;font-weight:650;white-space:nowrap;color:var(--hud-gold)}
+#gameScreen .combat-quest-description{font-size:12px;line-height:1.6;text-transform:none;color:#b3cdd9}
+#gameScreen .group-invite-form input{min-width:0;font-family:inherit;font-size:12px}
+#gameScreen .group-compact-name strong{font-family:inherit;font-size:12px;letter-spacing:0}
+#gameScreen .action-bar{bottom:16px;grid-template-columns:repeat(9,var(--hud-slot-width));gap:6px;padding:7px;z-index:5}
+#gameScreen .action-slot{height:74px;border-color:rgba(61,145,174,.27);border-radius:3px;clip-path:none;background:#041522}
+#gameScreen .action-slot:not(.empty){background:radial-gradient(ellipse at 50% 45%,rgba(24,94,120,.3),rgba(3,16,28,.8))}
+#gameScreen .action-slot:not(.empty)::before{display:none}
+#gameScreen .action-slot.active{border-color:rgba(255,209,90,.8);box-shadow:inset 0 0 12px rgba(163,118,26,.1)}
+#gameScreen .action-slot.empty{opacity:1;background:rgba(3,14,24,.6)}
+#gameScreen .action-slot.empty .key{color:#aa8e48}
+#gameScreen .action-slot.empty .slot-name{display:none}
+#gameScreen .action-slot .key{font-size:14px;font-weight:650;top:3px;left:5px}
+#gameScreen .action-slot .slot-count{font-size:10px;font-weight:600}
+#gameScreen .action-slot .slot-name{font-family:inherit;font-size:10px;font-weight:500;letter-spacing:0;text-transform:none}
+#gameScreen .action-slot .no-item{font:300 25px/1 "Segoe UI",Arial,sans-serif;color:#588fa9}
+#gameScreen .action-slot img{filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+#gameScreen .combat-menu-button{left:calc(50% + var(--hud-actions-half) * var(--combat-ui-scale) + 12px);bottom:16px;display:grid;align-content:center;justify-items:center;gap:5px;width:70px;height:90px;border-radius:5px;clip-path:none;background:var(--hud-surface);border-color:var(--hud-border);box-shadow:none}
+#gameScreen .combat-menu-button>span:first-child{font-size:28px;line-height:28px;font-weight:400}
+#gameScreen .combat-menu-button>span:last-child{font:500 10px/1.3 "Segoe UI",Arial,sans-serif}
+#gameScreen .combat-menu-button[aria-expanded="true"]{border-color:var(--hud-gold);color:var(--hud-gold)}
+#gameScreen .combat-quick-panel{bottom:calc(34px + 90px * var(--combat-ui-scale));width:min(780px,calc(100vw - 24px));max-height:calc(100vh - 230px);overflow-y:auto;padding:12px}
+#gameScreen .combat-quick-panel-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:9px;margin-bottom:10px;border-bottom:1px solid rgba(61,145,174,.25)}
+#gameScreen .combat-quick-panel-head strong{font-size:14px;font-weight:600;letter-spacing:.2px}
+#gameScreen .combat-quick-panel-head button{width:26px;height:26px;background:none;border:1px solid rgba(61,145,174,.3);border-radius:3px;color:#95cbe0;font-size:19px;cursor:pointer}
+#gameScreen .combat-panel-tabs-wrap{display:block;margin-bottom:12px}
+#gameScreen .combat-panel-tabs-wrap>.combat-tab-arrow{display:none}
+#gameScreen .combat-panel-tabs{grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
+#gameScreen .combat-panel-tabs button{min-width:0;padding:9px 4px;border-radius:3px;text-transform:none;font-family:inherit;font-size:12px;font-weight:500;letter-spacing:0}
+#gameScreen .combat-panel-tabs button.active{border-color:rgba(255,209,90,.65);background:rgba(163,118,26,.13);color:var(--hud-gold)}
+#gameScreen .combat-panel-content{height:180px;overflow-y:auto}
+#gameScreen .combat-panel-grid{max-height:180px}
+#gameScreen .combat-info-grid{height:180px;max-height:180px;align-content:start;gap:8px}
+#gameScreen .combat-info-card{height:auto;min-height:86px;grid-template-columns:48px minmax(0,1fr) 92px;gap:9px;padding:9px;border-radius:3px}
+#gameScreen .combat-info-card:only-child{grid-column:1/-1}
+#gameScreen .combat-info-card .combat-extra-icon{width:46px;height:46px;filter:none}
+#gameScreen .combat-info-copy>strong{margin-bottom:5px;font-family:inherit;font-size:13px;line-height:17px;letter-spacing:0;text-transform:none;white-space:normal}
+#gameScreen .combat-card-facts{gap:3px 7px}
+#gameScreen .combat-card-facts>span{font-family:inherit;font-size:11px;line-height:15px;font-weight:400}
+#gameScreen .combat-card-actions{grid-template-columns:1fr;gap:5px}
+#gameScreen .combat-card-actions .blue-button,#gameScreen .combat-formation-action,#gameScreen .combat-skill-action{padding:7px 5px;min-height:28px;font:500 11px/1.2 "Segoe UI",Arial,sans-serif;letter-spacing:0;clip-path:none;border-radius:3px;text-transform:none}
+#gameScreen .combat-card-section :is(b,span){font-family:inherit;font-size:11px;line-height:15px}
+#gameScreen .combat-chat-collapsed{position:absolute;left:12px;bottom:16px;z-index:6;display:flex;align-items:center;gap:9px;width:180px;min-height:38px;padding:7px 11px;border:1px solid var(--hud-border);border-radius:5px;background:var(--hud-surface);color:#d7f0fc;cursor:pointer;font-size:12px}
+#gameScreen .combat-chat-collapsed>svg{width:19px;height:19px;fill:none;stroke:#8bcee2;stroke-width:1.6}
+#gameScreen .combat-chat-collapsed>span:last-child{margin-left:auto;color:#8bcee2}
+#gameScreen .combat-chat-panel{display:flex;flex-direction:column;min-width:330px;min-height:180px;padding:0;gap:0;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px)}
+#gameScreen .combat-chat-panel.hidden{display:none}
+#gameScreen .combat-chat-head{height:36px;min-height:36px;padding:0 7px 0 10px;gap:5px;border-bottom:1px solid #284555;cursor:grab;touch-action:none}
+#gameScreen .combat-chat-tabs{display:flex;gap:5px;align-items:stretch;height:36px;min-width:0;flex:1;margin:0}
+#gameScreen .combat-chat-head .combat-chat-tabs button{width:auto;min-width:0;height:36px;border:0;border-bottom:2px solid transparent;border-radius:0;padding:0 8px;box-shadow:none;background:none;letter-spacing:0;text-transform:none;overflow:visible;color:#91b4c6;font:500 12px/1 "Segoe UI",Arial,sans-serif}
+#gameScreen .combat-chat-head .combat-chat-tabs button strong{font:500 12px/1 "Segoe UI",Arial,sans-serif;letter-spacing:0;text-transform:none;color:inherit}
+#gameScreen .combat-chat-head .combat-chat-tabs button.active{color:#e6c779;border-bottom-color:#dfbb5e;background:linear-gradient(0deg,#d8ad3b0d,transparent)}
+#gameScreen .combat-chat-head>button{border:0;background:none;color:#8cbdcf;width:24px;height:26px;flex:none;font:16px/1 "Segoe UI",Arial,sans-serif}
+#gameScreen .combat-chat-messages{flex:1;display:block;min-height:0;padding:9px 11px 7px;border:0;background:none;scrollbar-width:thin;scrollbar-color:#275164 #0a1a26}
+#gameScreen .combat-chat-row{display:grid;grid-template-columns:33px minmax(0,1fr);gap:7px;margin:0 0 7px;padding:0;border:0;background:none;font:13px/1.45 "Segoe UI",Arial,sans-serif;letter-spacing:0}
+#gameScreen .combat-chat-row time{font:10px/1.8 "Segoe UI",Arial,sans-serif;color:#628295}
+#gameScreen .combat-chat-row p{margin:0;min-width:0;overflow-wrap:anywhere}
+#gameScreen .combat-chat-row strong{display:inline;font:600 13px/1.45 "Segoe UI",Arial,sans-serif;white-space:normal;color:#7dc7e1;text-transform:none}
+#gameScreen .combat-chat-row strong:after{content:" : ";color:#7e99a9;font-weight:400}
+#gameScreen .combat-chat-row span{color:#c9dce7}
+#gameScreen .combat-chat-empty{font:12px/1.6 "Segoe UI",Arial,sans-serif;color:#7897aa;min-height:0;padding:8px 0;flex:none;text-transform:none;letter-spacing:0}
+#gameScreen .combat-chat-form{display:flex;flex:none;gap:7px;margin:0 10px 8px;padding-top:7px;border-top:1px solid #244453}
+#gameScreen .combat-chat-form.hidden{display:none}
+#gameScreen .combat-chat-form input{width:0;min-width:0;flex:1;height:32px;padding:6px 9px;border:1px solid #234355;border-radius:3px;background:#03111b;color:#e1eef5;font:12px/1.4 "Segoe UI",Arial,sans-serif}
+#gameScreen .combat-chat-form button{width:32px;height:32px;display:grid;place-items:center;flex:none;padding:5px;background:#0a2b3b;border:1px solid #336278;border-radius:3px}
+#gameScreen .combat-chat-form button svg{width:16px;height:16px}
+#gameScreen .combat-chat-resize{width:12px;height:12px;right:2px;bottom:2px;border:0;background:none;opacity:.65;box-shadow:none}
+#gameScreen .combat-chat-resize:before{width:9px;height:9px}
+#gameScreen .combat-chat-resize:after{width:5px;height:5px}
+#gameScreen .combat-chat-more{position:absolute;top:35px;left:150px;z-index:5;width:170px;padding:6px;border:1px solid #365c6f;background:#081c28;box-shadow:0 8px 20px #0005;border-radius:4px}
+#gameScreen .combat-chat-more button{display:flex;justify-content:space-between;width:100%;border:0;background:none;padding:7px;color:#a5bfce;font:12px/1.4 "Segoe UI",Arial,sans-serif;cursor:pointer}
+#gameScreen .combat-chat-more small{font-size:10px;color:#718d9d}
+#gameScreen .combat-chat-more button:hover{background:#163342}
+#gameScreen :is(.combat-chat-collapsed,.combat-menu-button,.combat-hud-disclosure,.combat-quest-detail-tabs button,.combat-utility-dock button):focus-visible{outline:2px solid #8edff1;outline-offset:2px}
+
+@media(max-width:1480px){
+  #gameScreen{--hud-slot-width:68px;--hud-actions-half:338px}
+  #gameScreen{--hud-width:256px;--hud-pilot-width:256px}
+  #gameScreen #gamePlayerName{font-size:16px}
+  #gameScreen .action-bar{left:calc(50% - 120px * var(--combat-ui-scale))}
+  #gameScreen .combat-menu-button{left:calc(50% - 120px * var(--combat-ui-scale) + var(--hud-actions-half) * var(--combat-ui-scale) - 70px);bottom:calc(32px + 90px * var(--combat-ui-scale));height:58px}
+  #gameScreen .combat-chat-collapsed{bottom:116px;width:150px}
+}
+@media(max-width:1180px){
+  #gameScreen{--hud-width:256px;--hud-card-height:184px;--hud-slot-width:64px;--hud-actions-half:319px}
+  #gameScreen .combat-utility-dock{top:72px;right:12px;width:calc((100vw - var(--hud-nav-left) - 12px) / var(--combat-ui-scale))}
+  #gameScreen .target-panel{top:calc(88px + 62px * var(--combat-ui-scale))}
+  #gameScreen .combat-utility-panel[data-utility-mode="group"]{top:calc(86px + 62px * var(--combat-ui-scale))}
+  #gameScreen .combat-perf-panel{top:148px}
+  #gameScreen .combat-chat-collapsed{bottom:116px;width:150px}
+  #gameScreen .combat-utility-panel[data-utility-mode="boosters"]{top:148px}
+}
+@media(max-width:1100px){
+  #gameScreen{--hud-slot-width:54px;--hud-actions-half:274px}
+  #gameScreen .action-bar{left:calc(50% - 150px * var(--combat-ui-scale))}
+  #gameScreen .combat-menu-button{left:calc(50% - 150px * var(--combat-ui-scale) + var(--hud-actions-half) * var(--combat-ui-scale) - 70px)}
+}
+@media(max-width:960px){
+  #gameScreen{--hud-slot-width:46px;--hud-actions-half:238px}
+  #gameScreen .action-bar{left:calc(50% - 180px * var(--combat-ui-scale))}
+  #gameScreen .action-slot img{width:calc(100% - 8px);height:40px;left:4px;right:4px}
+  #gameScreen .combat-menu-button{left:calc(50% - 180px * var(--combat-ui-scale) + var(--hud-actions-half) * var(--combat-ui-scale) - 70px)}
+}
+@media(max-width:760px){
+  #gameScreen{--hud-width:220px;--hud-pilot-width:240px;--hud-card-height:218px}
+  #gameScreen .combat-status{padding:8px;gap:3px;grid-template-rows:12px 23px 20px minmax(0,1fr) 14px}
+  #gameScreen #gamePlayerName{font-size:15px}
+  #gameScreen .combat-overview-row{gap:3px}
+  #gameScreen .combat-overview-row>span,#gameScreen .combat-cargo-chip :is(span,b){font-size:9px}
+  #gameScreen .combat-wallet{right:0;padding:6px 8px;gap:6px;min-height:36px;flex-direction:column;align-items:flex-end}
+  #gameScreen .combat-wallet b{font-size:12px}
+  #gameScreen .combat-wallet .currency-icon{width:18px;height:18px}
+  #gameScreen #returnDashboardBtn{top:76px;width:106px;min-height:32px;font-size:10px}
+  #gameScreen .combat-utility-dock{top:calc(24px + var(--hud-card-height) * var(--combat-ui-scale));left:12px;right:12px;width:calc((100vw - 24px) / var(--combat-ui-scale));height:58px}
+  #gameScreen .combat-utility-items{grid-auto-rows:50px}
+  #gameScreen .combat-utility-items>button,#gameScreen .combat-utility-dock .combat-utility-dock-toggle{height:50px}
+  #gameScreen .combat-utility-panel[data-utility-mode="quests"]{top:calc(94px + var(--hud-card-height) * var(--combat-ui-scale));width:244px;max-height:calc(100vh - 226px - var(--hud-card-height) * var(--combat-ui-scale))}
+  #gameScreen .combat-utility-panel[data-utility-mode="group"]{top:124px;width:244px}
+  #gameScreen .combat-utility-panel[data-utility-mode="group"].is-collapsed{width:120px}
+  #gameScreen .action-bar{left:8px;right:8px;bottom:8px;transform:none;width:auto;grid-template-columns:repeat(9,minmax(0,1fr));gap:3px;padding:5px}
+  #gameScreen .action-slot{height:51px}
+  #gameScreen .action-slot img{width:calc(100% - 4px);height:28px;inset:10px 2px 11px}
+  #gameScreen .action-slot .key{font-size:10px;left:3px;top:2px}
+  #gameScreen .action-slot .slot-count{font-size:8px;right:2px;top:2px}
+  #gameScreen .action-slot .slot-name{font-size:8px}
+  #gameScreen .combat-menu-button{left:auto;right:12px;bottom:80px;width:66px;height:60px;gap:1px}
+  #gameScreen .combat-chat-collapsed{bottom:80px;width:112px;min-height:34px}
+  #gameScreen .combat-quick-panel{bottom:150px;max-height:calc(100vh - 240px);padding:9px}
+  #gameScreen .combat-panel-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #gameScreen .combat-info-grid{grid-template-columns:minmax(0,1fr)}
+  #gameScreen .combat-perf-panel{top:170px;right:12px}
+  #gameScreen .target-panel{top:calc(94px + var(--hud-card-height) * var(--combat-ui-scale))}
+}

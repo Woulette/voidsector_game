@@ -1,0 +1,15 @@
+Use case: identity-preserve
+Asset: transparent orthographic top-down 2D enemy sprite for the ordinary Eclanite crystal enemy in a serious space MMO, NOT a boss.
+Image 1 is the current Eclanite, a reference for its violet faceted mineral, irregular shard silhouette, pale magenta core and dark obsidian recesses. Redesign it into a polished readable living crystal cluster with separable floating shards for animation, while keeping the same purple mineral identity and a modest common-enemy footprint.
+The central nucleus is an IRREGULAR small fractured geode, not a mechanical round orb, ring, flower or circular boss crown. Dark violet/angular obsidian crust and a small exposed pale-magenta-white fissure deep in its center. The nucleus occupies radius 0.16 of the square around the center (50%,52%). Real mineral facets with restrained white-lilac edge highlights, sparse luminous violet fissures and strong dark recesses.
+Around the nucleus place exactly SIX detached angular crystal fragments with CLEAR TRUE TRANSPARENT GAPS, each in a separate 60-degree sector for independent animation. Keep every outer shard at least 0.05 canvas distance away from the central nucleus. Their radial centers are about 0.33 from the nucleus:
+1) at 12 o'clock, a taller narrow irregular double-point amethyst shard;
+2) at 2 o'clock, a shorter broad wedge;
+3) at 4 o'clock, an elongated pointed fragment;
+4) at 6 o'clock, a small jagged piece;
+5) at 8 o'clock, a broad broken blade;
+6) at 10 o'clock, a slim chipped sliver.
+The six fragments must have DIFFERENT lengths, widths and faceting. They are not six identical spokes or a perfectly symmetric star. Keep each shard inside its own angular sector with a little empty space between sectors; no overlapping crystals, bridges, membranes, connectors, wires or painted energy tethers. Each fragment should read as one cohesive mineral piece, with the top piece allowed one joined split tip. All complete shards plus the central geode fit in an even 7% clear margin, no piece cropped.
+Art style: high-detail hand-painted serious top-down space-game sprite, realistic sharp faceted mineral surface and irregular chipped edges, not cartoon, no thick ink outlines, no flat vector style, no glossy toy plastic. Preserve the reference's deep amethyst/purple, cool violet, pale magenta and subtle lavender reflections. No cyan, blue mechanical parts, gold or green.
+Camera exactly straight overhead orthographic, front-up composition with tallest fragment towards TOP, laid out in one screen plane, no isometric perspective or visible side-on vertical extrusion. The central core will remain FIXED in orientation while outer pieces drift a little; do not bake rotation, motion blur or perspective into the art.
+True transparent alpha background, no ground, floor, cast shadow, haze, bloom outside the actual mineral, glow halo, orbit circle, trail, smoke, sparks, projectile, text, watermark, logo or UI. Lighting and dust will be animated in code. Readable at about 80 px in-game, regular enemy with six small fragments, not an extravagant boss.

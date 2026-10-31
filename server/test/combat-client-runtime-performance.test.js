@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readdirSync, readFileSync } from "node:fs";
 import { createCombatStatusEffectSystem } from "../../src/game/systems/combatStatusEffects.js";
 import { createProjectile, updateProjectiles } from "../../src/game/systems/projectiles.js";
 
@@ -162,4 +163,52 @@ test("server-authoritative poison refresh keeps pulses and throttles HUD updates
   assert.equal(poisonUpdates.length, 1);
   system.updatePlayerPoison(.05);
   assert.equal(poisonUpdates.length, 2);
+});
+
+test("combat rendering reuses one state snapshot per frame", ()=>{
+  const scene = readFileSync(new URL("../../src/game/render/combatScene.js", import.meta.url), "utf8");
+  const drawStart = scene.indexOf("  function draw(){");
+  const drawEnd = scene.indexOf("\n  return {drawBackground", drawStart);
+  const drawSource = scene.slice(drawStart, drawEnd);
+  assert.ok(drawStart >= 0 && drawEnd > drawStart);
+  assert.equal((drawSource.match(/getState\(\)/g) || []).length, 1);
+  assert.match(drawSource, /const state = getState\(\)/);
+
+  const encounters = [
+    ["vesperEncounter.js", ["drawArena", "drawAllies"]],
+    ["kharonEncounter.js", ["drawHazards"]],
+    ["eclaniteEncounter.js", ["drawArena"]],
+    ["noxEncounter.js", ["drawArena"]],
+    ["prismaticEncounter.js", ["drawArena"]],
+    ["ancientEncounter.js", ["drawArena", "drawAllies", "drawEnemyOverlays"]]
+  ];
+  for(const [file, methods] of encounters){
+    const source = readFileSync(new URL(`../../src/game/render/${file}`, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /const state = getState\(\)/);
+    for(const method of methods){
+      assert.match(source, new RegExp(`function ${method}\\(state = getState\\(\\)\\)`));
+    }
+  }
+});
+
+test("browser imports share one multiplayer singleton cache key", ()=>{
+  function collectJavaScriptSources(directory){
+    return readdirSync(directory, {withFileTypes:true}).flatMap(entry=>{
+      const child = new URL(entry.name + (entry.isDirectory() ? "/" : ""), directory);
+      if(entry.isDirectory()) return collectJavaScriptSources(child);
+      return entry.isFile() && entry.name.endsWith(".js")
+        ? [readFileSync(child, "utf8")]
+        : [];
+    });
+  }
+  const versions = new Set();
+  let importCount = 0;
+  for(const source of collectJavaScriptSources(new URL("../../src/", import.meta.url))){
+    for(const match of source.matchAll(/(?:multiplayer\/)?client\.js\?v=([a-zA-Z0-9_-]+)/g)){
+      versions.add(match[1]);
+      importCount += 1;
+    }
+  }
+  assert.ok(importCount >= 9);
+  assert.equal(versions.size, 1);
 });

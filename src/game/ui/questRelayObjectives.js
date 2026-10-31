@@ -1,6 +1,7 @@
 import { ships } from "../../data/catalog.js?v=20260726-kharon1";
 import { getEnemyAssetRotationStyle } from "../../data/enemyVisuals.js";
 import { getQuestActivityCategory, renderQuestCategoryIcon } from "./questCategories.js";
+import { getQuestObjectiveImage } from "./questObjectiveVisuals.js?v=20261024-quest-assets1";
 
 export function escapeQuestHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[char]);
@@ -18,8 +19,8 @@ const ICONS = {
   signal:'<path d="M8 4a11 11 0 0 0 0 16M16 4a11 11 0 0 1 0 16M10 8a5 5 0 0 0 0 8m4-8a5 5 0 0 1 0 8"/><circle cx="12" cy="12" r="1"/>',
 };
 
-export function questIcon(name, className = ""){
-  const categoryIcon = renderQuestCategoryIcon(name, className);
+export function questIcon(name, className = "", quest = {}){
+  const categoryIcon = renderQuestCategoryIcon(name, className, quest);
   if(categoryIcon) return categoryIcon;
   return `<svg class="quest-icon ${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.mission}</svg>`;
 }
@@ -46,21 +47,21 @@ export function relayObjectiveInfo(objective = {}, enemyTypes = {}){
     case "kill": return {...result, icon:"combat", title:`Éliminer : ${enemy?.name || objective.label || objective.target}`, image:enemy?.img || "assets/enemies/drone_pirate.png", style:getEnemyAssetRotationStyle(objective.target)};
     case "owned_ship": return {...result, icon:"ship", title:`Posséder un ${ship?.name || objective.shipId}`, place:"Hangar", image:ship?.img};
     case "equipped_ship": return {...result, icon:"ship", title:`Équiper le ${ship?.name || objective.shipId}`, place:"Hangar", image:ship?.img};
-    case "owned_combat_drone": return {...result, icon:"drone", title:"Posséder un drone de combat", place:"Hangar", image:"assets/drones/drone_test_sprite.webp"};
-    case "equipped_ship_lasers": return {...result, icon:"laser", title:"Équiper les lasers du vaisseau", place:"Hangar", image:"assets/equipment/laser_mk3.png"};
+    case "owned_combat_drone": return {...result, icon:"drone", title:"Posséder un drone de combat", place:"Hangar", image:getQuestObjectiveImage(objective)};
+    case "equipped_ship_lasers": return {...result, icon:"laser", title:"Équiper les lasers du vaisseau", place:"Hangar", image:getQuestObjectiveImage(objective)};
     case "refinery_module_upgrade_start": return {...result, icon:"upgrade", title:`Améliorer le stockage au niveau ${Number(objective.targetLevel || 2)}`, place:"Raffinerie", note:"Lancer l’amélioration suffit à valider cet objectif."};
-    case "refinery_material_upgrade_start": return {...result, icon:"upgrade", title:`Améliorer : ${objective.label || objective.material}`, place:"Raffinerie", image:`assets/materials/${objective.material}.svg`, note:"Lancer l’amélioration suffit à valider cet objectif."};
+    case "refinery_material_upgrade_start": return {...result, icon:"upgrade", title:`Améliorer : ${objective.label || objective.material}`, place:"Raffinerie", image:getQuestObjectiveImage(objective), note:"Lancer l’amélioration suffit à valider cet objectif."};
     case "visit_map": return {...result, icon:"location", title:`Rejoindre ${objective.map}`, place:objective.map};
     case "visit_coordinates": return {...result, icon:"location", title:`Rejoindre X ${objective.x} · Y ${objective.y}`};
     case "quest_item_drop": {
       const targets = (objective.targets || [objective.target]).filter(Boolean).map(id=>enemyTypes[id]?.name || id);
-      return {...result, icon:"collect", title:`Récupérer : ${objective.itemName || objective.label}`, image:objective.itemImg, note:`${targets.length ? `Sur ${targets.join(" / ")}` : "Sur les ennemis de la zone"}${objective.dropChance ? ` · Chance : ${Math.round(objective.dropChance * 100)} %` : ""}`};
+      return {...result, icon:"collect", title:`Récupérer : ${objective.itemName || objective.label}`, image:getQuestObjectiveImage(objective), note:`${targets.length ? `Sur ${targets.join(" / ")}` : "Sur les ennemis de la zone"}${objective.dropChance ? ` · Chance : ${Math.round(objective.dropChance * 100)} %` : ""}`};
     }
     case "deliver_item": return {...result, icon:"deliver", title:objective.label || `Livrer : ${objective.itemName}`, image:objective.itemImg, note:objective.consumeItems ? "Les objets seront remis au destinataire." : ""};
-    case "talk_npc": return {...result, icon:"signal", title:objective.label || "Parler au contact", image:objective.npcImg || "assets/ships/npc/npc_saucer.png"};
+    case "talk_npc": return {...result, icon:"signal", title:objective.label || "Parler au contact", image:getQuestObjectiveImage(objective)};
     case "mission_control": return {...result, icon:"signal", title:objective.label || "Retourner au relais de quêtes", place:objective.zone || "Relais de quêtes"};
-    case "space_caster_use": return {...result, icon:"portal", title:"Utiliser le Space Caster", place:objective.zone || "Portails", image:"assets/portals/seuil_azuron.png"};
-    case "portal_complete": return {...result, icon:"portal", title:objective.label || "Terminer le portail", place:objective.zone || "Portails", image:"assets/portals/seuil_azuron.png"};
+    case "space_caster_use": return {...result, icon:"portal", title:"Utiliser le Space Caster", place:objective.zone || "Portails", image:getQuestObjectiveImage(objective)};
+    case "portal_complete": return {...result, icon:"portal", title:objective.label || "Terminer le portail", place:objective.zone || "Portails", image:getQuestObjectiveImage(objective)};
     default: return result;
   }
 }
@@ -85,8 +86,11 @@ export function renderRelayObjectives(quest, entries, enemyTypes = {}){
     const pending = prerequisites.filter(key=>!entries.find(other=>other.key === key)?.done);
     const percent = target ? (progress || 0) / target * 100 : 0;
     const image = info.image ? `<img class="quest-objective-art" src="${escapeQuestHtml(info.image)}" alt="" ${info.style ? `style="${escapeQuestHtml(info.style)}"` : ""}>` : "";
+    const symbol = !done && info.image && ["equipped_ship_lasers", "refinery_material_upgrade_start", "quest_item_drop", "portal_complete", "space_caster_use"].includes(objective.type)
+      ? `<img class="quest-icon quest-category-art quest-objective-symbol-art" src="${escapeQuestHtml(info.image)}" alt="">`
+      : questIcon(done ? "check" : info.icon);
     return `<li class="quest-objective ${single ? "hero" : ""} ${done ? "done" : ""} ${pending.length ? "pending" : ""} ${image ? "has-art" : ""}">
-      <span class="quest-objective-symbol">${!single ? `<small class="quest-step-number">${index + 1}</small>` : ""}${questIcon(done ? "check" : info.icon)}</span>
+      <span class="quest-objective-symbol">${!single ? `<small class="quest-step-number">${index + 1}</small>` : ""}${symbol}</span>
       <div class="quest-objective-main"><strong>${escapeQuestHtml(info.title)}</strong>
         <span class="quest-objective-count">${progress === null ? "—" : progress} <small>/ ${target}</small>${done ? '<span class="quest-objective-done">Validé</span>' : ""}</span>
         <span class="quest-objective-place">${questIcon("location")}Lieu : ${escapeQuestHtml(info.place)}</span>

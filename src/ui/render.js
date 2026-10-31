@@ -1,7 +1,12 @@
+import { syncBetaRewardCountdown } from "./betaRewardCountdown.js?v=20261024-beta-clock1";
 import { ammoTypes, droneCatalog, equipment, pageText, portals, rawMaterialCatalog, ships, skills } from "../data/catalog.js?v=20260726-ancient1";
 import { FIRMS, normalizeFirmId } from "../data/firms.js";
-import { betaLaunchMessage, betaPacks, betaRewardCalendar, creditCurrencyPacks, getBetaRewardStatus, getPremiumRewardStatus, hasBetaPackPurchase, hasStarterPackPurchase, isPremiumActive, novaCurrencyPacks, premiumRemainingLabel, premiumRewardCalendar, premiumShopPacks, starterPacks, storeTabs } from "../data/premium.js?v=20260726-kharon1";
+import { BETA_STORE_ONLY, isPremiumActive, premiumRemainingLabel, storeTabs } from "../data/premium.js?v=20261024-beta-clock1";
+import { renderBetaStorefront, renderBetaStoreModal, syncBetaStoreModal } from "./betaStore.js?v=20261024-beta-layout1";
+import { renderStoreNavigation, renderSupportStorefront, renderSupportStoreModal } from "./supportStore.js?v=20261024-boutique4";
 import { fmt } from "../core/utils.js";
+import { renderHome } from "./renderHome.js?v=20261024-home1";
+export { renderHome };
 import { updateLauncherCurrency } from "./launcherCurrency.js?v=20261023-hangar1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, keyCodeToLabel } from "../core/keybinds.js?v=20260726-kharon1";
 import {
@@ -13,12 +18,7 @@ import {
   canAfford,
   findEquippedSlot,
   getAmmoCount,
-  getActiveDroneFormation,
   getCurrentRank,
-  getDroneCatalog,
-  getDroneLoadout,
-  getDronePermanentUpgrade,
-  getDronePurchasePrice,
   getCurrencyPrice,
   getInventoryByCategory,
   getInventoryCount,
@@ -31,9 +31,7 @@ import {
   getMaterialCount,
   getLoadout,
   getNextRank,
-  getPlayerLevelCap,
   getPortalPieces,
-  getPrestigeStatus,
   getRankAssetPath,
   getRankBreakdown,
   getRankProgress,
@@ -53,15 +51,16 @@ import { FIRM_REPRESENTATIVES } from "../data/firmRepresentatives.js";
 import { locationLabel, rankIcon, statLabelForItem, statLine } from "./renderShared.js?v=20260726-kharon1";
 import { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
 import { updateHangarShowcase } from "./renderHangarShowcase.js?v=20261023-hangar1";
-import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261022-helion-hub1";
+import { renderShipEquipmentMarkup, renderShipWorkshopStats } from "./hangarWorkshopMarkup.js?v=20261024-workshop1";
+import { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261023-skills1";
+import { renderDroneSection } from "./renderDroneBay.js?v=20261023-dronegrid1";
+import { renderProfile } from "./renderProfile.js?v=20261023-profile1";
 import { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
 import { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";
 import { formatFirmRewardNotificationCount, getFirmRewardNotificationCounts } from "./firmRewardNotifications.js";
 import { multiplayer } from "../multiplayer/client.js?v=20261018-map-transfer1";
 import { renderAdminPanel } from "./adminPanel.js?v=20261018-map-transfer1";
-import { currencyAmountHtml, currencyIconHtml, realMoneyPriceHtml } from "./currencyIcons.js?v=20260726-kharon1";
 import { getRarityLabel, getRarityOrder, getRarityShort, getRarityTier, rarityClass } from "../shared/rarities.js";
-import { hasCompletedProgressionPortal, STELLAR_SYSTEM_TITLE } from "../shared/progressionUnlocks.js?v=20260726-kharon1";
 import { canAccountRoleAccessShip } from "../data/ships.js?v=20260726-imperial2";
 
 function escapeHtml(value){
@@ -156,7 +155,7 @@ export function renderTop(){
         </div>
       </div>
       <div class="mini-bar"><span style="width:${rankProgress.progress}%"></span></div>
-      <small>${nextRank ? `Prochain : ${nextRank.name} · reste ${fmt(rankProgress.remaining)}` : "Grade maximum atteint"}</small>`;
+      <small>${nextRank ? `Prochain : ${nextRank.name} · ${rankProgress.placementRequired && !rankProgress.remaining ? "seuil atteint, place au classement requise" : `reste ${fmt(rankProgress.remaining)}${rankProgress.placementRequired ? " · classement requis" : ""}`}` : "Grade maximum atteint"}</small>`;
   }
   renderPremiumHomeStatus();
 }
@@ -198,10 +197,14 @@ export function renderSelectedShip(){
   const ship = getShip(state.selectedShip);
   const active = state.activeShip === ship.id;
   const stats = getShipCombatStats(ship.id);
-  const loadout = getLoadout(ship.id);
   const currentRank = getCurrentRank();
   document.getElementById("selectedShipName").textContent = ship.name;
   document.getElementById("selectedShipImage").src = ship.img;
+  document.getElementById("selectedShipClass").textContent = ship.className;
+  document.getElementById("selectedShipRarity").textContent = getRarityLabel(ship);
+  const status = document.getElementById("selectedShipStatus");
+  status.textContent = active ? "Vaisseau équipé" : "Vaisseau sélectionné";
+  status.classList.toggle("is-equipped", active);
   const shipRankBadge = document.getElementById("selectedShipRankBadge");
   if(shipRankBadge){
     shipRankBadge.innerHTML = `
@@ -211,28 +214,7 @@ export function renderSelectedShip(){
         <strong>${currentRank.name}</strong>
       </div>`;
   }
-  const statCard = (className, label, value, detail = "")=>`
-    <article class="ship-live-stat ${className}">
-      <span>${label}</span>
-      <strong>${value}</strong>
-      ${detail ? `<small>${detail}</small>` : ""}
-    </article>`;
-  document.getElementById("selectedShipStats").innerHTML = `
-    <div class="ship-live-primary">
-      ${statCard("hull", "Vie actuelle", fmt(Math.round(stats.vie)), "PV")}
-      ${statCard("shield", "Bouclier actuel", fmt(Math.round(stats.bouclier)), stats.bouclier > 0 ? `Régénération ${fmt(Math.round(stats.regen))}/s` : "Aucun bouclier équipé")}
-      ${statCard("speed", "Vitesse actuelle", fmt(Math.round(stats.vitesseReelle)), "Vitesse réelle")}
-      ${statCard("cargo", "Soute actuelle", fmt(Math.round(stats.cargo)), "Capacité cargo")}
-    </div>
-    <div class="ship-live-slots">
-      ${statCard("laser-slots", "Slots lasers", fmt(stats.maxLasers), `${loadout.lasers.filter(Boolean).length} équipé${loadout.lasers.filter(Boolean).length > 1 ? "s" : ""}`)}
-      ${statCard("generator-slots", "Slots générateurs", fmt(stats.maxGenerators), `${loadout.generators.filter(Boolean).length} équipé${loadout.generators.filter(Boolean).length > 1 ? "s" : ""}`)}
-      ${statCard("extra-slots", "Slots extras", fmt(stats.maxExtras), `${loadout.extras.filter(Boolean).length} équipé${loadout.extras.filter(Boolean).length > 1 ? "s" : ""}`)}
-    </div>
-    <article class="ship-special-stat">
-      <span>Sort spécial</span>
-      <strong>${ship.special || "Aucun"}</strong>
-    </article>`;
+  document.getElementById("selectedShipStats").innerHTML = renderShipWorkshopStats(stats, ship);
   const btn = document.getElementById("selectedShipAction");
   btn.textContent = active ? "DÉSÉQUIPER CE VAISSEAU" : "ÉQUIPER CE VAISSEAU";
   btn.classList.toggle("danger", active);
@@ -371,9 +353,9 @@ function selectedItemStatsHtml(item){
   }
   if(isDronePermanentUpgradeItem(item)){
     return `<div class="selected-item-stat-lines">
-      <span><b>Drone</b><strong>+50% degats laser</strong></span>
-      <span><b>Statut</b><strong>Permanent</strong></span>
-      <span><b>Retrait</b><strong>Impossible</strong></span>
+      <span><b>Type</b><strong>Skin de drone</strong></span>
+      <span><b>Bonus</b><strong>+50% laser ou bouclier</strong></span>
+      <span><b>Retrait</b><strong>Retour dans l'inventaire</strong></span>
     </div>`;
   }
   return `<p>${statLabelForItem(item)}</p>`;
@@ -459,8 +441,6 @@ export function renderLoadout(){
   const { state } = store;
   const ship = getShip(state.selectedShip);
   const loadout = getLoadout(ship.id);
-  const title = document.getElementById("loadoutShipTitle");
-  if(title) title.textContent = ship.name;
   const renderSlot = (type, index, uid) => {
     const item = getItemFromInventoryUid(uid);
     const label = type === "laser" ? "L" : type === "generator" ? "G" : type === "missileLauncher" ? "LM" : type === "rocketLauncher" ? "LR" : "E";
@@ -484,106 +464,12 @@ export function renderLoadout(){
   const selectedDetail = renderSelectedInventoryDetail();
   const panel = document.getElementById("loadoutPanel");
   if(!panel) return;
-  panel.innerHTML = `
-    <div class="ship-equipment-layout">
-      <section class="equipped-compact-panel">
-        <div class="compact-section-head"><h3>Lasers</h3><span>${loadout.lasers.filter(Boolean).length}/${ship.stats.maxLasers}</span></div>
-        <div class="compact-slot-grid laser-slots">${loadout.lasers.map((id,i)=>renderSlot("laser", i, id)).join("")}</div>
-        <div class="compact-section-head"><h3>Lance missile</h3><span>${loadout.missileLauncher ? "1/1" : "0/1"}</span></div>
-        <div class="compact-slot-grid launcher-slots">${renderSlot("missileLauncher", 0, loadout.missileLauncher)}</div>
-        <div class="compact-section-head"><h3>Lance roquette</h3><span>${loadout.rocketLauncher ? "1/1" : "0/1"}</span></div>
-        <div class="compact-slot-grid launcher-slots">${renderSlot("rocketLauncher", 0, loadout.rocketLauncher)}</div>
-        <div class="compact-section-head"><h3>Générateurs</h3><span>${loadout.generators.filter(Boolean).length}/${ship.stats.maxGenerators}</span></div>
-        <div class="compact-slot-grid generator-slots">${loadout.generators.map((id,i)=>renderSlot("generator", i, id)).join("")}</div>
-        <div class="compact-section-head"><h3>Extras</h3><span>${loadout.extras.filter(Boolean).length}/${ship.stats.maxExtras || 3}</span></div>
-        <div class="compact-slot-grid extra-slots">${loadout.extras.map((id,i)=>renderSlot("extra", i, id)).join("")}</div>
-      </section>
-      <section class="rpg-inventory-panel">
-        <div class="compact-section-head"><h3>Inventaire</h3><span>${inventoryCount} objets</span></div>
-        ${renderInventoryFilterTabs()}
-        <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, ship.id)).join("")}${resourceEntries.map(renderInventoryResourceCell).join("")}${emptyCells}</div>
-      </section>
-      ${selectedDetail ? `<section class="selected-item-panel">${selectedDetail}</section>` : ""}
-    </div>`;
-}
-
-function renderDroneSlot(uid, index){
-  const item = getItemFromInventoryUid(uid);
-  const vesperUnlocked = Math.max(0, Number(store.state?.completedPortals?.violet || 0)) > 0;
-  const vesperActive = vesperUnlocked && Boolean(getDronePermanentUpgrade(index));
-  const multiSelected = item && selectedEquipmentUidSet().has(uid);
-  const selected = item && (multiSelected || store.selectedInventoryUid === uid);
-  const vesperState = vesperUnlocked ? (vesperActive ? "active" : "available") : "locked";
-  const vesperTitle = vesperActive
-    ? "Noyau Overdrive actif : drone rouge, +50 % au laser ou au bouclier équipé"
-    : vesperUnlocked
-      ? "Emplacement de Noyau Overdrive disponible"
-      : "Termine La Faille de Vesper pour débloquer cet emplacement";
-  const vesperSlotContent = vesperActive
-    ? `<img src="assets/drone_skins/puce_vesper.png?v=20260726-kharon1" alt="Noyau Overdrive Drone" draggable="false"><small>OVER</small>`
-    : `<i aria-hidden="true">${vesperUnlocked ? "+" : "×"}</i><small>${vesperUnlocked ? "NOYAU" : "LOCK"}</small>`;
-  return `<article class="drone-slot-card ${vesperActive ? "vesper-active" : ""} ${!vesperUnlocked ? "vesper-locked" : ""} ${selected ? "selected" : ""} ${multiSelected ? "multi-selected" : ""}" data-drop-part="drone" data-drop-index="${index}" data-drone-slot-number="${index + 1}" ${item ? `data-slot-uid="${uid}" draggable="true"` : ""}>
-    <div class="drone-slot-head"><span class="badge">Drone ${index+1}</span><span>${vesperActive ? "NOYAU OVERDRIVE" : item ? item.category.toUpperCase() : "VIDE"}</span></div>
-    <div class="drone-slot-body" data-drop-part="drone" data-drop-index="${index}">
-      <img class="drone-preview" src="assets/drones/drone_test_sprite.webp" alt="Drone ${index+1}">
-      <div class="drone-cosmetic-slot ${vesperState}" data-drop-part="drone" data-drop-index="${index}" aria-label="${vesperTitle}" title="${vesperTitle}">
-        ${vesperSlotContent}
-      </div>
-      <div class="drone-module ${item ? `filled ${rarityClass(item)}` : ""}">
-        ${item ? `<img src="${item.img}" alt="${item.name}"><b>${equipmentSlotBadge(item)}</b><em data-unequip-part="drone" data-unequip-index="${index}">x</em>` : `<i>+</i><span>Ajouter un laser ou un générateur</span>`}
-      </div>
-    </div>
-  </article>`;
-}
-
-export function renderDroneSection(){
-  const section = document.getElementById("droneSection");
-  if(!section) return;
-  const droneDef = getDroneCatalog();
-  const drones = getDroneLoadout();
-  const allInventoryEntries = [...getInventoryByCategory("canon"), ...getInventoryByCategory("generateur"), ...getInventoryByCategory("drone_upgrade"), ...getInventoryByCategory("quest_item")]
-    .filter(entry=>!entry.equipped)
-    .filter(entry=>isInventoryResourceEntry(entry) || isDroneCompatibleEquipment(entry.item) || isDronePermanentUpgradeItem(entry.item));
-  const allResourceEntries = getInventoryResourceEntries();
-  const {inventoryEntries, resourceEntries} = filterInventoryContent(allInventoryEntries, allResourceEntries);
-  const inventoryCount = inventoryEntries.length + resourceEntries.length;
-  const emptyCells = Array.from({length:Math.max(0, 40 - inventoryCount)}, (_,i)=>`<div class="inventory-cell empty" aria-hidden="true"><span>${i+1}</span></div>`).join("");
-  const nextPrice = drones.length >= droneDef.maxStandardOwned ? null : getDronePurchasePrice(drones.length);
-  const visibleDroneSlots = drones.slice(0, 10);
-  const selectedDetail = renderSelectedInventoryDetail();
-  section.innerHTML = `
-    <div class="drone-layout">
-      <aside class="panel frame drone-summary-panel">
-        <div class="panel-head compact"><div><span class="tiny">DRONES</span><h2>${droneDef.name}</h2></div><span class="rank">${drones.length}/${droneDef.maxOwned}</span></div>
-        <div class="selected-ship-art drone-art-large"><img src="${droneDef.img}" alt="${droneDef.name}"></div>
-        <div class="stats-list">
-          ${statLine("Drones possédés", drones.length, droneDef.maxOwned)}
-          ${statLine("Max drones", droneDef.maxOwned, droneDef.maxOwned)}
-          <div class="stat-line special-line"><span>Drones standards</span><b>${droneDef.maxStandardOwned} maximum</b></div>
-          <div class="stat-line special-line"><span>Drones spéciaux</span><b>2 places réservées</b></div>
-          <div class="stat-line special-line"><span>Emplacements</span><b>1 par drone</b></div>
-          <div class="stat-line special-line"><span>Compatibilité</span><b>Laser, bouclier ou Noyau Overdrive</b></div>
-          <div class="stat-line special-line"><span>Prix suivant</span><b>${nextPrice ? currencyAmountHtml(droneDef.priceType, getCurrencyPrice(droneDef.priceType, nextPrice)) : "MAX"}</b></div>
-        </div>
-        <button class="blue-button" data-buy-combat-drone ${(!nextPrice || !canAfford(droneDef.priceType, nextPrice)) ? "disabled" : ""}>${nextPrice ? "ACHETER UN DRONE" : "MAX DRONES STANDARDS"}</button>
-        <p class="panel-note">${droneDef.desc}</p>
-      </aside>
-      <section class="panel frame drone-loadout-panel">
-        <div class="panel-head drone-loadout-head"><div><h2>DRONE</h2></div></div>
-        <div class="ship-equipment-layout drone-equipment-layout">
-          <section class="equipped-compact-panel">
-            <div class="compact-section-head"><h3>Drone Bay</h3><span>${drones.length}/${droneDef.maxOwned}</span></div>
-            <div class="drone-bay-grid">${visibleDroneSlots.length ? visibleDroneSlots.map((uid,i)=>renderDroneSlot(uid, i)).join("") : `<div class="empty-msg">Aucun drone acheté pour le moment.</div>`}</div>
-          </section>
-          <section class="rpg-inventory-panel">
-            <div class="compact-section-head"><h3>Inventaire</h3><span>${inventoryCount} objets</span></div>
-            ${renderInventoryFilterTabs()}
-            <div class="rpg-inventory-grid">${inventoryEntries.map(entry=>renderInventoryCell(entry, null)).join("")}${resourceEntries.map(renderInventoryResourceCell).join("")}${emptyCells}</div>
-          </section>
-          ${selectedDetail ? `<section class="selected-item-panel">${selectedDetail}</section>` : ""}
-        </div>
-      </section>
-    </div>`;
+  const equipmentScrollTop = panel.querySelector(".workshop-equipment-scroll")?.scrollTop || 0;
+  panel.innerHTML = renderShipEquipmentMarkup({loadout, renderSlot, inventoryCount,
+    inventoryMarkup:inventoryEntries.map(entry=>renderInventoryCell(entry, ship.id)).join(""),
+    resourceMarkup:resourceEntries.map(renderInventoryResourceCell).join(""), emptyCells,
+    filters:renderInventoryFilterTabs(), selectedDetail});
+  panel.querySelector(".workshop-equipment-scroll").scrollTop = equipmentScrollTop;
 }
 
 function formatDuration(seconds){
@@ -592,150 +478,6 @@ function formatDuration(seconds){
   const minutes = Math.floor((total % 3600) / 60);
   if(hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
   return `${minutes}m ${String(total % 60).padStart(2, "0")}s`;
-}
-
-function profileStatTile(label, value, suffix = ""){
-  return `<div class="profile-live-stat"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}${suffix}</b></div>`;
-}
-
-function profileDetailRow(label, value, detail = ""){
-  return `<div class="profile-detail-row"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b>${detail ? `<small>${escapeHtml(detail)}</small>` : ""}</div>`;
-}
-
-function renderProfileShipVisual(ship){
-  return `<div class="profile-ship-visual">
-    <div class="profile-ship-aura" aria-hidden="true"></div>
-    <img src="${escapeHtml(ship.img)}" alt="${escapeHtml(ship.name)}">
-    <div class="profile-ship-caption"><span>Vaisseau actuellement utilisé</span><strong>${escapeHtml(ship.name)}</strong><small>${escapeHtml(ship.className || "")}</small></div>
-  </div>`;
-}
-
-function activeProfileDrones(){
-  return getDroneLoadout()
-    .map((uid, index)=>({uid, index}))
-    .filter(entry=>Boolean(entry.uid));
-}
-
-function renderProfileDroneVisual(){
-  const drone = getDroneCatalog();
-  const activeDrones = activeProfileDrones();
-  const formation = getActiveDroneFormation();
-  if(!activeDrones.length){
-    return `<div class="profile-drone-empty"><img src="${escapeHtml(drone.img)}" alt=""><strong>Aucun drone utilisé</strong><span>Équipe un module sur un drone pour l'activer.</span></div>`;
-  }
-  return `<div class="profile-drone-visual">
-    <div class="profile-drone-summary"><span>Formation active</span><strong>${escapeHtml(formation?.name || "Formation Base")}</strong><b>${fmt(activeDrones.length)} actif${activeDrones.length > 1 ? "s" : ""}</b></div>
-    <div class="profile-drone-grid">${activeDrones.map(({uid, index})=>{
-      const item = getItemFromInventoryUid(uid);
-      const upgraded = Boolean(getDronePermanentUpgrade(index));
-      return `<article class="${upgraded ? "upgraded" : ""}">
-        <img src="${escapeHtml(drone.img)}" alt="Drone ${index + 1}">
-        <div><span>Drone ${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(item?.short || item?.name || "Module inconnu")}</strong><small>${upgraded ? "Noyau Overdrive actif · rouge" : escapeHtml(getRarityLabel(item))}</small></div>
-      </article>`;
-    }).join("")}</div>
-  </div>`;
-}
-
-function renderAscensionCallout(status){
-  const requirements = [
-    {label:"Niveau 50", done:status.levelOk},
-    {label:"9 portails terminés", done:status.portalOk}
-  ];
-  return `<section class="profile-ascension-callout">
-    <div class="profile-ascension-symbol" aria-hidden="true"><i></i><b>A</b></div>
-    <div><span>ASCENSION UNIQUE</span><strong>Ouvre la progression jusqu'au niveau 100</strong><p>Ton niveau revient à 1, tes compétences sont conservées et ton dossier obtient un statut visuel permanent.</p></div>
-    <div class="profile-ascension-requirements">${requirements.map(requirement=>`<span class="${requirement.done ? "done" : ""}"><i>${requirement.done ? "OK" : "--"}</i>${requirement.label}</span>`).join("")}</div>
-    <button class="blue-button" data-prestige type="button" ${status.ok ? "" : "disabled"}>ACCOMPLIR L'ASCENSION</button>
-  </section>`;
-}
-
-function renderStellarSystemTitleControl(){
-  const unlocked = hasCompletedProgressionPortal(store.state, STELLAR_SYSTEM_TITLE.portalId);
-  const equipped = unlocked && store.state.player.activeTitleId === STELLAR_SYSTEM_TITLE.id;
-  const visible = store.state.player.titleVisible !== false;
-  const status = !unlocked ? "VERROUILLÉ" : equipped ? (visible ? "ÉQUIPÉ · VISIBLE" : "ÉQUIPÉ · MASQUÉ") : "DÉBLOQUÉ";
-  return `<section class="profile-title-control ${unlocked ? "unlocked" : "locked"} ${equipped ? "equipped" : ""}">
-    <div class="profile-title-ornament" aria-hidden="true"><i></i><b>S</b></div>
-    <div class="profile-title-copy">
-      <span>TITRE DE CONQUÊTE · ${status}</span>
-      <strong>${escapeHtml(STELLAR_SYSTEM_TITLE.name)}</strong>
-      <p>${unlocked
-        ? "Bonus serveur équipé : +5 % de dégâts pour les lasers, roquettes et missiles."
-        : "Termine le portail niveau 50, Le Cœur de l’Éternel, pour obtenir ce titre."}</p>
-    </div>
-    <div class="profile-title-actions">
-      ${unlocked ? `<button class="blue-button small" data-profile-title-toggle="${equipped ? "" : STELLAR_SYSTEM_TITLE.id}" type="button">${equipped ? "Retirer" : "Équiper"}</button>` : ""}
-      ${equipped ? `<button class="blue-button small" data-profile-title-visibility type="button">${visible ? "Masquer en jeu" : "Afficher en jeu"}</button>` : ""}
-    </div>
-  </section>`;
-}
-
-export function renderProfile(){
-  const section = document.getElementById("profileSection");
-  if(!section) return;
-  const player = store.state.player;
-  const rank = getCurrentRank();
-  const nextRank = getNextRank();
-  const rankProgress = getRankProgress();
-  const activeShip = getShip(store.state.activeShip);
-  const stats = getShipCombatStats(store.state.activeShip);
-  const ascension = getPrestigeStatus();
-  const ascended = Number(store.state.prestigeCount || 0) > 0;
-  const displayMode = store.profileDisplay === "drones" ? "drones" : "ship";
-  const completedQuests = Object.keys(store.state.completedQuestClaims || {}).length;
-  const xp = Math.max(0, Number(player.xp || 0));
-  const xpNext = Math.max(1, Number(player.xpNext || 1));
-  const xpPercent = Math.max(0, Math.min(100, xp / xpNext * 100));
-  section.innerHTML = `
-    <div class="panel-head profile-panel-heading">
-      <div><span class="tiny">PILOTE</span><h2>Profil</h2></div>
-      <span class="badge">${ascended ? "Dossier ascendant" : "Dossier commandant"}</span>
-    </div>
-    <div class="profile-command-sheet ${ascended ? "ascended" : ""}">
-      ${ascended ? `<div class="profile-ascended-seal"><i></i><span>ASCENSION</span><b>ACCOMPLIE</b></div>` : ""}
-      <div class="profile-command-grid">
-        <section class="profile-visual-card">
-          <div class="profile-identity-lockup">
-            <div class="profile-rank-emblem">${rankIcon(rank, rank.name)}</div>
-            <span class="profile-grade-name">${escapeHtml(rank.name)}</span>
-            <h3>${escapeHtml(player.name)}</h3>
-            <p>Niveau ${fmt(player.level)} / ${fmt(getPlayerLevelCap())}</p>
-            <div class="mini-bar"><span style="width:${rankProgress.progress}%"></span></div>
-            <small>${nextRank ? `Prochain grade : ${escapeHtml(nextRank.name)} · ${fmt(rankProgress.remaining)} points` : "Grade maximum atteint"}</small>
-          </div>
-          <div class="profile-display-switch" role="group" aria-label="Affichage du profil">
-            <button class="${displayMode === "ship" ? "active" : ""}" data-profile-display="ship" type="button">Vaisseau</button>
-            <button class="${displayMode === "drones" ? "active" : ""}" data-profile-display="drones" type="button">Drones utilisés <b>${fmt(activeProfileDrones().length)}</b></button>
-          </div>
-          ${displayMode === "drones" ? renderProfileDroneVisual() : renderProfileShipVisual(activeShip)}
-        </section>
-        <section class="profile-live-stats">
-          <header><span>VAISSEAU ACTUEL</span><strong>STATISTIQUES</strong><small>Compétences, équipement et bonus actifs inclus</small></header>
-          <div class="profile-live-stat-grid">
-            ${profileStatTile("Points de vie", fmt(Math.round(stats.vie || 0)), " PV")}
-            ${profileStatTile("Bouclier", fmt(Math.round(stats.bouclier || 0)))}
-            ${profileStatTile("Régénération", fmt(Math.round(stats.regen || 0)), " /s")}
-            ${profileStatTile("Absorption", `${Math.round(Number(stats.shieldAbsorbRatio || 0) * 100)}%`)}
-            ${profileStatTile("Vitesse", fmt(Math.round(stats.vitesseReelle || 0)))}
-            ${profileStatTile("Soute", fmt(Math.round(stats.cargo || 0)))}
-          </div>
-        </section>
-        <aside class="profile-dossier">
-          <header><span>DÉTAILS PILOTE</span><strong>DOSSIER</strong></header>
-          <div class="profile-detail-list">
-            ${profileDetailRow("Temps de jeu", formatDuration(player.totalPlaySeconds))}
-            ${profileDetailRow("Kills monstres", fmt(player.totalKills || 0))}
-            ${profileDetailRow("Quêtes finies", fmt(completedQuests))}
-            ${profileDetailRow("Niveau du joueur", `${fmt(player.level)} / ${fmt(getPlayerLevelCap())}`, ascended ? "Progression ascendante" : "Première progression")}
-            ${profileDetailRow("Réputation", fmt(player.reputation || 0))}
-            ${profileDetailRow("Expérience", `${fmt(xp)} / ${fmt(xpNext)}`, `${fmt(player.totalXp || 0)} XP cumulée`)}
-          </div>
-          <div class="profile-xp-track"><span style="width:${xpPercent}%"></span></div>
-        </aside>
-      </div>
-      ${renderStellarSystemTitleControl()}
-      ${ascended ? "" : renderAscensionCallout(ascension)}
-    </div>`;
 }
 
 export function renderSettingsSection(){
@@ -799,299 +541,21 @@ export function renderSettingsSection(){
 
 const STORE_TAB_IDS = storeTabs.map(tab=>tab.id);
 
-function rewardAmountLabel(id, amount){
-  const cleanAmount = Math.max(0, Number(amount || 0));
-  if(id === "credits" || id === "premium") return fmt(cleanAmount);
-  return `${fmt(cleanAmount)} ${String(id || "").replaceAll("_", " ").toUpperCase()}`;
-}
-
-function rewardLines(reward = {}){
-  const lines = [];
-  if(reward.credits) lines.push({kind:"credits", label:rewardAmountLabel("credits", reward.credits), img:"assets/icons/credits.svg"});
-  if(reward.premium) lines.push({kind:"nova", label:rewardAmountLabel("premium", reward.premium), img:"assets/icons/premium.svg"});
-  for(const rewardLine of reward.specialRewards || []){
-    lines.push({kind:"special", label:rewardLine.label || "Recompense speciale", img:rewardLine.img || "assets/icons/premium.svg"});
-  }
-  if(reward.shipRandom){
-    const shipIds = Array.isArray(reward.shipRandom.shipIds) ? reward.shipRandom.shipIds : [];
-    const firstShip = ships.find(ship=>shipIds.includes(ship.id));
-    lines.push({kind:"ship", label:reward.shipRandom.label || "Vaisseau aleatoire", img:firstShip?.img || "assets/ships/Vesperion.png"});
-  }
-  for(const [id, amount] of Object.entries(reward.ammo || {})){
-    const ammo = ammoTypes.find(entry=>entry.id === id);
-    lines.push({kind:"ammo", label:rewardAmountLabel(id, amount), img:ammo?.img || "assets/equipment/ammo_laser_x2_same_preview.png"});
-  }
-  for(const [id, amount] of Object.entries(reward.itemCounts || {})){
-    const item = getItem(id);
-    lines.push({kind:"item", label:`${fmt(amount)} ${item?.name || id}`, img:item?.img || "assets/equipment/module_munitions.svg"});
-  }
-  for(const id of reward.items || []){
-    const item = getItem(id);
-    lines.push({kind:"item", label:item?.name || id, img:item?.img || "assets/equipment/module_munitions.svg"});
-  }
-  return lines;
-}
-
-function rewardPills(reward = {}){
-  return rewardLines(reward).map(line=>`
-    <span class="store-reward-pill ${escapeHtml(line.kind)}">
-      <img src="${escapeHtml(line.img)}" alt="">
-      <b>${escapeHtml(line.label)}</b>
-    </span>
-  `).join("");
-}
-
-function renderPremiumStoreCard(pack){
-  return `<article class="store-offer-card store-premium-card" data-store-offer-kind="premium" data-store-offer="${escapeHtml(pack.id)}">
-    <div class="store-offer-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
-    <div class="store-offer-copy">
-      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${currencyAmountHtml("premium", pack.price)}</span></div>
-      <p>${escapeHtml(pack.desc)} Clique pour voir les bonus inclus.</p>
-      <div class="store-offer-foot"><b>${pack.days} jours premium</b>${realMoneyPriceHtml(pack.realPrice)}</div>
-    </div>
-  </article>`;
-}
-
-function renderBetaPackCard(pack){
-  const purchased = hasBetaPackPurchase(store.state, pack.id);
-  return `<article class="store-offer-card store-beta-card ${purchased ? "purchased" : ""}" data-store-offer-kind="beta" data-store-offer="${escapeHtml(pack.id)}">
-    <div class="store-offer-art beta"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
-    <div class="store-offer-copy">
-      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${purchased ? "DEJA ACHETE" : escapeHtml(pack.tag || "BETA")}</span></div>
-      <p>${escapeHtml(pack.desc || "")}</p>
-      ${renderStarterContentStrip(pack)}
-      <div class="store-offer-foot"><b>${escapeHtml(pack.officialReward || "Bonus officiel inclus")}</b>${realMoneyPriceHtml(purchased ? "DEJA ACHETE" : pack.price, {className:purchased ? "muted" : ""})}</div>
-    </div>
-  </article>`;
-}
-
-function renderBetaRewards(){
-  const status = getBetaRewardStatus(store.state || {});
-  const claimed = new Set(status.claimedDays || []);
-  return `<section class="store-rewards-panel beta-rewards-panel">
-    <div class="store-reward-summary beta-reward-summary">
-      <div><span class="tiny">CALENDRIER BETA</span><h3>${fmt(status.claimedCount)} / 25 jours</h3><p>${status.canClaim ? "Une recompense beta est disponible aujourd'hui." : escapeHtml(status.reason || "Reviens demain pour la suite.")}</p></div>
-      <button class="gold-button" data-claim-beta-reward type="button" ${status.canClaim ? "" : "disabled"}>${status.canClaim ? `RECLAMER JOUR ${status.nextDay}` : "BLOQUE"}</button>
-    </div>
-    <div class="store-reward-grid beta-reward-grid">
-      ${betaRewardCalendar.map(entry=>{
-        const isClaimed = claimed.has(entry.day);
-        const isNext = !isClaimed && entry.day === status.nextDay && !status.completed;
-        const locked = !isClaimed && entry.day > status.nextDay;
-        return `<article class="store-reward-day ${isClaimed ? "claimed" : ""} ${isNext ? "next" : ""} ${locked ? "locked" : ""}">
-          <div class="store-reward-day-head"><span>Jour ${entry.day}</span><b>${isClaimed ? "RECU" : isNext ? "A RECLAMER" : "A VENIR"}</b></div>
-          <strong>${escapeHtml(entry.label)}</strong>
-          <div class="store-reward-pills">${rewardPills(entry.reward)}</div>
-        </article>`;
-      }).join("")}
-    </div>
-  </section>`;
-}
-
-function renderBetaStore(){
-  return `<div class="beta-store-shell">
-    <section class="beta-store-message">
-      <span class="tiny">ACCES BETA</span>
-      <h3>Packs beta a prix reduit</h3>
-      <p>${escapeHtml(betaLaunchMessage)}</p>
-    </section>
-    <div class="store-offer-grid beta-grid">${betaPacks.map(renderBetaPackCard).join("")}</div>
-    ${renderBetaRewards()}
-  </div>`;
-}
-
-function renderCurrencyStoreCard(pack){
-  const isNova = pack.tag === "NOVA";
-  const currencyType = isNova ? "premium" : "credits";
-  return `<article class="store-offer-card ${isNova ? "store-nova-card" : "store-credit-card"}">
-    <div class="store-offer-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
-    <div class="store-offer-copy">
-      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${currencyIconHtml(currencyType)}</span></div>
-      <p>${escapeHtml(pack.desc || "")}</p>
-      <div class="store-offer-foot"><b>${pack.amount ? currencyAmountHtml(currencyType, pack.amount) : escapeHtml(pack.price || "A definir")}</b>${realMoneyPriceHtml(pack.price)}</div>
-    </div>
-  </article>`;
-}
-
-function renderStarterContentIcon(item){
-  if(typeof item === "string"){
-    return `<span class="store-starter-content-chip text-only" data-tooltip="${escapeHtml(item)}"><b>${escapeHtml(item)}</b></span>`;
-  }
-  const label = item?.label || "Contenu";
-  const quantity = item?.quantity || "x1";
-  const img = item?.img || "assets/icons/premium.svg";
-  const kind = item?.kind || "item";
-  return `<span class="store-starter-content-chip ${escapeHtml(kind)}" data-tooltip="${escapeHtml(label)}" title="${escapeHtml(label)}">
-    <img src="${escapeHtml(img)}" alt="${escapeHtml(label)}">
-    <b>${escapeHtml(quantity)}</b>
-  </span>`;
-}
-
-function renderStarterContentStrip(pack){
-  return `<div class="store-starter-strip">${(pack.contents || []).map(renderStarterContentIcon).join("")}</div>`;
-}
-
-function renderStarterStoreCard(pack){
-  const purchased = hasStarterPackPurchase(store.state, pack.id);
-  return `<article class="store-offer-card store-starter-card ${purchased ? "purchased" : ""}" data-store-offer-kind="starter" data-store-offer="${escapeHtml(pack.id)}">
-    <div class="store-offer-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
-    <div class="store-offer-copy">
-      <div class="store-offer-head"><strong>${escapeHtml(pack.name)}</strong><span>${purchased ? "DEJA ACHETE" : escapeHtml(pack.tag || "STARTER")}</span></div>
-      <p>${escapeHtml(pack.desc || "")}</p>
-      ${renderStarterContentStrip(pack)}
-      <div class="store-offer-foot"><b>${purchased ? "Achat unique utilise" : "Contenu inclus"}</b>${realMoneyPriceHtml(purchased ? "DEJA ACHETE" : pack.price, {className:purchased ? "muted" : ""})}</div>
-    </div>
-  </article>`;
-}
-
-function renderPremiumRewards(){
-  const status = getPremiumRewardStatus(store.state || {});
-  const claimed = new Set(status.claimedDays || []);
-  const nextDay = status.nextDay;
-  return `<section class="store-rewards-panel">
-    <div class="store-reward-summary">
-      <div><span class="tiny">CALENDRIER ${escapeHtml(status.monthKey)}</span><h3>${fmt(status.claimedCount)} / 28 jours</h3><p>${status.canClaim ? "Une recompense premium est disponible aujourd'hui." : escapeHtml(status.reason || "Reviens demain pour la suite.")}</p></div>
-      <button class="gold-button" data-claim-premium-reward type="button" ${status.canClaim ? "" : "disabled"}>${status.canClaim ? `RECLAMER JOUR ${nextDay}` : "BLOQUE"}</button>
-    </div>
-    <div class="store-reward-grid">
-      ${premiumRewardCalendar.map(entry=>{
-        const isClaimed = claimed.has(entry.day);
-        const isNext = !isClaimed && entry.day === nextDay && !status.completed;
-        const locked = !isClaimed && entry.day > nextDay;
-        return `<article class="store-reward-day ${isClaimed ? "claimed" : ""} ${isNext ? "next" : ""} ${locked ? "locked" : ""}">
-          <div class="store-reward-day-head"><span>Jour ${entry.day}</span><b>${isClaimed ? "RECU" : isNext ? "SUIVANT" : "A VENIR"}</b></div>
-          <strong>${escapeHtml(entry.label)}</strong>
-          <div class="store-reward-pills">${rewardPills(entry.reward)}</div>
-        </article>`;
-      }).join("")}
-    </div>
-  </section>`;
-}
-
-function renderStoreTabContent(activeTab){
-  if(activeTab === "beta"){
-    return renderBetaStore();
-  }
-  if(activeTab === "premium"){
-    return `<div class="store-offer-grid premium-grid">${premiumShopPacks.map(renderPremiumStoreCard).join("")}</div>`;
-  }
-  if(activeTab === "currencies"){
-    return `<div class="store-offer-grid currency-grid">${[...novaCurrencyPacks, ...creditCurrencyPacks].map(renderCurrencyStoreCard).join("")}</div>`;
-  }
-  if(activeTab === "starters"){
-    return `<div class="store-offer-grid starter-grid">${starterPacks.map(renderStarterStoreCard).join("")}</div>`;
-  }
-  return renderPremiumRewards();
-}
-
-function renderStoreModal(){
-  const modal = store.storeModal || null;
-  if(!modal?.id) return "";
-  if(modal.kind === "beta"){
-    const pack = betaPacks.find(entry=>entry.id === modal.id);
-    if(!pack) return "";
-    const purchased = hasBetaPackPurchase(store.state, pack.id);
-    const selectedChoice = pack.choices?.some(choice=>choice.id === modal.shipChoice)
-      ? modal.shipChoice
-      : (pack.choices?.[0]?.id || "");
-    return `<div class="store-modal-backdrop" data-store-modal-backdrop>
-      <section class="store-modal beta-modal">
-        <button class="store-modal-close" data-store-modal-close type="button">x</button>
-        <div class="store-modal-head"><span class="tiny">PACK BETA</span><h3>${escapeHtml(pack.name)}</h3>${realMoneyPriceHtml(purchased ? "DEJA ACHETE" : pack.price, {className:purchased ? "muted" : ""})}</div>
-        <div class="store-modal-body">
-          <div class="store-modal-art premium"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
-          <div class="store-modal-copy">
-            <p>${escapeHtml(pack.desc || "")}</p>
-            <div class="store-modal-features beta-official-reward"><span>${escapeHtml(pack.officialReward || "")}</span></div>
-            ${pack.choices ? `<div class="beta-ship-choice-grid">${pack.choices.map(choice=>`
-              <button class="beta-ship-choice ${selectedChoice === choice.id ? "active" : ""}" data-beta-ship-choice="${escapeHtml(choice.id)}" type="button">
-                <img src="${escapeHtml(choice.img)}" alt="${escapeHtml(choice.label)}">
-                <b>${escapeHtml(choice.label)}</b>
-              </button>
-            `).join("")}</div>` : ""}
-            <div class="store-starter-contents">${(pack.contents || []).map(renderStarterContentIcon).join("")}</div>
-          </div>
-        </div>
-        <div class="store-modal-actions"><button class="gold-button" data-buy-beta-pack="${escapeHtml(pack.id)}" data-beta-pack-ship-choice="${escapeHtml(selectedChoice)}" type="button" ${purchased ? "disabled" : ""}>${purchased ? "DEJA ACHETE" : "ACTIVER PACK BETA"}</button></div>
-      </section>
-    </div>`;
-  }
-  if(modal.kind === "premium"){
-    const pack = premiumShopPacks.find(entry=>entry.id === modal.id);
-    if(!pack) return "";
-    return `<div class="store-modal-backdrop" data-store-modal-backdrop>
-      <section class="store-modal">
-        <button class="store-modal-close" data-store-modal-close type="button">x</button>
-        <div class="store-modal-head"><span class="tiny">PACK PREMIUM</span><h3>${escapeHtml(pack.name)}</h3>${realMoneyPriceHtml(pack.realPrice)}</div>
-        <div class="store-modal-body">
-          <div class="store-modal-art premium"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
-          <div class="store-modal-copy">
-            <p>${escapeHtml(pack.desc)} Peut aussi etre active dans le magasin contre ${currencyAmountHtml("premium", pack.price)}.</p>
-            <div class="store-modal-features">${pack.features.map(feature=>`<span>${escapeHtml(feature)}</span>`).join("")}</div>
-          </div>
-        </div>
-        <div class="store-modal-actions">
-          <button class="gold-button" type="button" disabled>PAIEMENT BIENTOT</button>
-          <button class="blue-button small" data-buy-premium-pack="${escapeHtml(pack.id)}" type="button">ACHETER ${currencyIconHtml("premium")}</button>
-        </div>
-      </section>
-    </div>`;
-  }
-  if(modal.kind === "starter"){
-    const pack = starterPacks.find(entry=>entry.id === modal.id);
-    if(!pack) return "";
-    const purchased = hasStarterPackPurchase(store.state, pack.id);
-    return `<div class="store-modal-backdrop" data-store-modal-backdrop>
-      <section class="store-modal">
-        <button class="store-modal-close" data-store-modal-close type="button">x</button>
-        <div class="store-modal-head"><span class="tiny">STARTER PACK</span><h3>${escapeHtml(pack.name)}</h3>${realMoneyPriceHtml(purchased ? "DEJA ACHETE" : pack.price, {className:purchased ? "muted" : ""})}</div>
-        <div class="store-modal-body">
-          <div class="store-modal-art"><img src="${escapeHtml(pack.img)}" alt="${escapeHtml(pack.name)}"></div>
-          <div class="store-modal-copy">
-            <p>${escapeHtml(pack.desc || "")}${purchased ? " Ce starter pack est un achat unique deja utilise sur ce compte." : " Ce starter pack ne pourra etre achete qu'une seule fois par compte."}</p>
-            <div class="store-starter-contents">${(pack.contents || []).map(renderStarterContentIcon).join("")}</div>
-          </div>
-        </div>
-        <div class="store-modal-actions"><button class="gold-button" type="button" disabled>${purchased ? "DEJA ACHETE" : "PAIEMENT BIENTOT"}</button></div>
-      </section>
-    </div>`;
-  }
-  return "";
-}
-
 export function renderStoreSection(){
   const panel = document.getElementById("premiumStorePanel");
   if(!panel) return;
-  const premiumActive = isPremiumActive(store.state?.player);
-  const activeTab = STORE_TAB_IDS.includes(store.storeTab) ? store.storeTab : "beta";
-  const tabMeta = storeTabs.find(tab=>tab.id === activeTab) || storeTabs[0];
-  panel.innerHTML = `
-    <div class="panel-head store-head">
-      <div>
-        <span class="tiny">BOUTIQUE</span>
-        <h2>Packs de soutien</h2>
-        <p class="shop-intro">Achats en euros pour soutenir le jeu : beta, premium, NOVA, credits, starters et recompenses premium.</p>
-      </div>
-      <div class="store-premium-status ${premiumActive ? "active" : ""}">
-        <span>Premium</span>
-        <strong>${premiumActive ? "ACTIF" : "INACTIF"}</strong>
-        <small>${premiumRemainingLabel(store.state.player)}</small>
-      </div>
-    </div>
-    <div class="store-layout">
-      <nav class="store-tab-nav">
-        ${storeTabs.map(tab=>`<button class="${activeTab === tab.id ? "active" : ""}" data-store-tab="${escapeHtml(tab.id)}" type="button">${escapeHtml(tab.label)}</button>`).join("")}
-      </nav>
-      <section class="store-tab-panel">
-        <div class="store-section-head">
-          <span class="tiny">${escapeHtml(tabMeta.id)}</span>
-          <h3>${escapeHtml(tabMeta.title)}</h3>
-          <p>${escapeHtml(tabMeta.subtitle)}</p>
-        </div>
-        ${renderStoreTabContent(activeTab)}
-      </section>
-    </div>
-    ${renderStoreModal()}`;
+  const activeTab = BETA_STORE_ONLY ? "beta" : STORE_TAB_IDS.includes(store.storeTab) ? store.storeTab : "beta";
+  store.storeTab = activeTab;
+  if(BETA_STORE_ONLY && store.storeModal && !["beta", "beta-reward"].includes(store.storeModal.kind)) store.storeModal = null;
+  const modal = store.storeModal || {};
+  const now = Date.now();
+  panel.classList.add("beta-store-panel");
+  panel.classList.toggle("support-store-panel", activeTab !== "beta");
+  panel.innerHTML = renderStoreNavigation(activeTab, store.state, {now, betaOnly:BETA_STORE_ONLY})
+    + (activeTab === "beta" ? renderBetaStorefront(store.state, {now, calendarDay:store.betaCalendarDay}) : renderSupportStorefront(store.state, activeTab, {now, tier:store.premiumStoreTier, currency:store.storeCurrency, calendarDay:store.premiumCalendarDay, packCategory:store.storePackCategory}))
+    + (["beta", "beta-reward"].includes(modal.kind) ? renderBetaStoreModal(store.state, modal, {now}) : renderSupportStoreModal(store.state, modal, {now, tier:store.premiumStoreTier}));
+  syncBetaStoreModal(panel, ()=>{ store.storeModal = null; renderStoreSection(); });
+  syncBetaRewardCountdown(panel, {getProfile:()=>store.state, render:renderStoreSection, active:store.currentView === "store" && activeTab === "beta"});
 }
 
 export function renderExtraSection(){
@@ -1174,13 +638,16 @@ function renderFirmSetupGate(){
 }
 
 export { renderShop } from "./renderShop.js?v=20261018-map-transfer1";
-export { renderLeaderboard, renderPortals, renderSkills } from "./renderProgression.js?v=20261022-helion-hub1";
+export { renderLeaderboard, renderPortals, renderSkills, selectSkillNode } from "./renderProgression.js?v=20261023-skills1";
+export { renderDroneSection } from "./renderDroneBay.js?v=20261023-dronegrid1";
+export { renderProfile } from "./renderProfile.js?v=20261023-profile1";
 export { renderRefinery } from "./renderRefinery.js?v=20260726-kharon1";
 export { renderFirm } from "./renderFirm.js?v=20261018-map-transfer1";
 
 export function renderAll(){
   if(store.currentView !== "hangar") store.hangarDetailOpen = false;
   renderTop();
+  renderHome();
   renderHangarTabs();
   renderHangarMode();
   renderShips();
@@ -1218,6 +685,7 @@ export function renderHangarMode(){
   if(store.hangarTab === "extra") store.hangarTab = "vaisseau";
   const shipMode = store.hangarTab === "vaisseau";
   if(hangarView){
+    hangarView.classList.toggle("workshop-mode", (shipMode && store.hangarDetailOpen) || store.hangarTab === "drone");
     hangarView.classList.toggle("hangar-list-mode", shipMode && !store.hangarDetailOpen);
     hangarView.classList.toggle("hangar-detail-mode", shipMode && store.hangarDetailOpen);
   }
@@ -1231,8 +699,17 @@ export function renderHangarMode(){
 }
 
 export function setView(view){
-  if(!pageText[view]) view = "hangar";
+  if(!pageText[view]) view = "home";
   store.currentView = view;
+  if(view === "store") renderStoreSection();
+  else syncBetaRewardCountdown(document.getElementById("premiumStorePanel"), {active:false});
+  const homeBrand = document.querySelector(".launcher-brand[data-view=home]");
+  if(homeBrand){
+    homeBrand.classList.toggle("active", view === "home");
+    if(view === "home") homeBrand.setAttribute("aria-current", "page");
+    else homeBrand.removeAttribute("aria-current");
+  }
+  if(view === "home") renderHome();
   if(view === "hangar"){
     store.hangarTab = "vaisseau";
     store.hangarDetailOpen = false;

@@ -1,5 +1,6 @@
-import { getNovaDiscountedPrice, isPremiumActive } from "../../../src/data/premium.js";
+import { getNovaDiscountedPrice, getPremiumGoldUntil, isPremiumActive } from "../../../src/data/premium.js";
 import { getXpNextForLevel } from "../../../src/data/xpCurve.js";
+import { normalizeReputation } from "../../../src/shared/reputation.js";
 
 export { getXpNextForLevel };
 
@@ -14,6 +15,7 @@ export const PROTECTED_PLAYER_FIELDS = [
   "credits",
   "premium",
   "premiumUntil",
+  "premiumGoldUntil",
   "premiumActive",
   "xp",
   "totalXp",
@@ -21,6 +23,8 @@ export const PROTECTED_PLAYER_FIELDS = [
   "xpNext",
   "skillPoints",
   "reputation",
+  "friendlyFireLastPenalty",
+  "friendlyFireLastKillAt",
   "totalKills",
   "totalPlayerKills",
   "monsterRankPoints",
@@ -56,10 +60,13 @@ export function normalizeProgressionPlayer(player = {}, levelCap = 100){
     credits:Math.max(0, Math.round(Number(player.credits || 0))),
     premium:Math.max(0, Math.round(Number(player.premium || 0))),
     premiumUntil:Math.max(0, Number(player.premiumUntil || 0)),
+    ...(player.premiumGoldUntil === undefined ? {} : {premiumGoldUntil:getPremiumGoldUntil(player)}),
     premiumActive:isPremiumActive(player),
     xp,
     totalXp:Math.max(0, Math.round(Number(player.totalXp || 0))),
-    reputation:Math.max(0, Math.round(Number(player.reputation || 0))),
+    reputation:normalizeReputation(player.reputation),
+    friendlyFireLastPenalty:Math.max(0, normalizeReputation(player.friendlyFireLastPenalty)),
+    friendlyFireLastKillAt:Math.max(0, normalizeReputation(player.friendlyFireLastKillAt)),
     totalKills:Math.max(0, Math.round(Number(player.totalKills || 0))),
     totalPlayerKills:Math.max(0, Math.round(Number(player.totalPlayerKills || 0))),
     monsterRankPoints:Math.max(0, Number(player.monsterRankPoints || 0)),

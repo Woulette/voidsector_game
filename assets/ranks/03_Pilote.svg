@@ -1,84 +1,107 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
 
+  <title>Pilote</title>
   <defs>
     <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#f6f2e8"/>
-      <stop offset="20%" stop-color="#8e8980"/>
-      <stop offset="50%" stop-color="#1e211f"/>
-      <stop offset="72%" stop-color="#b9b4a8"/>
-      <stop offset="100%" stop-color="#3f3d39"/>
+      <stop offset="0%" stop-color="#f5fdff"/>
+      <stop offset="18%" stop-color="#9dbdd1"/>
+      <stop offset="30%" stop-color="#e1f4ff"/>
+      <stop offset="36%" stop-color="#ffffff"/>
+      <stop offset="42%" stop-color="#c7e7f7"/>
+      <stop offset="53%" stop-color="#3c536b"/>
+      <stop offset="72%" stop-color="#bdd9ed"/>
+      <stop offset="84%" stop-color="#f4fcff"/>
+      <stop offset="100%" stop-color="#5c7d97"/>
     </linearGradient>
     <linearGradient id="steel2" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="24%" stop-color="#bfc4c6"/>
-      <stop offset="48%" stop-color="#383b3d"/>
-      <stop offset="75%" stop-color="#8f9698"/>
-      <stop offset="100%" stop-color="#0c0d0f"/>
+      <stop offset="18%" stop-color="#b0cddd"/>
+      <stop offset="31%" stop-color="#f2fdff"/>
+      <stop offset="37%" stop-color="#ffffff"/>
+      <stop offset="43%" stop-color="#c5e5f4"/>
+      <stop offset="52%" stop-color="#425c73"/>
+      <stop offset="72%" stop-color="#b9d4e8"/>
+      <stop offset="84%" stop-color="#edfbff"/>
+      <stop offset="100%" stop-color="#567990"/>
     </linearGradient>
     <linearGradient id="darkMetal" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#343536"/>
-      <stop offset="45%" stop-color="#070808"/>
-      <stop offset="100%" stop-color="#5a5c5d"/>
+      <stop offset="0%" stop-color="#536572"/>
+      <stop offset="45%" stop-color="#142433"/>
+      <stop offset="100%" stop-color="#7e94a6"/>
     </linearGradient>
     <linearGradient id="blueCore" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#002cc8"/>
-      <stop offset="28%" stop-color="#02b7ff"/>
-      <stop offset="50%" stop-color="#d7ffff"/>
-      <stop offset="72%" stop-color="#0095ff"/>
-      <stop offset="100%" stop-color="#001da7"/>
+      <stop offset="0%" stop-color="#0039ca"/>
+      <stop offset="25%" stop-color="#00bfff"/>
+      <stop offset="42%" stop-color="#62e6ff"/>
+      <stop offset="49%" stop-color="#f4ffff"/>
+      <stop offset="54%" stop-color="#baffff"/>
+      <stop offset="72%" stop-color="#00a9ff"/>
+      <stop offset="100%" stop-color="#00349b"/>
     </linearGradient>
     <radialGradient id="blueGlow" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#cbffff" stop-opacity=".95"/>
-      <stop offset="45%" stop-color="#00aaff" stop-opacity=".55"/>
+      <stop offset="45%" stop-color="#00c4ff" stop-opacity=".72"/>
       <stop offset="100%" stop-color="#003bff" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="copper" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#fff2c0"/>
-      <stop offset="18%" stop-color="#ff9c42"/>
-      <stop offset="48%" stop-color="#6e2100"/>
-      <stop offset="76%" stop-color="#c45b00"/>
-      <stop offset="100%" stop-color="#ffd16a"/>
+      <stop offset="0%" stop-color="#fff4d2"/>
+      <stop offset="16%" stop-color="#e4a054"/>
+      <stop offset="29%" stop-color="#ffd58d"/>
+      <stop offset="36%" stop-color="#fff6df"/>
+      <stop offset="43%" stop-color="#efb96d"/>
+      <stop offset="53%" stop-color="#7e3b13"/>
+      <stop offset="73%" stop-color="#d58a38"/>
+      <stop offset="85%" stop-color="#ffd17f"/>
+      <stop offset="100%" stop-color="#985221"/>
     </linearGradient>
     <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#fff7af"/>
-      <stop offset="20%" stop-color="#ffbd20"/>
-      <stop offset="44%" stop-color="#7a3d00"/>
-      <stop offset="70%" stop-color="#e98a00"/>
-      <stop offset="100%" stop-color="#fff06a"/>
+      <stop offset="0%" stop-color="#fffbd4"/>
+      <stop offset="16%" stop-color="#e9b83d"/>
+      <stop offset="29%" stop-color="#f9d96c"/>
+      <stop offset="36%" stop-color="#fffef0"/>
+      <stop offset="43%" stop-color="#ffed95"/>
+      <stop offset="53%" stop-color="#9d6916"/>
+      <stop offset="71%" stop-color="#e7b632"/>
+      <stop offset="84%" stop-color="#fff6b6"/>
+      <stop offset="100%" stop-color="#ac791b"/>
     </linearGradient>
     <linearGradient id="redGem" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ff6b25"/>
-      <stop offset="45%" stop-color="#a5120b"/>
-      <stop offset="100%" stop-color="#430007"/>
+      <stop offset="0%" stop-color="#ff9a7c"/>
+      <stop offset="26%" stop-color="#e14b43"/>
+      <stop offset="42%" stop-color="#ffbe9c"/>
+      <stop offset="52%" stop-color="#b22530"/>
+      <stop offset="76%" stop-color="#731825"/>
+      <stop offset="100%" stop-color="#421020"/>
     </linearGradient>
     <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#000000" flood-opacity=".75"/>
+      <feDropShadow dx="0" dy="1.5" stdDeviation="0.7" flood-color="#000000" flood-opacity=".75"/>
     </filter>
     <filter id="glow" x="-70%" y="-70%" width="240%" height="240%">
-      <feGaussianBlur stdDeviation="3.2" result="blur"/>
+      <feGaussianBlur stdDeviation="1.6" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+<filter id="metalAura" x="-15%" y="-15%" width="130%" height="130%"><feDropShadow dx="0" dy="0" stdDeviation=".65" flood-color="#74cfff" flood-opacity="0.14"/></filter>
   </defs>
 
-  <g filter="url(#shadow)">
-<polygon points="31.3,22.0 42.7,22.0 48.0,27.3 48.0,100.7 42.7,106.0 31.3,106.0 26.0,100.7 26.0,27.3" fill="url(#steel)" stroke="#080808" stroke-width="2" stroke-linejoin="round" />
+  <g filter="url(#shadow)"><g filter="url(#metalAura)">
+<polygon points="31.3,22.0 42.7,22.0 48.0,27.3 48.0,100.7 42.7,106.0 31.3,106.0 26.0,100.7 26.0,27.3" fill="#26323e" stroke="#020810" stroke-width="1.2" stroke-linejoin="round" transform="translate(0 1.35)"/><polygon points="31.3,22.0 42.7,22.0 48.0,27.3 48.0,100.7 42.7,106.0 31.3,106.0 26.0,100.7 26.0,27.3" fill="url(#steel)" stroke="#080808" stroke-width="2" stroke-linejoin="round" /><clipPath id="bevel-1"><polygon points="31.3,22.0 42.7,22.0 48.0,27.3 48.0,100.7 42.7,106.0 31.3,106.0 26.0,100.7 26.0,27.3"/></clipPath><g clip-path="url(#bevel-1)"><path d="M0 0 H128 M0 3 H128 M0 6 H128 M0 9 H128 M0 12 H128 M0 15 H128 M0 18 H128 M0 21 H128 M0 24 H128 M0 27 H128 M0 30 H128 M0 33 H128 M0 36 H128 M0 39 H128 M0 42 H128 M0 45 H128 M0 48 H128 M0 51 H128 M0 54 H128 M0 57 H128 M0 60 H128 M0 63 H128 M0 66 H128 M0 69 H128 M0 72 H128 M0 75 H128 M0 78 H128 M0 81 H128 M0 84 H128 M0 87 H128 M0 90 H128 M0 93 H128 M0 96 H128 M0 99 H128 M0 102 H128 M0 105 H128 M0 108 H128 M0 111 H128 M0 114 H128 M0 117 H128 M0 120 H128 M0 123 H128 M0 126 H128" fill="none" stroke="#f2e7cd" stroke-opacity=".055" stroke-width=".35"/><path d="M31.3 22.0 L42.7 22.0" fill="none" stroke="#fffdf0" stroke-opacity="0.762" stroke-width="2.0"/><path d="M42.7 22.0 L48.0 27.3" fill="none" stroke="#0c1017" stroke-opacity="0.260" stroke-width="2.0"/><path d="M48.0 27.3 L48.0 100.7" fill="none" stroke="#0c1017" stroke-opacity="0.543" stroke-width="2.0"/><path d="M48.0 100.7 L42.7 106.0" fill="none" stroke="#0c1017" stroke-opacity="0.660" stroke-width="2.0"/><path d="M42.7 106.0 L31.3 106.0" fill="none" stroke="#0c1017" stroke-opacity="0.543" stroke-width="2.0"/><path d="M31.3 106.0 L26.0 100.7" fill="none" stroke="#0c1017" stroke-opacity="0.260" stroke-width="2.0"/><path d="M26.0 100.7 L26.0 27.3" fill="none" stroke="#fffdf0" stroke-opacity="0.762" stroke-width="2.0"/><path d="M26.0 27.3 L31.3 22.0" fill="none" stroke="#fffdf0" stroke-opacity="0.905" stroke-width="2.0"/></g>
 <polygon points="33.3,31.0 40.7,31.0 41.0,37.0 41.0,91.0 40.7,97.0 33.3,97.0 33.0,91.0 33.0,37.0" fill="url(#darkMetal)" stroke="#d7d0c2" stroke-width="1.1" stroke-linejoin="round" />
 <ellipse cx="37.0" cy="64.0" rx="12.1" ry="29.4" fill="url(#blueGlow)" filter="url(#glow)" opacity=".9"/>
 <polygon points="35.2,48.0 38.8,48.0 41.8,64.0 38.8,83.0 35.2,83.0 32.2,64.0" fill="url(#blueCore)" stroke="#0036b5" stroke-width="1.2" stroke-linejoin="round" />
 <line x1="33.92" y1="36" x2="33.92" y2="91" stroke="#ffffff" stroke-width="0.8" opacity="0.45" stroke-linecap="round"/>
 <line x1="40.52" y1="36" x2="40.52" y2="91" stroke="#000000" stroke-width="0.8" opacity="0.55" stroke-linecap="round"/>
-<polygon points="58.3,22.0 69.7,22.0 75.0,27.3 75.0,100.7 69.7,106.0 58.3,106.0 53.0,100.7 53.0,27.3" fill="url(#steel)" stroke="#080808" stroke-width="2" stroke-linejoin="round" />
+<polygon points="58.3,22.0 69.7,22.0 75.0,27.3 75.0,100.7 69.7,106.0 58.3,106.0 53.0,100.7 53.0,27.3" fill="#26323e" stroke="#020810" stroke-width="1.2" stroke-linejoin="round" transform="translate(0 1.35)"/><polygon points="58.3,22.0 69.7,22.0 75.0,27.3 75.0,100.7 69.7,106.0 58.3,106.0 53.0,100.7 53.0,27.3" fill="url(#steel)" stroke="#080808" stroke-width="2" stroke-linejoin="round" /><clipPath id="bevel-2"><polygon points="58.3,22.0 69.7,22.0 75.0,27.3 75.0,100.7 69.7,106.0 58.3,106.0 53.0,100.7 53.0,27.3"/></clipPath><g clip-path="url(#bevel-2)"><path d="M0 0 H128 M0 3 H128 M0 6 H128 M0 9 H128 M0 12 H128 M0 15 H128 M0 18 H128 M0 21 H128 M0 24 H128 M0 27 H128 M0 30 H128 M0 33 H128 M0 36 H128 M0 39 H128 M0 42 H128 M0 45 H128 M0 48 H128 M0 51 H128 M0 54 H128 M0 57 H128 M0 60 H128 M0 63 H128 M0 66 H128 M0 69 H128 M0 72 H128 M0 75 H128 M0 78 H128 M0 81 H128 M0 84 H128 M0 87 H128 M0 90 H128 M0 93 H128 M0 96 H128 M0 99 H128 M0 102 H128 M0 105 H128 M0 108 H128 M0 111 H128 M0 114 H128 M0 117 H128 M0 120 H128 M0 123 H128 M0 126 H128" fill="none" stroke="#f2e7cd" stroke-opacity=".055" stroke-width=".35"/><path d="M58.3 22.0 L69.7 22.0" fill="none" stroke="#fffdf0" stroke-opacity="0.762" stroke-width="2.0"/><path d="M69.7 22.0 L75.0 27.3" fill="none" stroke="#0c1017" stroke-opacity="0.260" stroke-width="2.0"/><path d="M75.0 27.3 L75.0 100.7" fill="none" stroke="#0c1017" stroke-opacity="0.543" stroke-width="2.0"/><path d="M75.0 100.7 L69.7 106.0" fill="none" stroke="#0c1017" stroke-opacity="0.660" stroke-width="2.0"/><path d="M69.7 106.0 L58.3 106.0" fill="none" stroke="#0c1017" stroke-opacity="0.543" stroke-width="2.0"/><path d="M58.3 106.0 L53.0 100.7" fill="none" stroke="#0c1017" stroke-opacity="0.260" stroke-width="2.0"/><path d="M53.0 100.7 L53.0 27.3" fill="none" stroke="#fffdf0" stroke-opacity="0.762" stroke-width="2.0"/><path d="M53.0 27.3 L58.3 22.0" fill="none" stroke="#fffdf0" stroke-opacity="0.905" stroke-width="2.0"/></g>
 <polygon points="60.3,31.0 67.7,31.0 68.0,37.0 68.0,91.0 67.7,97.0 60.3,97.0 60.0,91.0 60.0,37.0" fill="url(#darkMetal)" stroke="#d7d0c2" stroke-width="1.1" stroke-linejoin="round" />
 <ellipse cx="64.0" cy="64.0" rx="12.1" ry="29.4" fill="url(#blueGlow)" filter="url(#glow)" opacity=".9"/>
 <polygon points="62.2,48.0 65.8,48.0 68.8,64.0 65.8,83.0 62.2,83.0 59.2,64.0" fill="url(#blueCore)" stroke="#0036b5" stroke-width="1.2" stroke-linejoin="round" />
 <line x1="60.92" y1="36" x2="60.92" y2="91" stroke="#ffffff" stroke-width="0.8" opacity="0.45" stroke-linecap="round"/>
 <line x1="67.52" y1="36" x2="67.52" y2="91" stroke="#000000" stroke-width="0.8" opacity="0.55" stroke-linecap="round"/>
-<polygon points="85.3,22.0 96.7,22.0 102.0,27.3 102.0,100.7 96.7,106.0 85.3,106.0 80.0,100.7 80.0,27.3" fill="url(#steel)" stroke="#080808" stroke-width="2" stroke-linejoin="round" />
+<polygon points="85.3,22.0 96.7,22.0 102.0,27.3 102.0,100.7 96.7,106.0 85.3,106.0 80.0,100.7 80.0,27.3" fill="#26323e" stroke="#020810" stroke-width="1.2" stroke-linejoin="round" transform="translate(0 1.35)"/><polygon points="85.3,22.0 96.7,22.0 102.0,27.3 102.0,100.7 96.7,106.0 85.3,106.0 80.0,100.7 80.0,27.3" fill="url(#steel)" stroke="#080808" stroke-width="2" stroke-linejoin="round" /><clipPath id="bevel-3"><polygon points="85.3,22.0 96.7,22.0 102.0,27.3 102.0,100.7 96.7,106.0 85.3,106.0 80.0,100.7 80.0,27.3"/></clipPath><g clip-path="url(#bevel-3)"><path d="M0 0 H128 M0 3 H128 M0 6 H128 M0 9 H128 M0 12 H128 M0 15 H128 M0 18 H128 M0 21 H128 M0 24 H128 M0 27 H128 M0 30 H128 M0 33 H128 M0 36 H128 M0 39 H128 M0 42 H128 M0 45 H128 M0 48 H128 M0 51 H128 M0 54 H128 M0 57 H128 M0 60 H128 M0 63 H128 M0 66 H128 M0 69 H128 M0 72 H128 M0 75 H128 M0 78 H128 M0 81 H128 M0 84 H128 M0 87 H128 M0 90 H128 M0 93 H128 M0 96 H128 M0 99 H128 M0 102 H128 M0 105 H128 M0 108 H128 M0 111 H128 M0 114 H128 M0 117 H128 M0 120 H128 M0 123 H128 M0 126 H128" fill="none" stroke="#f2e7cd" stroke-opacity=".055" stroke-width=".35"/><path d="M85.3 22.0 L96.7 22.0" fill="none" stroke="#fffdf0" stroke-opacity="0.762" stroke-width="2.0"/><path d="M96.7 22.0 L102.0 27.3" fill="none" stroke="#0c1017" stroke-opacity="0.260" stroke-width="2.0"/><path d="M102.0 27.3 L102.0 100.7" fill="none" stroke="#0c1017" stroke-opacity="0.543" stroke-width="2.0"/><path d="M102.0 100.7 L96.7 106.0" fill="none" stroke="#0c1017" stroke-opacity="0.660" stroke-width="2.0"/><path d="M96.7 106.0 L85.3 106.0" fill="none" stroke="#0c1017" stroke-opacity="0.543" stroke-width="2.0"/><path d="M85.3 106.0 L80.0 100.7" fill="none" stroke="#0c1017" stroke-opacity="0.260" stroke-width="2.0"/><path d="M80.0 100.7 L80.0 27.3" fill="none" stroke="#fffdf0" stroke-opacity="0.762" stroke-width="2.0"/><path d="M80.0 27.3 L85.3 22.0" fill="none" stroke="#fffdf0" stroke-opacity="0.905" stroke-width="2.0"/></g>
 <polygon points="87.3,31.0 94.7,31.0 95.0,37.0 95.0,91.0 94.7,97.0 87.3,97.0 87.0,91.0 87.0,37.0" fill="url(#darkMetal)" stroke="#d7d0c2" stroke-width="1.1" stroke-linejoin="round" />
 <ellipse cx="91.0" cy="64.0" rx="12.1" ry="29.4" fill="url(#blueGlow)" filter="url(#glow)" opacity=".9"/>
 <polygon points="89.2,48.0 92.8,48.0 95.8,64.0 92.8,83.0 89.2,83.0 86.2,64.0" fill="url(#blueCore)" stroke="#0036b5" stroke-width="1.2" stroke-linejoin="round" />
 <line x1="87.92" y1="36" x2="87.92" y2="91" stroke="#ffffff" stroke-width="0.8" opacity="0.45" stroke-linecap="round"/>
 <line x1="94.52" y1="36" x2="94.52" y2="91" stroke="#000000" stroke-width="0.8" opacity="0.55" stroke-linecap="round"/>
 
-  </g>
+  </g></g>
 </svg>

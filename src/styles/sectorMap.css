@@ -1,0 +1,122 @@
+/* Stellar overview. Scoped to this map so the shared combat panel chrome stays intact. */
+.combat-utility-panel[data-utility-mode="map"]{width:min(820px,calc(100vw - 340px));max-height:calc(100% - 90px);overflow:auto;padding:10px;scrollbar-width:thin;scrollbar-color:#345262 #08121c}
+.sector-travel-banner{position:absolute;left:50%;top:96px;transform:translateX(-50%);z-index:50;display:flex;align-items:center;gap:12px;width:max-content;max-width:min(320px,90vw);box-sizing:border-box;padding:10px 12px;border:1px solid #675333;border-radius:4px;color:#e2eef5;background:#0b1722f2;box-shadow:0 5px 22px #0005;font-family:"Segoe UI",Arial,sans-serif}
+.sector-travel-banner.hidden,.sector-travel-banner[hidden]{display:none}
+#gameScreen:has(#safeZoneNotice:not(.hidden)) .sector-travel-banner{top:194px}
+#gameScreen:has(.combat-utility-panel[data-utility-mode="map"]:not(.hidden)) .sector-travel-banner{visibility:hidden}
+.sector-travel-banner-copy{display:grid;gap:4px;min-width:0;flex:1}
+.sector-travel-banner-copy strong{color:#f1cb80;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sector-travel-banner-copy small{color:#91a8b8;font-size:11px;line-height:1.35}
+.sector-travel-banner button{flex:none;padding:7px 9px;border:1px solid #75613e;border-radius:3px;background:#2b261c;color:#e2eef5;font:500 11px/1.2 "Segoe UI",Arial,sans-serif;cursor:pointer}
+.sector-travel-banner button:hover{border-color:#f1cb80;background:#3a3120}
+.sector-travel-banner button:focus-visible{outline:2px solid #7cddf1;outline-offset:3px}
+.sector-map-card.stellar-sector-map{
+  --stellar-ink:#e2eef5;--stellar-dim:#91a8b8;--stellar-focus:#7cddf1;
+  display:block;gap:0;border:1px solid #345262;border-radius:4px;overflow:hidden;
+  background:#060e18;color:var(--stellar-ink);font-family:"Segoe UI",Arial,sans-serif;
+  text-transform:none;letter-spacing:normal;isolation:isolate;
+}
+.stellar-sector-map .stellar-map-header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 20px 14px;background:#0b1722;border-bottom:1px solid #273c4a}
+.stellar-sector-map .stellar-kicker{display:block;margin-bottom:5px;color:var(--stellar-focus);font-size:10px;letter-spacing:2px}
+.stellar-sector-map h3{margin:0;color:var(--stellar-ink);font:600 20px/1.25 "Segoe UI",Arial,sans-serif;letter-spacing:.3px;text-transform:none}
+.stellar-sector-map .stellar-location{display:flex;align-items:center;gap:8px;color:var(--stellar-dim);font-size:11px;white-space:nowrap}
+.stellar-sector-map .stellar-location>i{width:7px;height:7px;flex:none;background:var(--stellar-focus);border-radius:50%;box-shadow:0 0 12px #7cddf180}
+.stellar-sector-map .stellar-location strong{display:block;margin-top:3px;color:var(--stellar-ink);font-weight:600;font-size:12px}
+.stellar-sector-map .sector-map-board{
+  width:auto;height:clamp(370px,51vh,470px);min-height:0;margin:0 10px;overflow:visible;
+  border:0;box-shadow:none;background:
+    radial-gradient(ellipse at 19% 78%,#50232837,transparent 36%),
+    radial-gradient(ellipse at 20% 20%,#173d5e37,transparent 36%),
+    radial-gradient(ellipse at 82% 20%,#68552325,transparent 36%),
+    radial-gradient(ellipse at 80% 78%,#1b513e28,transparent 36%),#060e18;
+  background-size:auto;
+}
+.stellar-sector-map .sector-map-board::before,.stellar-sector-map .sector-map-board::after{display:none}
+.stellar-sector-map .sector-route{stroke:#587484;stroke-width:1;opacity:.38;filter:none;stroke-linecap:round}
+.stellar-sector-map .sector-route.bridge{stroke:#587484;stroke-width:1;stroke-dasharray:4 5;opacity:.35}
+.stellar-sector-map .sector-route.related{stroke:#90afbd;stroke-width:1.4;opacity:.85}
+.stellar-sector-map .sector-route.travel-active{stroke:#f1cb80;stroke-width:2;stroke-dasharray:none;opacity:1}
+.stellar-sector-map .stellar-stars circle{fill:#9aafbd;opacity:.35}
+.stellar-sector-map .sector-map-regions span{font-size:11px;letter-spacing:3px;font-weight:600;line-height:1;color:var(--stellar-dim);opacity:1;text-shadow:none;transform:translateX(-50%)}
+.stellar-sector-map .sector-map-regions span::before{content:"";display:inline-block;width:4px;height:4px;margin-right:7px;vertical-align:middle;border-radius:50%;background:var(--planet-color)}
+.stellar-sector-map .sector-map-regions .cyan{left:23%;top:4%;right:auto;bottom:auto}
+.stellar-sector-map .sector-map-regions .astra{left:23%;top:94%;right:auto;bottom:auto}
+.stellar-sector-map .sector-map-regions .auric{left:77%;top:4%;right:auto;bottom:auto}
+.stellar-sector-map .sector-map-regions .verdant{left:77%;top:94%;right:auto;bottom:auto}
+.stellar-sector-map .astra{--planet-color:#f28b7c;--planet-shadow:#501d2b;--planet-deep:#1c0d13;--planet-glint:#ffe0aa}
+.stellar-sector-map .cyan{--planet-color:#6ccaf0;--planet-shadow:#194f72;--planet-deep:#08121f;--planet-glint:#d8f2ff}
+.stellar-sector-map .auric{--planet-color:#f1cf6b;--planet-shadow:#72501e;--planet-deep:#191109;--planet-glint:#fff3bb}
+.stellar-sector-map .verdant{--planet-color:#7bd6a5;--planet-shadow:#255d48;--planet-deep:#071b18;--planet-glint:#d8fae3}
+.stellar-sector-map .violet{--planet-color:#bd9fe9;--planet-shadow:#513a76;--planet-deep:#160e23;--planet-glint:#f2e6ff}
+.stellar-sector-map .stellar-planet{
+  display:block;position:relative;flex:none;width:25px;height:25px;border-radius:50%;
+  background:radial-gradient(circle at 75% 75%,#020811 5%,transparent 70%),radial-gradient(ellipse at 22% 24%,var(--planet-glint),transparent 40%),repeating-linear-gradient(17deg,transparent 0 3px,#19243355 4px 5px,transparent 7px),radial-gradient(circle at 35% 32%,var(--planet-color),var(--planet-shadow) 65%,var(--planet-deep));
+  box-shadow:inset 1px 1px 1px #ffffff6b,0 0 12px color-mix(in srgb,var(--planet-color) 18%,transparent);
+}
+.stellar-sector-map :is(.sector-map-node,.sector-core-node){
+  position:absolute;left:var(--stellar-x);top:var(--stellar-y);width:94px;height:auto;min-height:65px;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;
+  transform:translate(-50%,-17px);padding:5px 1px;border:0;outline:0;border-radius:4px;
+  color:var(--stellar-ink);background:transparent;box-shadow:none;
+  font:400 11px/1.15 "Segoe UI",Arial,sans-serif;text-transform:none;cursor:pointer;opacity:1;
+}
+.stellar-sector-map :is(.sector-map-node,.sector-core-node) small{max-width:100%;overflow:visible;color:var(--stellar-ink);font:400 11px/1.15 "Segoe UI",Arial,sans-serif;letter-spacing:.15px;text-shadow:none;white-space:nowrap}
+.stellar-sector-map .sector-map-level{position:static;left:auto;top:auto;transform:none;min-width:0;padding:0;border:0;background:none;color:var(--stellar-dim);font:400 10px/1.15 "Segoe UI",Arial,sans-serif;letter-spacing:0;text-shadow:none}
+.stellar-sector-map :is(.sector-map-node,.sector-core-node).selected .stellar-planet::after{content:"";position:absolute;inset:-5px;border:1px solid #c2dce7;border-radius:50%}
+.stellar-sector-map :is(.sector-map-node,.sector-core-node).current .stellar-planet{outline:2px solid var(--stellar-focus);outline-offset:4px}
+.stellar-sector-map :is(.sector-map-node,.sector-core-node).current::before{content:"VOUS";position:absolute;bottom:100%;margin-bottom:-1px;color:var(--stellar-focus);font:500 9px/1 "Segoe UI",Arial,sans-serif;letter-spacing:1.5px}
+.stellar-sector-map :is(.sector-map-node,.sector-core-node):not(:disabled):hover{background:#122535b3;transform:translate(-50%,-17px);filter:none}
+.stellar-sector-map :is(.sector-map-node,.sector-core-node):focus-visible{outline:1px solid var(--stellar-focus);outline-offset:3px}
+.stellar-sector-map :is(.sector-map-node,.sector-core-node).future,.stellar-sector-map :is(.sector-map-node,.sector-core-node).locked{opacity:.4;filter:grayscale(.4);cursor:default}
+.stellar-sector-map :is(.sector-map-node,.sector-core-node).portgun-select:not(:disabled){box-shadow:none}
+.stellar-sector-map .sector-core-node{min-height:77px;width:90px;transform:translate(-50%,-28px)}
+.stellar-sector-map .sector-core-node:not(:disabled):hover{transform:translate(-50%,-28px)}
+.stellar-sector-map .sector-core-node .stellar-planet{width:35px;height:35px;background:radial-gradient(circle,#f3edff 0 3%,#caa3f0 8%,#4d3379 29%,#120e25 68%);box-shadow:0 0 32px #a478ce44}
+.stellar-sector-map .sector-core-node small{letter-spacing:2px;font-weight:600}
+.stellar-sector-map .sector-map-portals{display:none}
+.stellar-sector-map .stellar-selection{display:flex;align-items:center;gap:13px;min-height:76px;padding:13px 20px;border-top:1px solid #273c4a;background:#0b1824;box-sizing:border-box}
+.stellar-sector-map .stellar-selection>.stellar-planet{width:38px;height:38px}
+.stellar-sector-map .stellar-selection-copy{flex:1;min-width:0;display:grid;gap:5px}
+.stellar-sector-map .stellar-selection-copy strong{color:var(--stellar-ink);font-size:15px;font-weight:600}
+.stellar-sector-map .stellar-selection-copy>span{font-size:11px;line-height:1.4;color:var(--stellar-dim)}
+.stellar-sector-map .stellar-action{display:block;flex:none;border:1px solid #466c7c;border-radius:3px;padding:10px 12px;color:var(--stellar-ink);background:#112b3a;font:500 11px/1.25 "Segoe UI",Arial,sans-serif;text-transform:none;letter-spacing:0;cursor:pointer}
+.stellar-sector-map .stellar-action:not(:disabled):hover{background:#1c4051;border-color:#7cddf1}
+.stellar-sector-map .stellar-action:disabled{opacity:.45;cursor:default}
+.stellar-sector-map .stellar-action:focus-visible{outline:2px solid var(--stellar-focus);outline-offset:3px}
+.stellar-sector-map .stellar-connections,.stellar-sector-map .stellar-mode-note{padding:9px 20px;font-size:11px;line-height:1.5;color:var(--stellar-dim);min-height:34px;box-sizing:border-box;background:#08121c}
+.stellar-sector-map .stellar-mode-note{color:#f1cb80}
+.stellar-sector-map .stellar-travel-status{display:flex;align-items:center;gap:15px;justify-content:space-between;padding:12px 20px;border-top:1px solid #675333;background:#231e13}
+.stellar-sector-map .stellar-travel-status>div{min-width:0;display:grid;gap:5px}
+.stellar-sector-map .stellar-travel-status strong{color:#f1cb80;font-size:12px;font-weight:600}
+.stellar-sector-map .stellar-travel-status span{color:#d6cdb7;font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.stellar-sector-map .stellar-travel-status small{color:var(--stellar-dim);font-size:11px;line-height:1.4}
+.stellar-sector-map .stellar-cancel{background:#2b261c;border-color:#75613e}
+.stellar-sector-map .sector-map-legend{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 20px;border-top:1px solid #162b39}
+.stellar-sector-map .sector-map-legend span{padding:0;border:0;background:none;font:400 10px/1.4 "Segoe UI",Arial,sans-serif;letter-spacing:.3px;text-transform:none;color:var(--stellar-dim)}
+.stellar-sector-map .sector-map-legend .stellar-current-key{color:var(--stellar-focus)}
+.stellar-sector-map .sector-map-legend .level-key{margin-left:0;font-size:9px}
+@media(max-width:720px){
+  .stellar-sector-map .stellar-map-header{padding:13px 12px;gap:10px}
+  .stellar-sector-map h3{font-size:18px}
+  .stellar-sector-map .stellar-selection{padding:12px;gap:10px;flex-wrap:wrap}
+  .stellar-sector-map .stellar-selection>.stellar-planet{width:30px;height:30px}
+  .stellar-sector-map .stellar-selection-copy strong{font-size:14px}
+  .stellar-sector-map .stellar-action{padding:9px;font-size:11px;margin-left:auto}
+  .stellar-sector-map .stellar-connections,.stellar-sector-map .stellar-mode-note,.stellar-sector-map .stellar-travel-status,.stellar-sector-map .sector-map-legend{padding-left:12px;padding-right:12px}
+  .stellar-sector-map :is(.sector-map-node,.sector-core-node){width:82px;gap:4px}
+  .stellar-sector-map :is(.sector-map-node,.sector-core-node) small{font-size:10px;letter-spacing:0}
+  .stellar-sector-map .sector-map-level{font-size:9px}
+}
+@media(max-width:960px){.combat-utility-panel[data-utility-mode="map"]{width:calc(100vw - 20px);max-height:calc(100% - 80px)}}
+@media(max-width:520px){
+  .stellar-sector-map .sector-map-board{height:470px;margin:0 3px}
+  .stellar-sector-map .stellar-location{font-size:10px;white-space:normal;gap:6px}
+  .stellar-sector-map .stellar-location strong{font-size:11px}
+  .stellar-sector-map .stellar-kicker{font-size:9px;letter-spacing:1.2px}
+  .stellar-sector-map .sector-map-regions span{font-size:10px;letter-spacing:1.4px}
+  .stellar-sector-map :is(.sector-map-node,.sector-core-node){width:70px}
+  .stellar-sector-map :is(.sector-map-node,.sector-core-node) small{font-size:9px}
+  .stellar-sector-map .stellar-planet{width:22px;height:22px}
+  .stellar-sector-map .sector-core-node .stellar-planet{width:30px;height:30px}
+  .stellar-sector-map .stellar-travel-status{flex-wrap:wrap}
+}

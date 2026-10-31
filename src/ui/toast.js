@@ -22,6 +22,9 @@ function setToastContent(element, message){
 }
 
 export function showToast(msg, {position = "", trustedHtml = false} = {}){
+  const inGame = new URLSearchParams(window.location.search).get("mode") === "game";
+  if(inGame && position !== "top-center") return;
+
   const el = document.getElementById("toast");
   if(trustedHtml) el.innerHTML = String(msg ?? "");
   else setToastContent(el, msg);

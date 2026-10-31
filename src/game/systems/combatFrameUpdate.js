@@ -11,6 +11,7 @@ export function createCombatFrameUpdateSystem({
   getState,
   setState,
   advancePortalTransition,
+  completeDungeonTransition,
   loadMap,
   updatePlayerMovement,
   updateCamera,
@@ -98,7 +99,7 @@ export function createCombatFrameUpdateSystem({
         attackAmmoId:attackAmmo?.id || "",
         attackWeaponClass:attackAmmo?.weaponClass || "",
         repairBotActive:Boolean(player.repairBotActive),
-        ...(snapshotState.portalTransition ? {portalTransfer:true} : {}),
+        ...(snapshotState.portalTransition || snapshotState.autoTravelTransition ? {portalTransfer:true} : {}),
         pageHidden:document.hidden === true
       };
     }, {active, force, coalesce:!force}));
@@ -134,14 +135,22 @@ export function createCombatFrameUpdateSystem({
     }
 
     setState({teleportLock:Math.max(0, state.teleportLock - dt)});
-    if(portalTransition){
-      const completed = advancePortalTransition(portalTransition, dt);
+    rewards?.tick?.(dt);
+    if(portalTransition || state.autoTravelTransition){
+      const transition = portalTransition || state.autoTravelTransition;
+      if(portalTransition?.azuronAction){
+        serverEvents?.applyAll?.();
+        if(getState().portalTransition !== portalTransition) return;
+        if(player.isDead){setState({portalTransition:null});updateHud();return;}
+      }
+      // Automatic travel is timed and committed by the server; only manual jumps advance here.
+      const completed = portalTransition ? advancePortalTransition(portalTransition, dt) : false;
       player.vx = 0;
       player.vy = 0;
       player.enginePower = 0;
-      const startingTransfer = portalTransition.cleanupDone !== true;
+      const startingTransfer = transition.cleanupDone !== true;
       if(startingTransfer){
-        portalTransition.cleanupDone = true;
+        transition.cleanupDone = true;
         setState({
           moveTarget:null,
           mouseMoveHeld:false,
@@ -152,10 +161,12 @@ export function createCombatFrameUpdateSystem({
       timeCombatProfiler("sim.particles", ()=>updateParticles(dt));
       updateCamera({camera, player, canvas:getCanvas(), follow:1});
       recordPlayerCameraMotion();
-      if(completed){
+      if(completed && !portalTransition.serverControlled){
         const target = portalTransition.portal;
         setState({portalTransition:null});
-        loadMap(target.targetMap, target.targetX, target.targetY, {safeNow:true});
+        if(!completeDungeonTransition?.(portalTransition)){
+          loadMap(target.targetMap, target.targetX, target.targetY, {safeNow:true});
+        }
         sendCurrentPlayerSnapshot({force:true});
       }else{
         sendCurrentPlayerSnapshot({force:startingTransfer});
@@ -163,7 +174,6 @@ export function createCombatFrameUpdateSystem({
       }
       return;
     }
-    rewards.tick(dt);
     tickCombatBoosts(dt);
     updatePlayerPoison(dt);
     updatePlayerSlow(dt);
@@ -343,5 +353,5 @@ export function createCombatFrameUpdateSystem({
     timeCombatProfiler("panels.tick", ()=>panels.tick(dt));
   }
 
-  return {update};
+  return {update, sendCurrentPlayerSnapshot};
 }

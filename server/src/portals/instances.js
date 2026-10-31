@@ -1,4 +1,8 @@
 import { getInstanceGroups, getPersonalPortalGroup } from "./portalSessions.js";
+import { createAzuronJourney } from "./azuronJourney.js";
+import { isWavePortal } from "../../../src/data/wavePortalTiers.js";
+import { invokeFragmentAttempt,finishFragmentAttempt,createAttemptEntry,activateFragmentAttempt } from "./portalAttempts.js";
+import { isFragmentPortal,PORTAL_REWARD_DISPLAY_DELAY_MS } from "../../../src/shared/portalAttempts.js";
 import { createDeadlyEntryGate } from "./deadlyEntry.js";
 import { applyProgressionReward, getProgressionLevelCap } from "../players/progression.js";
 import { applyServerReputationFromXp, updateRankScore } from "../players/rankProgression.js";
@@ -12,6 +16,7 @@ import {
   AZURON_TOTAL_WAVES,
   buildAzuronPortalWave,
   createAzuronWaveRuntime,
+  publicAzuronObjective,
   grantAzuronLaserReward
 } from "./azuronPortal.js";
 import {
@@ -131,7 +136,7 @@ export function createPortalInstanceManager({
   const deadlyEntry = createDeadlyEntryGate({players, groups, profileManager, emitProfileSync});
 
   function buildServerPortalWave(wave, portalId = ""){
-    if(String(portalId) === AZURON_PORTAL_ID) return buildAzuronPortalWave(wave, now());
+    if(isWavePortal(portalId)) return buildAzuronPortalWave(wave, now(),{portalId});
     if(String(portalId) === KHARON_PORTAL_ID) return buildKharonPortalWave(wave, now());
     if(String(portalId) === IONIS_PORTAL_ID) return buildIonisPortalWave(wave, now());
     if(String(portalId) === NOX_PORTAL_ID) return buildNoxPortalWave(wave, now());
@@ -139,7 +144,7 @@ export function createPortalInstanceManager({
   }
 
   function getPortalTotalWaves(portal){
-    if(String(portal?.id || "") === AZURON_PORTAL_ID) return AZURON_TOTAL_WAVES;
+    if(isWavePortal(portal)) return AZURON_TOTAL_WAVES;
     if(String(portal?.id || "") === VESPER_PORTAL_ID) return 0;
     if(String(portal?.id || "") === KHARON_PORTAL_ID) return KHARON_TOTAL_WAVES;
     if(String(portal?.id || "") === IONIS_PORTAL_ID) return IONIS_TOTAL_WAVES;
@@ -193,6 +198,7 @@ export function createPortalInstanceManager({
       : group?.members || [])
       .filter(memberId=>!group?.instance?.abandonedMemberIds?.includes(memberId));
     emitWorldReward?.({enemy, mapId, attackerId, recipientIds});
+    if(enemy.noReward) return false;
     progressServerQuestsForKill?.({enemy, mapId, attackerId, recipientIds});
     return enemy.rewardGranted === true;
   }
@@ -214,10 +220,13 @@ export function createPortalInstanceManager({
   const azuronRuntime = createAzuronWaveRuntime({
     emitInstance,
     emitPortalComplete,
+    onBatchReady:(group,nextWave)=>azuronJourney.saveBatch(group,nextWave),
     setTimeoutFn,
     clearTimeoutFn,
     now
   });
+  const azuronJourney = createAzuronJourney({io,players,groups,profileManager,emitProfileSync,emitInstance,
+    setPlayerMap,cancelPendingAttacksForRoom,cancelRuntime:azuronRuntime.cancel,continueBatch:azuronRuntime.continueBatch,now,setTimeoutFn});
   const vesperRuntime = createVesperPortalRuntime({
     io,
     players,
@@ -336,7 +345,8 @@ export function createPortalInstanceManager({
       waveState:String(instance.waveState || ""),
       playerLives:{...(instance.playerLives || {})},
       allies:publicVesperAllies(instance),
-      objective:publicVesperObjective(instance)
+      objective:publicAzuronObjective(instance)
+        || publicVesperObjective(instance)
         || publicKharonObjective(instance, now())
         || publicIonisObjective(instance, now())
         || publicEclaniteObjective(instance, now())
@@ -360,6 +370,9 @@ export function createPortalInstanceManager({
       const player = players.get(memberId);
       if(!player?.state) continue;
       const profile = profileManager.getProfileForPlayer?.(player);
+      const closed=profileManager.updateProfileForPlayer?.({player,update:draft=>{finishFragmentAttempt(draft,NOX_PORTAL_ID);return {ok:true};}});
+      player.preparedPortal=null;io.to(memberId).emit("portal:prepared",{preparedPortal:null,cleared:true,reason:"failed"});
+      if(closed?.profile) emitProfileSync?.(player,closed.profile);
       const firmId = normalizeFirmId(profile?.player?.firmId || player.account?.firmId || "astra");
       const homeMapId = String(getFirmMapId(firmId, 1));
       const homeMap = WORLD_MAPS[homeMapId] || WORLD_MAPS["0"];
@@ -424,6 +437,9 @@ export function createPortalInstanceManager({
       const player = players.get(memberId);
       if(!player?.state) continue;
       const profile = profileManager.getProfileForPlayer?.(player);
+      const closed=profileManager.updateProfileForPlayer?.({player,update:draft=>{finishFragmentAttempt(draft,ANCIENT_PORTAL_ID);return {ok:true};}});
+      player.preparedPortal=null;io.to(memberId).emit("portal:prepared",{preparedPortal:null,cleared:true,reason:"failed"});
+      if(closed?.profile) emitProfileSync?.(player,closed.profile);
       const firmId = normalizeFirmId(profile?.player?.firmId || player.account?.firmId || "astra");
       const homeMapId = String(getFirmMapId(firmId, 1));
       const homeMap = WORLD_MAPS[homeMapId] || WORLD_MAPS["0"];
@@ -502,13 +518,14 @@ export function createPortalInstanceManager({
     return player.preparedPortal ? player : null;
   }
 
-  function persistPreparedPortal(player, preparedPortal){
+  function persistPreparedPortal(player, preparedPortal, {invoke = false} = {}){
     if(!player?.accountId || typeof profileManager.updateProfileForPlayer !== "function"){
       return {ok:false, reason:"Authentification requise pour sauvegarder le portail."};
     }
     return profileManager.updateProfileForPlayer({
       player,
       update(profile){
+        if(invoke) return invokeFragmentAttempt(profile,publicPreparedPortal(preparedPortal));
         profile.preparedPortal = preparedPortal ? publicPreparedPortal(preparedPortal) : null;
         return {ok:true};
       }
@@ -605,7 +622,7 @@ export function createPortalInstanceManager({
       socket.emit("portal:error", {message:"Portail non deverrouille."});
       return false;
     }
-    if(requireUnlocked && !profile?.unlockedPortals?.includes(portalDefinition.id)){
+    if(requireUnlocked && !profile?.unlockedPortals?.includes(portalDefinition.id) && profile?.portalAttempt?.portalId!==portalDefinition.id){
       socket.emit("portal:error", {message:"Portail non deverrouille."});
       return false;
     }
@@ -703,15 +720,19 @@ export function createPortalInstanceManager({
       return;
     }
     if(!validatePortalDefinitionForPlayer({socket:replySocket, player, profile, portalDefinition})) return;
+    if(profile.portalAttempt && profile.portalAttempt.portalId!==portalDefinition.id){
+      replySocket.emit("portal:error",{code:"PORTAL_ALREADY_INVOKED",message:"Un portail est deja invoque. Termine-le ou utilise ses trois vies."});
+      return;
+    }
     if(rejectPendingPortalContent(replySocket, portalDefinition)) return;
     const portal = PORTAL_CONFIGS[portalDefinition.id] || PORTAL_CONFIGS.blue;
     const totalWaves = getPortalTotalWaves(portal);
     const firmId = normalizeFirmId(profile?.player?.firmId || player.account?.firmId || "astra");
     const placement = getPreparedPortalPlacement(firmId);
-    const preparedPortal = {
+    const preparedPortal = profile.portalAttempt ? createAttemptEntry(profile.portalAttempt,profile,now()) : {
       id:`prepared-${portal.id}-${Date.now().toString(36)}`,
       portalId:portal.id,
-      portal:{id:portal.id, name:portal.name, totalWaves},
+      portal:{id:portal.id, name:portal.name, totalWaves,...(isWavePortal(portal) ? {encounterKind:"azuron"} : {})},
       ...placement,
       r:PREPARED_PORTAL_RADIUS,
       safeRadius:PREPARED_PORTAL_SAFE_RADIUS,
@@ -721,7 +742,7 @@ export function createPortalInstanceManager({
       ownerAccountId:getPortalOwnerAccountId(player),
       preparedAt:Date.now()
     };
-    const persisted = persistPreparedPortal(player, preparedPortal);
+    const persisted = persistPreparedPortal(player, preparedPortal,{invoke:!profile.portalAttempt});
     if(persisted?.ok === false){
       replySocket.emit("portal:error", {message:persisted.reason || "Impossible de sauvegarder le portail prepare."});
       return;
@@ -732,6 +753,7 @@ export function createPortalInstanceManager({
         if(isSamePortalOwner(player, candidate)) candidate.preparedPortal = savedPreparedPortal;
       }
       player.preparedPortal = savedPreparedPortal;
+      emitProfileSync?.(player,persisted.profile);
       emitPreparedPortal(player, savedPreparedPortal);
       return savedPreparedPortal;
     };
@@ -802,7 +824,7 @@ export function createPortalInstanceManager({
       return;
     }
     const isRickyPortal = portalDefinition.id === RICKY_PORTAL_ID;
-    if(!isRickyPortal && !profile?.unlockedPortals?.includes(portalDefinition.id)){
+    if(!isRickyPortal && profile?.portalAttempt?.portalId!==portalDefinition.id){
       socket.emit("portal:error", {message:"Portail non deverrouille."});
       return;
     }
@@ -847,9 +869,9 @@ export function createPortalInstanceManager({
     if(!isRickyPortal && rejectPendingPortalContent(socket, portalDefinition)) return;
     const portal = PORTAL_CONFIGS[portalDefinition.id] || PORTAL_CONFIGS.blue;
     const totalWaves = getPortalTotalWaves(portal);
-    const isAzuronPortal = portal.id === AZURON_PORTAL_ID;
-    const isVesperPortal = portal.id === VESPER_PORTAL_ID;
-    const isKharonPortal = portal.id === KHARON_PORTAL_ID;
+    const isAzuronPortal = isWavePortal(portal);
+    const isVesperPortal = !isAzuronPortal && portal.id === VESPER_PORTAL_ID;
+    const isKharonPortal = !isAzuronPortal && portal.id === KHARON_PORTAL_ID;
     const isIonisPortal = portal.id === IONIS_PORTAL_ID;
     const isEclanitePortal = portal.id === ECLANITE_PORTAL_ID;
     const isNoxPortal = portal.id === NOX_PORTAL_ID;
@@ -859,7 +881,7 @@ export function createPortalInstanceManager({
     group.instance = {
       id:`P-${String(instanceSeq++).padStart(4, "0")}`,
       type:"portal",
-      portal:{id:portal.id, name:portal.name, totalWaves},
+      portal:{id:portal.id, name:portal.name, totalWaves,...(isWavePortal(portal) ? {encounterKind:"azuron"} : {})},
       spawn:{
         mapId:`portal-${portal.id}`,
         ...(isRickyPortal
@@ -904,7 +926,8 @@ export function createPortalInstanceManager({
       waveState:String(group.instance.waveState || ""),
       playerLives:{...(group.instance.playerLives || {})},
       allies:publicVesperAllies(group.instance),
-      objective:publicVesperObjective(group.instance)
+      objective:publicAzuronObjective(group.instance)
+        || publicVesperObjective(group.instance)
         || publicKharonObjective(group.instance, now())
         || publicIonisObjective(group.instance, now())
         || publicEclaniteObjective(group.instance, now())
@@ -955,7 +978,7 @@ export function createPortalInstanceManager({
       socket.emit("portal:error", {message:`Portail limite a ${RICKY_MAX_GROUP_MEMBERS} joueurs.`});
       return;
     }
-    if(!isRickyPortal && !profile?.unlockedPortals?.includes(portalDefinition.id)){
+    if(!isRickyPortal && profile?.portalAttempt?.portalId!==portalDefinition.id){
       socket.emit("portal:error", {message:"Portail non deverrouille."});
       return;
     }
@@ -984,9 +1007,9 @@ export function createPortalInstanceManager({
     }
     const portal = PORTAL_CONFIGS[portalDefinition.id] || PORTAL_CONFIGS.blue;
     const totalWaves = getPortalTotalWaves(portal);
-    const isAzuronPortal = portal.id === AZURON_PORTAL_ID;
-    const isVesperPortal = portal.id === VESPER_PORTAL_ID;
-    const isKharonPortal = portal.id === KHARON_PORTAL_ID;
+    const isAzuronPortal = isWavePortal(portal);
+    const isVesperPortal = !isAzuronPortal && portal.id === VESPER_PORTAL_ID;
+    const isKharonPortal = !isAzuronPortal && portal.id === KHARON_PORTAL_ID;
     const isIonisPortal = portal.id === IONIS_PORTAL_ID;
     const isEclanitePortal = portal.id === ECLANITE_PORTAL_ID;
     const isNoxPortal = portal.id === NOX_PORTAL_ID;
@@ -997,7 +1020,7 @@ export function createPortalInstanceManager({
     group.instance = {
       id:`P-${String(instanceSeq++).padStart(4, "0")}`,
       type:"portal",
-      portal:{id:portal.id, name:portal.name, totalWaves},
+      portal:{id:portal.id, name:portal.name, totalWaves,...(isWavePortal(portal) ? {encounterKind:"azuron"} : {})},
       ...(!isRickyPortal ? {
         privateOwner:true,
         ownerPlayerId:player.id,
@@ -1030,37 +1053,43 @@ export function createPortalInstanceManager({
         objective:createRickyObjective()
       } : {})
     };
-    if(isAzuronPortal) azuronRuntime.start(group);
-    if(isKharonPortal) kharonRuntime.start(group);
-    if(isIonisPortal) ionisRuntime.start(group);
-    if(isEclanitePortal) eclaniteRuntime.start(group);
-    if(isNoxPortal) noxRuntime.start(group);
-    if(isPrismaticPortal) prismaticRuntime.start(group);
-    if(isPrecursorPortal) precursorRuntime.start(group);
-    if(!isRickyPortal) clearPreparedPortal(player, "started");
-    if(isRickyPortal) emitPortalStart(socket, group);
-    else emitToPortalOwner(player, "portal:started", {
-      instanceId:group.instance.id,
-      portal:group.instance.portal,
-      spawn:group.instance.spawn,
-      wave:group.instance.wave,
-      waveTotal:Number(group.instance.portal?.totalWaves || 0),
-      nextWaveAt:Number(group.instance.nextWaveAt || 0),
-      nextWaveDelayMs:Math.max(0, Number(group.instance.nextWaveAt || 0) - Number(now())),
-      waveState:String(group.instance.waveState || ""),
-      playerLives:{...(group.instance.playerLives || {})},
-      allies:publicVesperAllies(group.instance),
-      objective:publicVesperObjective(group.instance)
-        || publicKharonObjective(group.instance, now())
-        || publicIonisObjective(group.instance, now())
-        || publicEclaniteObjective(group.instance, now())
-        || publicNoxObjective(group.instance, now())
-        || publicPrismaticObjective(group.instance)
-        || publicPrecursorObjective(group.instance, now())
-        || group.instance.objective
-        || null
-    });
-    emitInstance(group);
+    const finishStart = (azuronProgress = null)=>{
+      if(isAzuronPortal) azuronRuntime.start(group,{progress:azuronProgress});
+      if(isKharonPortal) kharonRuntime.start(group);
+      if(isIonisPortal) ionisRuntime.start(group);
+      if(isEclanitePortal) eclaniteRuntime.start(group);
+      if(isNoxPortal) noxRuntime.start(group);
+      if(isPrismaticPortal) prismaticRuntime.start(group);
+      if(isPrecursorPortal) precursorRuntime.start(group);
+      if(!isRickyPortal) clearPreparedPortal(player, "started");
+      if(isRickyPortal) emitPortalStart(socket, group);
+      else emitToPortalOwner(player, "portal:started", {
+        instanceId:group.instance.id,
+        portal:group.instance.portal,
+        spawn:group.instance.spawn,
+        wave:group.instance.wave,
+        waveTotal:Number(group.instance.portal?.totalWaves || 0),
+        nextWaveAt:Number(group.instance.nextWaveAt || 0),
+        nextWaveDelayMs:Math.max(0, Number(group.instance.nextWaveAt || 0) - Number(now())),
+        waveState:String(group.instance.waveState || ""),
+        playerLives:{...(group.instance.playerLives || {})},
+        allies:publicVesperAllies(group.instance),
+        objective:publicAzuronObjective(group.instance)
+          || publicVesperObjective(group.instance)
+          || publicKharonObjective(group.instance, now())
+          || publicIonisObjective(group.instance, now())
+          || publicEclaniteObjective(group.instance, now())
+          || publicNoxObjective(group.instance, now())
+          || publicPrismaticObjective(group.instance)
+          || publicPrecursorObjective(group.instance, now())
+          || group.instance.objective
+          || null
+      });
+      emitInstance(group);
+    };
+    if(isAzuronPortal) return azuronJourney.begin(player,group,finishStart,socket);
+    if(!isRickyPortal) return activateFragmentAttempt({profileManager,player,group,socket,activate:finishStart});
+    return finishStart();
   }
 
   function progressPortalCompletionQuest(player, portalId){
@@ -1124,8 +1153,10 @@ export function createPortalInstanceManager({
             getProgressionLevelCap(profile.prestigeCount)
           );
           if(!profile.completedPortals || typeof profile.completedPortals !== "object") profile.completedPortals = {};
+          finishFragmentAttempt(profile,portal.id);
           if(portal.id === AZURON_PORTAL_ID){
             portalBonusReward = grantAzuronLaserReward(profile, {random});
+            profile.azuronProgress = null;
           }else{
             portalBonusReward = grantPortalBonusReward(profile, portal.id, {random});
           }
@@ -1159,10 +1190,17 @@ export function createPortalInstanceManager({
           : null,
         firstClear:Boolean(portalBonusReward?.firstClear),
         rewardAppliedByServer:true,
+        rewardDisplayDelayMs:isFragmentPortal(portal.id) ? PORTAL_REWARD_DISPLAY_DELAY_MS : 0,
         at:now
       });
       const questResult = progressPortalCompletionQuest(player, portal.id);
       const finalProfile = questResult?.profile || result.profile || currentProfile;
+      if(isFragmentPortal(portal.id)){
+        for(const candidate of players.values()){
+          if(isSamePortalOwner(player,candidate)) candidate.preparedPortal=null;
+        }
+        emitToPortalOwner(player,"portal:prepared",{preparedPortal:null,cleared:true,reason:"completed",at:now});
+      }
       emitProfileSync?.(player, finalProfile);
       personalFirmSnapshots.push({player, playerKey, profile:finalProfile});
     }
@@ -1192,7 +1230,7 @@ export function createPortalInstanceManager({
       return;
     }
     awardPortalEnemyReward(group, enemy, killerId);
-    if(instance.portal?.id === AZURON_PORTAL_ID){
+    if(isWavePortal(instance.portal)){
       azuronRuntime.handleEnemyDeath(group);
       return;
     }
@@ -1250,6 +1288,7 @@ export function createPortalInstanceManager({
     updatePrismaticEncounters:prismaticRuntime.updatePrismaticEncounters,
     getPrecursorNpcTargets:precursorRuntime.getPrecursorNpcTargets,
     interactWithPrecursorPortal:precursorRuntime.interact,
+    interactAzuronPortal:azuronJourney.interact,
     updatePrecursorEncounters:precursorRuntime.updatePrecursorEncounters,
     preparePortalInstance,
     startPortalInstance:startRickyAwarePortalInstance

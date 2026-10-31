@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="../../">
+  <title>Avosoma — Atelier des effets</title>
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="tools/vfx-lab/lab.css?v=laser-review-1">
+</head>
+<body>
+  <main>
+    <header class="masthead">
+      <div><div class="eyebrow">AVOSOMA · RECHERCHE VISUELLE</div><h1>Donner du caractère au mouvement.</h1></div>
+      <span class="preview-label">Aperçu local</span>
+    </header>
+    <p class="intro">Tes vaisseaux et tes monstres, avec une nouvelle signature. Compare les effets et les déplacements proposés.</p>
+    <p class="surface-hint"><a href="tools/vfx-lab/shields.html?revision=shield-assigned-1" style="color:#a9e8ee">Voir les boucliers validés →</a></p>
+    <nav class="tabs" role="tablist" aria-label="Famille d’effets">
+      <button type="button" role="tab" id="tab-engines" aria-controls="workspace" aria-selected="true" data-mode="engines">Réacteurs</button>
+      <button type="button" role="tab" id="tab-weapons" aria-controls="workspace" aria-selected="false" data-mode="weapons">Lasers & projectiles</button>
+      <button type="button" role="tab" id="tab-enemies" aria-controls="workspace" aria-selected="false" data-mode="enemies">Monstres</button>
+    </nav>
+    <section id="workspace" role="tabpanel" aria-labelledby="tab-engines">
+      <div class="controls">
+        <label><span id="subject-label">Vaisseau</span><select id="subject" aria-labelledby="subject-label"></select></label>
+        <label id="motion-field"><span id="motion-label">Déplacement</span><select id="motion" aria-labelledby="motion-label"><option value="cycle">Démarrage → vol → virage → arrêt</option><option value="cruise">Vol continu</option><option value="turn">Virages</option><option value="idle">À l’arrêt</option></select></label>
+        <label id="decor-field"><span id="decor-label">Décor</span><select id="decor" aria-labelledby="decor-label"><option value="helion1">Helion-01 · poussière</option><option value="helion3">Helion-03 · nébuleuse</option><option value="space">Espace sombre</option></select></label>
+        <label id="scenario-field" hidden><span id="scenario-label">Situation</span><select id="scenario" aria-labelledby="scenario-label"><option value="combat">Combat</option><option value="pursuit">Poursuite du pilote</option><option value="patrol">Patrouille</option><option value="showcase">Vol et tirs · démonstration</option></select></label>
+        <label id="enemy-view-field" hidden><span id="enemy-view-label">Cadrage</span><select id="enemy-view" aria-labelledby="enemy-view-label"><option value="detail">Détail du monstre ×2</option><option value="macro">Gros plan ×3</option><option value="wide">Vue d’ensemble</option></select></label>
+        <label id="surface-field" hidden><span id="surface-label">Protection de la cible</span><select id="surface" aria-labelledby="surface-label"><option value="shield">Bouclier actif</option><option value="hull">Sans bouclier · coque</option></select></label>
+        <label id="playback-field" hidden><span id="playback-label">Lecture</span><select id="playback" aria-labelledby="playback-label"><option value="1">Temps réel</option><option value="0.25">Ralenti ×4</option></select></label>
+        <button type="button" id="pause" aria-pressed="false">Mettre en pause</button>
+      </div>
+      <p id="surface-hint" class="surface-hint" hidden></p>
+      <div class="comparison">
+        <article class="viewport"><header><span class="view-label" id="before-label">ACTUEL</span><span id="before-subtitle">Rendu du jeu local</span></header><canvas id="before" role="img" aria-label="Animation actuelle du jeu"></canvas><footer id="before-note"></footer></article>
+        <article class="viewport proposed"><header><span class="view-label" id="after-label">PROPOSITION</span><span id="style-label">Propulsion ionique</span></header><canvas id="after" role="img" aria-label="Proposition animée des nouveaux effets"></canvas><footer id="after-note"></footer></article>
+      </div>
+      <div class="caption"><p id="description" aria-live="polite"></p><span id="phase">Préparation</span></div>
+    </section>
+    <footer class="scope">Scène de comparaison visuelle · Sprites du jeu · Déplacements simulés · Aucun compte connecté</footer>
+    <p id="error" role="alert" hidden></p>
+    <noscript>Active JavaScript pour voir les animations.</noscript>
+  </main>
+  <script type="importmap">{
+  "imports": {
+    "/src/game/combatData/weaponVisuals.js": "/src/game/combatData/weaponVisuals.js?v=orb-rig-1",
+    "/src/game/render/weaponVfx.js": "/src/game/render/weaponVfx.js?v=orb-rig-1",
+    "/src/game/systems/combatEnemyImpacts.js": "/src/game/systems/combatEnemyImpacts.js?v=orb-rig-1",
+    "/src/game/combatData/enemyWeaponContact.js": "/src/game/combatData/enemyWeaponContact.js?v=orb-rig-1",
+    "/src/game/render/enemyWeaponImpact.js": "/src/game/render/enemyWeaponImpact.js?v=orb-rig-1",
+    "/src/game/render/shieldSurfaces.js": "/src/game/render/shieldSurfaces.js?v=orb-rig-1",
+    "/src/game/render/playerShieldImpacts.js": "/src/game/render/playerShieldImpacts.js?v=orb-rig-1",
+    "/src/game/systems/combatPlayerShieldImpacts.js": "/src/game/systems/combatPlayerShieldImpacts.js?v=orb-rig-1",
+    "/src/game/render/entities.js": "/src/game/render/entities.js?v=20261025-eclanite-visual1",
+    "/src/game/combatData/enemies.js": "/src/game/combatData/enemies.js?v=20261025-eclanite-visual1",
+    "/src/game/render/enemyOrb.js": "/src/game/render/enemyOrb.js?v=20261025-orb-family1",
+    "/src/game/combatData/orbVisuals.js": "/src/game/combatData/orbVisuals.js?v=20261025-orb-size1",
+    "/src/game/render/orbSprite.js": "/src/game/render/orbSprite.js?v=20261025-enemy-motion1",
+    "/src/game/combatAssets.js": "/src/game/combatAssets.js?v=20261025-eclanite-visual1",
+    "/src/game/render/orbMotion.js": "/src/game/render/orbMotion.js?v=20261025-enemy-motion1",
+    "/src/game/render/orbWake.js": "/src/game/render/orbWake.js?v=20261025-enemy-smoke3",
+    "/src/game/combatAssets.js?v=20261022-helion-hub1": "/src/game/combatAssets.js?v=20261025-eclanite-visual1",
+    "/src/game/render/entities.js?v=20261022-helion-hub1": "/src/game/render/entities.js?v=20261025-eclanite-visual1",
+    "/src/game/combatAssets.js?v=20261024-sector-portals1": "/src/game/combatAssets.js?v=20261025-eclanite-visual1",
+    "/src/data/enemyVisuals.js": "/src/data/enemyVisuals.js?v=20261025-tracker-boss1r2",
+    "/src/game/render/enemyVorak.js": "/src/game/render/enemyVorak.js?v=20261025-vorak-family1",
+    "/src/game/render/vorakSprite.js": "/src/game/render/vorakSprite.js?v=20261025-enemy-motion1",
+    "/src/game/render/vorakWake.js": "/src/game/render/vorakWake.js?v=20261025-enemy-smoke3",
+    "/src/game/combatData/vorakVisuals.js": "/src/game/combatData/vorakVisuals.js?v=20261025-vorak-family1",
+    "/src/game/render/vorakMotion.js": "/src/game/render/vorakMotion.js?v=20261025-enemy-motion1",
+    "/src/game/render/shipEngineWake.js": "/src/game/render/shipEngineWake.js?v=20261025-enemy-smoke3",
+    "/tools/vfx-lab/parasite/profiles.js": "/tools/vfx-lab/parasite/profiles.js?v=parasite-live-1",
+    "/tools/vfx-lab/parasite/bossMotion.js": "/tools/vfx-lab/parasite/bossMotion.js?v=parasite-live-1",
+    "/tools/vfx-lab/parasite/bossCrown.js": "/tools/vfx-lab/parasite/bossCrown.js?v=parasite-live-1",
+    "/src/game/render/parasiteMotion.js": "/src/game/render/parasiteMotion.js?v=20261025-tracker-parasite1",
+    "/src/game/combatData/parasiteVisuals.js": "/src/game/combatData/parasiteVisuals.js?v=20261025-enemy-motion1",
+    "/src/game/render/enemyParasite.js": "/src/game/render/enemyParasite.js?v=20261025-parasite-smoke1",
+    "/src/game/render/parasiteBossCrown.js": "/src/game/render/parasiteBossCrown.js?v=20261025-parasite-smoke1",
+    "/src/game/render/parasiteWake.js": "/src/game/render/parasiteWake.js?v=20261025-enemy-smoke3",
+    "/src/game/render/parasiteSprite.js": "/src/game/render/parasiteSprite.js?v=20261025-enemy-motion1",
+    "/src/game/render/parasiteBossMotion.js": "/src/game/render/parasiteBossMotion.js?v=20261025-tracker-parasite1",
+    "/src/game/render/parasiteTentacles.js": "/src/game/render/parasiteTentacles.js?v=20261025-enemy-motion1",
+    "/src/game/combatData/trackerVisuals.js": "/src/game/combatData/trackerVisuals.js?v=20261025-enemy-motion1",
+    "/src/game/render/trackerElectricity.js": "/src/game/render/trackerElectricity.js?v=20261025-tracker-parasite1",
+    "/src/game/render/trackerMotion.js": "/src/game/render/trackerMotion.js?v=20261025-enemy-motion1",
+    "/src/game/render/trackerWake.js": "/src/game/render/trackerWake.js?v=20261025-enemy-motion1",
+    "/src/game/render/trackerSprite.js": "/src/game/render/trackerSprite.js?v=20261025-enemy-motion1",
+    "/src/game/render/enemyTracker.js": "/src/game/render/enemyTracker.js?v=20261025-tracker-parasite1",
+    "/src/game/render/enemyArticulatedSprite.js": "/src/game/render/enemyArticulatedSprite.js?v=20261025-tracker-parasite1",
+    "/src/game/combatData/eclaniteVisuals.js": "/src/game/combatData/eclaniteVisuals.js?v=20261025-eclanite-visual1",
+    "/src/game/render/eclaniteSprite.js": "/src/game/render/eclaniteSprite.js?v=20261025-enemy-motion1",
+    "/src/game/render/eclaniteWake.js": "/src/game/render/eclaniteWake.js?v=20261025-eclanite-visual1",
+    "/src/game/render/enemyEclanite.js": "/src/game/render/enemyEclanite.js?v=20261025-eclanite-visual1",
+    "/src/game/render/eclaniteMotion.js": "/src/game/render/eclaniteMotion.js?v=20261025-enemy-motion1",
+    "/src/game/render/enemyLocomotion.js": "/src/game/render/enemyLocomotion.js?v=20261025-enemy-motion1"
+  }
+}</script>
+  <script type="module" src="tools/vfx-lab/lab.js?v=locomotion-live-1"></script>
+</body>
+</html>

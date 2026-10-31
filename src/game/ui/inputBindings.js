@@ -1,5 +1,6 @@
-import { abilityIndexFromEvent, isEditableTarget, slotIndexFromEvent } from "../../core/keybinds.js?v=ship-abilities-1";
+import { abilityIndexFromEvent, isEditableTarget, slotIndexFromEvent } from "../../core/keybinds.js?v=20260726-kharon1";
 import { installCombatActionBarInputHandlers, setCombatAssetDragImage } from "./combatActionBarInput.js";
+import { cycleCombatMeterMode } from "./combatMeterModes.js";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
@@ -22,6 +23,7 @@ export function installCombatInputHandlers({
   saveState,
   getMouse,
   setMoveTarget,
+  onManualNavigation = ()=>{},
   setMouseMoveHeld,
   worldFromScreen,
   miniMapHitTest,
@@ -58,6 +60,9 @@ export function installCombatInputHandlers({
   openUtilityPanel,
   toggleBoosterDetail,
   selectPortgunMapTarget,
+  selectSectorMap,
+  startSectorMapTravel,
+  cancelSectorMapTravel,
   closeUtilityPanel,
   inviteGroupMember,
   handleSocialAction,
@@ -77,6 +82,7 @@ export function installCombatInputHandlers({
   selectCraftCategory,
   selectCraftTabPage,
   selectCraftRecipe,
+  selectCraftPayment,
   setRefineryPanelTab,
   openShipRefineRecipe,
   closeShipRefineRecipe,
@@ -295,7 +301,7 @@ export function installCombatInputHandlers({
     return true;
   }
 
-  function openBoostDepositDialog({target, materialId, materialName, materialImg, maxAmount}){
+  function openBoostDepositDialog({target, materialId, materialName, materialImg, maxAmount, initialAmount = 1}){
     const {layer, amount, range} = getBoostDepositElements();
     const available = Math.max(0, Math.floor(Number(maxAmount || 0)));
     if(!layer || available <= 0){
@@ -324,7 +330,7 @@ export function installCombatInputHandlers({
     if(range) range.max = String(available);
     layer.classList.remove("hidden");
     layer.setAttribute("aria-hidden", "false");
-    syncBoostDepositAmount(1);
+    syncBoostDepositAmount(initialAmount);
     amount?.focus({preventScroll:true});
     amount?.select();
     return true;
@@ -386,6 +392,7 @@ export function installCombatInputHandlers({
   windowRef.addEventListener("keydown", e=>{
     if(!isRunning()) return;
     if(isSettingsOpen() || isEditableTarget(e.target)) return;
+    if(e.target.closest?.("[data-combat-meter]") && (e.key === " " || e.key === "Enter")) return;
     if(e.key === "Escape" && hasSelectedEnemy()){
       e.preventDefault();
       clearSelectedEnemy();
@@ -396,6 +403,7 @@ export function installCombatInputHandlers({
         e.preventDefault();
         return;
       }
+      onManualNavigation();
       if(tryUseMapPortal()) e.preventDefault();
       return;
     }
@@ -455,6 +463,7 @@ export function installCombatInputHandlers({
           return;
         }
         if(miniMapHit.type === "map"){
+          onManualNavigation();
           setMoveTarget(worldFromMiniMap(mouse.x, mouse.y));
           setMouseMoveHeld?.(false);
           updateHud();
@@ -464,6 +473,7 @@ export function installCombatInputHandlers({
       }
       const station = getStationAt(world);
       if(station){
+        onManualNavigation();
         const progressed = progressMissionControl?.(station);
         renderSpawnInteractionPanel(station.id);
         if(progressed) updateHud();
@@ -471,20 +481,24 @@ export function installCombatInputHandlers({
       }
       const questNpc = findQuestNpcAt?.(world);
       if(questNpc){
+        onManualNavigation();
         interactQuestNpc?.(questNpc);
         return;
       }
       const cargo = findCargoBoxAt?.(world);
+      if(cargo) onManualNavigation();
       if(cargo && setCargoDestination?.(cargo)){
         updateHud();
         return;
       }
       const groundMaterial = findGroundMaterialAt?.(world);
+      if(groundMaterial) onManualNavigation();
       if(groundMaterial && setGroundMaterialDestination?.(groundMaterial)){
         updateHud();
         return;
       }
       const portalObjective = findPortalObjectiveAt?.(world);
+      if(portalObjective) onManualNavigation();
       if(portalObjective && interactPortalObjective?.(portalObjective)){
         mouseMoveHeld = false;
         setMouseMoveHeld?.(false);
@@ -518,6 +532,7 @@ export function installCombatInputHandlers({
           return;
         }
         lastCombatTargetClick = null;
+        onManualNavigation();
         mouseMoveHeld = true;
         setMouseMoveHeld?.(true);
         setMoveTarget(world);
@@ -549,7 +564,7 @@ export function installCombatInputHandlers({
     const modes = getCombatMetricModes();
     const metric = meter.dataset.combatMeter;
     if(!Object.prototype.hasOwnProperty.call(modes, metric)) return;
-    modes[metric] = modes[metric] === "text" ? "bar" : "text";
+    if(!cycleCombatMeterMode(modes, metric)) return;
     updateHud();
   });
 
@@ -570,8 +585,11 @@ export function installCombatInputHandlers({
 
   documentRef.getElementById("combatQuickMenuBtn").addEventListener("click", ()=>{
     if(!isRunning()) return;
-    documentRef.getElementById("combatQuickPanel").classList.toggle("hidden");
-    renderCombatQuickPanel();
+    const quickPanel = documentRef.getElementById("combatQuickPanel");
+    const open = quickPanel.classList.contains("hidden");
+    quickPanel.classList.toggle("hidden", !open);
+    documentRef.getElementById("combatQuickMenuBtn").setAttribute("aria-expanded", String(open));
+    if(open) renderCombatQuickPanel();
   });
   documentRef.getElementById("npcAbilityBar")?.addEventListener("click", event=>{
     if(!isRunning()) return;
@@ -584,6 +602,12 @@ export function installCombatInputHandlers({
     if(slot) useShipAbility?.(Number(slot.dataset.shipAbilityIndex || 0));
   });
   documentRef.getElementById("combatQuickPanel").addEventListener("click", e=>{
+    if(e.target.closest("[data-combat-quick-close]")){
+      documentRef.getElementById("combatQuickPanel").classList.add("hidden");
+      documentRef.getElementById("combatQuickMenuBtn").setAttribute("aria-expanded", "false");
+      documentRef.getElementById("combatQuickMenuBtn").focus();
+      return;
+    }
     if(e.target.closest("[data-use-ship-ability]")){
       useShipAbility?.(Number(e.target.closest("[data-use-ship-ability]").dataset.useShipAbility || 0));
       renderCombatQuickPanel();
@@ -662,16 +686,6 @@ export function installCombatInputHandlers({
 
   documentRef.getElementById("combatUtilityDock")?.addEventListener("click", e=>{
     if(!isRunning()) return;
-    const toggle = e.target.closest("[data-utility-dock-toggle]");
-    if(toggle){
-      const dock = toggle.closest("#combatUtilityDock");
-      const expanded = !dock?.classList.contains("expanded");
-      dock?.classList.toggle("expanded", expanded);
-      toggle.setAttribute("aria-expanded", String(expanded));
-      toggle.setAttribute("aria-label", expanded ? "Masquer les modules suivants" : "Afficher les modules suivants");
-      toggle.setAttribute("title", expanded ? "Masquer les modules suivants" : "Afficher les modules suivants");
-      return;
-    }
     const btn = e.target.closest("[data-utility-panel]");
     if(!btn || btn.disabled) return;
     const panel = btn.dataset.utilityPanel;
@@ -693,7 +707,7 @@ export function installCombatInputHandlers({
     const mode = utilityPanel.dataset.utilityMode || "";
     const utilityPanelHead = utilityPanel.querySelector(".combat-utility-panel-head");
     utilityPanelHead?.addEventListener("pointerdown", e=>{
-      if(!isRunning() || e.target.closest("button")) return;
+      if(!isRunning() || e.target.closest("button, input, select, a, summary")) return;
       e.preventDefault();
       const rect = utilityPanel.getBoundingClientRect();
       const offsetX = e.clientX - rect.left;
@@ -781,6 +795,21 @@ export function installCombatInputHandlers({
         togglePerfPanelVisibility?.();
         return;
       }
+      const sectorTravelCancel = e.target.closest("[data-sector-travel-cancel]");
+      if(sectorTravelCancel){
+        cancelSectorMapTravel?.();
+        return;
+      }
+      const sectorTravelTarget = e.target.closest("[data-sector-travel-target-map]");
+      if(sectorTravelTarget){
+        startSectorMapTravel?.(sectorTravelTarget.dataset.sectorTravelTargetMap);
+        return;
+      }
+      const sectorSelection = e.target.closest("[data-sector-map-select]");
+      if(sectorSelection){
+        selectSectorMap?.(sectorSelection.dataset.sectorMapSelect);
+        return;
+      }
       const portgunTarget = e.target.closest("[data-portgun-target-map]");
       if(portgunTarget){
         selectPortgunMapTarget?.(portgunTarget.dataset.portgunTargetMap);
@@ -855,6 +884,18 @@ export function installCombatInputHandlers({
     windowRef.addEventListener("pointercancel", stopDrag);
   });
   documentRef.getElementById("spawnInteractionPanel")?.addEventListener("click", e=>{
+    const prepareBoost = e.target.closest("[data-open-boost-deposit]");
+    if(prepareBoost){
+      openBoostDepositDialog({
+        target:prepareBoost.dataset.boostDepositTarget,
+        materialId:prepareBoost.dataset.boostDepositMaterial,
+        materialName:prepareBoost.dataset.boostDepositName,
+        materialImg:prepareBoost.dataset.boostDepositImg,
+        maxAmount:prepareBoost.dataset.boostDepositMax,
+        initialAmount:documentRef.querySelector("[data-refinery-boost-amount]")?.value || 1
+      });
+      return;
+    }
     const refineryTabBtn = e.target.closest("[data-spawn-refinery-tab]");
     if(refineryTabBtn){
       setRefineryPanelTab?.(refineryTabBtn.dataset.spawnRefineryTab);
@@ -968,9 +1009,17 @@ export function installCombatInputHandlers({
       selectCraftRecipe?.(craftRecipeBtn.dataset.selectCraft);
       return;
     }
+    const craftPaymentBtn = e.target.closest("[data-craft-payment]");
+    if(craftPaymentBtn){
+      selectCraftPayment?.(craftPaymentBtn.dataset.craftPayment);
+      return;
+    }
     const startCraftBtn = e.target.closest("[data-start-craft]");
     if(startCraftBtn){
-      const result = startCraft?.(startCraftBtn.dataset.startCraft);
+      const result = startCraft?.(
+        startCraftBtn.dataset.startCraft,
+        startCraftBtn.dataset.craftPaymentType || ""
+      );
       if(!result?.ok) showToast(result?.reason || "Fabrication impossible.");
       else if(result.serverPending) showToast(`Fabrication envoyee : ${result.recipe?.name || "recette"}.`);
       else showToast("Fabrication locale refusee : validation serveur requise.");

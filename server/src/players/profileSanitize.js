@@ -1,6 +1,9 @@
 import { getProgressionLevelCap, normalizeProgressionPlayer } from "./progression.js";
+import { sanitizeAzuronProgress } from "../../../src/shared/azuronProgress.js";
+import { normalizePortalAttempts } from "../../../src/shared/portalAttempts.js";
 import { getInventoryEntryQuantity, isStackableInventoryItem } from "../economy/inventoryStacks.js";
-import { cleanupDuplicateEquippedInventoryUids, sanitizeDronePermanentUpgrades, sanitizeEquipmentUpgrades } from "../economy/equipment.js";
+import { cleanupDuplicateEquippedInventoryUids, sanitizeEquipmentUpgrades } from "../economy/equipment.js";
+import { ensureDroneSkinLoadout, getOwnedDroneSkinSlotCount } from "../economy/droneSkins.js";
 import { normalizeFirmId } from "../../../src/data/firms.js";
 import { normalizeBetaPackPurchases, normalizeBetaRewardState, normalizePremiumRewardState, normalizeStarterPackPurchases } from "../../../src/data/premium.js";
 import { sanitizeActivityLog } from "./activityLog.js";
@@ -210,7 +213,7 @@ function rebuildMonsterRankStats(profile){
 export function sanitizeProfile(profile = {}){
   const inventoryItems = [];
   const prestigeCount = Math.min(1, Math.max(0, Math.floor(Number(profile.prestigeCount || 0))));
-  const ownedDroneCount = Math.max(0, Math.floor(Number(profile.ownedDroneCount || 0)));
+  const ownedDroneCount = getOwnedDroneSkinSlotCount(profile);
   const sanitizedPlayer = sanitizeObject(profile.player);
   for(const entry of Array.isArray(profile.inventoryItems) ? profile.inventoryItems : []){
     if(!entry?.uid || !entry?.itemId) continue;
@@ -244,10 +247,9 @@ export function sanitizeProfile(profile = {}){
     shipLoadouts:sanitizeShipKeyedObject(profile.shipLoadouts),
     ownedDroneCount,
     droneLoadout:Array.isArray(profile.droneLoadout) ? profile.droneLoadout.map(value=>value === null ? null : String(value)) : undefined,
-    dronePermanentUpgrades:sanitizeDronePermanentUpgrades(profile.dronePermanentUpgrades, {
-      ownedDroneCount,
-      completedPortals:profile.completedPortals
-    }),
+    droneSkinLoadout:Array.isArray(profile.droneSkinLoadout) ? [...profile.droneSkinLoadout] : undefined,
+    droneSkinLoadoutVersion:profile.droneSkinLoadoutVersion,
+    dronePermanentUpgrades:{},
     equipmentUpgrades:sanitizeEquipmentUpgrades(profile.equipmentUpgrades),
     ownedDroneFormations:Array.isArray(profile.ownedDroneFormations) ? profile.ownedDroneFormations.map(String) : undefined,
     activeDroneFormation:typeof profile.activeDroneFormation === "string" ? profile.activeDroneFormation : null,
@@ -263,6 +265,7 @@ export function sanitizeProfile(profile = {}){
     completedPortals:sanitizeObject(profile.completedPortals),
     portalPieces:sanitizeObject(profile.portalPieces),
     preparedPortal:sanitizePreparedPortal(profile.preparedPortal),
+    azuronProgress:sanitizeAzuronProgress(profile.azuronProgress),
     prestigeCount,
     refineryLevels:sanitizeObject(profile.refineryLevels),
     refineryModules:sanitizeObject(profile.refineryModules),
@@ -320,7 +323,9 @@ export function sanitizeProfile(profile = {}){
   ){
     sanitized.selectedShip = sanitized.activeShip;
   }
+  Object.assign(sanitized,normalizePortalAttempts({...sanitized,portalAttempt:profile.portalAttempt,portalAttemptsVersion:profile.portalAttemptsVersion}));
   rebuildMonsterRankStats(sanitized);
+  ensureDroneSkinLoadout(sanitized, {legacyUpgrades:profile.dronePermanentUpgrades});
   cleanupDuplicateEquippedInventoryUids(sanitized);
   migrateQuestCatalog(sanitized);
   return sanitized;
@@ -345,6 +350,9 @@ function cloneProtectedValue(value){
 export function preserveProtectedOwnership(incoming, existing){
   if(!existing) return incoming;
   const alwaysProtected = new Set([
+    "droneSkinLoadout",
+    "droneSkinLoadoutVersion",
+    "dronePermanentUpgrades",
     "skillRanks",
     "skillLevels",
     "unlockedPortals",
@@ -371,16 +379,19 @@ export function preserveProtectedOwnership(incoming, existing){
     "craftingJob",
     "starterRepairGranted",
     "tutorial",
-    "questCatalogRevision"
+    "questCatalogRevision",
+    "azuronProgress",
+    "portalAttemptsVersion",
+    "portalAttempt"
   ]);
   for(const field of [
-    "ownedShips", "activeShip", "selectedShip", "inventoryItems", "nextInventoryUid",
+    "ownedShips", "activeShip", "selectedShip", "inventoryItems", "nextInventoryUid", "portalAttemptsVersion", "portalAttempt",
     "ammoInventory", "shipLoadouts", "ownedDroneCount", "droneLoadout",
-    "dronePermanentUpgrades", "equipmentUpgrades", "ownedDroneFormations",
+    "dronePermanentUpgrades", "droneSkinLoadout", "droneSkinLoadoutVersion", "equipmentUpgrades", "ownedDroneFormations",
     "activeDroneFormation", "activeQuestIds", "activeQuestId", "questProgress",
     "questFailProgress", "completedQuestClaims", "questCatalogRevision", "worldSession", "shipWorldSessions", "cargoHold",
     "shipCargo", "combatBoosts", "shipAbilityStates", "eliteLaserStates", "boosters", "skillRanks", "skillLevels", "unlockedPortals", "completedPortals",
-    "portalPieces", "preparedPortal", "prestigeCount", "premiumRewardState", "betaRewardState", "betaPackPurchases", "betaLaunchEntitlements", "betaLaunchPremiumDays", "betaShipChoices", "refineryLevels", "refineryModules",
+    "portalPieces", "preparedPortal", "azuronProgress", "prestigeCount", "premiumRewardState", "betaRewardState", "betaPackPurchases", "betaLaunchEntitlements", "betaLaunchPremiumDays", "betaShipChoices", "refineryLevels", "refineryModules",
     "refineryUpgradeJobs", "refineryShipmentJob", "refineryJob",
     "craftingJob",
     "refineryProductionDisabled", "refineryProductionRemainders", "refineryLastTick", "killStats", "rankKillStats",

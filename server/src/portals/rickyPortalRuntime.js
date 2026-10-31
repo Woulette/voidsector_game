@@ -1,6 +1,8 @@
 import { getProgressionLevelCap, getProgressionSnapshot } from "../players/progression.js";
 import { ENEMY_THREAT_RECALC_MS, markEnemyAttackedByPlayer } from "../world/aggro.js";
 import { getFirmMapId, normalizeFirmId } from "../../../src/data/firms.js";
+import { updateRickyCompanionNavigation } from "./rickyCompanionAi.js";
+import { createRickyHealBeaconRuntime } from "./rickyHealBeacon.js";
 import {
   findRickyPortalLever,
   isPointInRickyTriggerZone,
@@ -22,11 +24,6 @@ import {
   createRickyBoss,
   isRickyPortalInstance,
   RICKY_ALLY_ID,
-  RICKY_HEAL_BEACON_AMOUNT,
-  RICKY_HEAL_BEACON_DURATION_MS,
-  RICKY_HEAL_BEACON_INTERVAL_MS,
-  RICKY_HEAL_BEACON_RADIUS,
-  RICKY_HEAL_COOLDOWN_MS,
   RICKY_LEVER_MOVE_TOLERANCE
 } from "./rickyPortalState.js";
 
@@ -45,14 +42,6 @@ function applyDamageToEnemy(enemy, incoming){
   }
   enemy.hp = Math.max(0, enemy.hp);
   enemy.shield = Math.max(0, enemy.shield);
-}
-
-function healShipState(state, amount){
-  if(!state) return 0;
-  const maxHp = Math.max(0, Number(state.maxHp || state.hp || 0));
-  const before = Math.max(0, Number(state.hp || 0));
-  state.hp = Math.min(maxHp || before, before + Math.max(0, Number(amount || 0)));
-  return Math.max(0, state.hp - before);
 }
 
 function randomBetween(min, max){
@@ -79,6 +68,8 @@ export function createRickyPortalRuntime({
   getInstanceMapId,
   getJoinedMemberIds
 }){
+  const healing=createRickyHealBeaconRuntime({io,profileManager,getPlayers:getRickyPortalPlayers,getInstanceMapId,emitProfileSync,emitInstance});
+
   function getRickyPortalPlayers(group, {requireMap = false, aliveOnly = false} = {}){
     const instance = group?.instance;
     if(!isRickyPortalInstance(instance)) return [];
@@ -177,57 +168,6 @@ export function createRickyPortalRuntime({
       radiusMin:320,
       radiusMax:700
     });
-  }
-
-  function findRickyTarget(ally, leader, enemies){
-    if(!ally || !leader?.state) return null;
-    const leaderX = Number(leader.state.x || 0);
-    const leaderY = Number(leader.state.y || 0);
-    const maxDistanceFromLeader = Number(ally.maxLeaderDistance || 720) + Number(ally.attackRange || 600);
-    const group = leader.groupId ? groups.get(leader.groupId) : null;
-    const playersInPortal = getRickyPortalPlayers(group, {requireMap:true, aliveOnly:true});
-    const playerIds = new Set(playersInPortal.map(player=>String(player.id)));
-    const selectedTargetIds = new Set(playersInPortal
-      .map(player=>String(player.state?.attackTargetId || player.state?.lockedTargetId || ""))
-      .filter(Boolean));
-    let best = null;
-    for(const enemy of enemies || []){
-      if(!enemy || Number(enemy.hp || 0) <= 0) continue;
-      const allyDistance = Math.hypot(Number(enemy.x || 0) - ally.x, Number(enemy.y || 0) - ally.y);
-      const leaderDistance = Math.hypot(Number(enemy.x || 0) - leaderX, Number(enemy.y || 0) - leaderY);
-      if(leaderDistance > maxDistanceFromLeader) continue;
-      const selectedByPlayer = selectedTargetIds.has(String(enemy.id));
-      const attackedByPlayer = playerIds.has(String(enemy.attackedPlayerId || ""));
-      if(!selectedByPlayer
-        && !attackedByPlayer
-        && allyDistance > Number(ally.attackRange || 600)
-        && leaderDistance > Number(ally.attackRange || 600)){
-        continue;
-      }
-      const priority = selectedByPlayer ? 0 : attackedByPlayer ? 1 : 2;
-      const score = priority * 100_000 + Math.min(allyDistance, leaderDistance + 120);
-      if(!best || score < best.score) best = {enemy, score};
-    }
-    return best?.enemy || null;
-  }
-
-  function moveRickyAlly(ally, targetX, targetY, dt){
-    const dx = Number(targetX || 0) - ally.x;
-    const dy = Number(targetY || 0) - ally.y;
-    const distance = Math.hypot(dx, dy);
-    if(distance <= 8){
-      ally.vx = 0;
-      ally.vy = 0;
-      return;
-    }
-    const step = Math.min(distance, Number(ally.speed || 320) * dt);
-    const nx = dx / distance;
-    const ny = dy / distance;
-    ally.x += nx * step;
-    ally.y += ny * step;
-    ally.vx = nx * Number(ally.speed || 320);
-    ally.vy = ny * Number(ally.speed || 320);
-    ally.angle = Math.atan2(ny, nx) + Math.PI / 2;
   }
 
   function emitRickyHit(group, enemy, damage, weaponClass){
@@ -334,50 +274,6 @@ export function createRickyPortalRuntime({
     applyDamageToEnemy(enemy, damage);
     emitRickyHit(group, enemy, damage, weaponClass);
     if(wasAlive && enemy.hp <= 0) handleRickyEnemyDeath(group, enemy, RICKY_ALLY_ID);
-  }
-
-  function healRickyBeaconTargets(group, beacon){
-    const instance = group?.instance;
-    if(!isRickyPortalInstance(instance)) return;
-    const targets = getRickyPortalPlayers(group, {requireMap:true, aliveOnly:true});
-    const ally = instance.ally;
-    if(ally?.alive !== false && Number(ally.hp || 0) > 0){
-      targets.push({id:RICKY_ALLY_ID, state:ally});
-    }
-    for(const target of targets){
-      const state = target.state;
-      const distance = Math.hypot(Number(state.x || 0) - beacon.x, Number(state.y || 0) - beacon.y);
-      if(distance > Number(beacon.radius || RICKY_HEAL_BEACON_RADIUS)) continue;
-      const healed = healShipState(state, beacon.heal);
-      if(healed <= 0) continue;
-      if(target.id !== RICKY_ALLY_ID){
-        profileManager.saveWorldSession?.({player:target, state, force:false});
-        const profile = profileManager.getProfileForPlayer?.(target);
-        emitProfileSync?.(target, profile);
-      }
-      io.to(target.id === RICKY_ALLY_ID ? `instance:${instance.id}` : target.id).emit("player:healed", {
-        targetId:target.id,
-        sourceId:RICKY_ALLY_ID,
-        amount:healed,
-        hp:state.hp,
-        maxHp:state.maxHp,
-        mapId:getInstanceMapId(instance),
-        x:Number(state.x || beacon.x),
-        y:Number(state.y || beacon.y),
-        at:Date.now()
-      });
-    }
-  }
-
-  function updateRickyBeacons(group, now){
-    const instance = group?.instance;
-    if(!isRickyPortalInstance(instance)) return;
-    instance.beacons = (Array.isArray(instance.beacons) ? instance.beacons : []).filter(beacon=>Number(beacon.expiresAt || 0) > now);
-    for(const beacon of instance.beacons){
-      if(now < Number(beacon.nextTickAt || 0)) continue;
-      healRickyBeaconTargets(group, beacon);
-      beacon.nextTickAt = now + RICKY_HEAL_BEACON_INTERVAL_MS;
-    }
   }
 
   function hasAliveRickyEncounter(instance, encounterId){
@@ -677,7 +573,7 @@ export function createRickyPortalRuntime({
   function updateRickyCompanion(group, dt, now){
     const instance = group?.instance;
     if(!isRickyPortalInstance(instance) || instance.completed) return;
-    updateRickyBeacons(group, now);
+    healing.update(group, now);
     const ally = instance.ally;
     if(!ally || ally.alive === false) return;
     if(Number(ally.hp || 0) <= 0){
@@ -691,28 +587,9 @@ export function createRickyPortalRuntime({
         + Math.max(0, Number(ally.shieldRegenPerSecond || 0)) * Math.max(0, Number(dt || 0))
     );
     const leader = getRickyFollowTarget(group);
-    if(!leader?.state){
-      ally.vx = 0;
-      ally.vy = 0;
-      return;
-    }
-    const leaderX = Number(leader.state.x || 0);
-    const leaderY = Number(leader.state.y || 0);
-    const target = findRickyTarget(ally, leader, instance.enemies);
-    const leaderDistance = Math.hypot(leaderX - ally.x, leaderY - ally.y);
-    if(leaderDistance > Number(ally.maxLeaderDistance || 720)){
-      moveRickyAlly(ally, leaderX - 150, leaderY + 90, dt);
-      return;
-    }
+    const target = updateRickyCompanionNavigation(ally, leader, instance.enemies, dt);
     if(target){
       const targetDistance = Math.hypot(Number(target.x || 0) - ally.x, Number(target.y || 0) - ally.y);
-      if(targetDistance > Number(ally.attackRange || 600) * .82){
-        moveRickyAlly(ally, target.x, target.y, dt);
-      }else{
-        ally.vx = 0;
-        ally.vy = 0;
-        ally.angle = Math.atan2(Number(target.y || 0) - ally.y, Number(target.x || 0) - ally.x) + Math.PI / 2;
-      }
       if(targetDistance <= Number(ally.attackRange || 600) && now >= Number(ally.nextLaserAt || 0)){
         ally.nextLaserAt = now + Number(ally.laserCooldownMs || 1400);
         damagePortalEnemyByRicky(group, target, randomBetween(ally.laserDamageMin, ally.laserDamageMax), "laser", now);
@@ -721,13 +598,6 @@ export function createRickyPortalRuntime({
         ally.nextRocketAt = now + Number(ally.rocketCooldownMs || 4600);
         damagePortalEnemyByRicky(group, target, randomBetween(ally.rocketDamageMin, ally.rocketDamageMax), "rocket", now);
       }
-      return;
-    }
-    if(leaderDistance > Number(ally.followDistance || 260)){
-      moveRickyAlly(ally, leaderX - 160, leaderY + 90, dt);
-    }else{
-      ally.vx = 0;
-      ally.vy = 0;
     }
   }
 
@@ -740,52 +610,8 @@ export function createRickyPortalRuntime({
     }
   }
 
-  function activateRickyHealBeacon(socket){
-    const player = players.get(socket.id);
-    const group = player?.groupId ? groups.get(player.groupId) : null;
-    const instance = group?.instance;
-    if(!player || !isRickyPortalInstance(instance) || instance.completed){
-      socket.emit("portal:error", {message:"Balise Ricky indisponible."});
-      return false;
-    }
-    if(!getJoinedMemberIds(instance).includes(player.id)){
-      socket.emit("portal:error", {message:"Tu dois etre dans le portail de Ricky."});
-      return false;
-    }
-    if(instance.abandonedMemberIds?.includes(player.id) || String(player.state?.mapId || player.mapId || "") !== getInstanceMapId(instance)){
-      socket.emit("portal:error", {message:"Tu dois etre dans le portail de Ricky."});
-      return false;
-    }
-    const ally = instance.ally;
-    if(!ally || ally.alive === false || Number(ally.hp || 0) <= 0){
-      socket.emit("portal:error", {message:"Ricky n'est plus en etat de poser une balise."});
-      return false;
-    }
-    const now = Date.now();
-    if(now < Number(ally.healCooldownUntil || 0)){
-      socket.emit("portal:error", {message:`Balise en recharge : ${Math.ceil((ally.healCooldownUntil - now) / 1000)}s.`});
-      return false;
-    }
-    ally.healCooldownUntil = now + RICKY_HEAL_COOLDOWN_MS;
-    const beacon = {
-      id:`RB-${now.toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-      x:Number(player.state?.x || ally.x || 0),
-      y:Number(player.state?.y || ally.y || 0),
-      radius:RICKY_HEAL_BEACON_RADIUS,
-      heal:RICKY_HEAL_BEACON_AMOUNT,
-      nextTickAt:now,
-      expiresAt:now + RICKY_HEAL_BEACON_DURATION_MS
-    };
-    if(!Array.isArray(instance.beacons)) instance.beacons = [];
-    instance.beacons.push(beacon);
-    io.to(`instance:${instance.id}`).emit("portal:ricky-heal", {beacon, cooldown:RICKY_HEAL_COOLDOWN_MS / 1000, at:now});
-    healRickyBeaconTargets(group, beacon);
-    emitInstance(group);
-    return true;
-  }
-
   return {
-    activateRickyHealBeacon,
+    activateRickyHealBeacon:healing.rejectManualActivation,
     activateRickyLever,
     handleRickyEnemyDeath,
     updateRickyCompanions

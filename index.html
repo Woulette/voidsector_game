@@ -6,14 +6,33 @@
   <meta name="voidsector-server-url" content="https://avosoma.absyrion.com" />
   <title>Avosoma - MMO</title>
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="styles.css?v=20261023-hangar1" />
+  <link rel="stylesheet" href="styles.css?v=20261025-orbital-fluid1" />
   <script type="importmap">
 {
   "imports": {
-    "/src/shared/helionOneHub.js": "/src/shared/helionOneHub.js?v=20261022-helion-hub3",
-    "/src/shared/helionOneHub.js?v=20261022-helion-hub1": "/src/shared/helionOneHub.js?v=20261022-helion-hub3",
-    "/src/app.js": "/src/app.js?v=20261023-hangar1",
-    "/src/app.js?v=20261022-helion-light1": "/src/app.js?v=20261023-hangar1",
+    "/src/game/ui/combatActions.js?v=20261024-laser-input1": "/src/game/ui/combatActions.js?v=20261024-laser-selection1",
+    "/src/game/systems/weapons.js?v=20261024-laser-input1": "/src/game/systems/weapons.js?v=20261024-laser-selection1",
+    "/src/game/combatOrchestrator.js?v=20261024-damage-feedback1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/render/repairDrone.js?v=20261024-repair2": "/src/game/render/repairDrone.js?v=20261024-repair3",
+    "/src/game/render/repairDrone.js?v=20261024-repair1": "/src/game/render/repairDrone.js?v=20261024-repair3",
+    "/src/data/equipment.js?v=20261024-vfx1": "/src/data/equipment.js?v=20261024-repair1",
+    "/src/game/systems/repairBot.js": "/src/game/systems/repairBot.js?v=20261024-repair1",
+    "/src/game/render/player.js?v=20261024-vfx1": "/src/game/render/player.js?v=20261024-shield-assigned1",
+    "/src/data/repairDroneVisuals.js": "/src/data/repairDroneVisuals.js?v=20261024-repair1",
+    "/src/game/render/repairDrone.js": "/src/game/render/repairDrone.js?v=20261024-repair3",
+    "/src/data/premium.js": "/src/data/premium.js?v=20261024-beta-clock1",
+    "/src/data/premium.js?v=20260726-kharon1": "/src/data/premium.js?v=20261024-beta-clock1",
+    "/src/game/systems/combatFrameUpdate.js": "/src/game/systems/combatFrameUpdate.js?v=20261025-azuron-gate1",
+    "/src/game/systems/combatFrameUpdate.js?v=20261022-helion-hub1": "/src/game/systems/combatFrameUpdate.js?v=20261025-azuron-gate1",
+    "/src/game/ui/combatMapPanel.js": "/src/game/ui/combatMapPanel.js?v=20261023-sector-travel1",
+    "/src/game/ui/combatMapPanel.js?v=20260726-kharon1": "/src/game/ui/combatMapPanel.js?v=20261023-sector-travel1",
+    "/src/shared/helionOneHub.js": "/src/shared/helionOneHub.js?v=20261023-firm-homes1",
+    "/src/shared/helionOneHub.js?v=20261022-helion-hub1": "/src/shared/helionOneHub.js?v=20261023-firm-homes1",
+    "/src/app.js": "/src/app.js?v=20261024-boutique4",
+    "/src/app.js?v=20261022-helion-light1": "/src/app.js?v=20261024-boutique4",
+    "/src/app.js?v=20261022-helion-hub1": "/src/app.js?v=20261024-boutique4",
+    "/src/app/profileController.js": "/src/app/profileController.js?v=20261025-portal-attempts1",
+    "/src/app/profileController.js?v=20260726-kharon1": "/src/app/profileController.js?v=20261025-portal-attempts1",
     "/src/app/refinerySyncController.js": "/src/app/refinerySyncController.js?v=20261022-tutorial2",
     "/src/shared/tutorial.js": "/src/shared/tutorial.js?v=20261022-tutorial3",
     "/src/shared/tutorial.js?v=20260726-kharon1": "/src/shared/tutorial.js?v=20261022-tutorial3",
@@ -22,101 +41,502 @@
     "/src/ui/tutorialStages.js": "/src/ui/tutorialStages.js?v=20261023-hangar1",
     "/src/ui/tutorialView.js": "/src/ui/tutorialView.js?v=20261022-tutorial3",
     "/src/ui/tutorialGuidance.js": "/src/ui/tutorialGuidance.js?v=20261022-tutorial4",
-    "/src/ui/renderRefinery.js": "/src/ui/renderRefinery.js?v=20261022-tutorial2",
-    "/src/ui/renderRefinery.js?v=20260726-kharon1": "/src/ui/renderRefinery.js?v=20261022-tutorial2",
-    "/src/multiplayer/socketCommands.js": "/src/multiplayer/socketCommands.js?v=20261023-drones1",
-    "/src/multiplayer/socketCommands.js?v=20260726-ancient1": "/src/multiplayer/socketCommands.js?v=20261023-drones1",
-    "/src/game/ui/spawnPanel.js": "/src/game/ui/spawnPanel.js?v=20261022-quest-console1",
-    "/src/game/ui/spawnPanel.js?v=20260726-kharon1": "/src/game/ui/spawnPanel.js?v=20261022-quest-console1",
-    "/src/game/combatOrchestrator.js": "/src/game/combatOrchestrator.js?v=20261022-helion-hover1",
-    "/src/game/combatOrchestrator.js?v=20261022-helion-light1": "/src/game/combatOrchestrator.js?v=20261022-helion-hover1",
+    "/src/ui/renderRefinery.js": "/src/ui/renderRefinery.js?v=20261025-orbital3",
+    "/src/ui/renderRefinery.js?v=20260726-kharon1": "/src/ui/renderRefinery.js?v=20261025-orbital3",
+    "/src/ui/refineryOrbitalStation.js": "/src/ui/refineryOrbitalStation.js?v=20261025-orbital-fluid1",
+    "/src/ui/refineryStationLayout.js": "/src/ui/refineryStationLayout.js?v=20261025-orbital-fluid1",
+    "/src/multiplayer/socketCommands.js": "/src/multiplayer/socketCommands.js?v=20261025-azuron2",
+    "/src/multiplayer/socketCommands.js?v=20260726-ancient1": "/src/multiplayer/socketCommands.js?v=20261025-azuron2",
+    "/src/game/ui/spawnPanel.js": "/src/game/ui/spawnPanel.js?v=20261023-refinery1",
+    "/src/game/ui/spawnPanel.js?v=20260726-kharon1": "/src/game/ui/spawnPanel.js?v=20261023-refinery1",
+    "/src/game/combatOrchestrator.js": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/combatOrchestrator.js?v=20261022-helion-light1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
     "/src/game/systems/tutorialWorldGuidance.js": "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial4",
     "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial-guidance1": "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial4",
-    "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial2": "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial4",
+    "/src/ui/tutorialView.js?v=20261022-tutorial2": "/src/ui/tutorialView.js?v=20261022-tutorial3",
     "/src/shared/tutorial.js?v=20261022-tutorial2": "/src/shared/tutorial.js?v=20261022-tutorial3",
+    "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial2": "/src/game/systems/tutorialWorldGuidance.js?v=20261022-tutorial4",
+    "/src/ui/tutorialStages.js?v=20261022-tutorial2": "/src/ui/tutorialStages.js?v=20261023-hangar1",
     "/src/ui/tutorialController.js?v=20261022-tutorial2": "/src/ui/tutorialController.js?v=20261023-hangar1",
     "/src/ui/tutorialGuidance.js?v=20261022-tutorial2": "/src/ui/tutorialGuidance.js?v=20261022-tutorial4",
-    "/src/ui/tutorialStages.js?v=20261022-tutorial2": "/src/ui/tutorialStages.js?v=20261023-hangar1",
-    "/src/ui/tutorialView.js?v=20261022-tutorial2": "/src/ui/tutorialView.js?v=20261022-tutorial3",
-    "/src/shared/helionOneHub.js?v=20261022-helion-hub2": "/src/shared/helionOneHub.js?v=20261022-helion-hub3",
+    "/src/shared/helionOneHub.js?v=20261022-helion-hub2": "/src/shared/helionOneHub.js?v=20261023-firm-homes1",
     "/src/game/render/spawnHub.js": "/src/game/render/spawnHub.js?v=20261022-helion-hover1",
     "/src/game/render/spawnHub.js?v=20261022-helion-hub1": "/src/game/render/spawnHub.js?v=20261022-helion-hover1",
     "/src/game/render/spawnHub.js?v=20261022-helion-hub2": "/src/game/render/spawnHub.js?v=20261022-helion-hover1",
-    "/src/game/combatOrchestrator.js?v=20261022-helion-hub1": "/src/game/combatOrchestrator.js?v=20261022-helion-hover1",
-    "/src/game/render/combatScene.js": "/src/game/render/combatScene.js?v=20261023-minimap4",
-    "/src/game/render/combatScene.js?v=20261022-helion-hub1": "/src/game/render/combatScene.js?v=20261023-minimap4",
+    "/src/game/combatOrchestrator.js?v=20261022-helion-hub1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/render/combatScene.js": "/src/game/render/combatScene.js?v=20261025-azuron-gate1",
+    "/src/game/render/combatScene.js?v=20261022-helion-hub1": "/src/game/render/combatScene.js?v=20261025-azuron-gate1",
     "/src/game/render/spawnStationHighlight.js": "/src/game/render/spawnStationHighlight.js?v=20261022-helion-hover1",
-    "/src/game/render/world.js": "/src/game/render/world.js?v=20261022-helion-hover1",
-    "/src/game/render/world.js?v=20261022-helion-hub1": "/src/game/render/world.js?v=20261022-helion-hover1",
+    "/src/game/render/world.js": "/src/game/render/world.js?v=20261025-scenery-bounds1",
+    "/src/game/render/world.js?v=20261022-helion-hub1": "/src/game/render/world.js?v=20261025-scenery-bounds1",
     "/src/game/ui/spawnStationHover.js": "/src/game/ui/spawnStationHover.js?v=20261022-helion-hover1",
-    "/src/multiplayer/progressionSocketListeners.js": "/src/multiplayer/progressionSocketListeners.js?v=20261022-quests1",
     "/src/game/ui/questAbandon.js": "/src/game/ui/questAbandon.js?v=20261022-quests1",
+    "/src/data/progression.js": "/src/data/progression.js?v=20261025-wave-portals1",
+    "/src/multiplayer/client.js": "/src/multiplayer/client.js?v=20261025-azuron2",
+    "/src/game/ui/combatPanels.js": "/src/game/ui/combatPanels.js?v=20261024-quest-assets1",
     "/src/data/questBriefings.js": "/src/data/questBriefings.js?v=20261022-quest-console1",
-    "/src/data/progression.js": "/src/data/progression.js?v=20261022-quests1",
-    "/src/multiplayer/client.js": "/src/multiplayer/client.js?v=20261022-quests1",
-    "/src/game/ui/questTracker.js": "/src/game/ui/questTracker.js?v=20261022-quests1",
-    "/src/game/ui/combatPanels.js": "/src/game/ui/combatPanels.js?v=20261022-quest-console1",
     "/src/shared/quests/catalogRevision.js": "/src/shared/quests/catalogRevision.js?v=20261022-quests1",
-    "/src/multiplayer/client.js?v=20261018-map-transfer1": "/src/multiplayer/client.js?v=20261022-quests1",
-    "/src/data/progression.js?v=20260726-ancient1": "/src/data/progression.js?v=20261022-quests1",
-    "/src/game/ui/combatPanels.js?v=20261018-map-transfer1": "/src/game/ui/combatPanels.js?v=20261022-quest-console1",
-    "/src/game/ui/questTracker.js?v=20260726-kharon1": "/src/game/ui/questTracker.js?v=20261022-quests1",
-    "/src/multiplayer/progressionSocketListeners.js?v=20260726-kharon1": "/src/multiplayer/progressionSocketListeners.js?v=20261022-quests1",
-    "/src/data/progression.js?v=20260726-prismatic1": "/src/data/progression.js?v=20261022-quests1",
+    "/src/multiplayer/progressionSocketListeners.js": "/src/multiplayer/progressionSocketListeners.js?v=20261025-portal-attempts1",
+    "/src/game/ui/questTracker.js": "/src/game/ui/questTracker.js?v=20261024-quest-assets1",
+    "/src/multiplayer/client.js?v=20261018-map-transfer1": "/src/multiplayer/client.js?v=20261025-azuron2",
+    "/src/data/progression.js?v=20260726-ancient1": "/src/data/progression.js?v=20261025-wave-portals1",
+    "/src/game/ui/combatPanels.js?v=20261018-map-transfer1": "/src/game/ui/combatPanels.js?v=20261024-quest-assets1",
+    "/src/game/ui/questTracker.js?v=20260726-kharon1": "/src/game/ui/questTracker.js?v=20261024-quest-assets1",
+    "/src/multiplayer/progressionSocketListeners.js?v=20260726-kharon1": "/src/multiplayer/progressionSocketListeners.js?v=20261025-portal-attempts1",
+    "/src/data/progression.js?v=20260726-prismatic1": "/src/data/progression.js?v=20261025-wave-portals1",
     "/src/app/serverEventController.js": "/src/app/serverEventController.js?v=20261022-crafting1",
-    "/src/data/craftingRecipes.js": "/src/data/craftingRecipes.js?v=20261023-drones1",
+    "/src/data/craftingRecipes.js": "/src/data/craftingRecipes.js?v=20261023-m6craft2",
     "/src/app/serverEventController.js?v=20260726-economy-burst1": "/src/app/serverEventController.js?v=20261022-crafting1",
-    "/src/data/craftingRecipes.js?v=20260726-kharon1": "/src/data/craftingRecipes.js?v=20261023-drones1",
-    "/src/game/ui/questRelayObjectives.js": "/src/game/ui/questRelayObjectives.js?v=20261023-quest-icons1",
-    "/src/game/ui/questRelayPanel.js": "/src/game/ui/questRelayPanel.js?v=20261023-quest-icons1",
-    "/src/game/ui/questCategories.js": "/src/game/ui/questCategories.js?v=20261023-quest-icons1",
-    "/src/data/equipment.js": "/src/data/equipment.js?v=20261023-drones1",
-    "/src/ui/renderShop.js": "/src/ui/renderShop.js?v=20261023-drones1",
+    "/src/data/craftingRecipes.js?v=20260726-kharon1": "/src/data/craftingRecipes.js?v=20261023-m6craft2",
+    "/src/game/ui/questRelayObjectives.js": "/src/game/ui/questRelayObjectives.js?v=20261024-ricky-visuals1",
+    "/src/game/ui/questRelayPanel.js": "/src/game/ui/questRelayPanel.js?v=20261024-quest-assets1",
+    "/src/game/ui/questCategories.js": "/src/game/ui/questCategories.js?v=20261024-quest-assets1",
+    "/src/game/render/canvasHud.js": "/src/game/render/canvasHud.js?v=20261024-damage-feedback1",
+    "/src/game/render/canvasHud.js?v=20260726-ancient1": "/src/game/render/canvasHud.js?v=20261024-damage-feedback1",
+    "/src/game/render/canvasHud.js?v=20261023-minimap1": "/src/game/render/canvasHud.js?v=20261024-damage-feedback1",
+    "/src/game/render/combatScene.js?v=20261022-helion-hover1": "/src/game/render/combatScene.js?v=20261024-ricky-heal1",
+    "/src/game/systems/minimapState.js": "/src/game/systems/minimapState.js?v=20261025-minimap-width2",
+    "/src/game/render/miniMapScenery.js": "/src/game/render/miniMapScenery.js?v=20261024-helion3-cataclysm2",
+    "/src/game/render/miniMapScenery.js?v=20261023-minimap1": "/src/game/render/miniMapScenery.js?v=20261024-helion3-cataclysm2",
+    "/src/data/equipment.js": "/src/data/equipment.js?v=20261024-repair1",
+    "/src/ui/renderShop.js": "/src/ui/renderShop.js?v=20261023-shop1",
     "/src/shared/droneLimits.js": "/src/shared/droneLimits.js?v=20261023-drones1",
-    "/src/core/equipmentStore.js": "/src/core/equipmentStore.js?v=20261023-drones1",
-    "/src/ui/render.js": "/src/ui/render.js?v=20261023-hangar1",
-    "/src/app/shopActions.js": "/src/app/shopActions.js?v=20261023-drones1",
-    "/src/ui/render.js?v=20261022-helion-hub1": "/src/ui/render.js?v=20261023-hangar1",
-    "/src/app/shopActions.js?v=20260726-economy-burst1": "/src/app/shopActions.js?v=20261023-drones1",
-    "/src/core/equipmentStore.js?v=20260726-kharon1": "/src/core/equipmentStore.js?v=20261023-drones1",
-    "/src/data/equipment.js?v=20260726-prismatic1": "/src/data/equipment.js?v=20261023-drones1",
-    "/src/data/equipment.js?v=20260726-kharon1": "/src/data/equipment.js?v=20261023-drones1",
-    "/src/ui/renderShop.js?v=20261018-map-transfer1": "/src/ui/renderShop.js?v=20261023-drones1",
-    "/src/ui/renderPortals.js": "/src/ui/renderPortals.js?v=20261023-portals1",
-    "/src/game/systems/combatServerEvents.js": "/src/game/systems/combatServerEvents.js?v=20261023-portals1",
-    "/src/game/systems/combatServerEvents.js?v=20261022-helion-hub1": "/src/game/systems/combatServerEvents.js?v=20261023-portals1",
-    "/src/ui/renderPortals.js?v=20260726-ancient1": "/src/ui/renderPortals.js?v=20261023-portals1",
-    "/src/app/profileController.js": "/src/app/profileController.js?v=20261023-hangar1",
-    "/src/ui/launcherCurrency.js": "/src/ui/launcherCurrency.js?v=20261023-hangar1",
-    "/src/ui/renderHangarShowcase.js": "/src/ui/renderHangarShowcase.js?v=20261023-hangar1",
-    "/src/app.js?v=20261022-helion-hub1": "/src/app.js?v=20261023-hangar1",
-    "/src/app/profileController.js?v=20260726-kharon1": "/src/app/profileController.js?v=20261023-hangar1",
-    "/src/ui/launcherCurrency.js?v=20261023-hangar1": "/src/ui/launcherCurrency.js?v=20261023-hangar1",
-    "/src/ui/renderHangarShowcase.js?v=20261023-hangar1": "/src/ui/renderHangarShowcase.js?v=20261023-hangar1",
-    "/src/game/combatAssets.js": "/src/game/combatAssets.js?v=20261023-minimap4",
-    "/src/game/render/mapSceneryProjection.js": "/src/game/render/mapSceneryProjection.js?v=20261023-minimap4",
-    "/src/game/combatData/miniMapVisuals.js": "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap4",
-    "/src/game/render/canvasHud.js": "/src/game/render/canvasHud.js?v=20261023-minimap4",
+    "/src/core/equipmentStore.js": "/src/core/equipmentStore.js?v=20261023-droneskin1",
+    "/src/ui/render.js": "/src/ui/render.js?v=20261024-beta-clock2",
+    "/src/app/shopActions.js": "/src/app/shopActions.js?v=20261024-boutique3",
+    "/src/ui/render.js?v=20261022-helion-hub1": "/src/ui/render.js?v=20261024-beta-clock2",
+    "/src/app/shopActions.js?v=20260726-economy-burst1": "/src/app/shopActions.js?v=20261024-boutique3",
+    "/src/core/equipmentStore.js?v=20260726-kharon1": "/src/core/equipmentStore.js?v=20261023-droneskin1",
+    "/src/data/equipment.js?v=20260726-prismatic1": "/src/data/equipment.js?v=20261024-repair1",
+    "/src/data/equipment.js?v=20260726-kharon1": "/src/data/equipment.js?v=20261024-repair1",
+    "/src/ui/renderShop.js?v=20261018-map-transfer1": "/src/ui/renderShop.js?v=20261023-shop1",
+    "/src/game/render/canvasHud.js?v=20261023-minimap2": "/src/game/render/canvasHud.js?v=20261024-damage-feedback1",
+    "/src/game/render/combatScene.js?v=20261023-minimap1": "/src/game/render/combatScene.js?v=20261024-ricky-heal1",
+    "/src/game/render/miniMapScenery.js?v=20261023-minimap2": "/src/game/render/miniMapScenery.js?v=20261024-helion3-cataclysm2",
+    "/src/game/combatAssets.js": "/src/game/combatAssets.js?v=20261025-eclanite-visual1",
+    "/src/game/combatAssets.js?v=20261022-helion-hub1": "/src/game/combatAssets.js?v=20261025-eclanite-visual1",
+    "/src/game/combatData/miniMapVisuals.js": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap2": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/ui/renderPortals.js": "/src/ui/renderPortals.js?v=20261025-portal-attempts1",
+    "/src/game/systems/combatServerEvents.js": "/src/game/systems/combatServerEvents.js?v=20261025-portal-attempts1",
+    "/src/game/systems/combatServerEvents.js?v=20261022-helion-hub1": "/src/game/systems/combatServerEvents.js?v=20261025-portal-attempts1",
+    "/src/ui/renderPortals.js?v=20260726-ancient1": "/src/ui/renderPortals.js?v=20261025-portal-attempts1",
     "/src/game/render/miniMapChrome.js": "/src/game/render/miniMapChrome.js?v=20261023-minimap4",
-    "/src/game/systems/miniMapLayout.js": "/src/game/systems/miniMapLayout.js?v=20261023-minimap4",
-    "/src/game/ui/inputBindings.js": "/src/game/ui/inputBindings.js?v=20261023-minimap4",
-    "/src/game/render/miniMapScenery.js": "/src/game/render/miniMapScenery.js?v=20261023-minimap4",
-    "/src/game/systems/minimapState.js": "/src/game/systems/minimapState.js?v=20261023-minimap4",
-    "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap4": "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap4",
-    "/src/game/combatAssets.js?v=20261022-helion-hub1": "/src/game/combatAssets.js?v=20261023-minimap4",
-    "/src/game/render/canvasHud.js?v=20260726-ancient1": "/src/game/render/canvasHud.js?v=20261023-minimap4",
-    "/src/game/ui/inputBindings.js?v=20260726-kharon1": "/src/game/ui/inputBindings.js?v=20261023-minimap4",
-    "/src/game/render/miniMapScenery.js?v=20261023-minimap4": "/src/game/render/miniMapScenery.js?v=20261023-minimap4",
+    "/src/game/systems/miniMapLayout.js": "/src/game/systems/miniMapLayout.js?v=20261025-minimap-width2",
+    "/src/game/ui/inputBindings.js": "/src/game/ui/inputBindings.js?v=20261023-meter-modes1",
+    "/src/game/ui/inputBindings.js?v=20260726-kharon1": "/src/game/ui/inputBindings.js?v=20261023-meter-modes1",
+    "/src/game/render/miniMapChrome.js?v=20261023-minimap3": "/src/game/render/miniMapChrome.js?v=20261023-minimap4",
+    "/src/game/render/canvasHud.js?v=20261023-minimap3": "/src/game/render/canvasHud.js?v=20261024-damage-feedback1",
+    "/src/game/systems/miniMapLayout.js?v=20261023-minimap3": "/src/game/systems/miniMapLayout.js?v=20261025-minimap-width2",
+    "/src/game/render/mapSceneryProjection.js": "/src/game/render/mapSceneryProjection.js?v=20261023-minimap4",
+    "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap4": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/render/miniMapScenery.js?v=20261023-minimap4": "/src/game/render/miniMapScenery.js?v=20261024-helion3-cataclysm2",
     "/src/game/render/miniMapChrome.js?v=20261023-minimap4": "/src/game/render/miniMapChrome.js?v=20261023-minimap4",
-    "/src/game/render/canvasHud.js?v=20261023-minimap4": "/src/game/render/canvasHud.js?v=20261023-minimap4",
-    "/src/game/systems/miniMapLayout.js?v=20261023-minimap4": "/src/game/systems/miniMapLayout.js?v=20261023-minimap4",
+    "/src/game/render/canvasHud.js?v=20261023-minimap4": "/src/game/render/canvasHud.js?v=20261024-damage-feedback1",
+    "/src/game/systems/miniMapLayout.js?v=20261023-minimap4": "/src/game/systems/miniMapLayout.js?v=20261025-minimap-width2",
     "/src/game/render/mapSceneryProjection.js?v=20261018-helion-depth1": "/src/game/render/mapSceneryProjection.js?v=20261023-minimap4",
-    "/src/game/render/canvasHud.js?v=level-up-2": "/src/game/render/canvasHud.js?v=20261023-minimap4",
-    "/src/game/render/combatScene.js?v=craft-extras-1": "/src/game/render/combatScene.js?v=20261023-minimap4",
-    "/src/game/ui/inputBindings.js?v=craft-ui-6": "/src/game/ui/inputBindings.js?v=20261023-minimap4"
+    "/src/game/render/miniMapScenery.js?v=20261023-minimap5": "/src/game/render/miniMapScenery.js?v=20261024-helion3-cataclysm2",
+    "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap5": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/systems/miniMapLayout.js?v=20261023-minimap5": "/src/game/systems/miniMapLayout.js?v=20261025-minimap-width2",
+    "/src/multiplayer/playerSocketListeners.js": "/src/multiplayer/playerSocketListeners.js?v=20261024-loot-suction1",
+    "/src/multiplayer/render.js": "/src/multiplayer/render.js?v=20261024-vfx1",
+    "/src/shared/shopPricing.js": "/src/shared/shopPricing.js?v=20261023-pvp3",
+    "/src/core/combatStatsStore.js": "/src/core/combatStatsStore.js?v=20261023-pvp3",
+    "/src/shared/reputation.js": "/src/shared/reputation.js?v=20261023-pvp3",
+    "/src/game/systems/combatRemoteTargets.js": "/src/game/systems/combatRemoteTargets.js?v=20261023-pvp3",
+    "/src/core/stateNormalizer.js": "/src/core/stateNormalizer.js?v=20261025-portal-attempts1",
+    "/src/core/shopPricingStore.js": "/src/core/shopPricingStore.js?v=20261023-pvp3",
+    "/src/game/ui/quickPanel.js": "/src/game/ui/quickPanel.js?v=20261023-hud1",
+    "/src/ui/playerProfileModal.js": "/src/ui/playerProfileModal.js?v=20261023-pvp3",
+    "/src/game/ui/hud.js": "/src/game/ui/hud.js?v=20261023-meter-modes1",
+    "/src/core/stateNormalizer.js?v=20260726-kharon1": "/src/core/stateNormalizer.js?v=20261025-portal-attempts1",
+    "/src/core/combatStatsStore.js?v=20260726-kharon1": "/src/core/combatStatsStore.js?v=20261023-pvp3",
+    "/src/multiplayer/render.js?v=20261022-helion-hub1": "/src/multiplayer/render.js?v=20261024-vfx1",
+    "/src/game/ui/quickPanel.js?v=20260726-kharon1": "/src/game/ui/quickPanel.js?v=20261023-hud1",
+    "/src/multiplayer/playerSocketListeners.js?v=20261018-map-transfer1": "/src/multiplayer/playerSocketListeners.js?v=20261024-loot-suction1",
+    "/src/ui/playerProfileModal.js?v=20260726-kharon1": "/src/ui/playerProfileModal.js?v=20261023-pvp3",
+    "/src/app.js?v=20261023-hangar1": "/src/app.js?v=20261024-boutique4",
+    "/src/ui/render.js?v=20261023-hangar1": "/src/ui/render.js?v=20261024-beta-clock2",
+    "/src/ui/renderProgression.js": "/src/ui/renderProgression.js?v=20261023-skills1",
+    "/src/ui/renderProgression.js?v=20261022-helion-hub1": "/src/ui/renderProgression.js?v=20261023-skills1",
+    "/src/ui/renderSkills.js": "/src/ui/renderSkills.js?v=20261023-skillemblems1",
+    "/src/ui/renderSkills.js?v=20260726-kharon1": "/src/ui/renderSkills.js?v=20261023-skillemblems1",
+    "/src/ui/skillTreeModel.js": "/src/ui/skillTreeModel.js?v=20261023-skills1",
+    "/src/ui/skillTreeIcons.js": "/src/ui/skillTreeIcons.js?v=20261023-skillemblems1",
+    "/src/ui/render.js?v=20261023-skills1": "/src/ui/render.js?v=20261024-beta-clock2",
+    "/src/ui/renderProfile.js": "/src/ui/renderProfile.js?v=20261023-profilemilestones1",
+    "/src/ui/profilePresentation.js": "/src/ui/profilePresentation.js?v=20261023-profilemilestones1",
+    "/src/ui/profileIcons.js": "/src/ui/profileIcons.js?v=20261023-profilemilestones1",
+    "/src/app.js?v=20261023-skills1": "/src/app.js?v=20261024-boutique4",
+    "/src/ui/render.js?v=20261023-profile1": "/src/ui/render.js?v=20261024-beta-clock2",
+    "/src/ui/renderDroneBay.js": "/src/ui/renderDroneBay.js?v=20261024-workshop1",
+    "/src/ui/droneBayModel.js": "/src/ui/droneBayModel.js?v=20261023-droneskin1",
+    "/src/ui/droneBayIcons.js": "/src/ui/droneBayIcons.js?v=20261023-dronebay1",
+    "/src/app.js?v=20261023-dronebay1": "/src/app.js?v=20261024-boutique4",
+    "/src/ui/render.js?v=20261023-dronebay1": "/src/ui/render.js?v=20261024-beta-clock2",
+    "/src/ui/renderDroneBay.js?v=20261023-dronebay1": "/src/ui/renderDroneBay.js?v=20261024-workshop1",
+    "/src/ui/droneBayModel.js?v=20261023-dronebay1": "/src/ui/droneBayModel.js?v=20261023-droneskin1",
+    "/src/game/ui/combatPanelPresentation.js": "/src/game/ui/combatPanelPresentation.js?v=20261023-hud1",
+    "/src/game/ui/combatPanels.js?v=20261022-quest-console1": "/src/game/ui/combatPanels.js?v=20261024-quest-assets1",
+    "/src/game/ui/combatChat.js": "/src/game/ui/combatChat.js?v=20261023-hud2",
+    "/src/game/ui/combatChat.js?v=20260726-kharon1": "/src/game/ui/combatChat.js?v=20261023-hud2",
+    "/src/game/ui/combatHudController.js": "/src/game/ui/combatHudController.js?v=20261025-wave-portals1",
+    "/src/game/ui/combatHudController.js?v=20261022-helion-hub1": "/src/game/ui/combatHudController.js?v=20261025-wave-portals1",
+    "/src/game/ui/inputBindings.js?v=20261023-minimap4": "/src/game/ui/inputBindings.js?v=20261023-meter-modes1",
+    "/src/game/ui/questTracker.js?v=20261022-quests1": "/src/game/ui/questTracker.js?v=20261024-quest-assets1",
+    "/src/game/ui/quickPanel.js?v=20261023-pvp3": "/src/game/ui/quickPanel.js?v=20261023-hud1",
+    "/src/ui/skillTreeIcons.js?v=20261023-skills1": "/src/ui/skillTreeIcons.js?v=20261023-skillemblems1",
+    "/src/ui/renderSkills.js?v=20261023-skills1": "/src/ui/renderSkills.js?v=20261023-skillemblems1",
+    "/src/app/equipmentActions.js": "/src/app/equipmentActions.js?v=20261023-droneskin1",
+    "/src/app/equipmentBulkSelection.js": "/src/app/equipmentBulkSelection.js?v=20261023-droneskin1",
+    "/src/app/profileSyncChanges.js": "/src/app/profileSyncChanges.js?v=20261023-droneskin1",
+    "/src/core/store.js": "/src/core/store.js?v=20261024-home1",
+    "/src/data/catalog.js": "/src/data/catalog.js?v=20261023-droneskin1",
+    "/src/data/catalog.js?v=20260726-ancient1": "/src/data/catalog.js?v=20261023-droneskin1",
+    "/src/core/store.js?v=20260726-kharon1": "/src/core/store.js?v=20261024-home1",
+    "/src/ui/renderDroneBay.js?v=20261023-dronegrid1": "/src/ui/renderDroneBay.js?v=20261024-workshop1",
+    "/src/data/catalog.js?v=20260726-kharon1": "/src/data/catalog.js?v=20261023-droneskin1",
+    "/src/ui/droneBayModel.js?v=20261023-droneskin1": "/src/ui/droneBayModel.js?v=20261023-droneskin1",
+    "/src/data/catalog.js?v=20260726-nox1": "/src/data/catalog.js?v=20261023-droneskin1",
+    "/src/data/catalog.js?v=20260726-prismatic1": "/src/data/catalog.js?v=20261023-droneskin1",
+    "/src/data/catalog.js?v=20260726-imperial2": "/src/data/catalog.js?v=20261023-droneskin1",
+    "/src/game/ui/combatChat.js?v=20261023-hud1": "/src/game/ui/combatChat.js?v=20261023-hud2",
+    "/src/game/ui/combatPanels.js?v=20261023-sector-travel1": "/src/game/ui/combatPanels.js?v=20261024-quest-assets1",
+    "/src/game/ui/combatHudController.js?v=20261023-hud1": "/src/game/ui/combatHudController.js?v=20261025-wave-portals1",
+    "/src/game/ui/inputBindings.js?v=20261023-sector-travel1": "/src/game/ui/inputBindings.js?v=20261023-meter-modes1",
+    "/src/game/ui/questTracker.js?v=20261023-hud1": "/src/game/ui/questTracker.js?v=20261024-quest-assets1",
+    "/src/game/ui/combatUiLayout.js": "/src/game/ui/combatUiLayout.js?v=20261023-hud2",
+    "/src/game/ui/combatPilotPanel.js": "/src/game/ui/combatPilotPanel.js?v=20261023-hud2",
+    "/src/game/systems/portalState.js": "/src/game/systems/portalState.js?v=20261025-wave-portals1",
+    "/src/shared/rankPresentation.js": "/src/shared/rankPresentation.js?v=20261023-coherence1",
+    "/src/game/combatData/engineProfiles.js": "/src/game/combatData/engineProfiles.js?v=20261024-ricky-visuals1",
+    "/src/data/ships.js": "/src/data/ships.js?v=20261023-coherence1",
+    "/src/ui/renderLeaderboard.js": "/src/ui/renderLeaderboard.js?v=20261023-coherence1",
+    "/src/data/ranks.js": "/src/data/ranks.js?v=20261023-rankshine1",
+    "/src/core/rankAuthorityStore.js": "/src/core/rankAuthorityStore.js?v=20261023-coherence1",
+    "/src/core/rankStore.js": "/src/core/rankStore.js?v=20261023-coherence1",
+    "/src/shared/firmBoosters.js": "/src/shared/firmBoosters.js?v=20261023-coherence1",
+    "/src/core/rankStore.js?v=20260726-kharon1": "/src/core/rankStore.js?v=20261023-coherence1",
+    "/src/data/ships.js?v=20260726-imperial2": "/src/data/ships.js?v=20261023-coherence1",
+    "/src/data/ranks.js?v=20260726-kharon1": "/src/data/ranks.js?v=20261023-rankshine1",
+    "/src/data/ships.js?v=20260726-kharon1": "/src/data/ships.js?v=20261023-coherence1",
+    "/src/shared/firmBoosters.js?v=20260726-kharon1": "/src/shared/firmBoosters.js?v=20261023-coherence1",
+    "/src/game/systems/portalState.js?v=20261022-helion-hub1": "/src/game/systems/portalState.js?v=20261025-wave-portals1",
+    "/src/ui/renderProfile.js?v=20261023-profile1": "/src/ui/renderProfile.js?v=20261023-profilemilestones1",
+    "/src/ui/profilePresentation.js?v=20261023-profile1": "/src/ui/profilePresentation.js?v=20261023-profilemilestones1",
+    "/src/ui/renderLeaderboard.js?v=20261022-helion-hub1": "/src/ui/renderLeaderboard.js?v=20261023-coherence1",
+    "/src/game/ui/questTracker.js?v=20261023-hud2": "/src/game/ui/questTracker.js?v=20261024-quest-assets1",
+    "/src/app/refineryActions.js": "/src/app/refineryActions.js?v=20261023-refinery2",
+    "/src/ui/refineryDom.js": "/src/ui/refineryDom.js?v=20261023-refinery1",
+    "/src/ui/refineryHangarPanels.js": "/src/ui/refineryHangarPanels.js?v=20261023-refinery2",
+    "/src/ui/refineryPresentation.js": "/src/ui/refineryPresentation.js?v=20261025-orbital3",
+    "/src/game/ui/spawnRefineryPanel.js": "/src/game/ui/spawnRefineryPanel.js?v=20261024-perfection-poste1",
+    "/src/ui/profileMilestoneEmblems.js": "/src/ui/profileMilestoneEmblems.js?v=20261023-profilemilestones1",
+    "/src/ui/profileMilestones.js": "/src/ui/profileMilestones.js?v=20261023-profilemilestones1",
+    "/src/ui/renderProfile.js?v=20261023-profilemilestones1": "/src/ui/renderProfile.js?v=20261023-profilemilestones1",
+    "/src/ui/profileIcons.js?v=20261023-profilemilestones1": "/src/ui/profileIcons.js?v=20261023-profilemilestones1",
+    "/src/ui/profileMilestoneEmblems.js?v=20261023-profilemilestones1": "/src/ui/profileMilestoneEmblems.js?v=20261023-profilemilestones1",
+    "/src/ui/profilePresentation.js?v=20261023-profilemilestones1": "/src/ui/profilePresentation.js?v=20261023-profilemilestones1",
+    "/src/ui/profileMilestones.js?v=20261023-profilemilestones1": "/src/ui/profileMilestones.js?v=20261023-profilemilestones1",
+    "/src/game/ui/combatPanels.js?v=20261023-hud2": "/src/game/ui/combatPanels.js?v=20261024-quest-assets1",
+    "/src/game/ui/hud.js?v=20261023-pvp3": "/src/game/ui/hud.js?v=20261023-meter-modes1",
+    "/src/game/ui/combatHudController.js?v=20261023-hud2": "/src/game/ui/combatHudController.js?v=20261025-wave-portals1",
+    "/src/game/ui/inputBindings.js?v=20261023-refinery1": "/src/game/ui/inputBindings.js?v=20261023-meter-modes1",
+    "/src/game/ui/combatPanels.js?v=20261023-refinery1": "/src/game/ui/combatPanels.js?v=20261024-quest-assets1",
+    "/src/game/ui/combatUtilityDock.js": "/src/game/ui/combatUtilityDock.js?v=20261023-dock-fold1",
+    "/src/ui/toast.js": "/src/ui/toast.js?v=20261023-combattoast1",
+    "/src/ui/toast.js?v=20260726-kharon1": "/src/ui/toast.js?v=20261023-combattoast1",
+    "/src/ui/shopMarkup.js": "/src/ui/shopMarkup.js?v=20261024-shop6",
+    "/src/ui/shopShowcase.js": "/src/ui/shopShowcase.js?v=20261024-shop7",
+    "/src/ui/shopProductModel.js": "/src/ui/shopProductModel.js?v=20261024-gold-art1",
+    "/src/ui/shopCatalog.js": "/src/ui/shopCatalog.js?v=20261024-boutique3",
+    "/src/ui/shopIcons.js": "/src/ui/shopIcons.js?v=20261023-shop1",
+    "/src/shared/firmHomeMapThemes.js": "/src/shared/firmHomeMapThemes.js?v=20261025-sector03-aligned3",
+    "/src/shared/helionOneHub.js?v=20261022-helion-hub3": "/src/shared/helionOneHub.js?v=20261023-firm-homes1",
+    "/src/game/combatData/firmHomeMapScenery.js": "/src/game/combatData/firmHomeMapScenery.js?v=20261023-map-consistency1",
+    "/src/game/combatData/helionOneVisuals.js": "/src/game/combatData/helionOneVisuals.js?v=20261023-firm-homes1",
+    "/src/game/combatData/helionOneVisuals.js?v=20261022-helion-light1": "/src/game/combatData/helionOneVisuals.js?v=20261023-firm-homes1",
+    "/src/game/render/mapAssetPalette.js": "/src/game/render/mapAssetPalette.js?v=20261025-sector03-aligned3",
+    "/src/game/combatAssets.js?v=20261023-minimap4": "/src/game/combatAssets.js?v=20261025-eclanite-visual1",
+    "/src/game/systems/combatWorldState.js": "/src/game/systems/combatWorldState.js?v=20261023-map-consistency1",
+    "/src/game/systems/combatWorldState.js?v=20261022-helion-hub1": "/src/game/systems/combatWorldState.js?v=20261023-map-consistency1",
+    "/src/game/render/mapAssetPalette.js?v=20261023-firm-homes1": "/src/game/render/mapAssetPalette.js?v=20261025-sector03-aligned3",
+    "/src/game/ui/combatMeterModes.js": "/src/game/ui/combatMeterModes.js?v=20261023-meter-modes1",
+    "/src/game/render/mapAssetPalette.js?v=20261023-hq-upright1": "/src/game/render/mapAssetPalette.js?v=20261025-sector03-aligned3",
+    "/src/game/systems/combatWorldState.js?v=20261023-firm-homes1": "/src/game/systems/combatWorldState.js?v=20261023-map-consistency1",
+    "/src/game/combatData/firmHomeMapScenery.js?v=20261023-firm-homes1": "/src/game/combatData/firmHomeMapScenery.js?v=20261023-map-consistency1",
+    "/src/game/combatData/miniMapVisuals.js?v=20261023-minimap7": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatOrchestrator.js?v=20261023-meter-modes1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/combatOrchestrator.js?v=20261023-sector-travel1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/helionTwoVisuals.js": "/src/game/combatData/helionTwoVisuals.js?v=20261024-sector02-firms1",
+    "/src/game/combatOrchestrator.js?v=20261023-map-consistency1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/miniMapVisuals.js?v=20261023-map-consistency1": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/render/portalTransition.js?v=20260726-kharon1": "/src/game/render/portalTransition.js?v=20261025-wave-portals1",
+    "/src/game/render/mapPortals.js": "/src/game/render/mapPortals.js?v=20261025-wave-portals1",
+    "/src/game/render/portalTransition.js": "/src/game/render/portalTransition.js?v=20261025-wave-portals1",
+    "/src/game/render/sectorPortalVisual.js": "/src/game/render/sectorPortalVisual.js?v=20261025-azuron-vortex1",
+    "/src/game/render/sectorPortalVisual.js?v=20261024-sector-portals1": "/src/game/render/sectorPortalVisual.js?v=20261025-azuron-vortex1",
+    "/src/game/render/mapPortals.js?v=20261022-helion-hub1": "/src/game/render/mapPortals.js?v=20261025-wave-portals1",
+    "/src/game/combatAssets.js?v=20261024-sector-portals1": "/src/game/combatAssets.js?v=20261025-eclanite-visual1",
+    "/src/data/sectorPortalVisuals.js?v=20261024-sector-portals1": "/src/data/sectorPortalVisuals.js?v=20261024-sector-portals1",
+    "/src/data/sectorPortalVisuals.js": "/src/data/sectorPortalVisuals.js?v=20261024-sector-portals1",
+    "/src/game/combatData/helionTwoVisuals.js?v=20261023-helion2-industrial1": "/src/game/combatData/helionTwoVisuals.js?v=20261024-sector02-firms1",
+    "/src/game/combatData/miniMapVisuals.js?v=20261023-helion2-industrial1": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/miniMapVisuals.js?v=20261024-helion2-adjust1": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/helionTwoVisuals.js?v=20261024-helion2-adjust1": "/src/game/combatData/helionTwoVisuals.js?v=20261024-sector02-firms1",
+    "/src/ui/shopMarkup.js?v=20261024-shop4": "/src/ui/shopMarkup.js?v=20261024-shop6",
+    "/src/game/combatData/enemies.js": "/src/game/combatData/enemies.js?v=20261025-eclanite-visual1",
+    "/src/game/ui/combatPanels.js?v=20261023-dock-fold1": "/src/game/ui/combatPanels.js?v=20261024-quest-assets1",
+    "/src/ui/renderHome.js": "/src/ui/renderHome.js?v=20261024-home-ranks1",
+    "/src/ui/renderHome.js?v=20261024-home1": "/src/ui/renderHome.js?v=20261024-home-ranks1",
+    "/src/ui/homePresentation.js": "/src/ui/homePresentation.js?v=20261024-home-ranks1",
+    "/src/ui/homePresentation.js?v=20261024-home1": "/src/ui/homePresentation.js?v=20261024-home-ranks1",
+    "/src/core/currencyStore.js": "/src/core/currencyStore.js?v=20261024-boutique3",
+    "/src/ui/premiumPassStore.js": "/src/ui/premiumPassStore.js?v=20261024-gold-art1",
+    "/src/ui/supportStore.js": "/src/ui/supportStore.js?v=20261024-boutique4",
+    "/src/ui/supportStorePanels.js": "/src/ui/supportStorePanels.js?v=20261024-currency-rows1",
+    "/src/ui/supportStore.js?v=20261024-boutique3": "/src/ui/supportStore.js?v=20261024-boutique4",
+    "/src/ui/premiumPassStore.js?v=20261024-boutique3": "/src/ui/premiumPassStore.js?v=20261024-gold-art1",
+    "/src/core/currencyStore.js?v=20260726-kharon1": "/src/core/currencyStore.js?v=20261024-boutique3",
+    "/src/data/premium.js?v=20261024-boutique3": "/src/data/premium.js?v=20261024-beta-clock1",
+    "/src/ui/shopCatalog.js?v=20261024-boutique3": "/src/ui/shopCatalog.js?v=20261024-boutique3",
+    "/src/ui/supportStorePanels.js?v=20261024-boutique3": "/src/ui/supportStorePanels.js?v=20261024-currency-rows1",
+    "/src/game/combatData.js": "/src/game/combatData.js?v=20261024-mobs1",
+    "/src/game/systems/combatEnemyRuntime.js": "/src/game/systems/combatEnemyRuntime.js?v=20261025-mob-plasma1",
+    "/src/data/deadlyEnemies.js": "/src/data/deadlyEnemies.js?v=20261024-mobs1",
+    "/src/shared/enemyProgression.js": "/src/shared/enemyProgression.js?v=20261024-mobs1",
+    "/src/shared/enemyDamage.js": "/src/shared/enemyDamage.js?v=20261024-mobs1",
+    "/src/game/systems/combatStatusEffects.js": "/src/game/systems/combatStatusEffects.js?v=20261024-damage-feedback1",
+    "/src/game/systems/mapState.js": "/src/game/systems/mapState.js?v=20261024-mobs1",
+    "/src/game/combatData.js?v=20261022-helion-hub1": "/src/game/combatData.js?v=20261024-mobs1",
+    "/src/game/systems/combatEnemyRuntime.js?v=20261022-helion-hub1": "/src/game/systems/combatEnemyRuntime.js?v=20261025-mob-plasma1",
+    "/src/game/systems/combatStatusEffects.js?v=20260726-kharon1": "/src/game/systems/combatStatusEffects.js?v=20261024-damage-feedback1",
+    "/src/game/systems/mapState.js?v=20261022-helion-hub1": "/src/game/systems/mapState.js?v=20261024-mobs1",
+    "/src/ui/betaStore.js": "/src/ui/betaStore.js?v=20261024-beta-labels1",
+    "/src/ui/storePackCategories.js": "/src/ui/storePackCategories.js?v=20261024-boutique4",
+    "/src/ui/betaStore.js?v=20261024-boutique4": "/src/ui/betaStore.js?v=20261024-beta-labels1",
+    "/src/ui/supportStore.js?v=20261024-boutique4": "/src/ui/supportStore.js?v=20261024-boutique4",
+    "/src/ui/premiumPassStore.js?v=20261024-boutique4": "/src/ui/premiumPassStore.js?v=20261024-gold-art1",
+    "/src/ui/render.js?v=20261024-boutique4": "/src/ui/render.js?v=20261024-beta-clock2",
+    "/src/ui/supportStorePanels.js?v=20261024-boutique4": "/src/ui/supportStorePanels.js?v=20261024-currency-rows1",
+    "/src/ui/storePackCategories.js?v=20261024-boutique4": "/src/ui/storePackCategories.js?v=20261024-boutique4",
+    "/src/game/systems/projectiles.js": "/src/game/systems/projectiles.js?v=20261024-laser-input1",
+    "/src/game/render/vfxPrimitives.js": "/src/game/render/vfxPrimitives.js?v=20261024-vfx1",
+    "/src/game/systems/combatBeams.js": "/src/game/systems/combatBeams.js?v=20261024-shield-x6b1",
+    "/src/game/render/shipEngineWake.js": "/src/game/render/shipEngineWake.js?v=20261025-enemy-smoke3",
+    "/src/game/render/player.js": "/src/game/render/player.js?v=20261024-shield-assigned1",
+    "/src/game/render/shipEngines.js": "/src/game/render/shipEngines.js?v=20261024-vfx1",
+    "/src/game/render/weaponVfx.js": "/src/game/render/weaponVfx.js?v=20261024-shield-x6b1",
+    "/src/game/render/enemyLife.js": "/src/game/render/enemyLife.js?v=20261024-vfx1",
+    "/src/game/render/entities.js": "/src/game/render/entities.js?v=20261025-mob-plasma1",
+    "/src/game/systems/playerMovement.js": "/src/game/systems/playerMovement.js?v=20261024-vfx1",
+    "/src/shared/movementSlow.js": "/src/shared/movementSlow.js?v=20261024-vfx1",
+    "/src/game/render/player.js?v=20261022-helion-hub1": "/src/game/render/player.js?v=20261024-shield-assigned1",
+    "/src/game/systems/combatBeams.js?v=20260726-kharon1": "/src/game/systems/combatBeams.js?v=20261024-shield-x6b1",
+    "/src/game/systems/playerMovement.js?v=20260726-kharon1": "/src/game/systems/playerMovement.js?v=20261024-vfx1",
+    "/src/game/render/entities.js?v=20261022-helion-hub1": "/src/game/render/entities.js?v=20261025-mob-plasma1",
+    "/src/game/systems/projectiles.js?v=20260726-kharon1": "/src/game/systems/projectiles.js?v=20261024-laser-input1",
+    "/src/game/ui/questNpcDialogue.js": "/src/game/ui/questNpcDialogue.js?v=20261024-ricky-bubble1",
+    "/src/ui/premiumPassArtwork.js": "/src/ui/premiumPassArtwork.js?v=20261024-gold-art1",
+    "/src/ui/premiumPassArtwork.js?v=20261024-gold-art1": "/src/ui/premiumPassArtwork.js?v=20261024-gold-art1",
+    "/src/shared/lootCollection.js": "/src/shared/lootCollection.js?v=20261025-loot-height1",
+    "/src/game/systems/lootCollection.js": "/src/game/systems/lootCollection.js?v=20261025-loot-beam1",
+    "/src/game/systems/combatCargo.js": "/src/game/systems/combatCargo.js?v=20261025-loot-beam1",
+    "/src/game/systems/combatCargo.js?v=20260726-kharon1": "/src/game/systems/combatCargo.js?v=20261025-loot-beam1",
+    "/src/game/combatOrchestrator.js?v=20261024-ricky-retry1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/systems/combatFrameUpdate.js?v=20261023-sector-travel1": "/src/game/systems/combatFrameUpdate.js?v=20261024-loot-suction1",
+    "/src/game/render/entities.js?v=20261024-vfx1": "/src/game/render/entities.js?v=20261025-mob-plasma1",
+    "/src/game/render/lootCollection.js": "/src/game/render/lootCollection.js?v=20261025-loot-beam1",
+    "/src/multiplayer/socketCommands.js?v=20261023-drones1": "/src/multiplayer/socketCommands.js?v=20261024-loot-suction1",
+    "/src/multiplayer/playerSocketListeners.js?v=20261024-quest-ranges1": "/src/multiplayer/playerSocketListeners.js?v=20261024-loot-suction1",
+    "/src/game/systems/combatRemoteWeaponEvents.js": "/src/game/systems/combatRemoteWeaponEvents.js?v=20261024-shield-lethal1",
+    "/src/ui/betaStoreCalendar.js": "/src/ui/betaStoreCalendar.js?v=20261024-beta-clock1",
+    "/src/ui/betaStoreCalendar.js?v=20261024-beta-layout1": "/src/ui/betaStoreCalendar.js?v=20261024-beta-clock1",
+    "/src/ui/betaStore.js?v=20261024-beta-layout1": "/src/ui/betaStore.js?v=20261024-beta-labels1",
+    "/src/multiplayer/worldSocketListeners.js": "/src/multiplayer/worldSocketListeners.js?v=20261025-wave-portals1",
+    "/src/game/combatData/rickyPortalClient.js": "/src/game/combatData/rickyPortalClient.js?v=20261024-ricky-visuals1",
+    "/src/game/ui/questObjectiveVisuals.js": "/src/game/ui/questObjectiveVisuals.js?v=20261024-ricky-visuals1",
+    "/src/data/rickyVisuals.js": "/src/data/rickyVisuals.js?v=20261024-ricky-visuals1",
+    "/src/game/ui/npcDialogueView.js": "/src/game/ui/npcDialogueView.js?v=20261024-ricky-bubble1",
+    "/src/game/render/rickySaucer.js": "/src/game/render/rickySaucer.js?v=20261024-ricky-visuals1",
+    "/src/data/rickyVisuals.js?v=20261024-ricky-visuals1": "/src/data/rickyVisuals.js?v=20261024-ricky-visuals1",
+    "/src/multiplayer/worldSocketListeners.js?v=20260726-ancient1": "/src/multiplayer/worldSocketListeners.js?v=20261025-wave-portals1",
+    "/src/game/render/rickySaucer.js?v=20261024-ricky-visuals1": "/src/game/render/rickySaucer.js?v=20261024-ricky-visuals1",
+    "/src/game/ui/questObjectiveVisuals.js?v=20261024-quest-assets1": "/src/game/ui/questObjectiveVisuals.js?v=20261024-ricky-visuals1",
+    "/src/game/ui/npcDialogueView.js?v=20261024-ricky-visuals1": "/src/game/ui/npcDialogueView.js?v=20261024-ricky-bubble1",
+    "/src/game/combatData/helionTwoVisuals.js?v=20261024-helion2-depth1": "/src/game/combatData/helionTwoVisuals.js?v=20261024-sector02-firms1",
+    "/src/game/combatData/firmSectorTwoVisuals.js": "/src/game/combatData/firmSectorTwoVisuals.js?v=20261024-sector02-firms1",
+    "/src/game/combatData/miniMapVisuals.js?v=20261024-helion2-depth1": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatOrchestrator.js?v=20261024-loot-suction1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/ui/betaRewardCountdown.js": "/src/ui/betaRewardCountdown.js?v=20261024-beta-clock1",
+    "/src/shared/betaRewardSchedule.js": "/src/shared/betaRewardSchedule.js?v=20261024-beta-clock1",
+    "/src/shared/betaRewardSchedule.js?v=20261024-beta-clock1": "/src/shared/betaRewardSchedule.js?v=20261024-beta-clock1",
+    "/src/data/premium.js?v=20261024-beta-clock1": "/src/data/premium.js?v=20261024-beta-clock1",
+    "/src/ui/betaRewardCountdown.js?v=20261024-beta-clock1": "/src/ui/betaRewardCountdown.js?v=20261024-beta-clock1",
+    "/src/game/combatData/helionThreeVisuals.js": "/src/game/combatData/helionThreeVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/miniMapVisuals.js?v=20261024-sector02-firms1": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatOrchestrator.js?v=20261024-sector02-firms1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/helionThreeVisuals.js?v=20261024-helion3-cataclysm1": "/src/game/combatData/helionThreeVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/miniMapVisuals.js?v=20261024-helion3-cataclysm1": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatOrchestrator.js?v=20261024-helion3-cataclysm1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/render/miniMapScenery.js?v=20261024-helion3-cataclysm1": "/src/game/render/miniMapScenery.js?v=20261024-helion3-cataclysm2",
+    "/src/game/ui/questNpcDialogue.js?v=20261024-ricky-visuals1": "/src/game/ui/questNpcDialogue.js?v=20261024-ricky-bubble1",
+    "/src/game/ui/questNpcDialogue.js?v=20261024-ricky-bubble1": "/src/game/ui/questNpcDialogue.js?v=20261024-ricky-bubble1",
+    "/src/game/ui/npcDialogueView.js?v=20261024-ricky-bubble1": "/src/game/ui/npcDialogueView.js?v=20261024-ricky-bubble1",
+    "/src/game/systems/weapons.js": "/src/game/systems/weapons.js?v=20261024-laser-selection1",
+    "/src/game/combatData/weaponVisuals.js": "/src/game/combatData/weaponVisuals.js?v=20261024-shield-assigned1",
+    "/src/game/ui/combatActions.js": "/src/game/ui/combatActions.js?v=20261024-laser-selection1",
+    "/src/shared/weaponCooldowns.js": "/src/shared/weaponCooldowns.js?v=20261024-laser-input1",
+    "/src/game/systems/weapons.js?v=20260726-combat-authority1": "/src/game/systems/weapons.js?v=20261024-laser-selection1",
+    "/src/game/ui/combatActions.js?v=20260726-combat-authority1": "/src/game/ui/combatActions.js?v=20261024-laser-selection1",
+    "/src/game/combatData/miniMapVisuals.js?v=20261024-helion3-cataclysm2": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/helionThreeVisuals.js?v=20261024-helion3-cataclysm2": "/src/game/combatData/helionThreeVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/systems/combatDamageFeedback.js": "/src/game/systems/combatDamageFeedback.js?v=20261024-damage-feedback1",
+    "/src/game/render/damageTexts.js": "/src/game/render/damageTexts.js?v=20261024-damage-red1",
+    "/src/game/systems/combatHitResolution.js": "/src/game/systems/combatHitResolution.js?v=20261024-damage-feedback1",
+    "/src/game/combatData/damageFeedback.js": "/src/game/combatData/damageFeedback.js?v=20261024-damage-red1",
+    "/src/game/systems/combatHitResolution.js?v=20261022-helion-hub1": "/src/game/systems/combatHitResolution.js?v=20261024-damage-feedback1",
+    "/src/game/combatData/enemyWeaponContact.js": "/src/game/combatData/enemyWeaponContact.js?v=20261024-shield-x6b1",
+    "/src/game/render/enemyWeaponImpact.js": "/src/game/render/enemyWeaponImpact.js?v=20261024-shield-assigned1",
+    "/src/game/systems/combatEnemyImpacts.js": "/src/game/systems/combatEnemyImpacts.js?v=20261024-shield-assigned1",
+    "/src/game/combatData/miniMapVisuals.js?v=20261024-helion3-depth1": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/helionThreeVisuals.js?v=20261024-helion3-depth1": "/src/game/combatData/helionThreeVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/render/rickyHealBeacon.js": "/src/game/render/rickyHealBeacon.js?v=20261024-ricky-heal1",
+    "/src/game/render/rickyHealBeacon.js?v=20261024-ricky-heal1": "/src/game/render/rickyHealBeacon.js?v=20261024-ricky-heal1",
+    "/src/game/render/playerShieldImpacts.js": "/src/game/render/playerShieldImpacts.js?v=20261024-shield-assigned1",
+    "/src/game/render/shieldSurfaces.js": "/src/game/render/shieldSurfaces.js?v=20261024-shield-assigned1",
+    "/src/game/systems/combatPlayerShieldImpacts.js": "/src/game/systems/combatPlayerShieldImpacts.js?v=20261024-shield-assigned1",
+    "/src/game/combatOrchestrator.js?v=20261024-ricky-heal1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/data/progression.js?v=20261024-home1": "/src/data/progression.js?v=20261025-wave-portals1",
+    "/src/game/ui/combatHudController.js?v=20261023-hud3": "/src/game/ui/combatHudController.js?v=20261025-wave-portals1",
+    "/src/data/azuronPortal.js": "/src/data/azuronPortal.js?v=20261025-wave-portals1",
+    "/src/ui/portalPresentation.js": "/src/ui/portalPresentation.js?v=20261025-wave-portals1",
+    "/src/ui/portalPresentation.js?v=20261023-portals-ui1": "/src/ui/portalPresentation.js?v=20261025-wave-portals1",
+    "/src/data/progression.js?v=20260726-kharon1": "/src/data/progression.js?v=20261025-wave-portals1",
+    "/src/game/render/enemyOrb.js": "/src/game/render/enemyOrb.js?v=20261025-orb-family1",
+    "/src/game/combatData/orbVisuals.js": "/src/game/combatData/orbVisuals.js?v=20261025-orb-size1",
+    "/src/game/render/orbSprite.js": "/src/game/render/orbSprite.js?v=20261025-enemy-motion1",
+    "/src/game/render/orbMotion.js": "/src/game/render/orbMotion.js?v=20261025-enemy-motion1",
+    "/src/game/render/orbWake.js": "/src/game/render/orbWake.js?v=20261025-enemy-smoke3",
+    "/src/data/enemyVisuals.js": "/src/data/enemyVisuals.js?v=20261025-tracker-boss1r2",
+    "/src/game/combatOrchestrator.js?v=20261024-azuron1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/multiplayer/socketCommands.js?v=20261024-loot-suction1": "/src/multiplayer/socketCommands.js?v=20261025-azuron2",
+    "/src/data/progression.js?v=20261024-azuron1": "/src/data/progression.js?v=20261025-wave-portals1",
+    "/src/multiplayer/client.js?v=20261022-quests1": "/src/multiplayer/client.js?v=20261025-azuron2",
+    "/src/game/ui/combatHudController.js?v=20261024-azuron1": "/src/game/ui/combatHudController.js?v=20261025-wave-portals1",
+    "/src/game/systems/portalState.js?v=20261024-mobs1": "/src/game/systems/portalState.js?v=20261025-wave-portals1",
+    "/src/game/render/mapPortals.js?v=20261024-sector-portals1": "/src/game/render/mapPortals.js?v=20261025-wave-portals1",
+    "/src/multiplayer/worldSocketListeners.js?v=20261024-ricky-visuals1": "/src/multiplayer/worldSocketListeners.js?v=20261025-wave-portals1",
+    "/src/data/azuronPortal.js?v=20261024-azuron1": "/src/data/azuronPortal.js?v=20261025-wave-portals1",
+    "/src/shared/azuronProgress.js": "/src/shared/azuronProgress.js?v=20261025-wave-portals1",
+    "/src/game/systems/combatPortalNavigation.js": "/src/game/systems/combatPortalNavigation.js?v=20261025-wave-portals1",
+    "/src/game/render/azuronGate.js": "/src/game/render/azuronGate.js?v=20261025-azuron-blue1",
+    "/src/game/combatData/azuronArena.js": "/src/game/combatData/azuronArena.js?v=20261025-wave-portals1",
+    "/src/game/combatOrchestrator.js?v=20261025-azuron2": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/systems/combatFrameUpdate.js?v=20261024-loot-suction1": "/src/game/systems/combatFrameUpdate.js?v=20261025-azuron-gate1",
+    "/src/multiplayer/progressionSocketListeners.js?v=20261024-ricky-retry1": "/src/multiplayer/progressionSocketListeners.js?v=20261025-portal-attempts1",
+    "/src/data/progression.js?v=20261025-azuron2": "/src/data/progression.js?v=20261025-wave-portals1",
+    "/src/ui/renderPortals.js?v=20261024-caster-layout1": "/src/ui/renderPortals.js?v=20261025-portal-attempts1",
+    "/src/game/systems/combatServerEvents.js?v=20261024-shield-assigned1": "/src/game/systems/combatServerEvents.js?v=20261025-portal-attempts1",
+    "/src/app/profileController.js?v=20261024-hangar-memory2": "/src/app/profileController.js?v=20261025-portal-attempts1",
+    "/src/core/stateNormalizer.js?v=20261024-boutique3": "/src/core/stateNormalizer.js?v=20261025-portal-attempts1",
+    "/src/multiplayer/worldSocketListeners.js?v=20261025-azuron2": "/src/multiplayer/worldSocketListeners.js?v=20261025-wave-portals1",
+    "/src/ui/portalPresentation.js?v=20261024-azuron1": "/src/ui/portalPresentation.js?v=20261025-wave-portals1",
+    "/src/app/progressionActions.js": "/src/app/progressionActions.js?v=20261025-portal-attempts1",
+    "/src/shared/portalAttempts.js": "/src/shared/portalAttempts.js?v=20261025-wave-portals1",
+    "/src/ui/renderPortalWorkspace.js": "/src/ui/renderPortalWorkspace.js?v=20261025-portal-attempts1",
+    "/src/game/systems/combatDeathRespawn.js": "/src/game/systems/combatDeathRespawn.js?v=20261025-portal-attempts1",
+    "/src/game/systems/rewards.js": "/src/game/systems/rewards.js?v=20261025-portal-attempts1",
+    "/src/app/progressionActions.js?v=20260726-economy-burst1": "/src/app/progressionActions.js?v=20261025-portal-attempts1",
+    "/src/game/systems/combatDeathRespawn.js?v=20260726-kharon1": "/src/game/systems/combatDeathRespawn.js?v=20261025-portal-attempts1",
+    "/src/ui/renderPortalWorkspace.js?v=20261024-caster-layout1": "/src/ui/renderPortalWorkspace.js?v=20261025-portal-attempts1",
+    "/src/game/render/enemyVorak.js": "/src/game/render/enemyVorak.js?v=20261025-vorak-family1",
+    "/src/game/render/vorakSprite.js": "/src/game/render/vorakSprite.js?v=20261025-enemy-motion1",
+    "/src/game/render/vorakWake.js": "/src/game/render/vorakWake.js?v=20261025-enemy-smoke3",
+    "/src/game/combatData/vorakVisuals.js": "/src/game/combatData/vorakVisuals.js?v=20261025-vorak-family1",
+    "/src/game/render/vorakMotion.js": "/src/game/render/vorakMotion.js?v=20261025-enemy-motion1",
+    "/src/game/combatAssets.js?v=20261025-vorak-family1": "/src/game/combatAssets.js?v=20261025-eclanite-visual1",
+    "/src/game/combatData/miniMapVisuals.js?v=20261025-helion3-crimson1": "/src/game/combatData/miniMapVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/render/mapPortals.js?v=20261025-azuron2": "/src/game/render/mapPortals.js?v=20261025-wave-portals1",
+    "/src/game/render/azuronGate.js?v=20261025-azuron2": "/src/game/render/azuronGate.js?v=20261025-azuron-blue1",
+    "/src/game/combatData/azuronArena.js?v=20261025-azuron2": "/src/game/combatData/azuronArena.js?v=20261025-wave-portals1",
+    "/src/game/combatData/azuronArena.js?v=20261025-azuron-blue1": "/src/game/combatData/azuronArena.js?v=20261025-wave-portals1",
+    "/src/game/systems/minimapState.js?v=20261023-minimap6": "/src/game/systems/minimapState.js?v=20261025-minimap-width2",
+    "/src/game/combatData/azuronArena.js?v=20261025-azuron-layers1": "/src/game/combatData/azuronArena.js?v=20261025-wave-portals1",
+    "/src/game/render/parasiteMotion.js": "/src/game/render/parasiteMotion.js?v=20261025-tracker-parasite1",
+    "/src/game/combatData/parasiteVisuals.js": "/src/game/combatData/parasiteVisuals.js?v=20261025-enemy-motion1",
+    "/src/game/render/enemyParasite.js": "/src/game/render/enemyParasite.js?v=20261025-parasite-smoke1",
+    "/src/game/render/parasiteBossCrown.js": "/src/game/render/parasiteBossCrown.js?v=20261025-parasite-smoke1",
+    "/src/game/render/parasiteWake.js": "/src/game/render/parasiteWake.js?v=20261025-enemy-smoke3",
+    "/src/game/render/parasiteSprite.js": "/src/game/render/parasiteSprite.js?v=20261025-enemy-motion1",
+    "/src/game/render/parasiteBossMotion.js": "/src/game/render/parasiteBossMotion.js?v=20261025-tracker-parasite1",
+    "/src/game/systems/minimapState.js?v=20261025-minimap-width1": "/src/game/systems/minimapState.js?v=20261025-minimap-width2",
+    "/src/game/systems/miniMapLayout.js?v=20261025-minimap-width1": "/src/game/systems/miniMapLayout.js?v=20261025-minimap-width2",
+    "/src/shared/lootCollection.js?v=20261024-loot-suction1": "/src/shared/lootCollection.js?v=20261025-loot-height1",
+    "/src/game/systems/lootCollection.js?v=20261024-loot-suction1": "/src/game/systems/lootCollection.js?v=20261025-loot-beam1",
+    "/src/game/render/lootCollection.js?v=20261024-loot-suction1": "/src/game/render/lootCollection.js?v=20261025-loot-beam1",
+    "/src/game/systems/combatCargo.js?v=20261024-loot-suction1": "/src/game/systems/combatCargo.js?v=20261025-loot-beam1",
+    "/src/game/combatData/azuronArena.js?v=20261025-azuron-distant1": "/src/game/combatData/azuronArena.js?v=20261025-wave-portals1",
+    "/src/shared/lootCollection.js?v=20261025-loot-beam1": "/src/shared/lootCollection.js?v=20261025-loot-height1",
+    "/src/game/combatData/trackerVisuals.js": "/src/game/combatData/trackerVisuals.js?v=20261025-enemy-motion1",
+    "/src/game/render/trackerElectricity.js": "/src/game/render/trackerElectricity.js?v=20261025-tracker-parasite1",
+    "/src/game/render/trackerMotion.js": "/src/game/render/trackerMotion.js?v=20261025-enemy-motion1",
+    "/src/game/render/trackerWake.js": "/src/game/render/trackerWake.js?v=20261025-enemy-motion1",
+    "/src/game/render/trackerSprite.js": "/src/game/render/trackerSprite.js?v=20261025-enemy-motion1",
+    "/src/game/render/enemyTracker.js": "/src/game/render/enemyTracker.js?v=20261025-tracker-parasite1",
+    "/src/game/render/parasiteTentacles.js": "/src/game/render/parasiteTentacles.js?v=20261025-enemy-motion1",
+    "/src/game/render/enemyArticulatedSprite.js": "/src/game/render/enemyArticulatedSprite.js?v=20261025-tracker-parasite1",
+    "/src/game/combatData/helionThreeFinishes.js": "/src/game/combatData/helionThreeFinishes.js?v=20261025-helion3-eclanite1",
+    "/src/game/render/mapSceneryAnimation.js": "/src/game/render/mapSceneryAnimation.js?v=20261025-helion3-eclanite1",
+    "/src/game/combatOrchestrator.js?v=20261025-portal-attempts1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/game/systems/combatFrameUpdate.js?v=20261025-portal-attempts1": "/src/game/systems/combatFrameUpdate.js?v=20261025-azuron-gate1",
+    "/src/game/render/combatScene.js?v=20261024-ricky-heal1": "/src/game/render/combatScene.js?v=20261025-azuron-gate1",
+    "/src/game/combatAssets.js?v=20261025-tracker-parasite1": "/src/game/combatAssets.js?v=20261025-eclanite-visual1",
+    "/src/game/render/mapPortals.js?v=20261025-azuron-blue1": "/src/game/render/mapPortals.js?v=20261025-wave-portals1",
+    "/src/game/render/portalTransition.js?v=20261024-sector-portals1": "/src/game/render/portalTransition.js?v=20261025-wave-portals1",
+    "/src/game/systems/combatPortalNavigation.js?v=20261025-azuron2": "/src/game/systems/combatPortalNavigation.js?v=20261025-wave-portals1",
+    "/src/game/render/azuronPortalVisual.js": "/src/game/render/azuronPortalVisual.js?v=20261025-wave-portals1",
+    "/src/data/azuronGateVisuals.js": "/src/data/azuronGateVisuals.js?v=20261025-wave-portals1",
+    "/src/game/render/mapScenerySky.js": "/src/game/render/mapScenerySky.js?v=20261025-scenery-bounds1",
+    "/src/game/combatData/firmSectorThreeVisuals.js": "/src/game/combatData/firmSectorThreeVisuals.js?v=20261025-sector03-aligned3",
+    "/src/game/combatData/eclaniteVisuals.js": "/src/game/combatData/eclaniteVisuals.js?v=20261025-eclanite-visual1",
+    "/src/game/render/eclaniteSprite.js": "/src/game/render/eclaniteSprite.js?v=20261025-enemy-motion1",
+    "/src/game/render/eclaniteWake.js": "/src/game/render/eclaniteWake.js?v=20261025-eclanite-visual1",
+    "/src/game/render/enemyEclanite.js": "/src/game/render/enemyEclanite.js?v=20261025-eclanite-visual1",
+    "/src/game/render/eclaniteMotion.js": "/src/game/render/eclaniteMotion.js?v=20261025-enemy-motion1",
+    "/src/game/render/sectorPortalVisual.js?v=20261025-azuron-gate1": "/src/game/render/sectorPortalVisual.js?v=20261025-azuron-vortex1",
+    "/src/game/render/azuronPortalVisual.js?v=20261025-azuron-gate1": "/src/game/render/azuronPortalVisual.js?v=20261025-wave-portals1",
+    "/src/game/render/azuronPortalActivation.js": "/src/game/render/azuronPortalActivation.js?v=20261025-azuron-vortex1",
+    "/src/game/systems/combatEnemyDeath.js": "/src/game/systems/combatEnemyDeath.js?v=20261025-mob-plasma1",
+    "/src/game/systems/combatMultiplayerSync.js": "/src/game/systems/combatMultiplayerSync.js?v=20261025-mob-plasma1",
+    "/src/game/render/enemyDeathExplosion.js": "/src/game/render/enemyDeathExplosion.js?v=20261025-mob-plasma1",
+    "/src/game/combatData/firmSectorThreeAssets.js": "/src/game/combatData/firmSectorThreeAssets.js?v=20261025-sector03-aligned3",
+    "/src/game/render/enemyLocomotion.js": "/src/game/render/enemyLocomotion.js?v=20261025-enemy-motion1",
+    "/src/game/combatOrchestrator.js?v=20261025-azuron-gate1": "/src/game/combatOrchestrator.js?v=20261025-sector03-aligned3",
+    "/src/data/progression.js?v=20261025-portal-attempts1": "/src/data/progression.js?v=20261025-wave-portals1",
+    "/src/game/ui/combatHudController.js?v=20261025-azuron2": "/src/game/ui/combatHudController.js?v=20261025-wave-portals1",
+    "/src/game/systems/portalState.js?v=20261025-azuron2": "/src/game/systems/portalState.js?v=20261025-wave-portals1",
+    "/src/game/render/mapPortals.js?v=20261025-azuron-gate1": "/src/game/render/mapPortals.js?v=20261025-wave-portals1",
+    "/src/game/render/portalTransition.js?v=20261025-azuron-gate1": "/src/game/render/portalTransition.js?v=20261025-wave-portals1",
+    "/src/multiplayer/worldSocketListeners.js?v=20261025-portal-attempts1": "/src/multiplayer/worldSocketListeners.js?v=20261025-wave-portals1",
+    "/src/data/azuronPortal.js?v=20261025-azuron2": "/src/data/azuronPortal.js?v=20261025-wave-portals1",
+    "/src/ui/portalPresentation.js?v=20261025-portal-attempts1": "/src/ui/portalPresentation.js?v=20261025-wave-portals1",
+    "/src/shared/azuronProgress.js?v=20261025-azuron2": "/src/shared/azuronProgress.js?v=20261025-wave-portals1",
+    "/src/game/systems/combatPortalNavigation.js?v=20261025-azuron-gate1": "/src/game/systems/combatPortalNavigation.js?v=20261025-wave-portals1",
+    "/src/game/combatData/azuronArena.js?v=20261025-azuron-nebula2": "/src/game/combatData/azuronArena.js?v=20261025-wave-portals1",
+    "/src/shared/portalAttempts.js?v=20261025-portal-attempts1": "/src/shared/portalAttempts.js?v=20261025-wave-portals1",
+    "/src/game/render/azuronPortalVisual.js?v=20261025-azuron-vortex1": "/src/game/render/azuronPortalVisual.js?v=20261025-wave-portals1",
+    "/src/data/azuronGateVisuals.js?v=20261025-azuron-gate1": "/src/data/azuronGateVisuals.js?v=20261025-wave-portals1",
+    "/src/data/kharonPortal.js": "/src/data/kharonPortal.js?v=20261025-wave-portals1",
+    "/src/data/vesperPortal.js": "/src/data/vesperPortal.js?v=20261025-wave-portals1",
+    "/src/data/wavePortalTiers.js": "/src/data/wavePortalTiers.js?v=20261025-wave-portals1",
+    "/src/data/kharonPortal.js?v=20260726-kharon1": "/src/data/kharonPortal.js?v=20261025-wave-portals1",
+    "/src/data/vesperPortal.js?v=20260726-nox1": "/src/data/vesperPortal.js?v=20261025-wave-portals1",
+    "/src/data/kharonPortal.js?v=20260726-nox1": "/src/data/kharonPortal.js?v=20261025-wave-portals1",
+    "/src/data/vesperPortal.js?v=20260726-kharon1": "/src/data/vesperPortal.js?v=20261025-wave-portals1"
   }
 }
-  </script>
+</script>
   <script>
     document.documentElement.dataset.appMode = new URLSearchParams(location.search).get("mode") === "game" ? "game" : "launcher";
   </script>
@@ -126,7 +546,7 @@
     <div class="app-boot-core">
       <img class="app-brand-logo app-brand-logo--boot" src="assets/icons/avosoma-logo-choice-1.png" alt="">
       <span class="app-boot-kicker">AVOSOMA</span>
-      <strong data-boot-launcher>CHARGEMENT DU HANGAR</strong>
+      <strong data-boot-launcher>CHARGEMENT DE L’ACCUEIL</strong>
       <strong data-boot-game>CHARGEMENT DU SECTEUR</strong>
       <div class="app-boot-progress" aria-hidden="true"><span></span></div>
       <small>Synchronisation avec le serveur MMO…</small>
@@ -201,12 +621,12 @@
   <div id="dashboard" class="dashboard launcher-dashboard">
     <header class="topbar launcher-header">
       <div class="launcher-command-row">
-        <div class="launcher-brand" aria-label="Avosoma">
+        <button type="button" class="launcher-brand active" data-view="home" aria-label="Avosoma — Accueil" aria-current="page">
           <img src="assets/icons/avosoma-logo-choice-1.png" alt="">
-          <span>AVOSOMA</span>
-        </div>
+          <div class="launcher-brand-copy"><span>AVOSOMA</span><small class="launcher-home-label">ACCUEIL</small></div>
+        </button>
         <nav class="top-nav" aria-label="Navigation principale">
-          <button class="nav-tab active" data-view="hangar">HANGAR</button>
+          <button class="nav-tab" data-view="hangar">HANGAR</button>
           <button class="nav-tab" data-view="shop">MAGASIN</button>
           <button class="nav-tab" data-view="portals">PORTAILS</button>
           <button class="nav-tab" data-view="refinery">RAFFINERIE</button>
@@ -264,29 +684,38 @@
           </div>
         </div>
       </section>
-      <button class="account-logout-dock" data-auth-action="logout" type="button" title="Déconnecter complètement le compte">
+      <div class="launcher-account-actions">
+        <div class="launcher-service-row">
+          <div id="adminDock"></div>
+          <aside id="launcherPremiumStatus" class="launcher-premium-status hidden" aria-live="polite" aria-hidden="true">
+            <div class="launcher-premium-emblem" aria-hidden="true"><span>P</span></div>
+            <div class="launcher-premium-copy">
+              <small>ABONNEMENT PILOTE</small>
+              <strong><i aria-hidden="true"></i> PREMIUM ACTIF</strong>
+            </div>
+            <div class="launcher-premium-timer">
+              <small>TEMPS RESTANT</small>
+              <b data-premium-home-remaining>--</b>
+            </div>
+          </aside>
+        </div>
+        <button class="account-logout-dock" data-auth-action="logout" type="button" title="Déconnecter complètement le compte">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v16h5M12 7l5 5-5 5M8 12h12"/></svg>
         <strong>Déconnexion</strong>
-      </button>
+        </button>
       </div>
-      <div class="launcher-service-row">
-        <div id="adminDock"></div>
-        <aside id="launcherPremiumStatus" class="launcher-premium-status hidden" aria-live="polite" aria-hidden="true">
-          <div class="launcher-premium-emblem" aria-hidden="true"><span>P</span></div>
-          <div class="launcher-premium-copy">
-            <small>ABONNEMENT PILOTE</small>
-            <strong><i aria-hidden="true"></i> PREMIUM ACTIF</strong>
-          </div>
-          <div class="launcher-premium-timer">
-            <small>TEMPS RESTANT</small>
-            <b data-premium-home-remaining>--</b>
-          </div>
-        </aside>
       </div>
     </header>
 
     <main class="page-container">
-      <section class="page-view hangar-view active" data-page="hangar">
+      <section class="page-view home-view active" data-page="home" aria-label="Accueil Avosoma">
+        <div id="homeDashboard"></div>
+      </section>
+      <dialog id="homeQuestsDialog" class="home-quest-dialog" aria-labelledby="homeQuestsTitle">
+        <header><h2 id="homeQuestsTitle">Mes quêtes en cours</h2><form method="dialog"><button type="submit" aria-label="Fermer les quêtes">Fermer</button></form></header>
+        <div id="homeQuestsContent"></div>
+      </dialog>
+      <section class="page-view hangar-view" data-page="hangar">
         <div class="hangar-tabs frame">
           <button class="hangar-tab-btn active" data-hangar-tab="vaisseau"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3 10 5 6-5-2-3 5-3-5-5 2 5-6Z"/><path d="M12 7v9"/></svg>Vaisseaux</button>
           <button class="hangar-tab-btn" data-hangar-tab="drone"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/><path d="M6 3H3v3m15-3h3v3M3 18v3h3m15-3v3h-3M12 4v3m0 10v3M4 12h3m10 0h3"/></svg>Drones</button>
@@ -308,47 +737,29 @@
         <aside id="shipDetailPanel" class="panel selected-panel frame hidden">
           <div class="panel-head compact">
             <div>
-              <span class="tiny">FICHE VAISSEAU</span>
+              <span id="selectedShipClass" class="tiny">VAISSEAU</span>
               <h2 id="selectedShipName">---</h2>
+              <p id="selectedShipRarity" class="workshop-ship-rarity"></p>
+              <span id="selectedShipStatus" class="workshop-status"></span>
             </div>
           </div>
           <div class="selected-ship-art">
             <img id="selectedShipImage" src="" alt="Vaisseau sélectionné">
             <div id="selectedShipRankBadge" class="ship-rank-badge"></div>
           </div>
+          <div id="selectedShipStats" class="ship-live-stats"></div>
           <div class="selected-actions">
             <button id="backToShipsBtn" class="blue-button secondary">RETOUR AUX VAISSEAUX</button>
             <button id="selectedShipAction" class="blue-button">ÉQUIPER</button>
           </div>
-          <div id="selectedShipStats" class="ship-live-stats"></div>
         </aside>
 
         <section id="shipLoadoutPanel" class="panel loadout-panel frame hidden">
-          <div class="panel-head loadout-ship-head">
-            <div>
-              <h2 id="loadoutShipTitle">VELOX</h2>
-            </div>
-            <button id="unequipAllShipBtn" class="unequip-all-button" type="button" data-unequip-all-open title="Tout desequiper" aria-label="Tout desequiper le vaisseau">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
-                <path d="M10 12h9" />
-                <path d="m16 9 3 3-3 3" />
-                <path d="M10 20V4l5 2v12l-5 2z" />
-              </svg>
-            </button>
-          </div>
           <div id="loadoutPanel" class="loadout-panel-body"></div>
         </section>
 
         <section id="droneSection" class="hidden"></section>
         <section id="hangarSkillsSection" class="panel skills-panel frame hidden">
-          <div class="panel-head">
-            <div>
-              <span class="tiny">PILOTE</span>
-              <h2>Tableau de compétences</h2>
-            </div>
-            <span class="points"><b data-skill-points>0</b> pts disponibles</span>
-          </div>
           <div id="hangarSkillGrid" class="skill-grid skill-grid-full" data-skill-grid></div>
         </section>
         <section id="profileSection" class="panel profile-panel frame hidden"></section>
@@ -357,19 +768,13 @@
 
       <section class="page-view shop-view" data-page="shop">
         <section class="panel shop-panel frame">
-          <div class="panel-head shop-head redesigned">
-            <div>
-              <span class="tiny">MAGASIN ORBITAL</span>
-              <h2>Marché de bord</h2>
-            </div>
-          </div>
           <div class="shop-layout">
             <aside class="shop-sidebar frame">
               <div class="shop-side-head">
+                <h2>MAGASIN</h2>
                 <span class="tiny">CATÉGORIES</span>
-                <h3>Navigation</h3>
               </div>
-              <div class="shop-sidebar-nav">
+              <nav class="shop-sidebar-nav" aria-label="Catégories du magasin">
                 <button class="shop-nav-btn active" data-filter-shop="vaisseau">Vaisseaux</button>
                 <button class="shop-nav-btn" data-filter-shop="canon">Armes</button>
                 <button class="shop-nav-btn" data-filter-shop="munition">Munitions</button>
@@ -379,21 +784,28 @@
                 <button class="shop-nav-btn" data-filter-shop="booster">Boosters</button>
                 <button class="shop-nav-btn accent" data-filter-shop="premium">Premium</button>
                 <button class="shop-nav-btn accent-alt" data-filter-shop="owned">Possédés</button>
-              </div>
+              </nav>
             </aside>
             <section class="shop-catalog-panel frame">
               <div class="shop-toolbar">
                 <div>
-                  <span class="tiny">CATALOGUE</span>
                   <h3 id="shopSectionTitle">Vaisseaux</h3>
-                </div>
-                <div class="shop-toolbar-status">
                   <span id="shopResultCount" class="badge">0 ARTICLE</span>
                 </div>
+                <label class="shop-search">
+                  <svg class="shop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+                  <input id="shopSearch" type="search" maxlength="120" placeholder="Rechercher un article…" aria-label="Rechercher dans cette catégorie" autocomplete="off">
+                </label>
               </div>
-              <div id="shopGrid" class="shop-grid shop-grid-panel"></div>
+              <nav id="shopWeaponFilters" class="shop-weapon-filters" aria-label="Types d’armes" hidden>
+                <button type="button" data-shop-weapon-filter="all" class="active" aria-pressed="true">Tout</button>
+                <button type="button" data-shop-weapon-filter="laser" aria-pressed="false">Canons laser</button>
+                <button type="button" data-shop-weapon-filter="launcher" aria-pressed="false">Lanceurs</button>
+              </nav>
+            <div id="shopGrid" class="shop-grid shop-grid-panel" role="region" aria-label="Catalogue des articles" tabindex="0"></div>
+              <nav id="shopPagination" class="shop-pagination" aria-label="Pages du catalogue" hidden></nav>
             </section>
-            <aside id="shopDetailPanel" class="shop-detail-panel frame"></aside>
+            <aside id="shopDetailPanel" class="shop-detail-panel frame" aria-label="Fiche de l’article" tabindex="-1"></aside>
           </div>
         </section>
       </section>
@@ -426,17 +838,19 @@
         <section id="settingsPanel" class="panel settings-panel frame"></section>
       </section>
 
-      <section class="page-view portals-view" data-page="portals">
+      <section class="page-view portals-view portal-workspace-view" data-page="portals">
         <section class="panel portals-panel frame">
           <div class="panel-head">
             <div>
               <span class="tiny">DONJONS</span>
               <h2>Portails dimensionnels</h2>
             </div>
+            <span class="portal-catalog-count" title="9 portails de progression">09</span>
           </div>
           <div id="portalGrid" class="portal-grid portal-grid-full"></div>
         </section>
-        <aside id="portalCasterPanel" class="panel portals-caster-panel frame"></aside>
+        <section id="portalDetailPanel" class="panel portal-detail-panel frame" aria-label="Détails du portail sélectionné"></section>
+        <aside id="portalCasterPanel" class="panel portals-caster-panel frame" aria-label="Space Caster"></aside>
       </section>
 
       <section class="page-view refinery-view" data-page="refinery">
@@ -457,16 +871,17 @@
   <section id="gameScreen" class="game-screen hidden">
     <div class="game-topbar">
       <div class="combat-status frame">
-        <strong id="gameZoneName">ZONE : ASTRA-01</strong>
-        <div class="combat-pilot-row">
+        <div class="combat-pilot-row" data-pilot-drag-handle>
           <span id="gamePlayerName">NOVA-37</span>
           <span id="gameRankHud" class="combat-rank-hud"><img class="rank-icon" src="assets/ranks/01_Recrue.svg" alt="Recrue"><span>Recrue</span></span>
+          <span class="combat-panel-grip" aria-hidden="true" title="Déplacer la fiche pilote">⠿</span>
+          <button class="combat-hud-disclosure" data-pilot-collapse type="button" aria-label="Replier la fiche pilote" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
         </div>
         <div class="combat-overview-row">
           <span>NIV. <b id="gameLevel">1</b></span>
           <span>Vitesse <b id="gameSpeed">0</b></span>
           <button id="gameCargoToggle" class="combat-cargo-chip" type="button" aria-label="Afficher la soute du vaisseau">
-            <span>Cargo</span>
+            <span>Soute</span>
             <b id="gameCargoValue">0 / 0</b>
             <i class="combat-cargo-mini"><em id="gameCargoFill"></em></i>
           </button>
@@ -485,14 +900,15 @@
             <span id="gameShieldTooltip" class="combat-meter-tooltip">0 / 0</span>
           </button>
           <button class="combat-meter combat-meter-xp" data-combat-meter="xp" type="button" aria-label="Afficher l'expérience en chiffres">
-            <span class="combat-meter-head"><span>Expérience</span><b id="gameXpPercent">0%</b></span>
+            <span class="combat-meter-head"><span>XP</span><b id="gameXpPercent">0%</b></span>
             <span class="combat-meter-track"><span id="gameXpFill"></span></span>
             <span id="gameXp" class="combat-meter-value">0 / 100</span>
             <span id="gameXpTooltip" class="combat-meter-tooltip">0 / 100</span>
           </button>
         </div>
-        <div class="combat-stat-row combat-stat-row-secondary">
-          <span id="gameRepairHud">Robot : non équipé</span>
+        <div class="combat-pilot-footer">
+          <span id="gameZoneName">ZONE : ASTRA-01</span>
+          <span id="gameRepairHud" title="Drone réparation : non équipé">Non équipé</span>
         </div>
       </div>
       <div class="combat-wallet frame">
@@ -605,24 +1021,27 @@
       <span>Réseau <b data-perf-network title="R=joueurs J=jitter B=buffer L=pertes U=sous-alimentations">--</b></span>
     </div>
     <div id="combatUtilityDock" class="combat-utility-dock frame" aria-label="Modules rapides">
-      <button data-utility-panel="group" type="button" title="Groupe" aria-label="Groupe"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="9" r="2.6"></circle><path d="M3.5 19c.7-3.5 2.8-5.2 6.3-5.2s5.6 1.7 6.3 5.2"></path><path d="M13.8 14.1c2.8.2 4.7 1.8 5.4 4.9"></path></svg></button>
-      <button data-utility-panel="friends" type="button" title="Amis" aria-label="Amis"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.6 2.6-5.3 5.8-5.3s5.2 1.7 5.9 5.3"></path><path d="M17 7v6"></path><path d="M14 10h6"></path></svg></button>
-      <button data-utility-panel="firm" type="button" title="Firme" aria-label="Firme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"></circle><path d="M4 12h16"></path><path d="M12 4c2 2.2 3 4.9 3 8s-1 5.8-3 8c-2-2.2-3-4.9-3-8s1-5.8 3-8z"></path><path d="M18 6l2-2"></path></svg></button>
-      <button data-utility-panel="refinery" type="button" title="Raffinage" aria-label="Raffinage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l-1 6 4 8-2 4H7l-2-4 4-8z"></path><path d="M9 9h6"></path><path d="M8 17h8"></path></svg></button>
-      <button data-utility-panel="quests" type="button" title="Quetes" aria-label="Quetes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l2 2v16H5V5z"></path><path d="M8 8h8"></path><path d="M8 12h6"></path><path d="M8 16h5"></path></svg></button>
-      <button data-utility-panel="map" type="button" title="Carte" aria-label="Carte"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5l5-2 8 2 5-2v13l-5 2-8-2-5 2z"></path><path d="M8 4.5v13"></path><path d="M16 6.5v13"></path><path d="M6 13l3-3 3 2 3-4 3 3"></path></svg></button>
-      <button data-utility-panel="settings" type="button" title="Reglages" aria-label="Reglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 4.4-2.6 7.4-7 9-4.4-1.6-7-4.6-7-9V7z"></path><path d="M9 12l2 2 4-5"></path></svg></button>
-      <button data-chat-toggle type="button" title="Chat" aria-label="Chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H8l-4 4z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></svg></button>
-      <button data-utility-panel="boosters" type="button" title="Boosters" aria-label="Boosters"><img src="assets/boosters/booster_damage.png" alt=""></button>
-      <button data-utility-panel="crafting" type="button" title="Fabrication" aria-label="Fabrication"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4l6 6"></path><path d="M13 5l-8 8 6 6 8-8"></path><path d="M5 17l-2 4 4-2"></path><path d="M8 10l6 6"></path></svg></button>
-      <button class="combat-utility-dock-toggle" data-utility-dock-toggle type="button" title="Afficher les modules suivants" aria-label="Afficher les modules suivants" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+      <div id="combatUtilityItems" class="combat-utility-items">
+      <button data-utility-panel="group" type="button" title="Groupe" aria-label="Groupe"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="9" r="2.6"></circle><path d="M3.5 19c.7-3.5 2.8-5.2 6.3-5.2s5.6 1.7 6.3 5.2"></path><path d="M13.8 14.1c2.8.2 4.7 1.8 5.4 4.9"></path></svg><span class="combat-utility-label">Groupe</span></button>
+      <button data-utility-panel="friends" type="button" title="Amis" aria-label="Amis"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.6 2.6-5.3 5.8-5.3s5.2 1.7 5.9 5.3"></path><path d="M17 7v6"></path><path d="M14 10h6"></path></svg><span class="combat-utility-label">Amis</span></button>
+      <button data-utility-panel="firm" type="button" title="Firme" aria-label="Firme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"></circle><path d="M4 12h16"></path><path d="M12 4c2 2.2 3 4.9 3 8s-1 5.8-3 8c-2-2.2-3-4.9-3-8s1-5.8 3-8z"></path><path d="M18 6l2-2"></path></svg><span class="combat-utility-label">Firme</span></button>
+      <button data-utility-panel="refinery" type="button" title="Raffinage" aria-label="Raffinage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l-1 6 4 8-2 4H7l-2-4 4-8z"></path><path d="M9 9h6"></path><path d="M8 17h8"></path></svg><span class="combat-utility-label">Raffinage</span></button>
+      <button data-utility-panel="quests" type="button" title="Quêtes" aria-label="Quêtes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l2 2v16H5V5z"></path><path d="M8 8h8"></path><path d="M8 12h6"></path><path d="M8 16h5"></path></svg><span class="combat-utility-label">Quêtes</span></button>
+      <button data-utility-panel="map" type="button" title="Carte" aria-label="Carte"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5l5-2 8 2 5-2v13l-5 2-8-2-5 2z"></path><path d="M8 4.5v13"></path><path d="M16 6.5v13"></path><path d="M6 13l3-3 3 2 3-4 3 3"></path></svg><span class="combat-utility-label">Carte</span></button>
+      <button data-utility-panel="settings" type="button" title="Réglages" aria-label="Réglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3 1-2h4l1 2 2 1 2-.2 2 3-1 2v4l1 2-2 3-2-.2-2 1-1 3h-4l-1-3-2-1-2 .2-2-3 1-2V9L3 7l2-3 2 .2z"></path><circle cx="12" cy="11" r="3"></circle></svg><span class="combat-utility-label">Réglages</span></button>
+      <button data-chat-toggle type="button" title="Chat" aria-label="Chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H8l-4 4z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></svg><span class="combat-utility-label">Chat</span></button>
+      <button data-utility-panel="boosters" type="button" title="Boosters" aria-label="Boosters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-8 12h6l-1 8 9-13h-6z"></path></svg><span class="combat-utility-label">Boosters</span></button>
+      <button data-utility-panel="crafting" type="button" title="Fabrication" aria-label="Fabrication"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4l6 6"></path><path d="M13 5l-8 8 6 6 8-8"></path><path d="M5 17l-2 4 4-2"></path><path d="M8 10l6 6"></path></svg><span class="combat-utility-label">Fabrication</span></button>
+      </div>
+      <button class="combat-utility-dock-toggle" data-utility-dock-toggle type="button" title="Replier les modules" aria-label="Replier les modules" aria-expanded="true" aria-controls="combatUtilityItems"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 7-5 5 5 5"></path></svg></button>
     </div>
     <div id="combatChatPanel" class="combat-chat-panel frame hidden" aria-label="Chat">
       <div class="combat-chat-head" data-chat-drag-handle>
-        <strong>Chat</strong>
-        <button data-chat-close type="button" aria-label="Fermer le chat">×</button>
+        <div id="combatChatTabs" class="combat-chat-tabs" aria-label="Canal du chat"></div>
+        <span class="combat-panel-grip" aria-hidden="true" title="Déplacer le chat">⠿</span>
+        <button data-chat-close type="button" aria-label="Replier le chat">⌃</button>
       </div>
-      <div id="combatChatTabs" class="combat-chat-tabs"></div>
+      <div class="combat-chat-more hidden" data-chat-more-menu><button data-chat-tab="firm" type="button">Firme <small>À venir</small></button><button data-chat-tab="guild" type="button">Guilde <small>À venir</small></button></div>
       <div id="combatChatMessages" class="combat-chat-messages" aria-live="polite"></div>
       <form id="combatChatForm" class="combat-chat-form">
         <input id="combatChatInput" type="text" maxlength="220" autocomplete="off" placeholder="Message global...">
@@ -630,9 +1049,12 @@
       </form>
       <div class="combat-chat-resize" data-chat-resize aria-hidden="true"></div>
     </div>
+    <button id="combatChatCollapsed" class="combat-chat-collapsed" type="button" aria-label="Ouvrir le chat" aria-controls="combatChatPanel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H8l-4 4z"></path><path d="M8 9h8M8 12h5"></path></svg><span>Chat</span><span aria-hidden="true">⌃</span></button>
     <div id="combatUtilityPanelGroup" class="combat-utility-panel frame hidden" data-utility-mode="group">
       <div class="combat-utility-panel-head">
-        <strong>GROUPE</strong>
+        <span class="combat-hud-panel-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="9" r="2.6"></circle><path d="M3 19c1-7 10-7 12 0M15 14c3 0 5 2 6 5"></path></svg></span>
+        <strong data-hud-panel-title>Groupe</strong><span class="combat-hud-panel-count" data-hud-panel-count>0</span>
+        <button class="combat-hud-disclosure" data-hud-panel-collapse="group" type="button" aria-label="Déplier le groupe" aria-expanded="false" aria-controls="combatUtilityContentGroup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
       </div>
       <div id="combatUtilityContentGroup" class="combat-utility-content"></div>
     </div>
@@ -650,7 +1072,10 @@
     </div>
     <div id="combatUtilityPanelQuests" class="combat-utility-panel frame hidden" data-utility-mode="quests">
       <div class="combat-utility-panel-head">
-        <strong>QUETES</strong>
+        <span class="combat-hud-panel-icon" data-hud-panel-icon></span>
+        <strong data-hud-panel-title>Suivi des quêtes</strong><span class="combat-hud-panel-count" data-hud-panel-count>0 / 5</span>
+        <span class="combat-panel-grip" aria-hidden="true" title="Déplacer le suivi des quêtes">⠿</span>
+        <button class="combat-hud-disclosure" data-hud-panel-collapse="quests" type="button" aria-label="Réduire le suivi de quêtes" aria-expanded="true" aria-controls="combatUtilityContentQuests"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
       </div>
       <div id="combatUtilityContentQuests" class="combat-utility-content"></div>
     </div>
@@ -677,19 +1102,20 @@
     <div id="npcAbilityBar" class="npc-ability-bar hidden" aria-label="Compétences de soutien du PNJ"></div>
     <div id="shipAbilityBar" class="ship-ability-bar hidden" aria-label="Compétences du vaisseau"></div>
     <div id="gameActionBar" class="action-bar frame"></div>
-    <button id="combatQuickMenuBtn" class="combat-menu-button" type="button">+</button>
-    <div id="combatQuickPanel" class="combat-quick-panel frame hidden">
+    <button id="combatQuickMenuBtn" class="combat-menu-button" type="button" aria-label="Équipement" aria-controls="combatQuickPanel" aria-expanded="false"><span aria-hidden="true">+</span><span>Équipement</span></button>
+    <div id="combatQuickPanel" class="combat-quick-panel frame hidden" role="region" aria-label="Équipement">
       <div class="combat-panel-tabs-wrap">
         <button class="combat-tab-arrow" data-combat-tab-shift="-1" type="button">&lsaquo;</button>
         <div class="combat-panel-tabs">
           <button class="active" data-combat-panel-tab="ammo" type="button">Munitions</button>
-          <button data-combat-panel-tab="skills" type="button">Competences</button>
+          <button data-combat-panel-tab="skills" type="button">Compétences</button>
           <button data-combat-panel-tab="formations" type="button">Formations</button>
           <button data-combat-panel-tab="extras" type="button">Extras</button>
           <button data-combat-panel-tab="shop" type="button">Magasin</button>
           <button data-combat-panel-tab="cpu" type="button">CPU</button>
         </div>
         <button class="combat-tab-arrow" data-combat-tab-shift="1" type="button">&rsaquo;</button>
+        <button class="combat-quick-close" data-combat-quick-close type="button" aria-label="Fermer l’équipement">×</button>
       </div>
       <div id="combatPanelContent" class="combat-panel-content"></div>
     </div>

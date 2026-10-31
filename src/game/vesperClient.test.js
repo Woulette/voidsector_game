@@ -15,18 +15,13 @@ import { installWorldSocketListeners } from "../multiplayer/worldSocketListeners
 import { portalUsesWaveHud } from "./ui/combatHudController.js";
 import { createPortalMap } from "./systems/portalState.js";
 
-test("the Vesper card exposes the rescue encounter as playable content", ()=>{
-  const vesper = portals.find(portal=>portal.id === "violet");
-  assert.equal(vesper?.contentStatus, "ready");
-  assert.match(vesper?.contentLabel || "", /4 cages.*3 vies/i);
-  assert.match(vesper?.desc || "", /tourelles.*gardiens.*Drone Géant/i);
-
-  const map = createPortalMap(vesper);
-  assert.equal(map.id, "portal-violet");
-  assert.equal(map.vesperPortal, true);
-  assert.equal(map.width, VESPER_PORTAL_MAP.width);
-  assert.equal(map.height, VESPER_PORTAL_MAP.height);
-  assert.ok(map.enemyAssets.includes("assets/drones/drone_test_sprite.webp"));
+test("violet exposes Azuron's shared wave arena with difficulty times 2", ()=>{
+  const portal=portals.find(entry=>entry.id === "violet");
+  assert.equal(portal.contentStatus,"ready");assert.equal(portal.waves,30);
+  assert.match(portal.contentLabel,/6 séries de 5/);assert.match(portal.desc,/gains ×2/);
+  const map=createPortalMap(portal);
+  assert.equal(map.id,"portal-violet");assert.equal(map.azuronPortal,true);
+  assert.equal(map.width,7800);assert.equal(map.height,5400);
 });
 
 test("Vesper snapshots normalize cages, allied red drones, boss orbiters and lives", ()=>{

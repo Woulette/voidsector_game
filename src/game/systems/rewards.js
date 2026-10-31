@@ -1,16 +1,21 @@
-export function createRewardSystem({onLootChanged} = {}){
+export function createRewardSystem({onLootChanged,now = ()=>Date.now()} = {}){
   const LOOT_NOTICE_DURATION = 3;
   const MAX_LOOT_NOTICES = 5;
   let lootNotices = [];
+  let pendingNotices = [];
 
   function reset(){
     lootNotices = [];
+    pendingNotices=[];
   }
 
   function tick(dt){
+    const ready=pendingNotices.filter(entry=>entry.dueAt<=now());
+    pendingNotices=pendingNotices.filter(entry=>entry.dueAt>now());
     lootNotices = lootNotices
       .map(notice=>({...notice, remaining:Math.max(0, notice.remaining - dt)}))
       .filter(notice=>notice.remaining > 0);
+    for(const entry of ready) pushLootNotice(entry.loot);
     return lootNotices.length;
   }
 
@@ -39,6 +44,7 @@ export function createRewardSystem({onLootChanged} = {}){
   }
 
   function showLootNotice(loot){
+    if(Number(loot?.delayMs)>0){pendingNotices.push({loot,dueAt:now()+Number(loot.delayMs)});return;}
     pushLootNotice(loot || {});
   }
 

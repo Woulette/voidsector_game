@@ -10,8 +10,10 @@ export function createCombatRemoteTargetResolver({store, multiplayer, getCurrent
     const playerLevel = Math.max(1, Math.floor(Number(store.state?.player?.level || 1)));
     const groupMembers = Array.isArray(multiplayer.group?.members) ? multiplayer.group.members : [];
     const sameGroup = groupMembers.some(member=>member?.id === remote.id);
-    const canAttack = !sameGroup && playerLevel >= 10 && level >= 10;
-    const attackBlockedReason = sameGroup
+    const outlaw = remote.outlaw === true;
+    const selfDefense = Number(multiplayer.pvpDefenseRights?.get(String(remote.accountId || remote.id)) || 0) > Date.now();
+    const canAttack = outlaw || selfDefense || !sameGroup && playerLevel >= 10 && level >= 10;
+    const attackBlockedReason = canAttack ? "" : sameGroup
       ? "Impossible d'attaquer un membre du groupe."
       : playerLevel < 10
         ? "Tu dois atteindre le niveau 10 pour attaquer un joueur."
@@ -22,7 +24,10 @@ export function createCombatRemoteTargetResolver({store, multiplayer, getCurrent
       id:`player:${remote.id}`,
       playerId:remote.id,
       isPlayerTarget:true,
-      hostile:targetFirmId !== playerFirmId,
+      hostile:outlaw || targetFirmId !== playerFirmId,
+      outlaw,
+      selfDefense,
+      friendlyFireWarning:!outlaw && targetFirmId === playerFirmId ? "Pilote allié : destruction sanctionnée sauf légitime défense." : "",
       sameGroup,
       canAttack,
       attackBlockedReason,

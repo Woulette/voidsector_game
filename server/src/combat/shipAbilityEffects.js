@@ -178,6 +178,9 @@ export function createShipAbilityEffectManager({
     if(record.scope === "instance"){
       const group = getInstanceGroup(groups, record.groupId);
       if(group?.instance){
+        applyEnemyDeathEffect?.(record.mapId, enemy, Date.now(), {
+          playerIds:group.members.filter(id=>!group.instance.abandonedMemberIds?.includes(id))
+        });
         handlePortalEnemyDeath?.(group, enemy, record.attackerId);
         emitInstance?.(group);
       }

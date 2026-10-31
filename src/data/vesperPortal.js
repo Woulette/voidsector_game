@@ -95,7 +95,7 @@ function normalizeOrbiter(orbiter, index){
 }
 
 export function isVesperPortal(portal){
-  return String(portal?.id || portal?.portalId || portal || "") === VESPER_PORTAL_ID;
+  return portal?.encounterKind !== "azuron" && String(portal?.id || portal?.portalId || portal || "") === VESPER_PORTAL_ID;
 }
 
 export function getVesperEntityVisualKind(entity){

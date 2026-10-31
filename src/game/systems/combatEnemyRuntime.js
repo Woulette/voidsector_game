@@ -3,6 +3,8 @@ import { getServerEnemyId, getSoloEnemies, hasServerControlledEnemies, isServerC
 import { createProjectile, updateProjectiles } from "./projectiles.js?v=20260726-kharon1";
 import { createMapEnemy } from "./mapState.js?v=20261022-helion-hub1";
 import { updateEnemyAi } from "./enemyAi.js";
+import { rollEnemyDamage } from "../../shared/enemyDamage.js";
+import { spawnEnemyDeathExplosion } from "./combatEnemyDeath.js";
 
 export function createCombatEnemyRuntime({
   multiplayer,
@@ -11,7 +13,6 @@ export function createCombatEnemyRuntime({
   getMapState,
   findRemotePlayerTargetById,
   damagePlayer,
-  rollBetween,
   resolveBulletImpact,
   isSafeModeActive
 }){
@@ -74,9 +75,10 @@ export function createCombatEnemyRuntime({
     const startY = enemy.y + Math.sin(a)*(enemy.radius+14);
     bullets.push(createProjectile({
       owner:"enemy",
+      enemyKind:enemy.kind,
       startX,
       startY,
-      damage:rollBetween(enemy.attackDamageMin, enemy.attackDamageMax) || enemy.attackDamage || 10,
+      damage:rollEnemyDamage(enemy.attackDamage || 10),
       travelTime:Math.max(.11, Math.min(1.15, d/speed + .06)),
       radius:5,
       color:enemy.color || "rgba(248,113,113,.95)",
@@ -108,8 +110,11 @@ export function createCombatEnemyRuntime({
   }
 
   function updateBullets(dt){
-    const {bullets, enemies, currentMap} = getState();
+    const {bullets, enemies, currentMap, impactEffects} = getState();
     const nextBullets = updateProjectiles({bullets, dt, getTarget:getBulletTarget, onImpact:bullet=>resolveBulletImpact(bullet, getBulletTarget(bullet))});
+    for(const enemy of enemies){
+      if(enemy.hp <= 0 && !isServerControlledEnemy(enemy)) spawnEnemyDeathExplosion(impactEffects,enemy);
+    }
     const nextEnemies = enemies.filter(e=>e.hp>0);
     if(!hasServerControlledEnemies(multiplayer)) getMapState(currentMap).enemies = getSoloEnemies(nextEnemies);
     setState({bullets:nextBullets, enemies:nextEnemies});

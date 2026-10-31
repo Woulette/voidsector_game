@@ -52,6 +52,7 @@ test("account action locks survive reconnects and prune stale accounts", ()=>{
 test("account action lock warnings are bounded inside one window", ()=>{
   let currentTime = 1000;
   const warnings = [];
+  const rejections = [];
   const players = new Map([
     ["socket-a", {accountId:"account-1"}]
   ]);
@@ -62,6 +63,7 @@ test("account action lock warnings are bounded inside one window", ()=>{
     players,
     logger:{warn(){}},
     onLimit:payload=>warnings.push(payload),
+    onReject:payload=>rejections.push(payload),
     now:()=>currentTime
   });
 
@@ -71,6 +73,7 @@ test("account action lock warnings are bounded inside one window", ()=>{
   assert.equal(locks({id:"socket-a"}, "shop:buy"), false);
 
   assert.equal(warnings.length, 2);
+  assert.equal(rejections.length, 3);
   assert.equal(warnings[0].count, 2);
   assert.equal(warnings[1].count, 3);
 });

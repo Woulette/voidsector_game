@@ -1,4 +1,5 @@
 import { getMapDisplayName } from "../../data/firms.js";
+import { getSectorMapPortals, getStellarMapConnections, getStellarMapPosition, getStellarTravelRoute } from "./sectorMapPresentation.js";
 
 export const GAME_MAP_SECTORS = [
   {
@@ -72,7 +73,6 @@ export const GAME_MAP_BRIDGES = [
   {from:"Sylva-05", to:"CORE", label:"Acces noyau Sylva"}
 ];
 
-const CORE_MAP_POSITION = Object.freeze({x:5.15, y:4.1});
 const DEFAULT_ENEMY_LEVELS_BY_MAP_NUMBER = Object.freeze({
   1:Object.freeze([1, 4]),
   2:Object.freeze([5, 9]),
@@ -120,45 +120,6 @@ function renderEnemyLevelLabel(range){
   return `<em class="sector-map-level">LV ${range[0]}&ndash;${range[1]}</em>`;
 }
 
-function getMapPosition(mapName){
-  const normalized = String(mapName || "").toUpperCase();
-  if(normalized === "CORE") return CORE_MAP_POSITION;
-  for(const sector of GAME_MAP_SECTORS){
-    for(const cell of sector.cells){
-      const candidate = `${sector.name}-${String(cell.n).padStart(2, "0")}`.toUpperCase();
-      if(candidate === normalized) return {x:cell.x, y:cell.y, theme:sector.theme};
-    }
-  }
-  return null;
-}
-
-function renderConnectionLine(fromName, toName, className){
-  const from = getMapPosition(fromName);
-  const to = getMapPosition(toName);
-  if(!from || !to) return "";
-  return `<line class="${className}" x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" vector-effect="non-scaling-stroke"></line>`;
-}
-
-function renderMapConnections(){
-  const sectorLines = GAME_MAP_SECTORS.flatMap(sector=>
-    sector.links.map(([from, to])=>renderConnectionLine(
-      `${sector.name}-${String(from).padStart(2, "0")}`,
-      `${sector.name}-${String(to).padStart(2, "0")}`,
-      `sector-route ${sector.theme}`
-    ))
-  ).join("");
-  const bridgeLines = GAME_MAP_BRIDGES
-    .map(route=>renderConnectionLine(route.from, route.to, "sector-route bridge"))
-    .join("");
-  return `<svg class="sector-map-links" viewBox="0 0 10 8" preserveAspectRatio="none" aria-hidden="true">${sectorLines}${bridgeLines}</svg>`;
-}
-
-function renderRegionLabels(){
-  return `<div class="sector-map-regions" aria-hidden="true">
-    ${GAME_MAP_SECTORS.map(sector=>`<span class="${sector.theme}">${escapeHtml(sector.name)}</span>`).join("")}
-  </div>`;
-}
-
 export function getPortgunMapLevelRequirement(map){
   const name = String(map?.name || "").toUpperCase();
   if(name === "CORE") return 0;
@@ -170,115 +131,119 @@ export function getPortgunMapLevelRequirement(map){
   return 0;
 }
 
-function getDisplayMapPortals(map){
-  if(!map) return [];
-  if(Array.isArray(map.portals)) return map.portals;
-  return map.portal ? [map.portal] : [];
+function getStellarNodes(maps){
+  const nodes = GAME_MAP_SECTORS.flatMap(sector=>sector.cells.map(cell=>{
+    const name = `${sector.name}-${String(cell.n).padStart(2, "0")}`;
+    return {name, map:getMapByName(maps, name), theme:sector.theme, number:cell.n, region:sector.label};
+  }));
+  nodes.push({name:"CORE", map:getMapByName(maps, "CORE"), theme:"violet", number:0, region:"Noyau central"});
+  return nodes;
 }
 
-function getPortalDirection(portal){
-  const left = Number(portal?.x || 0) <= -4000;
-  const right = Number(portal?.x || 0) >= 4000;
-  const top = Number(portal?.y || 0) <= -3000;
-  const bottom = Number(portal?.y || 0) >= 3000;
-  if(top && left) return "top-left";
-  if(top && right) return "top-right";
-  if(bottom && left) return "bottom-left";
-  if(bottom && right) return "bottom-right";
-  if(top) return "top";
-  if(bottom) return "bottom";
-  if(left) return "left";
-  if(right) return "right";
-  return "";
+function mapMatches(map, value){
+  return value != null && (map?.id != null && String(map.id) === String(value) || String(map?.name || "").toUpperCase() === String(value).toUpperCase());
 }
 
-function renderGameMapPortals(map, cell){
-  const directions = new Set(getDisplayMapPortals(map).map(getPortalDirection).filter(Boolean));
-  if(!directions.size && cell) (cell.portals || []).forEach(direction=>directions.add(direction));
-  if(!directions.size) return "";
+function nodeDisplayName(node){
+  return node.map?.displayName || getMapDisplayName(node.name);
+}
+
+function renderPlanet(theme){
+  return `<i class="stellar-planet ${theme}" aria-hidden="true"></i>`;
+}
+
+function renderStellarConnections(maps, selectedMap, travelState){
+  const route = getStellarTravelRoute(travelState);
+  const lines = getStellarMapConnections(maps).map(({from, to})=>{
+    const a = getStellarMapPosition(from.name);
+    const b = getStellarMapPosition(to.name);
+    const external = from.name.split("-")[0] !== to.name.split("-")[0];
+    const related = selectedMap && (mapMatches(from, selectedMap.id ?? selectedMap.name) || mapMatches(to, selectedMap.id ?? selectedMap.name));
+    const active = route.some((id, index)=>index > 0 &&
+      (mapMatches(from, id) && mapMatches(to, route[index - 1]) || mapMatches(to, id) && mapMatches(from, route[index - 1])));
+    return `<line class="sector-route${external ? " bridge" : ""}${related ? " related" : ""}${active ? " travel-active" : ""}" data-sector-link="${escapeHtml(from.id)}:${escapeHtml(to.id)}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" vector-effect="non-scaling-stroke"></line>`;
+  }).join("");
+  const stars = Array.from({length:64}, (_, i)=>`<circle cx="${((i * 37.79 + 4) % 100).toFixed(2)}" cy="${((i * 57.13 + 3) % 100).toFixed(2)}" r="${i % 3 === 0 ? .15 : .08}"></circle>`).join("");
+  return `<svg class="sector-map-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><g class="stellar-stars">${stars}</g>${lines}</svg>`;
+}
+
+function renderRegionLabels(){
+  return `<div class="sector-map-regions" aria-hidden="true">${GAME_MAP_SECTORS.map(sector=>`<span class="${sector.theme}">${escapeHtml(sector.name)}</span>`).join("")}</div>`;
+}
+
+// Portal directions remain available to assistive/legacy consumers. The stellar
+// design represents their connections with the lines instead of glowing dots.
+function renderPortalDirections(map){
+  const directions = new Set(getSectorMapPortals(map).map(portal=>{
+    const x = Number(portal?.x || 0), y = Number(portal?.y || 0);
+    return [y <= -3000 ? "top" : y >= 3000 ? "bottom" : "", x <= -4000 ? "left" : x >= 4000 ? "right" : ""].filter(Boolean).join("-");
+  }).filter(Boolean));
   return `<i class="sector-map-portals" aria-hidden="true">${[...directions].map(direction=>`<b class="portal-dot ${direction}"></b>`).join("")}</i>`;
 }
 
-function renderGameMapNode({maps, getCurrentMap, sector, cell, mode, playerLevel}){
-  const mapName = `${sector.name}-${String(cell.n).padStart(2, "0")}`;
-  const existing = getMapByName(maps, mapName);
-  const displayName = existing?.displayName || getMapDisplayName(mapName);
-  const current = getCurrentMapName(getCurrentMap) === mapName.toUpperCase();
+function renderStellarNode({node, currentName, selected, mode, playerLevel, travelState}){
+  const {map, name, number, theme} = node;
+  const current = currentName === name.toUpperCase();
   const portgunMode = mode === "portgun";
-  const requirement = getPortgunMapLevelRequirement(existing || {name:mapName});
-  const level = Math.max(1, Math.floor(Number(playerLevel || 1)));
-  const unlocked = !existing || level >= requirement;
-  const selectable = Boolean(portgunMode && existing && unlocked);
-  const status = portgunMode && existing
-    ? current ? "Position actuelle" : unlocked ? "Destination" : `LV ${requirement}`
-    : displayName;
-  const enemyLevelRange = getMapEnemyLevelRange(existing, cell.n);
-  const classes = [
-    "sector-map-node",
-    sector.theme,
-    existing ? "available" : "future",
-    current ? "current" : "",
-    cell.bridge ? "bridge" : "",
-    portgunMode ? "portgun-select" : "",
-    portgunMode && existing && !unlocked ? "locked" : ""
-  ].filter(Boolean).join(" ");
-  const targetAttr = selectable ? ` data-portgun-target-map="${escapeHtml(existing.id)}"` : "";
-  const levelTitle = enemyLevelRange.length >= 2 ? ` · Ennemis LV ${enemyLevelRange[0]}-${enemyLevelRange[1]}` : "";
-  return `<button class="${classes}" style="--grid-x:${cell.x};--grid-y:${cell.y}" type="button"${targetAttr} title="${escapeHtml(displayName)}${levelTitle}" ${selectable ? "" : "disabled"}>
-    ${renderEnemyLevelLabel(enemyLevelRange)}
-    <span>${cell.n}</span>
-    <small>${escapeHtml(status)}</small>
-    ${renderGameMapPortals(existing, cell)}
+  const requirement = getPortgunMapLevelRequirement(map || {name});
+  const unlocked = Number(playerLevel || 1) >= requirement;
+  const available = Boolean(map);
+  const selectable = available && map.id != null && (!portgunMode || unlocked);
+  const selectedNode = selected?.name === name;
+  const onJourney = getStellarTravelRoute(travelState).some(id=>mapMatches(map, id));
+  const classes = [number ? "sector-map-node" : "sector-core-node", theme, available ? "available" : "future", current ? "current" : "", selectedNode ? "selected" : "", portgunMode ? "portgun-select" : "", portgunMode && !unlocked ? "locked" : "", onJourney ? "on-journey" : ""].filter(Boolean).join(" ");
+  const position = getStellarMapPosition(name);
+  const range = getMapEnemyLevelRange(map || {name}, number);
+  const display = nodeDisplayName(node);
+  const status = portgunMode && !unlocked ? ` · Accès Portgun LV ${requirement}` : current ? " · Vous êtes ici" : "";
+  const target = selectable ? ` ${portgunMode ? "data-portgun-target-map" : "data-sector-map-select"}="${escapeHtml(map.id)}"` : "";
+  return `<button type="button" class="${classes}" style="--stellar-x:${position.x}%;--stellar-y:${position.y}%"${target} ${selectable ? "" : "disabled"} aria-pressed="${selectedNode}" aria-label="${escapeHtml(display)} · Ennemis LV ${range[0]}-${range[1]}${escapeHtml(status)}" title="${escapeHtml(display)}${escapeHtml(status)}">
+    ${renderPlanet(theme)}<small>${escapeHtml(display)}</small>${renderEnemyLevelLabel(range)}${renderPortalDirections(map)}
   </button>`;
 }
 
-function renderCoreNode({maps, getCurrentMap, mode, playerLevel}){
-  const existing = getMapByName(maps, "CORE");
-  const current = getCurrentMapName(getCurrentMap) === "CORE";
-  const portgunMode = mode === "portgun";
-  const requirement = getPortgunMapLevelRequirement(existing || {name:"CORE"});
-  const level = Math.max(1, Math.floor(Number(playerLevel || 1)));
-  const unlocked = !existing || level >= requirement;
-  const selectable = Boolean(portgunMode && existing && unlocked);
-  const classes = [
-    "sector-core-node",
-    existing ? "available" : "future",
-    current ? "current" : "",
-    portgunMode ? "portgun-select" : "",
-    portgunMode && existing && !unlocked ? "locked" : ""
-  ].filter(Boolean).join(" ");
-  const targetAttr = selectable ? ` data-portgun-target-map="${escapeHtml(existing.id)}"` : "";
-  const enemyLevelRange = getMapEnemyLevelRange(existing || {name:"CORE"});
-  const label = portgunMode && existing
-    ? current ? "Position actuelle" : "Destination"
-    : "Noyau";
-  return `<button class="${classes}" style="--grid-x:${CORE_MAP_POSITION.x};--grid-y:${CORE_MAP_POSITION.y}" type="button"${targetAttr} title="CORE · Ennemis LV ${enemyLevelRange[0]}-${enemyLevelRange[1]}" ${selectable ? "" : "disabled"}>${renderEnemyLevelLabel(enemyLevelRange)}<span>CORE</span><small>${escapeHtml(label)}</small>${renderGameMapPortals(existing)}</button>`;
+function getTravelSummary(travelState, maps){
+  if(!travelState?.active) return "";
+  const destination = maps.find(map=>mapMatches(map, travelState.targetMapId ?? travelState.targetMap));
+  const route = getStellarTravelRoute(travelState);
+  const names = route.map(id=>maps.find(map=>mapMatches(map, id))).filter(Boolean).map(map=>map.displayName || map.name);
+  const title = destination ? `Voyage vers ${destination.displayName || destination.name}` : "Voyage automatique en cours";
+  return `<div class="stellar-travel-status" role="status"><div><strong>${escapeHtml(title)}</strong><span>${names.length ? escapeHtml(names.join(" → ")) : "Traversée des secteurs en cours"}</span><small>Clique dans l’espace pour reprendre les commandes et arrêter le voyage.</small></div><button type="button" class="stellar-action stellar-cancel" data-sector-travel-cancel>Arrêter</button></div>`;
 }
 
-export function renderCombatMapPanel({maps = [], getCurrentMap, mode = "view", playerLevel = 1} = {}){
+function renderSelectedMap({selected, currentName, premiumActive, mode, connections, travelState}){
+  if(!selected) return "";
+  const map = selected.map;
+  const sameMap = currentName === selected.name.toUpperCase();
+  const levelRange = getMapEnemyLevelRange(map || {name:selected.name}, selected.number);
+  const neighbours = connections.filter(edge=>edge.from === map || edge.to === map).map(edge=>edge.from === map ? edge.to : edge.from);
+  const unavailable = !map || map.id == null;
+  const currentTarget = travelState?.active && mapMatches(map, travelState.targetMapId ?? travelState.targetMap);
+  const disabled = !premiumActive || sameMap || unavailable || currentTarget;
+  const actionLabel = !premiumActive ? "Voyage automatique · Premium" : currentTarget ? "Voyage en cours" : "Voyage automatique";
+  const title = sameMap ? "Vous êtes déjà dans ce secteur" : !premiumActive ? "Un abonnement Premium actif est nécessaire" : unavailable ? "Ce secteur est indisponible" : "Rejoindre ce secteur en passant automatiquement les portails";
+  const button = mode === "portgun" ? "" : `<button type="button" class="stellar-action" ${map?.id != null ? `data-sector-travel-target-map="${escapeHtml(map.id)}"` : ""} ${disabled ? "disabled" : ""} title="${title}">${actionLabel}</button>`;
+  return `<div class="stellar-selection" aria-live="polite">${renderPlanet(selected.theme)}<div class="stellar-selection-copy"><strong>${escapeHtml(nodeDisplayName(selected))}</strong><span>Ennemis LV ${levelRange[0]}–${levelRange[1]} · ${neighbours.length} portail${neighbours.length === 1 ? "" : "s"}${sameMap ? " · Vous êtes ici" : ""}</span></div>${button}</div>
+    <div class="stellar-connections">${mode === "portgun" ? "Sélectionne un secteur accessible pour utiliser le Portgun." : neighbours.length ? `Liaisons : ${neighbours.map(other=>escapeHtml(other.displayName || other.name)).join(" · ")}` : "Aucune liaison disponible"}</div>`;
+}
+
+export function renderCombatMapPanel({maps = [], getCurrentMap, mode = "view", playerLevel = 1, premiumActive = false, selectedMapId = null, travelState = null} = {}){
   const current = getCurrentMap?.();
-  const currentName = current?.displayName || current?.name || "Hors secteur";
-  const mapCount = GAME_MAP_SECTORS.reduce((sum, sector)=>sum + sector.cells.length, 0) + 1;
-  const existingCount = GAME_MAP_SECTORS.reduce((sum, sector)=>sum + sector.cells.filter(cell=>getMapByName(maps, `${sector.name}-${String(cell.n).padStart(2, "0")}`)).length, 0) + (getMapByName(maps, "CORE") ? 1 : 0);
+  const currentName = getCurrentMapName(getCurrentMap);
+  const nodes = getStellarNodes(maps);
+  const selected = nodes.find(node=>node.map && mapMatches(node.map, selectedMapId)) || nodes.find(node=>node.name.toUpperCase() === currentName) || nodes.find(node=>node.map) || nodes[0];
+  const existingCount = nodes.filter(node=>node.map).length;
   const portgunMode = mode === "portgun";
-  return `<div class="sector-map-card">
-    <div class="combat-map-head">
-      <div><span>${portgunMode ? "Selection Portgun" : "Reseau territorial"}</span><strong>${escapeHtml(currentName)}</strong></div>
-      <small>${portgunMode ? "1 fluide sera consomme a l'arrivee" : `${existingCount}/${mapCount} secteurs actifs`}</small>
+  const connections = getStellarMapConnections(maps);
+  return `<div class="sector-map-card stellar-sector-map${portgunMode ? " stellar-portgun" : ""}">
+    <div class="stellar-map-header"><div><span class="stellar-kicker">AVOSOMA / NAVIGATION</span><h3>${portgunMode ? "Selection Portgun" : "Carte stellaire"}</h3></div><div class="stellar-location"><i aria-hidden="true"></i><div><span>Position actuelle</span><strong>${escapeHtml(current?.displayName || current?.name || "Hors secteur")}</strong></div></div></div>
+    ${portgunMode ? `<div class="stellar-mode-note">1 fluide sera consommé à l’arrivée · Accès selon ton niveau</div>` : ""}
+    <div class="sector-map-board" role="group" aria-label="Carte des firmes : ${existingCount} secteurs et leurs portails">
+      ${renderStellarConnections(maps, selected?.map, travelState)}${renderRegionLabels()}
+      ${nodes.map(node=>renderStellarNode({node, currentName, selected, mode, playerLevel, travelState})).join("")}
     </div>
-    <div class="sector-map-board" aria-label="Carte des firmes">
-      ${renderMapConnections()}
-      ${renderRegionLabels()}
-      ${renderCoreNode({maps, getCurrentMap, mode, playerLevel})}
-      ${GAME_MAP_SECTORS.map(sector=>sector.cells.map(cell=>renderGameMapNode({maps, getCurrentMap, sector, cell, mode, playerLevel})).join("")).join("")}
-    </div>
-    <div class="sector-map-legend">
-      <span class="astra">HELION</span>
-      <span class="cyan">NEREID</span>
-      <span class="auric">AUREON</span>
-      <span class="verdant">SYLVA</span>
-      <span class="future">A creer</span>
-      <span class="level-key">LV = NIVEAU DES ENNEMIS</span>
-    </div>
+    ${renderSelectedMap({selected, currentName, premiumActive, mode, connections, travelState})}
+    ${portgunMode ? "" : getTravelSummary(travelState, maps)}
+    <div class="sector-map-legend"><span class="stellar-current-key">● Position actuelle</span><span>${existingCount}/${nodes.length} secteurs actifs · ${connections.length} liaisons</span><span class="level-key">LV = NIVEAU DES ENNEMIS</span></div>
   </div>`;
 }

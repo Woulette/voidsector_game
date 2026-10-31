@@ -12,6 +12,7 @@ import { pilotNameKey, sanitizePilotName } from "./profileIdentity.js";
 import { reconcileTutorialProgress, resetTutorialForNewFirm } from "./tutorialActions.js";
 import { reservePilotIdentity as defaultReservePilotIdentity } from "../storage/pilotIdentityStore.js";
 import { refundRedundantCraftingJob } from "../economy/craftingRecovery.js";
+import { persistRetiredShipRecoveries, recoverRetiredShipProfile } from "./retiredShips.js";
 
 export { sanitizeProfile } from "./profileSanitize.js";
 
@@ -21,7 +22,8 @@ export function createProfileManager({
   loadProfileEntries = defaultLoadProfileEntries,
   persistProfileEntries = defaultPersistProfileEntries,
   reservePilotIdentity = defaultReservePilotIdentity,
-  onError
+  onError,
+  resolveRankAssignment = null
 }){
   const profiles = new Map();
   const persistenceVersions = new Map();
@@ -71,8 +73,11 @@ export function createProfileManager({
   async function load(){
     try{
       const repairedProfiles = new WeakSet();
+      const retiredProfiles = new WeakSet();
       const entries = await loadProfileEntries(rawProfile=>{
-        const profile = sanitizeProfile(rawProfile);
+        const retired = recoverRetiredShipProfile(rawProfile);
+        const profile = sanitizeProfile(retired.profile);
+        if(retired.changed) retiredProfiles.add(profile);
         if(Number(rawProfile?.questCatalogRevision || 0) < profile.questCatalogRevision
           && Array.isArray(rawProfile?.activeQuestIds)
           && rawProfile.activeQuestIds.some(id=>!profile.activeQuestIds.includes(id))){
@@ -80,6 +85,7 @@ export function createProfileManager({
         }
         return profile;
       });
+      await persistRetiredShipRecoveries(entries, retiredProfiles, persistProfileEntries);
       profiles.clear();
       persistenceVersions.clear();
       for(const [key, profile] of entries){
@@ -102,6 +108,7 @@ export function createProfileManager({
     }catch(error){
       logger?.warn?.("Unable to load profiles", {error:error?.message || String(error)});
       recordProfileError("profiles:load", error);
+      if(error?.retiredShipRecovery) throw error;
     }
   }
 
@@ -576,6 +583,7 @@ export function createProfileManager({
 
   return {
     load,
+    getRankAssignmentForKey:(key, profile)=>resolveRankAssignment?.(key, profile) || null,
     flushPersistence,
     syncForSocket,
     saveFromPayload,

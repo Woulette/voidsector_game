@@ -41,6 +41,11 @@ test("load test provisioning creates an idempotent Razorion eight-laser loadout"
     LOAD_TEST_LASER_COUNT
   );
   assert.ok(profile.ammoInventory.ammo_x1 >= LOAD_TEST_AMMO_COUNT);
+  assert.deepEqual(
+    profile.unlockedPortals,
+    ["blue", "violet", "red", "ionis", "emerald", "void", "prismatic", "ancient", "eternal"]
+  );
+  assert.deepEqual(Object.keys(profile.portalPieces), profile.unlockedPortals);
   assert.equal(profile.worldSession.mapId, "22");
   assert.equal(profile.worldSession.shipId, "razorion");
   assert.equal(profile.worldSession.hp, 35000);

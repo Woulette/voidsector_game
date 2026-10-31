@@ -1,32 +1,40 @@
-// Applied after the four firms have been built: only Helion-01 uses this hub.
+import { getFirmHomeMapTheme, getFirmHomeAssetPath } from "./firmHomeMapThemes.js";
+
+// Applied after the four firms have been built, to their home sectors only.
 // The same positions and protection rectangle are consumed by client and server.
 export function installHelionOneHub(map){
-  if(String(map?.id) !== "0" || map?.name !== "Helion-01" || !map.spawn) return map;
+  const theme = getFirmHomeMapTheme(map);
+  if(!theme || !map.spawn) return map;
   const {x, y} = map.spawn;
+  const {mirrorX:sx, mirrorY:sy} = theme;
+  const asset = name=>getFirmHomeAssetPath(`assets/spawn/helion01-crown-v1/${name}.webp`, theme);
   map.spawn = {
     ...map.spawn,
-    safeRect:{minX:x - 700, minY:y - 1000, maxX:x + 1300, maxY:y + 650},
+    safeRect:{
+      minX:x + Math.min(-700 * sx, 1300 * sx), maxX:x + Math.max(-700 * sx, 1300 * sx),
+      minY:y + Math.min(-1000 * sy, 650 * sy), maxY:y + Math.max(-1000 * sy, 650 * sy)
+    },
     visual:{
-      asset:"assets/spawn/helion01-crown-v1/headquarters.webp",
-      x, y:y - 180, width:1100, height:1100,
-      title:"QG · COURONNE", color:"237,157,137"
+      asset:asset("headquarters"),
+      x, y:y - 180 * sy, width:1100, height:1100,
+      title:"QG · COURONNE", color:theme.hubColor
     }
   };
   map.spawnStations = [
     {
-      id:"quests", x:x + 640, y:y - 690, radius:175, interactionRadius:320,
-      asset:"assets/spawn/helion01-crown-v1/quest-relay.webp",
+      id:"quests", x:x + 640 * sx, y:y - 690 * sy, radius:175, interactionRadius:320,
+      asset:asset("quest-relay"),
       assetWidth:350, assetHeight:350, presentation:"industrial",
       marker:null,
-      color:"153,213,222", title:"RELAIS DE QUÊTES",
+      color:theme.palette === "astra" ? "153,213,222" : theme.hubColor, title:"RELAIS DE QUÊTES",
       subtitle:"Recevoir et rendre des missions", promptLabel:"MISSIONS"
     },
     {
-      id:"commerce", x:x - 620, y:y - 690, radius:230,
-      asset:"assets/spawn/helion01-crown-v1/refinery.webp",
+      id:"commerce", x:x - 620 * sx, y:y - 690 * sy, radius:230,
+      asset:asset("refinery"),
       assetWidth:460, assetHeight:460, presentation:"industrial",
       marker:null,
-      color:"237,190,114", title:"RAFFINERIE · COMMERCE",
+      color:theme.palette === "astra" ? "237,190,114" : theme.hubColor, title:"RAFFINERIE · COMMERCE",
       subtitle:"Vendre des matériaux", promptLabel:"COMMERCE"
     }
   ];

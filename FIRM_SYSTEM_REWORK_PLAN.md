@@ -14,7 +14,8 @@ Ce document sert aussi de relais entre sessions ou IA. Il doit etre mis a jour a
 
 - Conserver la regle actuelle : un monstre de niveau adapte rapporte 1 point de firme.
 - Un point gagne pour la firme compte aussi comme contribution saisonniere personnelle.
-- Un kill PvP ennemi rapporte 100 points pendant les 5 premiers kills quotidiens de la meme cible, puis 5 points.
+- Un kill PvP ennemi rapporte 100 points pendant les 5 premiers kills quotidiens de la meme cible, puis 5 points du sixieme au dixieme, puis aucun gain. La reputation passe aussi a 5 % du sixieme au dixieme ; les compteurs sont lies aux comptes.
+- Regles du 23 octobre 2026 : kill allie sanctionne a partir de -1 000 reputation, doublement a chaque recidive dans les sept jours glissants, reputation negative et prix du magasin majores jusqu'a 50 %, statut CIBLE a -500 000. Legitime defense et cible alliee sans malus ni recompense. Barreme complet : `docs/PVP_REPUTATION_2026-10-23.md`.
 - Le classement individuel saisonnier regroupe tous les joueurs des quatre firmes.
 - La recompense individuelle ne depend pas du classement final de la firme.
 - La recompense collective de firme exige au moins 10 000 points de contribution personnelle sur la saison.

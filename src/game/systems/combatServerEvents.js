@@ -7,13 +7,15 @@ import { buildPortalEnvironment, createPortalMap } from "./portalState.js?v=2026
 import { createRemoteWeaponEventProcessor } from "./combatRemoteWeaponEvents.js?v=20260726-combat-authority1";
 import { createQuestServerEventProcessor } from "./combatQuestServerEvents.js?v=20260726-kharon1";
 import { countCombatProfiler, isCombatProfilerFlagEnabled, setCombatProfilerMetric, timeCombatProfiler } from "./combatFrameProfiler.js?v=20260726-kharon1";
+import { createCombatDamageFeedback } from "./combatDamageFeedback.js";
+import { createCombatEnemyImpactSystem } from "./combatEnemyImpacts.js";
+import { queuePlayerShieldImpact } from "./combatPlayerShieldImpacts.js";
 
 const RICKY_ALLY_ID = "ricky_companion";
 const RICKY_ROCKET_PROJECTILE = "assets/equipment/rocket_r2_projectile.png";
 const MAX_SERVER_ENEMY_PROJECTILES = 24;
 const MAX_SERVER_ENEMY_PROJECTILES_PER_FRAME = 8;
 const MAX_SERVER_ENEMY_ATTACK_PARTICLES_PER_FRAME = 8;
-const COMBAT_DAMAGE_TEXT_MERGE_MS = 120;
 const COMBAT_VISUAL_MAX_AGE_MS = 2000;
 
 export function applyAuthoritativeCombatAmmo({event, playerId, ammoInventory} = {}){
@@ -124,6 +126,8 @@ export function createCombatServerEventSystem({
   rejectAuthoritativeShot = ()=>false
 }){
   const processedRewardIds = new Set();
+  const damageFeedback = createCombatDamageFeedback({getState, pushDamageText});
+  const enemyImpacts = createCombatEnemyImpactSystem({getState});
   function getCurrentMapToken(map){
     return String(map?.id ?? map?.name ?? "");
   }
@@ -268,6 +272,7 @@ export function createCombatServerEventSystem({
         label:["Récompense de portail", ...ammoRewards, ...itemRewards].join(" - "),
         credits:Math.max(0, Math.round(Number(reward.credits || 0))),
         xp,
+        reputation:Math.max(0,Math.round(Number(reward.reputation ?? xp*.1))),
         premium:Math.max(0, Math.round(Number(reward.premium || 0))),
         at:event.at || Date.now()
       }}));
@@ -275,7 +280,10 @@ export function createCombatServerEventSystem({
         message:"Portail serveur termine",
         credits:reward.credits || 0,
         xp,
+        reputation:Math.max(0,Math.round(Number(reward.reputation ?? xp*.1))),
         premium:reward.premium || 0,
+        delayMs:Number(event.rewardDisplayDelayMs || 0),
+        persistAcrossMaps:true,
         ammo:ammoRewards,
         items:itemRewards,
         duration:15
@@ -339,6 +347,7 @@ export function createCombatServerEventSystem({
       const staleVisual = serverAgeMs > 2500;
       if(staleVisual && hasServerVitals) continue;
       const poison = event.damageType === "poison";
+      queuePlayerShieldImpact(player,event);
       if(poison) poisonDamageText += amount;
       else normalDamageText += amount;
     }
@@ -387,6 +396,7 @@ export function createCombatServerEventSystem({
         x:player.x,
         y:player.y - 58,
         value:normalDamageText,
+        direction:"incoming",
         color:"rgba(248,113,113,",
         shadowColor:"rgba(248,113,113,.78)"
       });
@@ -396,8 +406,9 @@ export function createCombatServerEventSystem({
         x:player.x,
         y:player.y - (normalDamageText > 0 ? 78 : 58),
         value:`-${poisonDamageText}`,
-        color:"rgba(74,222,128,",
-        shadowColor:"rgba(34,197,94,.78)"
+        direction:"incoming",
+        color:"rgba(255,96,96,",
+        shadowColor:"rgba(255,80,80,.42)"
       });
     }
     multiplayer.playerDamageEvents = remaining;
@@ -431,6 +442,10 @@ export function createCombatServerEventSystem({
           color:"rgba(34,197,94,.72)",
           pulseIndex:Number(event.pulseIndex || 1)
         });
+      }else if(event.kind === "enemy_slow_bomb"){
+        const {impactEffects} = getState();
+        impactEffects.push({kind:"slowBomb", x:Number(event.x || 0), y:Number(event.y || 0),
+          radius:Math.max(1, Number(event.radius || 100)), life:.7, max:.7, visualOnly:true});
       }
     }
     multiplayer.shipAbilityEffectEvents = remaining;
@@ -519,6 +534,7 @@ export function createCombatServerEventSystem({
           x:Number(portalAlly.x || 0),
           y:Number(portalAlly.y || 0) - 58,
           value:getNpcDamageDisplayAmount(event),
+          direction:"incoming",
           color:"rgba(248,113,113,",
           shadowColor:"rgba(248,113,113,.78)"
         });
@@ -646,6 +662,7 @@ export function createCombatServerEventSystem({
       const serverTravelTime = Number(event.travelTime);
       bullets.push(createProjectile({
         owner:"serverEnemy",
+        enemyKind:event.enemyKind || enemy?.kind,
         startX:fromX,
         startY:fromY,
         targetId:"player",
@@ -695,6 +712,8 @@ export function createCombatServerEventSystem({
       });
       const serverAt = Number(event?.at || 0);
       if(serverAt > 1_000_000_000_000 && Date.now() - serverAt > COMBAT_VISUAL_MAX_AGE_MS) continue;
+      damageFeedback.observeShot(event);
+      enemyImpacts.observeShot(event);
       multiplayer.remoteEffects.push({
         ...event,
         kind:String(event.kind || event.weaponClass || "laser"),
@@ -723,8 +742,10 @@ export function createCombatServerEventSystem({
     const facing = angle + Math.PI / 2;
     ally.clientAimAngle = facing;
     ally.clientAimUntil = performance.now() + (weaponClass === "rocket" ? 520 : 260);
-    const side = weaponClass === "rocket" ? (Math.random() > .5 ? -18 : 18) : 0;
-    const front = weaponClass === "rocket" ? 50 : 44;
+    ally[weaponClass === "rocket" ? "clientRocketShotAt" : "clientLaserShotAt"] = performance.now();
+    const side = Math.floor(performance.now() / 200) % 2 ? -14 : 14;
+    ally.clientMuzzleSide = side;
+    const front = weaponClass === "rocket" ? 42 : 36;
     return {
       x:Number(ally.x || 0) + Math.cos(angle) * front + Math.cos(facing) * side,
       y:Number(ally.y || 0) + Math.sin(angle) * front + Math.sin(facing) * side,
@@ -760,7 +781,7 @@ export function createCombatServerEventSystem({
       });
       bullet.fixedTarget = {x:toX, y:toY, hp:1};
       bullets.push(bullet);
-      particles.push({kind:"muzzle",x:muzzle.x, y:muzzle.y, life:.24, max:.24, size:26, color:"rgba(125,211,252,.78)"});
+      particles.push({kind:"muzzle",x:muzzle.x, y:muzzle.y, life:.18, max:.18, size:14, color:"rgba(255,220,155,.75)"});
       return;
     }
     beams.add({
@@ -773,7 +794,7 @@ export function createCombatServerEventSystem({
       canReplay:false,
       blueLaser:true
     });
-    particles.push({kind:"muzzle",x:muzzle.x, y:muzzle.y, life:.16, max:.16, size:18, color:"rgba(125,211,252,.72)"});
+    particles.push({kind:"muzzle",x:muzzle.x, y:muzzle.y, life:.12, max:.12, size:9, color:"rgba(125,211,252,.72)"});
   }
 
   function addSpectralDoubleShotVisual(event, enemy = null){
@@ -813,54 +834,21 @@ export function createCombatServerEventSystem({
   }
 
   function applyCombatHitEvents(){
+    damageFeedback.update();
     if(!multiplayer.combatEvents?.length) return;
-    const {enemies, store} = getState();
+    const {enemies, store, currentMap} = getState();
     const events = multiplayer.combatEvents.splice(0);
     const remaining = [];
-    const textGroups = [];
-    function hitEventOrder(event, fallback){
-      const at = Number(event?.at);
-      if(Number.isFinite(at) && at > 0) return at;
-      const receivedAt = Number(event?.receivedAt);
-      return Number.isFinite(receivedAt) ? receivedAt : fallback;
-    }
-    function queueCombatText(event, target, fallbackOrder){
+    function queueCombatText(event, target){
       if(event?.accepted === false || event?.outcome === "rejected") return;
+      if(currentMap && String(event.mapId ?? currentMap.id) !== getCurrentMapToken(currentMap)) return;
       const serverAt = Number(event?.at || 0);
       if(serverAt > 1_000_000_000_000 && Date.now() - serverAt > COMBAT_VISUAL_MAX_AGE_MS) return;
       const damage = Math.max(0, Math.round(Number(event.damage || 0)));
       const validMiss = event?.hit === false && Math.max(0, Number(event?.consumed || 0)) > 0;
       if(damage <= 0 && !validMiss) return;
       if(validMiss && String(event?.attackerId || "") !== String(multiplayer.playerId || "")) return;
-      const poison = event.damageType === "poison";
-      const key = [
-        String(event.mapId ?? ""),
-        String(event.enemyId || ""),
-        String(event.attackerId || event.sourceId || ""),
-        poison ? "poison" : "normal"
-      ].join(":");
-      const order = hitEventOrder(event, fallbackOrder);
-      const group = textGroups.find(entry=>
-        entry.key === key
-        && Math.abs(order - entry.order) <= COMBAT_DAMAGE_TEXT_MERGE_MS
-      );
-      const next = group || {
-        key,
-        order,
-        x:target.x,
-        y:target.y,
-        damage:0,
-        misses:0,
-        poison,
-        radius:target.radius
-      };
-      next.order = Math.min(next.order, order);
-      next.x = target.x;
-      next.y = target.y;
-      next.radius = target.radius;
-      if(damage > 0) next.damage += damage;
-      else next.misses += 1;
-      if(!group) textGroups.push(next);
+      damageFeedback.addHit(event, target);
     }
     for(let index = 0; index < events.length; index += 1){
       const event = events[index];
@@ -874,6 +862,7 @@ export function createCombatServerEventSystem({
       updateEliteLaserCharges(event);
       updateSpectralDoubleShotCharge(event.shipAbilityState, event.attackerId, event);
       const enemy = enemies.find(entry=>String(entry.id) === String(event.enemyId));
+      enemyImpacts.addHit(event, enemy);
       addSpectralDoubleShotVisual(event, enemy);
       if(!enemy){
         const x = Number(event.x);
@@ -883,7 +872,7 @@ export function createCombatServerEventSystem({
             x,
             y:y - Math.max(16, Number(event.radius || 0) + 16),
             radius:Number(event.radius || 0)
-          }, index);
+          });
         }else if((performance.now() - Number(event.receivedAt || 0)) < 1000) remaining.push(event);
         continue;
       }
@@ -891,25 +880,7 @@ export function createCombatServerEventSystem({
         x:enemy.x,
         y:enemy.y - enemy.radius - 16,
         radius:enemy.radius
-      }, index);
-    }
-    for(const group of textGroups.sort((left, right)=>left.order - right.order)){
-      if(group.damage > 0){
-        pushDamageText({
-          x:group.x,
-          y:group.y,
-          value:group.poison ? `-${group.damage}` : group.damage,
-          ...(group.poison ? {color:"rgba(22,163,74,", shadowColor:"rgba(21,128,61,.82)", life:.92} : {})
-        });
-      }else{
-        pushDamageText({
-          x:group.x,
-          y:group.y,
-          value:"MISS",
-          color:"rgba(191,219,254,",
-          shadowColor:"rgba(96,165,250,.78)"
-        });
-      }
+      });
     }
     multiplayer.combatEvents = remaining;
   }

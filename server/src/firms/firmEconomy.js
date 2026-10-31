@@ -1,3 +1,4 @@
+import { normalizeReputation } from "../../../src/shared/reputation.js";
 import { getFirmShopItem, getFirmShopPrice, rollFirmBoxReward } from "./firmRules.js";
 
 function ensureFirmEconomy(profile){
@@ -33,7 +34,7 @@ export function buyFirmShopItem(profile, itemId){
   ensureFirmEconomy(profile);
   const item = getFirmShopItem(itemId);
   if(!item) return {ok:false, reason:"Article de firme inconnu."};
-  const reputation = Math.max(0, Number(profile.player?.reputation || 0));
+  const reputation = normalizeReputation(profile.player?.reputation);
   if(reputation < item.reputationRequired) return {ok:false, reason:`Reputation requise : ${item.reputationRequired}.`};
   const price = getFirmShopPrice(item, reputation);
   if(profile.firmatons < price) return {ok:false, reason:"Pas assez de firmatons."};

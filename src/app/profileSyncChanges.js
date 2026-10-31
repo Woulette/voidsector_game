@@ -21,6 +21,7 @@ export function captureProfileUiState(state = {}){
       "shipLoadouts",
       "equipmentUpgrades",
       "droneLoadout",
+      "droneSkinLoadout",
       "dronePermanentUpgrades",
       "activeDroneFormation",
       "skillRanks",

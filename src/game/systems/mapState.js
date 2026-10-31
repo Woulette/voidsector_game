@@ -1,4 +1,5 @@
-import { ENEMY_TYPES } from "../combatData.js?v=20261022-helion-hub1";
+import { ENEMY_TYPES, getEnemyStatsForLevel } from "../combatData.js?v=20261022-helion-hub1";
+import { getSectorEnemyLevel } from "../../shared/enemyProgression.js";
 
 export function seededRandom(seed){
   let value = seed % 2147483647;
@@ -31,13 +32,6 @@ function randomBetween(rnd, min, max){
   return min + rnd() * (max - min);
 }
 
-function randomIntegerRange(rnd, range, fallback){
-  const source = Array.isArray(range) ? range : fallback;
-  const min = Math.floor(Number(source?.[0] ?? 1));
-  const max = Math.floor(Number(source?.[1] ?? min));
-  return Math.floor(min + rnd() * (max - min + 1));
-}
-
 function getMapPortals(map){
   if(!map) return [];
   if(Array.isArray(map.portals)) return map.portals;
@@ -68,16 +62,17 @@ function isValidEnemySpawnPosition(map, x, y, player = null){
 export function createMapEnemy({map, id, rnd = Math.random, player = null, kind = null}){
   const {x, y} = findEnemySpawnPosition(map, rnd, player);
   const enemyType = kind ? getEnemyTypeById(kind) : chooseEnemyType(map, rnd);
-  const level = randomIntegerRange(rnd, map.enemyLevel, enemyType.levelRange);
-  const maxHp = enemyType.maxHp(level);
-  const maxShield = enemyType.maxShield?.(level) || 0;
+  const enemyKind = kind || getEnemyTypeKind(enemyType);
+  const level = getSectorEnemyLevel(enemyKind, map.enemyLevel || [enemyType.baseLevel, enemyType.baseLevel]);
+  const stats = getEnemyStatsForLevel(enemyKind, level);
+  const {maxHp, maxShield} = stats;
   return {
     id,
     x,y,homeX:x,homeY:y,
     hp:maxHp,maxHp,
     shield:maxShield,maxShield,
     level,
-    kind:kind || getEnemyTypeKind(enemyType),
+    kind:enemyKind,
     type:enemyType.name,
     img:enemyType.img,
     width:enemyType.width,
@@ -86,20 +81,20 @@ export function createMapEnemy({map, id, rnd = Math.random, player = null, kind 
     radius:enemyType.radius,
     attackRange:enemyType.attackRange,
     shieldAbsorbRatio:enemyType.shieldAbsorbRatio ?? 0.8,
-    attackDamage:enemyType.attackDamage(level),
-    attackDamageMin:enemyType.attackDamageMin,
-    attackDamageMax:enemyType.attackDamageMax,
+    attackDamage:stats.attackDamage,
+    attackDamageMin:stats.attackDamageMin,
+    attackDamageMax:stats.attackDamageMax,
     attackCooldown:enemyType.attackCooldown,
     projectileSpeed:enemyType.projectileSpeed,
     color:enemyType.color,
     particle:enemyType.particle,
-    onHitEffect:enemyType.onHitEffect,
+    onHitEffect:stats.onHitEffect,
     requiresPlayerAttack:Boolean(enemyType.requiresPlayerAttack),
     followBeforeAttacked:Boolean(enemyType.followBeforeAttacked),
     targetMemoryMs:Math.max(0, Number(enemyType.targetMemoryMs || 0)),
     deathEffect:enemyType.deathEffect ? {...enemyType.deathEffect} : null,
     deathSpawn:enemyType.deathSpawn ? {...enemyType.deathSpawn} : null,
-    loot:enemyType.loot,
+    loot:stats.loot,
     aggro:false,
     angle:0,
     hitT:rnd()*.75

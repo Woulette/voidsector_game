@@ -48,7 +48,7 @@ export function createCombatDeathRespawnSystem({
       head.innerHTML = `<span>Vie de portail perdue</span><strong>${Math.max(0, portalLives)} / ${portalStartingLives} vies restantes</strong>`;
       actions.innerHTML = `
         <button data-respawn-choice="portal-resume" type="button">${continueCopy.label}<br><small>${continueCopy.detail}</small></button>
-        <button data-respawn-choice="spawn" type="button">Abandonner<br><small>Retour ${getHomeMap().name}</small></button>
+        <button data-respawn-choice="spawn" type="button">${deathState.portalAttemptPreserved ? "Sortir" : "Abandonner"}<br><small>${deathState.portalAttemptPreserved ? "Tentative conservée" : `Retour ${getHomeMap().name}`}</small></button>
       `;
       return;
     }

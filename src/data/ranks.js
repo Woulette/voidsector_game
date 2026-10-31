@@ -70,7 +70,7 @@ export function getRankById(id){
 export function getRankAssetPath(rankLike){
   const id = typeof rankLike === "string" ? rankLike : rankLike?.id;
   const rank = getRankById(id);
-  return `assets/ranks/${rank.asset || `${rank.id}.svg`}`;
+  return `assets/ranks/${rank.asset || `${rank.id}.svg`}?v=20261023-rankshine1`;
 }
 
 export function getRankForScore(score){

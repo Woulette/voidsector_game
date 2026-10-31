@@ -106,21 +106,21 @@ export function planDroneEquipmentBatch({
   getItem,
   findEquipped,
   drones,
-  dronePermanentUpgrades,
+  droneSkinLoadout,
   isDroneCompatibleEquipment,
   isDronePermanentUpgradeItem
 }){
   const workingDrones = [...(drones || [])];
-  const workingUpgrades = {...(dronePermanentUpgrades || {})};
+  const workingSkins = Array.from({length:workingDrones.length}, (_, index)=>droneSkinLoadout?.[index] || null);
   const actions = [];
   for(const inventoryUid of normalizeEquipmentSelection(inventoryUids)){
     if(findEquipped?.(inventoryUid)) continue;
     const item = getItem?.(inventoryUid);
     if(isDronePermanentUpgradeItem?.(item)){
-      const index = workingDrones.findIndex((_, droneIndex)=>!workingUpgrades[droneIndex]);
+      const index = workingSkins.findIndex(uid=>!uid);
       if(index < 0) continue;
-      workingUpgrades[index] = item.id || inventoryUid;
-      actions.push({kind:"drone-upgrade", index, inventoryUid});
+      workingSkins[index] = inventoryUid;
+      actions.push({kind:"equip", type:"droneSkin", index, inventoryUid, shipId:""});
       continue;
     }
     if(!isDroneCompatibleEquipment?.(item)) continue;

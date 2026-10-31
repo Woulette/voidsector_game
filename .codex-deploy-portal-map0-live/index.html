@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="voidsector-server-url" content="https://avosoma.absyrion.com" />
+  <title>Avosoma - MMO</title>
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="styles.css?v=20260726-portals2530-1" />
+  <script>
+    document.documentElement.dataset.appMode = new URLSearchParams(location.search).get("mode") === "game" ? "game" : "launcher";
+  </script>
+</head>
+<body class="app-booting auth-locked">
+  <section id="appBootScreen" class="app-boot-screen" aria-live="polite">
+    <div class="app-boot-core">
+      <img class="app-brand-logo app-brand-logo--boot" src="assets/icons/avosoma-logo-choice-1.png" alt="">
+      <span class="app-boot-kicker">AVOSOMA</span>
+      <strong data-boot-launcher>CHARGEMENT DU HANGAR</strong>
+      <strong data-boot-game>CHARGEMENT DU SECTEUR</strong>
+      <div class="app-boot-progress" aria-hidden="true"><span></span></div>
+      <small>Synchronisation avec le serveur MMO…</small>
+    </div>
+  </section>
+  <section id="authGate" class="auth-gate" aria-live="polite">
+    <div class="auth-backdrop" aria-hidden="true">
+      <img class="auth-planet" src="assets/maps/decor/planet_astra_red.png" alt="">
+      <img class="auth-station" src="assets/spawn/spawn_dock.png" alt="">
+      <img class="auth-ship auth-ship-main" src="assets/ships/Razorion.png" alt="">
+      <img class="auth-ship auth-ship-escort" src="assets/ships/Velox.png" alt="">
+    </div>
+    <div class="auth-top-line">
+      <span data-auth-server-state>Serveur MMO</span>
+      <b data-auth-connection-state>Connexion requise</b>
+    </div>
+    <div class="auth-shell">
+      <section class="auth-hero">
+        <div class="auth-brand-lockup">
+          <h1>Avosoma</h1>
+          <img class="app-brand-logo auth-logo-image" src="assets/icons/avosoma-logo-choice-1.png" alt="Logo Avosoma">
+        </div>
+        <p>Entre dans le secteur avec ton compte Absyrion.</p>
+        <div class="auth-signal-grid" aria-hidden="true">
+          <span><b>4 FIRMES</b><small>Choix de camp</small></span>
+          <span><b>SECTEURS</b><small>Conflit ouvert</small></span>
+          <span><b>MMO</b><small>Profil serveur</small></span>
+        </div>
+      </section>
+      <section class="auth-panel frame">
+        <div class="auth-tabs" role="tablist" aria-label="Compte Absyrion">
+          <button class="active" type="button" data-auth-gate-mode="login">Connexion</button>
+          <button type="button" data-auth-gate-mode="register">Créer un compte</button>
+        </div>
+        <button class="auth-platform-login" type="button" data-auth-platform-login hidden>Connexion avec Absyrion</button>
+        <form id="authGateLoginForm" class="auth-form" data-auth-form="login">
+          <label>
+            <span>Email</span>
+            <input id="authGateEmail" name="email" type="email" autocomplete="email" placeholder="pilote@email.fr" required>
+          </label>
+          <label>
+            <span>Mot de passe</span>
+            <input id="authGatePassword" name="password" type="password" autocomplete="current-password" placeholder="Mot de passe" required>
+          </label>
+          <label class="auth-check">
+            <input id="authGateRemember" type="checkbox" checked>
+            <span>Se souvenir</span>
+          </label>
+          <button class="auth-submit" type="submit" data-auth-submit="login">Connexion</button>
+        </form>
+        <div id="authGateRegisterForm" class="auth-form auth-register-redirect hidden" data-auth-form="register">
+          <p>La creation du compte se fait sur Absyrion. Le meme compte servira ensuite pour Avosoma et les prochains jeux.</p>
+          <a class="auth-submit auth-submit-link" href="https://absyrion.com/login.html?mode=register">Creer un compte Absyrion</a>
+        </div>
+        <p id="authGateStatus" class="auth-status">Connecte ton compte Absyrion pour entrer.</p>
+      </section>
+    </div>
+  </section>
+  <section id="gameDisconnectOverlay" class="game-disconnect-overlay hidden" aria-hidden="true" aria-live="assertive">
+    <div class="game-disconnect-card frame" role="dialog" aria-modal="true" aria-labelledby="gameDisconnectTitle">
+      <span class="game-disconnect-kicker">SESSION MMO INTERROMPUE</span>
+      <h2 id="gameDisconnectTitle">Vous avez été déconnecté</h2>
+      <p>Ton vaisseau reste dans le monde selon les règles anti-déconnexion. Les dégâts reçus pendant ton absence sont conservés.</p>
+      <p id="gameDisconnectStatus" class="game-disconnect-status"></p>
+      <div class="game-disconnect-actions">
+        <button id="gameReconnectBtn" type="button">RECONNECTER</button>
+        <button id="gameCloseBtn" type="button">FERMER</button>
+      </div>
+      <small>Chaque dégât reçu hors ligne relance le délai serveur de 30 secondes.</small>
+    </div>
+  </section>
+  <div id="dashboard" class="dashboard">
+    <button class="account-logout-dock" data-auth-action="logout" type="button" title="Déconnecter complètement le compte">
+      <span>Compte Absyrion</span>
+      <strong>Déconnexion</strong>
+    </button>
+    <header class="topbar">
+      <section class="pilot-card frame">
+        <div class="pilot-avatar">
+          <img id="pilotRankIcon" src="assets/ranks/01_Recrue.svg" alt="Grade pilote">
+        </div>
+        <div class="pilot-identity">
+          <span class="pilot-kicker">IDENTITÉ PILOTE</span>
+          <h1 id="pilotName">NOVA-37</h1>
+          <div class="pilot-grade-line">
+            <small>GRADE</small>
+            <strong id="pilotRankLabel">RECRUE</strong>
+          </div>
+        </div>
+        <div class="pilot-metrics">
+          <div>
+            <small>NIVEAU</small>
+            <strong id="levelText">1</strong>
+          </div>
+          <div>
+            <small>TEMPS DE JEU</small>
+            <strong id="pilotPlayTime">0m 00s</strong>
+          </div>
+        </div>
+        <div class="pilot-xp">
+          <div class="pilot-xp-head"><span>PROGRESSION XP</span><b id="xpText">0 / 100</b></div>
+          <div class="mini-bar"><span id="xpFill"></span></div>
+        </div>
+      </section>
+
+      <nav class="top-nav frame">
+        <button class="nav-tab active" data-view="hangar">HANGAR</button>
+        <button class="nav-tab" data-view="shop">MAGASIN</button>
+        <button class="nav-tab" data-view="portals">PORTAILS</button>
+        <button class="nav-tab" data-view="refinery">RAFFINERIE</button>
+        <button class="nav-tab firm-nav-tab" data-view="firm">FIRME <span class="firm-notification-badge firm-nav-notification" data-firm-nav-badge hidden>0</span></button>
+        <button class="nav-tab boutique-nav-tab" data-view="store">BOUTIQUE</button>
+        <button class="nav-tab" data-view="leaderboard">CLASSEMENT</button>
+      </nav>
+
+      <div class="start-admin-stack">
+        <button id="startGameBtn" class="start-button">
+          <strong>DÉPART</strong>
+          <span>LANCER LA MISSION</span>
+        </button>
+        <div id="adminDock"></div>
+        <aside id="launcherPremiumStatus" class="launcher-premium-status hidden" aria-live="polite" aria-hidden="true">
+          <div class="launcher-premium-emblem" aria-hidden="true"><span>P</span></div>
+          <div class="launcher-premium-copy">
+            <small>ABONNEMENT PILOTE</small>
+            <strong><i aria-hidden="true"></i> PREMIUM ACTIF</strong>
+          </div>
+          <div class="launcher-premium-timer">
+            <small>TEMPS RESTANT</small>
+            <b data-premium-home-remaining>--</b>
+          </div>
+        </aside>
+      </div>
+
+      <section class="currency-strip frame">
+        <div class="currency">
+          <img src="assets/icons/credits.svg" alt="Crédits">
+          <div>
+            <strong id="creditsValue">0</strong>
+          </div>
+        </div>
+        <div class="currency premium">
+          <img src="assets/icons/premium.svg" alt="NOVA">
+          <div>
+            <strong id="premiumValue">0</strong>
+          </div>
+        </div>
+      </section>
+    </header>
+
+    <main class="page-container">
+      <section class="page-view hangar-view active" data-page="hangar">
+        <div class="hangar-tabs frame">
+          <button class="hangar-tab-btn active" data-hangar-tab="vaisseau">Vaisseau</button>
+          <button class="hangar-tab-btn" data-hangar-tab="drone">Drone</button>
+          <button class="hangar-tab-btn" data-hangar-tab="skills">Compétences</button>
+          <button class="hangar-tab-btn" data-hangar-tab="profile">Profil</button>
+        </div>
+
+        <section id="hangarListPanel" class="panel hangar-panel frame">
+          <div class="panel-head">
+            <div>
+              <span class="tiny">HANGAR</span>
+              <h2>Mes vaisseaux</h2>
+            </div>
+            <span class="badge">Vaisseaux possédés uniquement</span>
+          </div>
+          <div id="shipGrid" class="ship-grid"></div>
+        </section>
+
+        <aside id="shipDetailPanel" class="panel selected-panel frame hidden">
+          <div class="panel-head compact">
+            <div>
+              <span class="tiny">FICHE VAISSEAU</span>
+              <h2 id="selectedShipName">---</h2>
+            </div>
+          </div>
+          <div class="selected-ship-art">
+            <img id="selectedShipImage" src="" alt="Vaisseau sélectionné">
+            <div id="selectedShipRankBadge" class="ship-rank-badge"></div>
+          </div>
+          <div class="selected-actions">
+            <button id="backToShipsBtn" class="blue-button secondary">RETOUR AUX VAISSEAUX</button>
+            <button id="selectedShipAction" class="blue-button">ÉQUIPER</button>
+          </div>
+          <div id="selectedShipStats" class="ship-live-stats"></div>
+        </aside>
+
+        <section id="shipLoadoutPanel" class="panel loadout-panel frame hidden">
+          <div class="panel-head loadout-ship-head">
+            <div>
+              <h2 id="loadoutShipTitle">VELOX</h2>
+            </div>
+            <button id="unequipAllShipBtn" class="unequip-all-button" type="button" data-unequip-all-open title="Tout desequiper" aria-label="Tout desequiper le vaisseau">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+                <path d="M10 12h9" />
+                <path d="m16 9 3 3-3 3" />
+                <path d="M10 20V4l5 2v12l-5 2z" />
+              </svg>
+            </button>
+          </div>
+          <div id="loadoutPanel" class="loadout-panel-body"></div>
+        </section>
+
+        <section id="droneSection" class="hidden"></section>
+        <section id="hangarSkillsSection" class="panel skills-panel frame hidden">
+          <div class="panel-head">
+            <div>
+              <span class="tiny">PILOTE</span>
+              <h2>Tableau de compétences</h2>
+            </div>
+            <span class="points"><b data-skill-points>0</b> pts disponibles</span>
+          </div>
+          <div id="hangarSkillGrid" class="skill-grid skill-grid-full" data-skill-grid></div>
+        </section>
+        <section id="profileSection" class="panel profile-panel frame hidden"></section>
+        <section id="extraSection" class="hidden"></section>
+      </section>
+
+      <section class="page-view shop-view" data-page="shop">
+        <section class="panel shop-panel frame">
+          <div class="panel-head shop-head redesigned">
+            <div>
+              <span class="tiny">MAGASIN ORBITAL</span>
+              <h2>Marché de bord</h2>
+            </div>
+          </div>
+          <div class="shop-layout">
+            <aside class="shop-sidebar frame">
+              <div class="shop-side-head">
+                <span class="tiny">CATÉGORIES</span>
+                <h3>Navigation</h3>
+              </div>
+              <div class="shop-sidebar-nav">
+                <button class="shop-nav-btn active" data-filter-shop="vaisseau">Vaisseaux</button>
+                <button class="shop-nav-btn" data-filter-shop="canon">Armes</button>
+                <button class="shop-nav-btn" data-filter-shop="munition">Munitions</button>
+                <button class="shop-nav-btn" data-filter-shop="generateur">Générateurs</button>
+                <button class="shop-nav-btn" data-filter-shop="drone">Drones</button>
+                <button class="shop-nav-btn" data-filter-shop="extra">Extras</button>
+                <button class="shop-nav-btn" data-filter-shop="booster">Boosters</button>
+                <button class="shop-nav-btn accent" data-filter-shop="premium">Premium</button>
+                <button class="shop-nav-btn accent-alt" data-filter-shop="owned">Possédés</button>
+              </div>
+            </aside>
+            <section class="shop-catalog-panel frame">
+              <div class="shop-toolbar">
+                <div>
+                  <span class="tiny">CATALOGUE</span>
+                  <h3 id="shopSectionTitle">Vaisseaux</h3>
+                </div>
+                <div class="shop-toolbar-status">
+                  <span id="shopResultCount" class="badge">0 ARTICLE</span>
+                </div>
+              </div>
+              <div id="shopGrid" class="shop-grid shop-grid-panel"></div>
+            </section>
+            <aside id="shopDetailPanel" class="shop-detail-panel frame"></aside>
+          </div>
+        </section>
+      </section>
+
+
+      <section class="page-view store-view" data-page="store">
+        <section id="premiumStorePanel" class="panel store-panel frame"></section>
+      </section>
+
+
+      <section class="page-view firm-view" data-page="firm">
+        <section id="firmMainPanel" class="panel firm-main-panel frame"></section>
+      </section>
+
+      <section class="page-view leaderboard-view" data-page="leaderboard">
+        <section class="panel leaderboard-panel frame">
+          <div class="panel-head leaderboard-head">
+            <div>
+              <span class="tiny">CLASSEMENT MMO</span>
+              <h2>Classement pilotes</h2>
+              <p>Classement local pour l’instant, préparé pour être remplacé par un classement serveur plus tard.</p>
+            </div>
+            <span class="badge">LOCAL / FUTUR ONLINE</span>
+          </div>
+          <div id="leaderboardPanel"></div>
+        </section>
+      </section>
+
+      <section class="page-view settings-view" data-page="settings">
+        <section id="settingsPanel" class="panel settings-panel frame"></section>
+      </section>
+
+      <section class="page-view portals-view" data-page="portals">
+        <section class="panel portals-panel frame">
+          <div class="panel-head">
+            <div>
+              <span class="tiny">DONJONS</span>
+              <h2>Portails dimensionnels</h2>
+            </div>
+          </div>
+          <div id="portalGrid" class="portal-grid portal-grid-full"></div>
+        </section>
+        <aside id="portalCasterPanel" class="panel portals-caster-panel frame"></aside>
+      </section>
+
+      <section class="page-view refinery-view" data-page="refinery">
+        <section class="panel refinery-panel frame">
+          <div class="panel-head">
+            <div>
+              <span class="tiny">FABRICATION</span>
+              <h2>Raffinerie</h2>
+            </div>
+          </div>
+          <div id="refineryPanel"></div>
+        </section>
+      </section>
+
+    </main>
+  </div>
+
+  <section id="gameScreen" class="game-screen hidden">
+    <div class="game-topbar">
+      <div class="combat-status frame">
+        <strong id="gameZoneName">ZONE : ASTRA-01</strong>
+        <div class="combat-pilot-row">
+          <span id="gamePlayerName">NOVA-37</span>
+          <span id="gameRankHud" class="combat-rank-hud"><img class="rank-icon" src="assets/ranks/01_Recrue.svg" alt="Recrue"><span>Recrue</span></span>
+        </div>
+        <div class="combat-overview-row">
+          <span>NIV. <b id="gameLevel">1</b></span>
+          <span>Vitesse <b id="gameSpeed">0</b></span>
+          <button id="gameCargoToggle" class="combat-cargo-chip" type="button" aria-label="Afficher la soute du vaisseau">
+            <span>Cargo</span>
+            <b id="gameCargoValue">0 / 0</b>
+            <i class="combat-cargo-mini"><em id="gameCargoFill"></em></i>
+          </button>
+        </div>
+        <div class="combat-meter-grid" aria-label="Statistiques de combat">
+          <button class="combat-meter combat-meter-hp" data-combat-meter="hp" type="button" aria-label="Afficher la vie en chiffres">
+            <span class="combat-meter-head"><span>Vie</span><b id="gameHpPercent">100%</b></span>
+            <span class="combat-meter-track"><span id="gameHpFill"></span></span>
+            <span id="gameHp" class="combat-meter-value">0 / 0</span>
+            <span id="gameHpTooltip" class="combat-meter-tooltip">0 / 0</span>
+          </button>
+          <button class="combat-meter combat-meter-shield" data-combat-meter="shield" type="button" aria-label="Afficher le bouclier en chiffres">
+            <span class="combat-meter-head"><span>Bouclier</span><b id="gameShieldPercent">0%</b></span>
+            <span class="combat-meter-track"><span id="gameShieldFill"></span></span>
+            <span id="gameShield" class="combat-meter-value">0 / 0</span>
+            <span id="gameShieldTooltip" class="combat-meter-tooltip">0 / 0</span>
+          </button>
+          <button class="combat-meter combat-meter-xp" data-combat-meter="xp" type="button" aria-label="Afficher l'expérience en chiffres">
+            <span class="combat-meter-head"><span>Expérience</span><b id="gameXpPercent">0%</b></span>
+            <span class="combat-meter-track"><span id="gameXpFill"></span></span>
+            <span id="gameXp" class="combat-meter-value">0 / 100</span>
+            <span id="gameXpTooltip" class="combat-meter-tooltip">0 / 100</span>
+          </button>
+        </div>
+        <div class="combat-stat-row combat-stat-row-secondary">
+          <span id="gameRepairHud">Robot : non équipé</span>
+        </div>
+      </div>
+      <div class="combat-wallet frame">
+        <span class="game-currency"><img class="currency-icon currency-icon-credits" src="assets/icons/credits.svg" alt="Crédits"><b id="gameCreditsHud">0</b></span>
+        <span class="game-currency"><img class="currency-icon currency-icon-premium" src="assets/icons/premium.svg" alt="NOVA"><b id="gamePremiumHud">0</b></span>
+      </div>
+      <button id="returnDashboardBtn" class="blue-button small">DECONNEXION</button>
+    </div>
+    <div id="gameTargetPanel" class="target-panel hidden"></div>
+    <div id="lootPopup" class="loot-popup hidden"></div>
+    <div id="portalTimerHud" class="portal-timer-hud hidden">
+      <strong>30</strong>
+      <span>Vague suivante</span>
+    </div>
+    <div id="portalObjectiveHud" class="portal-objective-hud hidden" aria-live="polite">
+      <div class="portal-objective-hud-head">
+        <span>OBJECTIF VESPER</span>
+        <strong data-vesper-lives>3/3 VIES</strong>
+      </div>
+      <b data-vesper-objective-title>LIBÉREZ LES CAGES 0/4</b>
+      <p data-vesper-objective-detail>Neutralisez les tourelles avant de détruire les cages.</p>
+      <span class="portal-objective-progress"><i data-vesper-objective-progress></i></span>
+    </div>
+    <div id="poisonStatus" class="poison-status hidden" aria-live="polite">
+      <div class="poison-status-icon">!</div>
+      <div class="poison-status-body">
+        <strong>Poison</strong>
+        <span><i id="poisonStatusFill"></i></span>
+      </div>
+      <b id="poisonStatusTimer">0s</b>
+    </div>
+    <div id="slowStatus" class="poison-status slow-status hidden" aria-live="polite">
+      <div class="poison-status-icon">-</div>
+      <div class="poison-status-body">
+        <strong>Ralentissement</strong>
+        <span><i id="slowStatusFill"></i></span>
+      </div>
+      <b id="slowStatusTimer">0s</b>
+    </div>
+    <div id="deathRespawnPanel" class="death-respawn-panel frame hidden" aria-live="assertive">
+      <div class="death-respawn-head">
+        <span>Vaisseau détruit</span>
+        <strong>Choisir un point de retour</strong>
+      </div>
+      <div class="death-respawn-actions">
+        <button data-respawn-choice="spawn" type="button">ASTRA-01<br><small>Gratuit · 20% PV</small></button>
+        <button data-respawn-choice="portal" type="button">Portail proche<br><small><span class="currency-amount premium" aria-label="100 NOVA"><span>100</span><img class="currency-icon currency-icon-premium" src="assets/icons/premium.svg" alt=""></span></small></button>
+        <button data-respawn-choice="death" type="button">Position actuelle<br><small><span class="currency-amount premium" aria-label="200 NOVA"><span>200</span><img class="currency-icon currency-icon-premium" src="assets/icons/premium.svg" alt=""></span></small></button>
+      </div>
+    </div>
+    <div id="combatBoostDepositLayer" class="combat-boost-deposit-layer hidden" aria-hidden="true">
+      <section class="combat-boost-deposit-dialog frame" role="dialog" aria-modal="false" aria-labelledby="combatBoostDepositTitle">
+        <button class="combat-boost-deposit-close" data-boost-deposit-close type="button" aria-label="Fermer">×</button>
+        <div class="combat-boost-deposit-head">
+          <span>PERFECTIONNEMENT DE COMBAT</span>
+          <h3 id="combatBoostDepositTitle">DÉPÔT DE MATÉRIAUX</h3>
+        </div>
+        <div class="combat-boost-deposit-selection">
+          <figure>
+            <img data-boost-deposit-img src="assets/materials/cargo_box.svg" alt="">
+            <figcaption data-boost-deposit-material>MATÉRIAU</figcaption>
+          </figure>
+          <strong>→</strong>
+          <div>
+            <span>CIBLE</span>
+            <b data-boost-deposit-target>LASER</b>
+            <small data-boost-deposit-effect></small>
+          </div>
+        </div>
+        <div class="combat-boost-deposit-stock">
+          <span>Disponible dans la soute</span>
+          <b data-boost-deposit-stock>0</b>
+        </div>
+        <label class="combat-boost-deposit-quantity">
+          <span>Quantité à déposer</span>
+          <div>
+            <button data-boost-deposit-step="-1" type="button" aria-label="Retirer un">−</button>
+            <input data-boost-deposit-amount type="number" min="1" value="1" inputmode="numeric">
+            <button data-boost-deposit-step="1" type="button" aria-label="Ajouter un">+</button>
+          </div>
+        </label>
+        <input class="combat-boost-deposit-range" data-boost-deposit-range type="range" min="1" max="1" value="1">
+        <div class="combat-boost-deposit-presets">
+          <button data-boost-deposit-preset="1" type="button">1</button>
+          <button data-boost-deposit-preset="10" type="button">10</button>
+          <button data-boost-deposit-preset="half" type="button">MOITIÉ</button>
+          <button data-boost-deposit-preset="max" type="button">MAX</button>
+        </div>
+        <div class="combat-boost-deposit-result">
+          <span>Gain obtenu</span>
+          <b data-boost-deposit-result>—</b>
+        </div>
+        <div class="combat-boost-deposit-actions">
+          <button data-boost-deposit-close type="button">ANNULER</button>
+          <button class="confirm" data-boost-deposit-confirm type="button">VALIDER LE DÉPÔT</button>
+        </div>
+      </section>
+    </div>
+    <div id="safeZoneNotice" class="safe-zone-notice hidden">
+      <strong>ZONE NON-AGRESSION</strong>
+      <span>Protection active</span>
+    </div>
+    <div id="combatPerfPanel" class="combat-perf-panel frame" aria-live="off">
+      <strong>PERF</strong>
+      <span>FPS <b data-perf-fps>--</b></span>
+      <span>Frame <b data-perf-frame>--</b> ms</span>
+      <span>Update <b data-perf-update>--</b> ms</span>
+      <span>Draw <b data-perf-draw>--</b> ms</span>
+      <span>Objets <b data-perf-objects>--</b></span>
+    </div>
+    <div id="combatUtilityDock" class="combat-utility-dock frame" aria-label="Modules rapides">
+      <button data-utility-panel="group" type="button" title="Groupe" aria-label="Groupe"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="9" r="2.6"></circle><path d="M3.5 19c.7-3.5 2.8-5.2 6.3-5.2s5.6 1.7 6.3 5.2"></path><path d="M13.8 14.1c2.8.2 4.7 1.8 5.4 4.9"></path></svg></button>
+      <button data-utility-panel="friends" type="button" title="Amis" aria-label="Amis"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.6 2.6-5.3 5.8-5.3s5.2 1.7 5.9 5.3"></path><path d="M17 7v6"></path><path d="M14 10h6"></path></svg></button>
+      <button data-utility-panel="firm" type="button" title="Firme" aria-label="Firme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"></circle><path d="M4 12h16"></path><path d="M12 4c2 2.2 3 4.9 3 8s-1 5.8-3 8c-2-2.2-3-4.9-3-8s1-5.8 3-8z"></path><path d="M18 6l2-2"></path></svg></button>
+      <button data-utility-panel="refinery" type="button" title="Raffinage" aria-label="Raffinage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l-1 6 4 8-2 4H7l-2-4 4-8z"></path><path d="M9 9h6"></path><path d="M8 17h8"></path></svg></button>
+      <button data-utility-panel="quests" type="button" title="Quetes" aria-label="Quetes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l2 2v16H5V5z"></path><path d="M8 8h8"></path><path d="M8 12h6"></path><path d="M8 16h5"></path></svg></button>
+      <button data-utility-panel="map" type="button" title="Carte" aria-label="Carte"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5l5-2 8 2 5-2v13l-5 2-8-2-5 2z"></path><path d="M8 4.5v13"></path><path d="M16 6.5v13"></path><path d="M6 13l3-3 3 2 3-4 3 3"></path></svg></button>
+      <button data-utility-panel="settings" type="button" title="Reglages" aria-label="Reglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 4.4-2.6 7.4-7 9-4.4-1.6-7-4.6-7-9V7z"></path><path d="M9 12l2 2 4-5"></path></svg></button>
+      <button data-chat-toggle type="button" title="Chat" aria-label="Chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H8l-4 4z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></svg></button>
+      <button data-utility-panel="boosters" type="button" title="Boosters" aria-label="Boosters"><img src="assets/boosters/booster_damage.png" alt=""></button>
+      <button data-utility-panel="crafting" type="button" title="Fabrication" aria-label="Fabrication"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4l6 6"></path><path d="M13 5l-8 8 6 6 8-8"></path><path d="M5 17l-2 4 4-2"></path><path d="M8 10l6 6"></path></svg></button>
+      <button class="combat-utility-dock-toggle" data-utility-dock-toggle type="button" title="Afficher les modules suivants" aria-label="Afficher les modules suivants" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+    </div>
+    <div id="combatChatPanel" class="combat-chat-panel frame hidden" aria-label="Chat">
+      <div class="combat-chat-head" data-chat-drag-handle>
+        <strong>Chat</strong>
+        <button data-chat-close type="button" aria-label="Fermer le chat">×</button>
+      </div>
+      <div id="combatChatTabs" class="combat-chat-tabs"></div>
+      <div id="combatChatMessages" class="combat-chat-messages" aria-live="polite"></div>
+      <form id="combatChatForm" class="combat-chat-form">
+        <input id="combatChatInput" type="text" maxlength="220" autocomplete="off" placeholder="Message global...">
+        <button type="submit" aria-label="Envoyer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-5 16-3-6z"></path><path d="M12 14l8-10"></path></svg></button>
+      </form>
+      <div class="combat-chat-resize" data-chat-resize aria-hidden="true"></div>
+    </div>
+    <div id="combatUtilityPanelGroup" class="combat-utility-panel frame hidden" data-utility-mode="group">
+      <div class="combat-utility-panel-head">
+        <strong>GROUPE</strong>
+      </div>
+      <div id="combatUtilityContentGroup" class="combat-utility-content"></div>
+    </div>
+    <div id="combatUtilityPanelFriends" class="combat-utility-panel frame hidden" data-utility-mode="friends">
+      <div class="combat-utility-panel-head">
+        <strong>AMIS</strong>
+      </div>
+      <div id="combatUtilityContentFriends" class="combat-utility-content"></div>
+    </div>
+    <div id="combatUtilityPanelFirm" class="combat-utility-panel frame hidden" data-utility-mode="firm">
+      <div class="combat-utility-panel-head">
+        <strong>FIRME</strong>
+      </div>
+      <div id="combatUtilityContentFirm" class="combat-utility-content"></div>
+    </div>
+    <div id="combatUtilityPanelQuests" class="combat-utility-panel frame hidden" data-utility-mode="quests">
+      <div class="combat-utility-panel-head">
+        <strong>QUETES</strong>
+      </div>
+      <div id="combatUtilityContentQuests" class="combat-utility-content"></div>
+    </div>
+    <div id="combatUtilityPanelSettings" class="combat-utility-panel frame hidden" data-utility-mode="settings">
+      <div class="combat-utility-panel-head">
+        <div><span>CONFIGURATION PILOTE</span><strong>PARAMÈTRES</strong></div>
+        <button class="combat-settings-close" data-settings-close type="button" aria-label="Fermer les paramètres">×</button>
+      </div>
+      <div id="combatUtilityContentSettings" class="combat-utility-content"></div>
+    </div>
+    <div id="combatUtilityPanelMap" class="combat-utility-panel frame hidden" data-utility-mode="map">
+      <div class="combat-utility-panel-head">
+        <strong>CARTE SECTEUR</strong>
+      </div>
+      <div id="combatUtilityContentMap" class="combat-utility-content"></div>
+    </div>
+    <div id="combatUtilityPanelBoosters" class="combat-utility-panel frame hidden" data-utility-mode="boosters">
+      <div class="combat-utility-panel-head">
+        <strong>BOOSTERS</strong>
+      </div>
+      <div id="combatUtilityContentBoosters" class="combat-utility-content"></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="npcAbilityBar" class="npc-ability-bar hidden" aria-label="Compétences de soutien du PNJ"></div>
+    <div id="shipAbilityBar" class="ship-ability-bar hidden" aria-label="Compétences du vaisseau"></div>
+    <div id="gameActionBar" class="action-bar frame"></div>
+    <button id="combatQuickMenuBtn" class="combat-menu-button" type="button">+</button>
+    <div id="combatQuickPanel" class="combat-quick-panel frame hidden">
+      <div class="combat-panel-tabs-wrap">
+        <button class="combat-tab-arrow" data-combat-tab-shift="-1" type="button">&lsaquo;</button>
+        <div class="combat-panel-tabs">
+          <button class="active" data-combat-panel-tab="ammo" type="button">Munitions</button>
+          <button data-combat-panel-tab="skills" type="button">Competences</button>
+          <button data-combat-panel-tab="formations" type="button">Formations</button>
+          <button data-combat-panel-tab="extras" type="button">Extras</button>
+          <button data-combat-panel-tab="shop" type="button">Magasin</button>
+          <button data-combat-panel-tab="cpu" type="button">CPU</button>
+        </div>
+        <button class="combat-tab-arrow" data-combat-tab-shift="1" type="button">&rsaquo;</button>
+      </div>
+      <div id="combatPanelContent" class="combat-panel-content"></div>
+    </div>
+    <div id="spawnInteractionPanel" class="spawn-panel frame hidden">
+      <div class="spawn-panel-header">
+        <strong id="spawnPanelTitle">MODULE</strong>
+        <button id="spawnPanelClose" class="blue-button small" type="button">FERMER</button>
+      </div>
+      <div id="spawnPanelContent" class="spawn-panel-content"></div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast"></div>
+    <script type="module" src="game.js?v=20260726-portalmap0-1"></script>
+</body>
+</html>

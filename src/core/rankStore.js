@@ -15,6 +15,8 @@ import {
   getRankProgressForScore
 } from "../data/ranks.js?v=20260726-kharon1";
 import { getCompletedPortalCount, store } from "./store.js?v=20260726-kharon1";
+import { getServerRankAssignment } from "./rankAuthorityStore.js";
+import { getAssignedRankProgress } from "../shared/rankPresentation.js";
 
 export { RANK_TABLE, RANK_POINT_RULES, LOCAL_LEADERBOARD_PREVIEW, calculateMonsterKillRankPoints, calculateMonsterRankPointsForKills, getMonsterRankPointRule, getRankAssetPath, getRankById };
 export function getRankForScore(score){
@@ -30,14 +32,20 @@ export function getRankBreakdown(){
 }
 
 export function getCurrentRank(){
+  const assigned = getServerRankAssignment();
+  if(assigned) return getRankById(assigned.rankId);
   return getRankForScore(getRankScore());
 }
 
 export function getNextRank(){
+  const assigned = getServerRankAssignment();
+  if(assigned) return getAssignedRankProgress(getRankScore(), assigned.rankId).next;
   return getNextRankForScore(getRankScore());
 }
 
 export function getRankProgress(){
+  const assigned = getServerRankAssignment();
+  if(assigned) return getAssignedRankProgress(getRankScore(), assigned.rankId);
   return getRankProgressForScore(getRankScore());
 }
 

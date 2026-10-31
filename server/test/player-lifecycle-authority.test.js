@@ -6,6 +6,7 @@ function createFixture({state, profile, group = null} = {}){
   const events = [];
   const saves = [];
   const mapChanges = [];
+  const instanceResets = [];
   const player = {
     id:"player-1",
     name:"Pilote",
@@ -57,12 +58,20 @@ function createFixture({state, profile, group = null} = {}){
     setPlayerMap(_socket, mapId){
       mapChanges.push(String(mapId));
     },
+    resetGroupInstance(groupId, reason){
+      const targetGroup = groups.get(String(groupId || ""));
+      if(!targetGroup?.instance) return false;
+      targetGroup.instance = null;
+      instanceResets.push({groupId:String(groupId), reason:String(reason || "")});
+      return true;
+    },
     logger:{warn(){}}
   });
   return {
     events,
     getProfile:()=>currentProfile,
     groups,
+    instanceResets,
     manager,
     mapChanges,
     player,
@@ -112,25 +121,29 @@ test("server rejects a forged respawn choice and charges NOVA for a portal respa
   assert.equal(fixture.events.some(entry=>entry.event === "player:respawned"), true);
 });
 
-test("portal lives and forced abandonment are controlled by the server", ()=>{
+test("other fragment portal lives and forced abandonment are controlled by the server", ()=>{
+  const instance = {
+    type:"portal",
+    portal:{id:"ionis"},
+    privateOwner:true,
+    ownerPlayerId:"player-1",
+    playerLives:{"player-1":3},
+    joinedMemberIds:["player-1"],
+    abandonedMemberIds:[],
+    enemies:[]
+  };
   const group = {
     id:"group-1",
     members:["player-1"],
-    instance:{
-      type:"portal",
-      portal:{id:"blue"},
-      playerLives:{"player-1":3},
-      abandonedMemberIds:[],
-      enemies:[]
-    }
+    instance
   };
   const fixture = createFixture({
     group,
-    state:worldState({mapId:"portal-blue", hp:0, x:100, y:200})
+    state:worldState({mapId:"portal-ionis", hp:0, x:100, y:200})
   });
 
   fixture.manager.markPlayerDead(fixture.player);
-  assert.equal(group.instance.playerLives["player-1"], 2);
+  assert.equal(instance.playerLives["player-1"], 2);
   fixture.manager.respawnPlayer(fixture.socket, "portal-resume");
   fixture.player.state.hp = 0;
   fixture.manager.markPlayerDead(fixture.player);
@@ -138,8 +151,12 @@ test("portal lives and forced abandonment are controlled by the server", ()=>{
   fixture.player.state.hp = 0;
   fixture.manager.markPlayerDead(fixture.player);
 
-  assert.equal(group.instance.playerLives["player-1"], 0);
-  assert.deepEqual(group.instance.abandonedMemberIds, ["player-1"]);
+  assert.equal(instance.playerLives["player-1"], 0);
+  assert.deepEqual(instance.abandonedMemberIds, ["player-1"]);
+  assert.equal(group.instance, null);
+  assert.deepEqual(fixture.instanceResets, [
+    {groupId:"group-1", reason:"private-portal-abandoned"}
+  ]);
   assert.equal(fixture.player.state.mapId, "0");
   assert.equal(fixture.player.deathState, null);
   assert.equal(fixture.events.some(entry=>entry.event === "player:respawned" && entry.payload.portalAbandoned), true);
@@ -200,7 +217,7 @@ test("abandoning Deadly returns each pilot to their firm map one base", ()=>{
   assert.equal(fixture.player.state.mapId, "20");
   assert.equal(fixture.player.state.x, -4300);
   assert.equal(fixture.player.state.y, -3300);
-  assert.deepEqual(group.instance.abandonedMemberIds, ["player-1"]);
+  assert.equal(group.instance, null);
 });
 
 test("a repeated respawn request resends the authoritative live session", ()=>{

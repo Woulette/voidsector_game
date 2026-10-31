@@ -38,7 +38,7 @@ function boundedInteger(value, fallback = 0, min = 0, max = Number.MAX_SAFE_INTE
 }
 
 export function isKharonPortal(portal){
-  return String(portal?.id || portal?.portalId || portal || "") === KHARON_PORTAL_ID;
+  return portal?.encounterKind !== "azuron" && String(portal?.id || portal?.portalId || portal || "") === KHARON_PORTAL_ID;
 }
 
 export function getKharonWavePhase(wave){

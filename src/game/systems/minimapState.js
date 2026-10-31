@@ -1,15 +1,16 @@
-import { MINI_MAP_FRAME, getMiniMapLayout } from "./miniMapLayout.js?v=20261023-minimap4";
+import { MINI_MAP_FRAME, MINI_MAP_CONTENT_RATIO, getMiniMapLayout } from "./miniMapLayout.js?v=20261025-minimap-width2";
+
+const MINI_MAP_WIDTH_VERSION = 2;
 
 export function createMiniMapState({canvas, getCurrentMap, initialLayout = null, onChange}){
-  const state = {x:null, y:92, w:340, h:333, minW:220, minH:120, maxW:720, maxH:430};
+  const state = {x:null, y:92, w:311, h:219, minW:242, minH:120, maxW:618, maxH:430};
   applyLayout(initialLayout, false);
 
   function viewWidth(){ return canvas.__viewWidth || canvas.clientWidth || canvas.width; }
   function viewHeight(){ return canvas.__viewHeight || canvas.clientHeight || canvas.height; }
 
   function fitSize(){
-    const map = getCurrentMap();
-    const ratio = map?.width > 0 && map?.height > 0 ? map.height / map.width : .8;
+    const ratio = MINI_MAP_CONTENT_RATIO;
     const {header, footer, inset} = MINI_MAP_FRAME;
     const maxWidth = Math.max(1, Math.min(state.maxW, viewWidth(),
       (Math.min(state.maxH, viewHeight()) - header - footer) / ratio + inset * 2));
@@ -19,7 +20,7 @@ export function createMiniMapState({canvas, getCurrentMap, initialLayout = null,
 
   function snapshot(){
     fitSize();
-    return {x:state.x, y:state.y, w:state.w, h:state.h};
+    return {x:state.x, y:state.y, w:state.w, h:state.h, widthVersion:MINI_MAP_WIDTH_VERSION};
   }
 
   function notify(){
@@ -30,8 +31,20 @@ export function createMiniMapState({canvas, getCurrentMap, initialLayout = null,
     if(!layout || typeof layout !== "object") return;
     if(Number.isFinite(Number(layout.x))) state.x = Number(layout.x);
     if(Number.isFinite(Number(layout.y))) state.y = Number(layout.y);
-    if(Number.isFinite(Number(layout.w))) state.w = Math.max(state.minW, Math.min(state.maxW, Number(layout.w)));
-    // Width migrates existing layouts; the sector aspect ratio determines height.
+    if(Number.isFinite(Number(layout.w))){
+      let width = Number(layout.w);
+      if(!(Number(layout.widthVersion) >= MINI_MAP_WIDTH_VERSION)){
+        const hasNarrowLayout = Number(layout.widthVersion) >= 1;
+        const previousWidth = hasNarrowLayout
+          ? Math.max(254, Math.min(650, width))
+          : Math.max(280, Math.min(720, width <= 300 ? 280 : width));
+        // Narrow legacy layouts once, preserving their height and right edge.
+        const contentHeight = Math.round((previousWidth - MINI_MAP_FRAME.inset * 2) * (hasNarrowLayout ? 1 / 2 : 9 / 20));
+        width = Math.round(contentHeight / MINI_MAP_CONTENT_RATIO + MINI_MAP_FRAME.inset * 2);
+        if(state.x !== null) state.x += previousWidth - width;
+      }
+      state.w = Math.max(state.minW, Math.min(state.maxW, width));
+    }
     fitSize();
     if(shouldNotify) notify();
   }

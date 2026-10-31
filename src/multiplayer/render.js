@@ -54,6 +54,7 @@ function buildRemoteShip(remote, state, ships = []){
 
 function buildRemotePlayer(render, state){
   return {
+    engineVfxState:render.engineVfxState ??= {},
     x:render.x,
     y:render.y,
     angle:render.angle,
@@ -193,6 +194,17 @@ export function drawRemotePlayers({
       }
       ctx.restore();
       drawSelectedRemoteOverlay({ctx, camera, remote, render, state:sampledState, selectedEnemy});
+    }
+    if(remote.outlaw === true){
+      ctx.save();
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#ff6b6b";
+      ctx.strokeStyle = "#081018";
+      ctx.lineWidth = 4;
+      ctx.strokeText("CIBLE", render.x - camera.x, render.y - camera.y - 105);
+      ctx.fillText("CIBLE", render.x - camera.x, render.y - camera.y - 105);
+      ctx.restore();
     }
   }
 }

@@ -2,14 +2,53 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { MATERIAL_COMMERCE_PRICES } from "../../src/shared/materialCommerce.js";
-import { sellServerCommerceMaterials } from "../src/economy/materialCommerce.js";
+import { getServerMaterialCommerceAccess, sellServerCommerceMaterials } from "../src/economy/materialCommerce.js";
 import { createDefaultProfile } from "../src/players/profileDefaults.js";
+import { registerEconomyHandlers } from "../src/socket/economyHandlers.js";
 
 function createCommerceProfile(shipCargo = {}){
   const profile = createDefaultProfile();
   profile.activeShip = "orion";
   profile.shipCargo = {orion:{...shipCargo}};
   return profile;
+}
+
+function createEconomySocket(id = "commerce-player"){
+  const handlers = new Map();
+  const emitted = [];
+  return {
+    id,
+    handlers,
+    emitted,
+    on:(event, handler)=>handlers.set(event, handler),
+    emit:(event, payload)=>emitted.push({event, payload})
+  };
+}
+
+function registerCommerceSocketFixture({mapId = "0", activeState = true} = {}){
+  const socket = createEconomySocket();
+  const profile = createCommerceProfile({cuivre_orbital:10});
+  profile.player.firmId = "astra";
+  profile.player.firmSelected = true;
+  const player = {
+    id:socket.id,
+    account:{firmId:"astra"},
+    state:activeState ? {mapId} : null
+  };
+  let actionCalls = 0;
+  registerEconomyHandlers(socket, {
+    emitProfileSync(){},
+    guard:()=>true,
+    players:new Map([[socket.id, player]]),
+    profileManager:{
+      getProfileForPlayer:()=>profile,
+      applyEconomyAction(){
+        actionCalls += 1;
+        return {ok:false, reason:"Action temoin."};
+      }
+    }
+  });
+  return {socket, getActionCalls:()=>actionCalls};
 }
 
 test("commerce material prices match the requested sale table", ()=>{
@@ -25,6 +64,68 @@ test("commerce material prices match the requested sale table", ()=>{
     blindage_composite:2500,
     noyau_astra:10000
   });
+});
+
+test("server commerce access allows the player's own firm zones", ()=>{
+  const profile = createCommerceProfile();
+  profile.player.firmId = "astra";
+  profile.player.firmSelected = true;
+
+  const access = getServerMaterialCommerceAccess(profile, {
+    state:{mapId:"3"},
+    account:{firmId:"cyan"}
+  });
+
+  assert.deepEqual(access, {ok:true, mapId:"3", firmId:"astra"});
+});
+
+test("server commerce access rejects enemy, neutral and non-game locations", ()=>{
+  const profile = createCommerceProfile();
+  profile.player.firmId = "astra";
+  profile.player.firmSelected = true;
+
+  assert.equal(getServerMaterialCommerceAccess(profile, {state:{mapId:"20"}}).ok, false);
+  assert.equal(getServerMaterialCommerceAccess(profile, {state:{mapId:"50"}}).ok, false);
+  assert.equal(getServerMaterialCommerceAccess(profile, {mapId:"0"}).ok, false);
+});
+
+test("server commerce access fails closed before an authoritative firm is selected", ()=>{
+  const profile = createCommerceProfile();
+  profile.player.firmId = "astra";
+  profile.player.firmSelected = false;
+
+  const access = getServerMaterialCommerceAccess(profile, {
+    state:{mapId:"0"},
+    account:{firmId:"astra"}
+  });
+
+  assert.equal(access.ok, false);
+  assert.match(access.reason, /Selectionne d'abord ta firme/);
+});
+
+test("commerce socket rejects a sale before the economy action outside the player's firm", async ()=>{
+  const {socket, getActionCalls} = registerCommerceSocketFixture({mapId:"20"});
+
+  await socket.handlers.get("commerce:sell-material")({
+    materialId:"cuivre_orbital",
+    amount:1,
+    shipId:"orion"
+  });
+
+  assert.equal(getActionCalls(), 0);
+  assert.match(socket.emitted.at(-1)?.payload?.message || "", /zones de ta firme/);
+});
+
+test("commerce socket reaches the economy action inside the player's firm", async ()=>{
+  const {socket, getActionCalls} = registerCommerceSocketFixture({mapId:"0"});
+
+  await socket.handlers.get("commerce:sell-material")({
+    materialId:"cuivre_orbital",
+    amount:1,
+    shipId:"orion"
+  });
+
+  assert.equal(getActionCalls(), 1);
 });
 
 test("server commerce sells a custom material amount for credits", ()=>{

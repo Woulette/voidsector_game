@@ -1,6 +1,8 @@
 import { WORLD_ENEMY_TYPES } from "./definitions.js";
 import { getFirmIdFromMapName, normalizeFirmId } from "../../../src/data/firms.js";
 import { scaleMonsterReward, scaleMonsterStat } from "./enemyProgression.js";
+import { getSectorEnemyLevel } from "../../../src/shared/enemyProgression.js";
+import { getEnemyDamageRange } from "../../../src/shared/enemyDamage.js";
 
 export function publicEnemyDefinition(enemy){
   return {
@@ -160,7 +162,7 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
   const forcedLevel = Number(options.level);
   const level = Number.isFinite(forcedLevel)
     ? Math.max(1, Math.floor(forcedLevel))
-    : randomLevel(map, rnd);
+    : getSectorEnemyLevel(kind, map.level);
   const baseLevel = Math.max(1, Math.floor(Number(base.baseLevel || 1)));
   const statSource = WORLD_ENEMY_TYPES[base.statSourceKind] || base;
   const statSourceBaseLevel = Math.max(1, Math.floor(Number(statSource.baseLevel || 1)));
@@ -169,19 +171,11 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
   const x = Number.isFinite(Number(options.x)) ? Number(options.x) : generatedSpawn.x;
   const y = Number.isFinite(Number(options.y)) ? Number(options.y) : generatedSpawn.y;
   const hp = Math.round(scaleMonsterStat(statSource.hp(statSourceBaseLevel), statSourceBaseLevel, level) * statMultiplier);
-  const shieldGrowthPerLevel = Number(base.shieldGrowthPerLevel);
-  const shield = Number.isFinite(shieldGrowthPerLevel)
-    ? Math.round(base.shield(baseLevel) * (1 + Math.max(0, level - baseLevel) * shieldGrowthPerLevel))
-    : scaleMonsterStat(base.shield(baseLevel), baseLevel, level);
+  const shield = Math.round(scaleMonsterStat(statSource.shield(statSourceBaseLevel), statSourceBaseLevel, level) * statMultiplier);
   const attackDamage = Math.round(scaleMonsterStat(statSource.attackDamage(statSourceBaseLevel), statSourceBaseLevel, level) * statMultiplier);
-  const attackDamageMin = statSource.attackDamageMin === undefined
-    ? undefined
-    : Math.round(scaleMonsterStat(statSource.attackDamageMin, statSourceBaseLevel, level) * statMultiplier);
-  const attackDamageMax = statSource.attackDamageMax === undefined
-    ? undefined
-    : Math.round(scaleMonsterStat(statSource.attackDamageMax, statSourceBaseLevel, level) * statMultiplier);
-  const onHitEffect = base.onHitEffect
-    ? {...base.onHitEffect, damage:scaleMonsterStat(base.onHitEffect.damage, baseLevel, level)}
+  const {attackDamageMin, attackDamageMax} = getEnemyDamageRange(attackDamage);
+  const onHitEffect = statSource.onHitEffect
+    ? {...statSource.onHitEffect, damage:Math.round(scaleMonsterStat(statSource.onHitEffect.damage, statSourceBaseLevel, level) * statMultiplier)}
     : null;
   const rewardSource = WORLD_ENEMY_TYPES[base.rewardSourceKind] || base;
   const rewardSourceBaseLevel = Math.max(1, Math.floor(Number(rewardSource.baseLevel || 1)));
@@ -215,7 +209,7 @@ export function createWorldEnemy(map, index, rnd = Math.random, forcedKind = nul
     attackDamage,
     attackDamageMin,
     attackDamageMax,
-    useExactDamageRange:Boolean(base.useExactDamageRange),
+    useExactDamageRange:true,
     attackCooldown:base.attackCooldown,
     staggerFirstAttack:true,
     projectileSpeed:base.projectileSpeed || 600,

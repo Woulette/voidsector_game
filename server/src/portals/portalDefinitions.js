@@ -1,3 +1,6 @@
+import { AZURON_TOTAL_WAVES } from "../../../src/data/azuronPortal.js";
+import { getWavePortalCompletionReward } from "../../../src/data/wavePortalTiers.js";
+
 export const PORTAL_FRAGMENT_DROP_CHANCE = 0.0033;
 export const PORTAL_CONTENT_PENDING_CODE = "PORTAL_CONTENT_PENDING";
 
@@ -51,42 +54,46 @@ export const SERVER_PORTAL_DEFINITIONS = Object.freeze([
     level:AZURON_REQUIRED_LEVEL,
     piecesRequired:AZURON_REQUIRED_FRAGMENTS,
     gameplayReady:true,
-    totalWaves:20,
+    encounterKind:"azuron",
+    totalWaves:AZURON_TOTAL_WAVES,
     drop:{mapNumbers:[1, 2, 3, 4]},
-    reward:{premium:10_000, ammoX4:10_000}
+    reward:getWavePortalCompletionReward("blue")
   }),
   freezePortalDefinition({
     id:VESPER_PORTAL_ID,
     name:VESPER_PORTAL_NAME,
     shortName:"Faille de Vesper",
     assetSlug:"faille_vesper",
-    img:"assets/portals/faille_vesper.png?v=20260726-kharon1",
-    pieceImg:"assets/portal_pieces/fragment_vesper.png?v=20260726-kharon1",
+    img:"assets/portals/azuron-family-v1/vesper.svg",
+    pieceImg:"assets/portal_pieces/azuron-family-v1/vesper.svg",
     pieceName:"Fragment de Vesper",
     pieceLabel:"Fragments de Vesper",
     pieceUnit:"fragments",
     level:VESPER_REQUIRED_LEVEL,
     piecesRequired:VESPER_REQUIRED_FRAGMENTS,
     gameplayReady:true,
+    encounterKind:"azuron",
+    totalWaves:AZURON_TOTAL_WAVES,
     drop:{mapNumbers:[1, 2, 3, 4]},
-    reward:{premium:20_000, ammoX4:20_000}
+    reward:getWavePortalCompletionReward("violet")
   }),
   freezePortalDefinition({
     id:"red",
     name:"La Forge de Kharon",
     shortName:"Forge de Kharon",
     assetSlug:"forge_kharon",
-    img:"assets/portals/forge_kharon.png?v=20260726-kharon1",
-    pieceImg:"assets/portal_pieces/fragment_kharon.png?v=20260726-kharon1",
+    img:"assets/portals/azuron-family-v1/kharon.svg",
+    pieceImg:"assets/portal_pieces/azuron-family-v1/kharon.svg",
     pieceName:"Fragment de Kharon",
     pieceLabel:"Fragments de Kharon",
     pieceUnit:"fragments",
     level:20,
     piecesRequired:35,
     gameplayReady:true,
+    encounterKind:"azuron",
     totalWaves:30,
     drop:{mapNumbers:[1, 2, 3, 4, 5]},
-    reward:{premium:30_000, ammoX4:30_000}
+    reward:getWavePortalCompletionReward("red")
   }),
   freezePortalDefinition({
     id:"ionis",
@@ -220,6 +227,7 @@ export function buildServerPortalConfigs(){
     {
       id:portal.id,
       name:portal.name,
+      ...(portal.encounterKind ? {encounterKind:portal.encounterKind} : {}),
       ...(portal.totalWaves ? {totalWaves:portal.totalWaves} : {}),
       gameplayReady:portal.gameplayReady,
       reward:{...portal.reward}

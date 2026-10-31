@@ -6,7 +6,8 @@ import { claimServerRefineryJob, completeServerRefineryShipment, completeServerR
 import { runServerSpaceCaster } from "../economy/spaceCaster.js";
 import { abandonServerQuest, acceptServerQuest, claimCompletedServerQuests, claimServerQuest, progressServerQuestAction, progressServerQuestKill, trackServerQuest } from "../quests/quests.js";
 import { checkServerQuestTimers, recordServerQuestDeath, recordServerQuestHpLoss } from "../quests/questFailures.js";
-import { getProgressionLevelCap, spendCurrency } from "./progression.js";
+import { getProgressionLevelCap } from "./progression.js";
+import { spendShopCurrency } from "../economy/shopPayment.js";
 import { performServerPrestige, unlockServerPortal, upgradeServerSkill } from "./progressionActions.js";
 import { sanitizeProfile } from "./profileSanitize.js";
 import { addInventoryItemAmount, isStackableInventoryItem } from "../economy/inventoryStacks.js";
@@ -14,8 +15,8 @@ import { getShipProgressionLockReason } from "../../../src/shared/progressionUnl
 import { appendProfileActivity } from "./activityLog.js";
 import { depositServerCombatBoostMaterial } from "../economy/combatBoosts.js";
 import { sellServerCommerceMaterials } from "../economy/materialCommerce.js";
-import { applyPremiumPackToPlayer, claimBetaRewardState, claimPremiumRewardState } from "../../../src/data/premium.js";
-import { BOOSTER_TYPE_IDS, addPlayerBoosterUnits } from "../../../src/shared/firmBoosters.js";
+import { claimBetaRewardState, claimPremiumRewardState } from "../../../src/data/premium.js";
+import { BOOSTER_TYPE_IDS, addPlayerBoosterUnits, getS1BoosterPurchaseBlockReason } from "../../../src/shared/firmBoosters.js";
 import { canAcceptQuestDuringTutorial } from "../../../src/shared/tutorial.js";
 import { abandonTutorialAfterOutsideQuestAction } from "./tutorialActions.js";
 import { attachProfileSave, cloneProfileSnapshot, restoreProfileSnapshot } from "./profilePersistenceResult.js";
@@ -96,7 +97,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     const tutorialBlocked = rejectTutorialSelectionPurchase(profile);
     if(tutorialBlocked) return tutorialBlocked;
     const previous = cloneProfileSnapshot(profile);
-    const result = spendCurrency(
+    const result = spendShopCurrency(
       profile.player || {},
       priceType,
       amount,
@@ -109,7 +110,10 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       player:result.player
     });
     if(typeof update === "function") update(next);
-    if(activity) appendProfileActivity(next, activity);
+    if(activity){
+      const record = typeof activity === "function" ? activity(result.cost) : activity;
+      appendProfileActivity(next, {...record, data:{...record.data, price:result.cost, priceType}});
+    }
     return commitProfileResult(result, key, previous, next);
   }
 
@@ -126,12 +130,12 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
         profile.ammoInventory[purchase.id] = Math.max(0, Number(profile.ammoInventory[purchase.id] || 0)) + Math.max(0, Number(purchase.totalAmount || 0));
         recordTutorialRocketPurchase(profile,purchase);
       },
-      activity:{
+      activity:cost=>({
         type:"shop_purchase",
         label:"Achat munitions",
-        detail:`${purchase?.id || "munition"} x${Math.max(0, Number(purchase?.totalAmount || 0))} pour ${Math.max(0, Number(purchase?.totalPrice || 0))} ${purchase?.priceType || "credits"}.`,
+        detail:`${purchase?.id || "munition"} x${Math.max(0, Number(purchase?.totalAmount || 0))} pour ${cost} ${purchase?.priceType || "credits"}.`,
         data:{itemId:purchase?.id || "", amount:Number(purchase?.totalAmount || 0), price:Number(purchase?.totalPrice || 0), priceType:purchase?.priceType || "credits"}
-      }
+      })
     });
   }
   
@@ -146,16 +150,19 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
       update:profile=>{
         addInventoryItemAmount(profile, purchase.id, Math.max(1, Number(purchase?.quantity || 1)));
       },
-      activity:{
+      activity:cost=>({
         type:"shop_purchase",
         label:"Achat objet",
-        detail:`${purchase?.id || "objet"} x${Math.max(1, Number(purchase?.quantity || 1))} pour ${Math.max(0, Number(purchase?.totalPrice || 0))} ${purchase?.priceType || "credits"}.`,
+        detail:`${purchase?.id || "objet"} x${Math.max(1, Number(purchase?.quantity || 1))} pour ${cost} ${purchase?.priceType || "credits"}.`,
         data:{itemId:purchase?.id || "", amount:Number(purchase?.quantity || 1), price:Number(purchase?.totalPrice || 0), priceType:purchase?.priceType || "credits"}
-      }
+      })
     });
   }
 
   function addBoosterPurchase({player, purchase} = {}){
+    if(!player) return {ok:false, reason:"Joueur introuvable."};
+    const blocked = getS1BoosterPurchaseBlockReason(getExistingProfile(player).profile?.boosters, purchase?.type, purchase?.quantity);
+    if(blocked) return {ok:false, reason:blocked};
     return spendAndUpdate({
       player,
       priceType:purchase?.priceType,
@@ -168,17 +175,17 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
           now:Date.now()
         });
       },
-      activity:{
+      activity:cost=>({
         type:"booster_purchase",
         label:"Achat booster S1",
-        detail:`${purchase?.name || "Booster S1"} x${Math.max(1, Number(purchase?.quantity || 1))} pour ${Math.max(0, Number(purchase?.totalPrice || 0))} NOVA.`,
+        detail:`${purchase?.name || "Booster S1"} x${Math.max(1, Number(purchase?.quantity || 1))} pour ${cost} NOVA.`,
         data:{
           boosterType:purchase?.type || "",
           series:"s1",
           quantity:Number(purchase?.quantity || 1),
           price:Number(purchase?.totalPrice || 0)
         }
-      }
+      })
     });
   }
 
@@ -220,7 +227,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(roleLockReason) return {ok:false, reason:roleLockReason};
     const progressionLockReason = getShipProgressionLockReason(profile, ship);
     if(progressionLockReason) return {ok:false, reason:progressionLockReason};
-    const result = spendCurrency(
+    const result = spendShopCurrency(
       profile.player || {},
       purchase.priceType,
       purchase.totalPrice,
@@ -243,8 +250,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     appendProfileActivity(profile, {
       type:"ship_purchase",
       label:"Achat vaisseau",
-      detail:`${purchase.id} pour ${Math.max(0, Number(purchase.totalPrice || 0))} ${purchase.priceType || "credits"}.`,
-      data:{shipId:purchase.id, price:Number(purchase.totalPrice || 0), priceType:purchase.priceType || "credits"}
+      detail:`${purchase.id} pour ${result.cost} ${purchase.priceType || "credits"}.`,
+      data:{shipId:purchase.id, price:result.cost, priceType:purchase.priceType || "credits"}
     });
     const claimedQuests = claimCompletedServerQuests(profile).claimed || [];
     const next = sanitizeProfile({...profile, updatedAt:Date.now()});
@@ -271,7 +278,7 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
     if(tutorialBlocked) return tutorialBlocked;
     const previous = cloneProfileSnapshot(profile);
     const alreadyOwned = Array.isArray(profile.ownedDroneFormations) && profile.ownedDroneFormations.includes(purchase.id);
-    const result = spendCurrency(
+    const result = spendShopCurrency(
       profile.player || {},
       purchase?.priceType,
       alreadyOwned ? 0 : purchase?.totalPrice,
@@ -298,20 +305,8 @@ export function createProfileActions({profiles, persist, getExistingProfile}){
   }
 
   function addPremiumPackPurchase({player, purchase} = {}){
-    return spendAndUpdate({
-      player,
-      priceType:purchase?.priceType,
-      amount:purchase?.totalPrice,
-      update:profile=>{
-        applyPremiumPackToPlayer(profile.player, purchase);
-      },
-      activity:{
-        type:"premium_purchase",
-        label:"Pass premium",
-        detail:`${purchase?.id || "premium"} active pour ${Math.max(0, Number(purchase?.days || 0))} jours.`,
-        data:{packId:purchase?.id || "", price:Number(purchase?.totalPrice || 0), priceType:purchase?.priceType || "premium", days:Number(purchase?.days || 0)}
-      }
-    });
+    // Retired NOVA endpoint: never accept a caller-supplied price or grant a term.
+    return {ok:false, reason:"Les abonnements Premium sont disponibles uniquement en euros. Paiement à venir."};
   }
 
   function ensureShipOwned(profile, shipId){

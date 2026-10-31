@@ -1,7 +1,12 @@
 import { ammoTypes, droneFormations, equipment, portals, ships } from "../data/catalog.js?v=20260726-ancient1";
+import { getAzuronStageGates } from "../data/azuronPortal.js";
+import { isWavePortal,getWavePortalTier } from "../data/wavePortalTiers.js";
+import { interactAzuronPortal } from "../multiplayer/client.js?v=20261018-map-transfer1";
 import { getCraftRecipe } from "../data/craftingRecipes.js?v=20260726-kharon1";
 import { getAncientInteractionTarget, isAncientPortal } from "../data/ancientPortal.js?v=20260726-ancient1";
+import { isPremiumActive } from "../data/premium.js";
 import { fmt } from "../core/utils.js";
+import { readCombatMeterModes } from "./ui/combatMeterModes.js";
 import {
   canAfford,
   getActiveQuest,
@@ -63,6 +68,10 @@ import {
   SHIP_ENGINE_PROFILES
 } from "./combatData.js?v=20261022-helion-hub1";
 import { createHelionOneVisualMaps } from "./combatData/helionOneVisuals.js?v=20261022-helion-light1";
+import { createHelionTwoVisualMaps } from "./combatData/helionTwoVisuals.js";
+import { createFirmSectorTwoVisualMaps } from "./combatData/firmSectorTwoVisuals.js";
+import { createHelionThreeVisualMaps } from "./combatData/helionThreeVisuals.js";
+import { createFirmSectorThreeVisualMaps } from "./combatData/firmSectorThreeVisuals.js";
 import { createCombatMapAssetCache, preloadCombatAssets } from "./combatAssets.js?v=20261022-helion-hub1";
 import { warmCombatHudTextRendering } from "./render/canvasHud.js?v=20260726-ancient1";
 import { spawnPlayerEngineParticles as emitPlayerEngineParticles } from "./render/player.js?v=20261022-helion-hub1";
@@ -84,6 +93,9 @@ import { createCombatServerEventSystem } from "./systems/combatServerEvents.js?v
 import { createCombatServerActions } from "./systems/combatServerActions.js";
 import { createCombatPortalRunSystem } from "./systems/combatPortalRun.js?v=20261022-helion-hub1";
 import { createCombatPortalNavigationSystem } from "./systems/combatPortalNavigation.js";
+import { createSectorAutoTravel } from "./systems/sectorAutoTravel.js?v=20261023-sector-travel1";
+import { createSectorTravelConnection } from "../multiplayer/sectorTravel.js?v=20261023-sector-travel1";
+import { createSectorTravelHud } from "./ui/sectorTravelHud.js?v=20261023-sector-travel1";
 import { getPreparedDungeonPortalForMap } from "./systems/preparedDungeonPortal.js?v=20260726-nox1";
 import { createLevelUpEffectSystem } from "./systems/levelUpEffects.js?v=20260726-kharon1";
 import { applyCombatStatFields } from "./systems/combatPlayerStats.js";
@@ -112,7 +124,7 @@ import { createQuestNpcDialogue } from "./ui/questNpcDialogue.js";
 import { createCombatActions } from "./ui/combatActions.js?v=20260726-combat-authority1";
 import { createCombatPanels } from "./ui/combatPanels.js?v=20261018-map-transfer1";
 import { createCombatSettingsPanel } from "./ui/combatSettingsPanel.js?v=20260726-kharon1";
-import { acceptServerQuest, activateRickyHealBeacon as activateServerRickyHealBeacon, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerCraft, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, interactPrecursorPortal, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerCraft, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=20261018-map-transfer1";
+import { acceptServerQuest, activateShipAbility as activateServerShipAbility, activateRickyPortalLever, buyServerAmmo, buyServerDroneFormation, claimServerCraft, claimServerQuest, claimServerRefineryJob, depositServerCombatBoostMaterial, disconnectMultiplayer, getGroupRemotePlayers, interactPrecursorPortal, multiplayer, progressServerQuest, refineServerShipCargo, requestPlayerRespawn, requestServerLootPickup, requestServerLogout, sellServerMaterial, sendChatMessage, sendPlayerLaserEffect, sendPrivateMessage, sendPlayerSnapshot, sendServerEnemyHit, sendServerPlayerHit, startServerCraft, startServerPortal as startMultiplayerPortal, startServerRefineryJob, syncMultiplayerProfile, trackServerQuest, upgradeServerEquipment } from "../multiplayer/client.js?v=20261018-map-transfer1";
 import { MMO_REQUIRED_MESSAGE, isMmoConnected } from "../app/mmoGate.js";
 import { getShipAbilityStatuses } from "../shared/shipAbilities.js?v=20260726-kharon1";
 import {
@@ -122,7 +134,7 @@ import {
   syncServerControlledEnemies as syncMultiplayerEnemies
 } from "../multiplayer/enemies.js?v=20260905-motion3";
 export function createCombatGame({renderAll, showToast}){
-  const MAPS = createHelionOneVisualMaps(BASE_MAPS);
+  const MAPS = createFirmSectorThreeVisualMaps(createHelionThreeVisualMaps(createFirmSectorTwoVisualMaps(createHelionTwoVisualMaps(createHelionOneVisualMaps(BASE_MAPS)))));
   const PORTAL_STARTING_LIVES = 3;
   const PORTAL_WAVE_DELAY = 30;
   const canvas = document.getElementById("gameCanvas");
@@ -139,14 +151,15 @@ export function createCombatGame({renderAll, showToast}){
   let player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy;
   let gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portgunChannel;
   let portalTransition = null;
+  let sectorTravel = null;
   const missileSalvos = new Map();
   let radiationWarned = false;
   let mouseMoveHeld = false;
   let combatCargoExpanded = false;
   let deathState = null;
-  const combatMetricModes = {hp:"bar", shield:"bar", xp:"bar"};
+  const combatMetricModes = readCombatMeterModes();
   function getCombatState(){
-    return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portgunChannel, portalTransition, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
+    return {store, player, camera, mouse, bullets, enemies, particles, impactEffects, damageTexts, stars, dust, nebulae, asteroids, moveTarget, selectedEnemy, gameMode, activePortal, portalWave, portalDelay, portalCompleted, portalLives, portalAlly, portalBeacons, portalObjective, portalCinematic, portgunChannel, portalTransition, autoTravelTransition:sectorTravel?.getTransition() || null, missileSalvos, radiationWarned, mouseMoveHeld, combatCargoExpanded, deathState, currentMap, beams, cargo, enemySeq, teleportLock, hudT, quickPanelRefreshT};
   }
 
   function getNetworkPerfSummary(){
@@ -344,42 +357,9 @@ export function createCombatGame({renderAll, showToast}){
     getRepairBotDelay,
     getLaserVolley,
     fireManualRocket,
+    fireManualSpecialLaser:(index,ammo)=>weapons.fireManualSpecialLaser(index,ammo),
     fireManualMissile,
     openPortgunMap:()=>window.dispatchEvent(new CustomEvent("voidsector:portgun-open-map")),
-    getNpcAbilityStates:()=>{
-      const available = gameMode === "portal"
-        && activePortal?.id === "ricky"
-        && portalAlly
-        && portalAlly.alive !== false
-        && Number(portalAlly.hp || 0) > 0;
-      if(!available) return [];
-      return [{
-        abilityId:"ricky_heal_beacon",
-        ownerName:"Ricky",
-        name:"Balise de soin",
-        shortName:"BALISE",
-        description:"Ricky déploie une balise qui restaure la coque.",
-        icon:"assets/icons/medical_cross.svg",
-        activeRemainingMs:0,
-        cooldownRemainingMs:Math.max(0, Number(portalAlly?.healCooldown || 0)) * 1000,
-        cooldownMs:Math.max(0, Number(portalAlly?.healCooldownTotal || 60)) * 1000
-      }];
-    },
-    activateNpcAbility:abilityId=>{
-      if(abilityId !== "ricky_heal_beacon") return false;
-      if(gameMode !== "portal" || activePortal?.id !== "ricky") return false;
-      if(!portalAlly || portalAlly.alive === false || Number(portalAlly.hp || 0) <= 0){
-        showToast("Ricky n'est plus disponible.");
-        return false;
-      }
-      if(Number(portalAlly.healCooldown || 0) > 0){
-        showToast(`Balise Ricky en recharge : ${Math.ceil(Number(portalAlly.healCooldown || 0))}s.`);
-        return false;
-      }
-      if(activateServerRickyHealBeacon()) return true;
-      showToast(MMO_REQUIRED_MESSAGE);
-      return false;
-    },
     getShipAbilityStates:()=>{
       const shipId = String(store.state.activeShip || "");
       const storedState = store.state.shipAbilityStates?.[shipId] || {};
@@ -424,6 +404,20 @@ export function createCombatGame({renderAll, showToast}){
     maps:MAPS,
     getCurrentMap:()=>currentMap,
     getPlayer:()=>player,
+    getSectorTravelState:()=>sectorTravel?.getState(),
+    startSectorTravel:targetMapId=>{
+      if(cargo.isMovementLocked?.()){
+        showToast("Attends la fin de la récupération du butin pour voyager.");
+        return false;
+      }
+      if(!sectorTravel?.start(targetMapId)) return false;
+      cargo.clearPending();
+      selectedEnemy = null;
+      actions.setActiveLaserSlot(null);
+      actions.updateGameActionBar();
+      return true;
+    },
+    cancelSectorTravel:reason=>sectorTravel?.cancel(reason),
     ammoTypes,
     enemyTypes:ENEMY_TYPES,
     getAllRawMaterials,
@@ -498,6 +492,31 @@ export function createCombatGame({renderAll, showToast}){
   });
   window.addEventListener("voidsector:multiplayer-change", event=>{
     const reason = String(event.detail?.reason || "");
+    if(reason === "loot:collection" || reason === "loot:picked" || reason === "loot:error"){
+      cargo?.handleServerEvent?.(reason, event.detail?.payload || {});
+    }
+    if(reason === "player:death" || reason === "connection:disconnect") cargo?.clearPending();
+    if(reason==="portal:azuron-transfer"){
+      const payload=event.detail?.payload;
+      if(running && gameMode==="portal" && isWavePortal(activePortal) && payload?.portal){
+        portalTransition={...createMapPortalTransition(payload.portal),serverControlled:true,duration:Number(payload.durationMs || 4000)/1000};
+        moveTarget=null;selectedEnemy=null;mouseMoveHeld=false;
+      }
+      return;
+    }
+    if(reason==="portal:error" && event.detail?.payload?.code==="AZURON_TRANSFER_CANCELLED") portalTransition=null;
+    if(reason==="connection:disconnect" && (portalTransition?.serverControlled || portalTransition?.azuronAction)) portalTransition=null;
+    if(reason === "portal:paused"){
+      const payload=event.detail?.payload || {};
+      if(running && gameMode === "portal" && isWavePortal(activePortal)){
+        const target=MAPS.find(map=>String(map.id)===String(payload.spawn?.mapId)) || getHomeMapForPlayer();
+        loadMap(target.id,payload.spawn?.x,payload.spawn?.y,{safeNow:true});
+        if(payload.state) Object.assign(player,payload.state);
+        moveTarget=null;selectedEnemy=null;portalTransition=null;
+        updateHud();
+      }
+      return;
+    }
     if(reason === "portal:failed"){
       const payload = event.detail?.payload || {};
       const failedPortalId = String(payload?.portal?.id || activePortal?.id || "");
@@ -537,10 +556,14 @@ export function createCombatGame({renderAll, showToast}){
   });
   cargo = createCombatCargoSystem({
     rewards,
-    requestServerLootPickup,
+    requestServerLootPickup:(id, phase, attemptId)=>{
+      if(phase === "start") frameUpdate.sendCurrentPlayerSnapshot({force:true, active:true});
+      return requestServerLootPickup(id, phase, attemptId);
+    },
     showToast,
     onCargoChanged:()=>updateHud(),
-    particles:()=>particles
+    particles:()=>particles,
+    getMap:()=>currentMap
   });
   const worldState = createCombatWorldStateSystem({
     store,
@@ -585,7 +608,9 @@ export function createCombatGame({renderAll, showToast}){
       1,
       Number(multiplayer.portalInstance?.waveTotal || activePortal?.waves || activePortal?.totalWaves || PORTAL_WAVE_TOTAL)
     ),
-    getPortalDelay:()=>portalDelay,
+    getPortalDelay:()=>isWavePortal(activePortal) && multiplayer.portalInstance
+      ? Math.max(0, (Number(multiplayer.portalInstance.nextWaveAt || 0) - Date.now()) / 1000)
+      : portalDelay,
     getPortalWaitingForClear:()=>Boolean(multiplayer.portalInstance?.waitingForClear),
     getPortalWaveState:()=>String(multiplayer.portalInstance?.waveState || ""),
     getPortalCompleted:()=>portalCompleted,
@@ -615,7 +640,7 @@ export function createCombatGame({renderAll, showToast}){
     getState:getCombatState,
     getGraphicsQuality,
     getGraphicsEffects,
-    getSpawnStations:()=>worldState.getSpawnStations(),
+    getSpawnStations:()=>worldState.getVisibleSpawnStations(),
     getHoveredStation:stationHover.getHoveredStation,
     getSafeAreas:()=>worldState.getSafeAreas(),
     isSafeModeActive,
@@ -696,6 +721,7 @@ export function createCombatGame({renderAll, showToast}){
       showToast("Activation du portail...");
       return true;
     },
+    interactAzuronPortal,
     showToast
   });
   const serverEvents = createCombatServerEventSystem({
@@ -742,6 +768,7 @@ export function createCombatGame({renderAll, showToast}){
     getState:getCombatState,
     setState:setCombatState,
     advancePortalTransition:advanceMapPortalTransition,
+    completeDungeonTransition:portalNavigation.completeDungeonTransition,
     loadMap,
     updatePlayerMovement,
     updateCamera,
@@ -814,6 +841,7 @@ export function createCombatGame({renderAll, showToast}){
     getActiveQuests,
     getQuestObjectiveProgress,
     getInventoryCount,
+    getCompletedPortalCount:id=>Number(store.state.completedPortals?.[id] || 0),
     progressServerQuest,
     recordQuestNpcTalk,
     saveState,
@@ -888,6 +916,37 @@ export function createCombatGame({renderAll, showToast}){
     renderAll,
     showToast
   });
+  const travelHud = createSectorTravelHud({
+    container:document.getElementById("gameScreen"),
+    maps:MAPS,
+    getCurrentMap:()=>currentMap,
+    onCancel:reason=>sectorTravel?.cancel(reason)
+  });
+  const travelConnection = createSectorTravelConnection({
+    multiplayer,
+    onState:state=>sectorTravel?.applyServerState(state),
+    onError:error=>sectorTravel?.applyServerError(error),
+    onDisconnect:()=>sectorTravel?.cancel("disconnected")
+  });
+  sectorTravel = createSectorAutoTravel({
+    getState:()=>({running, player, currentMap, gameMode, portalTransition, portgunChannel}),
+    isConnected:travelConnection.isConnected,
+    hasPremium:()=>isPremiumActive(store.state.player),
+    requestStart:travelConnection.start,
+    requestCancel:travelConnection.cancel,
+    applySession:state=>session.resumeWorldSession({...state, source:"state-correction"}),
+    setMovement:(target, meta)=>{
+      moveTarget = target;
+      mouseMoveHeld = false;
+      if(player && (!target || meta?.status === "transferring")){
+        player.vx = 0;
+        player.vy = 0;
+        player.enginePower = 0;
+      }
+    },
+    onChange:state=>travelHud.update(state),
+    showToast
+  });
   function preload(){
     preloadCombatAssets({cache, ships:[getActiveShip()], ranks:[getCurrentRank()], getRankAssetPath});
     warmCombatHudTextRendering();
@@ -924,6 +983,10 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function getAccessibleMapPortals(map = currentMap){
+    if(isWavePortal(map) && multiplayer.authoritativeSession){
+      return portalObjective?.batchReady || portalCompleted
+        ? getAzuronStageGates({nextWave:portalObjective?.nextWave,completed:portalCompleted,portalId:getWavePortalTier(map).id}) : [];
+    }
     const base = getMapPortals(map, {completedQuestClaims:getCompletedQuestClaims(), questProgress:getQuestProgressState()});
     const prepared = getPreparedDungeonPortal(map);
     if(!prepared) return base;
@@ -1077,6 +1140,9 @@ export function createCombatGame({renderAll, showToast}){
 
   function findPortalObjectiveAt(world){
     if(gameMode !== "portal") return null;
+    if(isWavePortal(activePortal)){
+      return getAccessibleMapPortals().find(gate=>Math.hypot(gate.x-world.x,gate.y-world.y)<=135) || null;
+    }
     if(isAncientPortal(activePortal)){
       return getAncientInteractionTarget(portalObjective, world);
     }
@@ -1087,6 +1153,13 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function interactPortalObjective(target){
+    if(isWavePortal(activePortal) && target?.azuronGate){
+      if(portalTransition) return true;
+      moveTarget={x:target.x,y:target.y};
+      if(Math.hypot(player.x-target.x,player.y-target.y)<=target.activationRadius) portalNavigation.tryUseMapPortal();
+      else showToast("Approche de la porte, puis clique de nouveau ou appuie sur J.");
+      return true;
+    }
     if(isAncientPortal(activePortal)){
       if(!target?.action) return false;
       moveTarget = {x:Number(target.x || 0), y:Number(target.y || 0)};
@@ -1142,7 +1215,7 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function pushDamageText(payload){
-    hitResolution.pushDamageText(payload);
+    return hitResolution.pushDamageText(payload);
   }
 
   function rollBetween(min, max){
@@ -1235,6 +1308,8 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   function update(dt){
+    travelConnection.updateSocketBinding();
+    sectorTravel.update(dt);
     frameUpdate.update(dt);
     mapAssetStreaming.update(dt);
     logout.update(dt);
@@ -1275,6 +1350,7 @@ export function createCombatGame({renderAll, showToast}){
     saveState,
     getMouse:()=>mouse,
     setMoveTarget:value=>{ moveTarget = value; },
+    onManualNavigation:()=>{ sectorTravel.cancel("manual"); cargo.clearPending(); },
     setMouseMoveHeld:value=>{ mouseMoveHeld = value; },
     worldFromScreen,
     miniMapHitTest:miniMap.hitTest,
@@ -1316,6 +1392,9 @@ export function createCombatGame({renderAll, showToast}){
     openUtilityPanel:panels.openUtilityPanel,
     toggleBoosterDetail:panels.toggleBoosterDetail,
     selectPortgunMapTarget:panels.selectPortgunMapTarget,
+    selectSectorMap:panels.selectSectorMap,
+    startSectorMapTravel:panels.startSectorMapTravel,
+    cancelSectorMapTravel:panels.cancelSectorMapTravel,
     closeUtilityPanel:panels.closeUtilityPanel,
     inviteGroupMember:panels.inviteGroupMember,
     handleSocialAction:panels.handleSocialAction,
@@ -1443,7 +1522,10 @@ export function createCombatGame({renderAll, showToast}){
       levelUpEffects.reset();
       return session.start(...args);
     },
-    stop:session.stop,
+    stop:(...args)=>{
+      sectorTravel.cancel("stopped");
+      return session.stop(...args);
+    },
     requestLogout:logout.request,
     resumeWorldSession:session.resumeWorldSession,
     refreshActiveLoadout:session.refreshActiveLoadout,

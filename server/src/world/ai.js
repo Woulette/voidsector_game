@@ -5,6 +5,8 @@ import { prepareNpcEliteLaserAttack } from "../combat/npcEliteLasers.js";
 import { getEnemyRepathDelayMs } from "../../../src/game/systems/enemyTrajectory.js";
 import { moveEnemyToward, resetEnemyPursuit, updateEnemyPursuit } from "./pursuit.js";
 import { createEnemyFormationManager } from "./enemyFormation.js";
+import { rollEnemyDamage } from "../../../src/shared/enemyDamage.js";
+import { isWavePortal } from "../../../src/data/wavePortalTiers.js";
 
 function clamp(value, min, max){
   return Math.max(min, Math.min(max, value));
@@ -88,6 +90,7 @@ function getEnemyAiKind(kind){
 
 const PASSIVE_UNTIL_ATTACKED = new Set(["drone_pirate", "raider_astral"]);
 function requiresPlayerAttack(enemy){
+  if(enemy?.azuronEnemy && enemy?.permanentAggro) return false;
   return Boolean(enemy?.requiresPlayerAttack) || PASSIVE_UNTIL_ATTACKED.has(getEnemyAiKind(enemy?.kind));
 }
 
@@ -138,6 +141,7 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
   }
 
   function canTargetPlayer(enemy, player, map, now){
+    if(enemy?.azuronEnemy && enemy?.permanentAggro && isWavePortal(map)) return Boolean(player?.state);
     return canEnemyTargetPlayerInSafeZone({
       enemy,
       player,
@@ -178,6 +182,7 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
   }
 
   function computeWorldEnemyDecision(enemy, map, mapPlayers, now){
+    const permanentAggro = Boolean(enemy.azuronEnemy && enemy.permanentAggro && isWavePortal(map));
     const targetable = scanTargetablePlayers(enemy, mapPlayers, map, now);
     const spottedTarget = targetable.nearest;
     let targetX = enemy.x;
@@ -199,7 +204,7 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
       if(enemy.lockedPlayerId) enemy.threatRecalcAt = now + ENEMY_THREAT_RECALC_MS;
     }
 
-    if(!enemy.lockedPlayerId && canAcquireByProximity && spottedTarget && spottedTarget.distance <= aggroDistance){
+    if(!enemy.lockedPlayerId && canAcquireByProximity && spottedTarget && (permanentAggro || spottedTarget.distance <= aggroDistance)){
       target = spottedTarget;
       enemy.lockedPlayerId = target.player.id;
       enemy.lockedPlayerLastSeenAt = now;
@@ -217,10 +222,10 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
           const dx = Number(lockedPlayer.state.x || 0) - enemy.x;
           const dy = Number(lockedPlayer.state.y || 0) - enemy.y;
           const distance = Math.hypot(dx, dy);
-          if(distance <= aggroDistance){
+          if(permanentAggro || distance <= aggroDistance){
             enemy.lockedPlayerLastSeenAt = now;
           }
-          if(now - Number(enemy.lockedPlayerLastSeenAt || 0) <= targetMemoryMs){
+          if(permanentAggro || now - Number(enemy.lockedPlayerLastSeenAt || 0) <= targetMemoryMs){
             target = {player:lockedPlayer, dx, dy, distance};
           }else{
             clearEnemyTargetMemory(enemy);
@@ -326,11 +331,7 @@ export function createWorldAiManager({players, presence, launchEnemyAttack, isPl
         Number(attackTarget.state.y || 0) - enemy.y,
         Number(attackTarget.state.x || 0) - enemy.x
       ) + Math.PI / 2;
-      const damageMin = Number(enemy.attackDamageMin);
-      const damageMax = Number(enemy.attackDamageMax);
-      let amount = enemy.useExactDamageRange && Number.isFinite(damageMin) && Number.isFinite(damageMax)
-        ? Math.max(1, Math.round(Math.min(damageMin, damageMax) + Math.random() * Math.abs(damageMax - damageMin)))
-        : Math.max(1, Math.round(Number(enemy.attackDamage || 25) * (0.85 + Math.random() * 0.3)));
+      let amount = rollEnemyDamage(enemy.attackDamage || 25);
       amount = applyKharonBossAttackAbility(enemy, amount, attackTarget, now);
       const eliteLaserShot = prepareNpcEliteLaserAttack(enemy, {
         amount,

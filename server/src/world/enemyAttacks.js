@@ -233,6 +233,7 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
     presence.markCombat(target, "impact ennemi");
     const durabilityBefore = Math.max(0, Number(target.state.hp || 0))
       + Math.max(0, Number(target.state.shield || 0));
+    const shieldBefore = Math.max(0, Number(target.state.shield || 0));
     const hpLost = presence.applyDamageToPlayerState(target, amount, now);
     const durabilityAfter = Math.max(0, Number(target.state.hp || 0))
       + Math.max(0, Number(target.state.shield || 0));
@@ -244,6 +245,7 @@ export function createEnemyAttackManager({io, players, presence, profileManager,
     io.to(target.id).emit("player:damage", {
       enemyId:attacks.length === 1 ? attacks[0].enemy.id : "enemy:batch",
       sourceEnemyIds:attacks.map(attack=>attack.enemy.id),
+      shieldBefore,
       attackCount:attacks.length,
       mapId:attacks[0].mapId,
       amount,

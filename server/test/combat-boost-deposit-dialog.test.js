@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 test("combat boost quantities use the non-blocking in-game dialog", ()=>{
   const bindings = fs.readFileSync(path.join(root, "src/game/ui/inputBindings.js"), "utf8");
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  const panel = fs.readFileSync(path.join(root, "src/game/ui/spawnPanel.js"), "utf8");
+  const panel = fs.readFileSync(path.join(root, "src/game/ui/spawnRefineryPanel.js"), "utf8");
 
   assert.equal(bindings.includes("windowRef.prompt"), false);
   assert.match(bindings, /openBoostDepositDialog/);

@@ -1,5 +1,8 @@
 import { getPlayerInstanceGroup } from "../portals/portalSessions.js";
+import { getSlowedMovementSpeed } from "../../../src/shared/movementSlow.js";
 import { WORLD_MAPS } from "./definitions.js";
+import { AZURON_PORTAL_MAP } from "../../../src/data/azuronPortal.js";
+import { isWavePortal } from "../../../src/data/wavePortalTiers.js";
 import { getRepairBotConfig, getTrustedShieldRegen } from "../players/playerStateValidation.js";
 import { WORLD_SESSION_SAVE_INTERVAL_MS } from "../players/profileWorldSession.js";
 import { advanceServerPlayerStateTimeline } from "../players/playerStateStream.js";
@@ -30,6 +33,7 @@ function clamp(value, min, max){
 function getMovementMap(mapId){
   const token = String(mapId ?? "0");
   if(WORLD_MAPS[token]) return WORLD_MAPS[token];
+  if(isWavePortal(token)) return AZURON_PORTAL_MAP;
   if(token === `portal-${PRISMATIC_PORTAL_ID}`) return PRISMATIC_PORTAL_MAP;
   if(token === `portal-${ANCIENT_PORTAL_ID}`) return ANCIENT_PORTAL_MAP;
   if(token === "coop-test" || token.startsWith("portal-")){
@@ -54,8 +58,9 @@ function isClientStale(player, now){
   return now - lastClientStateAt >= staleAfterMs;
 }
 
-function updateServerMovement(player, dt, now, groups){
+function updateServerMovement(player, dt, now, groups, isAutomaticTravelActive){
   const state = player?.state;
+  if(isAutomaticTravelActive?.(player)) return false;
   if(!state || player.connected === false || Number(state.hp || 0) <= 0) return false;
   const target = state.moveTarget;
   if(!target) return false;
@@ -78,10 +83,8 @@ function updateServerMovement(player, dt, now, groups){
   }
 
   const slow = player?.statusEffects?.slow;
-  const slowAmount = slow && now < finite(slow.expiresAt)
-    ? Math.max(0, finite(slow.amount))
-    : 0;
-  const speed = Math.max(1, finite(state.speed, 300) - slowAmount);
+  const activeSlow = slow && now < finite(slow.expiresAt) ? slow : null;
+  const speed = getSlowedMovementSpeed(finite(state.baseMovementSpeed, finite(state.speed, 300)), activeSlow);
   const step = Math.min(speed * Math.max(0.001, dt), distance);
   const nx = dx / distance;
   const ny = dy / distance;
@@ -201,7 +204,8 @@ export function createPlayerActivityManager({
   presence,
   profileManager,
   publicPlayer,
-  applyEnemyHitForPlayer
+  applyEnemyHitForPlayer,
+  isAutomaticTravelActive
 }){
   function getBackgroundRecoveryConfig(player, now){
     if(
@@ -285,7 +289,7 @@ export function createPlayerActivityManager({
   function updatePlayerActivity(dt, now = Date.now()){
     for(const player of players.values()){
       if(!player?.state || !isClientStale(player, now)) continue;
-      const moved = updateServerMovement(player, dt, now, groups);
+      const moved = updateServerMovement(player, dt, now, groups, isAutomaticTravelActive);
       if(moved) presence?.markActivity?.(player, "deplacement serveur", now);
       const state = player.state;
       const needsRepairProfile = Boolean(state.repairBotActive)

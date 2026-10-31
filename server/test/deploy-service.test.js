@@ -45,4 +45,7 @@ test("deploy scripts are not locked to the old ubuntu home path", async ()=>{
   assert.match(deployPs1, /\[string\]\$RemoteDir = "~"/);
   assert.match(deployPs1, /"\$RemoteUser@\$\{ServerIp\}:\$RemoteDir\/"/);
   assert.equal(deployPs1.includes("/home/$RemoteUser/"), false);
+  assert.match(deployPs1, /\$serverItems = @\(/);
+  assert.equal(/^\s*"server",?\s*$/m.test(deployPs1), false);
+  assert.match(deployPs1, /server\/\.env, server\/data, node_modules, logs, backups et tests/);
 });

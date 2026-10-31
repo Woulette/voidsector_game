@@ -23,12 +23,12 @@ function changes(before, after){
   return getProfileUiChanges(captureProfileUiState(before), captureProfileUiState(after));
 }
 
-function withShipSelection(run,{appMode="launcher",currentView="hangar",hangarDetailOpen=false}={}){
+function withShipSelection(run,{appMode="launcher",currentView="hangar",hangarTab="vaisseau",hangarDetailOpen=false}={}){
   const originals={window:globalThis.window,localStorage:globalThis.localStorage,CustomEvent:globalThis.CustomEvent};
   globalThis.localStorage={getItem:()=>null,setItem(){}};
   globalThis.CustomEvent=class {constructor(type,options={}){this.type=type;this.detail=options.detail;}};
   globalThis.window={dispatchEvent(){}};
-  const store={state:{...baseState(),ownedShips:["orion","velox"],selectedShip:"velox"},currentView,hangarTab:"vaisseau",hangarDetailOpen};
+  const store={state:{...baseState(),ownedShips:["orion","velox"],selectedShip:"velox"},currentView,hangarTab,hangarDetailOpen};
   let renders=0,topRenders=0;
   const controller=createProfileController({
     store,game:{running:appMode==="game",refreshActiveLoadout(){},updateHud(){}},appMode,
@@ -45,20 +45,22 @@ function withShipSelection(run,{appMode="launcher",currentView="hangar",hangarDe
   }
 }
 
-test("profile sync keeps an owned preview selected while applying authoritative active ship and balances",()=>{
-  for(const hangarDetailOpen of [false,true]){
-    withShipSelection(({store,controller,renders,topRenders})=>{
-      for(let revision=1;revision<=3;revision++){
-        controller.applyServerProfile({updatedAt:revision,selectedShip:"orion",activeShip:"orion",ownedShips:["orion","velox"],
-          player:{credits:revision*5000}});
-        assert.equal(store.state.selectedShip,"velox");
-        assert.equal(store.state.activeShip,"orion","preview selection cannot equip a ship");
-        assert.equal(store.state.player.credits,revision*5000);
-        assert.equal(store.hangarDetailOpen,hangarDetailOpen,"profile updates do not open or close an inventory");
-      }
-      assert.equal(renders(),0,"unchanged owned preview must not rebuild the focused button");
-      assert.equal(topRenders(),3);
-    },{hangarDetailOpen});
+test("profile sync keeps an owned preview across hangar tabs while applying authoritative active ship and balances",()=>{
+  for(const hangarTab of ["vaisseau","drone","skills","profile"]){
+    for(const hangarDetailOpen of [false,true]){
+      withShipSelection(({store,controller,renders,topRenders})=>{
+        for(let revision=1;revision<=3;revision++){
+          controller.applyServerProfile({updatedAt:revision,selectedShip:"orion",activeShip:"orion",ownedShips:["orion","velox"],
+            player:{credits:revision*5000}});
+          assert.equal(store.state.selectedShip,"velox",`preview survives profile sync in ${hangarTab}`);
+          assert.equal(store.state.activeShip,"orion","preview selection cannot equip a ship");
+          assert.equal(store.state.player.credits,revision*5000);
+          assert.equal(store.hangarDetailOpen,hangarDetailOpen,"profile updates do not open or close an inventory");
+        }
+        assert.equal(renders(),0,"unchanged owned preview must not rebuild the focused button");
+        assert.equal(topRenders(),3);
+      },{hangarTab,hangarDetailOpen});
+    }
   }
 });
 

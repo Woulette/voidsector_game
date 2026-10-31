@@ -1,3 +1,4 @@
+import { normalizeReputation } from "../shared/reputation.js";
 import { getDroneFormationBonus, getShip } from "./catalogStore.js?v=20260726-kharon1";
 import { getCombatTimedBoostPercent } from "./combatBoostStore.js?v=20260726-kharon1";
 import { getDroneDamageMultiplier, getDroneGeneratorStatMultiplier, getDroneLoadout, getEquipmentUpgradeLevel, getItemFromInventoryUid, getLoadout } from "./equipmentStore.js?v=20260726-kharon1";
@@ -197,7 +198,7 @@ export function addXP(amount){
 export function addReputation(amount){
   const gain = Math.max(0, Math.round(Number(amount || 0)));
   if(gain <= 0) return 0;
-  store.state.player.reputation = Math.max(0, Number(store.state.player.reputation || 0)) + gain;
+  store.state.player.reputation = normalizeReputation(normalizeReputation(store.state.player.reputation) + gain);
   store.state.player.rankScore = getRankScore();
   return gain;
 }

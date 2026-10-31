@@ -50,7 +50,9 @@ export function registerProgressionHandlers(socket, context){
       at:Date.now()
     });
     emitProfileSync(player, result.profile);
-    if(result.portal?.id) preparePortalInstance?.(socket, result.portal.id);
+    if(result.portal?.id && !result.profile?.portalAttempt && !result.profile?.preparedPortal){
+      preparePortalInstance?.(socket, result.portal.id);
+    }
   });
 
   socket.on("prestige:perform", async ()=>{

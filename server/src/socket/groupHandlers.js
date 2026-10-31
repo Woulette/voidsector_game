@@ -17,7 +17,8 @@ export function registerGroupHandlers(socket, context){
     startPortalInstance,
     activateRickyLever,
     activateRickyHealBeacon,
-    interactWithPrecursorPortal
+    interactWithPrecursorPortal,
+    interactAzuronPortal
   } = context;
 
   socket.on("group:create", ()=>{
@@ -94,5 +95,9 @@ export function registerGroupHandlers(socket, context){
   socket.on("portal:precursor-interact", payload=>{
     if(!guard("portal:precursor-interact")) return;
     interactWithPrecursorPortal?.(socket, String(payload?.action || ""));
+  });
+  socket.on("portal:azuron-interact", payload=>{
+    if(!guard("portal:azuron-interact")) return;
+    return interactAzuronPortal?.(socket,String(payload?.action || ""));
   });
 }

@@ -94,8 +94,9 @@ export function createCombatStatusEffectSystem({
       updatePoisonStatus(null);
       return;
     }
+    const activeDt = Math.min(Math.max(0, dt), Number(effect.remaining || 0));
     effect.remaining -= dt;
-    effect.tick -= dt;
+    effect.tick -= activeDt;
     effect.pulseT = (effect.pulseT || 0) - dt;
     if(effect.pulseT <= 0){
       effect.pulseT = .12;
@@ -112,7 +113,7 @@ export function createCombatStatusEffectSystem({
         color:"rgba(74,222,128,.62)"
       });
     }
-    while(effect.tick <= 0 && effect.remaining > 0){
+    while(effect.tick <= 1e-9){
       effect.tick += effect.interval;
       const dealt = effect.serverAuthoritative ? 0 : Math.max(0, Math.round(effect.damage || 0));
       if(dealt > 0){
@@ -124,8 +125,7 @@ export function createCombatStatusEffectSystem({
           x:player.x,
           y:player.y - 68,
           value:`-${dealt}`,
-          color:"rgba(74,222,128,",
-          shadowColor:"rgba(34,197,94,.78)"
+          direction:"incoming"
         });
         if(player.hp <= 0){
           handlePlayerDeath();
@@ -150,6 +150,7 @@ export function createCombatStatusEffectSystem({
     const uiState = nextStatusUiState(previous, remaining);
     player.slowEffect = {
       amount:Math.max(0, Number(effect.amount || 0)),
+      ratio:Math.max(0, Math.min(1, Number(effect.ratio || 0))),
       duration,
       remaining,
       pulseT:previous && Number(previous.remaining || 0) > 0
@@ -230,7 +231,9 @@ export function createCombatStatusEffectSystem({
       text.life -= dt;
       text.x += (text.vx || 0) * dt;
       text.y += (text.vy || -38) * dt;
-      text.vy = (text.vy || -38) + 42 * dt;
+      text.vy = text.kind === "damage"
+        ? Math.min(-10, (text.vy ?? -28) + 18 * dt)
+        : (text.vy || -38) + 42 * dt;
     }
     setState({
       particles:compactCombatListInPlace(particles, p=>p.life > 0, 240),

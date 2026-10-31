@@ -9,12 +9,15 @@ export {
   addInventoryItem,
   applyDronePermanentUpgrade,
   cleanDroneLoadout,
+  cleanDroneSkinLoadout,
   cleanLoadout,
   consumeAmmo,
   ensureShipLoadout,
   findEquippedSlot,
   getAmmoCount,
   getDroneLoadout,
+  getDroneSkinLoadout,
+  getDroneSkinUid,
   getDronePurchasePrice,
   getDroneDamageMultiplier,
   getDronePermanentUpgrade,
@@ -130,7 +133,7 @@ export const store = {
   shopFilter:"vaisseau",
   storeTab:"beta",
   storeModal:null,
-  currentView:"hangar",
+  currentView:"home",
   hangarDetailOpen:false,
   hangarTab:"vaisseau",
   profileDisplay:"ship",
@@ -162,7 +165,7 @@ let stateStorageKey = DEFAULT_STATE_STORAGE_KEY;
 
 export function loadState(){
   try{
-    return normalizeState(loadLocalPreferences(localStorage, stateStorageKey));
+    return normalizeState(loadLocalPreferences(localStorage, stateStorageKey), {migrateLegacyDroneSkins:stateStorageKey === DEFAULT_STATE_STORAGE_KEY});
   }catch(e){
     return normalizeState(null);
   }

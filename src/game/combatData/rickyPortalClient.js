@@ -1,4 +1,5 @@
 import { getInternalFirmKeyFromMapName } from "./mapUtils.js";
+import { RICKY_SAUCER_ASSET } from "../../data/rickyVisuals.js?v=20261024-ricky-visuals1";
 
 const RICKY_PORTAL_BY_FIRM = {
   ASTRA:{map:"Helion-02", npcId:"astra02_portal_mechanic", portal:{x:4300, y:-3300}, npc:{x:4470, y:-3180}},
@@ -68,6 +69,7 @@ export function installFirmRickyPortals(maps){
     map.questNpcs = [{
       ...rickyTemplate,
       id:config.npcId,
+      npcImg:RICKY_SAUCER_ASSET,
       name:"Ricky",
       x:config.npc.x,
       y:config.npc.y,

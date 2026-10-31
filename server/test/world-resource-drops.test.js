@@ -4,11 +4,19 @@ import { getInventoryItemCount } from "../src/economy/inventoryStacks.js";
 import { WORLD_MAPS } from "../src/world/definitions.js";
 import { scaleMonsterReward, scaleMonsterStat } from "../src/world/enemyProgression.js";
 import { createWorldLootManager, rollPortalAnchorKeyDrop } from "../src/world/loot.js";
+import { getLootCollectionHoverPoint } from "../../src/shared/lootCollection.js";
 import { getResourceDropChance, rollResourceDrops } from "../src/world/resourceDrops.js";
 import { createWorldEnemy } from "../src/world/spawn.js";
 import { createWorldStateManager } from "../src/world/state.js";
 import { RESOURCE_DROP_POOLS } from "../../src/data/resources.js";
 import { ENEMY_TYPES } from "../../src/game/combatData.js";
+
+function collect(manager, socket, id){
+  manager.pickupLoot(socket, {id, phase:"start"});
+  const deadline = Date.now() + 700;
+  manager.pickupLoot(socket, {id, phase:"finish"});
+  manager.cleanupExpiredLootDrops(deadline);
+}
 
 test("world maps use the requested monster level bands", ()=>{
   assert.deepEqual(WORLD_MAPS["0"].level, [1, 4]);
@@ -65,15 +73,15 @@ test("Helion-04 replaces parasites with the level fifteen Astral Brood Layer", (
   }, 1, ()=>0.5, "pondeuse_astrale");
 
   assert.equal(levelFifteen.baseLevel, 15);
-  assert.equal(levelFifteen.maxHp, 45_000);
-  assert.equal(levelFifteen.maxShield, 30_000);
+  assert.equal(levelFifteen.maxHp, 40_000);
+  assert.equal(levelFifteen.maxShield, 40_000);
   assert.equal(levelFifteen.speed, 230);
-  assert.equal(levelFifteen.attackRange, 350);
+  assert.equal(levelFifteen.attackRange, 290);
   assert.equal(levelFifteen.attackCooldown, 1000);
-  assert.equal(levelFifteen.attackDamageMin, 600);
-  assert.equal(levelFifteen.attackDamageMax, 900);
-  assert.deepEqual(levelFifteen.onHitEffect, {type:"poison", damage:350, interval:2, duration:10});
-  assert.deepEqual(levelFifteen.reward, {credits:60_000, xp:38_000, premium:50});
+  assert.equal(levelFifteen.attackDamageMin, 410);
+  assert.equal(levelFifteen.attackDamageMax, 590);
+  assert.deepEqual(levelFifteen.onHitEffect, {type:"poison", damage:250, interval:2, duration:10});
+  assert.deepEqual(levelFifteen.reward, {credits:50_000, xp:25_000, premium:32});
 
   const levelNineteen = createWorldEnemy({
     id:"astra-04-test",
@@ -83,15 +91,15 @@ test("Helion-04 replaces parasites with the level fifteen Astral Brood Layer", (
     enemyTypes:[["pondeuse_astrale", 1]]
   }, 2, ()=>0.5, "pondeuse_astrale");
 
-  assert.equal(levelNineteen.maxHp, 54_000);
-  assert.equal(levelNineteen.maxShield, 36_000);
-  assert.equal(levelNineteen.attackDamageMin, 720);
-  assert.equal(levelNineteen.attackDamageMax, 1080);
-  assert.equal(levelNineteen.onHitEffect.damage, 420);
-  assert.deepEqual(levelNineteen.reward, {credits:84_000, xp:53_200, premium:70});
+  assert.equal(levelNineteen.maxHp, 40_000);
+  assert.equal(levelNineteen.maxShield, 40_000);
+  assert.equal(levelNineteen.attackDamageMin, 410);
+  assert.equal(levelNineteen.attackDamageMax, 590);
+  assert.equal(levelNineteen.onHitEffect.damage, 250);
+  assert.deepEqual(levelNineteen.reward, {credits:50_000, xp:25_000, premium:32});
 });
 
-test("an Astral Brood Layer death spawns three temporary same-level parasites", ()=>{
+test("an Astral Brood Layer death spawns three temporary sector-level parasites", ()=>{
   const manager = createWorldStateManager({
     io:{to:()=>({emit(){}})},
     players:new Map(),
@@ -111,7 +119,7 @@ test("an Astral Brood Layer death spawns three temporary same-level parasites", 
 
   assert.equal(children.length, 3);
   assert.equal(children.every(enemy=>enemy.kind === "chasseur_spectral"), true);
-  assert.equal(children.every(enemy=>enemy.level === 18), true);
+  assert.equal(children.every(enemy=>enemy.level === 15), true);
   assert.equal(children.every(enemy=>enemy.temporarySpawn === true), true);
   assert.equal(children.every(enemy=>enemy.spawnedBy === parent.id), true);
   assert.equal(map.enemies.filter(enemy=>enemy.spawnedBy === parent.id).length, 3);
@@ -134,8 +142,8 @@ test("Astra three and four elite NOVA rewards use the updated values", ()=>{
     "eclanite"
   );
 
-  assert.equal(cuirasse.reward.premium, 60);
-  assert.equal(eclat.reward.premium, 24);
+  assert.equal(cuirasse.reward.premium, 40);
+  assert.equal(eclat.reward.premium, 16);
 });
 
 test("map five void crystals use their requested level twenty base stats", ()=>{
@@ -143,30 +151,30 @@ test("map five void crystals use their requested level twenty base stats", ()=>{
   const cristal = createWorldEnemy(map, 1, ()=>0.5, "cristanite");
   const etoile = createWorldEnemy(map, 2, ()=>0.5, "astranite");
 
-  assert.equal(cristal.maxHp, 180_000);
-  assert.equal(cristal.maxShield, 140_000);
+  assert.equal(cristal.maxHp, 60_000);
+  assert.equal(cristal.maxShield, 60_000);
   assert.equal(cristal.radius, 47);
   assert.equal(cristal.width, 112);
   assert.equal(cristal.height, 112);
   assert.equal(cristal.speed, 220);
-  assert.equal(cristal.attackRange, 350);
+  assert.equal(cristal.attackRange, 270);
   assert.equal(cristal.attackCooldown, 1000);
-  assert.equal(cristal.attackDamageMin, 1_600);
-  assert.equal(cristal.attackDamageMax, 2_500);
+  assert.equal(cristal.attackDamageMin, 738);
+  assert.equal(cristal.attackDamageMax, 1_062);
   assert.equal(cristal.useExactDamageRange, true);
-  assert.deepEqual(cristal.reward, {credits:250_000, xp:84_000, premium:110});
+  assert.deepEqual(cristal.reward, {credits:72_000, xp:36_000, premium:48});
   assert.equal(cristal.requiresPlayerAttack, true);
   assert.equal(cristal.followBeforeAttacked, true);
 
-  assert.equal(etoile.maxHp, 450_000);
-  assert.equal(etoile.maxShield, 400_000);
+  assert.equal(etoile.maxHp, 200_000);
+  assert.equal(etoile.maxShield, 200_000);
   assert.equal(etoile.speed, 210);
-  assert.equal(etoile.attackRange, 360);
+  assert.equal(etoile.attackRange, 280);
   assert.equal(etoile.attackCooldown, 1000);
-  assert.equal(etoile.attackDamageMin, 3_800);
-  assert.equal(etoile.attackDamageMax, 5_600);
+  assert.equal(etoile.attackDamageMin, 2_214);
+  assert.equal(etoile.attackDamageMax, 3_186);
   assert.equal(etoile.useExactDamageRange, true);
-  assert.deepEqual(etoile.reward, {credits:1_000_000, xp:350_000, premium:400});
+  assert.deepEqual(etoile.reward, {credits:400_000, xp:108_000, premium:144});
   assert.deepEqual(etoile.deathEffect, {type:"slow", amount:200, duration:5, radius:150});
   assert.deepEqual(etoile.deathSpawn, {kind:"cristanite", count:1});
 });
@@ -211,9 +219,9 @@ test("an Astranite death summons one temporary Cristanite on Helion-05", ()=>{
   assert.equal(map.enemies.filter(enemy=>enemy.hp > 0).length, 50);
 });
 
-test("monster stats grow five percent and rewards grow ten percent above base level", ()=>{
-  assert.equal(scaleMonsterStat(800, 1, 4), 920);
-  assert.deepEqual(scaleMonsterReward({xp:400, credits:800, premium:1}, 1, 4), {xp:520, credits:1_040, premium:1});
+test("monster stats and rewards remain fixed between five-level thresholds", ()=>{
+  assert.equal(scaleMonsterStat(800, 1, 4), 800);
+  assert.deepEqual(scaleMonsterReward({xp:400, credits:800, premium:1}, 1, 4), {xp:400, credits:800, premium:1});
   const enemy = createWorldEnemy({
     id:"test",
     width:1000,
@@ -223,11 +231,11 @@ test("monster stats grow five percent and rewards grow ten percent above base le
   }, 1, ()=>0.5);
   assert.equal(enemy.baseLevel, 1);
   assert.equal(enemy.level, 4);
-  assert.equal(enemy.maxHp, 920);
-  assert.equal(enemy.reward.xp, 520);
+  assert.equal(enemy.maxHp, 400);
+  assert.equal(enemy.reward.xp, 400);
 });
 
-test("Voraks and their early bosses scale from base level one", ()=>{
+test("Voraks and their early bosses retain base stats until the next full tier", ()=>{
   for(const kind of ["raider_astral", "boss_raider_astral", "boss_drone_pirate"]){
     const enemy = createWorldEnemy({
       id:"test",
@@ -236,7 +244,7 @@ test("Voraks and their early bosses scale from base level one", ()=>{
       level:[5, 5],
       enemyTypes:[[kind, 1]]
     }, 1, ()=>0.5, kind);
-    assert.equal(enemy.baseLevel, 1);
+    assert.equal(enemy.baseLevel, kind === "boss_drone_pirate" ? 1 : 4);
     assert.equal(enemy.level, 5);
   }
   const bossOrbe = createWorldEnemy({
@@ -246,7 +254,7 @@ test("Voraks and their early bosses scale from base level one", ()=>{
     level:[5, 5],
     enemyTypes:[["boss_drone_pirate", 1]]
   }, 1, ()=>0.5, "boss_drone_pirate");
-  assert.deepEqual(bossOrbe.reward, {credits:2240, xp:1120, premium:2});
+  assert.deepEqual(bossOrbe.reward, {credits:2400, xp:1200, premium:4});
   const bossVorak = createWorldEnemy({
     id:"test",
     width:1000,
@@ -254,7 +262,7 @@ test("Voraks and their early bosses scale from base level one", ()=>{
     level:[1, 1],
     enemyTypes:[["boss_raider_astral", 1]]
   }, 1, ()=>0.5, "boss_raider_astral");
-  assert.equal(bossVorak.maxShield, 2000);
+  assert.equal(bossVorak.maxShield, 800);
   const bossVorakLevelTwo = createWorldEnemy({
     id:"test",
     width:1000,
@@ -262,7 +270,7 @@ test("Voraks and their early bosses scale from base level one", ()=>{
     level:[2, 2],
     enemyTypes:[["boss_raider_astral", 1]]
   }, 1, ()=>0.5, "boss_raider_astral");
-  assert.equal(bossVorakLevelTwo.maxShield, 2200);
+  assert.equal(bossVorakLevelTwo.maxShield, 800);
 });
 
 test("Boss Orbe rewards are exactly twice the same-level Orbe rewards", ()=>{
@@ -313,8 +321,8 @@ test("early boss health and damage are exactly twice their same-level normal ver
       const boss = createWorldEnemy(map, 2, ()=>0.5, bossKind);
       assert.equal(boss.maxHp, normal.maxHp * 2);
       assert.equal(boss.attackDamage, normal.attackDamage * 2);
-      if(normal.attackDamageMin !== undefined) assert.equal(boss.attackDamageMin, normal.attackDamageMin * 2);
-      if(normal.attackDamageMax !== undefined) assert.equal(boss.attackDamageMax, normal.attackDamageMax * 2);
+      assert.equal(boss.attackDamageMin, Math.round(boss.attackDamage * .82));
+      assert.equal(boss.attackDamageMax, Math.round(boss.attackDamage * 1.18));
     }
   }
 });
@@ -387,7 +395,7 @@ test("server emits and validates Deadly portal key pickup", ()=>{
   try{
     const emitted = [];
     const socketEvents = [];
-    const player = {id:"p1", mapId:"Helion-01", state:{mapId:"Helion-01", x:100, y:200}};
+    const player = {id:"p1", mapId:"Helion-01", state:{hp:100, mapId:"Helion-01", x:100, y:200}};
     const players = new Map([[player.id, player]]);
     const profile = {inventoryItems:[], nextInventoryUid:1};
     const manager = createWorldLootManager({
@@ -410,8 +418,8 @@ test("server emits and validates Deadly portal key pickup", ()=>{
     assert.ok(event);
     assert.equal(event.itemId, "portal_anchor_key");
     assert.equal(event.serverControlled, true);
-    player.state = {mapId:"Helion-01", x:event.x, y:event.y};
-    manager.pickupLoot({id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, {id:event.id});
+    player.state = {hp:100, mapId:"Helion-01", ...getLootCollectionHoverPoint(event)};
+    collect(manager, {id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, event.id);
     assert.equal(getInventoryItemCount(profile, "portal_anchor_key"), 1);
     assert.equal(socketEvents.some(entry=>entry.name === "loot:picked"), true);
   }finally{
@@ -425,7 +433,7 @@ test("server emits a private material drop and validates its pickup", ()=>{
   try{
     const emitted = [];
     const socketEvents = [];
-    const player = {id:"p1", mapId:"0", state:{mapId:"0", x:100, y:200}};
+    const player = {id:"p1", mapId:"0", state:{hp:100, mapId:"0", x:100, y:200}};
     const players = new Map([[player.id, player]]);
     const profile = {cargoHold:{}};
     const manager = createWorldLootManager({
@@ -449,8 +457,8 @@ test("server emits a private material drop and validates its pickup", ()=>{
     assert.ok(event);
     assert.equal(event.serverControlled, true);
     assert.match(event.img, /_drop\.webp$/);
-    player.state = {mapId:"0", x:event.x, y:event.y};
-    manager.pickupLoot({id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, {id:event.id});
+    player.state = {hp:100, mapId:"0", ...getLootCollectionHoverPoint(event)};
+    collect(manager, {id:player.id, emit:(name, payload)=>socketEvents.push({name, payload})}, event.id);
     assert.equal(profile.cargoHold[event.materialId], 1);
     const picked = socketEvents.find(entry=>entry.name === "loot:picked");
     assert.ok(picked);

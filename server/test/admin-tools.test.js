@@ -348,6 +348,25 @@ test("only admins can grant player assets with audit and profile sync", async ()
   assert.equal(fixture.profiles.get("account:player").ammoInventory.ammo_x2, 500);
 });
 
+test("admin drone grants reserve two places and preserve legacy equipment above the standard limit", async ()=>{
+  const fixture = createFixture();
+  const profile = fixture.profiles.get("account:player");
+  profile.ownedDroneCount = 7;
+  profile.droneLoadout = Array(7).fill(null);
+  const grant = ()=>fixture.adminManager.grantPlayer({id:"socket-admin"}, {
+    profileKey:"account:player",type:"drone",id:"combat_drone",amount:10,reason:"Test limite drones"
+  });
+  assert.equal((await grant()).ok,true);
+  assert.equal(fixture.profiles.get("account:player").ownedDroneCount,8);
+  assert.equal((await grant()).ok,false);
+  const legacy = fixture.profiles.get("account:player");
+  legacy.ownedDroneCount = 10;
+  legacy.droneLoadout = Array(10).fill(null); legacy.droneLoadout[9] = "inv_laser_mk1_1";
+  assert.equal((await grant()).ok,false);
+  assert.equal(fixture.profiles.get("account:player").ownedDroneCount,10);
+  assert.equal(fixture.profiles.get("account:player").droneLoadout[9],"inv_laser_mk1_1");
+});
+
 test("admin can grant account unlocks and special currencies", async ()=>{
   const fixture = createFixture();
 

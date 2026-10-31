@@ -1,4 +1,5 @@
 import { PLAYER_HIT_CHANCE } from "../combatData.js?v=20261022-helion-hub1";
+import { DAMAGE_FEEDBACK_SPEC as DAMAGE_STYLE } from "../combatData/damageFeedback.js";
 
 function makeImpactSparks({count, color, speedMin, speedMax, lengthMin, lengthMax, width = 1.2, arc = Math.PI * 2, angle = 0}){
   return Array.from({length:count}, (_, index)=>{
@@ -40,21 +41,28 @@ export function createCombatHitResolutionSystem({
   rewardEnemy,
   applyPlayerPoison
 }){
-  function pushDamageText({x, y, value, color, shadowColor, life = .82}){
+  function pushDamageText({x, y, value, color, shadowColor, life, direction = "outgoing", kind}){
     const {damageTexts} = getState();
     const isMiss = value === "MISS";
-    damageTexts.push({
+    const isDamage = isMiss || typeof value === "number" || /^-?\d+$/.test(String(value));
+    const duration = life ?? (isDamage ? DAMAGE_STYLE.textLife : .82);
+    const incoming = direction === "incoming";
+    const text = {
       x,
       y,
       value,
-        life,
-        max:life,
-      vx:(Math.random() - .5) * (isMiss ? 18 : 34),
-      vy:isMiss ? -30 : -48 - Math.random() * 18,
+      kind:isDamage ? "damage" : kind,
+      direction,
+      life:duration,
+      max:duration,
+      vx:(Math.random() - .5) * (isDamage ? 7 : 18),
+      vy:isDamage ? -28 : -38,
       wobble:Math.random() * Math.PI * 2,
-      color,
-      shadowColor
-    });
+      color:isDamage ? (incoming ? DAMAGE_STYLE.incoming : DAMAGE_STYLE.outgoing) : color,
+      shadowColor:isDamage ? (incoming ? DAMAGE_STYLE.incomingGlow : DAMAGE_STYLE.outgoingGlow) : shadowColor
+    };
+    damageTexts.push(text);
+    return text;
   }
 
   function rollBetween(min, max){
@@ -215,9 +223,9 @@ export function createCombatHitResolutionSystem({
         const dealt = Math.round(bullet.damage);
         damagePlayer(dealt);
         applyPlayerPoison(bullet.onHitEffect);
-        pushDamageText({x:player.x, y:player.y-58, value:dealt, color:"rgba(248,113,113,", shadowColor:"rgba(248,113,113,.78)"});
+        pushDamageText({x:player.x, y:player.y-58, value:dealt, direction:"incoming"});
       }else{
-        pushDamageText({x:player.x, y:player.y-58, value:"MISS", color:"rgba(226,232,240,", shadowColor:"rgba(148,163,184,.78)"});
+        pushDamageText({x:player.x, y:player.y-58, value:"MISS", direction:"incoming"});
       }
       return;
     }

@@ -1,65 +1,79 @@
 import { addInventoryItemAmount } from "../economy/inventoryStacks.js";
 import { WORLD_ENEMY_TYPES } from "../world/definitions.js";
 import { AZURON_PORTAL_ID } from "./portalDefinitions.js";
+import { scaleMonsterReward, scaleMonsterStat } from "../world/enemyProgression.js";
+import { getEnemyDamageRange } from "../../../src/shared/enemyDamage.js";
+import { getWavePortalTier,isWavePortal } from "../../../src/data/wavePortalTiers.js";
+import {
+  AZURON_ENEMY_LEVEL, AZURON_TOTAL_WAVES, AZURON_WAVES_PER_BATCH,
+  AZURON_WAVE_INTERVAL_MS, AZURON_INTERMISSION_MS,
+  AZURON_STATIONARY_RING_RADIUS_MIN, AZURON_STATIONARY_RING_RADIUS_MAX,
+  getAzuronWaveDefinition, getAzuronSpawnPositions, getAzuronStageGates
+} from "../../../src/data/azuronPortal.js";
 
-export const AZURON_ENEMY_LEVEL = 10;
-export const AZURON_TOTAL_WAVES = 20;
-export const AZURON_WAVES_PER_BATCH = 4;
-export const AZURON_WAVE_INTERVAL_MS = 10_000;
+export { AZURON_ENEMY_LEVEL, AZURON_TOTAL_WAVES, AZURON_WAVES_PER_BATCH, AZURON_WAVE_INTERVAL_MS, AZURON_INTERMISSION_MS };
 export const AZURON_LASER_ITEM_ID = "laser_mk4";
 export const AZURON_REPEAT_LASER_DROP_CHANCE = 0.25;
 
-const SPAWN_COLUMNS = [-1320, -660, 0, 660, 1320];
-
-function getAzuronEnemyKind(wave, index){
-  if(wave >= AZURON_TOTAL_WAVES) return "cuirasse_nebulaire";
-  if(wave >= 13 && (wave + index) % 4 === 0) return "boss_drone_pirate";
-  if(wave >= 5 && (wave + index) % 2 === 0) return "raider_astral";
-  return "drone_pirate";
+export function publicAzuronObjective(instance){
+  if(!isWavePortal(instance?.portal) || instance.objective?.kind !== "azuron") return null;
+  const objective = instance.objective;
+  return {kind:"azuron", batchReady:Boolean(objective.batchReady), nextWave:Number(objective.nextWave || 0),
+    completed:Boolean(instance.completed), saveError:Boolean(objective.saveError),
+    gates:objective.batchReady ? getAzuronStageGates({nextWave:objective.nextWave,completed:instance.completed,portalId:instance.portal.id}) : []};
 }
 
-function getAzuronWaveEnemyCount(wave){
-  if(wave >= AZURON_TOTAL_WAVES) return 1;
-  return Math.min(5, 2 + Math.floor((Math.max(1, wave) - 1) / 6));
+function levelTenStat(value, baseLevel){
+  return scaleMonsterStat(value, baseLevel, AZURON_ENEMY_LEVEL);
 }
 
-export function createAzuronEnemy(kind, wave, index, x, y, {boss = false, now = Date.now()} = {}){
+export function createAzuronEnemy(kind, wave, index, x, y, {now = Date.now(), runId = "", portalId = "blue"} = {}){
   const base = WORLD_ENEMY_TYPES[kind] || WORLD_ENEMY_TYPES.drone_pirate;
-  const batch = Math.ceil(Math.max(1, wave) / AZURON_WAVES_PER_BATCH);
-  const durabilityMultiplier = boss ? 2 : 1 + (batch - 1) * 0.04;
-  const attackMultiplier = boss ? 0.85 : 0.65 + (batch - 1) * 0.035;
-  const hp = Math.max(1, Math.round(base.hp(AZURON_ENEMY_LEVEL) * durabilityMultiplier));
-  const shield = Math.max(0, Math.round(base.shield(AZURON_ENEMY_LEVEL) * durabilityMultiplier));
+  const tier=getWavePortalTier(portalId) || getWavePortalTier("blue");
+  const baseLevel = Math.max(1, Number(base.baseLevel || 1));
+  const stat = value=>Math.round(levelTenStat(value, baseLevel)*tier.multiplier);
+  const hp = Math.max(1, stat(base.hp(baseLevel)));
+  const shield = Math.max(0, stat(base.shield(baseLevel)));
+  const attackDamage = Math.max(1, stat(base.attackDamage(baseLevel)));
   return {
-    id:`AZ-${wave}-${index}-${now.toString(36)}`,
+    id:`AZ-${wave}-${index}-${runId || now.toString(36)}`,
+    ...(runId ? {azuronRunId:runId, azuronWave:wave, azuronIndex:index} : {}),
     serverControlled:true,
     azuronEnemy:true,
-    azuronBoss:boss,
+    azuronPortalId:tier.id,
+    permanentAggro:true,
+    // A stable, varied distance per monster avoids a perfectly uniform circle.
+    stationaryRingRadius:AZURON_STATIONARY_RING_RADIUS_MIN
+      + (wave * 5 + index * 7) % (AZURON_STATIONARY_RING_RADIUS_MAX - AZURON_STATIONARY_RING_RADIUS_MIN + 1),
+    azuronBoss:false,
     kind:base.kind,
-    type:boss ? "Gardien d’Azuron" : base.type,
+    type:base.type,
     img:base.img,
-    level:AZURON_ENEMY_LEVEL,
+    level:tier.level,
     x,
     y,
     homeX:x,
     homeY:y,
-    angle:Math.PI,
+    angle:0,
     hp,
     maxHp:hp,
     shield,
     maxShield:shield,
-    radius:Math.round(base.radius * (boss ? 1.18 : 1)),
-    width:Math.round(base.width * (boss ? 1.2 : 1)),
-    height:Math.round(base.height * (boss ? 1.2 : 1)),
+    radius:base.radius,
+    width:base.width,
+    height:base.height,
     speed:base.speed(AZURON_ENEMY_LEVEL),
     attackRange:base.attackRange,
-    attackDamage:Math.max(1, Math.round(base.attackDamage(AZURON_ENEMY_LEVEL) * attackMultiplier)),
+    attackDamage,
+    ...getEnemyDamageRange(attackDamage),
+    useExactDamageRange:true,
     attackCooldown:base.attackCooldown,
     staggerFirstAttack:true,
     projectileSpeed:base.projectileSpeed || 600,
     particle:base.particle || base.color,
     onHitEffect:null,
-    reward:base.reward(AZURON_ENEMY_LEVEL),
+    reward:Object.fromEntries(Object.entries(scaleMonsterReward(base.reward(baseLevel), baseLevel, AZURON_ENEMY_LEVEL))
+      .map(([key,value])=>[key,value*tier.multiplier])),
     color:base.color,
     shieldAbsorbRatio:base.shieldAbsorbRatio,
     vx:0,
@@ -69,23 +83,14 @@ export function createAzuronEnemy(kind, wave, index, x, y, {boss = false, now = 
   };
 }
 
-export function buildAzuronPortalWave(wave, now = Date.now()){
-  const normalizedWave = Math.max(1, Math.min(AZURON_TOTAL_WAVES, Math.floor(Number(wave || 1))));
-  const bossWave = normalizedWave === AZURON_TOTAL_WAVES;
-  const count = getAzuronWaveEnemyCount(normalizedWave);
-  return Array.from({length:count}, (_, index)=>{
-    const column = SPAWN_COLUMNS[index % SPAWN_COLUMNS.length];
-    const row = Math.floor(index / SPAWN_COLUMNS.length);
-    const x = bossWave ? 0 : column;
-    const y = -980 - row * 180 - (index % 2) * 90;
-    return createAzuronEnemy(
-      getAzuronEnemyKind(normalizedWave, index),
-      normalizedWave,
-      index + 1,
-      x,
-      y,
-      {boss:bossWave, now}
-    );
+export function buildAzuronPortalWave(wave, now = Date.now(), spawnContext = {}){
+  const definition = getAzuronWaveDefinition(wave);
+  const defeated = new Set(spawnContext.defeated || []);
+  return getAzuronSpawnPositions(wave).flatMap(({x, y}, index)=>{
+    if(defeated.has(`${definition.wave}:${index+1}`)) return [];
+    const enemy = createAzuronEnemy(definition.kind, definition.wave, index + 1, x, y, {now,runId:spawnContext.runId,portalId:spawnContext.portalId});
+    enemy.angle = Math.atan2(-y, -x);
+    return enemy;
   });
 }
 
@@ -98,6 +103,7 @@ export function grantAzuronLaserReward(profile, {random = Math.random} = {}){
     itemId:AZURON_LASER_ITEM_ID,
     awarded,
     firstClear,
+    guaranteed:firstClear,
     chance:firstClear ? 1 : AZURON_REPEAT_LASER_DROP_CHANCE
   };
 }
@@ -105,7 +111,9 @@ export function grantAzuronLaserReward(profile, {random = Math.random} = {}){
 export function createAzuronWaveRuntime({
   emitInstance,
   emitPortalComplete,
+  onBatchReady,
   buildWave = buildAzuronPortalWave,
+  getSpawnContext = ()=>({}),
   setTimeoutFn = setTimeout,
   clearTimeoutFn = clearTimeout,
   now = ()=>Date.now()
@@ -129,7 +137,7 @@ export function createAzuronWaveRuntime({
   function isCurrentAzuronInstance(group, instance){
     return group?.instance === instance
       && instance?.type === "portal"
-      && instance?.portal?.id === AZURON_PORTAL_ID
+      && isWavePortal(instance?.portal)
       && !instance.completed;
   }
 
@@ -138,7 +146,9 @@ export function createAzuronWaveRuntime({
     if(!isCurrentAzuronInstance(group, instance)) return false;
     const normalizedWave = Math.max(1, Math.min(AZURON_TOTAL_WAVES, Math.floor(Number(wave || 1))));
     instance.enemies = (instance.enemies || []).filter(enemy=>Number(enemy.hp || 0) > 0);
-    instance.enemies.push(...buildWave(normalizedWave, now()));
+    instance.enemies.push(...buildWave(normalizedWave, now(), {
+      ...getSpawnContext(group),portalId:instance.portal.id,runId:instance.azuronRunId || "",defeated:instance.azuronDefeated || []
+    }));
     instance.wave = normalizedWave;
     instance.azuronBatchLastSpawned = normalizedWave;
     if(emit) emitInstance?.(group);
@@ -166,6 +176,7 @@ export function createAzuronWaveRuntime({
         instance.nextWaveAt = Number(instance.azuronScheduledWaves[0]?.dueAt || 0);
         instance.waveState = instance.nextWaveAt > 0 ? "wave_countdown" : "clear_batch";
         spawnWave(group, wave);
+        handleEnemyDeath(group);
       }, (wave - batchStart) * AZURON_WAVE_INTERVAL_MS);
       timer?.unref?.();
       timerSet.add(timer);
@@ -174,26 +185,32 @@ export function createAzuronWaveRuntime({
     instance.waveState = instance.nextWaveAt > 0 ? "wave_countdown" : "clear_batch";
   }
 
-  function start(group, {emit = false} = {}){
+  function start(group, {emit = false, progress = null} = {}){
     const instance = group?.instance;
     if(!isCurrentAzuronInstance(group, instance)) return false;
     cancel(instance);
     instance.enemies = [];
     instance.wave = 0;
-    instance.azuronBatchStart = 1;
-    instance.azuronBatchEnd = AZURON_WAVES_PER_BATCH;
+    const firstWave = Math.max(1, Math.min(AZURON_TOTAL_WAVES, Number(progress?.nextWave || 1)));
+    instance.azuronRunId = String(progress?.runId || "");
+    instance.azuronDefeated = [...(progress?.defeated || [])];
+    instance.azuronBatchStart = firstWave;
+    instance.azuronBatchEnd = Math.min(AZURON_TOTAL_WAVES,firstWave+AZURON_WAVES_PER_BATCH-1);
     instance.azuronBatchLastSpawned = 0;
     instance.azuronScheduledWaves = [];
     instance.nextWaveAt = 0;
     instance.waveState = "wave_countdown";
-    spawnWave(group, 1, {emit});
-    scheduleBatchRemainder(group, 1);
+    instance.objective = {kind:"azuron",batchReady:false,nextWave:0,gates:[]};
+    spawnWave(group, firstWave, {emit:false});
+    scheduleBatchRemainder(group, firstWave);
+    if(emit) emitInstance?.(group);
     return true;
   }
 
   function handleEnemyDeath(group){
     const instance = group?.instance;
     if(!isCurrentAzuronInstance(group, instance)) return false;
+    if(instance.waveState === "batch_ready" || instance.waveState === "completed") return true;
     if((instance.enemies || []).some(enemy=>Number(enemy.hp || 0) > 0)){
       if(Number(instance.azuronBatchLastSpawned || 0) >= Number(instance.azuronBatchEnd || 0)){
         instance.waveState = "clear_batch";
@@ -207,15 +224,34 @@ export function createAzuronWaveRuntime({
     if(Number(instance.azuronBatchEnd || 0) >= AZURON_TOTAL_WAVES){
       instance.nextWaveAt = 0;
       instance.waveState = "completed";
+      instance.objective = {kind:"azuron",batchReady:true,nextWave:0,completed:true,gates:getAzuronStageGates({completed:true,portalId:instance.portal.id})};
       cancel(instance);
       emitPortalComplete?.(group);
       return true;
     }
     const nextBatchStart = Number(instance.azuronBatchEnd || 0) + 1;
-    spawnWave(group, nextBatchStart);
-    scheduleBatchRemainder(group, nextBatchStart);
+    cancel(instance);
+    instance.waveState = "batch_ready";
+    instance.nextWaveAt = 0;
+    instance.objective = {kind:"azuron",batchReady:true,nextWave:nextBatchStart,
+      gates:getAzuronStageGates({nextWave:nextBatchStart,portalId:instance.portal.id})};
+    onBatchReady?.(group,nextBatchStart);
+    emitInstance?.(group);
     return true;
   }
 
-  return {cancel, handleEnemyDeath, spawnWave, start};
+  function continueBatch(group){
+    const instance = group?.instance;
+    if(!isCurrentAzuronInstance(group,instance) || instance.waveState !== "batch_ready") return false;
+    const nextWave = Number(instance.objective?.nextWave || 0);
+    if(nextWave < 1 || nextWave > AZURON_TOTAL_WAVES) return false;
+    instance.azuronDefeated = [];
+    instance.objective = {kind:"azuron",batchReady:false,nextWave:0,gates:[]};
+    spawnWave(group,nextWave,{emit:false});
+    scheduleBatchRemainder(group,nextWave);
+    emitInstance?.(group);
+    return true;
+  }
+
+  return {cancel, handleEnemyDeath, spawnWave, start, continueBatch};
 }

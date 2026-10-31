@@ -31,6 +31,7 @@ export function createCombatActions({
   getRepairBotDelay,
   getLaserVolley,
   fireManualRocket,
+  fireManualSpecialLaser,
   fireManualMissile,
   openPortgunMap,
   getNpcAbilityStates,
@@ -497,6 +498,16 @@ export function createCombatActions({
     if(ammo.weaponClass === "rocket"){
       selectedRocketAmmoId = ammo.id;
       fireManualRocket(index, ammo);
+      updateGameActionBar();
+      return;
+    }
+
+    if(ammo.id === "ammo_x6" && typeof fireManualSpecialLaser === "function"){
+      activeLaserSlot = index;
+      rememberLaserAmmo(ammo);
+      // Selecting X6 immediately replaces regular fire, even during recharge.
+      // Dispatch a ready shot now so a subsequent key in this frame cannot erase it.
+      fireManualSpecialLaser(index, ammo);
       updateGameActionBar();
       return;
     }

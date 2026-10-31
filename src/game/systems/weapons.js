@@ -1,9 +1,11 @@
+import { getAmmoCooldownKey } from "../../shared/weaponCooldowns.js";
+
 export function createWeaponSystem(deps){
   let rocketSide = -1;
   let shotSequence = 1;
-  const pendingWeaponClasses = new Set();
+  const pendingCooldownKeys = new Set();
   const pendingShotsById = new Map();
-  const rejectedUntilByWeaponClass = new Map();
+  const rejectedUntilByCooldownKey = new Map();
 
   function isServerTarget(enemy){
     return Boolean(enemy?.isPlayerTarget || deps.isServerControlledEnemy?.(enemy));
@@ -48,8 +50,9 @@ export function createWeaponSystem(deps){
 
   function requestAuthoritativeShot(enemy, context, callbacks = {}){
     const weaponClass = String(context.weaponClass || "laser");
-    if(pendingWeaponClasses.has(weaponClass)) return false;
-    if(Date.now() < Number(rejectedUntilByWeaponClass.get(weaponClass) || 0)) return false;
+    const cooldownKey = getAmmoCooldownKey({id:context.ammoId, weaponClass});
+    if(pendingCooldownKeys.has(cooldownKey)) return false;
+    if(Date.now() < Number(rejectedUntilByCooldownKey.get(cooldownKey) || 0)) return false;
     const send = enemy?.isPlayerTarget ? deps.sendServerPlayerHit : deps.sendServerEnemyHit;
     const targetId = enemy?.isPlayerTarget
       ? String(enemy.playerId || "")
@@ -59,17 +62,17 @@ export function createWeaponSystem(deps){
       return false;
     }
 
-    pendingWeaponClasses.add(weaponClass);
+    pendingCooldownKeys.add(cooldownKey);
     const shotId = String(context.shotId || "");
     const requestedAt = Date.now();
     let callbackRan = false;
     const acknowledge = response=>{
       if(callbackRan) return;
       callbackRan = true;
-      pendingWeaponClasses.delete(weaponClass);
+      pendingCooldownKeys.delete(cooldownKey);
       if(shotId) pendingShotsById.delete(shotId);
       if(response?.accepted === true){
-        rejectedUntilByWeaponClass.delete(weaponClass);
+        rejectedUntilByCooldownKey.delete(cooldownKey);
         deps.markCombatActivity?.("outgoing");
         if(enemy) enemy.aggro = true;
         callbacks.onAccepted?.({
@@ -79,13 +82,13 @@ export function createWeaponSystem(deps){
         return;
       }
       const retryAfterMs = Math.max(0, Math.min(5000, Number(response?.retryAfterMs || 0)));
-      rejectedUntilByWeaponClass.set(weaponClass, Date.now() + Math.max(150, retryAfterMs));
+      rejectedUntilByCooldownKey.set(cooldownKey, Date.now() + Math.max(150, retryAfterMs));
       callbacks.onRejected?.(response || rejectResponse("invalid-ack", "Tir non confirme."));
     };
     if(shotId) pendingShotsById.set(shotId, acknowledge);
     const sent = send(targetId, context, acknowledge);
     if(sent !== true){
-      pendingWeaponClasses.delete(weaponClass);
+      pendingCooldownKeys.delete(cooldownKey);
       if(!callbackRan) acknowledge(rejectResponse("not-sent", "Tir non envoye."));
       return false;
     }
@@ -221,7 +224,7 @@ export function createWeaponSystem(deps){
     }
     const startX = player.x + Math.cos(angle) * 45;
     const startY = player.y + Math.sin(angle) * 45;
-    return requestAuthoritativeShot(
+    const sent = requestAuthoritativeShot(
       enemy,
       baseShotContext({
         enemy,
@@ -241,9 +244,24 @@ export function createWeaponSystem(deps){
           );
           callbacks.onAccepted?.(response);
         },
-        onRejected:callbacks.onRejected
+        onRejected:response=>{
+          if(ammo.id === "ammo_x6" && ["COOLDOWN", "NO_AMMO"].includes(response?.reasonCode)){
+            if(response.reasonCode === "COOLDOWN" && response.retryAfterMs > 0){
+              deps.setAmmoCooldown?.(ammo, response.retryAfterMs / 1000);
+            }
+          }
+          callbacks.onRejected?.(response);
+        }
       }
     );
+    return sent;
+  }
+
+  function fireManualSpecialLaser(index, ammo){
+    if(ammo?.id !== "ammo_x6" || deps.getAmmoCooldown(ammo) > 0) return false;
+    const enemy = deps.getSelectedEnemy();
+    if(!enemy) return false;
+    return shootAt(enemy, ammo, index);
   }
 
   function fireManualRocket(index, ammo){
@@ -343,19 +361,21 @@ export function createWeaponSystem(deps){
 
     const ammo = deps.getCombatAmmo(activeLaserSlot);
     if(!ammo || ammo.weaponClass === "rocket") return;
-    if(getLaserVolley().count <= 0) return;
+    const volley = getLaserVolley();
+    if(volley.count <= 0) return;
     if(deps.getAmmoCooldown(ammo) <= 0) shootAt(enemy, ammo, activeLaserSlot);
   }
 
   return {
     getLaserVolley,
     shootAt,
+    fireManualSpecialLaser,
     fireManualRocket,
     fireManualMissile,
     fireAutomaticRocket,
     updateWeapons,
     confirmAuthoritativeShot,
     rejectAuthoritativeShot,
-    hasPendingShot:weaponClass=>pendingWeaponClasses.has(String(weaponClass || ""))
+    hasPendingShot:cooldownKey=>pendingCooldownKeys.has(String(cooldownKey || ""))
   };
 }

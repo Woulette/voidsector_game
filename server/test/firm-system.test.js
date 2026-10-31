@@ -221,8 +221,9 @@ test("firm seasonal personal objectives award points once and expose a direct cl
 
 test("firm pvp anti-farm reduces repeated daily target rewards", async ()=>{
   const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-system-"));
+  let manager = null;
   try{
-    const manager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1_000});
+    manager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>1_000});
     await manager.load();
     const points = [];
     for(let i = 0; i < 7; i++){
@@ -236,7 +237,15 @@ test("firm pvp anti-farm reduces repeated daily target rewards", async ()=>{
     const objective = manager.snapshot({playerKey:"account:a", profile:{player:{firmId:"astra"}}}).seasonObjectives
       .find(entry=>entry.completedAt && entry.claimable);
     assert.ok(objective);
+    const kill=()=>manager.recordPlayerKill({attacker:{key:"account:a",name:"Alpha",firmId:"astra"},targetKey:"account:b"});
+    for(let index=7;index<10;index++) assert.equal(kill().points,5);
+    const before=manager.snapshot({playerKey:"account:a",profile:{player:{firmId:"astra"}}});
+    for(let index=10;index<14;index++) assert.equal(kill().points,0);
+    const after=manager.snapshot({playerKey:"account:a",profile:{player:{firmId:"astra"}}});
+    assert.equal(after.personal.contribution,before.personal.contribution);
+    assert.deepEqual(after.seasonObjectives,before.seasonObjectives,"unrewarded kills cannot advance season objectives");
   }finally{
+    await manager?.flushPersistence();
     await rm(dir, {recursive:true, force:true});
   }
 });
@@ -244,8 +253,9 @@ test("firm pvp anti-farm reduces repeated daily target rewards", async ()=>{
 test("collective season reward requires ten thousand personal points", async ()=>{
   let now = 10_000;
   const dir = await mkdtemp(join(tmpdir(), "voidsector-firm-threshold-"));
+  let manager = null;
   try{
-    const manager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>now});
+    manager = createFirmWarManager({file:join(dir, "firmWar.json"), logger:{warn(){}}, now:()=>now});
     await manager.load();
     manager.addFirmPoints("astra", FIRM_COLLECTIVE_MIN_CONTRIBUTION, {key:"account:eligible", name:"Eligible", firmId:"astra"});
     manager.addFirmPoints("astra", FIRM_COLLECTIVE_MIN_CONTRIBUTION - 1, {key:"account:short", name:"Short", firmId:"astra"});
@@ -259,6 +269,7 @@ test("collective season reward requires ten thousand personal points", async ()=
     assert.notDeepEqual(manager.getActiveBoosters("astra", {}, null, "account:eligible"), {});
     assert.deepEqual(manager.getActiveBoosters("astra", {}, null, "account:short"), {});
   }finally{
+    await manager?.flushPersistence();
     await rm(dir, {recursive:true, force:true});
   }
 });

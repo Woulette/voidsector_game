@@ -290,12 +290,15 @@ test("only server-controlled ground loot can request a pickup", ()=>{
 
   assert.equal(localLoot, null);
   assert.equal(requests, 0);
-  assert.equal(cargo.collectGroundMaterial(serverLoot), true);
+  assert.equal(cargo.collectGroundMaterial(serverLoot, {x:0,y:-48,hp:100}), true);
   assert.equal(requests, 1);
+  assert.equal(toasts.length, 0);
+  assert.equal(lootNotices.length, 0);
+  cargo.handleServerEvent("loot:picked", {id:serverLoot.uid});
   assert.equal(toasts.at(-1)?.options?.trustedHtml, true);
   assert.match(toasts.at(-1)?.message || "", /loot-rarity-token rarity-rare/);
   assert.match(toasts.at(-1)?.message || "", /Rare<\/span> : Butin serveur/);
-  assert.equal(lootNotices.at(-1)?.piece, "Rare : Butin serveur envoyé au serveur");
+  assert.equal(lootNotices.at(-1)?.piece, "Rare : Butin serveur");
 });
 
 test("profile sync sends preferences only, never critical MMO progression", ()=>{

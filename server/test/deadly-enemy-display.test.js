@@ -9,7 +9,7 @@ test("Deadly enemies expose proper leaderboard names, images and level", ()=>{
     assert.equal(enemy.kind, kind);
     assert.ok(enemy.name);
     assert.match(enemy.img, /^assets\/enemies\/deadly\/.+\.webp$/);
-    assert.deepEqual(enemy.levelRange, [20, 20]);
+    assert.deepEqual(enemy.levelRange, [10, 10]);
   }
 });
 

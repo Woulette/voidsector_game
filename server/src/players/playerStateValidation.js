@@ -1,4 +1,8 @@
 import { getPlayerInstanceGroup } from "../portals/portalSessions.js";
+import { AZURON_PORTAL_MAP } from "../../../src/data/azuronPortal.js";
+import { isWavePortal } from "../../../src/data/wavePortalTiers.js";
+import { getSlowedMovementSpeed } from "../../../src/shared/movementSlow.js";
+import { getRankById, getRankForScore, getRankAssetPath } from "../../../src/data/ranks.js";
 import { canAccountRoleAccessShip, ships } from "../../../src/data/ships.js";
 import { droneFormations } from "../../../src/data/equipment.js";
 import { skills } from "../../../src/data/progression.js";
@@ -289,6 +293,7 @@ function clampPointToMap(point, map){
 function getTrustedStateMap(mapId){
   const id = String(mapId ?? "");
   if(WORLD_MAPS[id]) return WORLD_MAPS[id];
+  if(isWavePortal(id)) return {...AZURON_PORTAL_MAP,strictBoundsPadding:65};
   if(id === `portal-${PRISMATIC_PORTAL_ID}`){
     return {...PRISMATIC_PORTAL_MAP, strictBoundsPadding:65};
   }
@@ -358,6 +363,8 @@ function canChangeMap({player, previous, nextMapId, nextPoint, groups, profile})
   if(nextMapId === previousMapId) return true;
   if(instanceMapAllowed(player, nextMapId, groups)) return true;
   if(previousMapId.startsWith("portal-")){
+    // Azuron exits are committed by the server after the four-second transfer.
+    if(isWavePortal(previousMapId)) return false;
     const group = getPlayerInstanceGroup(player, groups);
     if(group?.instance?.type !== "portal" || !group.instance.completed) return false;
     const nextMap = WORLD_MAPS[nextMapId];
@@ -384,12 +391,12 @@ function canChangeMap({player, previous, nextMapId, nextPoint, groups, profile})
 
 function getActiveMovementSlow(player, now = Date.now()){
   const slow = player?.statusEffects?.slow;
-  if(!slow || now >= Number(slow.expiresAt || 0)) return 0;
-  return Math.max(0, Number(slow.amount || 0));
+  if(!slow || now >= Number(slow.expiresAt || 0)) return null;
+  return slow;
 }
 
 function getEffectiveMovementSpeed(profile, ship, player, now = Date.now()){
-  return Math.max(1, getTrustedMovementSpeed(profile, ship) - getActiveMovementSlow(player, now));
+  return getSlowedMovementSpeed(getTrustedMovementSpeed(profile, ship), getActiveMovementSlow(player, now));
 }
 
 function allowedMovementDistance(profile, ship, elapsedSeconds, player, now){
@@ -450,13 +457,18 @@ function validateVitals({player, previous, payload, profile, ship, firmBoosters,
     return {hp:0, maxHp, shield:0, maxShield, firmHullMultiplier:hullMultiplier, firmShieldMultiplier:shieldMultiplier};
   }
   const requestedHp = finite(payload?.hp, previousHp);
-  const repairHealRate = getRepairBotHealRate(profile);
-  const repairTickAllowance = maxHp * repairHealRate + 5;
+  const repairConfig = getRepairBotConfig(profile);
+  const repairTickAllowance = maxHp * repairConfig.healRate + 5;
+  const lastDamageAt = finite(player?.lastServerDamageAt);
+  const poisonActive = now < finite(player?.statusEffects?.poison?.expiresAt);
+  // A snapshot captured before a hit is not a heal. Match the repair cooldown,
+  // including poison ticks, before accepting any client-reported hull recovery.
+  const canHeal = !poisonActive && (lastDamageAt <= 0 || now - lastDamageAt >= repairConfig.delay * 1000);
   const repairTickReady = now - finite(player?.lastRepairBotHealAt) >= 850;
-  const isRepairTick = requestedHp > previousHp
+  const isRepairTick = canHeal && requestedHp > previousHp
     && requestedHp - previousHp <= repairTickAllowance
     && repairTickReady;
-  const hpHealAllowance = safeRespawn
+  const hpHealAllowance = !canHeal ? 0 : safeRespawn
     ? maxHp
     : Math.max(maxHp * 0.04 * elapsedSeconds + 5, isRepairTick ? repairTickAllowance : 0);
   const shieldRegenAllowance = safeRespawn ? maxShield : maxShield * 0.18 * elapsedSeconds + 25;
@@ -478,8 +490,9 @@ function addCombatCorrectionDetail(details, field, clientValue, serverValue, tol
   details.push({field, client, server});
 }
 
-export function validatePlayerState({player, payload, profile, groups, firmBoosters = {}, now = Date.now()} = {}){
+export function validatePlayerState({player, payload, profile, groups, firmBoosters = {}, rankAssignment = null, now = Date.now()} = {}){
   const previous = player?.state || null;
+  const rank = rankAssignment?.source === "server" ? getRankById(rankAssignment.rankId) : getRankForScore(Number(profile?.player?.rankScore || 0));
   const pilotIdentity = getPublicPilotIdentity(profile);
   if(previous && player?.deathState){
     return {
@@ -690,13 +703,15 @@ export function validatePlayerState({player, payload, profile, groups, firmBoost
       shipImg:String(payload?.shipImg || previous?.shipImg || ship.combatImg || ship.img || ""),
       level:Math.max(1, Math.floor(finite(profile?.player?.level, previous?.level || 1))),
       speed:getEffectiveMovementSpeed(profile, ship, player, now),
+      baseMovementSpeed:getTrustedMovementSpeed(profile, ship),
       radius:Math.max(32, Math.min(96, finite(payload?.radius, previous?.radius || 48))),
       droneCount:droneState.droneCount,
       droneUpgrades:droneState.droneUpgrades,
       activeDroneFormation:droneState.activeDroneFormation,
       shieldAbsorbRatio:getTrustedShieldAbsorbRatio(profile),
-      rankName:String(payload?.rankName || previous?.rankName || "").slice(0, 48),
-      rankAssetPath:String(payload?.rankAssetPath || previous?.rankAssetPath || "").slice(0, 180),
+      rankId:rank.id,
+      rankName:rank.name,
+      rankAssetPath:getRankAssetPath(rank),
       ...pilotIdentity,
       moveTarget,
       lockedTargetId:String(payload?.lockedTargetId || "").slice(0, 100),

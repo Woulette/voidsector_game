@@ -1,5 +1,6 @@
 import { markProfileSaveAcknowledged } from "./profileSync.js?v=20260726-kharon1";
 import { countCombatProfiler } from "../game/systems/combatFrameProfiler.js?v=20260726-kharon1";
+import { clearServerRankAssignment, setServerRankAssignment, setServerRankSnapshot } from "../core/rankAuthorityStore.js";
 
 function pushEvent(target, event, limit){
   target.push({...event, receivedAt:performance.now()});
@@ -25,12 +26,15 @@ export function installPlayerSocketListeners({
   emitChange,
   toast
 }){
+  clearServerRankAssignment();
+  socket.on("disconnect", clearServerRankAssignment);
   socket.on("auth:required", payload=>{
     multiplayer.auth.profileReady = false;
     toast(payload?.message || "Compte MMO requis pour jouer.");
     emitChange("auth:required", payload);
   });
   socket.on("profile:sync", profile=>{
+    setServerRankAssignment(profile?.rankAssignment, multiplayer.auth.account?.id ? `account:${multiplayer.auth.account.id}` : profile?.rankAssignment?.key);
     multiplayer.auth.profileReady = true;
     if(profile && Object.hasOwn(profile, "preparedPortal")){
       multiplayer.preparedPortal = profile.preparedPortal
@@ -38,6 +42,11 @@ export function installPlayerSocketListeners({
         : null;
     }
     requestSocialSync?.();
+    // The full profile supersedes totals from earlier rewards still awaiting a frame.
+    // Keep those events so their loot notices and combat logs are displayed.
+    if(profile?.player){
+      for(const reward of multiplayer.playerRewardEvents || []) delete reward.progression;
+    }
     window.dispatchEvent(new CustomEvent("voidsector:profile-sync", {detail:{profile}}));
     emitChange("profile:sync", profile);
   });
@@ -97,6 +106,7 @@ export function installPlayerSocketListeners({
     emitChange();
   });
   socket.on("leaderboard:ranking", payload=>{
+    setServerRankSnapshot(payload, multiplayer.auth.account?.id);
     backgroundSync?.markReceived("leaderboard:sync");
     multiplayer.leaderboardRanking = payload || null;
     multiplayer.leaderboardSync = {
@@ -104,6 +114,10 @@ export function installPlayerSocketListeners({
       lastReceivedAt:Date.now()
     };
     emitChange("leaderboard:ranking", payload);
+  });
+  socket.on("rank:updated", assignment=>{
+    setServerRankAssignment(assignment, multiplayer.auth.account?.id ? `account:${multiplayer.auth.account.id}` : "");
+    emitChange("leaderboard:ranking", multiplayer.leaderboardRanking);
   });
   socket.on("player:state", upsertRemotePlayer);
   socket.on("player:laser", addRemoteEffect);
@@ -115,7 +129,10 @@ export function installPlayerSocketListeners({
     countCombatProfiler("socket.playerDamage", 1);
     pushEvent(multiplayer.playerDamageEvents, event, 40);
   });
-  socket.on("player:death", event=>pushEvent(multiplayer.playerDeathEvents, event, 10));
+  socket.on("player:death", event=>{
+    pushEvent(multiplayer.playerDeathEvents, event, 10);
+    emitChange("player:death", event);
+  });
   socket.on("player:respawned", event=>pushEvent(multiplayer.playerRespawnEvents, event, 10));
   socket.on("portgun:started", event=>{
     pushEvent(multiplayer.portgunEvents, {type:"started", ...event}, 10);
@@ -141,7 +158,25 @@ export function installPlayerSocketListeners({
   });
   socket.on("player:status-effect", event=>pushEvent(multiplayer.playerStatusEffectEvents, event, 20));
   socket.on("player:reward", event=>pushEvent(multiplayer.playerRewardEvents, event, 40));
+  socket.on("pvp:defense", event=>{
+    multiplayer.pvpDefenseRights ||= new Map();
+    const now = Date.now();
+    for(const [key, expiry] of multiplayer.pvpDefenseRights) if(expiry <= now) multiplayer.pvpDefenseRights.delete(key);
+    multiplayer.pvpDefenseRights.set(String(event?.aggressorAccountId || event?.aggressorId || ""), Number(event?.expiresAt || 0));
+  });
+  socket.on("pvp:penalty", event=>{
+    toast(`Pilote allié détruit : -${Number(event?.penalty || 0).toLocaleString("fr-FR")} réputation. Sept jours sans récidive pour revenir au premier malus.`);
+    emitChange("pvp:penalty", event);
+  });
+  socket.on("pvp:neutral", event=>{
+    toast(event?.kind === "self-defense" ? "Légitime défense : aucun malus, aucune récompense."
+      : event?.kind === "repeat-limit" ? "Dix éliminations de cette cible aujourd'hui : aucune récompense supplémentaire."
+      : "Cible alliée éliminée : aucun malus, aucune récompense.");
+    emitChange("pvp:neutral", event);
+  });
+  socket.on("pvp:error", event=>toast(event?.message || "Résultat PvP non confirmé."));
   socket.on("loot:drop", event=>pushEvent(multiplayer.lootDropEvents, event, 40));
+  socket.on("loot:collection", event=>emitChange("loot:collection", event));
   socket.on("loot:picked", event=>{
     pushEvent(multiplayer.lootPickupEvents, event, 40);
     emitChange("loot:picked", event);

@@ -1,6 +1,11 @@
-// Only the distant sky fades here. Planets and other depth layers draw afterwards.
+const DEFAULT_SCENERY_FADE = Object.freeze({inside:900, outside:120});
+
+// The same world-space boundary covers every decorative layer, including legacy maps.
 export function getMapScenerySkyFadeBands({map, camera, width, height}){
-  const fade = map?.parallaxScene?.skyFade;
+  if(!Number.isFinite(map?.width) || !Number.isFinite(map?.height) || map.width <= 0 || map.height <= 0) return [];
+  // An explicit null is used by fixed minimap captures; an absent setting uses the shared fade.
+  const configured = map?.parallaxScene?.skyFade;
+  const fade = configured === undefined ? DEFAULT_SCENERY_FADE : configured;
   if(!(fade?.inside > 0)) return [];
   const inside = fade.inside, outside = Math.max(0, fade.outside || 0);
   const bands = [];

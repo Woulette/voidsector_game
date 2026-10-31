@@ -64,7 +64,7 @@ export function createProfileController({
     loadState();
     store.hangarDetailOpen = false;
     store.hangarTab = "vaisseau";
-    store.currentView = "hangar";
+    store.currentView = "home";
     if(appMode === "game" && game.running) game.refreshActiveLoadout?.();
     renderAll();
     return true;
@@ -97,7 +97,6 @@ export function createProfileController({
     const localOwnedShips = store.state.ownedShips;
     const incomingOwnedShips = Array.isArray(profile.ownedShips) ? profile.ownedShips.map(String) : null;
     const keepLocalSelectedShip = store.currentView === "hangar"
-      && store.hangarTab === "vaisseau"
       && typeof localSelectedShip === "string"
       && (incomingOwnedShips ? incomingOwnedShips.includes(localSelectedShip) : store.state.ownedShips.includes(localSelectedShip));
     if(profile.player) store.state.player = {...store.state.player, ...clone(profile.player)};
@@ -143,9 +142,13 @@ export function createProfileController({
     if(keepLocalPreferences) store.state.lastLaserAmmoId = typeof localLastLaserAmmoId === "string" ? localLastLaserAmmoId : null;
     if(profile.shipLoadouts && typeof profile.shipLoadouts === "object") store.state.shipLoadouts = clone(profile.shipLoadouts);
     if(Array.isArray(profile.unlockedPortals)) store.state.unlockedPortals = [...new Set(profile.unlockedPortals.map(String))];
+    if(Object.hasOwn(profile,"portalAttempt")) store.state.portalAttempt=profile.portalAttempt ? clone(profile.portalAttempt) : null;
+    if(Object.hasOwn(profile,"portalAttemptsVersion")) store.state.portalAttemptsVersion=profile.portalAttemptsVersion;
     if(Object.hasOwn(profile, "prestigeCount")) store.state.prestigeCount = Math.min(1, Math.max(0, Math.floor(Number(profile.prestigeCount || 0))));
     if(Number.isFinite(Number(profile.ownedDroneCount))) store.state.ownedDroneCount = Math.max(0, Math.floor(Number(profile.ownedDroneCount)));
     if(Array.isArray(profile.droneLoadout)) store.state.droneLoadout = clone(profile.droneLoadout);
+    if(Array.isArray(profile.droneSkinLoadout)) store.state.droneSkinLoadout = clone(profile.droneSkinLoadout);
+    if(Number.isFinite(Number(profile.droneSkinLoadoutVersion))) store.state.droneSkinLoadoutVersion = Math.max(0, Math.floor(Number(profile.droneSkinLoadoutVersion)));
     if(profile.dronePermanentUpgrades && typeof profile.dronePermanentUpgrades === "object") store.state.dronePermanentUpgrades = clone(profile.dronePermanentUpgrades);
     if(profile.equipmentUpgrades && typeof profile.equipmentUpgrades === "object") store.state.equipmentUpgrades = clone(profile.equipmentUpgrades);
     if(Array.isArray(profile.ownedDroneFormations)) store.state.ownedDroneFormations = [...new Set(profile.ownedDroneFormations.map(String))];

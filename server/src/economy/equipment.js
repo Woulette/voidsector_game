@@ -3,6 +3,9 @@ import { rawMaterialCatalog } from "../../../src/data/progression.js";
 import {ships} from "../../../src/data/ships.js";
 import { findMatchingExtraGroupIndex, getExtraEquipGroup } from "../../../src/shared/equipmentRules.js";
 import { hasCompletedProgressionPortal, PROGRESSION_UNLOCKS } from "../../../src/shared/progressionUnlocks.js";
+import { ensureDroneSkinLoadout, getEquippedDroneSkinItem, syncDroneSkinCompatibility } from "./droneSkins.js";
+
+export { ensureDroneSkinLoadout, getEquippedDroneSkinItem, syncDroneSkinCompatibility } from "./droneSkins.js";
 
 export const DRONE_OVERDRIVE_UPGRADE_ID = "drone_overdrive_chip";
 export const DRONE_OVERDRIVE_UNLOCK_PORTAL_ID = "violet";
@@ -71,8 +74,7 @@ export function getDronePermanentUpgradeItem(profile, index){
   const targetIndex = Number(index);
   if(!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= getOwnedServerDroneCount(profile)) return null;
   if(!hasDronePermanentUpgradeAccess(profile)) return null;
-  const upgradeId = profile?.dronePermanentUpgrades?.[targetIndex];
-  const item = upgradeId ? getServerItem(String(upgradeId)) : null;
+  const item = getEquippedDroneSkinItem(profile, targetIndex);
   return isSupportedDronePermanentUpgradeItem(item) ? item : null;
 }
 
@@ -204,6 +206,12 @@ export function cleanupDuplicateEquippedInventoryUids(profile){
     if(next.some((uid, index)=>uid !== profile.droneLoadout[index])) changed = true;
     profile.droneLoadout = next;
   }
+  if(Array.isArray(profile.droneSkinLoadout)){
+    const next = profile.droneSkinLoadout.map(keepOnce);
+    if(next.some((uid, index)=>uid !== profile.droneSkinLoadout[index])) changed = true;
+    profile.droneSkinLoadout = next;
+  }
+  syncDroneSkinCompatibility(profile);
   return changed;
 }
 
@@ -222,6 +230,9 @@ export function findEquippedSlot(profile, uid){
   const drones = ensureDroneLoadout(profile);
   const droneIndex = drones.indexOf(uid);
   if(droneIndex >= 0) return {location:"drone", type:"drone", index:droneIndex};
+  const skins = ensureDroneSkinLoadout(profile);
+  const skinIndex = skins.indexOf(uid);
+  if(skinIndex >= 0) return {location:"drone", type:"droneSkin", index:skinIndex};
   return null;
 }
 
@@ -229,7 +240,10 @@ export function unequipInventoryUid(profile, uid){
   const equipped = findEquippedSlot(profile, uid);
   if(!equipped) return false;
   if(equipped.location === "drone"){
-    ensureDroneLoadout(profile)[equipped.index] = null;
+    if(equipped.type === "droneSkin"){
+      ensureDroneSkinLoadout(profile)[equipped.index] = null;
+      syncDroneSkinCompatibility(profile);
+    }else ensureDroneLoadout(profile)[equipped.index] = null;
     return true;
   }
   const loadout = ensureProfileLoadout(profile, equipped.shipId);
@@ -243,6 +257,7 @@ export function unequipInventoryUid(profile, uid){
 }
 
 export function equipInventoryUid(profile, {type, index = 0, inventoryUid, shipId} = {}){
+  if(type === "droneSkin") return equipDroneSkin(profile, {index, inventoryUid});
   const uid = String(inventoryUid || "");
   const item = getItemFromInventoryUid(profile, uid);
   if(!item) return {ok:false, reason:"Objet introuvable dans l'inventaire."};
@@ -310,6 +325,15 @@ export function equipInventoryUid(profile, {type, index = 0, inventoryUid, shipI
 }
 
 export function unequipSlot(profile, {type, index = 0, shipId} = {}){
+  if(type === "droneSkin"){
+    const target = Number(index);
+    if(index === null || typeof index === "boolean" || String(index).trim() === "" || !Number.isInteger(target) || target < 0) return {ok:false, reason:"Emplacement de skin invalide."};
+    const skins = ensureDroneSkinLoadout(profile);
+    if(target >= skins.length) return {ok:false, reason:"Aucun drone a cet emplacement."};
+    skins[target] = null;
+    syncDroneSkinCompatibility(profile);
+    return {ok:true};
+  }
   const targetIndex = Math.max(0, Math.floor(Number(index || 0)));
   if(type === "drone"){
     const drones = ensureDroneLoadout(profile);
@@ -354,10 +378,10 @@ export function unequipShipLoadout(profile, {shipId} = {}){
   return {ok:true, shipId:ship.id, count:equippedCount};
 }
 
-export function applyDronePermanentUpgrade(profile, {index = 0, inventoryUid} = {}){
+export function equipDroneSkin(profile, {index = 0, inventoryUid} = {}){
   const uid = String(inventoryUid || "");
   const requestedIndex = Number(index);
-  if(!Number.isInteger(requestedIndex) || requestedIndex < 0) return {ok:false, reason:"Emplacement de drone invalide."};
+  if(index === null || typeof index === "boolean" || String(index).trim() === "" || !Number.isInteger(requestedIndex) || requestedIndex < 0) return {ok:false, reason:"Emplacement de drone invalide."};
   const targetIndex = requestedIndex;
   const drones = ensureDroneLoadout(profile);
   if(targetIndex >= drones.length) return {ok:false, reason:"Aucun drone a cet emplacement."};
@@ -367,12 +391,18 @@ export function applyDronePermanentUpgrade(profile, {index = 0, inventoryUid} = 
   const item = entry ? getServerItem(entry.itemId) : null;
   if(!isSupportedDronePermanentUpgradeItem(item)) return {ok:false, reason:"Cet objet n'est pas compatible avec ce drone de combat."};
   if(!hasDronePermanentUpgradeAccess(profile)) return {ok:false, reason:"Terminez d'abord La Faille de Vesper."};
-  if(!profile.dronePermanentUpgrades || typeof profile.dronePermanentUpgrades !== "object") profile.dronePermanentUpgrades = {};
-  if(getDronePermanentUpgradeItem(profile, targetIndex)) return {ok:false, reason:`Drone ${targetIndex + 1} deja ameliore.`};
-  delete profile.dronePermanentUpgrades[targetIndex];
-  profile.dronePermanentUpgrades[targetIndex] = item.id;
-  profile.inventoryItems.splice(entryIndex, 1);
-  return {ok:true, item, target:{location:"drone", type:"upgrade", index:targetIndex}};
+  const skins = ensureDroneSkinLoadout(profile);
+  const previous = skins[targetIndex];
+  if(previous && previous !== uid) unequipInventoryUid(profile, previous);
+  unequipInventoryUid(profile, uid);
+  profile.droneSkinLoadout[targetIndex] = uid;
+  syncDroneSkinCompatibility(profile);
+  return {ok:true, item, target:{location:"drone", type:"droneSkin", index:targetIndex}};
+}
+
+// Legacy clients still send this command; it now equips the real item without consuming it.
+export function applyDronePermanentUpgrade(profile, options = {}){
+  return equipDroneSkin(profile, options);
 }
 
 function getUpgradeableItem(id){

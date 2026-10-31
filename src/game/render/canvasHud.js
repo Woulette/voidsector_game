@@ -1,63 +1,10 @@
-import { drawMiniMapScenery } from "./miniMapScenery.js?v=20261023-minimap4";
+import { drawMiniMapScenery } from "./miniMapScenery.js?v=20261023-minimap5";
 import {
   drawMiniMapFrame, drawMiniMapBorder,
   drawMiniMapService, drawMiniMapHome, drawMiniMapPortal, drawMiniMapPilot, drawMiniMapRoute
-} from "./miniMapChrome.js?v=20261023-minimap4";
-
-const DAMAGE_TEXT_DETAIL_LIMIT = 8;
-
-export function drawDamageTexts({ctx, camera, damageTexts}){
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  const detailedText = damageTexts.length <= DAMAGE_TEXT_DETAIL_LIMIT;
-  for(const t of damageTexts){
-    const a = Math.max(0, t.life / t.max);
-    const progress = Math.max(0, Math.min(1, 1 - a));
-    const label = typeof t.value === "string" ? t.value : `-${t.value}`;
-    const isMiss = label === "MISS";
-    const isLevelUp = t.kind === "levelUp";
-    const isNumber = !Number.isNaN(Number(t.value));
-    const pop = Math.sin(Math.min(1, progress / .28) * Math.PI);
-    const grow = 1 - Math.pow(1 - progress, 2.2);
-    const jitter = isLevelUp ? 0 : Math.sin(progress * Math.PI * 8 + (t.wobble || 0)) * (1 - progress) * (isMiss ? .6 : 1.2);
-    const fade = Math.min(1, a * 1.65);
-    const size = isLevelUp
-      ? 28 + grow * 9 + pop * 5
-      : isMiss ? 15 + grow * 3 + pop * 2 : 16 + grow * 8 + pop * 4;
-    const x = t.x - camera.x + jitter;
-    const y = t.y - camera.y;
-    const fill = t.color ? `${t.color}${fade})` : `rgba(255,78,64,${fade})`;
-    const glow = t.shadowColor || (isNumber ? "rgba(255,70,42,.95)" : "rgba(96,165,250,.82)");
-
-    ctx.font = `900 ${size}px Rajdhani, Arial`;
-    ctx.lineJoin = "round";
-    ctx.shadowColor = glow;
-    ctx.shadowBlur = isLevelUp ? 22 + pop * 18 : detailedText ? (isMiss ? 8 + pop * 5 : 11 + pop * 22 + grow * 6) : (isMiss ? 5 : 7);
-    ctx.strokeStyle = isLevelUp ? `rgba(1,8,18,${fade})` : `rgba(22,2,5,${fade})`;
-    ctx.lineWidth = isLevelUp ? 5.5 : detailedText ? (isMiss ? 3 : 3.5 + pop * 1.5) : (isMiss ? 2.5 : 3);
-    ctx.strokeText(label, x, y);
-    ctx.fillStyle = fill;
-    ctx.fillText(label, x, y);
-
-    if(isLevelUp){
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = fade * .72;
-      ctx.strokeStyle = `rgba(125,211,252,${fade * .78})`;
-      ctx.lineWidth = 1.6;
-      ctx.strokeText(label, x, y + 1);
-      ctx.globalAlpha = 1;
-    }else if(detailedText && !isMiss){
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = fade * (0.22 + grow * 0.18);
-      ctx.strokeStyle = t.shadowColor || "rgba(255,112,67,.72)";
-      ctx.lineWidth = 1.4;
-      ctx.strokeText(label, x, y);
-      ctx.globalAlpha = 1;
-    }
-  }
-  ctx.restore();
-}
+} from "./miniMapChrome.js?v=20261023-minimap5";
+import { drawDamageTexts } from "./damageTexts.js";
+export { drawDamageTexts };
 
 let combatHudTextWarmupStarted = false;
 
@@ -137,6 +84,7 @@ export function drawMiniMap({
   stations = currentMap?.spawnStations || currentMap?.questStations || [],
   player,
   enemies,
+  selectedEnemy = null,
   rect,
   moveTarget,
   revealAllEnemies = false,
@@ -455,13 +403,19 @@ export function drawMiniMap({
   }
   ctx.strokeStyle = "rgba(126,219,242,.24)";
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(mapX(player.x),mapY(player.y),Math.max(5,player.radar*sx),0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(mapX(player.x),mapY(player.y),Math.max(5,player.radar*sx),Math.max(3,player.radar*sy),0,0,Math.PI*2); ctx.stroke();
   if(moveTarget){
     drawMiniMapRoute({ctx, fromX:mapX(player.x), fromY:mapY(player.y),
       toX:mapX(moveTarget.x), toY:mapY(moveTarget.y)});
   }
+  const selectedEnemyId = selectedEnemy && !selectedEnemy.isPlayerTarget
+    ? selectedEnemy.serverId || selectedEnemy.id
+    : null;
   for(const e of enemies){
-    if(!revealAllEnemies && Math.hypot(e.x-player.x,e.y-player.y) > player.radar) continue;
+    if(e.hp <= 0) continue;
+    const isSelected = selectedEnemyId != null && (e.serverId || e.id) === selectedEnemyId;
+    // A lock keeps its live marker across the sector; other monsters retain radar visibility.
+    if(!isSelected && !revealAllEnemies && Math.hypot(e.x-player.x,e.y-player.y) > player.radar) continue;
     const renderMode = String(e?.renderMode || "");
     if(renderMode === "vesper_cage" || renderMode === "prismatic_planet" || renderMode === "prismatic_boss") continue;
     const ex = mapX(e.x);

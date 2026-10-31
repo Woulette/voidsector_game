@@ -1,3 +1,5 @@
+import { RICKY_SHOT_VISUAL_FIELDS } from "../data/rickyVisuals.js?v=20261024-ricky-visuals1";
+import { isWavePortal } from "../data/wavePortalTiers.js";
 import {
   isVesperPortal,
   normalizeVesperObjective,
@@ -34,8 +36,12 @@ function pushEvent(target, event, limit){
   if(target.length > limit) target.splice(0, target.length - limit);
 }
 
-function normalizePortalAlly(ally){
-  return ally ? {...ally, receivedAt:performance.now()} : null;
+function normalizePortalAlly(ally, previous = null){
+  if(!ally) return null;
+  const visual = previous?.id === ally.id
+    ? Object.fromEntries(RICKY_SHOT_VISUAL_FIELDS.filter(key=>Number.isFinite(previous[key])).map(key=>[key,previous[key]]))
+    : {};
+  return {...ally, ...visual, receivedAt:performance.now()};
 }
 
 function normalizePreparedPortal(portal){
@@ -61,6 +67,7 @@ function mergePortalObjectiveList(previous, incoming){
 function normalizePortalObjective(payload, previous = null){
   const portal = payload?.portal || null;
   const objective = payload?.objective === undefined ? previous : payload.objective;
+  if(isWavePortal(portal) && objective?.kind === "azuron") return objective;
   if(isVesperPortal(portal) || String(objective?.kind || "") === "vesper"){
     const allies = Array.isArray(payload?.allies)
       ? payload.allies
@@ -328,7 +335,7 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
         multiplayer.portalInstance.lives = previousInstance.lives;
       }
     }
-    multiplayer.portalAlly = payload?.portal ? normalizePortalAlly(payload?.ally) : null;
+    multiplayer.portalAlly = payload?.portal ? normalizePortalAlly(payload?.ally, multiplayer.portalAlly) : null;
     multiplayer.portalBeacons = payload?.portal ? Array.isArray(payload?.beacons) ? payload.beacons : [] : [];
     multiplayer.portalObjective = payload?.portal ? objective : null;
     replaceServerEnemies(payload, "coop");
@@ -346,6 +353,16 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     multiplayer.rickyCinematicEvents = [];
     pushEvent(multiplayer.portalStartEvents, event, 10);
     emitChange();
+  });
+  socket.on("portal:azuron-transfer",event=>emitChange("portal:azuron-transfer",event));
+  socket.on("portal:paused", event=>{
+    if(!isWavePortal(event?.portal)) return;
+    multiplayer.coopInstanceId=null;multiplayer.coopSpawn=null;
+    multiplayer.portalInstance=null;multiplayer.portalObjective=null;multiplayer.portalAlly=null;
+    multiplayer.portalBeacons=[];multiplayer.portalStartEvents=[];multiplayer.portalCompleteEvents=[];
+    replaceServerEnemies({enemies:[],full:true,portal:null},"coop");
+    emitChange("portal:paused",event);
+    toast(event.completed ? "Portail termine." : `Portail en pause : reprise a la vague ${event.nextWave}.`);
   });
   socket.on("portal:prepared", event=>{
     multiplayer.preparedPortal = normalizePreparedPortal(event?.preparedPortal);
@@ -462,6 +479,7 @@ export function installWorldSocketListeners({socket, multiplayer, replaceServerE
     emitChange("portal:failed", payload);
   });
   socket.on("portal:ricky-heal", event=>{
+    if(event?.beacon && multiplayer.portalAlly) multiplayer.portalAlly.clientSpellAt = performance.now();
     if(event?.beacon){
       multiplayer.portalBeacons = [
         ...(Array.isArray(multiplayer.portalBeacons) ? multiplayer.portalBeacons.filter(beacon=>beacon.id !== event.beacon.id) : []),

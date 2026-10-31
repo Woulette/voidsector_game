@@ -1,0 +1,167 @@
+/* The station uses live DOM controls over an illustration without baked UI. */
+#dashboard .refinery-panel:has(.rf-forge-orbital)>.panel-head{grid-template-columns:160px minmax(0,1fr);align-items:center}
+#dashboard .refinery-panel:has(.rf-forge-orbital)>.panel-head .rf-infrastructure{display:none}
+#dashboard .refinery-panel .rf-forge-orbital{--station-raw:#efb564;--station-middle:#66d5eb;--station-advanced:#bc9dff;--station-final:#79dfab;--station-utility:#cee4f2}
+#dashboard .refinery-panel .rf-station-raw{--station-color:var(--station-raw)}
+#dashboard .refinery-panel .rf-station-middle{--station-color:var(--station-middle)}
+#dashboard .refinery-panel .rf-station-advanced{--station-color:var(--station-advanced)}
+#dashboard .refinery-panel .rf-station-final{--station-color:var(--station-final)}
+#dashboard .refinery-panel .rf-station-utility{--station-color:var(--station-utility)}
+#dashboard .refinery-panel .rf-forge-orbital .rf-stock-overview{grid-template-columns:repeat(11,minmax(0,1fr));gap:0;border-block:1px solid #2a4253;background:#0a1b27;margin:0 0 8px;padding:2px 0}
+#dashboard .refinery-panel .rf-forge-orbital .rf-stock-card{--stock-color:var(--station-raw);padding:4px 6px;border:0;border-right:1px solid #213846;border-radius:0;background:transparent}
+#dashboard .refinery-panel .rf-forge-orbital .rf-stock-card:last-child{border-right:0}
+#dashboard .refinery-panel .rf-forge-orbital [data-refinery-stock="alliage_cuivre_zinc"],
+#dashboard .refinery-panel .rf-forge-orbital [data-refinery-stock="catalyseur_quantique"],
+#dashboard .refinery-panel .rf-forge-orbital [data-refinery-stock="plaque_nickel_titane"]{--stock-color:var(--station-middle)}
+#dashboard .refinery-panel .rf-forge-orbital [data-refinery-stock="conducteur_renforce"],
+#dashboard .refinery-panel .rf-forge-orbital [data-refinery-stock="blindage_composite"]{--stock-color:var(--station-advanced)}
+#dashboard .refinery-panel .rf-forge-orbital [data-refinery-stock="noyau_astra"]{--stock-color:var(--station-final)}
+#dashboard .refinery-panel .rf-forge-orbital .rf-stock-title{justify-content:center;gap:0;min-height:17px}
+#dashboard .refinery-panel .rf-forge-orbital .rf-stock-title h3{color:var(--stock-color);font:500 12px/17px "Segoe UI",Arial,sans-serif;white-space:nowrap}
+#dashboard .refinery-panel .rf-forge-orbital .rf-stock-amount{font:600 clamp(16px,1.45vw,20px)/24px "Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums;text-align:center;margin:0 0 2px}
+#dashboard .refinery-panel .rf-forge-orbital .rf-stock-gauge{height:18px;min-height:18px;padding:0;border:1px solid #506a7a;border-radius:1px;background:#061019;overflow:hidden;box-shadow:inset 0 1px 2px #0009}
+#dashboard .refinery-panel .rf-forge-orbital .rf-stock-gauge>i{inset:0 auto 0 0;height:100%;background:linear-gradient(90deg,color-mix(in srgb,var(--stock-color) 45%,#142737),color-mix(in srgb,var(--stock-color) 65%,#28485b));border-radius:0;z-index:0;box-shadow:inset 0 1px #ffffff26}
+#dashboard .refinery-panel .rf-forge-orbital .rf-stock-gauge>span{padding:0;font:600 11px/16px "Segoe UI",Arial,sans-serif;color:#f0f7fc;text-shadow:0 1px 2px #000,0 0 3px #001b2a}
+#dashboard .refinery-panel .rf-forge-orbital .rf-stock-gauge b{font-weight:600}
+#dashboard .refinery-panel .rf-orbital{background:#06121e;border:1px solid #2b4456;min-width:0;isolation:isolate}
+#dashboard .refinery-panel .rf-station-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid #223b4d;background:#0b1b28;color:#afc9d9;font:400 11px/1.4 "Segoe UI",Arial,sans-serif}
+#dashboard .refinery-panel .rf-station-toolbar>span{text-transform:uppercase;letter-spacing:1.3px}
+#dashboard .refinery-panel .rf-station-toolbar label{display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer}
+#dashboard .refinery-panel .rf-station-toolbar input{width:14px;height:14px;margin:0;accent-color:#7acfe9}
+#dashboard .refinery-panel .rf-station-scene{--station-unit:min(calc(100cqw / 1672),calc(100cqh / 760));position:relative;width:100%;aspect-ratio:1672 / 760;min-width:0;overflow:hidden;background:#061320 url("../../assets/refinery/orbital-v3/backdrop.png") center / cover;container:refinery-scene / size}
+#dashboard .refinery-panel .rf-station-viewport{min-width:0;background:#061320}
+#dashboard .refinery-panel .rf-station-art{position:absolute;inset:0;width:100%;height:100%;user-select:none;pointer-events:none}
+#dashboard .refinery-panel .rf-station-art>svg{position:absolute;display:block;max-width:none;overflow:hidden}
+#dashboard .refinery-panel .rf-station-art>.rf-station-pipe{overflow:visible}
+#dashboard .refinery-panel .rf-station-pipe path{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round}
+#dashboard .refinery-panel .rf-station-pipe .rf-pipe-edge{stroke:#050c15;stroke-width:18px}
+#dashboard .refinery-panel .rf-station-pipe .rf-pipe-metal{stroke:#728291;stroke-width:15px}
+#dashboard .refinery-panel .rf-station-pipe .rf-pipe-shadow{stroke:#202c3c;stroke-width:12px}
+#dashboard .refinery-panel .rf-station-pipe .rf-pipe-ridge{stroke:#475363;stroke-width:7px}
+#dashboard .refinery-panel .rf-station-pipe .rf-pipe-light{stroke:#9ea8b6;stroke-width:1px}
+#dashboard .refinery-panel .rf-station-hit{position:absolute;left:var(--station-x);top:var(--station-y);width:var(--station-w);height:var(--station-h);min-height:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;text-align:left;color:var(--station-color);font:400 13px/1.3 "Segoe UI",Arial,sans-serif;letter-spacing:0;text-transform:none;z-index:3;overflow:visible}
+#dashboard .refinery-panel .rf-station-hit:hover{background:none;border:0;box-shadow:none;transform:none}
+#dashboard .refinery-panel .rf-station-hit.is-selected{z-index:5}
+#dashboard .refinery-panel .rf-station-hit:hover,
+#dashboard .refinery-panel .rf-station-hit:focus-visible{z-index:6;outline:none}
+#dashboard .refinery-panel .rf-station-bracket{position:absolute;inset:0;pointer-events:none;opacity:0;background:linear-gradient(var(--station-color),var(--station-color)) left top/16px 2px no-repeat,linear-gradient(var(--station-color),var(--station-color)) left top/2px 16px no-repeat,linear-gradient(var(--station-color),var(--station-color)) right top/16px 2px no-repeat,linear-gradient(var(--station-color),var(--station-color)) right top/2px 16px no-repeat,linear-gradient(var(--station-color),var(--station-color)) left bottom/16px 2px no-repeat,linear-gradient(var(--station-color),var(--station-color)) left bottom/2px 16px no-repeat,linear-gradient(var(--station-color),var(--station-color)) right bottom/16px 2px no-repeat,linear-gradient(var(--station-color),var(--station-color)) right bottom/2px 16px no-repeat;filter:drop-shadow(0 0 3px color-mix(in srgb,var(--station-color) 40%,transparent))}
+#dashboard .refinery-panel .rf-station-hit.is-selected .rf-station-bracket,
+#dashboard .refinery-panel .rf-station-hit:hover .rf-station-bracket,
+#dashboard .refinery-panel .rf-station-hit:focus-visible .rf-station-bracket{opacity:1}
+#dashboard .refinery-panel .rf-station-scene:has(.rf-station-hit:hover) .rf-station-hit:not(:hover) .rf-station-bracket{opacity:0}
+#dashboard .refinery-panel .rf-station-bracket{border:0;box-sizing:border-box}
+#dashboard .refinery-panel .rf-station-label{position:absolute;left:var(--label-x);top:var(--label-y);display:block;width:max-content;max-width:190px;padding:4px 6px;border-bottom:1px solid color-mix(in srgb,var(--station-color) 65%,transparent);background:#06131dd9;border-radius:2px;box-shadow:0 1px 4px #0005;pointer-events:auto}
+#dashboard .refinery-panel .rf-station-label>span{display:flex;align-items:baseline;gap:5px;white-space:nowrap}
+#dashboard .refinery-panel .rf-station-hit .rf-station-label{transform:translate(var(--label-shift),-100%)}
+#dashboard .refinery-panel .rf-station-hit.rf-station-raw .rf-station-label,
+#dashboard .refinery-panel .rf-station-hit.rf-station-middle .rf-station-label{left:-8px;top:50%;transform:translate(-100%,-50%)}
+#dashboard .refinery-panel .rf-station-hit.rf-station-utility .rf-station-label{left:calc(100% + 8px);top:50%;transform:translateY(-50%)}
+#dashboard .refinery-panel .rf-station-hit[data-upgrade-refinery-module="storage"] .rf-station-label{top:70%}
+#dashboard .refinery-panel .rf-station-hit[data-refinery-node="plaque_nickel_titane"] .rf-station-label{top:20%}
+#dashboard .refinery-panel .rf-station-hit[data-refinery-node="blindage_composite"] .rf-station-label{left:calc(100% + 8px);top:50%;transform:translateY(-50%)}
+#dashboard .refinery-panel .rf-station-hit .rf-station-label small{display:none}
+#dashboard .refinery-panel .rf-station-label strong{color:var(--station-color);font-size:13px;font-weight:600;line-height:1.25}
+#dashboard .refinery-panel .rf-station-label b{color:#d9eaf4;font-size:11px;font-weight:400}
+#dashboard .refinery-panel .rf-station-label small{display:block;margin-top:2px;color:#b6cbd8;font-size:10px;line-height:1.25}
+#dashboard .refinery-panel .rf-station-hit.is-locked .rf-station-label{opacity:.8}
+#dashboard .refinery-panel .rf-station-connections{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+#dashboard .refinery-panel .rf-station-link{position:absolute;opacity:0;transition:opacity .12s ease}
+#dashboard .refinery-panel .rf-station-link>svg{display:block;width:100%;height:100%;overflow:visible}
+#dashboard .refinery-panel .rf-station-link path{fill:none;stroke:var(--station-color);stroke-width:2;stroke-linecap:round;filter:drop-shadow(0 1px 2px #000);vector-effect:non-scaling-stroke}
+#dashboard .refinery-panel .rf-station-link.is-ancestor{opacity:.7}
+#dashboard .refinery-panel .show-connections .rf-station-link{opacity:.75}
+#dashboard .refinery-panel .show-connections .rf-station-link.is-ancestor{opacity:1}
+#dashboard .refinery-panel .rf-station-link-amount{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);min-width:28px;padding:2px 4px;border:1px solid var(--station-color);border-radius:3px;background:#081724;color:#ebf6ff;text-align:center;font:400 11px/14px "Segoe UI",Arial,sans-serif}
+#dashboard .refinery-panel .rf-station-link-arrow{position:absolute;left:100%;width:0;height:0;transform:translateY(-50%);border-left:7px solid var(--station-color);border-top:4px solid transparent;border-bottom:4px solid transparent}
+#dashboard .refinery-panel .rf-station-mobile-index{display:none}
+#dashboard .refinery-panel .rf-station-order{position:relative;border-top:1px solid #365367;background:linear-gradient(115deg,#122b3e,#0a1b29);padding:12px 16px;min-width:0}
+#dashboard .refinery-panel .rf-station-order-main{display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap}
+#dashboard .refinery-panel .rf-station-order-main>.rf-art{width:54px;height:54px;padding:0;flex:0 0 54px}
+#dashboard .refinery-panel .rf-station-order-copy{flex:1;min-width:210px}
+#dashboard .refinery-panel .rf-station-order h3{margin:0 0 4px;color:var(--station-color);font:600 17px/1.3 "Segoe UI",Arial,sans-serif;letter-spacing:0;text-transform:none}
+#dashboard .refinery-panel .rf-station-order p{display:flex;gap:7px 16px;flex-wrap:wrap;font:400 12px/1.5 "Segoe UI",Arial,sans-serif;color:#c9deec;margin:0}
+#dashboard .refinery-panel .rf-station-order p b{font-weight:500;color:var(--station-color)}
+#dashboard .refinery-panel .rf-station-production{display:block;color:#afc5d4;font:400 11px/1.5 "Segoe UI",Arial,sans-serif;margin-top:2px}
+#dashboard .refinery-panel .rf-station-production.locked,
+#dashboard .refinery-panel .rf-station-production.waiting{color:#dfbd80}
+#dashboard .refinery-panel .rf-station-actions{display:flex;gap:9px;flex-wrap:wrap}
+#dashboard .refinery-panel .rf-station-actions button{min-height:38px;padding:9px 15px;border:1px solid #4b7a93;border-radius:3px;background:#122c40;color:#d4eaf7;font:500 12px/1.4 "Segoe UI",Arial,sans-serif;box-shadow:none;text-transform:none;letter-spacing:0}
+#dashboard .refinery-panel .rf-station-actions .rf-station-improve{border-color:var(--station-color);color:var(--station-color);background:color-mix(in srgb,var(--station-color) 10%,#101c29)}
+#dashboard .refinery-panel .rf-station-actions button:disabled{opacity:.45;cursor:default}
+#dashboard .refinery-panel .rf-station-recipe{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:9px;padding-top:9px;border-top:1px solid #294759;color:#b7cfdf;font:400 11px/1.4 "Segoe UI",Arial,sans-serif;min-width:0}
+#dashboard .refinery-panel .rf-station-recipe-caption{margin-right:7px}
+#dashboard .refinery-panel .rf-station-ingredient{display:flex;align-items:center;gap:5px;padding:3px 6px;background:#0b1e2c;border:1px solid #365467;border-radius:3px;color:#daeaf4;font:400 11px/1.4 "Segoe UI",Arial,sans-serif;box-shadow:none;letter-spacing:0;text-transform:none}
+#dashboard .refinery-panel .rf-station-ingredient .rf-art{width:24px;height:24px;padding:0}
+#dashboard .refinery-panel .rf-station-ingredient b{font-weight:500;color:#e6f5ff}
+#dashboard .refinery-panel .rf-station-plus{padding:0 2px;color:#829fb2}
+#dashboard .refinery-panel .rf-station-job{height:3px;background:#203b4d;margin-top:10px}
+#dashboard .refinery-panel .rf-station-job i{display:block;height:100%;background:var(--station-color)}
+@media(max-width:1199px){
+  #dashboard .refinery-panel .rf-forge-orbital .rf-stock-overview{grid-template-columns:repeat(6,minmax(0,1fr));row-gap:4px}
+  #dashboard .refinery-panel .rf-station-label{padding:2px 4px}
+  #dashboard .refinery-panel .rf-station-label strong{font-size:12px}
+  #dashboard .refinery-panel .rf-station-label b{font-size:10px}
+  #dashboard .refinery-panel .rf-station-label small{font-size:9px}
+}
+@media(max-width:900px){
+  #dashboard .refinery-panel .rf-station-label{padding:3px 4px}
+  #dashboard .refinery-panel .rf-station-label strong{font-size:11px}
+  #dashboard .refinery-panel .rf-station-label>span{gap:4px}
+  #dashboard .refinery-panel .rf-station-label small{display:none}
+}
+@media(max-width:900px){
+  #dashboard .refinery-panel:has(.rf-forge-orbital)>.panel-head{grid-template-columns:minmax(0,1fr)}
+  #dashboard .refinery-panel .rf-forge-orbital .rf-stock-overview{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:4px}
+  #dashboard .refinery-panel .rf-station-hit{display:none}
+  #dashboard .refinery-panel .rf-station-mobile-index{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:8px;background:#091c2b;border-top:1px solid #2a4456}
+  #dashboard .refinery-panel .rf-station-index-item{position:relative;min-width:0;min-height:44px;padding:5px;background:#112b3d;border:1px solid #365366;border-left:2px solid var(--station-color);border-radius:2px;text-align:left;box-shadow:none;letter-spacing:0;text-transform:none}
+  #dashboard .refinery-panel .rf-station-index-item.is-selected{background:color-mix(in srgb,var(--station-color) 12%,#0e2536);border-color:var(--station-color)}
+  #dashboard .refinery-panel .rf-station-index-item .rf-station-label{position:static;width:auto;max-width:none;background:none;box-shadow:none;padding:0;border:0;opacity:1}
+  #dashboard .refinery-panel .rf-station-index-item .rf-station-label>span{display:block;white-space:normal}
+  #dashboard .refinery-panel .rf-station-index-item .rf-station-label b{display:block;margin-top:2px}
+  #dashboard .refinery-panel .rf-station-index-item .rf-station-label small{display:none}
+  #dashboard .refinery-panel .rf-station-order{padding:12px}
+  #dashboard .refinery-panel .rf-station-order-copy{min-width:145px}
+  #dashboard .refinery-panel .rf-station-actions{width:100%;gap:7px}
+  #dashboard .refinery-panel .rf-station-actions button{flex:1;min-height:42px;padding:8px}
+  #dashboard .refinery-panel .rf-station-toolbar{font-size:10px;padding:8px}
+  #dashboard .refinery-panel .rf-station-toolbar>span{letter-spacing:.5px}
+  #dashboard .refinery-panel .rf-station-toolbar label{gap:5px}
+}
+@media(max-width:420px){
+  #dashboard .refinery-panel .rf-forge-orbital .rf-stock-overview{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #dashboard .refinery-panel .rf-station-mobile-index{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(prefers-reduced-motion:reduce){#dashboard .refinery-panel .rf-station-link{transition:none}}
+
+/* The workstation fits after the launcher header has scrolled away. Each machine
+   has its own position and size; the scene always uses the full panel width. */
+@media(min-width:901px){
+  #dashboard.launcher-dashboard:has(.refinery-view.active .rf-forge-orbital){height:auto;min-height:0;padding-bottom:12px}
+  #dashboard .refinery-panel:has(.rf-forge-orbital){display:flex;flex-direction:column;height:min(1120px,calc(100dvh - 24px));min-height:0}
+  #dashboard .refinery-panel:has(.rf-forge-orbital)>.panel-head{flex:none}
+  #dashboard .refinery-panel:has(.rf-forge-orbital) #refineryPanel{display:flex;flex-direction:column;flex:1;min-height:0}
+  #dashboard .refinery-panel .rf-workshop:has(.rf-forge-orbital){display:flex;flex-direction:column;flex:1;min-height:0}
+  #dashboard .refinery-panel .rf-forge-orbital{display:flex;flex-direction:column;flex:1;min-height:0}
+  #dashboard .refinery-panel .rf-forge-orbital .rf-stock-overview{flex:none}
+  #dashboard .refinery-panel .rf-orbital{display:grid;grid-template-rows:max-content minmax(0,1fr) max-content;flex:1;min-height:0}
+  #dashboard .refinery-panel .rf-station-viewport{display:grid;place-items:center;min-height:0;container:refinery-viewport / size}
+  #dashboard .refinery-panel .rf-station-scene{width:100%;height:100%;aspect-ratio:auto}
+}
+@container refinery-scene (max-width:1100px){
+  #dashboard .refinery-panel .rf-station-label{padding:2px 4px;font-size:12px;line-height:1.2}
+  #dashboard .refinery-panel .rf-station-label strong{font-size:12px}
+  #dashboard .refinery-panel .rf-station-label b{font-size:10px}
+}
+@container refinery-scene (max-width:980px){
+  #dashboard .refinery-panel .rf-station-label{padding:2px 3px;font-size:11px;line-height:1.2}
+  #dashboard .refinery-panel .rf-station-label strong{font-size:11px;line-height:1.2}
+  #dashboard .refinery-panel .rf-station-label b{font-size:9px;line-height:1.2}
+  #dashboard .refinery-panel .rf-station-hit.rf-station-raw .rf-station-label>span{display:block}
+  #dashboard .refinery-panel .rf-station-hit.rf-station-raw .rf-station-label b{display:block;margin-top:1px}
+}
+@container refinery-scene (max-width:600px){
+  #dashboard .refinery-panel .rf-station-label{font-size:9px}
+  #dashboard .refinery-panel .rf-station-label strong{font-size:9px}
+  #dashboard .refinery-panel .rf-station-label b{font-size:8px}
+}

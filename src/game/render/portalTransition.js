@@ -1,3 +1,7 @@
+import { isSectorTravelPortal } from "../../data/sectorPortalVisuals.js?v=20261024-sector-portals1";
+import { isAnimatedAzuronPortal } from "../../data/azuronGateVisuals.js";
+import { getWavePortalTier } from "../../data/wavePortalTiers.js";
+
 let portalWashSprite = null;
 
 function getPortalWashSprite(){
@@ -41,6 +45,19 @@ function drawPortalWash({ctx, cx, cy, radius, t, viewW, viewH}){
 export function drawPortalTransitionOverlay({ctx, transition, maps, viewW, viewH}){
   if(!transition) return;
   const t = Math.max(0, Math.min(1, transition.elapsed / transition.duration));
+  if(isSectorTravelPortal(transition.portal) || isAnimatedAzuronPortal(transition.portal)){
+    const target = maps.find(map=>map.id === transition.portal.targetMap);
+    ctx.save();
+    ctx.fillStyle = "rgba(226,245,255,.94)";
+    ctx.font = "800 20px Rajdhani, Arial";
+    ctx.textAlign = "center";
+    const label=isAnimatedAzuronPortal(transition.portal)
+      ? transition.portal.azuronGate ? transition.portal.label : getWavePortalTier(transition.portal)?.entryLabel || "ENTRÉE DANS AZURON"
+      : `TRANSFERT VERS ${target?.name || "SECTEUR"}`;
+    ctx.fillText(`${label} · ${Math.max(0,Math.ceil(transition.duration - transition.elapsed))}S`, viewW / 2, viewH * .78);
+    ctx.restore();
+    return;
+  }
   const now = performance.now();
   const pulse = .5 + Math.sin(now / 95) * .5;
   const cx = viewW / 2;

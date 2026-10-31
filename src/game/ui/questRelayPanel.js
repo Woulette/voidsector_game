@@ -4,6 +4,7 @@ import { getQuestBriefing } from "../../data/questBriefings.js";
 import { getTutorialExpectedQuestId } from "../../shared/tutorial.js?v=20260726-kharon1";
 import { renderQuestAbandonAction } from "./questAbandon.js";
 import { escapeQuestHtml as esc, questIcon, questActivity, relayObjectiveStates, renderRelayObjectives } from "./questRelayObjectives.js";
+import { getQuestMaterialImage } from "./questObjectiveVisuals.js?v=20261024-quest-assets1";
 
 const NUMBER = new Intl.NumberFormat("fr-FR");
 const fmt = value=>NUMBER.format(Number(value) || 0);
@@ -60,7 +61,7 @@ function renderList(rows, selected){
     const activity = questActivity(quest);
     const hint = state.claimable ? "Récompenses disponibles" : state.locked ? (state.premiumLocked ? "Premium requis" : state.prereqLocked ? "Prérequis à terminer" : "Niveau requis") : activity.label;
     return `<button class="quest-strip ${quest.id === selected?.quest.id ? "selected" : ""} ${state.active ? "active" : ""} ${questToneClass(quest)} ${state.claimable ? "claimable" : ""} ${state.locked ? "locked" : ""}" type="button" data-view-quest="${esc(quest.id)}" aria-pressed="${quest.id === selected?.quest.id}">
-      <span class="quest-strip-icon" role="img" aria-label="${esc(activity.label)}">${questIcon(activity.icon)}</span>
+      <span class="quest-strip-icon" role="img" aria-label="${esc(activity.label)}">${questIcon(activity.icon, "", quest)}</span>
       <span class="quest-strip-copy"><span class="quest-strip-title">${esc(quest.title)}</span><span class="quest-strip-hint">${esc(hint)}${quest.red ? " · Prioritaire" : quest.rare ? " · Rare" : ""}</span></span>
       <span class="quest-strip-meta">Niv. <b>${state.level}</b></span>
       ${state.active ? `<span class="quest-strip-bar"><i style="width:${state.percent}%"></i></span>` : ""}
@@ -92,7 +93,7 @@ function renderRewards(quest, rawMaterials){
   for(const [id, amount] of Object.entries(rewards.shipCargoMaterialsForced || {})) materials[id] = Number(materials[id] || 0) + Number(amount || 0);
   for(const [id, amount] of Object.entries(materials)){
     const material = rawMaterials.find(entry=>entry.id === id);
-    extras.push(rewardChip({image:material?.img || "assets/materials/cargo_box.svg", label:material?.name || material?.short || id, amount}));
+    extras.push(rewardChip({image:getQuestMaterialImage(id, rawMaterials), label:material?.name || material?.short || id, amount}));
   }
   return `<section class="quest-reward-card"><h3>${questIcon("reward")}Récompenses</h3><div class="quest-rewards-main">
     ${rewardChip({image:"assets/icons/credits.svg", label:"Crédits", amount:rewards.credits || 0})}

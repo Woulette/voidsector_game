@@ -1,6 +1,5 @@
 export function createRepairBotSystem({
   getPlayer,
-  getParticles,
   pushDamageText,
   showToast
 }){
@@ -81,25 +80,6 @@ export function createRepairBotSystem({
           shadowColor:"rgba(34,197,94,.85)",
           life:1.6
         });
-        for(let i = 0; i < 5; i++){
-          const angle = -Math.PI / 2 + (Math.random() - .5) * 1.4;
-          const speed = 24 + Math.random() * 42;
-          const life = 1.25 + Math.random() * .55;
-          getParticles().push({
-            kind:"repairPlus",
-            followPlayer:true,
-            offsetX:(Math.random() - .5) * 76,
-            offsetY:-18 + (Math.random() - .5) * 54,
-            vx:Math.cos(angle) * speed,
-            vy:Math.sin(angle) * speed - 18,
-            life,
-            max:life,
-            size:12 + Math.random() * 7,
-            angle:(Math.random() - .5) * .45,
-            spin:(Math.random() - .5) * 1.4,
-            color:"rgba(20,255,70,1)"
-          });
-        }
       }
     }
   }

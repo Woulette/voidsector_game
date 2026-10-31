@@ -82,6 +82,11 @@ function costs(materials = {}, credits = 0, premium = 0, currencyMode = ""){
 }
 
 const CRAFT_RECIPE_OVERRIDES = Object.freeze({
+  ammo_x6:{costs:costs({
+    filament_cosmique:2,
+    fragment_noyau_stellaire:1,
+    cristal_phase_encapsule:4
+  }, 0, 15_000)},
   valkyrie:{costs:costs({
     plaques_acier:3,
     cables_cuivre:2,
@@ -370,12 +375,12 @@ function buildCraftRecipes(){
     });
 
   const ammoRecipes = ammoTypes
-    .filter(ammo=>ammo.shop !== false)
+    .filter(ammo=>ammo.shop !== false || ammo.craft === true)
     .map(ammo=>recipeFromSource(ammo, "ammo", {
       type:"ammo",
       id:ammo.id,
       amount:craftAmmoOutputAmount(ammo)
-    }, {freeCurrency:true}));
+    }, {freeCurrency:!CRAFT_RECIPE_OVERRIDES[ammo.id]}));
 
   const shipRecipes = ships
     .filter(ship=>!NON_CRAFTABLE_SHIP_IDS.has(ship.id))

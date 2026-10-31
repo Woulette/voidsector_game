@@ -1,4 +1,9 @@
 {
+  "liveServer.settings.port": 8765,
+  "liveServer.settings.host": "127.0.0.1",
+  "liveServer.settings.root": "/",
+  "liveServer.settings.showOnStatusbar": true,
+  "liveServer.settings.wait": 200,
   "liveServer.settings.ignoreFiles": [
     ".vscode/**",
     "**/*.scss",
@@ -7,6 +12,7 @@
     "node_modules/**",
     "venv/**",
     ".venv/**",
+    "tmp/**",
     "server/data/**",
     "server/*.log",
     "server/**/*.log"

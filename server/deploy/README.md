@@ -23,11 +23,14 @@ Verifie que le VPS est demarre, que SSH fonctionne et que tu connais l'utilisate
 
 ## 3. Ouvrir les ports
 
-Ouvre `22/tcp` pour SSH et `3001/tcp` pour le serveur VoidSector. Si UFW est actif :
+Ouvre `22/tcp` pour SSH, puis `80/tcp` et `443/tcp` pour nginx. Le port Node
+`3001/tcp` doit rester fermé au public : nginx communique avec lui en loopback.
+Si UFW est actif :
 
 ```bash
 sudo ufw allow OpenSSH
-sudo ufw allow 3001/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
 sudo ufw enable
 sudo ufw status
 ```
@@ -100,6 +103,7 @@ Exemple minimal :
 ```env
 NODE_ENV=production
 PORT=3001
+HOST=127.0.0.1
 CLIENT_ORIGIN=https://voidsector-game.vercel.app
 DATABASE_URL=postgresql://voidsector:mot_de_passe_fort@localhost:5432/voidsector
 MAX_CONCURRENT_GAME_PLAYERS=50
@@ -127,7 +131,7 @@ systemctl show voidsector -p Restart -p KillSignal -p TimeoutStopUSec -p LimitNO
 Ou teste depuis ton PC avec curl :
 
 ```powershell
-curl http://<IP_PUBLIQUE>:3001/health
+curl http://127.0.0.1:3001/health
 ```
 
 Tu devrais recevoir un JSON avec le statut du serveur.
@@ -188,7 +192,11 @@ Pour une beta publique, configure d'abord l'URL du serveur dans `index.html` :
 <meta name="voidsector-server-url" content="http://<IP_PUBLIQUE>:3001" />
 ```
 
-Si tu mets un domaine/API avec HTTPS plus tard, remplace la valeur par exemple par `https://api.ton-domaine.fr`. Une URL de test peut aussi etre forcee temporairement avec `?serverUrl=http://<IP_PUBLIQUE>:3001`.
+Si tu mets un domaine/API avec HTTPS plus tard, remplace la valeur par exemple
+par `https://api.ton-domaine.fr`. Sur une page publique, le client refuse les
+remplacements d'URL fournis par la query string ou le formulaire. Un
+`?serverUrl=` reste disponible uniquement sur localhost et uniquement vers un
+backend loopback.
 
 Apres modification du client, tu peux verifier que le backend et le `index.html` public sont coherents :
 

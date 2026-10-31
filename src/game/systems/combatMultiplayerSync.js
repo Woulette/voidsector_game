@@ -1,3 +1,5 @@
+import { createCombatEnemyDeathSystem } from "./combatEnemyDeath.js";
+
 export function createCombatMultiplayerSyncSystem({
   multiplayer,
   getState,
@@ -8,6 +10,8 @@ export function createCombatMultiplayerSyncSystem({
   syncServerControlledEnemies,
   showToast
 }){
+  const deathEffects = createCombatEnemyDeathSystem({getState});
+
   function syncCoopInstanceSpawn(){
     if(multiplayer.portalInstance?.portal) return;
     const spawn = multiplayer.coopSpawn;
@@ -32,6 +36,7 @@ export function createCombatMultiplayerSyncSystem({
 
   function syncEnemies(){
     syncCoopInstanceSpawn();
+    deathEffects.observeServerSnapshot(multiplayer);
     const {enemies, selectedEnemy} = getState();
     const synced = syncServerControlledEnemies({
       enemies,

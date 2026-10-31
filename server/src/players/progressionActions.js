@@ -161,7 +161,7 @@ export function unlockServerPortal(profile, {id, method = "pieces"} = {}){
   if(Number(profile.player.level || 1) < Number(portal.requirement?.level || 1)){
     return {ok:false, reason:`Niveau ${portal.requirement.level} requis.`};
   }
-  if(profile.unlockedPortals.includes(portal.id)) return {ok:false, reason:"Portail deja deverrouille."};
+  if(profile.unlockedPortals.includes(portal.id)) return {ok:false, reason:"Une tentative est deja assemblee pour ce portail."};
   const pieceUnit = portal.pieceUnit || "pièces";
   if(method === "nova") return {ok:false, reason:`Ce portail se déverrouille uniquement avec des ${pieceUnit}.`};
   const required = Math.max(0, Number(portal.piecesRequired || 0));

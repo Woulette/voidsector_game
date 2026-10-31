@@ -1,4 +1,15 @@
 import { getMiniMapVisualDefinition } from "./combatData/miniMapVisuals.js?v=20261023-minimap4";
+import { getMapAssetPalette, getMapPaletteSource } from "../shared/firmHomeMapThemes.js";
+import { prepareMapPaletteImage } from "./render/mapAssetPalette.js";
+import { getSectorPortalAssetPaths } from "../data/sectorPortalVisuals.js?v=20261024-sector-portals1";
+import { getAzuronGateAssetPaths } from "../data/azuronGateVisuals.js";
+import { REPAIR_DRONE_VISUALS } from "../data/repairDroneVisuals.js";
+import { RICKY_SAUCER_ASSET } from "../data/rickyVisuals.js?v=20261024-ricky-visuals1";
+import { ORB_VISUAL_PROFILES } from "./combatData/orbVisuals.js";
+import { VORAK_VISUAL_PROFILES, VORAK_THRUSTER_TEXTURE } from "./combatData/vorakVisuals.js";
+import { PARASITE_PROFILES } from "./combatData/parasiteVisuals.js";
+import { TRACKER_VISUAL_PROFILES } from "./combatData/trackerVisuals.js";
+import { ECLANITE_SOURCE } from "./combatData/eclaniteVisuals.js";
 
 function uniqueAssetPaths(paths){
   return [...new Set(paths.filter(Boolean))];
@@ -12,9 +23,21 @@ function preloadAsset(cache, src){
   if(!src || cache[src]) return cache[src] || null;
   if(typeof Image !== "function") return null;
   const img = new Image();
-  img.src = src;
   cache[src] = img;
-  return img;
+  if(getMapAssetPalette(src)) img.onload = ()=>{
+    if(cache[src] !== img) return;
+    const prepared = prepareMapPaletteImage(img, src);
+    cache[src] = prepared;
+    const runtimeState = runtimeAssetStates.get(cache);
+    if(runtimeState?.get(src) === img) runtimeState.set(src, prepared);
+  };
+  // All four palettes download the same native texture URL; the browser can
+  // reuse its HTTP cache instead of fetching another copy for each firm.
+  img.src = getMapPaletteSource(src);
+  // A decoded browser-cache hit can be complete before its load event runs.
+  // Prepare it immediately so the source red palette never flashes on screen.
+  if(img.complete && img.naturalWidth) img.onload?.();
+  return cache[src];
 }
 
 export function getCachedCombatImage(cache, src, {maxAssets = RUNTIME_COMBAT_ASSET_LIMIT} = {}){
@@ -63,13 +86,18 @@ export function getCombatMapAssetPaths(map){
   }
   return uniqueAssetPaths([
     map.bg,
+    ...getSectorPortalAssetPaths(map),
+    ...getAzuronGateAssetPaths(map),
     getMiniMapVisualDefinition(map)?.image,
     ...(map.parallaxScene?.backdrops?.map(layer=>layer.src) || []),
     ...(map.parallaxScene?.images?.map(layer=>layer.src) || []),
     ...(map.parallaxScene?.tiles?.map(layer=>layer.src) || []),
     ...(map.questNpcs?.map(npc=>npc.npcImg) || []),
     ...(map.questStations?.map(station=>station.asset) || []),
+    map.spawn?.visual?.asset,
+    ...(map.spawnStations?.map(station=>station.asset) || []),
     ...(map.enemyAssets || []),
+    ...(map.portalAssets || []),
     ...mapTiles
   ]);
 }
@@ -82,6 +110,13 @@ export function preloadCombatAssets({cache, ships = [], ranks = [], getRankAsset
     "assets/spawn/spawn_refinery.png"
   ];
   const misc = [
+    ECLANITE_SOURCE,
+    ...Object.values(TRACKER_VISUAL_PROFILES).map(visual=>visual.sprite),
+    ...Object.values(PARASITE_PROFILES).map(visual=>visual.sprite),
+    ...Object.values(VORAK_VISUAL_PROFILES).map(visual=>visual.sprite),
+    VORAK_THRUSTER_TEXTURE,
+    ...Object.values(ORB_VISUAL_PROFILES).map(visual=>visual.sprite),
+    ...Object.values(REPAIR_DRONE_VISUALS).map(visual=>visual.body),
     "assets/drones/drone_test_sprite.webp",
     "assets/equipment/rocket_projectile.png",
     "assets/firms/astra.svg",
@@ -89,7 +124,10 @@ export function preloadCombatAssets({cache, ships = [], ranks = [], getRankAsset
     "assets/firms/jaune.svg",
     "assets/firms/verte.svg",
     "assets/materials/cargo_box.svg",
+    "assets/portals/seuil_azuron.png",
+    "assets/portals/faille_vesper.png",
     "assets/ships/npc/npc_saucer.png",
+    RICKY_SAUCER_ASSET,
     ...spawnAssets,
     ...rankImages
   ];

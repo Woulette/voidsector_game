@@ -3,7 +3,8 @@
 ## Verrous de portails a ajouter
 
 - Vaisseaux elite `Vesperion`, `Nyxaris` et `Asterion` : recette visible/debloquee seulement apres avoir termine le portail violet au moins une fois.
-- `Canon Laser MK-IV` : recette visible/debloquee seulement apres avoir termine le portail bleu niveau 15 au moins une fois.
+- `Canon Laser MK-IV` : recette visible/debloquee seulement apres avoir termine Le Seuil d'Azuron niveau 10 au moins une fois.
+- `Canon Laser Elite Vert`, `Bleu` et `Rouge` : recettes masquees jusqu'a la premiere victoire dans Le Nexus Prismatique.
 - Lasers elite `Canon Laser Elite Vert`, `Canon Laser Elite Bleu` et `Canon Laser Elite Rouge` : recettes visibles/debloquees seulement apres avoir termine le portail emeraude au moins une fois.
 
 ## Notes d'equilibrage

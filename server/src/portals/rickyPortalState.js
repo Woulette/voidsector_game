@@ -4,6 +4,7 @@ import {
   RICKY_PORTAL_TRIGGER_ZONES
 } from "../../../src/data/rickyPortal.js";
 import { createDeadlyEnemy } from "./deadlyEnemies.js";
+import { RICKY_MAX_LEADER_AXIS_DISTANCE, RICKY_REGROUP_DISTANCE } from "./rickyCompanionAi.js";
 
 export const RICKY_PORTAL_ID = "ricky";
 export const RICKY_PORTAL_KEY_ITEM_ID = "portal_anchor_key";
@@ -146,8 +147,8 @@ export function createRickyAlly(spawn = {x:0, y:0}, now = Date.now()){
     width:86,
     height:86,
     speed:500,
-    followDistance:260,
-    maxLeaderDistance:950,
+    followDistance:RICKY_REGROUP_DISTANCE,
+    maxLeaderDistance:RICKY_MAX_LEADER_AXIS_DISTANCE,
     attackRange:600,
     laserDamageMin:RICKY_LASER_DAMAGE_MIN,
     laserDamageMax:RICKY_LASER_DAMAGE_MAX,

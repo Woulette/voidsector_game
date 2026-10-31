@@ -34,6 +34,8 @@ export function createRemoteWeaponEventProcessor({
           toX,
           toY,
           targetId:event.targetId || null,
+          ...(event.targetDestroyed === true ? {shieldBefore:0}
+            : Number.isFinite(Number(event.shieldBefore)) ? {shieldBefore:Number(event.shieldBefore)} : {}),
           blueLaser:Boolean(event.blueLaser)
         });
         particles.push({
@@ -43,7 +45,7 @@ export function createRemoteWeaponEventProcessor({
           life:.16,
           max:.16,
           size:14,
-          color:event.blueLaser
+          color:ammo?.id === "ammo_x6" ? "rgba(255,255,255,.85)" : event.blueLaser
             ? "rgba(56,189,248,.65)"
             : ammo?.particle || "rgba(255,218,72,.62)"
         });

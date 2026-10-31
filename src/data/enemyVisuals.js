@@ -1,5 +1,4 @@
 const HALF_TURN_ASSET_KINDS = new Set([
-  "raider_astral",
   "cuirasse_nebulaire",
   "shared_rusher"
 ]);
@@ -28,7 +27,9 @@ const COMPACT_QUEST_ASSET_KINDS = new Set([
 ]);
 
 const FULL_SIZE_QUEST_ASSET_KINDS = new Set([
-  "boss_raider_astral"
+  "raider_astral",
+  "boss_raider_astral",
+  "boss_drone_pirate"
 ]);
 
 export function getEnemyBaseKind(kind){
@@ -41,6 +42,7 @@ export function hasCompactQuestAsset(kind){
 }
 
 export function getEnemyAssetRotation(kind){
+  if(["cuirasse_nebulaire","boss_cuirasse_nebulaire"].includes(String(kind || ""))) return 0;
   return HALF_TURN_ASSET_KINDS.has(getEnemyBaseKind(kind)) ? Math.PI : 0;
 }
 

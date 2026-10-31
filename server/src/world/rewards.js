@@ -1,5 +1,6 @@
 import { buildPersonalFirmSeasonSnapshot, emitThrottledFirmRanking } from "../firms/firmBroadcasts.js";
 import { getProgressionLevelCap, getProgressionSnapshot } from "../players/progression.js";
+import { canRecordAzuronEnemyReward } from "../../../src/shared/azuronProgress.js";
 
 function canAwardFirmMonsterPoint(playerLevel, enemyLevel){
   const level = Math.max(1, Math.floor(Number(playerLevel || 1)));
@@ -24,6 +25,13 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
   function emitWorldReward({enemy, mapId, attackerId, firmAttackerId = attackerId, recipientIds = null}){
     const attacker = players.get(attackerId);
     if(!attacker || !enemy || enemy.noReward || enemy.rewardGranted) return;
+    const azuronReceipt = enemy.azuronRunId
+      ? {azuronRunId:enemy.azuronRunId,azuronPortalId:enemy.azuronPortalId || "blue",azuronWave:enemy.azuronWave,azuronIndex:enemy.azuronIndex}
+      : {};
+    if(enemy.azuronRunId && !canRecordAzuronEnemyReward(profileManager.getProfileForPlayer?.(attacker),azuronReceipt)){
+      enemy.noReward = true;
+      return;
+    }
     enemy.rewardGranted = true;
     enemy.rewardGrantedAt = Date.now();
     enemy.rewardGrantedBy = attackerId;
@@ -44,6 +52,7 @@ export function createWorldRewardManager({io, players, groups, profileManager, e
       const profile = (profileManager.applyCombatReward || profileManager.applyReward)({
         player,
         reward:{
+          ...azuronReceipt,
           credits,
           xp,
           premium,

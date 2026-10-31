@@ -1,5 +1,6 @@
 import { WORLD_MAPS } from "../world/definitions.js";
 import { confirmProfileSave } from "./profileSaveGuard.js";
+import { canRecoverRickyQuestKey, recoverRickyQuestKey } from "../quests/rickyKeyRecovery.js";
 
 const CLIENT_PROGRESS_TYPES = new Set([
   "talk_npc",
@@ -160,12 +161,21 @@ export function registerQuestHandlers(socket, context){
         socket.emit("quest:error", {message:npcResult.reason || "Interaction PNJ impossible."});
         return;
       }
-      await progressProfileQuestAction(socket, {
+      const action = {
         type,
         itemId:String(payload?.itemId || ""),
         npcId:String(npcResult.npc.id || ""),
         zoneName:String(npcResult.map.name || "")
-      });
+      };
+      if(type === "talk_npc" && !player.deathState && Number(player.state?.hp || 0) > 0
+        && canRecoverRickyQuestKey(profileManager.getProfileForPlayer?.(player), action)){
+        const recovery = profileManager.updateProfileForPlayer({player, update:profile=>recoverRickyQuestKey(profile, action)});
+        if(!recovery.ok || !await ensureSaved(recovery)) return;
+        emitProfileSync(player, recovery.profile);
+        socket.emit("quest:key-recovered", {questId:recovery.questId, itemId:recovery.itemId, amount:1, at:Date.now()});
+        return;
+      }
+      await progressProfileQuestAction(socket, action);
       return;
     }
     if(type === "mission_control"){

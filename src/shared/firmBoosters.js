@@ -2,6 +2,7 @@ export const FIRM_BOOSTER_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 export const S1_BOOSTER_DURATION_MS = 5 * 60 * 60 * 1000;
 export const S2_BOOSTER_DURATION_MS = 24 * 60 * 60 * 1000;
 export const S1_BOOSTER_PRICE = 10_000;
+export const MAX_S1_BOOSTER_UNITS = 1000;
 
 export const FIRM_BOOSTER_DEFINITIONS = Object.freeze({
   damage:Object.freeze({
@@ -134,6 +135,20 @@ export function addPlayerBoosterUnits(value = {}, {
     state.s1[type].remainingMs += S1_BOOSTER_DURATION_MS * count;
   }
   return state;
+}
+
+export function getS1BoosterUnitCount(value, type){
+  const remaining = sanitizePlayerBoosterState(value).s1[String(type || "")]?.remainingMs || 0;
+  return Math.ceil(remaining / S1_BOOSTER_DURATION_MS);
+}
+
+export function getS1BoosterPurchaseBlockReason(value, type, quantity = 1){
+  if(!BOOSTER_TYPE_IDS.includes(String(type || ""))) return "Type de booster invalide.";
+  if(!Number.isSafeInteger(quantity) || quantity < 1) return "Quantite de boosters invalide.";
+  if(getS1BoosterUnitCount(value, type) + quantity > MAX_S1_BOOSTER_UNITS){
+    return `Limite de ${MAX_S1_BOOSTER_UNITS} boosters par type atteinte. Achat refuse, aucune NOVA depensee.`;
+  }
+  return "";
 }
 
 export function getFirmBoostersForRank(rank){

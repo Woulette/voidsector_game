@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { consumeEnemyAttackVisualBudget, createEnemyAttackManager, getEnemyProjectileTravelTime } from "../src/world/enemyAttacks.js";
 
-function createFixture(){
+function createFixture({applyDamage} = {}){
   const emitted = [];
   const target = {
     id:"player-1",
@@ -28,6 +28,7 @@ function createFixture(){
     presence:{
       markCombat(){},
       applyDamageToPlayerState(player, amount){
+        if(applyDamage) return applyDamage(player, amount);
         const before = player.state.hp;
         player.state.hp = Math.max(0, before - amount);
         return before - player.state.hp;
@@ -93,6 +94,22 @@ test("enemy damage is applied only when the server projectile reaches its impact
   assert.equal(fixture.profileSyncs.length, 0);
   assert.equal(fixture.emitted[0].room, fixture.target.id);
   assert.equal(fixture.emitted.at(-1).eventName, "player:damage");
+  assert.equal(fixture.emitted.at(-1).payload.shieldBefore,0);
+});
+
+test("the incoming hit reports the shield before it was emptied, without altering the attack amount", ()=>{
+  const fixture=createFixture({applyDamage(player,amount){
+    const absorbed=Math.min(player.state.shield,amount*.8);
+    player.state.shield-=absorbed;player.state.hp-=amount-absorbed;
+    return amount-absorbed;
+  }});
+  fixture.target.state.shield=10;
+  fixture.manager.launchEnemyAttack({enemy:fixture.enemy,map:{id:"1",room:"map:1"},target:fixture.target,
+    amount:25,now:10_000,attackStyle:"drone_pirate"});
+  fixture.manager.updatePendingEnemyAttacks(12_000);
+  const damage=fixture.emitted.find(event=>event.eventName==="player:damage").payload;
+  assert.equal(damage.shieldBefore,10);assert.equal(damage.shield,0);assert.equal(damage.amount,25);
+  assert.equal(fixture.target.state.hp,85);
 });
 
 test("a pending enemy projectile is cancelled when the target leaves the map", ()=>{

@@ -5,6 +5,21 @@ import { drawTargetSelectionOverlay, getEntityTargetSelectionRadius } from "./ta
 import { drawDeadlyEnemyEngines } from "./enemyEngines.js";
 import { drawVesperEnemyVisual } from "./vesperEncounter.js?v=20261022-helion-hub1";
 import { drawPrismaticEnemyVisual } from "./prismaticEncounter.js?v=20261022-helion-hub1";
+import { drawEnemyLife, getEnemyLifeScale } from "./enemyLife.js";
+import { drawLootCollection, getLootCollectionProgress, isLootCollectionVisible } from "./lootCollection.js";
+import { drawWeaponProjectile, drawMonochromeBeam, drawSlowBomb } from "./weaponVfx.js";
+import { drawEnemyWeaponImpact, getEnemyImpactCenter } from "./enemyWeaponImpact.js";
+import { drawAnimatedOrb } from "./enemyOrb.js";
+import { isOrbKind } from "../combatData/orbVisuals.js";
+import { drawAnimatedVorak } from "./enemyVorak.js";
+import { isVorakKind } from "../combatData/vorakVisuals.js";
+import { drawAnimatedParasite } from "./enemyParasite.js";
+import { isParasiteKind } from "../combatData/parasiteVisuals.js";
+import { drawAnimatedTracker } from "./enemyTracker.js";
+import { isTrackerKind } from "../combatData/trackerVisuals.js";
+import { drawAnimatedEclanite } from "./enemyEclanite.js";
+import { isEclaniteKind } from "../combatData/eclaniteVisuals.js";
+import { drawEnemyDeathExplosion } from "./enemyDeathExplosion.js";
 
 const impactSpriteCache = new Map();
 const DEFAULT_CULL_MARGIN = 140;
@@ -244,6 +259,9 @@ export function drawProjectiles({ctx, camera, cache, bullets, showTrails = true}
   ctx.translate(-camera.x, -camera.y);
   for(const bullet of bullets){
     if(!isWorldPointVisible({x:bullet.x, y:bullet.y, camera, width, height, margin:260})) continue;
+    const projectileImage = bullet.kind === "rocket" || bullet.kind === "missile"
+      ? getCachedCombatImage(cache, bullet.sprite || (bullet.kind === "rocket" ? "assets/equipment/rocket_projectile.png" : "")) : null;
+    if(drawWeaponProjectile({ctx, bullet, time:performance.now() / 1000, image:projectileImage, showTrails})) continue;
     if(bullet.kind === "rocket" || bullet.kind === "missile"){
       const img = getCachedCombatImage(cache, bullet.sprite || (bullet.kind === "rocket" ? "assets/equipment/rocket_projectile.png" : ""));
       const angle = bullet.angle ?? Math.atan2(bullet.y - bullet.fromY, bullet.x - bullet.fromX);
@@ -350,6 +368,10 @@ export function drawBeams({ctx, camera, beams}){
     ctx.fill();
   }
   for(const beam of beams){
+    if(beam.age < 0) continue;
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    if(drawMonochromeBeam(ctx, beam)) continue;
     const progress = Math.max(0, Math.min(1, beam.age / beam.duration));
     const fade = progress < .76 ? 1 : Math.max(0, 1 - (progress - .76) / .24);
     const dx = beam.toX - beam.fromX;
@@ -392,8 +414,27 @@ export function drawImpactEffects({ctx, camera, impactEffects, showExplosions = 
   ctx.lineCap = "round";
   let sparkBudget = showSparksSmoke ? IMPACT_SPARK_BUDGET : 0;
   let smokeBudget = showSparksSmoke ? IMPACT_SMOKE_BUDGET : 0;
+  let deathDetailBudget = 4;
   for(const effect of impactEffects){
     if(effect.delay > 0) continue;
+    if(effect.kind === "enemyDeathExplosion"){
+      if(isWorldPointVisible({x:effect.x, y:effect.y, camera, width, height, margin:effect.radius})){
+        drawEnemyDeathExplosion(ctx,effect,{showExplosions,showSparksSmoke,reduced:deathDetailBudget-- <= 0});
+      }
+      continue;
+    }
+    if(effect.kind === "enemyWeaponImpact"){
+      const center = getEnemyImpactCenter(effect);
+      if(isWorldPointVisible({...center, camera, width, height, margin:effect.radius + 50})){
+        sparkBudget -= drawEnemyWeaponImpact(ctx, effect, {showFlash:showExplosions,
+          sparkCount:Math.min(5, sparkBudget)});
+      }
+      continue;
+    }
+    if(effect.kind === "slowBomb"){
+      if(isWorldPointVisible({x:effect.x, y:effect.y, camera, width, height, margin:effect.radius + 30})) drawSlowBomb(ctx, effect);
+      continue;
+    }
     const progress = 1 - Math.max(0, effect.life) / Math.max(.001, effect.max);
     const alpha = Math.max(0, effect.life / Math.max(.001, effect.max));
     const radius = effect.radius || 28;
@@ -695,7 +736,7 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
     const isPaused = Number(enemy.wanderPauseT || 0) > 0 && !enemy.aggro;
     const hasMovementState = typeof enemy.moving === "boolean" || Number.isFinite(enemy.vx) || Number.isFinite(enemy.vy);
     const isStopped = hasMovementState && (enemy.moving === false || Math.hypot(Number(enemy.vx || 0), Number(enemy.vy || 0)) < 4);
-    const isIdle = !enemy.aggro && (Boolean(enemy.idle) || isPaused || isStopped);
+    const isIdle = !isOrbKind(enemy.kind) && !isVorakKind(enemy.kind) && !isParasiteKind(enemy.kind) && !isTrackerKind(enemy.kind) && !isEclaniteKind(enemy.kind) && !enemy.aggro && (Boolean(enemy.idle) || isPaused || isStopped);
     const idPhase = Number.isFinite(Number(enemy.id)) ? Number(enemy.id) : String(enemy.id || "").split("").reduce((sum, char)=>sum + char.charCodeAt(0), 0);
     const idlePhase = time / 420 + idPhase * 1.37;
     const idleY = isIdle ? Math.sin(idlePhase) * 5 : 0;
@@ -705,32 +746,44 @@ export function drawEnemies({ctx, camera, cache, enemies, selectedEnemy}){
     const attackScale = 1 + attackPulse * .10;
     const renderAngle = getEnemyRenderRotation(enemy.kind, enemy.angle)
       + (canEnemyRotateFully(enemy.kind) ? idleAngle : 0);
-    const vesperVisualHandled = drawVesperEnemyVisual({ctx, camera, cache, enemy});
-    const prismaticVisualHandled = drawPrismaticEnemyVisual({ctx, camera, cache, enemy});
-    if(enemy.renderMode !== "deadly_cage" && !vesperVisualHandled && !prismaticVisualHandled){
-      const enemyImg = getCachedCombatImage(cache, enemy.img)
-        || getCachedCombatImage(cache, "assets/ships/intercepteur.png");
-      drawDeadlyEnemyEngines({
-        ctx,
-        camera,
-        enemy,
-        x:enemy.x + idleX,
-        y:enemy.y + idleY,
-        width:renderWidth * attackScale,
-        height:renderHeight * attackScale,
-        angle:renderAngle,
-        time
-      });
-      drawRotatedImage({
-        ctx,
-        camera,
-        img:enemyImg,
-        x:enemy.x + idleX,
-        y:enemy.y + idleY,
-        w:renderWidth * attackScale,
-        h:renderHeight * attackScale,
-        angle:renderAngle
-      });
+    const lifeScale = getEnemyLifeScale(enemy, time / 1000, idPhase);
+    const lifePose = {ctx, camera, enemy, x:enemy.x + idleX, y:enemy.y + idleY,
+      width:renderWidth, height:renderHeight, time:time / 1000, phase:idPhase};
+    const orbHandled = drawAnimatedOrb({ctx, camera, cache, enemy, time, phase:idPhase});
+    const vorakHandled = !orbHandled && drawAnimatedVorak({ctx, camera, cache, enemy, time, phase:idPhase});
+    const parasiteHandled = !orbHandled && !vorakHandled && drawAnimatedParasite({ctx, camera, cache, enemy, time, phase:idPhase});
+    const trackerHandled = !orbHandled && !vorakHandled && !parasiteHandled && drawAnimatedTracker({ctx, camera, cache, enemy, time, phase:idPhase});
+    const eclaniteHandled = !orbHandled && !vorakHandled && !parasiteHandled && !trackerHandled && drawAnimatedEclanite({ctx, camera, cache, enemy, time, phase:idPhase});
+    if(!orbHandled && !vorakHandled && !parasiteHandled && !trackerHandled && !eclaniteHandled){
+      drawEnemyLife(lifePose);
+      const vesperVisualHandled = drawVesperEnemyVisual({ctx, camera, cache, enemy});
+      const prismaticVisualHandled = drawPrismaticEnemyVisual({ctx, camera, cache, enemy});
+      if(enemy.renderMode !== "deadly_cage" && !vesperVisualHandled && !prismaticVisualHandled){
+        const enemyImg = getCachedCombatImage(cache, enemy.img)
+          || getCachedCombatImage(cache, "assets/ships/intercepteur.png");
+        drawDeadlyEnemyEngines({
+          ctx,
+          camera,
+          enemy,
+          x:enemy.x + idleX,
+          y:enemy.y + idleY,
+          width:renderWidth * attackScale,
+          height:renderHeight * attackScale,
+          angle:renderAngle,
+          time
+        });
+        drawRotatedImage({
+          ctx,
+          camera,
+          img:enemyImg,
+          x:enemy.x + idleX,
+          y:enemy.y + idleY,
+          w:renderWidth * attackScale * lifeScale.x,
+          h:renderHeight * attackScale * lifeScale.y,
+          angle:renderAngle
+        });
+      }
+      drawEnemyLife({...lifePose, front:true});
     }
     const isSelected = selectedEnemy && selectedEnemy.id === enemy.id;
     if(isSelected || Number(enemy.recentHitTimer || 0) > 0){
@@ -790,37 +843,53 @@ export function drawGroundMaterials({ctx, camera, cache, materials}){
   const {width, height} = viewSize(ctx);
   const time = performance.now() / 420;
   for(const node of materials || []){
-    const size = node.renderSize || node.size || 42;
-    if(!isWorldPointVisible({x:node.x, y:node.y, camera, width, height, margin:size * 2 + 90})) continue;
+    const collecting = Boolean(node.suctionActive);
+    const progress = collecting ? getLootCollectionProgress(node) : 0;
+    if(collecting && progress >= 1) continue;
+    const baseSize = Number.isFinite(Number(node.size)) && Number(node.size) > 0 ? Number(node.size) : 42;
+    const hasRenderSize = collecting && node.renderSize !== null && node.renderSize !== undefined && Number.isFinite(Number(node.renderSize));
+    const size = hasRenderSize ? Math.max(0, Number(node.renderSize)) : baseSize;
+    const margin = Math.max(baseSize, size) * 2 + 90;
+    if(collecting){
+      if(!isLootCollectionVisible({node, camera, width, height, margin})) continue;
+      drawLootCollection({ctx, node, camera});
+    }else if(!isWorldPointVisible({x:node.x, y:node.y, camera, width, height, margin})) continue;
+    if(size <= 0) continue;
     const img = getCachedCombatImage(cache, node.img);
-    const sx = Math.round(node.x - camera.x);
-    const sy = Math.round(node.y - camera.y + Math.sin(time + node.phase) * 3);
+    const hasRenderX = collecting && node.renderX !== null && node.renderX !== undefined && Number.isFinite(Number(node.renderX));
+    const hasRenderY = collecting && node.renderY !== null && node.renderY !== undefined && Number.isFinite(Number(node.renderY));
+    const renderX = hasRenderX ? Number(node.renderX) : node.x;
+    const renderY = hasRenderY ? Number(node.renderY) : node.y;
+    const phase = Number.isFinite(Number(node.phase)) ? Number(node.phase) : 0;
+    const sx = collecting ? renderX - camera.x : Math.round(renderX - camera.x);
+    const sy = collecting ? renderY - camera.y : Math.round(renderY - camera.y + Math.sin(time + phase) * 3);
     ctx.save();
-    ctx.translate(sx, sy);
-    ctx.globalCompositeOperation = "lighter";
-    const glowSize = size * (.72 + Math.sin(time + node.phase) * .04);
-    const glow = ctx.createRadialGradient(0, 0, size * .12, 0, 0, glowSize);
-    glow.addColorStop(0, node.glowCore || node.glow || "rgba(125,211,252,.32)");
-    glow.addColorStop(.48, node.glow || "rgba(125,211,252,.18)");
-    glow.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalCompositeOperation = "source-over";
-    ctx.shadowBlur = 0;
-    if(img && img.complete){
-      ctx.save();
-      ctx.rotate(time * (node.suctionActive ? 1.55 : .42) + node.phase);
-      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    try{
+      ctx.translate(sx, sy);
+      if(collecting) ctx.globalAlpha *= Math.min(1, (1 - progress) / .16);
+      ctx.globalCompositeOperation = "lighter";
+      const glowSize = size * (collecting ? .64 : .72 + Math.sin(time + phase) * .04);
+      const glow = ctx.createRadialGradient(0, 0, size * .12, 0, 0, glowSize);
+      glow.addColorStop(0, node.glowCore || node.glow || "rgba(125,211,252,.32)");
+      glow.addColorStop(.48, node.glow || "rgba(125,211,252,.18)");
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.shadowBlur = 0;
+      if(img?.complete && (img.naturalWidth === undefined || img.naturalWidth > 0)){
+        ctx.rotate((collecting ? progress * 2.7 : time * .42) + phase);
+        ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      }else{
+        ctx.fillStyle = node.fallback || "rgba(125,211,252,.72)";
+        ctx.beginPath();
+        ctx.arc(0, 0, size * .28, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }finally{
       ctx.restore();
     }
-    else{
-      ctx.fillStyle = node.fallback || "rgba(125,211,252,.72)";
-      ctx.beginPath();
-      ctx.arc(0, 0, size * .28, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
   }
 }

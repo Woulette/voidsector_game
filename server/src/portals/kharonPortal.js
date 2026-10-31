@@ -263,6 +263,7 @@ export function isKharonPortalInstance(instance){
   return Boolean(
     instance?.type === "portal"
     && String(instance?.portal?.id || "") === KHARON_PORTAL_ID
+    && instance?.portal?.encounterKind !== "azuron"
   );
 }
 

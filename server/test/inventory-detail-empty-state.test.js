@@ -5,7 +5,7 @@ import fs from "node:fs";
 const root = new URL("../../", import.meta.url);
 
 test("inventory detail panel is absent until an object is selected", ()=>{
-  const renderSource = fs.readFileSync(new URL("src/ui/render.js", root), "utf8");
+  const renderSource = fs.readFileSync(new URL("src/ui/hangarWorkshopMarkup.js", root), "utf8");
 
   assert.doesNotMatch(renderSource, /Aucun objet sélectionné/);
   assert.doesNotMatch(renderSource, /Sélectionne un équipement/);

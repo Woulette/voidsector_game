@@ -1,4 +1,7 @@
 import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1";
+import { drawTexturedShipEngines, isTexturedShipEngineReady } from "./shipEngines.js";
+import { drawRepairDrone } from "./repairDrone.js?v=20261024-repair1";
+import { drawPlayerShieldImpacts } from "./playerShieldImpacts.js";
 
 export function drawRotatedImage({ctx, camera, img, x, y, w, h, angle, fallbackColor = "#38bdf8"}){
   ctx.save();
@@ -19,7 +22,6 @@ export function drawRotatedImage({ctx, camera, img, x, y, w, h, angle, fallbackC
   ctx.restore();
 }
 
-const REPAIR_DRONE_IMG = "assets/equipment/drone_repair_starter.png";
 const STAFF_BADGES = {
   owner:{label:"[OWN]", color:"#ff4d5f", shadow:"rgba(248,113,113,.95)"},
   admin:{label:"[ADM]", color:"#ff4d5f", shadow:"rgba(248,113,113,.95)"},
@@ -240,6 +242,7 @@ function formationPoint(index, time, formationId = null, count = 1){
 
 export function spawnPlayerEngineParticles({dt, player, ship, particles, defaultProfile, profiles}){
   if(!player) return;
+  if(isTexturedShipEngineReady()) return;
   const power = Math.max(0, Math.min(1, player.enginePower || 0));
   if(power <= 0.05){
     player.engineParticleT = 0;
@@ -436,68 +439,6 @@ function drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInvent
     const x = pos.x;
     const y = pos.y;
     drawDroneSprite({ctx, camera, img, x, y, angle:player.angle, upgraded:Boolean(getDronePermanentUpgrade?.(index))});
-  });
-}
-
-function drawRepairDrone({ctx, camera, cache, player}){
-  if(!player?.repairBotActive) return;
-  const repairImg = player.extraBonus?.repairBotImg || REPAIR_DRONE_IMG;
-  const img = getCachedCombatImage(cache, repairImg)
-    || getCachedCombatImage(cache, REPAIR_DRONE_IMG);
-  const time = performance.now() / 1000;
-  const orbit = time * 1.15;
-  const hover = Math.sin(time * 5.2) * 3;
-  const orbitRadiusX = 92;
-  const orbitRadiusY = 78;
-  const centerPulse = Math.sin(time * 7.5) * 2;
-  const contactLocal = {x:centerPulse, y:centerPulse * .35};
-  const droneLocal = {
-    x:Math.cos(orbit) * orbitRadiusX + Math.cos(time * 2.7) * 5,
-    y:Math.sin(orbit) * orbitRadiusY + hover
-  };
-  const contact = localToWorld(player, contactLocal.x, contactLocal.y, player.angle);
-  const drone = localToWorld(player, droneLocal.x, droneLocal.y, player.angle);
-  const sx = drone.x - camera.x;
-  const sy = drone.y - camera.y;
-  const tx = contact.x - camera.x;
-  const ty = contact.y - camera.y;
-  const pulse = (Math.sin(time * 16) + 1) / 2;
-
-  ctx.save();
-  ctx.globalCompositeOperation = "lighter";
-  ctx.strokeStyle = `rgba(34,211,238,${.34 + pulse * .22})`;
-  ctx.shadowColor = "rgba(34,211,238,.85)";
-  ctx.shadowBlur = 12;
-  ctx.lineWidth = 2.2 + pulse * 1.4;
-  ctx.beginPath();
-  ctx.moveTo(sx, sy);
-  ctx.lineTo(tx, ty);
-  ctx.stroke();
-
-  ctx.fillStyle = `rgba(134,239,172,${.28 + pulse * .28})`;
-  ctx.shadowColor = "rgba(34,197,94,.75)";
-  ctx.shadowBlur = 10;
-  for(let i = 0; i < 4; i++){
-    const t = (time * 2.5 + i * .25) % 1;
-    const px = sx + (tx - sx) * t + Math.sin(time * 8 + i) * 2;
-    const py = sy + (ty - sy) * t + Math.cos(time * 7 + i) * 2;
-    ctx.beginPath();
-    ctx.arc(px, py, 2.1 + pulse, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-
-  const playerCenter = getPlayerDrawPosition(player);
-  drawRotatedImage({
-    ctx,
-    camera,
-    img,
-    x:drone.x,
-    y:drone.y,
-    w:42,
-    h:42,
-    angle:Math.atan2(playerCenter.y - drone.y, playerCenter.x - drone.x) + Math.PI / 2 + Math.PI,
-    fallbackColor:"#22d3ee"
   });
 }
 
@@ -963,7 +904,10 @@ export function drawPlayerLayer({
   graphicsEffects = {}
 }){
   const position = getPlayerDrawPosition(player);
-  if(graphicsEffects.shipEngineTrail !== false) drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles});
+  if(graphicsEffects.shipEngineTrail !== false
+    && !drawTexturedShipEngines({ctx, camera, cache, player, ship, defaultProfile, profiles})){
+    drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles});
+  }
   drawPlayerStatusBars({ctx, camera, player});
   drawEliteLaserCharges({ctx, camera, player, ship});
   drawSpectralDoubleShotCharge({ctx, camera, player, ship});
@@ -977,7 +921,8 @@ export function drawPlayerLayer({
     h:ship.renderHeight || 96,
     angle:player.angle + Number(ship.renderAngleOffset || 0)
   });
-  if(graphicsEffects.repairDrone !== false) drawRepairDrone({ctx, camera, cache, player});
+  if(graphicsEffects.explosionsImpacts !== false) drawPlayerShieldImpacts({ctx,camera,player,ship,position});
+  if(graphicsEffects.repairDrone !== false) drawRepairDrone({ctx, camera, cache, player, ship});
   if(graphicsEffects.combatDrones !== false) drawPlayerDrones({ctx, camera, cache, player, drones, getItemFromInventoryUid, getDronePermanentUpgrade, droneFormation});
   drawPlayerLabel({
     ctx,

@@ -5,6 +5,7 @@ import { S1_BOOSTER_SHOP } from "../../../src/shared/firmBoosters.js";
 import { getRequiredPortalForShip } from "../../../src/shared/progressionUnlocks.js";
 import { normalizeServerActionRepeat } from "./actionBatch.js";
 import { MAX_STANDARD_DRONES, MAX_TOTAL_DRONES } from "../../../src/shared/droneLimits.js";
+import { getShopCurrencyPrice } from "../../../src/shared/shopPricing.js";
 
 export const SERVER_AMMO_SHOP = {
   ammo_x1:{id:"ammo_x1", name:"Munition M-1", priceType:"credits", price:10000, amount:1000},
@@ -70,8 +71,8 @@ export const SERVER_PREMIUM_PACK_SHOP = Object.fromEntries(premiumShopPacks.map(
   {
     id:pack.id,
     name:pack.name,
+    tier:pack.tier,
     priceType:pack.priceType,
-    price:Number(pack.price || 0),
     days:Number(pack.days || 0),
     realPrice:pack.realPrice || ""
   }
@@ -101,17 +102,17 @@ export const SERVER_BETA_PACK_SHOP = Object.fromEntries(betaPacks.map(pack=>[
         }
       : pack.id === "beta_astralis"
         ? {
-            ships:["astralis"],
+            ships:["razorion"],
             itemCounts:{laser_mk4:5, laser_mk3:3, shield_omega:5, reactor_ion:5},
             ammo:{ammo_x4:20000},
             premium:25000
           }
         : pack.id === "beta_commander"
           ? {
-              chooseShip:true,
+              ships:["astralis"],
               itemCounts:{laser_mk4:10, reactor_ion:10, shield_omega:10, extra_repair_bot:1},
-              ammo:{ammo_x4:80000},
-              premium:80000
+              ammo:{ammo_x4:50000},
+              premium:50000
             }
           : {}
   }
@@ -136,8 +137,7 @@ export function normalizeShopMultiplier(value){
 }
 
 export function normalizeBoosterQuantity(value){
-  const count = Number(value || 1);
-  return [1, 10, 50, 100].includes(count) ? count : 1;
+  return Number(value ?? 1) === 1 ? 1 : 0;
 }
 
 export function getAmmoPurchase(id, multiplier = 1, repeat = 1){
@@ -175,6 +175,7 @@ export function getBoosterPurchase(id, quantity = 1, repeat = 1){
   const booster = SERVER_BOOSTER_SHOP[String(id || "")];
   if(!booster) return null;
   const count = normalizeBoosterQuantity(quantity);
+  if(!count) return null;
   const actionRepeat = normalizeServerActionRepeat(repeat);
   if(!actionRepeat) return null;
   const totalQuantity = count * actionRepeat;
@@ -207,7 +208,7 @@ export function getDronePurchase({id = "combat_drone", profile} = {}){
     ...drone,
     ownedCount:count,
     nextCount:count + 1,
-    totalPrice:price
+    totalPrice:getShopCurrencyPrice(drone.priceType, price, profile.player)
   };
 }
 
@@ -225,7 +226,8 @@ export function getPremiumPackPurchase(id){
   if(!pack) return null;
   return {
     ...pack,
-    totalPrice:Math.max(0, Math.round(Number(pack.price || 0)))
+    locked:true,
+    reason:"Les abonnements Premium sont disponibles uniquement en euros. Paiement à venir."
   };
 }
 

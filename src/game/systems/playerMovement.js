@@ -1,3 +1,5 @@
+import { getSlowedMovementSpeed } from "../../shared/movementSlow.js";
+
 export function worldFromScreen({sx, sy, camera}){
   const zoom = camera?.zoom || 1;
   return {x:sx / zoom + camera.x, y:sy / zoom + camera.y};
@@ -85,10 +87,8 @@ export function updatePlayerMovement({player, moveTarget, dt, map, clampToMap = 
     if(distance < 8){
       nextMoveTarget = null;
     }else{
-      const activeSlow = Number(player.slowEffect?.remaining || 0) > 0
-        ? Math.max(0, Number(player.slowEffect?.amount || 0))
-        : 0;
-      const movementSpeed = Math.max(1, Number(player.speed || 0) - activeSlow);
+      const activeSlow = Number(player.slowEffect?.remaining || 0) > 0 ? player.slowEffect : null;
+      const movementSpeed = getSlowedMovementSpeed(player.speed, activeSlow);
       const step = Math.min(movementSpeed * dt, distance);
       movedX = dx / distance * step;
       movedY = dy / distance * step;

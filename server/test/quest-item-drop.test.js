@@ -4,6 +4,14 @@ import { createDefaultProfile } from "../src/players/profileDefaults.js";
 import { createProfileActions } from "../src/players/profileActions.js";
 import { getQuest } from "../src/quests/questState.js";
 import { createWorldLootManager } from "../src/world/loot.js";
+import { getLootCollectionHoverPoint } from "../../src/shared/lootCollection.js";
+
+function collect(manager, socket, id){
+  manager.pickupLoot(socket, {id, phase:"start"});
+  const deadline = Date.now() + 700;
+  manager.pickupLoot(socket, {id, phase:"finish"});
+  manager.cleanupExpiredLootDrops(deadline);
+}
 
 test("contaminated sample quest drop is 20 percent", ()=>{
   const quest = getQuest("quest_lv4_contaminated_samples");
@@ -27,7 +35,7 @@ test("server emits and validates contaminated sample ground pickup", ()=>{
       connected:true,
       clientMode:"game",
       mapId:"1",
-      state:{mapId:"1", x:0, y:0}
+      state:{hp:100, mapId:"1", x:0, y:0}
     };
     const players = new Map([[player.id, player]]);
     const profile = createDefaultProfile();
@@ -62,8 +70,8 @@ test("server emits and validates contaminated sample ground pickup", ()=>{
     assert.equal(drop.itemId, "contaminated_sample");
     assert.equal(drop.serverControlled, true);
 
-    player.state = {mapId:"1", x:drop.x, y:drop.y};
-    manager.pickupLoot(socket, {id:drop.id});
+    player.state = {hp:100, mapId:"1", ...getLootCollectionHoverPoint(drop)};
+    collect(manager, socket, drop.id);
 
     assert.equal(socketEvents.some(entry=>entry.event === "loot:picked" && entry.payload.itemId === "contaminated_sample"), true);
     assert.equal(events.some(entry=>entry.id === "p1" && entry.event === "quest:progress"), true);
@@ -78,8 +86,8 @@ function createGroupDropFixture(){
   const events = [];
   const socketEvents = [];
   const players = new Map([
-    ["p1", {id:"p1", name:"Pilot One", connected:true, clientMode:"game", groupId:"g1", mapId:"3", state:{mapId:"3", x:0, y:0}}],
-    ["p2", {id:"p2", name:"Pilot Two", connected:true, clientMode:"game", groupId:"g1", mapId:"0", state:{mapId:"0", x:0, y:0}}]
+    ["p1", {id:"p1", name:"Pilot One", connected:true, clientMode:"game", groupId:"g1", mapId:"3", state:{hp:100, mapId:"3", x:0, y:0}}],
+    ["p2", {id:"p2", name:"Pilot Two", connected:true, clientMode:"game", groupId:"g1", mapId:"0", state:{hp:100, mapId:"0", x:0, y:0}}]
   ]);
   const groups = new Map([["g1", {id:"g1", members:["p1", "p2"]}]]);
   const profiles = new Map([
@@ -135,8 +143,8 @@ test("a contaminated sample found by one player progresses eligible group member
     const drop = fixture.events.find(entry=>entry.id === "p1" && entry.event === "loot:drop")?.payload;
     assert.equal(drop.itemId, "contaminated_sample");
 
-    fixture.players.get("p1").state = {mapId:"1", x:drop.x, y:drop.y};
-    fixture.manager.pickupLoot(fixture.socket, {id:drop.id});
+    fixture.players.get("p1").state = {hp:100, mapId:"1", ...getLootCollectionHoverPoint(drop)};
+    collect(fixture.manager, fixture.socket, drop.id);
 
     assert.equal(fixture.profiles.get("Pilot Two").completedQuestClaims[quest.id], true);
     assert.equal(Boolean(fixture.profiles.get("Pilot One").completedQuestClaims[quest.id]), false);
@@ -165,8 +173,8 @@ test("one stabilizer pickup progresses every eligible group member even on anoth
     const drop = fixture.events.find(entry=>entry.id === "p1" && entry.event === "loot:drop")?.payload;
     assert.equal(drop.itemId, "stabilisateur_dimensionnel");
 
-    fixture.players.get("p1").state = {mapId:"3", x:drop.x, y:drop.y};
-    fixture.manager.pickupLoot(fixture.socket, {id:drop.id});
+    fixture.players.get("p1").state = {hp:100, mapId:"3", ...getLootCollectionHoverPoint(drop)};
+    collect(fixture.manager, fixture.socket, drop.id);
 
     assert.equal(fixture.profiles.get("Pilot One").questProgress[questId].stabilisateurs, 1);
     assert.equal(fixture.profiles.get("Pilot Two").questProgress[questId].stabilisateurs, 1);

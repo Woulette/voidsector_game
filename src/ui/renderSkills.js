@@ -1,106 +1,105 @@
-import { skills } from "../data/catalog.js?v=20260726-kharon1";
-import { canAffordSkillCost, getNodeMaxRank, getSkillLevel, getSkillNodeLockReason, getSkillProgress, getSkillUpgradeData, isSkillNodeUnlocked, skillCostLabel, store } from "../core/store.js?v=20260726-kharon1";
+import { rawMaterialCatalog, skills } from "../data/catalog.js?v=20260726-kharon1";
+import { canAffordSkillCost, getSkillNodeLockReason, getSkillNodePortalRequirement, getSkillProgress, getSkillUpgradeData, hasCompletedSkillNodePortal, isSkillNodeUnlocked, store } from "../core/store.js?v=20260726-kharon1";
+import { currencyIconHtml } from "./currencyIcons.js";
+import { createSkillTreeModel, resolveSkillTreeSelection, skillTreeRoman } from "./skillTreeModel.js?v=20261023-skills1";
+import { skillTreeBranchIcon, skillTreeIcon } from "./skillTreeIcons.js?v=20261023-skillemblems1";
 
-const BRANCH_META = {
-  damage:{label:"Dégâts", code:"DMG", desc:"Armes laser, cadence offensive et rendement des tirs."},
-  shield:{label:"Bouclier", code:"BCL", desc:"Absorption, générateurs, recharge et survie du vaisseau."},
-  utility:{label:"Utilitaire", code:"UTL", desc:"Mobilité, soute, soutien et logistique de combat."}
-};
+let selectedSkillNode = null;
+const renderedMarkup = new WeakMap();
+const fmt = value=>Math.max(0, Number(value) || 0).toLocaleString("fr-FR");
+const escapeHtml = value=>String(value ?? "").replace(/[&<>"']/g, char=>({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[char]);
 
-function branchMeta(skill){
-  return BRANCH_META[skill.id] || {label:skill.short || skill.name, code:skill.id.slice(0, 3).toUpperCase(), desc:skill.desc};
+export function selectSkillNode(branchId, nodeIndex){
+  const selection = {branchId, nodeIndex:Number(nodeIndex)};
+  const valid = resolveSkillTreeSelection(skills, selection);
+  if(!valid || valid.branchId !== branchId || valid.nodeIndex !== selection.nodeIndex) return false;
+  selectedSkillNode = valid;
+  return true;
 }
 
-function roman(index){
-  return ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"][index] || String(index + 1);
+function rankDots(rank, maxRank){
+  return `<span class="skill-tree-rank-dots" aria-hidden="true">${Array.from({length:maxRank}, (_, index)=>`<i class="${index < rank ? "filled" : ""}"></i>`).join("")}</span>`;
 }
 
-function currentNodeLabel(node, rank){
-  if(!node) return "Palier vide";
-  const ranks = Array.isArray(node.ranks) ? node.ranks : [node];
-  if(rank <= 0) return ranks[0]?.label || "Aucun bonus";
-  return ranks[Math.min(rank, ranks.length) - 1]?.label || "Aucun bonus";
-}
-
-function nodePriceLabel(node, rank){
-  const ranks = Array.isArray(node?.ranks) ? node.ranks : [node];
-  const next = ranks[rank] || null;
-  if(!next) return "MAX";
-  if(next.skillPoints === undefined || (!next.priceType && !next.costs)) return "Prix à définir";
-  return `${next.skillPoints} pt${next.skillPoints > 1 ? "s" : ""} · ${skillCostLabel(next)}`;
-}
-
-function renderRankDots(rank, maxRank){
-  return `<span class="skill-rank-dots">${Array.from({length:maxRank}, (_,index)=>`<i class="${index < rank ? "filled" : ""}"></i>`).join("")}</span>`;
-}
-
-function renderSkillNode(skill, node, index, progress, canUpgrade){
-  const rank = progress.ranks[index] || 0;
-  const maxRank = getNodeMaxRank(node);
-  const done = rank >= maxRank;
-  const nodeUnlocked = isSkillNodeUnlocked(index);
-  const lockReason = done ? "" : getSkillNodeLockReason(index);
-  const available = nodeUnlocked && index === progress.nodeIndex && !done && canUpgrade;
-  const locked = !nodeUnlocked || index > progress.nodeIndex || (index === progress.nodeIndex && !done && !canUpgrade);
-  const nodeName = node?.name || `Palier ${index + 1}`;
-  return `<button class="skill-node ${done ? "done" : ""} ${available ? "available" : ""} ${locked ? "locked" : ""}" type="button" ${available ? `data-unlock-skill="${skill.id}"` : "disabled"}>
-    <span class="skill-node-core">${done ? "✓" : roman(index)}</span>
-    <span class="skill-node-title">${nodeName}</span>
-    ${renderRankDots(rank, maxRank)}
-    <small>Rang ${rank}/${maxRank} · ${currentNodeLabel(node, rank)}</small>
-    <em>${done ? "Débloqué" : lockReason || nodePriceLabel(node, rank)}</em>
+function renderNode(node){
+  const classes = ["skill-tree-node", node.selected && "selected", node.done && "done", node.locked && "locked", node.available && "available"].filter(Boolean).join(" ");
+  const status = node.done ? "rang maximum" : node.reason || "amélioration disponible";
+  return `<button class="${classes}" type="button" data-skill-select="${escapeHtml(node.branchId)}" data-skill-node="${node.index}" aria-pressed="${node.selected}" aria-label="${escapeHtml(`${node.name}, rang ${node.rank} sur ${node.maxRank}, ${status}`)}">
+    <span class="skill-tree-node-tile">${skillTreeIcon(node.locked ? "lock" : node.icon)}${rankDots(node.rank, node.maxRank)}<b>${node.rank} / ${node.maxRank}</b></span>
+    <span class="skill-tree-node-label">${escapeHtml(node.name)}</span>
   </button>`;
 }
 
-function activeBonuses(skill, progress){
-  const labels = skill.levels
-    .map((node, index)=>({node, rank:progress.ranks[index] || 0}))
-    .filter(entry=>entry.rank > 0)
-    .map(entry=>`${entry.node.name} ${entry.rank}/${getNodeMaxRank(entry.node)}`);
-  return labels.join("<br>");
+function renderBranch(branch){
+  return `<section class="skill-tree-lane ${escapeHtml(branch.id)}" data-skill-branch="${escapeHtml(branch.id)}" aria-label="Branche ${escapeHtml(branch.label)}">
+    <aside class="skill-tree-branch-info">${skillTreeBranchIcon(branch.icon)}<div><h3>${escapeHtml(branch.label)}</h3><p>${escapeHtml(branch.description)}</p></div></aside>
+    <div class="skill-tree-node-rail">${branch.nodes.map(renderNode).join("")}</div>
+  </section>`;
 }
 
-function renderBranch(skill){
-  const meta = branchMeta(skill);
-  const level = getSkillLevel(skill.id);
-  const progress = getSkillProgress(skill.id);
-  const maxLevel = Number(skill.maxLevel || skill.levels.length || 0);
-  const next = getSkillUpgradeData(skill.id);
-  const nextLockReason = next ? getSkillNodeLockReason(next.nodeIndex) : "";
-  const canUpgrade = !!next && isSkillNodeUnlocked(next.nodeIndex) && store.state.player.skillPoints >= Number(next.skillPoints || 0) && canAffordSkillCost(next);
-  const percent = progress.totalRanks ? Math.round(progress.completedRanks / progress.totalRanks * 100) : 0;
-  const activeBonus = activeBonuses(skill, progress);
+function renderCost(entry){
+  const icon = entry.currency ? currencyIconHtml(entry.currency)
+    : entry.image ? `<img src="${escapeHtml(entry.image)}" alt="" loading="lazy">` : skillTreeIcon(entry.icon);
+  const label = entry.id === "points" ? `${fmt(entry.amount)} point${entry.amount > 1 ? "s" : ""}` : fmt(entry.amount);
+  return `<div class="skill-tree-cost-entry${entry.insufficient ? " insufficient" : ""}" title="Disponible : ${escapeHtml(fmt(entry.available))}${entry.baseAmount > entry.amount ? ` · Prix initial : ${escapeHtml(fmt(entry.baseAmount))} NOVA` : ""}">
+    ${icon}<div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(entry.label)}</small></div>
+  </div>`;
+}
 
-  return `<section class="skill-tree-branch ${skill.theme || ""}">
-    <aside class="skill-branch-info">
-      <span>${meta.code}</span>
-      <h3>${meta.label}</h3>
-      <p>${meta.desc}</p>
-      <div class="skill-branch-progress"><b>${level}/${maxLevel}</b><i><span style="width:${percent}%"></span></i></div>
-    </aside>
-    <div class="skill-node-rail">
-      ${skill.levels.map((node, index)=>renderSkillNode(skill, node, index, progress, canUpgrade)).join("")}
-    </div>
-    <aside class="skill-branch-summary">
-      <strong>${level >= maxLevel ? "Branche terminée" : `${next?.node?.name || "Prochain palier"} · rang ${(next?.rankIndex ?? 0) + 1}/${getNodeMaxRank(next?.node)}`}</strong>
-      <small>${level >= maxLevel ? "Tous les paliers sont débloqués." : (nextLockReason || next?.label || "Aucun palier disponible.")}</small>
-      <span>${activeBonus || "Aucun bonus actif."}</span>
-    </aside>
-  </section>`;
+function renderDetail(node){
+  if(!node) return `<aside class="skill-tree-detail"><p>Aucune compétence disponible.</p></aside>`;
+  return `<aside class="skill-tree-detail ${escapeHtml(node.branchId)}" aria-label="Détail de la compétence sélectionnée">
+    <header class="skill-tree-detail-heading"><span class="skill-tree-detail-icon">${skillTreeIcon(node.icon)}</span><div><h3>${escapeHtml(node.name)}</h3><p>Branche ${escapeHtml(node.branchLabel)}</p><div class="skill-tree-detail-rank"><span>Rang <strong>${node.rank} / ${node.maxRank}</strong></span>${rankDots(node.rank, node.maxRank)}</div></div></header>
+    <p class="skill-tree-description">${escapeHtml(node.description)}</p>
+    <section class="skill-tree-effect"><h4>Effet actuel / prochain rang</h4><div class="skill-tree-effect-box"><div><span>Niveau actuel</span><strong>${escapeHtml(node.currentLabel)}</strong></div>${skillTreeIcon("arrow")}<div><span>${node.done ? "Compétence terminée" : "Prochain rang"}</span><strong>${escapeHtml(node.nextLabel)}</strong></div></div></section>
+    <section class="skill-tree-cost"><h4>Coût</h4>${node.costs.length ? `<div class="skill-tree-cost-grid">${node.costs.map(renderCost).join("")}</div>` : `<p class="skill-tree-complete-label">Tous les rangs sont acquis.</p>`}</section>
+    <button class="skill-tree-upgrade" type="button" ${node.canUpgrade ? `data-unlock-skill="${escapeHtml(node.branchId)}"` : "disabled"} ${node.reason ? `aria-describedby="skill-tree-upgrade-reason"` : ""}>${skillTreeIcon(node.done ? "check" : "gear")}<span>${node.done ? "Rang maximum" : "Améliorer"}</span></button>
+    ${node.reason ? `<p class="skill-tree-upgrade-reason" id="skill-tree-upgrade-reason" role="status">${escapeHtml(node.reason)}</p>` : ""}
+    <section class="skill-tree-ranks"><h4>Rangs</h4>${node.ranks.map(rank=>`<div class="skill-tree-rank-row${rank.earned ? " earned" : rank.next ? " next" : ""}"><b>${skillTreeRoman(rank.index)}</b><span>${escapeHtml(rank.label)}</span>${skillTreeIcon(rank.earned ? "check" : rank.next ? "circle" : "lock")}</div>`).join("")}</section>
+  </aside>`;
+}
+
+export function renderSkillTreeMarkup(model){
+  return `<div class="skill-tree-layout"><section class="skill-tree-main" aria-label="Arbre des compétences du pilote">
+    <header class="skill-tree-heading"><div class="skill-tree-heading-title"><span class="tiny">Hangar</span><h2>Compétences du pilote</h2><p>Développez votre spécialisation.</p></div><div class="skill-tree-points"><strong data-skill-points>${fmt(model.points)}</strong><span>point${model.points > 1 ? "s" : ""} disponible${model.points > 1 ? "s" : ""}</span></div><div class="skill-tree-access ${model.portal.completed ? "complete" : "locked"}">${skillTreeIcon(model.portal.completed ? "check" : "lock")}<span>${escapeHtml(model.portal.label)} ${model.portal.completed ? "terminé" : "à terminer"}</span></div></header>
+    <div class="skill-tree-board"><div class="skill-tree-tier-head" aria-hidden="true"><span class="skill-tree-tier-spacer"></span>${Array.from({length:model.tierCount}, (_, index)=>`<span>Palier ${skillTreeRoman(index)}</span>`).join("")}</div><div class="skill-tree-lanes">${model.branches.map(renderBranch).join("")}</div></div>
+    <p class="skill-tree-prerequisite">${skillTreeIcon("info")}<span>Le palier suivant exige 3/3 dans les trois branches du palier précédent.</span></p>
+  </section>${renderDetail(model.selected)}</div>`;
+}
+
+export function updateSkillTree(grid, model){
+  const markup = renderSkillTreeMarkup(model);
+  if(renderedMarkup.get(grid) === markup) return;
+  const focused = grid.contains(document.activeElement) ? document.activeElement : null;
+  const focusBranch = focused?.getAttribute("data-skill-select");
+  const focusNode = focused?.getAttribute("data-skill-node");
+  const focusUpgrade = focused?.classList.contains("skill-tree-upgrade");
+  const scrollSelectors = [".skill-tree-main", ".skill-tree-board", ".skill-tree-detail"];
+  const scrolls = scrollSelectors.map(selector=>{
+    const element = grid.querySelector(selector);
+    return {selector, top:element?.scrollTop || 0, left:element?.scrollLeft || 0};
+  });
+  grid.innerHTML = markup;
+  renderedMarkup.set(grid, markup);
+  for(const scroll of scrolls){
+    const element = grid.querySelector(scroll.selector);
+    if(element){ element.scrollTop = scroll.top; element.scrollLeft = scroll.left; }
+  }
+  const nextFocus = focusBranch
+    ? [...grid.querySelectorAll("[data-skill-select]")].find(button=>button.dataset.skillSelect === focusBranch && button.dataset.skillNode === focusNode)
+    : focusUpgrade ? grid.querySelector(".skill-tree-upgrade:not(:disabled)") || grid.querySelector('[data-skill-select][aria-pressed="true"]') : null;
+  nextFocus?.focus({preventScroll:true});
 }
 
 export function renderSkills(){
   const grids = document.querySelectorAll("[data-skill-grid], #skillGrid");
-  if(!grids.length) return;
-  const ordered = ["damage", "shield", "utility"].map(id=>skills.find(skill=>skill.id === id)).filter(Boolean);
-  const otherSkills = skills.filter(skill=>!ordered.includes(skill));
-  const html = `<div class="skill-tree-board">
-    <div class="skill-tree-lanes">
-      ${[...ordered, ...otherSkills].map(renderBranch).join("")}
-    </div>
-  </div>`;
-  grids.forEach(grid=>{
-    grid.classList.add("skill-tree-grid");
-    grid.innerHTML = html;
+  if(!grids.length || !store.state?.player) return;
+  const model = createSkillTreeModel({
+    catalog:skills, selection:selectedSkillNode, player:store.state.player, cargoHold:store.state.cargoHold,
+    materials:rawMaterialCatalog, getProgress:getSkillProgress, getUpgradeData:getSkillUpgradeData,
+    getLockReason:getSkillNodeLockReason, isUnlocked:isSkillNodeUnlocked, canAffordCost:canAffordSkillCost,
+    portalRequirement:getSkillNodePortalRequirement(0), portalComplete:hasCompletedSkillNodePortal(0)
   });
+  selectedSkillNode = model.selection;
+  grids.forEach(grid=>{ grid.classList.add("skill-tree-grid"); updateSkillTree(grid, model); });
 }

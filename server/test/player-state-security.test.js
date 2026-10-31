@@ -640,13 +640,13 @@ test("an active portal member cannot leave the instance through a snapshot", ()=
 });
 
 test("a completed portal member may return to a world safe zone", ()=>{
-  const previous = baseState({mapId:"portal-blue", x:0, y:0});
+  const previous = baseState({mapId:"portal-ionis", x:0, y:0});
   const player = makePlayer(previous);
   player.groupId = "group-1";
   const groups = new Map([["group-1", {
     instance:{
       type:"portal",
-      portal:{id:"blue"},
+      portal:{id:"ionis"},
       completed:true,
       abandonedMemberIds:[]
     }

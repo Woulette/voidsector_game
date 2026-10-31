@@ -1,26 +1,29 @@
 import { lootNameWithRarityHtml, lootNameWithRarityText } from "../../ui/lootRarityDisplay.js";
+import { getLootCollectionHoverPoint, LOOT_COLLECTION_APPROACH_RADIUS } from "../../shared/lootCollection.js";
+import { createLootCollectionController } from "./lootCollection.js";
 
 export function createCombatCargoSystem({
   rewards,
   requestServerLootPickup,
   showToast,
   onCargoChanged,
-  particles
+  particles,
+  getMap,
+  now = Date.now
 }){
   let cargoBoxes = [];
   let groundMaterials = [];
   let pendingCargoBox = null;
   let pendingGroundMaterial = null;
-  let groundMaterialSuction = null;
   const DROP_TTL_MS = 60000;
-  const GROUND_MATERIAL_SUCTION_MS = 700;
+  const collection = createLootCollectionController({requestPickup:requestServerLootPickup, now});
 
   function clear(){
+    collection.cancel();
     cargoBoxes = [];
     groundMaterials = [];
     pendingCargoBox = null;
     pendingGroundMaterial = null;
-    groundMaterialSuction = null;
   }
 
   function spawnPortalPieceDrop(enemy, portal, source = {}){
@@ -105,29 +108,23 @@ export function createCombatCargoSystem({
   }
 
   function setCargoDestination(box){
+    collection.cancel();
     pendingCargoBox = box;
     pendingGroundMaterial = null;
     return {x:box.x, y:box.y};
   }
 
-  function collectGroundMaterial(node){
+  function collectGroundMaterial(node, player){
     const index = groundMaterials.findIndex(entry=>entry.uid === node.uid);
     if(index < 0) return false;
-    if(node.expiresAt && Date.now() >= node.expiresAt){
+    if(node.expiresAt && now() >= node.expiresAt){
       groundMaterials.splice(index, 1);
       pendingGroundMaterial = null;
       return false;
     }
     if(node.serverControlled){
-      if(requestServerLootPickup?.(node.uid)){
-        groundMaterials.splice(index, 1);
-        particles().push({x:node.x, y:node.y, life:.42, max:.42, size:28, color:node.glowCore || "rgba(216,180,254,.58)"});
-        const labelText = lootNameWithRarityText(node);
-        const labelHtml = lootNameWithRarityHtml(node);
-        showToast(`Ramassage serveur : ${labelHtml}.`, {trustedHtml:true});
-        rewards.showLootNotice({piece:`${labelText} envoyé au serveur`});
+      if(collection.begin(node, player)){
         pendingGroundMaterial = null;
-        onCargoChanged?.();
         return true;
       }
       return false;
@@ -138,73 +135,17 @@ export function createCombatCargoSystem({
     return false;
   }
 
-  function beginGroundMaterialSuction(node, player){
-    if(!node || !player || groundMaterialSuction) return false;
-    groundMaterialSuction = {
-      uid:node.uid,
-      startedAt:Date.now(),
-      startX:Number(node.x || 0),
-      startY:Number(node.y || 0),
-      startSize:Number(node.size || 42),
-      nextParticleAt:0
-    };
-    node.suctionActive = true;
-    player.vx = 0;
-    player.vy = 0;
-    player.enginePower = 0;
-    return true;
-  }
-
-  function updateGroundMaterialSuction(player){
-    if(!groundMaterialSuction || !player) return false;
-    const node = groundMaterials.find(entry=>entry.uid === groundMaterialSuction.uid);
-    if(!node){
-      groundMaterialSuction = null;
-      pendingGroundMaterial = null;
-      return false;
-    }
-    const elapsed = Date.now() - groundMaterialSuction.startedAt;
-    const progress = Math.max(0, Math.min(1, elapsed / GROUND_MATERIAL_SUCTION_MS));
-    const eased = 1 - Math.pow(1 - progress, 3);
-    node.x = groundMaterialSuction.startX + (player.x - groundMaterialSuction.startX) * eased;
-    node.y = groundMaterialSuction.startY + (player.y - groundMaterialSuction.startY) * eased;
-    node.renderSize = Math.max(5, groundMaterialSuction.startSize * (1 - eased * .82));
-    node.suctionProgress = progress;
-    player.vx = 0;
-    player.vy = 0;
-    player.enginePower = 0;
-    if(elapsed >= groundMaterialSuction.nextParticleAt){
-      groundMaterialSuction.nextParticleAt = elapsed + 70;
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 18 + Math.random() * 20;
-      particles().push({
-        x:node.x + Math.cos(angle) * radius,
-        y:node.y + Math.sin(angle) * radius,
-        vx:(player.x - node.x) * 1.8,
-        vy:(player.y - node.y) * 1.8,
-        life:.24,
-        max:.24,
-        size:2 + Math.random() * 3,
-        color:node.glowCore || "rgba(125,211,252,.72)"
-      });
-    }
-    if(progress < 1) return true;
-    node.suctionActive = false;
-    node.renderSize = null;
-    groundMaterialSuction = null;
-    collectGroundMaterial(node);
-    return false;
-  }
-
   function setGroundMaterialDestination(node){
-    if(groundMaterialSuction) return null;
+    collection.cancel();
     pendingGroundMaterial = node;
     pendingCargoBox = null;
-    return {x:node.x, y:node.y};
+    return getLootCollectionHoverPoint(node, getMap?.());
   }
 
   function updatePending(player){
-    if(updateGroundMaterialSuction(player)) return;
+    const active = collection.getActive();
+    if(active && !groundMaterials.includes(active.node)) collection.cancel();
+    if(collection.update(player)) return;
     if(pendingCargoBox){
       const liveCargo = cargoBoxes.find(box=>box.id === pendingCargoBox.id);
       if(!liveCargo) pendingCargoBox = null;
@@ -213,19 +154,33 @@ export function createCombatCargoSystem({
     if(pendingGroundMaterial){
       const liveMaterial = groundMaterials.find(node=>node.uid === pendingGroundMaterial.uid);
       if(!liveMaterial) pendingGroundMaterial = null;
-      else if(Math.hypot(player.x - liveMaterial.x, player.y - liveMaterial.y) <= (liveMaterial.radius || 30) + 24){
-        if(liveMaterial.kind === "material") beginGroundMaterialSuction(liveMaterial, player);
-        else collectGroundMaterial(liveMaterial);
+      else{
+        const hover = getLootCollectionHoverPoint(liveMaterial, getMap?.());
+        if(Math.hypot(player.x - hover.x, player.y - hover.y) <= LOOT_COLLECTION_APPROACH_RADIUS) collectGroundMaterial(liveMaterial, player);
       }
     }
   }
 
   function tick(){
-    const now = Date.now();
+    const timestamp = now();
     const before = groundMaterials.length;
-    groundMaterials = groundMaterials.filter(node=>!node.expiresAt || node.expiresAt > now);
+    groundMaterials = groundMaterials.filter(node=>!node.expiresAt || node.expiresAt > timestamp);
+    if(collection.getActive() && !groundMaterials.includes(collection.getActive().node)) collection.cancel();
     if(pendingGroundMaterial && !groundMaterials.some(node=>node.uid === pendingGroundMaterial.uid)) pendingGroundMaterial = null;
     return before - groundMaterials.length;
+  }
+
+  function handleServerEvent(reason, event = {}){
+    const node = groundMaterials.find(entry=>String(entry.uid) === String(event.id || ""));
+    const pickedPosition = node ? {x:node.renderX ?? node.x, y:node.renderY ?? node.y} : null;
+    collection.handleServerEvent(reason, event);
+    if(reason !== "loot:picked" || !node) return;
+    groundMaterials = groundMaterials.filter(entry=>entry !== node);
+    if(pendingGroundMaterial === node) pendingGroundMaterial = null;
+    particles?.()?.push({...pickedPosition, life:.25, max:.25, size:18, color:node.glowCore || "rgba(125,211,252,.58)"});
+    showToast(`${lootNameWithRarityHtml(node)} récupéré.`, {trustedHtml:true});
+    rewards.showLootNotice({piece:lootNameWithRarityText(node)});
+    onCargoChanged?.();
   }
 
   return {
@@ -240,11 +195,12 @@ export function createCombatCargoSystem({
     setGroundMaterialDestination,
     tick,
     updatePending,
-    isMovementLocked:()=>Boolean(groundMaterialSuction),
+    isMovementLocked:()=>false,
+    handleServerEvent,
     getCargoBoxes:()=>cargoBoxes,
     setCargoBoxes:value=>{ cargoBoxes = Array.isArray(value) ? value : []; },
     getGroundMaterials:()=>groundMaterials,
     setGroundMaterials:value=>{ groundMaterials = Array.isArray(value) ? value : []; },
-    clearPending:()=>{ pendingCargoBox = null; pendingGroundMaterial = null; groundMaterialSuction = null; }
+    clearPending:()=>{ collection.cancel(); pendingCargoBox = null; pendingGroundMaterial = null; }
   };
 }

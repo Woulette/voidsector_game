@@ -3,6 +3,7 @@ import { applyServerReputationFromXp, registerServerMonsterKill, updateRankScore
 import { sanitizeProfile } from "./profileSanitize.js";
 import { appendProfileActivity } from "./activityLog.js";
 import { attachProfileSave, cloneProfileSnapshot, restoreProfileSnapshot } from "./profilePersistenceResult.js";
+import { recordAzuronEnemyReward } from "../../../src/shared/azuronProgress.js";
 
 export function createProfileMutations({profiles, persist, persistDeferred, profileKeyForPlayer, getExistingProfile}){
   function hasAuthenticatedAccount(player){
@@ -73,6 +74,7 @@ export function createProfileMutations({profiles, persist, persistDeferred, prof
   function applyCombatReward({player, reward} = {}){
     if(!hasAuthenticatedAccount(player)) return null;
     const {key, profile} = getExistingProfile(player);
+    if(!recordAzuronEnemyReward(profile,reward)) return null;
     applyRewardChanges(profile, reward);
     profiles.set(key, profile);
     if(typeof persistDeferred === "function") persistDeferred(key, 500);

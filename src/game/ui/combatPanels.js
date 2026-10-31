@@ -1,4 +1,6 @@
+import { createCombatUtilityDock } from "./combatUtilityDock.js";
 import { renderCombatQuestTracker as renderCombatQuestTrackerHtml } from "./questTracker.js?v=20260726-kharon1";
+import { bindSpawnRefineryUi, captureSpawnRefineryUi } from "./spawnRefineryPanel.js";
 import { canOpenSpawnPanelMode, renderSpawnPanelContent } from "./spawnPanel.js?v=20260726-kharon1";
 import { renderCombatFirmPanel } from "./combatFirmPanel.js?v=20260726-kharon1";
 import { renderCombatMapPanel } from "./combatMapPanel.js?v=20260726-kharon1";
@@ -9,6 +11,8 @@ import { FIRMS, getFirmIdFromMapName, normalizeFirmId } from "../../data/firms.j
 import { isPremiumActive } from "../../data/premium.js";
 import { getCurrentRank } from "../../core/store.js?v=20260726-kharon1";
 import { hydrateCombatUiLayout, persistCombatUiLayout } from "./combatUiLayout.js";
+import { createCombatPanelRefreshTimers, isCombatPanelCollapsed, syncCombatPanelDisclosure, updateCombatPanelContent } from "./combatPanelPresentation.js";
+import { getQuestActivityCategory, renderQuestCategoryIcon } from "./questCategories.js";
 import {
   multiplayer,
   abandonServerQuest,
@@ -54,6 +58,9 @@ export function createCombatPanels({
   maps = [],
   getCurrentMap,
   getPlayer,
+  getSectorTravelState = ()=>null,
+  startSectorTravel = ()=>false,
+  cancelSectorTravel = ()=>false,
   ammoTypes = [],
   enemyTypes,
   getAllRawMaterials,
@@ -83,6 +90,7 @@ export function createCombatPanels({
   renderSettingsContent
 }){
   hydrateCombatUiLayout(store);
+  const utilityDock = createCombatUtilityDock({store});
   createQuestAbandonController({
     getState:()=>store.state,
     getQuests:getAllQuests,
@@ -91,7 +99,7 @@ export function createCombatPanels({
   });
   let spawnPanelMode = null;
   let spawnPanelRefreshT = 0;
-  let utilityPanelRefreshT = 0;
+  const utilityRefreshTimers = createCombatPanelRefreshTimers();
   let utilityBadgeRefreshT = 0;
   let groupMembers = [];
   let selectedQuestId = null;
@@ -105,9 +113,11 @@ export function createCombatPanels({
   let combatQuestDetailTab = "quest";
   let refineryPanelTab = "raffinage";
   let selectedShipRefineRecipeId = null;
+  const refineryUiState = {};
   let groupHudRefreshT = 0;
   let groupHudDragReady = false;
   let mapPanelMode = "view";
+  let selectedSectorMapId = null;
   let selectedSocialTab = "friends";
   let selectedSocialKey = null;
   let selectedFirmPanelTab = "overview";
@@ -116,6 +126,7 @@ export function createCombatPanels({
   let boosterTimerRefreshT = 0;
   let expandedBoosterType = "";
   let pendingGroupInviteName = "";
+  let groupInviteDisclosureKey = "";
   let pendingSocialAddName = "";
   const questBriefingTypewriter = createTypewriterTextController({charactersPerSecond:32});
 
@@ -144,12 +155,14 @@ export function createCombatPanels({
     combatQuestDetailTab = "quest";
     refineryPanelTab = "raffinage";
     selectedShipRefineRecipeId = null;
+    for(const key of Object.keys(refineryUiState)) delete refineryUiState[key];
     questBriefingTypewriter.reset();
     spawnPanelRefreshT = 0;
-    utilityPanelRefreshT = 0;
+    utilityRefreshTimers.reset();
     groupHudRefreshT = 0;
     refreshGroupFloatingHud();
     hydrateCombatUiLayout(store);
+    utilityDock.refresh();
     setTimeout(()=>{
       restoreOpenUtilityPanels();
       restoreOpenSpawnPanel();
@@ -207,11 +220,53 @@ export function createCombatPanels({
       const utilityOpen = !!panel && !panel.classList.contains("hidden");
       const spawnOpen = (mode === "refinery" || mode === "crafting") && spawnPanelMode === mode && !document.getElementById("spawnInteractionPanel")?.classList.contains("hidden");
       btn.classList.toggle("active", utilityOpen || spawnOpen);
+      btn.setAttribute("aria-expanded", String(utilityOpen || spawnOpen));
       if(mode === "quests") syncQuestDockBadge(btn);
       if(mode === "group") syncDockBadge(btn, multiplayer.invites.length, "group");
       if(mode === "friends") syncDockBadge(btn, multiplayer.social?.incoming?.length || 0, "friends");
       if(mode === "boosters") syncDockBadge(btn, multiplayer.firmSnapshot?.personal?.boosters?.items?.length || 0, "boosters");
     });
+    syncHudPanelHeader("group");
+    syncHudPanelHeader("quests");
+  }
+
+  function syncHudPanelHeader(mode){
+    const panel = getUtilityPanel(mode);
+    if(!panel) return;
+    const activeQuests = mode === "quests" ? getActiveQuests() : [];
+    const selected = activeQuests.find(quest=>quest.id === selectedQuestId)
+      || activeQuests.find(quest=>quest.id === getActiveQuest()?.id) || activeQuests[0];
+    const members = mode === "group" ? getVisibleGroupMembers() : [];
+    const title = mode === "quests" ? selected?.title || "Suivi des quêtes" : "Groupe";
+    const titleEl = panel.querySelector("[data-hud-panel-title]");
+    if(titleEl && titleEl.textContent !== title){ titleEl.textContent = title; titleEl.title = title; }
+    const picker = panel.querySelector("[data-hud-quest-select]");
+    if(picker){
+      const key = JSON.stringify(activeQuests.map(quest=>[quest.id, quest.title]));
+      if(picker.dataset.optionsKey !== key){
+        picker.innerHTML = activeQuests.length ? activeQuests.map(quest=>`<option value="${escapeHtml(quest.id)}">${escapeHtml(quest.title)}</option>`).join("") : '<option value="">Suivi des quêtes</option>';
+        picker.dataset.optionsKey = key;
+      }
+      picker.value = selected?.id || "";
+      picker.disabled = !activeQuests.length;
+      picker.title = title;
+    }
+    const count = mode === "quests" ? `${activeQuests.length} / 5` : String(members.length > 1 ? members.length : 0);
+    const countEl = panel.querySelector("[data-hud-panel-count]");
+    if(countEl && countEl.textContent !== count) countEl.textContent = count;
+    if(mode === "quests"){
+      const icon = panel.querySelector("[data-hud-panel-icon]");
+      updateCombatPanelContent(icon, renderQuestCategoryIcon(getQuestActivityCategory(selected).icon, "", selected));
+    }
+    let newGroupInvite = false;
+    if(mode === "group"){
+      const key = multiplayer.invites.map(invite=>`${invite.groupId}:${invite.expiresAt}`).sort().join("|");
+      newGroupInvite = Boolean(key && key !== groupInviteDisclosureKey);
+      groupInviteDisclosureKey = key;
+      if(newGroupInvite) ensureUtilityPanelLayout(mode).collapsed = false;
+    }
+    const layout = store.state?.uiLayout?.combatUtilityPanels?.[mode];
+    syncCombatPanelDisclosure(panel, isCombatPanelCollapsed(layout, mode, newGroupInvite));
   }
 
   function syncDockBadge(btn, count, label){
@@ -258,8 +313,11 @@ export function createCombatPanels({
   function applyUtilityPanelLayout(mode, panel){
     const layout = store.state?.uiLayout?.combatUtilityPanels?.[mode] || store.state?.uiLayout?.combatUtilityPanel;
     if(!layout || !Number.isFinite(Number(layout.left)) || !Number.isFinite(Number(layout.top))) return;
-    panel.style.left = `${Math.max(0, Number(layout.left))}px`;
-    panel.style.top = `${Math.max(0, Number(layout.top))}px`;
+    const rect = mode === "quests" ? panel.getBoundingClientRect() : null;
+    const maxLeft = rect ? Math.max(0, window.innerWidth - rect.width) : Infinity;
+    const maxTop = rect ? Math.max(0, window.innerHeight - rect.height) : Infinity;
+    panel.style.left = `${Math.max(0, Math.min(maxLeft, Number(layout.left)))}px`;
+    panel.style.top = `${Math.max(0, Math.min(maxTop, Number(layout.top)))}px`;
     panel.style.right = "auto";
     panel.style.bottom = "auto";
     panel.style.transform = "none";
@@ -268,8 +326,10 @@ export function createCombatPanels({
   function applySpawnPanelLayout(panel){
     const layout = store.state?.uiLayout?.spawnInteractionPanel;
     if(!layout || !Number.isFinite(Number(layout.left)) || !Number.isFinite(Number(layout.top))) return;
-    const maxLeft = panel.classList.contains("quest-mode") ? Math.max(0, window.innerWidth - panel.offsetWidth) : Infinity;
-    const maxTop = panel.classList.contains("quest-mode") ? Math.max(0, window.innerHeight - panel.offsetHeight) : Infinity;
+    const keepOnScreen = panel.classList.contains("quest-mode") || panel.classList.contains("refinery-mode");
+    const rect = panel.getBoundingClientRect();
+    const maxLeft = keepOnScreen ? Math.max(0, window.innerWidth - rect.width) : Infinity;
+    const maxTop = keepOnScreen ? Math.max(0, window.innerHeight - rect.height) : Infinity;
     panel.style.left = `${Math.max(0, Math.min(maxLeft, Number(layout.left)))}px`;
     panel.style.top = `${Math.max(0, Math.min(maxTop, Number(layout.top)))}px`;
     panel.style.right = "auto";
@@ -358,8 +418,8 @@ export function createCombatPanels({
       applyUtilityPanelLayout("quests", panel);
       panel.classList.remove("hidden");
     }
-    content.innerHTML = renderCombatQuestTracker();
-    utilityPanelRefreshT = .25;
+    updateCombatPanelContent(content, renderCombatQuestTracker());
+    utilityRefreshTimers.defer("quests", .25);
     syncUtilityDockButtons();
   }
 
@@ -637,9 +697,9 @@ export function createCombatPanels({
       applyUtilityPanelLayout("group", panel);
       panel.classList.remove("hidden");
     }
-    content.innerHTML = renderCompactGroupUtilityContent();
+    updateCombatPanelContent(content, renderCompactGroupUtilityContent());
     syncUtilityDockButtons();
-    if(focus) document.getElementById("groupInviteName")?.focus();
+    if(focus && !panel.classList.contains("is-collapsed")) document.getElementById("groupInviteName")?.focus();
   }
 
   function isInteractingWithUtilityPanel(mode){
@@ -925,7 +985,10 @@ export function createCombatPanels({
       maps,
       getCurrentMap,
       mode:mapPanelMode,
-      playerLevel:store.state.player?.level || 1
+      playerLevel:store.state.player?.level || 1,
+      premiumActive:isPremiumActive(store.state.player),
+      selectedMapId:selectedSectorMapId,
+      travelState:getSectorTravelState()
     });
   }
 
@@ -937,7 +1000,7 @@ export function createCombatPanels({
       applyUtilityPanelLayout("map", panel);
       panel.classList.remove("hidden");
     }
-    content.innerHTML = renderGameMapUtilityContent();
+    updateCombatPanelContent(content, renderGameMapUtilityContent());
     syncUtilityDockButtons();
   }
 
@@ -1026,6 +1089,37 @@ export function createCombatPanels({
     return true;
   }
 
+  function selectSectorMap(mapId){
+    if(mapPanelMode !== "view") return false;
+    const map = maps.find(entry=>String(entry.id) === String(mapId));
+    if(!map) return false;
+    selectedSectorMapId = map.id;
+    refreshMapUtilityPanel();
+    return true;
+  }
+
+  function startSectorMapTravel(mapId){
+    if(mapPanelMode !== "view") return false;
+    if(!isPremiumActive(store.state.player)){
+      showToast?.("Un abonnement Premium actif est requis pour le voyage automatique.");
+      return false;
+    }
+    const map = maps.find(entry=>String(entry.id) === String(mapId));
+    if(!map || String(map.id) === String(getCurrentMap()?.id)) return false;
+    if(!startSectorTravel(map.id)) return false;
+    selectedSectorMapId = map.id;
+    getUtilityPanel("map")?.classList.add("hidden");
+    saveUtilityPanelOpenState("map", false);
+    syncUtilityDockButtons();
+    return true;
+  }
+
+  function cancelSectorMapTravel(){
+    const cancelled = cancelSectorTravel("manual");
+    refreshMapUtilityPanel();
+    return cancelled;
+  }
+
   function restoreOpenUtilityPanels(){
     for(const mode of UTILITY_PANEL_MODES){
       if(mode === "settings") continue;
@@ -1057,6 +1151,7 @@ export function createCombatPanels({
     setTimeout(()=>{
       if(!uiChanges || uiChanges.layoutChanged){
         hydrateCombatUiLayout(store);
+        utilityDock.refresh();
         restoreOpenUtilityPanels();
       }
       restoreOpenSpawnPanel();
@@ -1122,6 +1217,7 @@ export function createCombatPanels({
     }
     const questListScrollTop = mode === "quests" ? content.querySelector(".quest-strip-list")?.scrollTop : null;
     const oldQuestId = content.querySelector("[data-quest-detail]")?.dataset.questDetail;
+    const refineryScrollTop = mode === "refinery" ? content.querySelector(".orbital-cargo-materials,.orbital-boost-choices")?.scrollTop || 0 : 0;
     const detailScrollTop = content.querySelector(".quest-detail-scroll")?.scrollTop || 0;
     const transmissionOpen = content.querySelector(".quest-transmission-details")?.open || false;
     spawnPanelMode = mode;
@@ -1187,6 +1283,7 @@ export function createCombatPanels({
       commerceSaleAllowed:canSellMaterialsOnCurrentMap(),
       refineryTab:refineryPanelTab,
       selectedShipRefineRecipeId,
+      refineryUiState,
       upgradeables,
       getShipRefineryRecipeData,
       getCombatBoostSummary,
@@ -1199,6 +1296,12 @@ export function createCombatPanels({
     if(rendered.titleHtml) title.innerHTML = rendered.titleHtml;
     else title.textContent = rendered.title;
     content.innerHTML = rendered.html;
+    if(mode === "refinery"){
+      captureSpawnRefineryUi(content, refineryUiState);
+      bindSpawnRefineryUi(content, refineryUiState, ()=>renderSpawnInteractionPanel("refinery"));
+      const refineryScroll = content.querySelector(".orbital-cargo-materials,.orbital-boost-choices");
+      if(refineryScroll) refineryScroll.scrollTop = refineryScrollTop;
+    }
     if(oldQuestId && oldQuestId === content.querySelector("[data-quest-detail]")?.dataset.questDetail){
       const transmission = content.querySelector(".quest-transmission-details");
       if(transmission) transmission.open = transmissionOpen;
@@ -1305,6 +1408,29 @@ export function createCombatPanels({
     renderSpawnInteractionPanel("refinery");
   }
 
+  getUtilityPanel("quests")?.querySelector("[data-hud-quest-select]")?.addEventListener("change", event=>trackCombatQuest(event.target.value));
+  window.addEventListener("resize", ()=>{
+    const panel = getUtilityPanel("quests");
+    if(panel && !panel.classList.contains("hidden")) applyUtilityPanelLayout("quests", panel);
+    const refineryPanel = document.getElementById("spawnInteractionPanel");
+    if(refineryPanel?.classList.contains("refinery-mode") && !refineryPanel.classList.contains("hidden")) applySpawnPanelLayout(refineryPanel);
+  });
+  for(const mode of ["group", "quests"]){
+    const panel = getUtilityPanel(mode);
+    panel?.querySelector("[data-hud-panel-collapse]")?.addEventListener("click", ()=>{
+      const collapsed = !panel.classList.contains("is-collapsed");
+      const layout = ensureUtilityPanelLayout(mode);
+      layout.collapsed = collapsed;
+      persistCombatUiLayout(store);
+      saveState();
+      syncHudPanelHeader(mode);
+      if(!collapsed){
+        if(mode === "group") refreshGroupUtilityPanel({focus:true});
+        else refreshQuestUtilityPanel();
+      }
+    });
+  }
+
   applyPerfPanelVisibility();
 
   function tick(dt){
@@ -1323,30 +1449,24 @@ export function createCombatPanels({
       }
     }
     const utilityPanel = getUtilityPanel("quests");
-    if(utilityPanel && !utilityPanel.classList.contains("hidden") && !utilityPanel.matches(":hover")){
-      utilityPanelRefreshT -= dt;
-      if(utilityPanelRefreshT <= 0){
+    if(utilityPanel && !utilityPanel.classList.contains("hidden") && !utilityPanel.classList.contains("is-collapsed") && !isInteractingWithUtilityPanel("quests")){
+      if(utilityRefreshTimers.due("quests", dt, .25)){
         const content = getUtilityContent("quests");
-        if(content) content.innerHTML = renderCombatQuestTracker();
-        utilityPanelRefreshT = .25;
+        updateCombatPanelContent(content, renderCombatQuestTracker());
       }
     }
     const groupPanel = getUtilityPanel("group");
-    if(groupPanel && !groupPanel.classList.contains("hidden") && !isInteractingWithUtilityPanel("group")){
-      utilityPanelRefreshT -= dt;
-      if(utilityPanelRefreshT <= 0){
+    if(groupPanel && !groupPanel.classList.contains("hidden") && !groupPanel.classList.contains("is-collapsed") && !isInteractingWithUtilityPanel("group")){
+      if(utilityRefreshTimers.due("group", dt, .5)){
         const content = getUtilityContent("group");
-        if(content) content.innerHTML = renderCompactGroupUtilityContent();
-        utilityPanelRefreshT = .5;
+        updateCombatPanelContent(content, renderCompactGroupUtilityContent());
       }
     }
     const mapPanel = getUtilityPanel("map");
     if(mapPanel && !mapPanel.classList.contains("hidden")){
-      utilityPanelRefreshT -= dt;
-      if(utilityPanelRefreshT <= 0){
+      if(utilityRefreshTimers.due("map", dt, .75)){
         const content = getUtilityContent("map");
-        if(content) content.innerHTML = renderGameMapUtilityContent();
-        utilityPanelRefreshT = .75;
+        updateCombatPanelContent(content, renderGameMapUtilityContent());
       }
     }
     const socialOpen = ["friends", "firm", "boosters"].some(mode=>{
@@ -1399,6 +1519,9 @@ export function createCombatPanels({
     toggleBoosterDetail,
     openPortgunMapPanel,
     selectPortgunMapTarget,
+    selectSectorMap,
+    startSectorMapTravel,
+    cancelSectorMapTravel,
     inviteGroupMember,
     handleGroupAction,
     togglePerfPanelVisibility,

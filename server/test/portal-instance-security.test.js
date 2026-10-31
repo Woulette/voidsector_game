@@ -246,17 +246,17 @@ test("server portal preparation requires an unlocked portal and starts only from
   const instance = fixture.instanceGroup.instance;
   assert.equal(instance.type, "portal");
   assert.equal(instance.portal.id, "blue");
-  assert.equal(instance.portal.totalWaves, 20);
+  assert.equal(instance.portal.totalWaves, 30);
   assert.equal(instance.playerLives["leader-1"], 3);
   assert.equal(fixture.player.preparedPortal, null);
   assert.equal(fixture.getProfile().preparedPortal, null);
   const started = fixture.events.find(entry=>entry.event === "portal:started");
-  assert.equal(started?.payload.waveTotal, 20);
+  assert.equal(started?.payload.waveTotal, 30);
   assert.equal(started?.payload.waveState, "wave_countdown");
   assert.ok(Number(started?.payload.nextWaveAt || 0) > Date.now());
 });
 
-test("a prepared Vesper portal starts its four-cage rescue encounter instead of generic waves", ()=>{
+test("a prepared Vesper portal starts Azuron waves with doubled combat stats", ()=>{
   const fixture = createFixture();
   const profile = createDefaultProfile();
   profile.player.level = 15;
@@ -271,36 +271,18 @@ test("a prepared Vesper portal starts its four-cage rescue encounter instead of 
   const group = fixture.instanceGroup;
   const instance = group.instance;
   assert.equal(instance.portal.id, "violet");
-  assert.equal(instance.portal.totalWaves, 0);
-  assert.equal(instance.wave, 0);
-  assert.equal(instance.objective.kind, "vesper");
-  assert.equal(instance.objective.cages.length, 4);
-  assert.equal(instance.enemies.filter(enemy=>enemy.vesperCage).length, 4);
-  assert.equal(instance.enemies.filter(enemy=>enemy.vesperTurret).length, 8);
-  assert.deepEqual(instance.allies, []);
-  assert.equal(instance.playerLives[fixture.player.id], 3);
-  assert.equal(fixture.player.preparedPortal, null);
-
-  const started = fixture.events.filter(entry=>entry.event === "portal:started").at(-1)?.payload;
-  assert.equal(started?.objective?.kind, "vesper");
-  assert.equal(started?.objective?.cagesTotal, 4);
-  assert.deepEqual(started?.allies, []);
-  assert.equal(started?.playerLives?.[fixture.player.id], 3);
-
-  const firstCage = instance.objective.cages[0];
-  fixture.player.mapId = "portal-violet";
-  fixture.player.state = {
-    ...fixture.player.state,
-    mapId:"portal-violet",
-    x:firstCage.x,
-    y:firstCage.y
-  };
-  fixture.manager.updateVesperEncounters(.05, Date.now());
-  assert.equal(firstCage.defendersSpawned, true);
-  assert.equal(instance.enemies.filter(enemy=>enemy.vesperGuardPhase === "approach").length, 3);
+  assert.equal(instance.portal.totalWaves,30);
+  assert.equal(instance.wave,1);assert.equal(instance.azuronBatchEnd,5);
+  assert.equal(instance.objective.kind,"azuron");assert.equal(instance.enemies.length,10);
+  assert.equal(instance.enemies[0].hp,1600);assert.equal(instance.enemies[0].attackDamage,152);
+  assert.equal(instance.playerLives[fixture.player.id],3);assert.equal(fixture.player.preparedPortal,null);
+  const started=fixture.events.filter(entry=>entry.event==="portal:started").at(-1)?.payload;
+  assert.equal(started.objective.kind,"azuron");assert.equal(started.waveTotal,30);
+  fixture.manager.updateVesperEncounters(.05,Date.now());
+  assert.equal(instance.enemies.length,10);assert.equal(instance.objective.kind,"azuron");
 });
 
-test("a prepared Kharon portal starts its authoritative 30-wave segmented encounter", ()=>{
+test("a prepared Kharon portal starts Azuron waves with tripled combat stats", ()=>{
   const fixture = createFixture();
   const profile = createDefaultProfile();
   profile.player.level = 20;
@@ -316,10 +298,10 @@ test("a prepared Kharon portal starts its authoritative 30-wave segmented encoun
   assert.equal(instance.portal.id, "red");
   assert.equal(instance.portal.totalWaves, 30);
   assert.equal(instance.wave, 1);
-  assert.equal(instance.waveBatchEnd, 5);
+  assert.equal(instance.azuronBatchEnd, 5);
   assert.equal(instance.waveState, "wave_countdown");
-  assert.equal(instance.objective.kind, "kharon");
-  assert.equal(instance.objective.waveTotal, 30);
+  assert.equal(instance.objective.kind, "azuron");
+  assert.equal(instance.enemies[0].hp,2400);assert.equal(instance.enemies[0].attackDamage,228);
   assert.equal(instance.enemies.every(enemy=>enemy.level === 20), true);
   assert.equal(instance.playerLives[fixture.player.id], 3);
   assert.equal(fixture.player.preparedPortal, null);
@@ -327,8 +309,8 @@ test("a prepared Kharon portal starts its authoritative 30-wave segmented encoun
   const started = fixture.events.filter(entry=>entry.event === "portal:started").at(-1)?.payload;
   assert.equal(started?.wave, 1);
   assert.equal(started?.waveTotal, 30);
-  assert.equal(started?.objective?.kind, "kharon");
-  assert.equal(started?.objective?.waveBatchEnd, 5);
+  assert.equal(started?.objective?.kind, "azuron");
+  assert.equal(started?.portal?.encounterKind,"azuron");
 });
 
 test("a prepared Ionis portal starts its authoritative 40-wave four-by-four encounter", ()=>{
@@ -760,11 +742,18 @@ test("Ricky joins the portal with support stats, prioritizes the player for aggr
   fixture.manager.updateRickyCompanions(10, Date.now() + 22000);
   assert.equal(instance.ally.shield, 80000);
 
-  assert.equal(fixture.manager.activateRickyHealBeacon(fixture.socket), true);
+  assert.equal(fixture.manager.activateRickyHealBeacon(fixture.socket), false);
+  assert.equal(instance.beacons.length, 0);
+  instance.ally.hp=70000;
+  fixture.manager.updateRickyCompanions(.05, Date.now() + 23000);
   assert.equal(instance.beacons.length, 1);
+  assert.equal(instance.ally.hp, 73000);
+  assert.equal(instance.beacons[0].x, instance.ally.x);
+  assert.equal(instance.beacons[0].y, instance.ally.y);
   assert.equal(instance.beacons[0].heal, 3000);
   assert.equal(instance.beacons[0].radius, 250);
-  assert.equal(instance.beacons[0].expiresAt - instance.beacons[0].nextTickAt, 18000);
+  assert.equal(instance.beacons[0].expiresAt - instance.beacons[0].createdAt, 18000);
+  assert.equal(instance.beacons[0].nextTickAt - instance.beacons[0].createdAt, 2000);
 
   fixture.player.mapId = "0";
   fixture.player.state.mapId = "0";
@@ -772,7 +761,7 @@ test("Ricky joins the portal with support stats, prioritizes the player for aggr
   assert.equal(instance.beacons.length, 1);
 });
 
-test("Ricky prioritizes the enemy targeted by a player and only returns when the player exceeds his leash", ()=>{
+test("Ricky chooses his own nearby enemy and stops firing beyond 200 mini-map coordinates on either player axis", ()=>{
   const fixture = createFixture();
   const profile = createDefaultProfile();
   profile.player.level = 20;
@@ -808,14 +797,17 @@ test("Ricky prioritizes the enemy targeted by a player and only returns when the
 
   fixture.manager.updateRickyCompanions(.05, 10_000);
 
-  assert.equal(nearby.hp, nearby.maxHp);
-  assert.ok(selected.hp < selected.maxHp);
+  assert.ok(nearby.hp < nearby.maxHp);
+  assert.equal(selected.hp, selected.maxHp);
 
   const previousY = instance.ally.y;
   fixture.player.state.x=0;
-  fixture.player.state.y=2300;
+  fixture.player.state.y=previousY + 2010;
+  const previousHp = nearby.hp;
   fixture.manager.updateRickyCompanions(.2, 11_000);
   assert.ok(instance.ally.y > previousY);
+  assert.equal(nearby.hp, previousHp);
+  assert.equal(instance.ally.aiTargetId, "");
 });
 
 test("Ricky portal enforces four numbered route waves, four beacon waves and the final gate wave", ()=>{
@@ -907,11 +899,11 @@ test("Ricky portal enforces four numbered route waves, four beacon waves and the
   const boss = instance.enemies.find(enemy=>enemy.rickyBoss);
   assert.ok(boss);
   assert.equal(boss.type, "Amiral K-137");
-  assert.equal(boss.level, 20);
-  assert.equal(boss.maxHp, 2000000);
+  assert.equal(boss.level, 10);
+  assert.equal(boss.maxHp, 1000000);
   assert.equal(boss.maxShield, 1000000);
-  assert.equal(boss.attackDamageMin, 3500);
-  assert.equal(boss.attackDamageMax, 5000);
+  assert.equal(boss.attackDamageMin, 3280);
+  assert.equal(boss.attackDamageMax, 4720);
   assert.equal(boss.attackCooldown, 1000);
 
   fixture.manager.updateRickyCompanions(.05, boss.rickyBossNextSummonAt - 1);
@@ -1009,10 +1001,10 @@ test("Ricky portal enemy rewards use the normal group split and ten percent XP r
   assert.equal(rewards.length, 2);
   for(const reward of rewards){
     assert.equal(reward.payload.share, .5);
-    assert.equal(reward.payload.credits, 12_000);
-    assert.equal(reward.payload.premium, 10);
-    assert.equal(reward.payload.xp, 3_200);
-    assert.equal(reward.payload.reputation, 320);
+    assert.equal(reward.payload.credits, 10_000);
+    assert.equal(reward.payload.premium, 8);
+    assert.equal(reward.payload.xp, 4_500);
+    assert.equal(reward.payload.reputation, 450);
   }
 });
 

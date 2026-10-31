@@ -17,10 +17,9 @@ import { config } from "./config.js";
 import { checkDatabaseConnection, closeDatabase, dbEnabled, initializeDatabase } from "./db/client.js";
 import { createGroupManager } from "./groups/groups.js";
 import { createFirmWarManager } from "./firms/firmWar.js";
-import { buildPersonalFirmSeasonSnapshot, emitThrottledFirmRanking } from "./firms/firmBroadcasts.js";
-import { getFirmHitOwner, markFirmHitOwner } from "./firms/firmHitOwnership.js";
+import { markFirmHitOwner } from "./firms/firmHitOwnership.js";
 import { logger } from "./logger.js";
-import { normalizeFirmId } from "../../src/data/firms.js";
+import { isReputationOutlaw } from "../../src/shared/reputation.js";
 import { createEquipmentLocationManager } from "./players/equipmentLocation.js";
 import { createPlayerLifecycleManager } from "./players/playerLifecycle.js";
 import { createPlayerDirectoryEmitter } from "./players/playerDirectory.js";
@@ -28,9 +27,11 @@ import { emitAuthoritativePlayerStateToMapRoom } from "./players/playerStateStre
 import { canSharePlayerState } from "./players/visibility.js";
 import { createPresenceManager } from "./players/presence.js";
 import { createProfileManager } from "./players/profiles.js";
+import { createRankAuthority } from "./players/rankAuthority.js";
 import { sanitizePilotName } from "./players/profileIdentity.js";
 import { waitForProfileSave } from "./players/profilePersistenceResult.js";
-import { updateRankScore } from "./players/rankProgression.js";
+import { createPvpAggressionTracker } from "./combat/pvpDiscipline.js";
+import { createPlayerPvpRewardManager } from "./combat/playerPvpRewards.js";
 import { createPortalInstanceManager } from "./portals/instances.js";
 import { createKillQuestProgress } from "./quests/killProgress.js";
 import { createGracefulShutdown } from "./lifecycle/gracefulShutdown.js";
@@ -66,6 +67,7 @@ import { registerPlayerHandlers } from "./socket/playerHandlers.js";
 import { registerProgressionHandlers } from "./socket/progressionHandlers.js";
 import { registerQuestHandlers } from "./socket/questHandlers.js";
 import { registerSocialHandlers } from "./socket/socialHandlers.js";
+import { registerTravelHandlers } from "./socket/travelHandlers.js";
 import { installSafeSocketHandlers } from "./socket/safeSocketHandler.js";
 import { createSocialManager } from "./social/social.js";
 import { startServerTick } from "./tick/serverTick.js";
@@ -78,6 +80,7 @@ import { createWorldStatusEffectManager } from "./world/statusEffects.js";
 import { WORLD_MAPS } from "./world/definitions.js";
 import { isPointInFriendlyWorldSafeArea, publicEnemy, publicEnemyDelta } from "./world/spawn.js";
 import { createWorldStateManager } from "./world/state.js";
+import { createSectorTravelManager } from "./travel/sectorTravel.js";
 
 const PORT = config.port;
 const players = new Map();
@@ -208,8 +211,10 @@ function publicAccountRole(role){
 const profileManager = createProfileManager({
   cleanName,
   logger,
+  resolveRankAssignment:(key, profile)=>rankAuthority.forKey(key, profile),
   onError:error=>serverErrorLog.record(error)
 });
+const rankAuthority = createRankAuthority({profileManager, io, players});
 const firmWarManager = createFirmWarManager({logger});
 const adminAuditStore = createAdminAuditStore({logger});
 
@@ -230,8 +235,9 @@ function publicPlayer(player, options = {}){
     accountId:player.accountId || null,
     role:publicAccountRole(player.account?.role),
     firmId:profile?.player?.firmId || player.account?.firmId || "astra",
+    outlaw:isReputationOutlaw(profile?.player),
     groupId:player.groupId || null,
-    state:includeState ? player.state || null : null,
+    state:includeState ? rankAuthority.decorateState(player.state || null, rankAuthority.forPlayer(player, profile)) : null,
     connectedAt:player.connectedAt,
     connected:Boolean(player.connected !== false),
     disconnecting:Boolean(player.disconnecting),
@@ -332,9 +338,10 @@ const {
 
 function emitProfileSyncForPlayer(player, profile){
   if(!player || !profile) return;
+  const payload = {...profile, rankAssignment:rankAuthority.forPlayer(player, profile)};
   for(const accountPlayer of accountSocketsForPlayer(player)){
     const accountSocket = io.sockets.sockets.get(accountPlayer.id);
-    accountSocket?.emit("profile:sync", profile);
+    accountSocket?.emit("profile:sync", payload);
   }
 }
 
@@ -553,6 +560,7 @@ const {
   updatePrismaticEncounters,
   getPrecursorNpcTargets,
   interactWithPrecursorPortal,
+  interactAzuronPortal,
   updatePrecursorEncounters
 } = createPortalInstanceManager({
   io,
@@ -624,6 +632,8 @@ const {startShipAbilityEffect, updateShipAbilityEffects} = createShipAbilityEffe
   handlePortalEnemyDeath
 });
 
+const travelManager = createSectorTravelManager({io, players, profileManager, presence, setPlayerMap, publicPlayer});
+
 const {updatePlayerActivity} = createPlayerActivityManager({
   io,
   players,
@@ -631,7 +641,21 @@ const {updatePlayerActivity} = createPlayerActivityManager({
   presence,
   profileManager,
   publicPlayer,
-  applyEnemyHitForPlayer
+  applyEnemyHitForPlayer,
+  isAutomaticTravelActive:travelManager.isActive
+});
+
+const pvpAggression = createPvpAggressionTracker({
+  getPlayerKey:player=>profileManager.profileKeyForPlayer(player), combatRecentMs:config.combatRecentMs,
+  onDefenseRight:(defender, aggressor, expiresAt)=>io.to(defender.id).emit("pvp:defense", {
+    aggressorId:aggressor.id, aggressorAccountId:aggressor.accountId, expiresAt
+  })
+});
+const pvpRewards = createPlayerPvpRewardManager({
+  io, players, profileManager, firmWarManager, aggression:pvpAggression,
+  emitProfileSyncForPlayer, accountSocketsForPlayer,
+  onProfileChanged:(player, profile)=>emitAuthoritativePlayerStateToMapRoom({io, player, publicPlayer, profile}),
+  onError:error=>recordRuntimeSignal({source:"pvp", eventName:"pvp:settlement", error})
 });
 
 function applyPlayerHit(socket, requestedPayload){
@@ -680,6 +704,9 @@ function applyPlayerHit(socket, requestedPayload){
   const targetLevel = Math.max(1, Math.floor(Number(targetProfile?.player?.level || target.state.level || 1)));
   const pvpBlockReason = getPlayerPvpBlockReason({
     sameGroup:Boolean(attacker.groupId && attacker.groupId === target.groupId),
+    sameAccount:profileManager.profileKeyForPlayer(attacker) === profileManager.profileKeyForPlayer(target),
+    targetOutlaw:isReputationOutlaw(targetProfile?.player),
+    selfDefense:pvpAggression.canRetaliate(attacker, target),
     attackerLevel,
     targetLevel
   });
@@ -734,6 +761,7 @@ function applyPlayerHit(socket, requestedPayload){
     shotId,
     travelTimeMs
   });
+  pvpAggression.recordShot(attacker, target);
   presence.markCombat(attacker, "attaque joueur");
   presence.markCombat(target, "attaque joueur");
   emitCombatShotToAudience({io, socket, player:attacker, group:null, payload:shot});
@@ -754,6 +782,9 @@ function applyPlayerHit(socket, requestedPayload){
         const currentTargetProfile = profileManager.getProfileForPlayer(target);
         return Boolean(getPlayerPvpBlockReason({
           sameGroup:Boolean(attacker.groupId && attacker.groupId === target.groupId),
+          sameAccount:profileManager.profileKeyForPlayer(attacker) === profileManager.profileKeyForPlayer(target),
+          targetOutlaw:isReputationOutlaw(currentTargetProfile?.player),
+          selfDefense:pvpAggression.canRetaliate(attacker, target),
           attackerLevel:Math.max(1, Math.floor(Number(currentAttackerProfile?.player?.level || attacker.state?.level || 1))),
           targetLevel:Math.max(1, Math.floor(Number(currentTargetProfile?.player?.level || target.state?.level || 1)))
         }));
@@ -851,6 +882,7 @@ function applyPlayerHit(socket, requestedPayload){
   profileManager.saveWorldSession({player:target, state:target.state, force:hpAfter <= 0});
   io.to(target.id).emit("player:damage", {
     enemyId:`player:${attacker.id}`,
+    shieldBefore:Math.max(0, durabilityBefore - hpBefore),
     sourcePlayerId:attacker.id,
     sourceName:attackerProfile?.player?.name || attacker.name || "Pilote",
     mapId:attacker.mapId,
@@ -866,65 +898,7 @@ function applyPlayerHit(socket, requestedPayload){
     at:Date.now()
   });
   if(hpBefore > 0 && hpAfter <= 0){
-    const firmAttacker = getFirmHitOwner(target, players) || attacker;
-    delete target.firmHitOwnerKey;
-    delete target.firmHitOwnerLastAt;
-    const firmAttackerProfile = profileManager.getProfileForPlayer(firmAttacker);
-    const firmAttackerFirm = normalizeFirmId(firmAttackerProfile?.player?.firmId || firmAttacker.account?.firmId || "astra");
-    const firmKill = firmWarManager.recordPlayerKill({
-      attacker:{
-        key:profileManager.profileKeyForPlayer(firmAttacker),
-        name:firmAttackerProfile?.player?.name || firmAttacker.name || "Pilote",
-        firmId:firmAttackerFirm
-      },
-      targetKey:profileManager.profileKeyForPlayer(target)
-    });
-    emitThrottledFirmRanking({io, profileManager, snapshot:firmKill.snapshot});
-    const reputation = Math.max(0, targetLevel * 1000);
-    const pvpReward = profileManager.updateProfileForPlayer({
-      player:attacker,
-      update:profile=>{
-        if(!profile.player || typeof profile.player !== "object") profile.player = {};
-        profile.player.reputation = Math.max(0, Number(profile.player.reputation || 0)) + reputation;
-        profile.player.totalPlayerKills = Math.max(0, Number(profile.player.totalPlayerKills || 0)) + 1;
-        updateRankScore(profile);
-        return {ok:true, changed:true};
-      }
-    });
-    if(pvpReward.ok){
-      emitProfileSyncForPlayer(attacker, pvpReward.profile);
-      const firmSnapshot = buildPersonalFirmSeasonSnapshot({
-        firmWarManager,
-        profileManager,
-        playerKey:profileManager.profileKeyForPlayer(firmAttacker),
-        profile:firmAttackerProfile,
-        player:firmAttacker
-      });
-      for(const accountPlayer of accountSocketsForPlayer(firmAttacker)){
-        if(firmSnapshot) io.to(accountPlayer.id).emit("firm:snapshot", firmSnapshot);
-      }
-      const rewardEvent = {
-        rewardId:`pvp:${target.id}:${attacker.id}:${Date.now()}`,
-        enemyId:`player:${target.id}`,
-        enemyType:"Joueur",
-        enemyName:targetProfile?.player?.name || target.name || "Pilote",
-        enemyLevel:targetLevel,
-        mapId:String(attacker.mapId ?? ""),
-        share:1,
-        killerId:attacker.id,
-        credits:0,
-        xp:0,
-        premium:0,
-        reputation,
-        rankPoints:0,
-        firmPoints:firmAttacker.id === attacker.id ? firmKill.points : 0,
-        rewardAppliedByServer:true,
-        at:Date.now()
-      };
-      for(const accountPlayer of accountSocketsForPlayer(attacker)){
-        if(accountPlayer.clientMode === "game") io.to(accountPlayer.id).emit("player:reward", rewardEvent);
-      }
-    }
+    pvpRewards.settleKill({attacker, target}).catch(error=>recordRuntimeSignal({source:"pvp", eventName:"pvp:settlement", error}));
   }
   const fanoutAt = Date.now();
   emitAuthoritativePlayerStateToMapRoom({
@@ -1020,6 +994,7 @@ const serverTick = startServerTick({
   playersOnMap,
   presence,
   updatePlayerActivity,
+  updateTravel:travelManager.update,
   updatePendingEnemyAttacks,
   updatePlayerLifecycles,
   updateStatusEffects,
@@ -1062,6 +1037,7 @@ io.on("connection", socket=>{
     guard,
     players,
     profileManager,
+    getRankAssignmentForPlayer:(player, profile)=>rankAuthority.forPlayer(player, profile),
     emitProfileSync:emitProfileSyncForPlayer,
     emitTutorialUpdate:emitTutorialUpdateForPlayer,
     emitQuestClaims:emitQuestClaimsForPlayer,
@@ -1083,6 +1059,7 @@ io.on("connection", socket=>{
   });
   registerPlayerHandlers(socket, {
     ...socketContext,
+    travelManager,
     firmWarManager,
     buildFirmSpawnSession,
     cleanName,
@@ -1101,6 +1078,7 @@ io.on("connection", socket=>{
     setPlayerMap,
     syncProfileForPlayer
   });
+  registerTravelHandlers(socket, {...socketContext, travelManager});
   registerLoadTestHandlers(socket, {
     ...socketContext,
     emitPlayers,
@@ -1152,7 +1130,8 @@ io.on("connection", socket=>{
     startPortalInstance,
     activateRickyLever,
     activateRickyHealBeacon,
-    interactWithPrecursorPortal
+    interactWithPrecursorPortal,
+    interactAzuronPortal
   });
   registerCombatHandlers(socket, {
     ...socketContext,

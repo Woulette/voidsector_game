@@ -7,6 +7,7 @@ import { publicEclaniteObjective } from "../portals/eclanitePortal.js";
 import { publicNoxObjective } from "../portals/noxPortal.js";
 import { publicPrismaticObjective } from "../portals/prismaticPortal.js";
 import { publicPrecursorObjective } from "../portals/ancientPortal.js";
+import { publicAzuronObjective } from "../portals/azuronPortal.js";
 
 export const MAX_GROUP_MEMBERS = 4;
 
@@ -45,7 +46,8 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
       ally:publicInstanceAlly(group.instance),
       allies:publicVesperAllies(group.instance),
       beacons:publicInstanceBeacons(group.instance),
-      objective:publicVesperObjective(group.instance)
+      objective:publicAzuronObjective(group.instance)
+        || publicVesperObjective(group.instance)
         || publicKharonObjective(group.instance)
         || publicIonisObjective(group.instance)
         || publicEclaniteObjective(group.instance)
@@ -114,6 +116,10 @@ export function createGroupManager({io, players, publicPlayer, publicEnemy, publ
         y:beacon.y,
         radius:beacon.radius,
         heal:beacon.heal,
+        sourceId:beacon.sourceId,
+        createdAt:beacon.createdAt,
+        lastPulseAt:beacon.lastPulseAt,
+        pulseIntervalMs:beacon.pulseIntervalMs,
         expiresAt:beacon.expiresAt
       }));
   }

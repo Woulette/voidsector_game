@@ -25,6 +25,11 @@ test("graceful shutdown stops the tick, saves live sessions, flushes, then close
         calls.push("flush");
       }
     },
+    firmWarManager:{
+      async flushPersistence(){
+        calls.push("firm-flush");
+      }
+    },
     async closeDatabase(){
       calls.push("database-close");
     },
@@ -44,6 +49,7 @@ test("graceful shutdown stops the tick, saves live sessions, flushes, then close
     "io-close",
     "save:player-1:true",
     "flush",
+    "firm-flush",
     "database-close"
   ]);
 });
@@ -73,6 +79,12 @@ test("graceful shutdown still flushes and closes storage after earlier shutdown 
         calls.push("flush");
       }
     },
+    firmWarManager:{
+      async flushPersistence(){
+        calls.push("firm-flush");
+        throw new Error("firm flush failed");
+      }
+    },
     async closeDatabase(){
       calls.push("database-close");
     },
@@ -90,10 +102,12 @@ test("graceful shutdown still flushes and closes storage after earlier shutdown 
     "save:broken-player",
     "save:saved-player",
     "flush",
+    "firm-flush",
     "database-close"
   ]);
-  assert.equal(errors.filter(entry=>entry.message === "Graceful shutdown step failed.").length, 2);
+  assert.equal(errors.filter(entry=>entry.message === "Graceful shutdown step failed.").length, 3);
   assert.equal(errors.some(entry=>entry.meta.step === "socket-close"), true);
   assert.equal(errors.some(entry=>entry.meta.step === "save-world-session:broken-player"), true);
+  assert.equal(errors.some(entry=>entry.meta.step === "flush-firm-persistence"), true);
   assert.equal(errors.some(entry=>entry.message === "Graceful shutdown completed with errors."), true);
 });

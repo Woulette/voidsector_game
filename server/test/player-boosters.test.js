@@ -47,11 +47,12 @@ test("different damage booster sources add their percentages while identical uni
   assert.equal(snapshot.items[0].sources.length, 3);
 });
 
-test("S1 shop quantity multiplies duration and NOVA price", ()=>{
-  const purchase = getBoosterPurchase("booster_s1_damage", 50);
-  assert.equal(purchase.quantity, 50);
-  assert.equal(purchase.totalPrice, 500_000);
-  assert.equal(purchase.totalDurationMs, 250 * 60 * 60 * 1000);
+test("S1 shop sells one unit per click and refuses pack quantities", ()=>{
+  const purchase = getBoosterPurchase("booster_s1_damage", 1);
+  assert.equal(purchase.quantity, 1);
+  assert.equal(purchase.totalPrice, 10_000);
+  assert.equal(purchase.totalDurationMs, S1_BOOSTER_DURATION_MS);
+  for(const quantity of [0, 2, 10, 50, 100, 1000]) assert.equal(getBoosterPurchase("booster_s1_damage", quantity), null);
 });
 
 test("normal shop excludes the NOVA booster and the unfinished module category", ()=>{
@@ -74,11 +75,11 @@ test("server purchases S1 with NOVA and can grant S2 from an event source", ()=>
   });
   const purchase = actions.addBoosterPurchase({
     player,
-    purchase:getBoosterPurchase("booster_s1_damage", 50)
+    purchase:getBoosterPurchase("booster_s1_damage", 1)
   });
   assert.equal(purchase.ok, true);
-  assert.equal(purchase.profile.player.premium, 100_000);
-  assert.equal(purchase.profile.boosters.s1.damage.remainingMs, 250 * 60 * 60 * 1000);
+  assert.equal(purchase.profile.player.premium, 590_000);
+  assert.equal(purchase.profile.boosters.s1.damage.remainingMs, S1_BOOSTER_DURATION_MS);
 
   const grant = actions.grantBooster({player, series:"s2", type:"damage", quantity:2, source:"event-test"});
   assert.equal(grant.ok, true);

@@ -36,6 +36,27 @@ test("bulk multipliers cannot duplicate normal equipment", ()=>{
   assert.equal(purchase.totalPrice, 25_000);
 });
 
+test("explicit rapid-click batches create one paid inventory UID per equipment", ()=>{
+  const purchase = getItemPurchase("laser_mk1", 1, 5);
+  const profile = createDefaultProfile();
+  profile.player.credits = 125_000;
+  const beforeEntries = profile.inventoryItems.filter(entry=>entry.itemId === "laser_mk1");
+  const profiles = new Map([["account:batch-shop", profile]]);
+  const player = {id:"socket-batch-shop", accountId:"batch-shop"};
+  const actions = createProfileActions({
+    profiles,
+    persist(){},
+    getExistingProfile:()=>({key:"account:batch-shop", profile:profiles.get("account:batch-shop")})
+  });
+
+  const result = actions.addItemPurchase({player, purchase});
+  const entries = result.profile.inventoryItems.filter(entry=>entry.itemId === "laser_mk1");
+  assert.equal(result.ok, true);
+  assert.equal(result.profile.player.credits, 0);
+  assert.equal(entries.length, beforeEntries.length + 5);
+  assert.equal(new Set(entries.map(entry=>entry.uid)).size, entries.length);
+});
+
 test("tutorial selection step blocks buying the laser before the card is selected", ()=>{
   const purchase = getItemPurchase("laser_mk1", 1);
   const profile = createDefaultProfile();

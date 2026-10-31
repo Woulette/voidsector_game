@@ -1,4 +1,6 @@
 import { fmt } from "../../core/utils.js";
+import { isWavePortal } from "../../data/wavePortalTiers.js";
+import { createCombatPilotPanel } from "./combatPilotPanel.js";
 import { getVesperObjectiveHud, isVesperPortal } from "../../data/vesperPortal.js?v=20260726-kharon1";
 import { getKharonWaveHud, isKharonPortal } from "../../data/kharonPortal.js?v=20260726-kharon1";
 import { getIonisWaveHud, isIonisPortal } from "../../data/ionisPortal.js?v=20260726-nox1";
@@ -49,6 +51,7 @@ export function createCombatHudController({
   isRepairBotReady,
   validSelectedEnemy
 }){
+  const pilotPanel = createCombatPilotPanel({store});
   function renderRadiationNotice(){
     const player = getPlayer();
     if(getGameMode() !== "open" || !isPlayerOutsideMap()) return;
@@ -63,6 +66,7 @@ export function createCombatHudController({
   }
 
   function updateHud(){
+    pilotPanel.refresh();
     const player = getPlayer();
     const enemy = validSelectedEnemy();
     const rank = getCurrentRank();
@@ -75,6 +79,7 @@ export function createCombatHudController({
     const portalWaveTotal = Math.max(1, Number(getPortalWaveTotal?.() || PORTAL_WAVE_TOTAL));
     const portalWaitingForClear = Boolean(getPortalWaitingForClear?.());
     const portalCompleted = getPortalCompleted();
+    const azuronStageReady=isWavePortal(getActivePortal()) && getPortalWaveState() === "batch_ready";
     const showPortalWaves = portalUsesWaveHud({gameMode, currentMap});
     const isVesperEncounter = gameMode === "portal" && isVesperPortal(getActivePortal());
     const isKharonEncounter = gameMode === "portal" && isKharonPortal(getActivePortal());
@@ -186,6 +191,8 @@ export function createCombatHudController({
         ? formatPortalTimer(ancientHud.remainingMs)
         : showEclaniteTimer
           ? formatPortalTimer(eclaniteHud.remainingMs)
+          : azuronStageReady
+            ? "✓"
           : portalWaitingForClear
             ? "—"
             : Math.max(0, Math.ceil(getPortalDelay() || 0));
@@ -193,13 +200,17 @@ export function createCombatHudController({
         ? `ENFER · ${ancientHud.rescuedCount}/${ancientHud.totalAngels} ANGES LIBÉRÉS`
         : showEclaniteTimer
           ? `ZONE ${eclaniteHud.zone}/3 · ${eclaniteHud.phase === "core" ? "NOYAU x5" : eclaniteHud.phase === "boss" ? "BOSS" : "GARDIENS"}`
+          : azuronStageReady
+            ? "PORTES OUVERTES AU CENTRE"
           : portalWaitingForClear
             ? "Éliminez tous les ennemis"
             : isKharonEncounter && kharonHud?.phase?.boss
               ? `${kharonHud.phase.bossName} en approche`
               : isIonisEncounter
                 ? (portalWave <= 0 ? "Premier groupe" : "Prochain renfort")
-                : (portalWave <= 0 ? "Première vague" : "Vague suivante");
+                : getPortalWaveState() === "batch_countdown"
+                  ? "Prochaine série"
+                  : (portalWave <= 0 ? "Première vague" : "Vague suivante");
     }
     const portalObjectiveHud = document.getElementById("portalObjectiveHud");
     if(portalObjectiveHud){
@@ -330,7 +341,13 @@ export function createCombatHudController({
       }
     }
     document.getElementById("gamePlayerName").textContent = store.state.player.name || "PILOTE";
-    document.getElementById("gameRankHud").innerHTML = `<img class="rank-icon" src="${getRankAssetPath(rank)}" alt="${rank.name}"><span>${rank.name}</span>`;
+    const rankHud = document.getElementById("gameRankHud");
+    const rankKey = `${getRankAssetPath(rank)}|${rank.name}`;
+    if(rankHud && rankHud.dataset.rankKey !== rankKey){
+      rankHud.innerHTML = `<img class="rank-icon" src="${getRankAssetPath(rank)}" alt="${rank.name}"><span>${rank.name}</span>`;
+      rankHud.dataset.rankKey = rankKey;
+      rankHud.title = rank.name;
+    }
     document.getElementById("gameLevel").textContent = store.state.player.level;
     updateCombatMeter({metric:"hp", value:player.hp, max:player.maxHp, label:"la vie", mode:combatMetricModes.hp});
     updateCombatMeter({metric:"shield", value:player.shield, max:player.maxShield, label:"le bouclier", mode:combatMetricModes.shield});
@@ -349,7 +366,11 @@ export function createCombatHudController({
       cargoToggle.classList.toggle("full", cargoCapacity > 0 && cargoUsed >= cargoCapacity);
       cargoToggle.title = `Soute : ${fmt(cargoUsed)} / ${fmt(cargoCapacity)}`;
     }
-    document.getElementById("gameRepairHud").textContent = !player.extraBonus?.repairBot ? "Drone réparation : non équipé" : player.repairBotActive ? "Drone réparation : actif" : repairState.ok ? (player.extraBonus?.repairBotAuto ? "Drone réparation : prêt (auto)" : "Drone réparation : prêt") : `Drone réparation : ${repairState.reason}`;
+    const repairHud = document.getElementById("gameRepairHud");
+    const repairText = !player.extraBonus?.repairBot ? "Non équipé" : player.repairBotActive ? "Actif" : repairState.ok ? (player.extraBonus?.repairBotAuto ? "Prêt (auto)" : "Prêt") : repairState.reason;
+    repairHud.textContent = repairText;
+    repairHud.title = `Drone réparation : ${repairText}`;
+    repairHud.setAttribute("aria-label", repairHud.title);
     document.getElementById("gameCreditsHud").textContent = fmt(store.state.player.credits);
     document.getElementById("gamePremiumHud").textContent = fmt(store.state.player.premium);
     updateSafeZoneNotice({safeArea, isActive:gameMode === "open" && safeArea && (player.safeZoneLock || 0) <= 0});

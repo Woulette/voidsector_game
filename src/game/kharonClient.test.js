@@ -14,27 +14,13 @@ import {
 import { installWorldSocketListeners } from "../multiplayer/worldSocketListeners.js";
 import { createPortalMap } from "./systems/portalState.js";
 
-test("Kharon exposes 30 waves, the three named boss phases and existing ship assets", ()=>{
-  const kharon = portals.find(portal=>portal.id === "red");
-  assert.equal(kharon?.contentStatus, "ready");
-  assert.equal(kharon?.waves, 30);
-  assert.match(kharon?.contentLabel || "", /30 vagues.*3 boss.*3 vies/i);
-  assert.deepEqual(getKharonWavePhase(10), {
-    id:"semi_boss",
-    label:"SEMI-BOSS",
-    boss:true,
-    bossName:"VESPERION"
-  });
-  assert.equal(getKharonWavePhase(20).bossName, "NYXARIS");
-  assert.equal(getKharonWavePhase(30).bossName, "ASTERION");
-  assert.equal(getKharonWavePhase(26).label, "ASSAUT FINAL");
-
-  const map = createPortalMap(kharon);
-  assert.equal(map.id, "portal-red");
-  assert.equal(map.kharonPortal, true);
-  assert.equal(map.width, KHARON_PORTAL_MAP.width);
-  assert.equal(map.height, KHARON_PORTAL_MAP.height);
-  assert.deepEqual(map.enemyAssets, Object.values(KHARON_BOSS_ASSETS));
+test("red exposes Azuron's shared wave arena with difficulty times 3", ()=>{
+  const portal=portals.find(entry=>entry.id === "red");
+  assert.equal(portal.contentStatus,"ready");assert.equal(portal.waves,30);
+  assert.match(portal.contentLabel,/6 séries de 5/);assert.match(portal.desc,/gains ×3/);
+  const map=createPortalMap(portal);
+  assert.equal(map.id,"portal-red");assert.equal(map.azuronPortal,true);
+  assert.equal(map.width,7800);assert.equal(map.height,5400);
 });
 
 test("Kharon HUD identifies wave batches, boss waves, lives and an active bomb", ()=>{

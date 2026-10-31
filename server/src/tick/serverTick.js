@@ -1,4 +1,6 @@
 import { getInstanceGroups } from "../portals/portalSessions.js";
+import { AZURON_PORTAL_MAP } from "../../../src/data/azuronPortal.js";
+import { isWavePortal } from "../../../src/data/wavePortalTiers.js";
 import { WORLD_MAPS } from "../world/definitions.js";
 import { RICKY_PORTAL_MAP } from "../../../src/data/rickyPortal.js";
 import { VESPER_PORTAL_MAP } from "../portals/vesperPortalState.js";
@@ -20,6 +22,7 @@ export function startServerTick({
   playersOnMap,
   presence,
   updatePlayerActivity,
+  updateTravel,
   updatePendingEnemyAttacks,
   updatePlayerLifecycles,
   updateStatusEffects,
@@ -57,6 +60,7 @@ export function startServerTick({
       worldEmitT += dt;
       instanceEmitT += dt;
       questTimerT += dt;
+      updateTravel?.(dt, now);
       updatePlayerActivity?.(dt, now);
       const activePlayersByMap = new Map();
       for(const player of players.values()){
@@ -83,8 +87,8 @@ export function startServerTick({
         if(!instance?.enemies?.length || instance.completed) continue;
         const instanceRoom = `instance:${instance.id}`;
         const isRickyPortal = instance.type === "portal" && instance.portal?.id === "ricky";
-        const isVesperPortal = instance.type === "portal" && instance.portal?.id === "violet";
-        const isKharonPortal = instance.type === "portal" && instance.portal?.id === "red";
+        const isVesperPortal = instance.type === "portal" && instance.portal?.id === "violet" && !isWavePortal(instance.portal);
+        const isKharonPortal = instance.type === "portal" && instance.portal?.id === "red" && !isWavePortal(instance.portal);
         const isEclanitePortal = instance.type === "portal" && instance.portal?.id === "emerald";
         const isNoxPortal = instance.type === "portal" && instance.portal?.id === "void";
         const isPrismaticPortal = instance.type === "portal" && instance.portal?.id === "prismatic";
@@ -107,7 +111,7 @@ export function startServerTick({
                           ? PRISMATIC_PORTAL_MAP.width
                         : isPrecursorPortal
                           ? ANCIENT_PORTAL_MAP.width
-                        : 5200,
+                        : isWavePortal(instance.portal) ? AZURON_PORTAL_MAP.width : 5200,
               height:isRickyPortal
                 ? RICKY_PORTAL_MAP.height
                 : isVesperPortal
@@ -122,7 +126,7 @@ export function startServerTick({
                           ? PRISMATIC_PORTAL_MAP.height
                         : isPrecursorPortal
                           ? ANCIENT_PORTAL_MAP.height
-                        : 3600,
+                        : isWavePortal(instance.portal) ? AZURON_PORTAL_MAP.height : 3600,
               spawn:isRickyPortal
                 ? {...RICKY_PORTAL_MAP.spawn, r:240}
                 : isVesperPortal

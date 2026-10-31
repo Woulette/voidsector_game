@@ -1,10 +1,14 @@
 import { ammoTypes, portals, rawMaterialCatalog } from "./data/catalog.js?v=20260726-ancient1";
+import { handleBetaStoreInteraction } from "./ui/betaStore.js?v=20261024-boutique4";
+import { handleSupportStoreInteraction } from "./ui/supportStore.js?v=20261024-boutique4";
+import { handlePremiumPassInteraction } from "./ui/premiumPassStore.js?v=20261024-boutique4";
 import {
   ensureShipLoadout,
   findEquippedSlot,
   getDroneCatalog,
   getDroneFormation,
   getDroneLoadout,
+  getDroneSkinLoadout,
   getInventoryItem,
   getItem,
   getItemFromInventoryUid,
@@ -27,7 +31,9 @@ import {
 import { createCombatGame } from "./game/combat.js?v=20261022-helion-hub1";
 import { applyServerDroneUpgrade, applyServerEquipmentBatch, buyFirmShopItem, buyServerAmmo, buyServerBetaPack, buyServerBooster, buyServerDrone, buyServerDroneFormation, buyServerItem, buyServerPremiumPack, buyServerShip, claimFirmQuest, claimFirmRewards, claimFirmSeasonObjective, claimServerBetaReward, claimServerPremiumReward, claimServerRefineryJob, equipServerActiveShip, equipServerInventoryItem, multiplayer, openFirmBox, performServerPrestige, prepareServerPortal, progressServerQuest, requestFirmSync, requestLeaderboardSync, resetServerFirmDebug, runServerSpaceCaster, rushServerRefineryShipment, rushServerRefineryUpgrade, sellServerInventoryItem, setServerProfileTitle, setupServerProfile, startServerRefineryJob, startServerRefineryShipment, startServerRefineryUpgrade, syncMultiplayerProfile, toggleServerRefineryProduction, unequipServerInventoryItem, unequipServerShip, unequipServerSlot, unlockServerPortal, updateTutorial, upgradeServerSkill } from "./multiplayer/client.js?v=20261018-map-transfer1";
 import { disconnectMultiplayer, getLatestAuthToken, initMultiplayer, loginAccount, reconnectWithStoredAuthSession, sendPlayerActivity, setAuthRememberEnabled } from "./multiplayer/client.js?v=20261018-map-transfer1";
-import { renderAll, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderTop, setView } from "./ui/render.js?v=20261022-helion-hub1";
+import { renderAll, renderHome, renderFirm, renderLeaderboard, renderPremiumHomeStatus, renderProfile, renderRefinery, renderShop, renderSkills, renderTop, selectSkillNode, setView } from "./ui/render.js?v=20261024-boutique4";
+import { equipDroneBayInventoryItem, handleDroneBayInteraction } from "./ui/renderDroneBay.js?v=20261023-dronegrid1";
+import { handleProfileMilestoneInteraction, handleProfileMilestoneKeydown, settleProfileMilestoneCommand } from "./ui/renderProfile.js?v=20261023-profilemilestones1";
 import { showToast } from "./ui/toast.js?v=20260726-kharon1";
 import { DEFAULT_ABILITY_KEYBINDS, DEFAULT_SLOT_KEYBINDS, eventToCode, keyCodeToLabel, normalizeAbilityKeybinds, normalizeSlotKeybinds } from "./core/keybinds.js?v=20260726-kharon1";
 import { createProfileController } from "./app/profileController.js?v=20260726-kharon1";
@@ -66,6 +72,7 @@ let pendingKeybindSlot = null;
 let pendingAbilityKeybindSlot = null;
 let pendingServerResume = null;
 let lastGameAuthNoticeAt = 0;
+let launcherAccountId = null;
 const urlParams = new URLSearchParams(window.location.search);
 const appMode = urlParams.get("mode") === "game" ? "game" : "launcher";
 if(store.storeTab === "premium") store.storeTab = "beta";
@@ -209,7 +216,7 @@ function bulkEquipInventoryItems(inventoryUids){
       getItem:getItemFromInventoryUid,
       findEquipped:findEquippedSlot,
       drones:getDroneLoadout(),
-      dronePermanentUpgrades:store.state.dronePermanentUpgrades,
+      droneSkinLoadout:getDroneSkinLoadout(),
       isDroneCompatibleEquipment,
       isDronePermanentUpgradeItem
     })
@@ -389,6 +396,7 @@ const {equipPart, autoEquipInventoryItem, unequipPart, unequipSelectedShipLoadou
   getShip,
   getLoadout,
   getDroneLoadout,
+  getDroneSkinLoadout,
   isDronePermanentUpgradeItem,
   isDroneCompatibleEquipment,
   applyServerDroneUpgrade,
@@ -423,7 +431,9 @@ const refineryActions = createRefineryActions({
 });
 
 document.addEventListener("click", (e)=>{
+  if(handleProfileMilestoneInteraction(e)) return;
   if(handleAdminPanelClick(e, {showToast, renderAll:renderAllPreserveScroll})) return;
+  if(handleDroneBayInteraction(e, {equipPart, unequipPart})) return;
 
   const firmChoice = e.target.closest("[data-firm-choice]");
   if(firmChoice){
@@ -502,7 +512,6 @@ document.addEventListener("click", (e)=>{
   const hangarTab = e.target.closest("[data-hangar-tab]");
   if(hangarTab){
     store.hangarTab = hangarTab.dataset.hangarTab === "extra" ? "vaisseau" : hangarTab.dataset.hangarTab;
-    if(store.hangarTab === "vaisseau") store.hangarDetailOpen = false;
     saveState();
     renderAll();
     return;
@@ -584,13 +593,14 @@ document.addEventListener("click", (e)=>{
 
   const prestigeBtn = e.target.closest("[data-prestige]");
   if(prestigeBtn){
-    sendMmoCommand({
+    const sent = sendMmoCommand({
       multiplayer,
       send:()=>performServerPrestige?.(),
       showToast,
       sentMessage:"Ascension envoyée au serveur.",
       failedMessage:"Ascension impossible."
     });
+    settleProfileMilestoneCommand(sent);
     return;
   }
 
@@ -618,6 +628,10 @@ document.addEventListener("click", (e)=>{
     renderAll();
     return;
   }
+
+  if(handleBetaStoreInteraction(e, {store, render:renderAll})) return;
+  if(handlePremiumPassInteraction(e, {store, render:renderAll})) return;
+  if(handleSupportStoreInteraction(e, {store, render:renderAll})) return;
 
   const storeTab = e.target.closest("[data-store-tab]");
   if(storeTab){
@@ -687,6 +701,11 @@ document.addEventListener("click", (e)=>{
   const droneFormationBuy = e.target.closest("[data-buy-drone-formation]");
   if(droneFormationBuy){ buyDroneFormation(droneFormationBuy.dataset.buyDroneFormation); return; }
 
+  const skillNode = e.target.closest("[data-skill-select][data-skill-node]");
+  if(skillNode){
+    if(selectSkillNode(skillNode.dataset.skillSelect, Number(skillNode.dataset.skillNode))) renderSkills();
+    return;
+  }
   const skillCard = e.target.closest("[data-unlock-skill]");
   if(skillCard){ unlockSkill(skillCard.dataset.unlockSkill); return; }
 
@@ -788,7 +807,7 @@ document.addEventListener("click", (e)=>{
     }
     setView(nav.dataset.view);
     if(nav.dataset.view === "firm") requestFirmSync({includeShop:true});
-    if(nav.dataset.view === "leaderboard") requestLeaderboardSync();
+    if(nav.dataset.view === "leaderboard" || nav.dataset.view === "home") requestLeaderboardSync();
     return;
   }
 
@@ -870,7 +889,9 @@ document.addEventListener("click", (e)=>{
       e.preventDefault();
       store.selectedInventoryUid = uid;
       store.selectedInventoryResourceId = null;
-      bulkEquipInventoryItems(bulkEquipmentUidsFor(uid));
+      const inventoryUids = bulkEquipmentUidsFor(uid);
+      if(inventoryUids.length === 1 && equipDroneBayInventoryItem(uid, {equipPart})) return;
+      bulkEquipInventoryItems(inventoryUids);
       return;
     }
     selectInventoryItemForDetail(uid);
@@ -1079,6 +1100,7 @@ document.getElementById("startGameBtn").addEventListener("click", ()=>{
 });
 document.getElementById("returnDashboardBtn").addEventListener("click", ()=>Game.requestLogout());
 document.addEventListener("keydown", e=>{
+  if(handleProfileMilestoneKeydown(e)) return;
   if(pendingKeybindSlot !== null || pendingAbilityKeybindSlot !== null){
     e.preventDefault();
     const code = eventToCode(e);
@@ -1120,6 +1142,11 @@ document.addEventListener("keydown", e=>{
 
 window.addEventListener("beforeunload", ()=>{
   try{ saveAndSyncProfile(); }catch(e){}
+});
+
+window.addEventListener("voidsector:profile-applied", ()=>{
+  if(appMode === "launcher" && store.currentView === "home") renderHome();
+  if(store.currentView === "hangar" && store.hangarTab === "profile") renderProfile();
 });
 
 window.addEventListener("voidsector:profile-sync", event=>{
@@ -1164,6 +1191,13 @@ window.addEventListener("voidsector:multiplayer-change", serverEvents.handleChan
 window.addEventListener("voidsector:multiplayer-change", event=>{
   const reason = String(event.detail?.reason || "");
   gameRecovery?.handleChange(event);
+  if(reason === "auth:success" && appMode !== "game"){
+    const accountId = multiplayer.auth?.account?.id || "";
+    if(launcherAccountId !== accountId) setView("home");
+    launcherAccountId = accountId;
+    if(store.currentView === "home") requestLeaderboardSync();
+  }
+  if(["auth:logout", "auth:replaced", "auth:banned"].includes(reason)) launcherAccountId = null;
   if(reason === "profile:setup-complete"){
     store.pendingFirmSetup = false;
     store.pendingFirmSetupMessage = "";
@@ -1201,6 +1235,7 @@ window.addEventListener("voidsector:multiplayer-change", event=>{
     }
   }
   if(store.currentView === "firm" && reason.startsWith("firm:")) renderFirm();
+  if(appMode === "launcher" && store.currentView === "home" && reason === "leaderboard:ranking") renderHome();
   if(store.currentView === "leaderboard" && reason === "leaderboard:ranking"){
     preserveScroll(()=>renderLeaderboard());
   }
@@ -1246,7 +1281,7 @@ window.voidResetFirm = ()=>{
   return "Reinitialisation du choix de firme envoyee. Attends la synchronisation du profil.";
 };
 window.voidResetFirme = window.voidResetFirm;
-setView("hangar");
+setView("home");
 renderAll();
 const tutorialController = createTutorialController({store, appMode, game:Game, updateTutorial, multiplayer});
 tutorialController.init();

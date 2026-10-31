@@ -115,7 +115,6 @@ export function createWorldStateManager({io, players, presence, progressProfileQ
         rnd,
         deathSpawn.kind,
         {
-          level:parentEnemy.level,
           x:Math.max(-mapConfig.width / 2 + 70, Math.min(mapConfig.width / 2 - 70, Number(parentEnemy.x || 0) + Math.cos(angle) * distance)),
           y:Math.max(-mapConfig.height / 2 + 70, Math.min(mapConfig.height / 2 - 70, Number(parentEnemy.y || 0) + Math.sin(angle) * distance)),
           temporarySpawn:true,

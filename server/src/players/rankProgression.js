@@ -1,4 +1,5 @@
 import { calculateMonsterRankPointsForKills, calculateRankScore } from "../../../src/data/ranks.js";
+import { normalizeReputation } from "../../../src/shared/reputation.js";
 
 function completedPortalCount(completedPortals = {}){
   return Object.values(completedPortals || {}).reduce((sum, value)=>sum + Math.max(0, Number(value || 0)), 0);
@@ -37,7 +38,7 @@ export function applyServerReputationFromXp(profile, xp, ratio = 0.1){
   if(!profile?.player) profile.player = {};
   const gain = Math.max(0, Math.round(Number(xp || 0) * Math.max(0, Number(ratio || 0))));
   if(gain <= 0) return 0;
-  profile.player.reputation = Math.max(0, Number(profile.player.reputation || 0)) + gain;
+  profile.player.reputation = normalizeReputation(normalizeReputation(profile.player.reputation) + gain);
   updateRankScore(profile);
   return gain;
 }

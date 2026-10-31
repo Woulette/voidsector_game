@@ -3,8 +3,12 @@ import test from "node:test";
 import {
   assertGameCapacity,
   checkGameCapacity,
+  countCapacityLimitedGameAccounts,
   countLiveGameAccounts,
   hasLiveGameAccount,
+  isGameCapacityExemptAccount,
+  isGameCapacityExemptPlayer,
+  isGameCapacityExemptRole,
   isLiveGamePlayer
 } from "../src/players/playerCapacity.js";
 
@@ -24,6 +28,61 @@ test("player capacity counts live game accounts, not launcher sockets", ()=>{
   assert.equal(countLiveGameAccounts(players), 2);
   assert.equal(hasLiveGameAccount(players, "account-a"), true);
   assert.equal(hasLiveGameAccount(players, "account-c"), false);
+});
+
+test("player capacity excludes only OWNER and ADMIN game accounts from the beta quota", ()=>{
+  const players = new Map([
+    ["player", {
+      id:"player",
+      accountId:"account-player",
+      account:{id:"account-player", role:"player"},
+      clientMode:"game",
+      connected:true,
+      state:{}
+    }],
+    ["moderator", {
+      id:"moderator",
+      accountId:"account-moderator",
+      account:{id:"account-moderator", role:"moderator"},
+      clientMode:"game",
+      connected:true,
+      state:{}
+    }],
+    ["admin", {
+      id:"admin",
+      accountId:"account-admin",
+      account:{id:"account-admin", role:"ADMIN"},
+      clientMode:"game",
+      connected:true,
+      state:{}
+    }],
+    ["owner", {
+      id:"owner",
+      accountId:"account-owner",
+      account:{id:"account-owner", role:"OWNER"},
+      clientMode:"game",
+      connected:true,
+      state:{}
+    }],
+    ["launcher", {
+      id:"launcher",
+      accountId:"account-launcher",
+      account:{id:"account-launcher", role:"player"},
+      clientMode:"launcher",
+      connected:true,
+      state:null
+    }]
+  ]);
+
+  assert.equal(isGameCapacityExemptRole("OWNER"), true);
+  assert.equal(isGameCapacityExemptAccount({role:"admin"}), true);
+  assert.equal(isGameCapacityExemptPlayer(players.get("moderator")), false);
+  assert.equal(isGameCapacityExemptPlayer({
+    role:"owner",
+    account:{role:"player"}
+  }), false);
+  assert.equal(countLiveGameAccounts(players), 4);
+  assert.equal(countCapacityLimitedGameAccounts(players), 2);
 });
 
 test("player capacity allows same-account takeover but refuses a new account at the cap", ()=>{
@@ -58,4 +117,40 @@ test("player capacity allows same-account takeover but refuses a new account at 
     }),
     error=>error?.code === "SERVER_FULL"
   );
+});
+
+test("player capacity lets OWNER and ADMIN enter after the normal-player quota is full", ()=>{
+  const players = new Map([
+    ["game-a", {
+      id:"game-a",
+      accountId:"account-a",
+      account:{id:"account-a", role:"player"},
+      clientMode:"game",
+      connected:true,
+      state:{}
+    }]
+  ]);
+
+  for(const role of ["OWNER", "ADMIN"]){
+    const capacity = checkGameCapacity({
+      players,
+      accountId:`account-${role.toLowerCase()}`,
+      account:{id:`account-${role.toLowerCase()}`, role},
+      socketId:`game-${role.toLowerCase()}`,
+      maxConcurrentGamePlayers:1
+    });
+    assert.equal(capacity.ok, true);
+    assert.equal(capacity.current, 1);
+    assert.equal(capacity.capacityExempt, true);
+  }
+
+  const moderator = checkGameCapacity({
+    players,
+    accountId:"account-moderator",
+    account:{id:"account-moderator", role:"moderator"},
+    socketId:"game-moderator",
+    maxConcurrentGamePlayers:1
+  });
+  assert.equal(moderator.ok, false);
+  assert.equal(moderator.current, 1);
 });

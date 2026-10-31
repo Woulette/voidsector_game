@@ -1,3 +1,7 @@
+import { getAmmoCooldownKey } from "../../shared/weaponCooldowns.js";
+
+export { getAmmoCooldownKey };
+
 export function rollBetween(min, max){
   const lo = Number(min ?? 0);
   const hi = Number(max ?? lo);
@@ -9,11 +13,6 @@ export function describeAmmo(ammo){
   if(ammo.weaponClass === "rocket") return `${ammo.name} (${ammo.damageMin}-${ammo.damageMax})`;
   if(ammo.weaponClass === "missile") return `${ammo.name} (${ammo.damageMin}-${ammo.damageMax})`;
   return `${ammo.name} (x${ammo.multiplier})`;
-}
-
-export function getAmmoCooldownKey(ammo){
-  if(ammo.weaponClass === "rocket") return "rocket";
-  return "laser";
 }
 
 export function getAmmoCooldown(ammoCooldowns, ammoOrId, getAmmo){
@@ -33,7 +32,7 @@ const PROJECTILE_TRAIL_MAX_POINTS = 6;
 const PROJECTILE_TRAIL_MIN_DISTANCE = 13;
 const PROJECTILE_TRAIL_LIFE = .34;
 
-export function createProjectile({owner, startX, startY, targetId, damage, travelTime, radius, color, particle, slotIndex, hitChance, sourceId, kind, sprite, curveSide = 0, curveStrength = 0, visualOnly = false, onHitEffect = null, salvoId = null, salvoSize = 1, ammoId = null, serverFireCount = 1}){
+export function createProjectile({owner, startX, startY, targetId, damage, travelTime, radius, color, particle, slotIndex, hitChance, sourceId, kind, enemyKind, sprite, curveSide = 0, curveStrength = 0, visualOnly = false, onHitEffect = null, salvoId = null, salvoSize = 1, ammoId = null, serverFireCount = 1}){
   return {
     owner,
     fromX:startX,
@@ -50,6 +49,7 @@ export function createProjectile({owner, startX, startY, targetId, damage, trave
     targetId,
     sourceId,
     kind,
+    enemyKind,
     sprite,
     visualOnly,
     onHitEffect,

@@ -69,3 +69,22 @@ test("platform auth client exposes server auth errors", async ()=>{
     /Identifiants invalides/
   );
 });
+
+test("platform auth client aborts requests that exceed its timeout", async ()=>{
+  const client = createPlatformAuthClient({
+    baseUrl:"https://auth.example.test",
+    timeoutMs:10,
+    fetchImpl:(_url, options)=>new Promise((resolve, reject)=>{
+      options.signal.addEventListener("abort", ()=>{
+        const error = new Error("aborted");
+        error.name = "AbortError";
+        reject(error);
+      }, {once:true});
+    })
+  });
+
+  await assert.rejects(
+    client.login({login:"Pilot", password:"password"}),
+    /trop de temps/
+  );
+});

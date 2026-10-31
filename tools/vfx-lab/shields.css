@@ -1,0 +1,16 @@
+.shield-comparison{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.shield-comparison canvas{height:350px}
+.shield-comparison .viewport header{font-size:12px;padding:15px}
+.shield-comparison .viewport footer{min-height:76px;padding:14px 15px}
+.shield-comparison .viewport:nth-child(2){border-color:#3a7a87}
+.shield-comparison .viewport:nth-child(3){border-color:#655e8f}
+.shield-comparison .viewport:nth-child(3) .view-label{color:#c5c0ff}
+.controls{gap:12px}.controls label{min-width:165px;flex:1 1 170px}
+.preview-actions{display:flex;flex:1 1 100%;gap:10px}
+.preview-actions button{background:#101c2a;border:1px solid #304153;border-radius:6px;padding:10px 15px;color:#c6d5e7;font-size:13px;min-height:40px}
+.preview-actions button:hover{background:#1a2a3c}
+.preview-actions #impact{border-color:#487c8b;color:#b9eff6}
+.preview-actions button#pause{margin-left:auto}
+.scope a{color:#94cdd6;text-underline-offset:3px}
+@media(max-width:1050px){.shield-comparison{grid-template-columns:repeat(2,minmax(0,1fr))}.shield-comparison canvas{height:300px}}
+@media(max-width:650px){.shield-comparison{grid-template-columns:minmax(0,1fr)}.shield-comparison canvas{height:300px}.preview-actions{flex-wrap:wrap}.preview-actions button#pause{margin-left:0}.controls label{flex:1 1 150px}}

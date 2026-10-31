@@ -10,7 +10,7 @@ Ce banc de charge lance de vrais clients Socket.IO. Chaque bot :
 - traverse progressivement les portails entre cartes ;
 - accepte jusqu'a 5 quetes compatibles et execute les interactions de position simples ;
 - rejoint un groupe de 4 ;
-- certains chefs de groupe lancent un Portail Bleu ;
+- certains chefs de groupe lancent Le Seuil d'Azuron ;
 - respawn automatiquement apres une mort.
 
 Le provisionnement est refuse sauf si le serveur est lance hors production avec un secret explicite.

@@ -1,5 +1,7 @@
-import { ENEMY_TYPES, PORTAL_WAVE_TOTAL } from "../combatData.js?v=20261022-helion-hub1";
+import { ENEMY_TYPES, getEnemyStatsForLevel, PORTAL_WAVE_TOTAL } from "../combatData.js?v=20261022-helion-hub1";
 import { RICKY_PORTAL_MAP } from "../../data/rickyPortal.js";
+import { createAzuronArena } from "../combatData/azuronArena.js";
+import { isWavePortal } from "../../data/wavePortalTiers.js";
 import {
   VESPER_CAGE_DESTROYED_ASSET,
   VESPER_CAGE_INTACT_ASSET,
@@ -32,6 +34,7 @@ import {
 import { makeAsteroids, makeDust, makeStars, seededRandom } from "./mapState.js?v=20261022-helion-hub1";
 
 export function createPortalMap(portal){
+  if(isWavePortal(portal)) return createAzuronArena(portal);
   if(portal?.id === "ricky"){
     return {
       id:"portal-ricky",
@@ -296,7 +299,7 @@ export function createPortalMap(portal){
       enemyAssets:[
         "assets/ships/Astralis.png",
         "assets/ships/combat/Asterion.png",
-        "assets/ships/Imperial.png",
+        "assets/enemies/ancient/demon_king.png",
         "assets/ships/Helion Titan.png",
         "assets/spawn/spawn_dock.png"
       ],
@@ -336,8 +339,9 @@ function makePortalEnemy(kind, wave, x, y, id, boss=false){
   const level = Array.isArray(base.levelRange)
     ? Math.floor(base.levelRange[0] + Math.random() * (base.levelRange[1] - base.levelRange[0] + 1))
     : (boss ? 20 + wave : Math.max(1, Math.round(1 + wave * 0.65)));
-  const maxHp = base.maxHp(level) * (boss ? 2.2 : 1);
-  const maxShield = (base.maxShield?.(level) || 0) * (boss ? 2.2 : 1);
+  const stats = getEnemyStatsForLevel(kind, level);
+  const maxHp = stats.maxHp * (boss ? 2.2 : 1);
+  const maxShield = stats.maxShield * (boss ? 2.2 : 1);
   return {
     id,
     x,y,homeX:x,homeY:y,
@@ -353,15 +357,15 @@ function makePortalEnemy(kind, wave, x, y, id, boss=false){
     radius: boss ? Math.round(base.radius * 1.18) : base.radius,
     attackRange:base.attackRange,
     shieldAbsorbRatio:base.shieldAbsorbRatio ?? 0.8,
-    attackDamage: Math.round(base.attackDamage(level) * (boss ? 1.5 : 1)),
-    attackDamageMin: base.attackDamageMin ? Math.round(base.attackDamageMin * (boss ? 1.5 : 1)) : undefined,
-    attackDamageMax: base.attackDamageMax ? Math.round(base.attackDamageMax * (boss ? 1.5 : 1)) : undefined,
+    attackDamage: Math.round(stats.attackDamage * (boss ? 1.5 : 1)),
+    attackDamageMin: stats.attackDamageMin == null ? undefined : Math.round(stats.attackDamageMin * (boss ? 1.5 : 1)),
+    attackDamageMax: stats.attackDamageMax == null ? undefined : Math.round(stats.attackDamageMax * (boss ? 1.5 : 1)),
     attackCooldown: boss ? Math.max(0.9, base.attackCooldown * 0.82) : base.attackCooldown,
     projectileSpeed: base.projectileSpeed,
     color:base.color,
     particle:base.particle,
-    onHitEffect:base.onHitEffect,
-    loot: boss ? {credits:base.loot.credits*2, xp:base.loot.xp*2, premium:base.loot.premium} : base.loot,
+    onHitEffect:stats.onHitEffect,
+    loot: boss ? {...stats.loot, credits:stats.loot.credits*2, xp:stats.loot.xp*2} : stats.loot,
     aggro:true,
     angle:0,
     hitT:0.6 + Math.random() * 0.5

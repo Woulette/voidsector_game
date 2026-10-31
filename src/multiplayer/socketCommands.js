@@ -44,6 +44,9 @@ export function createSocketCommands({multiplayer}){
         ? emit(multiplayer, "portal:precursor-interact", {action:normalizedAction})
         : false;
     },
+    interactAzuronPortal(action){
+      return ["continue","exit"].includes(action) ? emit(multiplayer,"portal:azuron-interact",{action}) : false;
+    },
     activateRickyHealBeacon(){
       return emit(multiplayer, "portal:ricky-heal");
     },
@@ -220,8 +223,8 @@ export function createSocketCommands({multiplayer}){
     upgradeServerEquipment({itemId, materialSource = "cargoHold", shipId} = {}){
       return itemId ? emit(multiplayer, "equipment:upgrade", {itemId, materialSource, shipId}) : false;
     },
-    requestServerLootPickup(id){
-      return id ? emit(multiplayer, "loot:pickup", {id}) : false;
+    requestServerLootPickup(id, phase = "start", attemptId){
+      return id ? emit(multiplayer, "loot:pickup", {id, phase, ...(attemptId ? {attemptId} : {})}) : false;
     }
   };
 }

@@ -10,6 +10,7 @@ Thumbs.db
 .vercel
 tmp/
 server/.env
+server/data/**
 server/data/accounts.json
 server/data/firmWar.json
 server/data/profiles.json

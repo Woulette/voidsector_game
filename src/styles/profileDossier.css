@@ -1,0 +1,409 @@
+@import url("./profileMilestones.css?v=20261023-profilemilestones1");
+
+/* Pilot dossier: launcher only. Rank artwork and values come from game data. */
+#dashboard #profileSection{
+  --pilot-border:#22536d;
+  --pilot-rule:#174258;
+  --pilot-muted:#a7c8df;
+  --pilot-cyan:#38e7ff;
+  width:100%;min-width:0;min-height:0;padding:0;border:0;
+  overflow:visible;background:none;box-shadow:none;clip-path:none;
+}
+#dashboard #profileSection::after{display:none}
+#dashboard #profileSection .pilot-profile-sheet{
+  position:relative;display:flex;flex-direction:column;gap:10px;
+  min-width:0;min-height:0;padding:11px 14px 14px;
+  border:1px solid var(--pilot-border);
+  background:linear-gradient(130deg,rgba(4,25,41,.97),rgba(1,12,23,.98));
+  box-shadow:inset 0 0 0 4px #061623,0 12px 30px #0003;
+  clip-path:polygon(11px 0,calc(100% - 11px) 0,100% 11px,100% calc(100% - 11px),calc(100% - 11px) 100%,11px 100%,0 calc(100% - 11px),0 11px);
+}
+#dashboard #profileSection .pilot-profile-heading{display:block;min-width:0;padding:0 0 1px}
+#dashboard #profileSection .pilot-profile-heading .tiny{display:block;color:#30e3f7;font-size:11px;font-weight:700;line-height:1.25;letter-spacing:3.7px;text-transform:uppercase}
+#dashboard #profileSection .pilot-profile-heading h2{margin:3px 0 0;color:#e9f0fc;font-size:clamp(23px,1.8vw,31px);font-weight:800;line-height:1.12;letter-spacing:1.8px;text-transform:uppercase}
+#dashboard #profileSection .pilot-profile-grid{display:grid;grid-template-columns:minmax(0,.28fr) minmax(0,.41fr) minmax(0,.31fr);gap:14px;align-items:stretch;min-width:0;min-height:0}
+#dashboard #profileSection .pilot-profile-left{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+#dashboard #profileSection .profile-frame{
+  position:relative;min-width:0;min-height:0;
+  border:1px solid var(--pilot-border);
+  background:linear-gradient(125deg,#08233575,#03142188 65%,#02101bd9);
+  box-shadow:inset 0 0 0 3px #06182677;
+  clip-path:polygon(9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px),0 9px);
+}
+#dashboard #profileSection .profile-frame>h3,
+#dashboard #profileSection .pilot-profile-card-heading{margin:0;padding:10px 5px 8px;border-bottom:1px solid var(--pilot-rule);color:#c9e4f8;font-size:17px;font-weight:700;line-height:1.15;letter-spacing:2px;text-transform:uppercase}
+#dashboard #profileSection .pilot-profile-identity{display:flex;flex-direction:column;align-items:stretch;gap:0;flex:1.12;padding:0 11px 11px}
+#dashboard #profileSection .pilot-profile-identity-body{display:grid;grid-template-columns:minmax(82px,.36fr) minmax(0,1fr);align-items:center;gap:14px;flex:1;min-width:0;min-height:0;padding:13px 5px 2px}
+#dashboard #profileSection .pilot-profile-rank-art{display:grid;place-items:center;min-width:0;min-height:0;align-self:stretch}
+#dashboard #profileSection .pilot-profile-rank-art img,
+#dashboard #profileSection .pilot-profile-rank-art .rank-icon{display:block;width:100%;height:150px;max-height:100%;object-fit:contain;filter:drop-shadow(0 6px 10px #0009)}
+#dashboard #profileSection .pilot-profile-identity-copy{display:flex;flex-direction:column;min-width:0;gap:4px}
+#dashboard #profileSection .pilot-profile-identity-copy h3{margin:0;color:#f3f5fe;font-size:clamp(20px,1.55vw,29px);font-weight:800;line-height:1.1;letter-spacing:.5px;text-transform:uppercase;overflow-wrap:anywhere}
+#dashboard #profileSection .pilot-profile-rank-name{color:#ffce52;font-size:20px;font-weight:700;line-height:1.2;letter-spacing:.4px;overflow-wrap:anywhere}
+#dashboard #profileSection .pilot-profile-level{margin:3px 0 0;color:#b2d1e8;font-size:16px;line-height:1.25}
+#dashboard #profileSection .pilot-profile-rank-progress,
+#dashboard #profileSection .pilot-profile-xp-progress{width:100%;height:16px;padding:3px;border:1px solid #286184;border-radius:3px;background:#03101e;box-shadow:inset 0 0 6px #052335}
+#dashboard #profileSection .pilot-profile-rank-progress>span,
+#dashboard #profileSection .pilot-profile-xp-progress>span{display:block;height:100%;max-width:100%;background:linear-gradient(180deg,#41d7f9,#0ba9dc);box-shadow:0 0 10px #1cc7ec55;border-radius:1px}
+#dashboard #profileSection .pilot-profile-next-rank{display:flex;align-items:center;gap:10px;margin-top:4px;color:#adcbe1;font-size:14px;line-height:1.35}
+#dashboard #profileSection .pilot-profile-next-rank>img,
+#dashboard #profileSection .pilot-profile-next-rank>.rank-icon{display:block;flex:none;width:34px;height:41px;object-fit:contain}
+#dashboard #profileSection .pilot-profile-next-rank>div{min-width:0}
+#dashboard #profileSection .pilot-profile-next-rank strong{font-weight:500;color:#bcd9ef}
+#dashboard #profileSection .pilot-profile-next-rank span{display:block;font-variant-numeric:tabular-nums}
+#dashboard #profileSection .pilot-profile-next-rank small{display:block;margin-top:1px;color:#a8c4da;font-size:inherit;line-height:1.3;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#dashboard #profileSection .pilot-profile-dossier{display:flex;flex-direction:column;flex:1;padding:0 11px 9px}
+#dashboard #profileSection .pilot-profile-dossier dl,
+#dashboard #profileSection .pilot-profile-right dl{margin:0;min-width:0;min-height:0}
+#dashboard #profileSection .pilot-profile-dossier dl{display:flex;flex:1;flex-direction:column;justify-content:space-evenly}
+#dashboard #profileSection .pilot-profile-dossier-row,
+#dashboard #profileSection .pilot-profile-stat{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;min-height:40px;padding:7px 5px;border-bottom:1px solid #153b5266}
+#dashboard #profileSection .pilot-profile-dossier-row:last-child,
+#dashboard #profileSection .pilot-profile-stat:last-child{border-bottom:0}
+#dashboard #profileSection .pilot-profile-dossier-row{min-height:33px;padding-top:4px;padding-bottom:4px}
+#dashboard #profileSection .pilot-profile-dossier-row dt,
+#dashboard #profileSection .pilot-profile-stat dt{display:flex;align-items:center;gap:13px;min-width:0;color:#aecde4;font-size:15px;line-height:1.3}
+#dashboard #profileSection .pilot-profile-dossier-row dd,
+#dashboard #profileSection .pilot-profile-stat dd{margin:0;flex:none;max-width:60%;color:#f1f5ff;font-size:21px;font-weight:700;line-height:1.2;text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#dashboard #profileSection .pilot-profile-icon{display:block;width:24px;height:24px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;color:#a2d5f5}
+#dashboard #profileSection .pilot-profile-showcase{isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-height:400px;padding:16px 20px 10px;overflow:hidden;background:radial-gradient(ellipse at 50% 55%,#006e9c20,transparent 65%),linear-gradient(140deg,#031b2ec9,#01101eeb)}
+#dashboard #profileSection .pilot-profile-stage-grid{position:absolute;inset:16px;z-index:-2;pointer-events:none;background:linear-gradient(#1550732d 1px,transparent 1px),linear-gradient(90deg,#1550732d 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse,#000 15%,transparent 80%)}
+#dashboard #profileSection .pilot-profile-stage-radar{position:absolute;z-index:-1;top:48%;left:50%;width:83%;aspect-ratio:1;transform:translate(-50%,-50%);border:1px solid #0b9bd55c;border-radius:50%;pointer-events:none}
+#dashboard #profileSection .pilot-profile-stage-radar::before,
+#dashboard #profileSection .pilot-profile-stage-radar::after{content:"";position:absolute;pointer-events:none;background:#1782b04d}
+#dashboard #profileSection .pilot-profile-stage-radar::before{left:-20%;right:-20%;top:50%;height:1px}
+#dashboard #profileSection .pilot-profile-stage-radar::after{top:-20%;bottom:-20%;left:50%;width:1px}
+#dashboard #profileSection .pilot-profile-stage-radar i{position:absolute;inset:12%;border:1px solid #0f6d9738;border-radius:50%}
+#dashboard #profileSection .pilot-profile-stage-radar i+i{inset:28%}
+#dashboard #profileSection .pilot-profile-showcase-heading{position:absolute;z-index:2;left:20px;top:13px;right:20px;pointer-events:none}
+#dashboard #profileSection .pilot-profile-showcase-heading>span{display:block;margin-bottom:7px;color:#2ce7f6;font-size:17px;font-weight:700;line-height:1.15;letter-spacing:1.8px;text-transform:uppercase}
+#dashboard #profileSection .pilot-profile-showcase-heading h3{margin:0 0 3px;color:#f1f6ff;font-size:clamp(27px,2.1vw,37px);font-weight:800;line-height:1.1;letter-spacing:1.4px;text-transform:uppercase;text-shadow:0 2px 10px #001120;overflow-wrap:anywhere}
+#dashboard #profileSection .pilot-profile-showcase-heading p{margin:0;color:#b5d4ea;font-size:18px;line-height:1.3;letter-spacing:.25px}
+#dashboard #profileSection .pilot-profile-rarity{display:inline-flex;align-items:center;justify-content:center;min-height:29px;margin-top:10px;padding:3px 15px;border:1px solid var(--rarity-border,#297792);border-radius:3px;background:#04192adb;color:var(--rarity-color,#cdf1ff);font-size:14px;line-height:1.2;box-shadow:inset 0 0 10px #2bc8fc17}
+#dashboard #profileSection .pilot-profile-ship-art{position:absolute;z-index:1;display:block;top:-2px;left:12px;flex:none;min-height:0;width:calc(100% - 24px);height:calc(100% - 35px);max-height:none;margin:0;padding:0;border:0;background:none;object-fit:contain;transform:scale(1.03);filter:drop-shadow(0 9px 15px #0009) drop-shadow(0 0 15px #28aeda18)}
+#dashboard #profileSection .pilot-profile-view-switch{position:relative;z-index:3;display:grid;grid-template-columns:1fr 1fr;flex:none;width:min(100%,390px);min-height:34px;padding:0;border:1px solid #2182a5;border-radius:5px;background:#021523;overflow:hidden}
+#dashboard #profileSection .pilot-profile-view-switch button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:33px;margin:0;padding:6px 10px;border:0;border-left:1px solid #1d637e;background:none;color:#b6d3e8;font-family:inherit;font-size:14px;line-height:1.2;cursor:pointer;transition:background .15s,box-shadow .15s}
+#dashboard #profileSection .pilot-profile-view-switch button:first-child{border-left:0}
+#dashboard #profileSection .pilot-profile-view-switch button.active,
+#dashboard #profileSection .pilot-profile-view-switch button[aria-pressed="true"]{background:linear-gradient(180deg,#08749c99,#03374e);color:#e7fcff;box-shadow:inset 0 0 12px #00c5ec55,inset 0 0 0 1px #1ad0e2}
+#dashboard #profileSection .pilot-profile-view-switch button:hover{background:#0f466180;color:#fff}
+#dashboard #profileSection .pilot-profile-view-switch button b{font-size:12px;font-weight:600;color:#d2eaff}
+#dashboard #profileSection .pilot-profile-right{display:flex;flex-direction:column;padding:0 14px 14px}
+#dashboard #profileSection .pilot-profile-efficiency{display:flex;flex:1;flex-direction:column;min-width:0;min-height:0}
+#dashboard #profileSection .pilot-profile-right>h3{flex:none}
+#dashboard #profileSection .pilot-profile-right dl{display:flex;flex-direction:column;flex:1;justify-content:space-evenly}
+#dashboard #profileSection .pilot-profile-stat{min-height:34px;padding:4px 6px}
+#dashboard #profileSection .pilot-profile-stat dd{font-size:22px}
+#dashboard #profileSection .pilot-profile-stats-note{display:flex;align-items:center;gap:11px;flex:none;margin:0;padding:8px 6px 10px;color:#a8c7dd;font-size:14px;line-height:1.3;border-top:1px solid var(--pilot-rule)}
+#dashboard #profileSection .pilot-profile-stats-note .pilot-profile-icon{width:22px;height:22px}
+#dashboard #profileSection .pilot-profile-experience{flex:none;margin:0 -14px -14px;padding:13px 18px 15px;border-top:1px solid var(--pilot-border);background:#02121f77}
+#dashboard #profileSection .pilot-profile-experience h3{margin:0 0 8px;padding:0;border:0;color:#d2e7fa;font-size:17px;font-weight:700;line-height:1.15;letter-spacing:2px;text-transform:uppercase}
+#dashboard #profileSection .pilot-profile-experience p{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px;color:#bbd7ee;font-size:16px;line-height:1.25;font-variant-numeric:tabular-nums}
+#dashboard #profileSection .pilot-profile-experience small{display:block;margin-top:5px;color:#7fa7c1;font-size:11px;line-height:1.2}
+#dashboard #profileSection .pilot-profile-footer{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:10px;flex:none;min-width:0}
+#dashboard #profileSection .pilot-profile-title,
+#dashboard #profileSection .pilot-profile-ascension{display:flex;flex-direction:column;min-width:0;padding:0 11px 10px}
+#dashboard #profileSection .pilot-profile-award-body{display:grid;grid-template-columns:clamp(70px,9.5vw,150px) minmax(0,1fr) auto;align-items:center;gap:17px;min-width:0;min-height:100px;padding:8px 10px 0}
+#dashboard #profileSection .pilot-profile-ascension .pilot-profile-award-body{grid-template-columns:clamp(70px,9.5vw,145px) minmax(0,1fr) auto}
+#dashboard #profileSection .pilot-profile-award-art{position:relative;display:grid;place-items:center;justify-self:center;align-self:stretch;min-width:0;min-height:0;width:100%;max-width:125px;color:#8d9eac}
+#dashboard #profileSection .pilot-profile-award-art>svg,
+#dashboard #profileSection .pilot-profile-award-art>img{display:block;width:100%;height:100px;object-fit:contain;filter:drop-shadow(0 5px 8px #000a)}
+#dashboard #profileSection .pilot-profile-award-art>.pilot-profile-icon{stroke-width:.9;color:#8496a7}
+#dashboard #profileSection .pilot-profile-title .pilot-profile-award-art::before{content:"";position:absolute;inset:8px 1px 7px;background:linear-gradient(145deg,#8794a3,#172a3b 27%,#8b9aa6 29%,#1e3040 34%,#07131f 66%,#718492 75%,#142634);clip-path:polygon(50% 0,64% 13%,87% 10%,80% 30%,100% 30%,83% 50%,93% 60%,65% 84%,50% 100%,35% 84%,7% 60%,17% 50%,0 30%,20% 30%,13% 10%,36% 13%);filter:drop-shadow(0 3px 3px #0009)}
+#dashboard #profileSection .pilot-profile-title .pilot-profile-award-art::after{content:"";position:absolute;inset:20% 25% 16%;border:2px solid #8d9dab;clip-path:polygon(50% 0,100% 20%,90% 75%,50% 100%,10% 75%,0 20%);background:linear-gradient(145deg,#233649,#07111d);box-shadow:inset 0 0 8px #0009}
+#dashboard #profileSection .pilot-profile-title .pilot-profile-award-art>.pilot-profile-icon{position:relative;z-index:1;width:54%;height:60px;color:#8195a6;opacity:.65}
+#dashboard #profileSection .pilot-profile-award-lock{position:absolute;z-index:2;left:50%;top:50%;display:grid;place-items:center;width:35px;height:37px;transform:translate(-50%,-50%);background:radial-gradient(ellipse,#07131ff2,transparent 75%)}
+#dashboard #profileSection .pilot-profile-award-lock .pilot-profile-icon{width:28px;height:31px;color:#ffcc69;filter:drop-shadow(0 0 5px #0009)}
+#dashboard #profileSection .pilot-profile-title.unlocked .pilot-profile-award-art{color:#d9bd65}
+#dashboard #profileSection .pilot-profile-title.equipped{border-color:#887648}
+#dashboard #profileSection .pilot-profile-title.unlocked .pilot-profile-award-art>.pilot-profile-icon{color:#e1c76f;opacity:1}
+#dashboard #profileSection .pilot-profile-award-copy{min-width:0}
+#dashboard #profileSection .pilot-profile-award-copy strong{display:block;margin-bottom:8px;color:#ffd15c;font-size:17px;font-weight:700;line-height:1.2;letter-spacing:.5px;overflow-wrap:anywhere}
+#dashboard #profileSection .pilot-profile-award-copy p{margin:0;color:#b2cde2;font-size:15px;line-height:1.35}
+#dashboard #profileSection .pilot-profile-award-copy p+p{margin-top:2px}
+#dashboard #profileSection .pilot-profile-award-copy small{display:block;margin-top:4px;color:#8dadc5;font-size:12px;line-height:1.3}
+#dashboard #profileSection .pilot-profile-title-actions{display:flex;flex-direction:column;gap:7px;min-width:130px;max-width:190px}
+#dashboard #profileSection .pilot-profile-title-actions button,
+#dashboard #profileSection .pilot-profile-ascension button{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;width:100%;margin:0;padding:8px 13px;border:1px solid #2480a2;border-radius:4px;background:linear-gradient(180deg,#087699,#034058);box-shadow:inset 0 0 12px #07c6e51a;color:#dff9ff;font-family:inherit;font-size:14px;font-weight:700;line-height:1.2;letter-spacing:.6px;text-align:center;cursor:pointer}
+#dashboard #profileSection .pilot-profile-title-actions button:hover:not(:disabled),
+#dashboard #profileSection .pilot-profile-ascension button:hover:not(:disabled){border-color:#5ce8fa;background:linear-gradient(180deg,#0992b7,#07536d)}
+#dashboard #profileSection .pilot-profile-title-actions button:disabled,
+#dashboard #profileSection .pilot-profile-ascension button:disabled{border-color:#2a536c;background:linear-gradient(180deg,#123245,#071b29);box-shadow:none;color:#88a5bb;opacity:1;filter:none;cursor:not-allowed}
+#dashboard #profileSection button:focus-visible{outline:2px solid #c7f8ff;outline-offset:-4px}
+#dashboard #profileSection .pilot-profile-award-status{display:block;margin-bottom:4px;color:#82d9ba;font-size:11px;font-weight:700;line-height:1.2;letter-spacing:.7px;text-transform:uppercase}
+#dashboard #profileSection .pilot-profile-title.locked .pilot-profile-award-status{color:#93aac0}
+#dashboard #profileSection .pilot-profile-ascension-requirements{display:flex;flex-wrap:wrap;gap:4px 10px;margin:6px 0 0}
+#dashboard #profileSection .pilot-profile-ascension-requirements span{color:#9db4c8;font-size:12px;line-height:1.3}
+#dashboard #profileSection .pilot-profile-ascension-requirements span{display:inline-flex;align-items:center;gap:4px}
+#dashboard #profileSection .pilot-profile-ascension-requirements .pilot-profile-icon{width:13px;height:13px;color:inherit}
+#dashboard #profileSection .pilot-profile-ascension-requirements span.done{color:#8fe5bb}
+#dashboard #profileSection .pilot-profile-ascended-seal{display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid #b3985b;background:linear-gradient(110deg,#462c3355,#31163855);color:#ffe194;font-size:13px;font-weight:700;line-height:1.2;letter-spacing:1px;text-transform:uppercase}
+#dashboard #profileSection .pilot-profile-sheet.ascended{border-color:#8a7759;background:radial-gradient(ellipse at 75% 0,#9a5bdf0f,transparent 50%),linear-gradient(130deg,rgba(9,24,42,.97),rgba(4,12,23,.98))}
+#dashboard #profileSection .pilot-profile-drone-content{display:flex;flex:1;flex-direction:column;gap:10px;align-self:stretch;min-height:0;width:100%;margin:90px 0 10px}
+#dashboard #profileSection .pilot-profile-drone-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #20516b;background:#031522dd;color:#b4d6eb;font-size:13px;line-height:1.25}
+#dashboard #profileSection .pilot-profile-drone-summary strong{font-weight:600;color:#e2f5ff}
+#dashboard #profileSection .pilot-profile-drone-summary b{flex:none;color:#59e6e4;font-size:13px}
+#dashboard #profileSection .pilot-profile-drone-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start;min-width:0;min-height:0;padding:0 3px 4px 0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+#dashboard #profileSection .pilot-profile-drone-grid article{display:grid;grid-template-columns:57px minmax(0,1fr);align-items:center;gap:8px;min-width:0;padding:7px;border:1px solid #20516b;background:#041827eb}
+#dashboard #profileSection .pilot-profile-drone-grid article.upgraded{border-color:#885166;background:linear-gradient(100deg,#5c17334d,#061724);box-shadow:inset 2px 0 0 #f28d9b}
+#dashboard #profileSection .pilot-profile-drone-grid article>img{width:57px;height:57px;object-fit:contain;filter:drop-shadow(0 0 7px #35cffb30)}
+#dashboard #profileSection .pilot-profile-drone-grid article>div{display:grid;min-width:0;gap:3px}
+#dashboard #profileSection .pilot-profile-drone-grid span{color:#85bcd9;font-size:10px;line-height:1.15;text-transform:uppercase}
+#dashboard #profileSection .pilot-profile-drone-grid strong{color:#e4f3ff;font-size:13px;line-height:1.2;overflow-wrap:anywhere}
+#dashboard #profileSection .pilot-profile-drone-grid small{color:#a0bace;font-size:11px;line-height:1.2;overflow-wrap:anywhere}
+#dashboard #profileSection .pilot-profile-drone-empty{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:9px;align-self:stretch;min-height:0;margin:90px 0 10px;padding:15px;text-align:center}
+#dashboard #profileSection .pilot-profile-drone-empty img{width:110px;height:110px;object-fit:contain;filter:drop-shadow(0 0 15px #37caff33)}
+#dashboard #profileSection .pilot-profile-drone-empty strong{color:#cde5f7;font-size:18px;line-height:1.2;text-transform:uppercase}
+#dashboard #profileSection .pilot-profile-drone-empty p{max-width:310px;margin:0;color:#98b6cd;font-size:14px;line-height:1.35}
+
+@media(min-width:1101px) and (min-height:720px){
+  #dashboard.launcher-dashboard:has(.hangar-view.active #profileSection:not(.hidden)){height:100svh;display:flex;flex-direction:column;padding-bottom:12px}
+  #dashboard:has(.hangar-view.active #profileSection:not(.hidden)) .launcher-header{flex:none}
+  #dashboard:has(.hangar-view.active #profileSection:not(.hidden)) .page-container{flex:1;min-height:0}
+  #dashboard .hangar-view.active:has(#profileSection:not(.hidden)){display:flex;flex-direction:column;align-items:stretch;height:100%;min-height:0;gap:0}
+  #dashboard .hangar-view.active:has(#profileSection:not(.hidden)) .hangar-tabs{flex:none}
+  #dashboard #profileSection:not(.hidden){display:flex;flex-direction:column;flex:1;min-height:0}
+  #dashboard #profileSection .pilot-profile-sheet{flex:1;min-height:0}
+  #dashboard #profileSection .pilot-profile-heading{flex:none}
+  #dashboard #profileSection .pilot-profile-grid{flex:1;min-height:0}
+  #dashboard #profileSection .pilot-profile-identity-copy h3{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #dashboard #profileSection .pilot-profile-showcase{min-height:0;height:100%}
+  #dashboard #profileSection .pilot-profile-ship-art{height:calc(100% - 35px);flex:none;max-height:none}
+}
+@media(min-width:1101px) and (max-width:1450px){
+  #dashboard #profileSection .pilot-profile-grid{gap:10px;grid-template-columns:minmax(0,.29fr) minmax(0,.39fr) minmax(0,.32fr)}
+  #dashboard #profileSection .pilot-profile-identity-body{grid-template-columns:minmax(58px,.3fr) minmax(0,1fr);gap:9px;padding-left:0;padding-right:0}
+  #dashboard #profileSection .pilot-profile-identity-copy h3{font-size:22px}
+  #dashboard #profileSection .pilot-profile-rank-name{font-size:18px}
+  #dashboard #profileSection .pilot-profile-next-rank{font-size:12px;gap:7px}
+  #dashboard #profileSection .pilot-profile-dossier-row dt,
+  #dashboard #profileSection .pilot-profile-stat dt{font-size:14px;gap:9px}
+  #dashboard #profileSection .pilot-profile-dossier-row dd,
+  #dashboard #profileSection .pilot-profile-stat dd{font-size:21px}
+  #dashboard #profileSection .pilot-profile-award-body{grid-template-columns:82px minmax(0,1fr) auto;gap:10px;padding-left:0;padding-right:0}
+  #dashboard #profileSection .pilot-profile-ascension .pilot-profile-award-body{grid-template-columns:78px minmax(0,1fr) auto}
+  #dashboard #profileSection .pilot-profile-title-actions{min-width:105px;max-width:135px}
+  #dashboard #profileSection .pilot-profile-award-copy strong{font-size:15px}
+  #dashboard #profileSection .pilot-profile-award-copy p{font-size:13px}
+}
+@media(min-width:1101px) and (max-height:920px){
+  #dashboard #profileSection .pilot-profile-sheet{gap:8px;padding:9px 11px 11px}
+  #dashboard #profileSection .pilot-profile-heading h2{font-size:26px}
+  #dashboard #profileSection .pilot-profile-heading .tiny{font-size:10px}
+  #dashboard #profileSection .pilot-profile-left{gap:8px}
+  #dashboard #profileSection .profile-frame>h3,
+  #dashboard #profileSection .pilot-profile-card-heading{padding-top:7px;padding-bottom:6px;font-size:15px;letter-spacing:1.6px}
+  #dashboard #profileSection .pilot-profile-identity{padding-bottom:8px;flex:1.05}
+  #dashboard #profileSection .pilot-profile-identity-body{padding-top:8px;gap:10px}
+  #dashboard #profileSection .pilot-profile-rank-art img,
+  #dashboard #profileSection .pilot-profile-rank-art .rank-icon{height:105px}
+  #dashboard #profileSection .pilot-profile-identity-copy{gap:4px}
+  #dashboard #profileSection .pilot-profile-identity-copy h3{font-size:23px}
+  #dashboard #profileSection .pilot-profile-rank-name{font-size:18px}
+  #dashboard #profileSection .pilot-profile-level{font-size:14px;margin-top:2px}
+  #dashboard #profileSection .pilot-profile-rank-progress{height:13px;padding:2px}
+  #dashboard #profileSection .pilot-profile-next-rank{margin-top:3px;font-size:12px;line-height:1.2;gap:7px}
+  #dashboard #profileSection .pilot-profile-next-rank>img,
+  #dashboard #profileSection .pilot-profile-next-rank>.rank-icon{width:25px;height:31px}
+  #dashboard #profileSection .pilot-profile-dossier{padding-bottom:5px}
+  #dashboard #profileSection .pilot-profile-dossier-row,
+  #dashboard #profileSection .pilot-profile-stat{min-height:29px;padding:4px 4px}
+  #dashboard #profileSection .pilot-profile-dossier-row dt,
+  #dashboard #profileSection .pilot-profile-stat dt{font-size:13px;gap:9px}
+  #dashboard #profileSection .pilot-profile-dossier-row dd,
+  #dashboard #profileSection .pilot-profile-stat dd{font-size:20px}
+  #dashboard #profileSection .pilot-profile-icon{width:21px;height:21px}
+  #dashboard #profileSection .pilot-profile-showcase{padding:12px 14px 8px}
+  #dashboard #profileSection .pilot-profile-showcase-heading{left:17px;right:17px;top:11px}
+  #dashboard #profileSection .pilot-profile-showcase-heading>span{font-size:14px;margin-bottom:5px}
+  #dashboard #profileSection .pilot-profile-showcase-heading h3{font-size:29px}
+  #dashboard #profileSection .pilot-profile-showcase-heading p{font-size:15px}
+  #dashboard #profileSection .pilot-profile-rarity{min-height:24px;margin-top:7px;font-size:12px;padding:2px 12px}
+  #dashboard #profileSection .pilot-profile-view-switch{min-height:30px}
+  #dashboard #profileSection .pilot-profile-view-switch button{min-height:29px;font-size:12px;padding:5px 8px}
+  #dashboard #profileSection .pilot-profile-right{padding:0 10px 10px}
+  #dashboard #profileSection .pilot-profile-stats-note{padding:6px 4px 8px;font-size:12px;gap:8px}
+  #dashboard #profileSection .pilot-profile-stats-note .pilot-profile-icon{width:19px;height:19px}
+  #dashboard #profileSection .pilot-profile-experience{margin:0 -10px -10px;padding:10px 14px}
+  #dashboard #profileSection .pilot-profile-experience h3{font-size:15px;margin-bottom:6px}
+  #dashboard #profileSection .pilot-profile-experience p{font-size:14px;margin-bottom:5px}
+  #dashboard #profileSection .pilot-profile-experience small{font-size:10px;margin-top:4px}
+  #dashboard #profileSection .pilot-profile-xp-progress{height:14px;padding:2px}
+  #dashboard #profileSection .pilot-profile-title,
+  #dashboard #profileSection .pilot-profile-ascension{padding-bottom:7px}
+  #dashboard #profileSection .pilot-profile-award-body{min-height:82px;padding-top:5px;gap:11px;grid-template-columns:95px minmax(0,1fr) auto}
+  #dashboard #profileSection .pilot-profile-ascension .pilot-profile-award-body{grid-template-columns:85px minmax(0,1fr) auto}
+  #dashboard #profileSection .pilot-profile-award-art>svg,
+  #dashboard #profileSection .pilot-profile-award-art>img{height:78px}
+  #dashboard #profileSection .pilot-profile-award-copy strong{font-size:15px;margin-bottom:5px}
+  #dashboard #profileSection .pilot-profile-award-copy p{font-size:13px;line-height:1.25}
+  #dashboard #profileSection .pilot-profile-award-copy small{font-size:11px}
+  #dashboard #profileSection .pilot-profile-title-actions{min-width:105px;max-width:150px;gap:5px}
+  #dashboard #profileSection .pilot-profile-title-actions button,
+  #dashboard #profileSection .pilot-profile-ascension button{min-height:34px;padding:6px 9px;font-size:12px}
+  #dashboard #profileSection .pilot-profile-ascension-requirements{gap:3px 8px;margin-top:4px}
+  #dashboard #profileSection .pilot-profile-ascension-requirements span{font-size:11px}
+  #dashboard #profileSection .pilot-profile-drone-content,
+  #dashboard #profileSection .pilot-profile-drone-empty{margin-top:76px;margin-bottom:7px}
+  #dashboard #profileSection .pilot-profile-drone-summary{padding:6px 8px;font-size:12px;gap:6px}
+  #dashboard #profileSection .pilot-profile-drone-grid{gap:6px}
+  #dashboard #profileSection .pilot-profile-drone-grid article{grid-template-columns:42px minmax(0,1fr);gap:5px;padding:5px}
+  #dashboard #profileSection .pilot-profile-drone-grid article>img{width:42px;height:42px}
+  #dashboard #profileSection .pilot-profile-drone-grid strong{font-size:11px}
+}
+@media(min-width:1101px) and (max-height:820px){
+  #dashboard #profileSection .pilot-profile-sheet{gap:6px;padding-top:7px;padding-bottom:9px}
+  #dashboard #profileSection .pilot-profile-heading h2{font-size:23px}
+  #dashboard #profileSection .pilot-profile-heading .tiny{font-size:9px}
+  #dashboard #profileSection .pilot-profile-identity{padding-bottom:5px}
+  #dashboard #profileSection .pilot-profile-dossier{flex:0 0 122px}
+  #dashboard #profileSection .pilot-profile-identity-body{grid-template-columns:minmax(52px,.26fr) minmax(0,1fr);gap:8px;padding-top:4px}
+  #dashboard #profileSection .pilot-profile-rank-art img,
+  #dashboard #profileSection .pilot-profile-rank-art .rank-icon{height:90px}
+  #dashboard #profileSection .pilot-profile-identity-copy{gap:2px}
+  #dashboard #profileSection .pilot-profile-identity-copy h3{font-size:18px}
+  #dashboard #profileSection .pilot-profile-rank-name{font-size:15px}
+  #dashboard #profileSection .pilot-profile-level{font-size:11px;margin-top:1px}
+  #dashboard #profileSection .pilot-profile-rank-progress{height:10px;padding:2px}
+  #dashboard #profileSection .pilot-profile-next-rank{font-size:10px;line-height:1.15;gap:5px;margin-top:2px}
+  #dashboard #profileSection .pilot-profile-next-rank small{font-size:10px;line-height:1.15;margin-top:1px}
+  #dashboard #profileSection .pilot-profile-next-rank>img,
+  #dashboard #profileSection .pilot-profile-next-rank>.rank-icon{width:20px;height:24px}
+  #dashboard #profileSection .profile-frame>h3,
+  #dashboard #profileSection .pilot-profile-card-heading{padding-top:5px;padding-bottom:4px;font-size:14px}
+  #dashboard #profileSection .pilot-profile-dossier-row,
+  #dashboard #profileSection .pilot-profile-stat{min-height:21px;padding-top:0;padding-bottom:0}
+  #dashboard #profileSection .pilot-profile-dossier-row{min-height:22px;padding-top:1px;padding-bottom:1px}
+  #dashboard #profileSection .pilot-profile-dossier-row dt,
+  #dashboard #profileSection .pilot-profile-stat dt{font-size:11.5px;gap:7px}
+  #dashboard #profileSection .pilot-profile-dossier-row dd,
+  #dashboard #profileSection .pilot-profile-stat dd{font-size:17px}
+  #dashboard #profileSection .pilot-profile-icon{width:17px;height:17px}
+  #dashboard #profileSection .pilot-profile-experience{padding-top:7px;padding-bottom:7px}
+  #dashboard #profileSection .pilot-profile-experience h3{font-size:13px;margin-bottom:4px}
+  #dashboard #profileSection .pilot-profile-experience p{font-size:12px}
+  #dashboard #profileSection .pilot-profile-experience small{font-size:9px;margin-top:3px}
+  #dashboard #profileSection .pilot-profile-xp-progress{height:12px;padding:2px}
+  #dashboard #profileSection .pilot-profile-stats-note{font-size:10px;line-height:1.2;padding-top:3px;padding-bottom:4px;gap:6px}
+  #dashboard #profileSection .pilot-profile-stats-note .pilot-profile-icon{width:17px;height:17px}
+  #dashboard #profileSection .pilot-profile-award-body{grid-template-columns:74px minmax(0,1fr) auto;min-height:75px;gap:8px}
+  #dashboard #profileSection .pilot-profile-ascension .pilot-profile-award-body{grid-template-columns:62px minmax(0,1fr) auto}
+  #dashboard #profileSection .pilot-profile-award-art>svg,
+  #dashboard #profileSection .pilot-profile-award-art>img{height:66px}
+  #dashboard #profileSection .pilot-profile-award-copy strong{font-size:13px;margin-bottom:4px}
+  #dashboard #profileSection .pilot-profile-award-copy p{font-size:12px;line-height:1.2}
+  #dashboard #profileSection .pilot-profile-award-copy small{font-size:10px}
+  #dashboard #profileSection .pilot-profile-title-actions{min-width:95px;max-width:125px}
+  #dashboard #profileSection .pilot-profile-title-actions button,
+  #dashboard #profileSection .pilot-profile-ascension button{min-height:30px;padding:5px 7px;font-size:11px}
+  #dashboard #profileSection .pilot-profile-ascension-requirements span{font-size:10px}
+}
+@media(max-width:1100px){
+  #dashboard #profileSection .pilot-profile-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:12px}
+  #dashboard #profileSection .pilot-profile-left{grid-column:1;grid-row:1}
+  #dashboard #profileSection .pilot-profile-showcase{grid-column:2;grid-row:1;min-height:430px}
+  #dashboard #profileSection .pilot-profile-right{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.65fr);column-gap:20px;padding:0 14px 13px}
+  #dashboard #profileSection .pilot-profile-efficiency{grid-column:1;grid-row:1;min-width:0}
+  #dashboard #profileSection .pilot-profile-right dl{padding-top:5px}
+  #dashboard #profileSection .pilot-profile-stat{min-height:38px;padding-top:5px;padding-bottom:5px}
+  #dashboard #profileSection .pilot-profile-stats-note{align-self:start;margin-top:0;padding-top:12px;border-top:1px solid var(--pilot-rule)}
+  #dashboard #profileSection .pilot-profile-experience{grid-column:2;grid-row:1;align-self:center;min-width:0;margin:0;padding:14px 0 16px;border-top:0;background:none}
+  #dashboard #profileSection .pilot-profile-footer{grid-template-columns:minmax(0,1fr)}
+  #dashboard #profileSection .pilot-profile-identity-copy h3{font-size:24px}
+  #dashboard #profileSection .pilot-profile-identity-body{grid-template-columns:minmax(70px,.3fr) minmax(0,1fr);gap:10px}
+  #dashboard #profileSection .pilot-profile-rank-art img,
+  #dashboard #profileSection .pilot-profile-rank-art .rank-icon{height:120px}
+  #dashboard #profileSection .pilot-profile-rank-name{font-size:18px}
+  #dashboard #profileSection .pilot-profile-next-rank{font-size:12px}
+  #dashboard #profileSection .pilot-profile-showcase-heading h3{font-size:30px}
+  #dashboard #profileSection .pilot-profile-ship-art{height:calc(100% - 35px);max-height:none;margin:0}
+  #dashboard #profileSection .pilot-profile-award-body,
+  #dashboard #profileSection .pilot-profile-ascension .pilot-profile-award-body{grid-template-columns:110px minmax(0,1fr) auto;min-height:105px}
+  #dashboard #profileSection .pilot-profile-title-actions{min-width:140px;max-width:180px}
+  #dashboard #profileSection .pilot-profile-drone-content{max-height:350px;margin-top:110px}
+  #dashboard #profileSection .pilot-profile-drone-empty{min-height:280px;margin-top:110px}
+}
+@media(max-width:690px){
+  #dashboard #profileSection .pilot-profile-sheet{padding:12px 10px;gap:12px}
+  #dashboard #profileSection .pilot-profile-heading{align-items:flex-start;gap:8px}
+  #dashboard #profileSection .pilot-profile-heading h2{font-size:23px;letter-spacing:.6px}
+  #dashboard #profileSection .pilot-profile-heading .tiny{font-size:10px;letter-spacing:3px}
+  #dashboard #profileSection .pilot-profile-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+  #dashboard #profileSection .pilot-profile-left,
+  #dashboard #profileSection .pilot-profile-showcase,
+  #dashboard #profileSection .pilot-profile-right{grid-column:1;grid-row:auto}
+  #dashboard #profileSection .pilot-profile-identity{min-height:220px;padding-bottom:12px}
+  #dashboard #profileSection .pilot-profile-identity-body{grid-template-columns:minmax(72px,.33fr) minmax(0,1fr);padding-top:13px;gap:15px}
+  #dashboard #profileSection .pilot-profile-identity-copy h3{font-size:25px}
+  #dashboard #profileSection .pilot-profile-rank-name{font-size:18px}
+  #dashboard #profileSection .pilot-profile-level{font-size:15px}
+  #dashboard #profileSection .pilot-profile-next-rank{font-size:13px}
+  #dashboard #profileSection .pilot-profile-next-rank>img,
+  #dashboard #profileSection .pilot-profile-next-rank>.rank-icon{width:27px;height:35px}
+  #dashboard #profileSection .pilot-profile-dossier{padding-bottom:10px}
+  #dashboard #profileSection .pilot-profile-dossier-row{min-height:39px}
+  #dashboard #profileSection .pilot-profile-dossier-row dt{font-size:14px;gap:10px}
+  #dashboard #profileSection .pilot-profile-dossier-row dd{font-size:21px}
+  #dashboard #profileSection .profile-frame>h3,
+  #dashboard #profileSection .pilot-profile-card-heading{font-size:15px;letter-spacing:1.5px}
+  #dashboard #profileSection .pilot-profile-showcase{min-height:400px;padding:16px 14px 11px}
+  #dashboard #profileSection .pilot-profile-showcase-heading{left:16px;top:13px;right:16px}
+  #dashboard #profileSection .pilot-profile-showcase-heading>span{font-size:14px}
+  #dashboard #profileSection .pilot-profile-showcase-heading h3{font-size:29px}
+  #dashboard #profileSection .pilot-profile-showcase-heading p{font-size:15px}
+  #dashboard #profileSection .pilot-profile-rarity{min-height:26px;font-size:12px;margin-top:7px}
+  #dashboard #profileSection .pilot-profile-ship-art{height:calc(100% - 35px);margin:0}
+  #dashboard #profileSection .pilot-profile-view-switch button{font-size:13px;padding-left:7px;padding-right:7px}
+  #dashboard #profileSection .pilot-profile-right{display:flex;padding:0 11px 11px}
+  #dashboard #profileSection .pilot-profile-right dl{padding-top:3px}
+  #dashboard #profileSection .pilot-profile-stat{min-height:41px}
+  #dashboard #profileSection .pilot-profile-stat dt{font-size:14px;gap:10px}
+  #dashboard #profileSection .pilot-profile-stat dd{font-size:21px}
+  #dashboard #profileSection .pilot-profile-stats-note{font-size:13px;padding:10px 4px 12px;margin:0}
+  #dashboard #profileSection .pilot-profile-experience{align-self:stretch;margin:0 -11px -11px;padding:13px 15px 15px;border-top:1px solid var(--pilot-border);background:#02121f77}
+  #dashboard #profileSection .pilot-profile-experience h3{font-size:15px}
+  #dashboard #profileSection .pilot-profile-experience p{font-size:14px}
+  #dashboard #profileSection .pilot-profile-award-body,
+  #dashboard #profileSection .pilot-profile-ascension .pilot-profile-award-body{grid-template-columns:76px minmax(0,1fr);gap:10px;padding-left:0;padding-right:0;min-height:0}
+  #dashboard #profileSection .pilot-profile-award-art>svg,
+  #dashboard #profileSection .pilot-profile-award-art>img{height:84px}
+  #dashboard #profileSection .pilot-profile-award-copy strong{font-size:15px;margin-bottom:6px}
+  #dashboard #profileSection .pilot-profile-award-copy p{font-size:13px;line-height:1.35}
+  #dashboard #profileSection .pilot-profile-title-actions{grid-column:1/-1;flex-direction:row;min-width:0;max-width:none;justify-content:stretch;width:100%;gap:7px;margin-top:3px}
+  #dashboard #profileSection .pilot-profile-title-actions button{flex:1;min-height:37px;padding:7px;font-size:12px}
+  #dashboard #profileSection .pilot-profile-ascension-requirements{gap:5px 8px}
+  #dashboard #profileSection .pilot-profile-ascension-requirements span{font-size:11px}
+  #dashboard #profileSection .pilot-profile-ascended-seal{font-size:9px;padding:6px 7px;gap:5px;max-width:115px;letter-spacing:.3px}
+  #dashboard #profileSection .pilot-profile-drone-content{margin-top:100px;max-height:330px}
+  #dashboard #profileSection .pilot-profile-drone-grid{grid-template-columns:minmax(0,1fr);max-height:280px}
+  #dashboard #profileSection .pilot-profile-drone-summary{font-size:12px;gap:6px;padding:8px}
+  #dashboard #profileSection .pilot-profile-drone-summary b{font-size:12px}
+  #dashboard #profileSection .pilot-profile-drone-empty{min-height:270px;margin-top:95px;padding:15px 6px}
+}
+@media(max-width:360px){
+  #dashboard #profileSection .pilot-profile-sheet{padding-left:8px;padding-right:8px}
+  #dashboard #profileSection .pilot-profile-heading h2{font-size:20px}
+  #dashboard #profileSection .pilot-profile-identity{padding-left:9px;padding-right:9px}
+  #dashboard #profileSection .pilot-profile-identity-body{grid-template-columns:60px minmax(0,1fr);gap:9px}
+  #dashboard #profileSection .pilot-profile-identity-copy h3{font-size:21px}
+  #dashboard #profileSection .pilot-profile-rank-name{font-size:16px}
+  #dashboard #profileSection .pilot-profile-next-rank{font-size:11px;gap:6px}
+  #dashboard #profileSection .pilot-profile-dossier-row dt,
+  #dashboard #profileSection .pilot-profile-stat dt{font-size:12px;gap:7px}
+  #dashboard #profileSection .pilot-profile-dossier-row dd,
+  #dashboard #profileSection .pilot-profile-stat dd{font-size:19px}
+  #dashboard #profileSection .pilot-profile-showcase-heading h3{font-size:25px}
+  #dashboard #profileSection .pilot-profile-showcase-heading>span{font-size:12px}
+  #dashboard #profileSection .pilot-profile-view-switch button{font-size:11px}
+  #dashboard #profileSection .pilot-profile-award-body,
+  #dashboard #profileSection .pilot-profile-ascension .pilot-profile-award-body{grid-template-columns:58px minmax(0,1fr);gap:8px}
+  #dashboard #profileSection .pilot-profile-award-art>svg,
+  #dashboard #profileSection .pilot-profile-award-art>img{height:70px}
+  #dashboard #profileSection .pilot-profile-award-copy strong{font-size:13px}
+  #dashboard #profileSection .pilot-profile-award-copy p{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  #dashboard #profileSection *,
+  #dashboard #profileSection *::before,
+  #dashboard #profileSection *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}

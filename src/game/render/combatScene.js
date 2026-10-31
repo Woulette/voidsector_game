@@ -1,13 +1,30 @@
 import { drawDamageTexts as drawDamageTextsCanvas, drawMiniMap as drawMiniMapCanvas } from "./canvasHud.js?v=20261023-minimap4";
-import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=level-up-3";
-import { drawPlayerLayer } from "./player.js?v=elite-lasers-1";
-import { drawPortalTransitionOverlay } from "./portalTransition.js?v=action-slots-save-1-fps-burst-1";
-import { drawWorldLayer } from "./world.js?v=action-slots-save-1-fps-burst-1";
-import { drawRemotePlayers } from "../../multiplayer/render.js?v=action-slots-save-1-fps-burst-1";
+import { drawBeams, drawCargoBoxes, drawEnemies, drawGroundMaterials, drawImpactEffects, drawParticles, drawProjectiles } from "./entities.js?v=20261022-helion-hub1";
+import { drawPlayerLayer } from "./player.js?v=20261022-helion-hub1";
+import { drawPortalTransitionOverlay } from "./portalTransition.js?v=20260726-kharon1";
+import { drawWorldLayer } from "./world.js?v=20261022-helion-hub1";
+import { drawSectorPortalTransferFocus } from "./sectorPortalVisual.js?v=20261024-sector-portals1";
+import { drawAzuronPortalTransferFocus } from "./azuronPortalVisual.js";
+import { drawRemotePlayers } from "../../multiplayer/render.js?v=20261022-helion-hub1";
 import { getFirmBadgeAsset } from "../../data/firms.js";
 import { RICKY_PORTAL_ASSETS, getRickyPortalWalls, RICKY_PORTAL_MAP } from "../../data/rickyPortal.js";
-import { getCachedCombatImage } from "../combatAssets.js";
-import { isCombatProfilerFlagEnabled, setCombatProfilerMetric, timeCombatProfiler } from "../systems/combatFrameProfiler.js?v=action-slots-save-1-fps-burst-1";
+import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1";
+import { isCombatProfilerFlagEnabled, setCombatProfilerMetric, timeCombatProfiler } from "../systems/combatFrameProfiler.js?v=20260726-kharon1";
+import { hasCompletedProgressionPortal, STELLAR_SYSTEM_TITLE } from "../../shared/progressionUnlocks.js?v=20260726-kharon1";
+import { getVesperObjectiveMarkers, isVesperPortal } from "../../data/vesperPortal.js?v=20260726-kharon1";
+import { createVesperEncounterRenderer } from "./vesperEncounter.js?v=20261022-helion-hub1";
+import { createKharonEncounterRenderer } from "./kharonEncounter.js?v=20260804-motion2";
+import { getEclanitePortalWalls, isEclanitePortal } from "../../data/eclanitePortal.js?v=20260726-nox1";
+import { createEclaniteEncounterRenderer, getEclaniteObjectiveMarkers } from "./eclaniteEncounter.js?v=20261022-helion-hub1";
+import { isNoxPortal } from "../../data/noxPortal.js?v=20260726-nox2";
+import { createNoxEncounterRenderer, getNoxObjectiveMarkers } from "./noxEncounter.js?v=20260804-motion2";
+import { isPrismaticPortal } from "../../data/prismaticPortal.js?v=20260726-prismatic1";
+import { createPrismaticEncounterRenderer, getPrismaticObjectiveMarkers } from "./prismaticEncounter.js?v=20261022-helion-hub1";
+import { isAncientPortal } from "../../data/ancientPortal.js?v=20260726-ancient1";
+import { createAncientEncounterRenderer, getAncientObjectiveMarkers } from "./ancientEncounter.js?v=20260804-motion2";
+import { RICKY_SAUCER_ASSET } from "../../data/rickyVisuals.js?v=20261024-ricky-visuals1";
+import { drawRickySaucerEffects, sampleRickySaucerAnimation } from "./rickySaucer.js?v=20261024-ricky-visuals1";
+import { drawRickyHealBeacons } from "./rickyHealBeacon.js?v=20261024-ricky-heal1";
 
 function lerp(a, b, t){
   return a + (b - a) * t;
@@ -16,6 +33,17 @@ function lerp(a, b, t){
 function lerpAngle(a, b, t){
   const delta = Math.atan2(Math.sin(b - a), Math.cos(b - a));
   return a + delta * t;
+}
+
+export function getLocalCombatPilotIdentity(profile){
+  const player = profile?.player || {};
+  const equipped = player.titleVisible !== false
+    && String(player.activeTitleId || "") === STELLAR_SYSTEM_TITLE.id
+    && hasCompletedProgressionPortal(profile, STELLAR_SYSTEM_TITLE.portalId);
+  return {
+    pilotTitle:equipped ? STELLAR_SYSTEM_TITLE.name : "",
+    pilotOrnamentId:equipped ? STELLAR_SYSTEM_TITLE.ornamentId : ""
+  };
 }
 
 export function createCombatSceneRenderer({
@@ -29,6 +57,7 @@ export function createCombatSceneRenderer({
   getGraphicsQuality,
   getGraphicsEffects = ()=>({}),
   getSpawnStations,
+  getHoveredStation = ()=>null,
   getSafeAreas,
   isSafeModeActive,
   isPlayerOutsideMap,
@@ -42,7 +71,6 @@ export function createCombatSceneRenderer({
   getDroneLoadout,
   getItemFromInventoryUid,
   getDronePermanentUpgrade,
-  getPlayerTitle,
   getLocalPlayerRole = ()=>"",
   getGroupRemotePlayers,
   getGroupPingTarget,
@@ -51,9 +79,15 @@ export function createCombatSceneRenderer({
   engineProfiles
 }){
   let portalAllyRenderState = null;
+  const vesperEncounter = createVesperEncounterRenderer({ctx, cache, getState});
+  const kharonEncounter = createKharonEncounterRenderer({ctx, getState});
+  const eclaniteEncounter = createEclaniteEncounterRenderer({ctx, cache, getState});
+  const noxEncounter = createNoxEncounterRenderer({ctx, getState});
+  const prismaticEncounter = createPrismaticEncounterRenderer({ctx, cache, getState});
+  const ancientEncounter = createAncientEncounterRenderer({ctx, getState});
 
-  function drawBackground(){
-    const {currentMap, camera, nebulae, stars, dust, asteroids, player} = getState();
+  function drawBackground(state = getState()){
+    const {currentMap, camera, nebulae, stars, dust, asteroids, player} = state;
     const safeAreas = getSafeAreas();
     drawWorldLayer({
       ctx,
@@ -69,15 +103,17 @@ export function createCombatSceneRenderer({
       safeReady:isSafeModeActive(),
       spawnProtected:safeAreas.some(area=>area.id === "spawn"),
       stations:getSpawnStations(),
+      hoveredStation:getHoveredStation(),
       graphicsQuality:getGraphicsQuality(),
       graphicsEffects:getGraphicsEffects(),
       getMapPortals,
-      getClosedMapPortals
+      getClosedMapPortals,
+      portalTransition:state.portalTransition || state.autoTravelTransition
     });
   }
 
-  function drawRadiationOverlay(){
-    const {gameMode} = getState();
+  function drawRadiationOverlay(state = getState()){
+    const {gameMode} = state;
     if(gameMode !== "open" || !isPlayerOutsideMap()) return;
     const viewW = getCanvasViewWidth();
     const viewH = getCanvasViewHeight();
@@ -95,30 +131,53 @@ export function createCombatSceneRenderer({
     ctx.restore();
   }
 
-  function drawDamageTexts(){
+  function drawDamageTexts(state = getState()){
     if(isCombatProfilerFlagEnabled("hideDamageTexts")) return;
-    const {camera, damageTexts} = getState();
+    const {camera, damageTexts} = state;
     drawDamageTextsCanvas({ctx, camera, damageTexts});
   }
 
-  function drawMiniMap(){
-    const {currentMap, player, enemies, moveTarget, gameMode, activePortal, portalObjective, portalBeacons} = getState();
+  function drawMiniMap(state = getState()){
+    const {currentMap, player, enemies, selectedEnemy, moveTarget, gameMode, activePortal, portalObjective, portalBeacons} = state;
     const groupPlayers = getGroupRemotePlayers(currentMap?.id ?? currentMap?.name ?? null);
     const isRickyPortal = gameMode === "portal" && activePortal?.id === "ricky";
+    const isVesperEncounter = gameMode === "portal" && isVesperPortal(activePortal);
+    const isEclaniteEncounter = gameMode === "portal" && isEclanitePortal(activePortal);
+    const isNoxEncounter = gameMode === "portal" && isNoxPortal(activePortal);
+    const isPrismaticEncounter = gameMode === "portal" && isPrismaticPortal(activePortal);
+    const isAncientEncounter = gameMode === "portal" && isAncientPortal(activePortal);
     drawMiniMapCanvas({
       ctx,
       canvas,
       cache,
       currentMap,
-      stations:getSpawnStations?.() || [],
+      stations:getSpawnStations(),
       player,
       enemies,
+      selectedEnemy,
       rect:miniMap.rect(),
       moveTarget,
       revealAllEnemies:gameMode === "portal",
-      collisionWalls:isRickyPortal ? getRickyPortalWalls(Boolean(portalObjective?.breachOpen)) : [],
-      objectiveMarkers:isRickyPortal ? portalObjective?.levers || [] : [],
+      collisionWalls:isRickyPortal
+        ? getRickyPortalWalls(Boolean(portalObjective?.breachOpen))
+        : isEclaniteEncounter
+          ? getEclanitePortalWalls(portalObjective?.breaches)
+          : [],
+      objectiveMarkers:isRickyPortal
+        ? portalObjective?.levers || []
+        : isVesperEncounter
+          ? getVesperObjectiveMarkers(portalObjective, enemies)
+          : isEclaniteEncounter
+            ? getEclaniteObjectiveMarkers(portalObjective)
+            : isNoxEncounter
+              ? getNoxObjectiveMarkers(portalObjective)
+            : isPrismaticEncounter
+              ? getPrismaticObjectiveMarkers(portalObjective, enemies)
+            : isAncientEncounter
+              ? getAncientObjectiveMarkers(portalObjective)
+              : [],
       beacons:isRickyPortal ? portalBeacons || [] : [],
+      allies:isVesperEncounter || isAncientEncounter ? portalObjective?.allies || [] : [],
       groupPlayers,
       groupPingTarget:getGroupPingTarget?.() || null,
       closedPortals:getClosedMapPortals(currentMap),
@@ -126,36 +185,8 @@ export function createCombatSceneRenderer({
     });
   }
 
-  function drawPortalBeacons(){
-    const {camera, portalBeacons} = getState();
-    const now = Date.now();
-    for(const beacon of Array.isArray(portalBeacons) ? portalBeacons : []){
-      if(Number(beacon.expiresAt || 0) <= now) continue;
-      const x = Number(beacon.x || 0) - camera.x;
-      const y = Number(beacon.y || 0) - camera.y;
-      const radius = Math.max(20, Number(beacon.radius || 250));
-      const pulse = (Math.sin(now / 180) + 1) / 2;
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      const fill = ctx.createRadialGradient(x, y, radius * .08, x, y, radius);
-      fill.addColorStop(0, "rgba(34,197,94,.24)");
-      fill.addColorStop(.58, "rgba(34,197,94,.10)");
-      fill.addColorStop(1, "rgba(34,197,94,0)");
-      ctx.fillStyle = fill;
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = `rgba(74,222,128,${.38 + pulse * .24})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, radius * (.88 + pulse * .08), 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.strokeStyle = `rgba(125,211,252,${.22 + pulse * .20})`;
-      ctx.beginPath();
-      ctx.arc(x, y, 22 + pulse * 10, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
+  function drawPortalBeacons(state = getState()){
+    drawRickyHealBeacons({ctx,camera:state.camera,beacons:state.portalBeacons || [],effects:getGraphicsEffects().portalEffects !== false});
   }
 
   function readyRickyAsset(src){
@@ -225,8 +256,8 @@ export function createCombatSceneRenderer({
     ctx.fillRect(x, y, width, height);
   }
 
-  function drawRickyArena(){
-    const {activePortal, camera, portalObjective, portalCinematic, portalCompleted} = getState();
+  function drawRickyArena(state = getState()){
+    const {activePortal, camera, portalObjective, portalCinematic, portalCompleted} = state;
     if(activePortal?.id !== "ricky") return;
     const now = performance.now();
     const pulse = (Math.sin(now / 260) + 1) / 2;
@@ -328,11 +359,12 @@ export function createCombatSceneRenderer({
     ctx.restore();
   }
 
-  function drawPortalAlly(){
-    const {portalAlly} = getState();
+  function drawPortalAlly(state = getState()){
+    const {portalAlly} = state;
     if(!portalAlly || portalAlly.alive === false || Number(portalAlly.hp || 0) <= 0) return;
     const speed = Math.hypot(Number(portalAlly.vx || 0), Number(portalAlly.vy || 0));
     const now = performance.now();
+    const graphicsEffects=getGraphicsEffects();
     const snapshotAge = Number.isFinite(Number(portalAlly.receivedAt))
       ? Math.max(0, Math.min(.16, (now - Number(portalAlly.receivedAt)) / 1000))
       : 0;
@@ -361,26 +393,35 @@ export function createCombatSceneRenderer({
       portalAllyRenderState.enginePower = lerp(portalAllyRenderState.enginePower || 0, targetEnginePower, Math.min(1, dt * 8));
       portalAllyRenderState.lastAt = now;
     }
+    const pose=sampleRickySaucerAnimation(portalAlly,now);
+    const bodyAngle=portalAllyRenderState.angle-Math.PI/2;
     const allyPlayer = {
       ...portalAlly,
       x:portalAllyRenderState.x,
       y:portalAllyRenderState.y,
       angle:portalAllyRenderState.angle,
       enginePower:portalAllyRenderState.enginePower,
-      repairBotActive:false
+      repairBotActive:false,
+      visualCorrectionOffsetX:-Math.cos(bodyAngle)*pose.recoil,
+      visualCorrectionOffsetY:pose.hover-Math.sin(bodyAngle)*pose.recoil
     };
     const allyShip = {
       id:"ricky_companion",
-      img:portalAlly.img || "assets/ships/npc/npc_saucer.png",
-      combatImg:portalAlly.img || "assets/ships/npc/npc_saucer.png",
+      img:RICKY_SAUCER_ASSET,
+      combatImg:RICKY_SAUCER_ASSET,
       renderAngleOffset:-Math.PI / 2,
-      renderWidth:98,
-      renderHeight:98,
+      renderWidth:112,
+      renderHeight:112,
       stats:{}
     };
+    const beacon=(state.portalBeacons || []).filter(entry=>Number(entry.expiresAt)>Date.now()).at(-1);
+    const effect={ctx,x:allyPlayer.x+allyPlayer.visualCorrectionOffsetX-state.camera.x,y:allyPlayer.y+allyPlayer.visualCorrectionOffsetY-state.camera.y,
+      angle:bodyAngle,size:112,entity:allyPlayer,time:now,beacon:beacon ? {x:beacon.x-state.camera.x,y:beacon.y-state.camera.y} : null,
+      portalEffects:graphicsEffects.portalEffects !== false,muzzleFlashes:graphicsEffects.muzzleFlashes !== false,engineTrail:graphicsEffects.shipEngineTrail !== false};
+    drawRickySaucerEffects({...effect,layer:"under"});
     drawPlayerLayer({
       ctx,
-      camera:getState().camera,
+      camera:state.camera,
       cache,
       player:allyPlayer,
       ship:allyShip,
@@ -395,12 +436,14 @@ export function createCombatSceneRenderer({
       getDronePermanentUpgrade,
       droneFormation:"base",
       defaultProfile:defaultEngineProfile,
-      profiles:engineProfiles
+      profiles:engineProfiles,
+      graphicsEffects:{...graphicsEffects,shipEngineTrail:false}
     });
+    drawRickySaucerEffects(effect);
   }
 
-  function drawPortgunChannel(){
-    const {camera, player, portgunChannel} = getState();
+  function drawPortgunChannel(state = getState()){
+    const {camera, player, portgunChannel} = state;
     if(!portgunChannel || !player) return;
     const remainingMs = Math.max(0, Number(portgunChannel.completeAt || 0) - Date.now());
     if(remainingMs <= 0) return;
@@ -449,7 +492,7 @@ export function createCombatSceneRenderer({
 
   function draw(){
     const state = getState();
-    const {camera, bullets, particles, enemies, selectedEnemy, impactEffects, beams, player, currentMap, portalTransition} = state;
+    const {camera, mouse, bullets, particles, enemies, selectedEnemy, impactEffects, beams, player, currentMap, portalTransition} = state;
     const dpr = canvas.__dpr || 1;
     const viewW = getCanvasViewWidth();
     const viewH = getCanvasViewHeight();
@@ -467,20 +510,30 @@ export function createCombatSceneRenderer({
     setCombatProfilerMetric("draw.bullets.count", bullets?.length || 0);
     setCombatProfilerMetric("draw.particles.count", particles?.length || 0);
     setCombatProfilerMetric("draw.damageTexts.count", state.damageTexts?.length || 0);
-    timeCombatProfiler("draw.background", drawBackground);
-    timeCombatProfiler("draw.rickyArena", drawRickyArena);
+    timeCombatProfiler("draw.background", ()=>drawBackground(state));
+    timeCombatProfiler("draw.rickyArena", ()=>drawRickyArena(state));
+    timeCombatProfiler("draw.vesperArena", ()=>vesperEncounter.drawArena(state));
+    timeCombatProfiler("draw.eclaniteArena", ()=>eclaniteEncounter.drawArena(state));
+    timeCombatProfiler("draw.noxArena", ()=>noxEncounter.drawArena(state));
+    timeCombatProfiler("draw.prismaticArena", ()=>prismaticEncounter.drawArena(state));
+    timeCombatProfiler("draw.ancientArena", ()=>ancientEncounter.drawArena(state));
     timeCombatProfiler("draw.projectiles", ()=>drawProjectiles({ctx, camera, cache, bullets, showTrails:graphicsEffects.projectileTrails !== false}));
     if(!isCombatProfilerFlagEnabled("hideParticles")){
       timeCombatProfiler("draw.particles.main", ()=>drawParticles({ctx, camera, particles, repairLayer:false, graphicsEffects}));
     }
     timeCombatProfiler("draw.groundMaterials", ()=>drawGroundMaterials({ctx, camera, cache, materials:state.cargo.getGroundMaterials()}));
-    timeCombatProfiler("draw.portalBeacons", drawPortalBeacons);
+    timeCombatProfiler("draw.portalBeacons", ()=>drawPortalBeacons(state));
     timeCombatProfiler("draw.cargoBoxes", ()=>drawCargoBoxes({ctx, camera, cache, cargoBoxes:state.cargo.getCargoBoxes()}));
     timeCombatProfiler("draw.enemies", ()=>drawEnemies({ctx, camera, cache, enemies, selectedEnemy}));
+    timeCombatProfiler("draw.ancientEnemyOverlays", ()=>ancientEncounter.drawEnemyOverlays(state));
+    timeCombatProfiler("draw.kharonHazards", ()=>kharonEncounter.drawHazards(state));
     timeCombatProfiler("draw.impactEffects", ()=>drawImpactEffects({ctx, camera, impactEffects, showExplosions:graphicsEffects.explosionsImpacts !== false, showSparksSmoke:graphicsEffects.impactSparksSmoke !== false}));
     if(graphicsEffects.laserBeams !== false) timeCombatProfiler("draw.beams", ()=>drawBeams({ctx, camera, beams:beams.getBeams()}));
-    timeCombatProfiler("draw.portalAlly", drawPortalAlly);
+    timeCombatProfiler("draw.portalAlly", ()=>drawPortalAlly(state));
+    timeCombatProfiler("draw.vesperAllies", ()=>vesperEncounter.drawAllies(state));
+    timeCombatProfiler("draw.ancientAllies", ()=>ancientEncounter.drawAllies(state));
     const rank = getCurrentRank();
+    const localPilotIdentity = getLocalCombatPilotIdentity(store.state);
     timeCombatProfiler("draw.player", ()=>drawPlayerLayer({
       ctx,
       camera,
@@ -493,7 +546,10 @@ export function createCombatSceneRenderer({
       pilotFirmAssetPath:getFirmBadgeAsset(store.state.player?.firmId),
       pilotName:store.state.player.name || "PILOTE",
       pilotRole:getLocalPlayerRole(),
-      pilotTitle:getPlayerTitle(),
+      pilotTitle:localPilotIdentity.pilotTitle,
+      pilotOrnamentId:localPilotIdentity.pilotOrnamentId,
+      mouse,
+      ornamentAnimationKey:"local-player",
       getItemFromInventoryUid,
       getDronePermanentUpgrade,
       droneFormation:store.state.activeDroneFormation,
@@ -501,7 +557,7 @@ export function createCombatSceneRenderer({
       profiles:engineProfiles,
       graphicsEffects
     }));
-    timeCombatProfiler("draw.portgun", drawPortgunChannel);
+    timeCombatProfiler("draw.portgun", ()=>drawPortgunChannel(state));
     timeCombatProfiler("draw.remotePlayers", ()=>drawRemotePlayers({
       ctx,
       camera,
@@ -513,19 +569,22 @@ export function createCombatSceneRenderer({
       selectedEnemy,
       player,
       enemies,
+      mouse,
       graphicsEffects
     }));
     if(!isCombatProfilerFlagEnabled("hideParticles")){
       timeCombatProfiler("draw.particles.repair", ()=>drawParticles({ctx, camera, particles, repairLayer:true, graphicsEffects}));
     }
-    timeCombatProfiler("draw.damageTexts", drawDamageTexts);
+    timeCombatProfiler("draw.damageTexts", ()=>drawDamageTexts(state));
+    if(graphicsEffects.portalEffects !== false) timeCombatProfiler("draw.sectorPortalFocus", ()=>drawSectorPortalTransferFocus({ctx,camera,transition:portalTransition || state.autoTravelTransition}));
+    if(graphicsEffects.portalEffects !== false) timeCombatProfiler("draw.azuronPortalFocus", ()=>drawAzuronPortalTransferFocus({ctx,camera,transition:portalTransition}));
     ctx.restore();
     canvas.__renderWidth = null;
     canvas.__renderHeight = null;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    timeCombatProfiler("draw.radiation", drawRadiationOverlay);
-    timeCombatProfiler("draw.minimap", drawMiniMap);
-    if(graphicsEffects.portalWarp !== false) timeCombatProfiler("draw.portalTransition", ()=>drawPortalTransitionOverlay({ctx, transition:portalTransition, maps:mapList, viewW, viewH}));
+    timeCombatProfiler("draw.radiation", ()=>drawRadiationOverlay(state));
+    timeCombatProfiler("draw.minimap", ()=>drawMiniMap(state));
+    if(graphicsEffects.portalWarp !== false) timeCombatProfiler("draw.portalTransition", ()=>drawPortalTransitionOverlay({ctx, transition:portalTransition || state.autoTravelTransition, maps:mapList, viewW, viewH}));
   }
 
   return {drawBackground, drawRadiationOverlay, drawDamageTexts, drawMiniMap, draw};

@@ -19,6 +19,9 @@ import { multiplayer } from "../multiplayer/client.js?v=20261018-map-transfer1";
 import { rankIcon, rankInline } from "./renderShared.js?v=20260726-kharon1";
 import { buildPreviewPilotProfile, installPilotProfileModal, registerPilotProfile } from "./playerProfileModal.js?v=20260726-kharon1";
 import { getLeaderboardPreviewRows } from "./leaderboardPreview.js";
+import { getServerRankAssignment } from "../core/rankAuthorityStore.js";
+import { getAssignedRankProgress } from "../shared/rankPresentation.js";
+import { getRankAssetPath } from "../data/ranks.js";
 
 let rankDetailsOpen = false;
 let rankDetailsEventsInstalled = false;
@@ -55,8 +58,9 @@ function isCurrentPlayerRow(row = {}){
 }
 
 function normalizeLeaderboardRow(row = {}, index = 0){
+  const assigned = getServerRankAssignment(String(row.key || row.id || ""));
   const points = Math.max(0, Number(row.points || 0));
-  const rank = row.rankId ? getRankById(row.rankId) : getRankForScore(points);
+  const rank = assigned ? getRankById(assigned.rankId) : row.rankId ? getRankById(row.rankId) : getRankForScore(points);
   const pilot = String(row.pilot || row.name || "Pilote").trim() || "Pilote";
   return {
     ...row,
@@ -70,7 +74,8 @@ function normalizeLeaderboardRow(row = {}, index = 0){
     kills:Math.max(0, Number(row.kills || row.totalKills || 0)),
     portals:Math.max(0, Number(row.portals || row.portalClears || 0)),
     rankId:rank.id,
-    grade:row.grade || rank.name,
+    grade:assigned ? rank.name : row.grade || rank.name,
+    ...(assigned && row.publicProfile ? {publicProfile:{...row.publicProfile, rank:{...row.publicProfile.rank, id:rank.id, name:rank.name, asset:getRankAssetPath(rank)}}} : {}),
     isPlayer:isCurrentPlayerRow(row)
   };
 }
@@ -94,6 +99,7 @@ function usesServerLeaderboard(){
 }
 
 function progressForScore(score, rankId = ""){
+  if(rankId) return getAssignedRankProgress(score, rankId);
   const current = rankId ? getRankById(rankId) : getRankForScore(score);
   const next = RANK_TABLE.find(rank=>rank.score > score) || null;
   if(!next) return {score, current, next:null, progress:100, remaining:0};
@@ -380,7 +386,7 @@ export function renderLeaderboard(){
   const serverMode = usesServerLeaderboard();
   const self = rows.find(row=>row.isPlayer) || rows[0];
   const progress = serverMode ? progressForScore(Number(self.points || 0), self.rankId) : getRankProgress();
-  const rank = serverMode ? getRankById(self.rankId) : getCurrentRank();
+  const rank = getCurrentRank();
   const next = serverMode ? progress.next : getNextRank();
   const breakdown = getRankBreakdown();
   const totalBreakdownPoints = breakdown.reduce((sum,row)=>sum + row.points, 0);
@@ -401,7 +407,7 @@ export function renderLeaderboard(){
       <article class="leaderboard-summary-card">
         <span class="tiny">POINTS TOTAUX</span>
         <strong>${fmt(progress.score)}</strong>
-        <small>${next ? `${fmt(progress.remaining)} points restants` : "Progression terminée"}</small>
+        <small>${next ? progress.placementRequired && !progress.remaining ? "Seuil atteint · place au classement requise" : `${fmt(progress.remaining)} points restants${progress.placementRequired ? " · classement requis" : ""}` : "Progression terminée"}</small>
       </article>
       <article class="leaderboard-summary-card">
         <span class="tiny">PROGRESSION</span>

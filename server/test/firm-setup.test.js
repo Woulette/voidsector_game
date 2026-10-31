@@ -211,6 +211,63 @@ test("player hello refuses an authenticated game entry when the beta player cap 
   assert.equal(socket.emitted.some(event=>event.event === "auth:error"), true);
 });
 
+test("player hello lets an authenticated ADMIN enter when the normal-player quota is full", ()=>{
+  const socket = makeSocket("admin-game");
+  const players = new Map([
+    ["existing-game", {
+      id:"existing-game",
+      accountId:"account-1",
+      account:{id:"account-1", username:"Pilot 1", role:"player"},
+      clientMode:"game",
+      connected:true,
+      state:{mapId:"0", hp:5000}
+    }],
+    [socket.id, {
+      id:socket.id,
+      accountId:"account-admin",
+      account:{id:"account-admin", username:"Admin", role:"ADMIN"},
+      clientMode:"launcher",
+      connected:true,
+      state:null
+    }]
+  ]);
+  let synced = false;
+
+  registerPlayerHandlers(socket, {
+    cleanName:value=>String(value || "Pilote"),
+    emitPlayers(){},
+    groups:new Map(),
+    guard:()=>true,
+    io:{sockets:{sockets:new Map([[socket.id, socket]])}, emit(){}},
+    logger:{warn(){}},
+    maxConcurrentGamePlayers:1,
+    players,
+    presence:{syncMovementLogoutState(){}, markActivity(){}, markCombat(){}, startLogout(){}},
+    profileManager:{
+      profileKeyForPlayer:()=>"account:admin",
+      listProfileEntries:()=>[]
+    },
+    publicPlayer:current=>current,
+    replaceGroupMemberId(){},
+    resumeQuestTimers(){},
+    setPlayerMap(){},
+    syncPlayerLifecycle(){},
+    syncPlayerStatusEffects(){},
+    syncProfileForPlayer(){ synced = true; }
+  });
+
+  socket.handlers.get("player:hello")({
+    name:"Admin",
+    clientMode:"game",
+    clientId:"client-admin"
+  });
+
+  assert.equal(players.get(socket.id).clientMode, "game");
+  assert.equal(socket.emitted.some(event=>event.event === "server:full"), false);
+  assert.equal(socket.emitted.some(event=>event.event === "auth:error"), false);
+  assert.equal(synced, true);
+});
+
 test("player hello disconnects disabled load-test bot accounts", ()=>{
   const socket = makeSocket("bot-game");
   const players = new Map([[
