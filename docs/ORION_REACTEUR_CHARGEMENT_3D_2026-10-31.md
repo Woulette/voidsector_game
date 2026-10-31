@@ -1,6 +1,6 @@
 # Orion : réacteur 3D et préparation de la scène
 
-État : réacteur publié le 31 octobre 2026 (`20261031-orion-reactor2`), puis courbure de la flamme corrigée (`20261031-orion-turn1`). Les 4 fichiers de cette correction sont vérifiés publiquement. Le serveur de jeu n’a pas redémarré.
+État : réacteur publié le 31 octobre 2026 (`20261031-orion-reactor2`), puis raccord flamme/fumée corrigé (`20261031-orion-join1`, qui remplace le réglage `20261031-orion-turn1`). Les 3 fichiers de cette correction sont vérifiés publiquement. Le serveur de jeu n’a pas redémarré.
 
 ## Réacteur
 
@@ -47,3 +47,14 @@ La vitesse de rotation provoque maintenant un retard latéral progressif du plas
 Le correctif ne crée aucune texture ni aucun lot de dessin supplémentaire et réutilise les tableaux existants. Il agrandit le petit volume de calcul du plasma pendant les virages ; son coût graphique dépend toujours de la surface visible. Une passe dans l’aperçu avec 30 Orion a relevé 0,30 ms de préparation médiane, 0,90 ms de rendu CPU médian et 16,7 ms d’intervalle d’image au 95e percentile, avec 364 496 octets de tableaux de réacteurs et zéro texture de réacteur. Ce résultat isolé ne mesure pas la mémoire totale du jeu et ne constitue pas une comparaison directe avec les passes précédentes.
 
 135 tests passent localement et en préparation distante, dont les nouveaux cas virage gauche/droite, redressement, attache et épaisseur du jet. Le navigateur public a chargé les trois modules `20261031-orion-turn1`, affiché le secteur 3D et la flamme lors d’une courte manœuvre dans la zone protégée, sans erreur nouvelle. Publication limitée aux trois modules de réacteur et à leurs adresses dans `index.html`. Sauvegarde : `/opt/avosoma-backups/20261031-orion-turn1-182846`. Preuves : `docs/ORION_REACTEUR_VIRAGES_PUBLICATION_2026-10-31.json` et `output/orion-turn-live-2026-10-31/`.
+
+
+## Raccord de la flamme à la fumée
+
+Le premier réglage de virage calculait la courbure du plasma séparément de la fumée et pouvait trop la dévier. Ce réglage est remplacé : la flamme suit désormais les positions du début de la traînée, reconverties dans le repère courant de la coque. Le calcul interpole les jeunes éléments déjà présents sans prolonger artificiellement leur courbe. Il tient compte du roulis et du déplacement de l’origine de la caméra. La déviation reste limitée dans les manœuvres brusques et la base reste fixée à la tuyère. Les éléments anciens repliés vers l’avant du vaisseau ne peuvent pas tirer la flamme autour de la coque.
+
+L’émission, la durée de vie, les couleurs, le volume et le mouvement de la fumée sont conservés. Aucun nouveau tableau de particules, texture ou lot de rendu n’est créé. Une matrice inverse est réutilisée par le système. L’aperçu de 30 Orion conserve 364 496 octets de tableaux pour les réacteurs, zéro texture de réacteur et trois lots partagés. La passe locale a relevé 0,30 ms de préparation médiane, 0,90 ms de rendu CPU médian et 12,6 ms d’intervalle d’image au 95e percentile. Ces chiffres ne mesurent pas la RAM totale ni les performances du MMO complet.
+
+135 tests passent sur le candidat local et distant. Les tests vérifient maintenant la proximité du centre de la flamme avec la traînée, leur recouvrement, l’attache et l’épaisseur du jet pendant des virages gauche/droite à 30/60/144 images/s, avec une origine de caméra mobile. Le navigateur public a confirmé les deux modules `20261031-orion-join1`, une flamme et 22 éléments de traînée pendant une manœuvre dans la zone protégée, sans nouvelle erreur. Une publication concurrente a été détectée avant déploiement : le candidat a été reconstruit sur sa nouvelle source pour la conserver.
+
+Publication limitée aux deux modules de réacteur et à leurs adresses dans `index.html`. Sauvegarde : `/opt/avosoma-backups/20261031-orion-join1-183935`. Preuves : `docs/ORION_REACTEUR_RACCORD_PUBLICATION_2026-10-31.json` et `output/orion-join-live-2026-10-31/`.

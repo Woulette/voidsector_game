@@ -1,0 +1,79 @@
+{
+  "version": "20261031-orion-join1",
+  "publishedAt": "2026-10-31T18:39:35.600583+00:00",
+  "sourceCommit": "3fbb2126",
+  "filesVerified": 3,
+  "guardedSources": 620,
+  "testsPassed": 135,
+  "scope": [
+    "src/game/render/shipThruster3d.js",
+    "src/game/render/shipThruster3dMotion.js",
+    "index.html"
+  ],
+  "backup": "/opt/avosoma-backups/20261031-orion-join1-183935",
+  "serverRestarted": false,
+  "servicePID": "2318326",
+  "serviceRestarts": "0",
+  "databaseReady": true,
+  "pendingWrites": 0,
+  "freshServerErrors": [],
+  "publicHashes": [
+    {
+      "path": "src/game/render/shipThruster3d.js",
+      "sha256": "4f2d04b283f1b52f8b3c170c7cc8822e43a2697387c1bc9ba60b8b91ad7c143d"
+    },
+    {
+      "path": "src/game/render/shipThruster3dMotion.js",
+      "sha256": "3ec24339b9a77a49d0488d4f633159201e8fc3c819f6ae06efae6b42f9d4646b"
+    },
+    {
+      "path": "index.html",
+      "sha256": "8ead7bad4a445bba70feb3392431b8d30323f71985ebd06ff084c48b34c95e0d"
+    }
+  ],
+  "browser": {
+    "url": "https://avosoma.absyrion.com/?mode=game",
+    "canvas": {
+      "drone3d": "{\"count\":3,\"batches\":1,\"triangles\":17760,\"variants\":1,\"capacity\":512,\"rejected\":0}",
+      "sceneLoading": "ready",
+      "thruster3d": "{\"ships\":1,\"plumes\":1,\"wakePoints\":22,\"states\":1,\"arrayBytes\":330392,\"textures\":0,\"maxDrawCalls\":3}",
+      "world3d": "ready",
+      "world3dActors": "1",
+      "world3dBeams": "0",
+      "world3dDrawCalls": "12",
+      "world3dHeadquarters": "ready",
+      "world3dServices": "2",
+      "world3dTargets": "[]",
+      "world3dTriangles": "96405",
+      "world3dZoom": "1"
+    },
+    "imports": {
+      "/src/game/render/shipThruster3d.js": "/src/game/render/shipThruster3d.js?v=20261031-orion-join1",
+      "/src/game/render/shipThruster3dMotion.js": "/src/game/render/shipThruster3dMotion.js?v=20261031-orion-join1"
+    },
+    "freshErrors": [],
+    "screenshot": "public-flame-smoke.png"
+  },
+  "isolatedPreviewMeasurement": {
+    "ships": 30,
+    "zoom": 1,
+    "engines": true,
+    "samples": 590,
+    "updateMedianMs": 0.2999999988824129,
+    "renderMedianMs": 0.900000000372529,
+    "frameP95Ms": 12.599999999998545,
+    "textures": 5,
+    "geometries": 8,
+    "thruster": {
+      "ships": 30,
+      "plumes": 30,
+      "wakePoints": 750,
+      "states": 30,
+      "arrayBytes": 364496,
+      "textures": 0,
+      "maxDrawCalls": 3
+    }
+  },
+  "wakeEmissionAndAppearanceChanged": false,
+  "sourceRefreshedAfterConcurrentDeployment": true
+}
