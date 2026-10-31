@@ -1,0 +1,72 @@
+{
+  "version": "20261031-zoom-orion2",
+  "publishedAt": "2026-10-31T17:06:59.547783+00:00",
+  "url": "https://avosoma.absyrion.com/",
+  "filesVerified": 10,
+  "watchedSources": 603,
+  "testsPassed": 110,
+  "normalZoomMinimum": 1,
+  "normalZoomMaximum": 1.8,
+  "existingOutsideMapFactor": 0.78,
+  "originalBackdropRestored": true,
+  "orionSurface": {
+    "environment": 0.35,
+    "normalStrength": 0.12,
+    "roughness": 0.58
+  },
+  "foregroundSamplingMinimum": 1.5,
+  "publicBrowser": {
+    "world3d": "ready",
+    "backdrop": "original",
+    "zoomAfterScrollOut": 1,
+    "newErrors": []
+  },
+  "servicePID": "2318326",
+  "serviceRestarts": "0",
+  "databaseReady": true,
+  "pendingWrites": 0,
+  "freshServerErrors": [],
+  "backup": "/opt/avosoma-backups/20261031-zoom-orion2-170659",
+  "publicHashes": [
+    {
+      "path": "src/game/systems/cameraZoom.js",
+      "sha256": "bea27cec52eecc7081248b311617aaea154ccec2ebe5467bdfe674ddf0782dee"
+    },
+    {
+      "path": "src/game/ui/inputBindings.js",
+      "sha256": "3eb32ff4d3ce7e785bd7b430e8880d263635fa534548fa73e28835a316689605"
+    },
+    {
+      "path": "src/game/systems/combatFrameUpdate.js",
+      "sha256": "4c4aa58d7fb87033b5a68de9d29ffb13edc00214b751070e922aa4ae5010caba"
+    },
+    {
+      "path": "src/game/combatOrchestrator.js",
+      "sha256": "e17dd188e162d1d6ed4778eebc6059cf0d41309b4ddfda96b042eb95b293552e"
+    },
+    {
+      "path": "src/data/shipModels3d.js",
+      "sha256": "c91f8db5827568e29228849771ceed42b8fa1fc460e187a8e76dbc007b3d3a07"
+    },
+    {
+      "path": "src/game/render/ship3dRenderer.js",
+      "sha256": "ce4945f38788a64a39a57b32d7ab60534523a38731d18b2f9f33093c541faf5e"
+    },
+    {
+      "path": "src/game/render/world.js",
+      "sha256": "1d4a3d06869c9c4b6f82c21ffae2789c940c4089312793ceae74046006dc79d3"
+    },
+    {
+      "path": "src/game/render/combatScene.js",
+      "sha256": "ac13e624481130dd32fd6a46e66fe8f4db202a29a4e2911fff2be66ec18c338f"
+    },
+    {
+      "path": "src/game/render/world3dRenderer.js",
+      "sha256": "cfafb1165c98a88997c1c24c9ecc79be79c58b46782dbb26b16ab4c29517aab7"
+    },
+    {
+      "path": "index.html",
+      "sha256": "5b1580b8b96b72cd4ff78ecdfe536a54c9f4e0939c141aa110f8c24806992aa3"
+    }
+  ]
+}

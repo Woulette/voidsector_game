@@ -5,6 +5,7 @@ import { isNoxPortal } from "../../data/noxPortal.js?v=20260726-nox1";
 import { isPrismaticPortal } from "../../data/prismaticPortal.js?v=20260726-prismatic1";
 import { isAncientPortal, resolveAncientPortalPoint } from "../../data/ancientPortal.js?v=20260726-ancient1";
 import { maxCombatProfilerMetric, setCombatProfilerMetric, timeCombatProfiler } from "./combatFrameProfiler.js?v=20260726-kharon1";
+import { updateCombatCameraZoom } from "./cameraZoom.js";
 
 export function createCombatFrameUpdateSystem({
   multiplayer,
@@ -313,8 +314,7 @@ export function createCombatFrameUpdateSystem({
     timeCombatProfiler("sim.particles", ()=>updateParticles(dt));
     timeCombatProfiler("sim.repairBot", ()=>updateRepairBot(dt));
     if(player.maxShield > 0) player.shield = Math.min(player.maxShield, player.shield + (player.regen || 0)*dt);
-    const targetZoom = isPlayerOutsideMap() ? 0.78 : 1;
-    camera.zoom = (camera.zoom || 1) + (targetZoom - (camera.zoom || 1)) * Math.min(1, dt * 4.5);
+    updateCombatCameraZoom(camera,dt,isPlayerOutsideMap());
     const cinematic = getState().portalCinematic;
     if(cinematic){
       const elapsed = performance.now() - Number(cinematic.startedAt || 0);

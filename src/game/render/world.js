@@ -1108,7 +1108,7 @@ export function drawWorldLayer(options){
   if(options.graphicsEffects?.backgroundAsteroids !== false) timeCombatProfiler("bg.layer.speedStars", ()=>drawCloseSpeedStars(options));
   // All scenery fades together; gameplay markers and the later combat/HUD layers stay visible.
   drawMapScenerySkyFade({ctx, map, camera, width:viewWidth(canvas), height:viewHeight(canvas)});
-  timeCombatProfiler("bg.layer.markers", ()=>drawWorldMarkers(options));
+  if(options.includeMarkers !== false) timeCombatProfiler("bg.layer.markers", ()=>drawWorldMarkers(options));
   if(bounded){
     ctx.restore();
     drawMapSceneryBoundary({ctx, map, camera});

@@ -58,8 +58,13 @@ export function createShip3dRenderer(){
       if(!object.isMesh) return;
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       for(const material of materials){
-        material.envMapIntensity = 1;
-        if(material.normalScale) material.normalScale.multiplyScalar(.65);
+        material.envMapIntensity = definition.surface?.environment ?? 1;
+        if(material.normalScale) material.normalScale.multiplyScalar(definition.surface?.normalStrength ?? .65);
+        if(definition.surface && material.roughnessMap){
+          // Stable broad highlights preserve the colored panels at gameplay size.
+          material.roughnessMap = null;
+          material.roughness = definition.surface.roughness;
+        }
         for(const key of ["map", "normalMap", "metalnessMap", "roughnessMap"]){
           if(material[key]) material[key].anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
         }

@@ -4,40 +4,21 @@ import { RoomEnvironment } from "../../../vendor/three-r187/RoomEnvironment.js";
 import { WORLD_MODELS_3D } from "../../data/worldModels3d.js";
 import { advanceShipFlightMotion, getShipFlightPose } from "./ship3dProjection.js";
 import { configureWorld3dCamera, worldPointToScene } from "./world3dProjection.js";
-import { projectMapSceneryLayer } from "./mapSceneryProjection.js?v=20261018-helion-depth1";
 import { sampleWorld3dBeam } from "./world3dBeams.js";
 
-const planetVertex = `varying vec3 vNormal;varying vec3 vPoint;
-  void main(){vNormal=normalize(mat3(modelMatrix)*normal);vPoint=position;
-  gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
-const planetFragment = `varying vec3 vNormal;varying vec3 vPoint;
-  float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
-  float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
-  return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
-    mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
-  float fbm(vec3 p){float a=.5,v=0.0;for(int i=0;i<5;i++){v+=noise(p)*a;p=p*2.07+vec3(11.7,3.1,9.2);a*=.5;}return v;}
-  void main(){vec3 p=normalize(vPoint);float terrain=fbm(p*7.0);
-    vec3 dark=vec3(.045,.009,.018),rust=vec3(.43,.075,.035),sand=vec3(.74,.25,.075);
-    vec3 albedo=mix(dark,rust,smoothstep(.3,.64,terrain));albedo=mix(albedo,sand,smoothstep(.59,.78,terrain));
-    float cloud=fbm(p*19.0+vec3(3.0));albedo+=vec3(.12,.065,.045)*smoothstep(.62,.77,cloud);
-    float day=max(0.0,dot(normalize(vNormal),normalize(vec3(-.65,.8,.6))));
-    vec3 color=albedo*(.10+day*1.8);color+=vec3(.35,.025,.004)*pow(max(0.0,.42-terrain),3.0)*8.0;
-    gl_FragColor=vec4(color,1.0);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-  }`;
-
-function seedRandom(seed){return ()=>{seed = (seed * 1664525 + 1013904223) >>> 0;return seed / 4294967296;};}
 function positionAt(object,x,y,height=0){const p=worldPointToScene({x,y,height});object.position.set(p.x,p.y,p.z);}
 
 export function createWorld3dRenderer(){
-  const renderer = new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:"high-performance"});
-  renderer.setPixelRatio(1);renderer.setClearColor(0x05040b,1);
+  const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:"high-performance"});
+  renderer.setPixelRatio(1);renderer.setClearColor(0x000000,0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;renderer.toneMappingExposure = .95;
   const surface = renderer.domElement;
   surface.setAttribute("aria-hidden","true");surface.dataset.sector3d = "true";
-  Object.assign(surface.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none",zIndex:"0"});
+  Object.assign(surface.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none",zIndex:"1"});
+  const backdrop = document.createElement("canvas"),backdropContext = backdrop.getContext("2d");
+  backdrop.setAttribute("aria-hidden","true");backdrop.dataset.sectorBackdrop="original";
+  Object.assign(backdrop.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none",zIndex:"0",background:"#05040b"});
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1,1,1,-1,.1,30000);
   const pmrem = new THREE.PMREMGenerator(renderer),room = new RoomEnvironment();
@@ -94,52 +75,6 @@ export function createWorld3dRenderer(){
 
   function buildDecor(currentMap,stations,portals){
     const root = new THREE.Group();scene.add(root);
-    const layers = [...(currentMap.parallaxScene?.backdrops || []),...(currentMap.parallaxScene?.images || [])];
-    const sprites = [];
-    for(const layer of layers){
-      if(layer.kind === "planet" || layer.kind === "asteroid") continue;
-      if(!layer.src) continue;
-      const texture = textureLoader.load(layer.src);texture.colorSpace = THREE.SRGBColorSpace;
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(layer.w,layer.h),new THREE.MeshBasicMaterial({
-        map:texture,transparent:true,opacity:layer.alpha ?? 1,depthWrite:false,
-        blending:layer.blend === "screen" ? THREE.AdditiveBlending : THREE.NormalBlending
-      }));
-      root.add(mesh);sprites.push({mesh,layer});
-    }
-    const planetLayer = layers.find(layer=>layer.kind === "planet");
-    let planet = null;
-    if(planetLayer){
-      planet = new THREE.Mesh(new THREE.SphereGeometry(planetLayer.w/2,64,40),new THREE.ShaderMaterial({vertexShader:planetVertex,fragmentShader:planetFragment}));
-      root.add(planet);
-    }
-    const rocks = layers.filter(layer=>layer.kind === "asteroid");
-    const rockGeometry = new THREE.IcosahedronGeometry(1,2);
-    const random = seedRandom(71031),vertices=rockGeometry.attributes.position;
-    for(let i=0;i<vertices.count;i++){
-      const x=vertices.getX(i),y=vertices.getY(i),z=vertices.getZ(i);
-      const scale=.84+.17*Math.sin(x*9+y*7+z*11);
-      vertices.setXYZ(i,x*scale,y*scale,z*scale);
-    }
-    rockGeometry.computeVertexNormals();
-    const grain = new Uint8Array(64*64*4);
-    for(let i=0;i<64*64;i++){
-      const value=Math.round(80+random()*140);
-      grain.set([value,value,value,255],i*4);
-    }
-    const bump = new THREE.DataTexture(grain,64,64);bump.wrapS=bump.wrapT=THREE.RepeatWrapping;bump.needsUpdate=true;
-    const rockMaterial = new THREE.MeshStandardMaterial({color:0x3b3230,roughness:.94,metalness:.08,bumpMap:bump,bumpScale:.045,envMapIntensity:.25});
-    const asteroids = new THREE.InstancedMesh(rockGeometry,rockMaterial,Math.max(1,rocks.length));
-    asteroids.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    asteroids.frustumCulled = false;
-    const rockStates = rocks.map(layer=>({layer,angle:random()*Math.PI*2,scale:.65+random()*.6}));
-    root.add(asteroids);
-    const starPositions = new Float32Array(1000*3),starColors = new Float32Array(1000*3);
-    for(let i=0;i<1000;i++){
-      starPositions[i*3]=(random()-.5)*15000;starPositions[i*3+1]=0;starPositions[i*3+2]=(random()-.5)*15000;
-      const value=.25+random()*.65;starColors.set([value*.8,value*.86,value],i*3);
-    }
-    const starsGeometry = new THREE.BufferGeometry();starsGeometry.setAttribute("position",new THREE.BufferAttribute(starPositions,3));starsGeometry.setAttribute("color",new THREE.BufferAttribute(starColors,3));
-    const stars = new THREE.Points(starsGeometry,new THREE.PointsMaterial({size:1.3,sizeAttenuation:false,vertexColors:true,transparent:true,opacity:.7,depthWrite:false}));root.add(stars);
     const hub = new THREE.Group();root.add(hub);
     const placeholder = new THREE.Mesh(new THREE.TorusGeometry(.43,.05,8,64),new THREE.MeshStandardMaterial({color:0x4e535d,roughness:.6,metalness:.75}));
     placeholder.rotation.x=-Math.PI/2;hub.add(placeholder);hub.scale.setScalar(currentMap.spawn.visual?.width || 1100);
@@ -157,7 +92,7 @@ export function createWorld3dRenderer(){
       return {group,station,loaded:false};
     });
     const portalNodes = createPortalNodes(root,portals);
-    return {root,sprites,planet,planetLayer,asteroids,rockStates,stars,hub,hubLoaded:false,stationNodes,portalNodes,portalSignature:portalSignature(portals)};
+    return {root,hub,hubLoaded:false,stationNodes,portalNodes,portalSignature:portalSignature(portals)};
   }
 
   function disposeDecor(root){
@@ -186,24 +121,6 @@ export function createWorld3dRenderer(){
   }
 
   function updateDecor(){
-    const zoom=view.camera.zoom || 1,width=view.width/zoom,height=view.height/zoom;
-    const projection = layer=>projectMapSceneryLayer({layer,camera:view.camera,viewWidth:width,viewHeight:height,defaultParallax:.1});
-    for(const {mesh,layer} of decor.sprites){
-      const point=projection(layer);positionAt(mesh,view.camera.x+point.x,view.camera.y+point.y,-6200+Number(layer.p || .1)*4200);
-      mesh.quaternion.copy(camera.quaternion);mesh.rotateZ(-Number(layer.rotation || 0));
-      mesh.visible = !layer.effect || view.graphicsEffects[layer.effect] !== false;
-    }
-    if(decor.planet){
-      const point=projection(decor.planetLayer);positionAt(decor.planet,view.camera.x+point.x,view.camera.y+point.y,-4200);
-      decor.planet.rotation.y=performance.now()/150000;
-    }
-    decor.rockStates.forEach(({layer,angle,scale},index)=>{
-      const point=projection(layer),p=worldPointToScene({x:view.camera.x+point.x,y:view.camera.y+point.y,height:-2100+layer.p*2000});
-      matrix.position.set(p.x,p.y,p.z);matrix.rotation.set(angle,angle*.7+performance.now()/120000,angle*.3);matrix.scale.set(layer.w*.5,layer.w*.42*scale,layer.w*.5);matrix.updateMatrix();
-      decor.asteroids.setMatrixAt(index,matrix.matrix);
-    });
-    decor.asteroids.instanceMatrix.needsUpdate=true;decor.asteroids.visible=view.graphicsEffects.backgroundAsteroids !== false;
-    positionAt(decor.stars,view.camera.x*.98+width/2,view.camera.y*.98+height/2,-7000);
     const headquarters=loadModel("headquarters");
     if(headquarters.status === "ready" && !decor.hubLoaded){
       decor.hub.clear();decor.hub.add(headquarters.template.clone(true));decor.hubLoaded=true;
@@ -222,13 +139,29 @@ export function createWorld3dRenderer(){
     view=options;frame++;
     if(canvas !== options.canvas){
       hide();canvas=options.canvas;previousBackground=canvas.style.background;
+      canvas.parentElement.insertBefore(backdrop,canvas);
       canvas.parentElement.insertBefore(surface,canvas);
-      canvas.style.position="relative";canvas.style.zIndex="1";
+      canvas.style.position="relative";canvas.style.zIndex="2";
     }
-    canvas.style.background="transparent";surface.style.display="block";
+    canvas.style.background="transparent";surface.style.display=backdrop.style.display="block";
     const ratio=Math.min(2,Math.max(1,options.dpr || 1));
-    const w=Math.round(options.width*ratio),h=Math.round(options.height*ratio);
-    if(w !== pixelWidth || h !== pixelHeight){renderer.setSize(w,h,false);pixelWidth=w;pixelHeight=h;}
+    // Supersample the small metallic hulls; keep the approved backdrop at its original scale.
+    const detailRatio=Math.max(1.5,ratio);
+    const w=Math.round(options.width*detailRatio),h=Math.round(options.height*detailRatio);
+    if(w !== pixelWidth || h !== pixelHeight){
+      renderer.setSize(w,h,false);pixelWidth=w;pixelHeight=h;
+    }
+    const backgroundWidth=Math.round(options.width*ratio),backgroundHeight=Math.round(options.height*ratio);
+    if(backdrop.width !== backgroundWidth || backdrop.height !== backgroundHeight){backdrop.width=backgroundWidth;backdrop.height=backgroundHeight;}
+    const zoom=options.camera.zoom || 1;
+    backdrop.__renderWidth=options.width/zoom;backdrop.__renderHeight=options.height/zoom;
+    backdrop.__viewWidth=options.width;backdrop.__viewHeight=options.height;
+    backdropContext.setTransform(1,0,0,1,0,0);backdropContext.clearRect(0,0,backgroundWidth,backgroundHeight);
+    backdropContext.save();
+    try{
+      backdropContext.setTransform(ratio*zoom,0,0,ratio*zoom,0,0);
+      options.drawBackdrop?.({context:backdropContext,surface:backdrop});
+    }finally{backdropContext.restore();}
     configureWorld3dCamera(camera,{x:options.camera.x,y:options.camera.y,zoom:options.camera.zoom || 1,width:options.width,height:options.height});
     if(map !== options.currentMap){
       if(decor){
@@ -338,6 +271,7 @@ export function createWorld3dRenderer(){
     canvas.dataset.world3dHeadquarters=decor.hubLoaded ? "ready" : "loading";
     canvas.dataset.world3dServices=String(decor.stationNodes.filter(node=>node.loaded).length);
     canvas.dataset.world3dBeams=String(beamCore.count);
+    canvas.dataset.world3dZoom=String(Number(view.camera.zoom.toFixed(3)));
     if(frame % 12 === 0){
       // Screen anchors let local QA compare the hulls with the existing click targets.
       const zoom=view.camera.zoom || 1;
@@ -346,6 +280,6 @@ export function createWorld3dRenderer(){
       })));
     }
   }
-  function hide(){surface.style.display="none";if(canvas){canvas.style.background=previousBackground;canvas.dataset.world3d="disabled";}}
+  function hide(){surface.style.display=backdrop.style.display="none";if(canvas){canvas.style.background=previousBackground;canvas.dataset.world3d="disabled";}}
   return {begin,finish,hide,enqueueShip,enqueueEnemy,enqueueBeams,isContextLost:()=>lost || renderer.getContext().isContextLost()};
 }

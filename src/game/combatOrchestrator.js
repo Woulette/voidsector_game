@@ -1342,6 +1342,7 @@ export function createCombatGame({renderAll, showToast}){
   }
 
   installCombatInputHandlers({
+    getCamera:()=>camera,
     canvas,
     isRunning:()=>running,
     isMovementLocked:()=>cargo.isMovementLocked?.() || Boolean(portalCinematic),

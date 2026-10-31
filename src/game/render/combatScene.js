@@ -87,12 +87,13 @@ export function createCombatSceneRenderer({
   const prismaticEncounter = createPrismaticEncounterRenderer({ctx, cache, getState});
   const ancientEncounter = createAncientEncounterRenderer({ctx, getState});
 
-  function drawBackground(state = getState()){
+  function drawBackground(state = getState(), {context=ctx,surface=canvas,includeMarkers=true}={}){
     const {currentMap, camera, nebulae, stars, dust, asteroids, player} = state;
     const safeAreas = getSafeAreas();
     drawWorldLayer({
-      ctx,
-      canvas,
+      ctx:context,
+      canvas:surface,
+      includeMarkers,
       cache,
       currentMap,
       camera,
@@ -513,7 +514,8 @@ export function createCombatSceneRenderer({
     setCombatProfilerMetric("draw.damageTexts.count", state.damageTexts?.length || 0);
     const sectorPortals = [...getMapPortals(currentMap),...getClosedMapPortals(currentMap)];
     const world3d = beginWorld3dFrame({canvas,camera,currentMap,graphicsEffects,player,
-      width:viewW,height:viewH,dpr,stations:getSpawnStations(),portals:sectorPortals});
+      width:viewW,height:viewH,dpr,stations:getSpawnStations(),portals:sectorPortals,
+      drawBackdrop:({context,surface})=>drawBackground(state,{context,surface,includeMarkers:false})});
     if(world3d) drawWorld3dNavigation({ctx,camera,currentMap,stations:getSpawnStations(),hoveredStation:getHoveredStation(),
       portals:sectorPortals,cache,graphicsEffects,player,portalTransition});
     else timeCombatProfiler("draw.background", ()=>drawBackground(state));

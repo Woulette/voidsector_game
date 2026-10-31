@@ -4,6 +4,7 @@ export const SHIP_MODELS_3D = Object.freeze({
     rotation:Object.freeze([0, 0, 0]),
     displayScale:.74,
     enginePortScale:1,
+    surface:Object.freeze({environment:.35,normalStrength:.12,roughness:.58}),
     credit:"Meshy 7.1 · modèle créé pour Avosoma"
   }),
   asterion:Object.freeze({

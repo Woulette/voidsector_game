@@ -1,6 +1,7 @@
 import { abilityIndexFromEvent, isEditableTarget, slotIndexFromEvent } from "../../core/keybinds.js?v=20260726-kharon1";
 import { installCombatActionBarInputHandlers, setCombatAssetDragImage } from "./combatActionBarInput.js";
 import { cycleCombatMeterMode } from "./combatMeterModes.js";
+import { installCombatWheelZoom } from "../systems/cameraZoom.js";
 
 function escapeHtml(value = ""){
   return String(value).replace(/[&<>"']/g, char=>({
@@ -22,6 +23,7 @@ export function installCombatInputHandlers({
   resize,
   saveState,
   getMouse,
+  getCamera = ()=>null,
   setMoveTarget,
   onManualNavigation = ()=>{},
   setMouseMoveHeld,
@@ -421,6 +423,7 @@ export function installCombatInputHandlers({
   });
   windowRef.addEventListener("keyup", ()=>{});
 
+  installCombatWheelZoom({canvas,getCamera,isRunning,isSettingsOpen,miniMapHitTest});
   canvas.addEventListener("contextmenu", e=>e.preventDefault());
   canvas.addEventListener("mousemove", e=>{
     const r = canvas.getBoundingClientRect();
