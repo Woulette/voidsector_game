@@ -68,7 +68,7 @@ export function createShip3dRenderer(){
     return {yaw, bank, asset, size:{x:size.x * scale, y:size.y * scale, z:size.z * scale}};
   }
 
-  function render(model, {angle = 0, engineAngle = angle, resolution:nextResolution = 256, inspection = null} = {}){
+  function render(model, {angle = 0, flightPose = null, resolution:nextResolution = 256, inspection = null} = {}){
     if(activeModel !== model){
       if(activeModel) scene.remove(activeModel.yaw);
       scene.add(model.yaw);
@@ -84,7 +84,7 @@ export function createShip3dRenderer(){
       camera.position.set(Math.sin(inspection.azimuth) * Math.sin(inspection.polar) * 5, Math.cos(inspection.polar) * 5, Math.cos(inspection.azimuth) * Math.sin(inspection.polar) * 5);
       camera.up.set(0, 1, 0);
     }else{
-      const pose = getShipFlightPose({angle, engineAngle});
+      const pose = flightPose || getShipFlightPose({angle});
       model.yaw.rotation.y = pose.yaw;
       model.bank.rotation.set(pose.pitch, 0, pose.roll);
       camera.position.set(0, Math.cos(pose.tilt) * 5, Math.sin(pose.tilt) * 5);

@@ -1,7 +1,8 @@
 import { getShipModel3d } from "../../data/shipModels3d.js";
-import { getShipFlightPose } from "./ship3dProjection.js";
+import { advanceShipFlightMotion, getShipFlightPose } from "./ship3dProjection.js";
 
 const models = new Map();
+const flightMotions = new WeakMap();
 let rendererPromise = null;
 
 function getRenderer(){
@@ -15,11 +16,20 @@ export function getShipModel3dStatus(ship){
 
 export function getActiveShipFlightPose(ship, player, enabled = true){
   const entry = models.get(ship?.id);
-  if(!enabled || entry?.status !== "ready" || entry.renderer.isContextLost()) return null;
-  return getShipFlightPose({
-    angle:Number(player.angle || 0) + Number(ship.renderAngleOffset || 0),
-    engineAngle:Number(player.engineAngle ?? player.angle ?? 0)
-  });
+  if(!enabled || entry?.status !== "ready" || entry.renderer.isContextLost()){
+    if(player.engineVfxState) flightMotions.delete(player.engineVfxState);
+    return null;
+  }
+  // Remote players recreate their drawing object every frame but retain this VFX object.
+  const key = player.engineVfxState ??= {};
+  let motion = flightMotions.get(key);
+  if(!motion || motion.shipId !== ship.id){
+    motion = {shipId:ship.id};
+    flightMotions.set(key, motion);
+  }
+  const angle = Number(player.angle || 0) + Number(ship.renderAngleOffset || 0);
+  advanceShipFlightMotion(motion, angle, performance.now() / 1000);
+  return getShipFlightPose({angle:motion.angle, roll:motion.roll, enginePortScale:getShipModel3d(ship).enginePortScale ?? 1});
 }
 
 export function prepareShipModel3d(ship){
@@ -42,7 +52,7 @@ export function prepareShipModel3d(ship){
   return entry.promise;
 }
 
-export function drawShipModel3d({ctx, camera, player, ship, position, enabled = true, inspection = null}){
+export function drawShipModel3d({ctx, camera, player, ship, position, enabled = true, inspection = null, flightPose = null}){
   if(!enabled || !getShipModel3d(ship)) return false;
   const x = position.x - camera.x;
   const y = position.y - camera.y;
@@ -60,7 +70,7 @@ export function drawShipModel3d({ctx, camera, player, ship, position, enabled = 
     const resolution = Math.min(inspection ? 1024 : 512, Math.max(128, Math.ceil(size * pixelRatio * (camera.zoom || 1))));
     const source = entry.renderer.render(entry.model, {
       angle:Number(player.angle || 0) + Number(ship.renderAngleOffset || 0),
-      engineAngle:Number(player.engineAngle ?? player.angle ?? 0),
+      flightPose:inspection ? null : flightPose || getActiveShipFlightPose(ship, player, enabled),
       resolution,
       inspection
     });

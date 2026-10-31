@@ -9,10 +9,12 @@
   <link rel="stylesheet" href="tools/ship-3d/preview.css">
   <script type="importmap">
   {"imports":{
-    "/src/game/render/player.js":"/src/game/render/player.js?v=20261031-volume1",
-    "/src/game/render/ship3d.js":"/src/game/render/ship3d.js?v=20261031-volume1",
-    "/src/game/render/ship3dRenderer.js":"/src/game/render/ship3dRenderer.js?v=20261031-volume1",
-    "/src/game/render/shipEngines.js":"/src/game/render/shipEngines.js?v=20261031-volume1"
+    "/src/data/shipModels3d.js":"/src/data/shipModels3d.js?v=20261031-turn2",
+    "/src/game/render/ship3dProjection.js":"/src/game/render/ship3dProjection.js?v=20261031-turn2",
+    "/src/game/render/player.js":"/src/game/render/player.js?v=20261031-turn2",
+    "/src/game/render/ship3d.js":"/src/game/render/ship3d.js?v=20261031-turn2",
+    "/src/game/render/ship3dRenderer.js":"/src/game/render/ship3dRenderer.js?v=20261031-turn2",
+    "/src/game/render/shipEngines.js":"/src/game/render/shipEngines.js?v=20261031-turn2"
   }}
   </script>
 </head>
@@ -25,7 +27,7 @@
   <aside class="panel">
     <div class="eyebrow">PREMIER VAISSEAU EN 3D</div>
     <h1>Asterion<span>Intercepteur spectral</span></h1>
-    <p class="intro">Une vue de vol inclinée pour voir l’épaisseur de la coque, ses flancs et ses réacteurs.</p>
+    <p class="intro">Une coque en volume qui s’incline dans les virages et se redresse en douceur.</p>
     <div class="tabs" role="tablist" aria-label="Mode de découverte">
       <button id="pilot" type="button" role="tab" aria-selected="true">Piloter</button>
       <button id="inspect" type="button" role="tab" aria-selected="false">Observer la coque</button>
@@ -43,6 +45,6 @@
   </aside>
   <div class="sector"><span class="live-dot"></span>HÉLION-01 <span class="sector-line"></span> VOL D’ESSAI</div>
   <div class="bottom"><span id="position">X 0 · Y 0</span><span id="hint">CLIQUE POUR PILOTER</span><span id="fps">—</span></div>
-  <script type="module" src="tools/ship-3d/preview.js?v=20261031-volume1"></script>
+  <script type="module" src="tools/ship-3d/preview.js?v=20261031-turn2"></script>
 </body>
 </html>

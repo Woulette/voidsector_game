@@ -907,14 +907,15 @@ export function drawPlayerLayer({
 }){
   const position = getPlayerDrawPosition(player);
   const flightPose = getActiveShipFlightPose(ship, player, graphicsEffects.shipModels3d !== false);
+  const enginePlayer = flightPose ? {...player, angle:flightPose.angle} : player;
   if(graphicsEffects.shipEngineTrail !== false
-    && !drawTexturedShipEngines({ctx, camera, cache, player, ship, defaultProfile, profiles, flightPose})){
-    drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles, flightPose});
+    && !drawTexturedShipEngines({ctx, camera, cache, player:enginePlayer, ship, defaultProfile, profiles, flightPose})){
+    drawPlayerEngineTrail({ctx, camera, player:enginePlayer, ship, defaultProfile, profiles, flightPose});
   }
   drawPlayerStatusBars({ctx, camera, player});
   drawEliteLaserCharges({ctx, camera, player, ship});
   drawSpectralDoubleShotCharge({ctx, camera, player, ship});
-  if(!drawShipModel3d({ctx, camera, player, ship, position, enabled:graphicsEffects.shipModels3d !== false})) drawRotatedImage({
+  if(!drawShipModel3d({ctx, camera, player, ship, position, enabled:graphicsEffects.shipModels3d !== false, flightPose})) drawRotatedImage({
     ctx,
     camera,
     img:getCachedCombatImage(cache, ship.combatImg || ship.img),

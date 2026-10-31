@@ -58,6 +58,7 @@ document.getElementById("mode2d").onclick = ()=>select3d(false);
 document.getElementById("zoom").oninput = event=>{camera.zoom = Number(event.target.value);};
 document.getElementById("reset").onclick = ()=>{
   player.x = player.y = player.vx = player.vy = player.enginePower = 0;
+  player.engineVfxState = {};
   player.angle = player.engineAngle = INITIAL_HEADING; destination = null; azimuth = .5; polar = .65;
 };
 document.getElementById("view-top").onclick = ()=>{polar = .03;azimuth = Math.PI;autoRotate = false;updateRotationButton();};
