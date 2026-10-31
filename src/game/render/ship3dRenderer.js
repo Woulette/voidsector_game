@@ -1,8 +1,7 @@
 import * as THREE from "../../../vendor/three-r187/three.module.js";
 import { GLTFLoader } from "../../../vendor/three-r187/GLTFLoader.js";
 import { RoomEnvironment } from "../../../vendor/three-r187/RoomEnvironment.js";
-
-const clamp = (value, min, max)=>Math.max(min, Math.min(max, value));
+import { getShipFlightPose } from "./ship3dProjection.js";
 
 export function createShip3dRenderer(){
   const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, powerPreference:"high-performance"});
@@ -69,7 +68,7 @@ export function createShip3dRenderer(){
     return {yaw, bank, asset, size:{x:size.x * scale, y:size.y * scale, z:size.z * scale}};
   }
 
-  function render(model, {angle = 0, engineAngle = angle, enginePower = 0, resolution:nextResolution = 256, inspection = null} = {}){
+  function render(model, {angle = 0, engineAngle = angle, resolution:nextResolution = 256, inspection = null} = {}){
     if(activeModel !== model){
       if(activeModel) scene.remove(activeModel.yaw);
       scene.add(model.yaw);
@@ -79,15 +78,17 @@ export function createShip3dRenderer(){
       resolution = nextResolution;
       renderer.setSize(resolution, resolution, false);
     }
-    const turn = Math.atan2(Math.sin(engineAngle - angle), Math.cos(engineAngle - angle));
-    model.yaw.rotation.y = -angle;
-    model.bank.rotation.set(.10 + clamp(enginePower, 0, 1) * .025, 0, clamp(turn * .45, -.18, .18));
     if(inspection){
+      model.yaw.rotation.y = -angle;
+      model.bank.rotation.set(.10, 0, 0);
       camera.position.set(Math.sin(inspection.azimuth) * Math.sin(inspection.polar) * 5, Math.cos(inspection.polar) * 5, Math.cos(inspection.azimuth) * Math.sin(inspection.polar) * 5);
       camera.up.set(0, 1, 0);
     }else{
-      camera.position.set(0, 5, 0);
-      camera.up.set(0, 0, -1);
+      const pose = getShipFlightPose({angle, engineAngle});
+      model.yaw.rotation.y = pose.yaw;
+      model.bank.rotation.set(pose.pitch, 0, pose.roll);
+      camera.position.set(0, Math.cos(pose.tilt) * 5, Math.sin(pose.tilt) * 5);
+      camera.up.set(0, 1, 0);
     }
     camera.lookAt(0, 0, 0);
     renderer.render(scene, camera);

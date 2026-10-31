@@ -1,6 +1,7 @@
 import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1";
 import { clamp } from "./vfxPrimitives.js";
 import { advanceEngineWake, drawEngineWake } from "./shipEngineWake.js";
+import { projectShipEnginePorts } from "./ship3dProjection.js";
 
 export const ENGINE_TEXTURE_PATH = "assets/vfx/thruster-plasma-v2.webp";
 const FRAME_COUNT = 8;
@@ -111,7 +112,7 @@ function drawFrame(ctx, atlas, index, jet, opacity){
   }
 }
 
-function drawShipEngineJets(ctx, player, ship, time, dt, state, bend, shipImage, profile){
+function drawShipEngineJets(ctx, player, ship, time, dt, state, bend, shipImage, profile, flightPose){
   if(!sourceAtlas) return;
   const style = engineStyle(ship);
   const heavy = style === "heavy";
@@ -123,7 +124,7 @@ function drawShipEngineJets(ctx, player, ship, time, dt, state, bend, shipImage,
   const power = state.power;
   state.bend ??= bend;
   state.bend += (bend - state.bend) * (1 - Math.exp(-dt * 9));
-  const ports = nozzleLayout(ship, shipImage, profile);
+  const ports = projectShipEnginePorts(nozzleLayout(ship, shipImage, profile), flightPose);
   const jets = ports.map(port=>engineJetSpec(ship, port, power, state.bend));
   const cos = Math.cos(player.angle), sin = Math.sin(player.angle);
   const emitters = ports.map((port, index)=>{
@@ -170,7 +171,7 @@ export function isTexturedShipEngineReady(){
   return Boolean(sourceAtlas?.naturalWidth);
 }
 
-export function drawTexturedShipEngines({ctx, camera, cache, player, ship, defaultProfile, profiles}){
+export function drawTexturedShipEngines({ctx, camera, cache, player, ship, defaultProfile, profiles, flightPose = null}){
   const texture = getCachedCombatImage(cache, ENGINE_TEXTURE_PATH);
   if(!texture?.complete || !texture.naturalWidth) return false;
   if(texture !== sourceAtlas) setEngineTexture(texture);
@@ -194,7 +195,7 @@ export function drawTexturedShipEngines({ctx, camera, cache, player, ship, defau
   ctx.save();
   ctx.translate(-Number(camera.x || 0), -Number(camera.y || 0));
   drawShipEngineJets(ctx, {...player, ...position}, ship, now, dt, state, bend,
-    getCachedCombatImage(cache, ship.combatImg || ship.img), profile);
+    getCachedCombatImage(cache, ship.combatImg || ship.img), profile, flightPose);
   ctx.restore();
   state.lastAngle = angle;
   state.lastTime = now;

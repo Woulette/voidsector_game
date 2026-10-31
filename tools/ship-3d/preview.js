@@ -1,6 +1,7 @@
 import { ships } from "../../src/data/ships.js";
 import { drawPlayerLayer, drawRotatedImage } from "../../src/game/render/player.js";
-import { drawShipModel3d, prepareShipModel3d, getShipModel3dStatus } from "../../src/game/render/ship3d.js";
+import { drawShipModel3d, prepareShipModel3d, getShipModel3dStatus, getActiveShipFlightPose } from "../../src/game/render/ship3d.js";
+import { projectShipFlightPoint } from "../../src/game/render/ship3dProjection.js";
 import { DEFAULT_ENGINE_PROFILE, SHIP_ENGINE_PROFILES } from "../../src/game/combatData/engineProfiles.js";
 import { HELION_ONE_ASSETS } from "../../src/game/combatData/helionOneVisuals.js";
 
@@ -10,7 +11,8 @@ const originalShip = ships.find(ship=>ship.id === "asterion");
 const cache = {};
 const images = {};
 const keys = new Set();
-const player = {x:0,y:0,vx:0,vy:0,angle:0,engineAngle:0,enginePower:0,speed:330,hp:180000,maxHp:180000,shield:120000,maxShield:120000};
+const INITIAL_HEADING = -2.2;
+const player = {x:0,y:0,vx:0,vy:0,angle:INITIAL_HEADING,engineAngle:INITIAL_HEADING,enginePower:0,speed:330,hp:180000,maxHp:180000,shield:120000,maxShield:120000};
 const camera = {x:0,y:0,zoom:1.6};
 const status = document.getElementById("model-status");
 let width = 0, height = 0, last = 0, frameCount = 0, fpsTime = 0;
@@ -56,7 +58,7 @@ document.getElementById("mode2d").onclick = ()=>select3d(false);
 document.getElementById("zoom").oninput = event=>{camera.zoom = Number(event.target.value);};
 document.getElementById("reset").onclick = ()=>{
   player.x = player.y = player.vx = player.vy = player.enginePower = 0;
-  player.angle = player.engineAngle = 0; destination = null; azimuth = .5; polar = .65;
+  player.angle = player.engineAngle = INITIAL_HEADING; destination = null; azimuth = .5; polar = .65;
 };
 document.getElementById("view-top").onclick = ()=>{polar = .03;azimuth = Math.PI;autoRotate = false;updateRotationButton();};
 document.getElementById("view-angle").onclick = ()=>{polar = .8;azimuth = .65;};
@@ -160,7 +162,12 @@ function drawFlight(time){
   }
   if(time < laserUntil){
     ctx.save();ctx.strokeStyle = "#ff6376";ctx.lineWidth = 2;ctx.shadowColor = "#ff3d5b";ctx.shadowBlur = 12;
-    for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(player.x-camera.x+side*22,player.y-camera.y-15);ctx.lineTo(target.x-camera.x,target.y-camera.y);ctx.stroke();}ctx.restore();
+    const pose = getActiveShipFlightPose(originalShip, player, use3d);
+    for(const side of [-1,1]){
+      const x = side * 22, y = -15;
+      const origin = pose ? projectShipFlightPoint({x,y},pose) : {x:x*Math.cos(player.angle)-y*Math.sin(player.angle),y:x*Math.sin(player.angle)+y*Math.cos(player.angle)};
+      ctx.beginPath();ctx.moveTo(player.x-camera.x+origin.x,player.y-camera.y+origin.y);ctx.lineTo(target.x-camera.x,target.y-camera.y);ctx.stroke();
+    }ctx.restore();
   }
   drawPlayerLayer({ctx,camera,cache,player,ship:originalShip,drones:[],rank:{},rankAssetPath:"",pilotFirmAssetPath:"",pilotName:"ASTERION",pilotRole:"",getItemFromInventoryUid:()=>null,getDronePermanentUpgrade:()=>false,defaultProfile:DEFAULT_ENGINE_PROFILE,profiles:SHIP_ENGINE_PROFILES,graphicsEffects:{shipModels3d:use3d,combatDrones:false,repairDrone:false}});
   ctx.restore();canvas.__renderWidth = canvas.__renderHeight = null;

@@ -2,7 +2,8 @@ import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1"
 import { drawTexturedShipEngines, isTexturedShipEngineReady } from "./shipEngines.js";
 import { drawRepairDrone } from "./repairDrone.js?v=20261024-repair1";
 import { drawPlayerShieldImpacts } from "./playerShieldImpacts.js";
-import { drawShipModel3d } from "./ship3d.js";
+import { drawShipModel3d, getActiveShipFlightPose } from "./ship3d.js";
+import { projectShipEnginePorts } from "./ship3dProjection.js";
 
 export function drawRotatedImage({ctx, camera, img, x, y, w, h, angle, fallbackColor = "#38bdf8"}){
   ctx.save();
@@ -288,7 +289,7 @@ export function spawnPlayerEngineParticles({dt, player, ship, particles, default
   }
 }
 
-function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles}){
+function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles, flightPose = null}){
   if(!player) return;
   const power = Math.max(0, Math.min(1, player.enginePower || 0));
   if(power <= 0.02) return;
@@ -300,7 +301,7 @@ function drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profi
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
 
-  profile.ports.forEach((port, index)=>{
+  projectShipEnginePorts(profile.ports, flightPose).forEach((port, index)=>{
     const size = port.size || 1;
     const pulse = .92 + Math.sin(time * 25 + index * 1.7) * .07 + Math.sin(time * 51 + index) * .03;
     const length = ((profile.baseLength || 22) + power * (profile.powerLength || 30)) * size * (port.length || 1) * pulse;
@@ -905,9 +906,10 @@ export function drawPlayerLayer({
   graphicsEffects = {}
 }){
   const position = getPlayerDrawPosition(player);
+  const flightPose = getActiveShipFlightPose(ship, player, graphicsEffects.shipModels3d !== false);
   if(graphicsEffects.shipEngineTrail !== false
-    && !drawTexturedShipEngines({ctx, camera, cache, player, ship, defaultProfile, profiles})){
-    drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles});
+    && !drawTexturedShipEngines({ctx, camera, cache, player, ship, defaultProfile, profiles, flightPose})){
+    drawPlayerEngineTrail({ctx, camera, player, ship, defaultProfile, profiles, flightPose});
   }
   drawPlayerStatusBars({ctx, camera, player});
   drawEliteLaserCharges({ctx, camera, player, ship});

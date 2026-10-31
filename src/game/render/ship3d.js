@@ -1,4 +1,5 @@
 import { getShipModel3d } from "../../data/shipModels3d.js";
+import { getShipFlightPose } from "./ship3dProjection.js";
 
 const models = new Map();
 let rendererPromise = null;
@@ -10,6 +11,15 @@ function getRenderer(){
 export function getShipModel3dStatus(ship){
   if(!getShipModel3d(ship)) return "unavailable";
   return models.get(ship.id)?.status || "idle";
+}
+
+export function getActiveShipFlightPose(ship, player, enabled = true){
+  const entry = models.get(ship?.id);
+  if(!enabled || entry?.status !== "ready" || entry.renderer.isContextLost()) return null;
+  return getShipFlightPose({
+    angle:Number(player.angle || 0) + Number(ship.renderAngleOffset || 0),
+    engineAngle:Number(player.engineAngle ?? player.angle ?? 0)
+  });
 }
 
 export function prepareShipModel3d(ship){
@@ -51,7 +61,6 @@ export function drawShipModel3d({ctx, camera, player, ship, position, enabled = 
     const source = entry.renderer.render(entry.model, {
       angle:Number(player.angle || 0) + Number(ship.renderAngleOffset || 0),
       engineAngle:Number(player.engineAngle ?? player.angle ?? 0),
-      enginePower:Number(player.enginePower || 0),
       resolution,
       inspection
     });
