@@ -25,7 +25,7 @@ export function createShipThruster3dSystem(scene,{maxShips=128}={}){
   const plumes=instances(plumeGeometry,plumeMaterial,maxShips,true);
   const wakes=instances(wakeGeometry,wakeMaterial,maxShips*THRUSTER_WAKE_CAPACITY,true);
   const batches=[nozzles,plumes,wakes];
-  const local=new THREE.Object3D(),matrix=new THREE.Matrix4(),emitter=new THREE.Vector3(),direction=new THREE.Vector3(),tail=new THREE.Vector3();
+  const local=new THREE.Object3D(),matrix=new THREE.Matrix4(),inverse=new THREE.Matrix4(),emitter=new THREE.Vector3(),direction=new THREE.Vector3(),tail=new THREE.Vector3();
   const color=new THREE.Color(),offset=new THREE.Vector3();
   let now=0;
 
@@ -48,8 +48,9 @@ export function createShipThruster3dSystem(scene,{maxShips=128}={}){
     local.position.set(0,-.008,.36);local.rotation.set(0,0,0);local.scale.set(1,1,1);local.updateMatrix();
     matrix.multiplyMatrices(transform,local.matrix);nozzles.setMatrixAt(nozzles.count++,matrix);
     if(state.power>.008 && enabled){
-      configureThrusterPlume(state);
-      local.position.set(state.plumeCurve*.5,-.008,.388);
+      inverse.copy(transform).invert();configureThrusterPlume(state,inverse.elements,offset);
+      local.position.set(state.plumeCurveX*.5,-.008+state.plumeCurveY*.5,.388);
+      local.rotation.set(0,0,state.plumeRotation);
       local.scale.set(state.plumeWidth,.15,state.plumeLength);local.updateMatrix();
       matrix.multiplyMatrices(transform,local.matrix);plumes.setMatrixAt(plumes.count,matrix);
       color.setRGB(state.power,state.plumeBend,(nozzles.count%17)/17);plumes.setColorAt(plumes.count++,color);

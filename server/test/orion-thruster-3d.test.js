@@ -75,31 +75,70 @@ test("the nozzle uses this frame's hull position and bank matrix before the rend
   system.dispose();
 });
 
-test("the flame visibly lags both turning directions and settles straight after the turn", ()=>{
-  for(const sign of [-1,1]){
-    const state=createThrusterMotion();
-    for(let i=0;i<=60;i++) advanceThrusterMotion(state,{...options,time:i/60,angle:sign*i/30});
-    assert(sign*state.bend>.4,"a sustained turn must produce a visible tail deflection");
-    for(let i=61;i<=150;i++) advanceThrusterMotion(state,{...options,time:i/60,angle:sign*2});
-    assert(Math.abs(state.bend)<.001,"the flame must settle after steering stops");
+function turningFlight({fps=60,rate=1.5,check=()=>{},stop=false}={}){
+  const scene=new THREE.Scene(),system=createShipThruster3dSystem(scene),object=new THREE.Group(),bank=new THREE.Group();
+  object.add(bank);object.scale.setScalar(96);
+  let x=40000,z=-23000,angle=0;
+  const total=(stop ? 3 : 2)*fps;
+  for(let frame=0;frame<=total;frame++){
+    const time=frame/fps,turn=time>.5 && time<1.8 ? rate : 0;
+    angle+=turn/fps;x+=Math.sin(angle)*318/fps;z-=Math.cos(angle)*318/fps;
+    // Moving the camera origin must not change the shared flame/smoke path.
+    const offset={x:40000+frame*.7,y:0,z:-23000+frame*.2};
+    object.position.set(x-offset.x,0,z-offset.z);object.rotation.y=-angle;bank.rotation.z=-turn*.1;
+    system.begin(time);system.enqueue({key:object,object,power:1,angle,worldOffset:offset});system.finish();
+    if(time>1 && time<1.7 || frame===total) check({scene,object,bank,time});
+  }
+  system.dispose();
+}
+
+test("the flame connects to the existing smoke through left/right turns at different frame rates", ()=>{
+  for(const fps of [30,60,144]) for(const rate of [-3,-.8,.8,3]){
+    let bent=false;
+    turningFlight({fps,rate,check:({scene,bank,time})=>{
+      if(time>=1.7) return;
+      const plume=scene.children[1],wake=scene.children[2],matrix=new THREE.Matrix4(),wakeMatrix=new THREE.Matrix4();
+      plume.getMatrixAt(0,matrix);const bend=plume.instanceColor.getY(0);
+      const root=new THREE.Vector3(-bend*.5,0,0).applyMatrix4(matrix);
+      assert(root.distanceTo(new THREE.Vector3(0,-.008,.388).applyMatrix4(bank.matrixWorld))<.001,"root stays on the nozzle");
+      const tip=new THREE.Vector3(bend*.5,0,1).applyMatrix4(matrix);
+      const blend=new THREE.Vector3(bend*(.65*.65-.5),0,.65).applyMatrix4(matrix);
+      let distance=Infinity,blendDistance=Infinity,previous=null;
+      for(let i=0;i<wake.count;i++){
+        // Only the young, connected part of the smoke may guide the flame.
+        if(wake.instanceColor.getY(i)>.25/.85) continue;
+        wake.getMatrixAt(i,wakeMatrix);const point=new THREE.Vector3().setFromMatrixPosition(wakeMatrix);
+        if(previous){
+          const closest=new THREE.Line3(previous,point).closestPointToPoint(tip,true,new THREE.Vector3());
+          distance=Math.min(distance,tip.distanceTo(closest));
+          const overlap=new THREE.Line3(previous,point).closestPointToPoint(blend,true,new THREE.Vector3());
+          blendDistance=Math.min(blendDistance,blend.distanceTo(overlap));
+        }
+        previous=point;
+      }
+      // The source connects the newest wisp to the current emitter between
+      // 30 Hz emissions, including when rendering at that exact interval.
+      if(previous){
+        const source=new THREE.Vector3(0,-.008,.61).applyMatrix4(bank.matrixWorld);
+        const segment=new THREE.Line3(previous,source);
+        distance=Math.min(distance,tip.distanceTo(segment.closestPointToPoint(tip,true,new THREE.Vector3())));
+        blendDistance=Math.min(blendDistance,blend.distanceTo(segment.closestPointToPoint(blend,true,new THREE.Vector3())));
+      }
+      assert(distance<96*.04,`flame must join the smoke core (${fps} FPS, turn ${rate}, gap ${distance})`);
+      assert(blendDistance<96*.035,"the luminous flame and the start of the smoke must overlap");
+      const localTip=tip.clone().applyMatrix4(bank.matrixWorld.clone().invert());
+      assert(rate*localTip.x>0,"the flame follows the same side as the smoke");
+      const length=Math.hypot(...matrix.elements.slice(8,11));
+      assert(Math.hypot(localTip.x,localTip.y+.008)<=length/96*.301,"sharp turns cannot produce an exaggerated hook");
+      assert(Math.abs(Math.hypot(...matrix.elements.slice(4,7))-.15*96)<.001,"jet thickness stays constant");
+      if(bend>.01) bent=true;
+    }});
+    assert(bent,"the shared trajectory must retain a visible, restrained bend");
   }
 });
 
-test("the curved volume keeps its root on the nozzle and its thickness in either turn", ()=>{
-  for(const sign of [-1,1]){
-    const scene=new THREE.Scene(),system=createShipThruster3dSystem(scene),object=new THREE.Group();
-    const bank=new THREE.Group();object.add(bank);object.scale.setScalar(96);bank.rotation.z=.3;
-    for(let frame=0;frame<=60;frame++){
-      system.begin(frame/60);system.enqueue({key:object,object,power:1,angle:sign*frame/30});system.finish();
-    }
-    const plume=scene.children[1],matrix=new THREE.Matrix4();plume.getMatrixAt(0,matrix);
-    const bend=plume.instanceColor.getY(0),root=new THREE.Vector3(-bend*.5,0,0).applyMatrix4(matrix);
-    const attachment=new THREE.Vector3(0,-.008,.388).applyMatrix4(bank.matrixWorld);
-    assert(root.distanceTo(attachment)<.001,"the expanded volume must not move the flame attachment");
-    const tip=new THREE.Vector3(bend*.5,0,1).applyMatrix4(matrix);
-    const straight=new THREE.Vector3(0,-.008,.388+Math.hypot(...matrix.elements.slice(8,11))/96).applyMatrix4(bank.matrixWorld);
-    assert(sign*(tip.x-straight.x)>15,"the tail must bend clearly to the correct side");
-    assert(Math.abs(Math.hypot(...matrix.elements.slice(4,7))-.15*96)<.001,"bending must keep the jet thickness");
-    system.dispose();
-  }
+test("the flame settles with the smoke after steering stops instead of retaining its own bend", ()=>{
+  for(const rate of [-3,3]) turningFlight({rate,stop:true,check:({scene,time})=>{
+    if(time===3) assert(Math.abs(scene.children[1].instanceColor.getY(0))<.001);
+  }});
 });
