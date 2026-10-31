@@ -28,3 +28,8 @@ outputs/elite-lasers-2026-06-28/
 
 # Config load test local uniquement (secrets + overrides dev)
 server/loadtest.local.env
+
+# Local previews and historical work archives are saved on the pre-3D backup branch.
+output/
+backups/
+*.blend1

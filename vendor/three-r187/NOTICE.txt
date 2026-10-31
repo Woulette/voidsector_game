@@ -1,0 +1,2 @@
+Three.js 0.187.0, MIT license. Official npm package: https://registry.npmjs.org/three/-/three-0.187.0.tgz
+The addon import paths were changed to local relative imports. No CDN is required.

@@ -2,6 +2,7 @@ import { getCachedCombatImage } from "../combatAssets.js?v=20261022-helion-hub1"
 import { drawTexturedShipEngines, isTexturedShipEngineReady } from "./shipEngines.js";
 import { drawRepairDrone } from "./repairDrone.js?v=20261024-repair1";
 import { drawPlayerShieldImpacts } from "./playerShieldImpacts.js";
+import { drawShipModel3d } from "./ship3d.js";
 
 export function drawRotatedImage({ctx, camera, img, x, y, w, h, angle, fallbackColor = "#38bdf8"}){
   ctx.save();
@@ -911,7 +912,7 @@ export function drawPlayerLayer({
   drawPlayerStatusBars({ctx, camera, player});
   drawEliteLaserCharges({ctx, camera, player, ship});
   drawSpectralDoubleShotCharge({ctx, camera, player, ship});
-  drawRotatedImage({
+  if(!drawShipModel3d({ctx, camera, player, ship, position, enabled:graphicsEffects.shipModels3d !== false})) drawRotatedImage({
     ctx,
     camera,
     img:getCachedCombatImage(cache, ship.combatImg || ship.img),

@@ -4,6 +4,7 @@ export const GRAPHICS_EFFECT_GROUPS = [
     label:"Vaisseau",
     effects:[
       {id:"shipEngineTrail", label:"Réacteur / trail moteur"},
+      {id:"shipModels3d", label:"Vaisseaux 3D (si disponibles)"},
       {id:"combatDrones", label:"Drones de combat"},
       {id:"repairDrone", label:"Drone de réparation + faisceau"}
     ]

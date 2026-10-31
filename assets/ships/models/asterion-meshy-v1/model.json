@@ -1,0 +1,37 @@
+{
+  "name": "Asterion",
+  "taskId": "01a1923d-4680-706b-ae48-f38cef8a626e",
+  "provider": "Meshy",
+  "model": "meshy-7.1",
+  "created": "2026-10-31",
+  "credits": 30,
+  "reference": "assets/ships/Asterion.png",
+  "requestedTextures": "4k PBR",
+  "requestedTriangles": 20000,
+  "runtime": {
+    "bytes": 10204036,
+    "sha256": "f1ded853c7d8522631936700347c0768a5dddff62b0afd927e8da239dcef955d",
+    "triangles": 19609
+  },
+  "source": {
+    "bytes": 37370180,
+    "sha256": "621367ba6b20511b2d160e1fca210dd2f862176c936444a5666cb8ba9d270a69",
+    "nodes": [
+      {
+        "mesh": 0,
+        "name": "Mesh_0"
+      }
+    ],
+    "triangles": 19601
+  },
+  "finishing": {
+    "tool": "Blender 4.4.3",
+    "changes": [
+      "Heading corrected to -Z in glTF",
+      "Base color and normal textures reduced from 4096 to 2048 pixels",
+      "Metallic/roughness texture retained at 2048 pixels",
+      "Model exported as embedded GLB; editable packed Blender source retained",
+      "Four small cyan running-light panels added to match the reference design"
+    ]
+  }
+}

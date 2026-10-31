@@ -62,7 +62,7 @@ icacls "C:\Chemin\Vers\TaCle.key" /inheritance:r /grant:r "%USERNAME%:R"
 Depuis ton PC, dans PowerShell (depuis la racine du projet) :
 
 ```powershell
-Compress-Archive -Path "src","server","index.html","game.js","styles.css","assets","favicon.ico" -DestinationPath "voidsector-deploy.zip" -Force
+Compress-Archive -Path "src","server","index.html","game.js","styles.css","assets","vendor","favicon.ico" -DestinationPath "voidsector-deploy.zip" -Force
 scp -i "C:\Chemin\Vers\TaCle.key" voidsector-deploy.zip ubuntu@<IP_PUBLIQUE>:~/
 ```
 

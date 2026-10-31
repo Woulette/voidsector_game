@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="../../">
+  <title>Avosoma — Premier vol 3D</title>
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="tools/ship-3d/preview.css">
+</head>
+<body>
+  <canvas id="flight" tabindex="0" aria-label="Zone de vol : cliquer pour déplacer le vaisseau"></canvas>
+  <header>
+    <a class="wordmark" href="index.html">AVOSOMA<span>ATELIER DE VOL</span></a>
+    <span class="local">VERSION D’ESSAI LOCALE</span>
+  </header>
+  <aside class="panel">
+    <div class="eyebrow">PREMIER VAISSEAU EN 3D</div>
+    <h1>Asterion<span>Intercepteur spectral</span></h1>
+    <p class="intro">La même silhouette. Une coque qui prend du relief et réagit à la lumière.</p>
+    <div class="tabs" role="tablist" aria-label="Mode de découverte">
+      <button id="pilot" type="button" role="tab" aria-selected="true">Piloter</button>
+      <button id="inspect" type="button" role="tab" aria-selected="false">Observer la coque</button>
+    </div>
+    <div class="field"><span>Affichage du vaisseau</span><div class="choice">
+      <button id="mode3d" type="button" aria-pressed="true">3D</button>
+      <button id="mode2d" type="button" aria-pressed="false">Image 2D</button>
+    </div></div>
+    <div class="field"><span>Rapprocher la vue</span><input id="zoom" aria-label="Rapprocher la vue" type="range" min="0.8" max="3" step="0.1" value="1.6"></div>
+    <div id="flight-help" class="help"><strong>Clique dans l’espace pour voler.</strong><p>Tu peux aussi utiliser ZQSD, WASD ou les flèches. Espace : essai des lasers.</p></div>
+    <div id="inspect-help" class="help" hidden><strong>Fais glisser pour tourner autour.</strong><p>Examine l’épaisseur, les réacteurs et le dessous du vaisseau.</p><div class="view-buttons"><button id="view-top" type="button">Vue de dessus</button><button id="view-angle" type="button">Trois quarts</button><button id="rotate" type="button" aria-pressed="true">Rotation auto</button></div></div>
+    <button id="reset" type="button" class="reset">Recentrer le vaisseau <span>↗</span></button>
+    <div id="model-status" role="status" aria-live="polite">Chargement de la coque 3D…</div>
+    <p class="note">Vol libre de démonstration.<br>Aucune progression enregistrée.</p>
+  </aside>
+  <div class="sector"><span class="live-dot"></span>HÉLION-01 <span class="sector-line"></span> VOL D’ESSAI</div>
+  <div class="bottom"><span id="position">X 0 · Y 0</span><span id="hint">CLIQUE POUR PILOTER</span><span id="fps">—</span></div>
+  <script type="module" src="tools/ship-3d/preview.js"></script>
+</body>
+</html>

@@ -23,6 +23,7 @@ $frontendItems = @(
     "game.js",
     "styles.css",
     "assets",
+    "vendor",
     "favicon.ico",
     "robots.txt"
 )
