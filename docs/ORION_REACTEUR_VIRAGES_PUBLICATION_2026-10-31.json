@@ -1,0 +1,89 @@
+{
+  "version": "20261031-orion-turn1",
+  "publishedAt": "2026-10-31T18:28:46.445739+00:00",
+  "sourceCommit": "114b6551",
+  "filesVerified": 4,
+  "guardedSources": 615,
+  "testsPassed": 135,
+  "scope": [
+    "src/game/render/shipThruster3d.js",
+    "src/game/render/shipThruster3dMotion.js",
+    "src/game/render/shipThruster3dShaders.js",
+    "index.html"
+  ],
+  "backup": "/opt/avosoma-backups/20261031-orion-turn1-182846",
+  "serverRestarted": false,
+  "servicePID": "2318326",
+  "serviceRestarts": "0",
+  "databaseReady": true,
+  "pendingWrites": 0,
+  "freshServerErrors": [],
+  "publicHashes": [
+    {
+      "path": "src/game/render/shipThruster3d.js",
+      "sha256": "270a51b245b6d740327dbf3e52ff53f9da96de0f3384ee608206161ff24c5f2f"
+    },
+    {
+      "path": "src/game/render/shipThruster3dMotion.js",
+      "sha256": "0ca02e8be324d139b5abfff4cff3b5e8601eb370c06a2331da8f26504bd7f68b"
+    },
+    {
+      "path": "src/game/render/shipThruster3dShaders.js",
+      "sha256": "69636c536e459b5fb2f810767b19d9f9ab642d2e393d70cd7f77aa5b2bc21587"
+    },
+    {
+      "path": "index.html",
+      "sha256": "0171c1c42114a4e2998ba6348654fe082cbb768fd1bbbb7a1860780fad3b352b"
+    }
+  ],
+  "browser": {
+    "url": "https://avosoma.absyrion.com/?mode=game",
+    "canvas": {
+      "sceneLoading": "ready",
+      "thruster3d": "{\"ships\":1,\"plumes\":0,\"wakePoints\":0,\"states\":1,\"arrayBytes\":330392,\"textures\":0,\"maxDrawCalls\":3}",
+      "world3d": "ready",
+      "world3dActors": "1",
+      "world3dBeams": "0",
+      "world3dDrawCalls": "9",
+      "world3dHeadquarters": "ready",
+      "world3dServices": "2",
+      "world3dTargets": "[]",
+      "world3dTriangles": "78585",
+      "world3dZoom": "1"
+    },
+    "imports": {
+      "/src/game/render/shipThruster3d.js": "/src/game/render/shipThruster3d.js?v=20261031-orion-turn1",
+      "/src/game/render/shipThruster3d.js?v=20261031-orion-reactor1": "/src/game/render/shipThruster3d.js?v=20261031-orion-turn1",
+      "/src/game/render/shipThruster3d.js?v=20261031-orion-reactor2": "/src/game/render/shipThruster3d.js?v=20261031-orion-turn1",
+      "/src/game/render/shipThruster3dMotion.js": "/src/game/render/shipThruster3dMotion.js?v=20261031-orion-turn1",
+      "/src/game/render/shipThruster3dMotion.js?v=20261031-orion-reactor1": "/src/game/render/shipThruster3dMotion.js?v=20261031-orion-turn1",
+      "/src/game/render/shipThruster3dMotion.js?v=20261031-orion-reactor2": "/src/game/render/shipThruster3dMotion.js?v=20261031-orion-turn1",
+      "/src/game/render/shipThruster3dShaders.js": "/src/game/render/shipThruster3dShaders.js?v=20261031-orion-turn1",
+      "/src/game/render/shipThruster3dShaders.js?v=20261031-orion-reactor1": "/src/game/render/shipThruster3dShaders.js?v=20261031-orion-turn1",
+      "/src/game/render/shipThruster3dShaders.js?v=20261031-orion-reactor2": "/src/game/render/shipThruster3dShaders.js?v=20261031-orion-turn1"
+    },
+    "freshErrors": [],
+    "screenshot": "public-plasma-turn.png"
+  },
+  "isolatedPreviewMeasurement": {
+    "ships": 30,
+    "zoom": 1,
+    "engines": true,
+    "samples": 386,
+    "updateMedianMs": 0.2999999988824129,
+    "renderMedianMs": 0.900000000372529,
+    "frameP95Ms": 16.700000000000728,
+    "textures": 5,
+    "geometries": 8,
+    "thruster": {
+      "ships": 30,
+      "plumes": 30,
+      "wakePoints": 750,
+      "states": 30,
+      "arrayBytes": 364496,
+      "textures": 0,
+      "maxDrawCalls": 3
+    }
+  },
+  "wakeChanged": false
+}
