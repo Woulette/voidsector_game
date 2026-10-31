@@ -1,6 +1,6 @@
 import * as THREE from "../../../vendor/three-r187/three.module.js";
 import { plumeVertex,plumeFragment,wakeVertex,wakeFragment } from "./shipThruster3dShaders.js";
-import { createThrusterMotion,advanceThrusterMotion,THRUSTER_WAKE_CAPACITY,THRUSTER_WAKE_STRIDE,THRUSTER_WAKE_LIFETIME } from "./shipThruster3dMotion.js";
+import { createThrusterMotion,advanceThrusterMotion,configureThrusterPlume,THRUSTER_WAKE_CAPACITY,THRUSTER_WAKE_STRIDE,THRUSTER_WAKE_LIFETIME } from "./shipThruster3dMotion.js";
 
 export function createShipThruster3dSystem(scene,{maxShips=128}={}){
   const states=new Map();
@@ -48,9 +48,11 @@ export function createShipThruster3dSystem(scene,{maxShips=128}={}){
     local.position.set(0,-.008,.36);local.rotation.set(0,0,0);local.scale.set(1,1,1);local.updateMatrix();
     matrix.multiplyMatrices(transform,local.matrix);nozzles.setMatrixAt(nozzles.count++,matrix);
     if(state.power>.008 && enabled){
-      local.position.set(0,-.008,.388);local.scale.set(.18,.15,.12+Math.sqrt(state.power)*.33);local.updateMatrix();
+      configureThrusterPlume(state);
+      local.position.set(state.plumeCurve*.5,-.008,.388);
+      local.scale.set(state.plumeWidth,.15,state.plumeLength);local.updateMatrix();
       matrix.multiplyMatrices(transform,local.matrix);plumes.setMatrixAt(plumes.count,matrix);
-      color.setRGB(state.power,state.bend,(nozzles.count%17)/17);plumes.setColorAt(plumes.count++,color);
+      color.setRGB(state.power,state.plumeBend,(nozzles.count%17)/17);plumes.setColorAt(plumes.count++,color);
     }
     for(let i=0;i<state.count;i++){
       if(wakes.count>=wakes.instanceMatrix.count) break;

@@ -20,7 +20,9 @@ export function advanceThrusterMotion(state,{time,power,angle,emitter,direction,
   const target = enabled ? clamp(Number(power)||0,0,1) : 0;
   state.power += (target-state.power) * (1-Math.exp(-dt*(target<state.power ? 12 : 9)));
   const turn = Math.atan2(Math.sin(angle-state.angle),Math.cos(angle-state.angle));
-  const bend = dt > 0 ? clamp(-turn/dt*.06,-.6,.6) : 0;
+  // The tail keeps its previous bearing as the hull turns. Positive steering
+  // rotates the hull towards -Y, so the exhaust lags towards local +X.
+  const bend = dt > 0 ? clamp(turn/dt*.24,-.9,.9) : 0;
   state.bend += (bend-state.bend)*(1-Math.exp(-dt*9));
   const points=state.points;
   for(let i=0;i<state.count;i++){
@@ -50,5 +52,13 @@ export function advanceThrusterMotion(state,{time,power,angle,emitter,direction,
   }else state.clock=0;
   state.emitter[0]=emitter.x;state.emitter[1]=emitter.y;state.emitter[2]=emitter.z;
   state.angle=angle;state.time=time;
+  return state;
+}
+
+export function configureThrusterPlume(state){
+  state.plumeLength=.12+Math.sqrt(state.power)*.33;
+  state.plumeCurve=state.bend*state.plumeLength;
+  state.plumeWidth=.18+Math.abs(state.plumeCurve);
+  state.plumeBend=state.plumeCurve/state.plumeWidth;
   return state;
 }

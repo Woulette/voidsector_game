@@ -2,6 +2,7 @@ export const plumeVertex = /* glsl */`
 varying vec3 vLocal;
 varying vec3 vRay;
 varying vec3 vEngine;
+varying float vWidth;
 void main(){
   mat4 transform = modelViewMatrix * instanceMatrix;
   vLocal = position;
@@ -9,6 +10,7 @@ void main(){
     transform[1].z / dot(transform[1].xyz,transform[1].xyz),
     transform[2].z / dot(transform[2].xyz,transform[2].xyz));
   vEngine = instanceColor;
+  vWidth = length(transform[0].xyz)/length(transform[1].xyz)*(0.15/0.18);
   gl_Position = projectionMatrix * transform * vec4(position,1.0);
 }`;
 
@@ -19,6 +21,7 @@ uniform float time;
 varying vec3 vLocal;
 varying vec3 vRay;
 varying vec3 vEngine;
+varying float vWidth;
 void main(){
   vec3 ray = normalize(vRay);
   vec3 invRay = 1.0 / (ray + vec3(0.000001));
@@ -33,7 +36,9 @@ void main(){
   for(int i=0;i<12;i++){
     vec3 p = vLocal + ray*(start+(float(i)+0.5)*stepSize);
     float z=clamp(p.z,0.0,1.0);
-    vec2 radial=p.xy-vec2(vEngine.y*z*z*0.35,0.0);
+    // The box expands sideways around the bend, while the jet itself keeps
+    // its original thickness and stays fixed to the nozzle at z = 0.
+    vec2 radial=vec2((p.x-vEngine.y*(z*z-0.5))*vWidth,p.y);
     float pulse=0.91+0.09*cos(z*29.0-time*11.0+vEngine.z*6.28);
     float radius=(0.34*pow(max(0.0,1.0-z),0.68)+0.025)*pulse;
     float r=length(radial)/radius;

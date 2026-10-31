@@ -74,3 +74,32 @@ test("the nozzle uses this frame's hull position and bank matrix before the rend
   assert(Math.abs(matrix.elements[12]-(400+.36*96))<.001);assert(Math.abs(matrix.elements[14]-200)<.001);
   system.dispose();
 });
+
+test("the flame visibly lags both turning directions and settles straight after the turn", ()=>{
+  for(const sign of [-1,1]){
+    const state=createThrusterMotion();
+    for(let i=0;i<=60;i++) advanceThrusterMotion(state,{...options,time:i/60,angle:sign*i/30});
+    assert(sign*state.bend>.4,"a sustained turn must produce a visible tail deflection");
+    for(let i=61;i<=150;i++) advanceThrusterMotion(state,{...options,time:i/60,angle:sign*2});
+    assert(Math.abs(state.bend)<.001,"the flame must settle after steering stops");
+  }
+});
+
+test("the curved volume keeps its root on the nozzle and its thickness in either turn", ()=>{
+  for(const sign of [-1,1]){
+    const scene=new THREE.Scene(),system=createShipThruster3dSystem(scene),object=new THREE.Group();
+    const bank=new THREE.Group();object.add(bank);object.scale.setScalar(96);bank.rotation.z=.3;
+    for(let frame=0;frame<=60;frame++){
+      system.begin(frame/60);system.enqueue({key:object,object,power:1,angle:sign*frame/30});system.finish();
+    }
+    const plume=scene.children[1],matrix=new THREE.Matrix4();plume.getMatrixAt(0,matrix);
+    const bend=plume.instanceColor.getY(0),root=new THREE.Vector3(-bend*.5,0,0).applyMatrix4(matrix);
+    const attachment=new THREE.Vector3(0,-.008,.388).applyMatrix4(bank.matrixWorld);
+    assert(root.distanceTo(attachment)<.001,"the expanded volume must not move the flame attachment");
+    const tip=new THREE.Vector3(bend*.5,0,1).applyMatrix4(matrix);
+    const straight=new THREE.Vector3(0,-.008,.388+Math.hypot(...matrix.elements.slice(8,11))/96).applyMatrix4(bank.matrixWorld);
+    assert(sign*(tip.x-straight.x)>15,"the tail must bend clearly to the correct side");
+    assert(Math.abs(Math.hypot(...matrix.elements.slice(4,7))-.15*96)<.001,"bending must keep the jet thickness");
+    system.dispose();
+  }
+});
